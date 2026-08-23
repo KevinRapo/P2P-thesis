@@ -113,7 +113,10 @@ class RLTrainer:
         if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
             raise ValueError(f"The <evaluation_interval> must be a positive integer, got <evaluation_interval = {self.evaluation_interval}>.")
 
-        if not (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto") or (isinstance(self.evaluation_duration, int) and self.evaluation_duration <= 0):
+        if not (
+            (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto")
+            or (isinstance(self.evaluation_duration, int) and self.evaluation_duration > 0)
+        ):
             raise ValueError(f"The <evaluation_duration> must be a positive integer or 'auto', got <evaluation_duration = {self.evaluation_duration}>.")
 
         # Validate checkpoint frequency doesn't exceed iterations
@@ -445,19 +448,21 @@ class RLTrainer:
                                                                               checkpoint_at_end=True,
                                                                               num_to_keep=3)))
 
-        # Run the tuner and capture the results
-        results = tuner.fit()
+        try:
+            # Run the tuner and capture the results
+            results = tuner.fit()
 
-        # Save environment configuration
-        self._save_env_config(results)
+            # Save environment configuration
+            self._save_env_config(results)
 
-        # Extract metrics from the best result
-        metrics = self.get_best_metrics(results)
+            # Extract metrics from the best result
+            metrics = self.get_best_metrics(results)
 
-        # Shutdown ray
-        ray.shutdown()
-
-        return results, metrics
+            return results, metrics
+        finally:
+            # Ensure failed notebook runs do not leave Ray workers alive.
+            if ray.is_initialized():
+                ray.shutdown()
 
     def restore_experiment(self,
                            experiment_path: str,
@@ -490,19 +495,20 @@ class RLTrainer:
         if not ray.is_initialized():
             ray.init()
 
-        # Run the restored tuner and capture the results
-        results = tuner.fit()
+        try:
+            # Run the restored tuner and capture the results
+            results = tuner.fit()
 
-        # Save environment configuration to experiment directory
-        self._save_env_config(results)
+            # Save environment configuration to experiment directory
+            self._save_env_config(results)
 
-        # Extract metrics from the best result
-        metrics = self.get_best_metrics(results)
+            # Extract metrics from the best result
+            metrics = self.get_best_metrics(results)
 
-        # Shutdown ray
-        ray.shutdown()
-
-        return results, metrics
+            return results, metrics
+        finally:
+            if ray.is_initialized():
+                ray.shutdown()
 
     def train_checkpoint(self,
                          checkpoint_path: str,

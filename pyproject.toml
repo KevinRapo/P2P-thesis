@@ -1,0 +1,48 @@
+[project]
+name = "marlem"
+version = "0.1.0"
+description = "Multi-agent reinforcement learning simulation framework for local energy markets"
+readme = "README.md"
+requires-python = "==3.12.10"
+dependencies = [
+    "gymnasium==1.1.1",
+    "ipykernel",
+    "ipywidgets>=8.1.8",
+    "matplotlib",
+    "networkx==3.4.2",
+    "numpy",
+    "pandas",
+    "plotly",
+    "pydantic",
+    "pyomo",
+    "ray[rllib]==2.51.1",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "tensorboard==2.19.0",
+    "tensorboardx==2.6.2.2",
+    "torch==2.6.0",
+    "tqdm",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+notebook = [
+    "ipykernel",
+    "jupyter",
+]
+
+[tool.uv]
+# The repository is run directly from its existing src.* source tree.
+package = false
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
