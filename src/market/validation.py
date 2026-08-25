@@ -1,9 +1,4 @@
-"""
-Decentralized transaction validation for Local Energy Market.
-
-This module implements a blockchain-inspired validation mechanism for market transactions,
-ensuring decentralized verification without requiring a central authority.
-"""
+"""Optional tamper-evident settlement logging for the Local Energy Market."""
 
 import hashlib
 import json
@@ -30,7 +25,12 @@ class TransactionBlock:
                                      "seller_id": trade.seller_id,
                                      "price": float(trade.price),
                                      "quantity": float(trade.quantity),
-                                     "timestamp": float(trade.timestamp)} for trade in self.trades],
+                                     "timestamp": float(trade.timestamp),
+                                     "distance": float(trade.distance),
+                                     "transmission_loss": float(trade.transmission_loss),
+                                     "fees": float(trade.fees),
+                                     "buyer_order_id": trade.buyer_order_id,
+                                     "seller_order_id": trade.seller_order_id} for trade in self.trades],
                          "nonce": self.nonce}
 
         block_string = json.dumps(block_content, sort_keys=True)
@@ -39,7 +39,7 @@ class TransactionBlock:
 
 
 class Validator:
-    """Handles decentralized validation of market transactions."""
+    """Maintain an in-memory hash chain; this is not decentralized consensus."""
 
     def __init__(self,
                  difficulty: int = 2,
@@ -47,7 +47,8 @@ class Validator:
         """Initialize the validator.
 
         Args:
-            difficulty: Number of leading zeros required for proof of work
+            difficulty: Retained for backwards-compatible configuration. It has
+                no effect because settlement logging intentionally does no work.
         """
         # Initialize the validator
         self.chain: List[TransactionBlock] = []
@@ -101,12 +102,7 @@ class Validator:
                                      trades=self.pending_trades.copy(),
                                      nonce=0)
 
-        # Proof of work
-        while True:
-            new_block.hash = new_block.calculate_hash()
-            if new_block.hash.startswith("0" * self.difficulty):
-                break
-            new_block.nonce += 1
+        new_block.hash = new_block.calculate_hash()
 
         # Add validated block to chain
         self.chain.append(new_block)
@@ -128,10 +124,6 @@ class Validator:
 
             # Verify chain continuity
             if current.previous_hash != previous.hash:
-                return False
-
-            # Verify proof of work
-            if not current.hash.startswith("0" * self.difficulty):
                 return False
 
         return True

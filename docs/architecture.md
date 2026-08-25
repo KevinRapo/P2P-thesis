@@ -248,7 +248,10 @@ The form edits a typed `ScenarioSpec`; it does not create live `DERAgent`, `Grid
 
 - random or rule-based baseline;
 - PPO, APPO, or SAC;
-- DTDE, CTCE, and eventually validated CTDE;
+- DTDE and CTCE as a centralized-information baseline; CTDE only after validation.
+
+CTCE is not an upper bound or an optimizer. Its learned result is reported as a
+centralized-information baseline with both total and per-agent-normalized return.
 - training/evaluation seed sets;
 - iterations, evaluation frequency, and checkpoint policy;
 - CPU/GPU resource limits;

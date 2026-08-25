@@ -32,3 +32,10 @@ class Trade:
     distance: float = 0.0  # Distance between trading agents
     transmission_loss: float = 0.0  # Energy loss due to transmission
     fees: float = 0.0  # Grid-related fees collected by the DSO
+    buyer_order_id: Optional[str] = None
+    seller_order_id: Optional[str] = None
+
+    @property
+    def delivered_quantity(self) -> float:
+        """Energy received at the buyer boundary after transmission loss."""
+        return max(0.0, self.quantity - self.transmission_loss)

@@ -64,13 +64,25 @@ class LocalEnergyMarket(MultiAgentEnv):
         self.enable_asynchronous_order: bool = env_config.get("enable_asynchronous_order", True)
         self.max_error: float = env_config.get("max_error", 0.3)
         self.num_anchor: int = env_config.get("num_anchor", 4)
+        self.time_step_hours: float = env_config.get("time_step_hours", 1.0)
+        self.profile_values_are_power: bool = env_config.get("profile_values_are_power", False)
         self.seed: Optional[int] = env_config.get("seed", None)
+        self._rng = np.random.default_rng(self.seed)
 
         # Agents configuration
         _config_agents = env_config["agents"]
         self._agents: Dict[str, DERAgent] = {agent.id: agent for agent in _config_agents}
         self.agents_id: List[str] = [*self._agents.keys()]
+        self.agent_order: Tuple[str, ...] = tuple(self.agents_id)
         self.agents = self.possible_agents = set(self.agents_id)
+        if self.profile_values_are_power:
+            for agent in self._agents.values():
+                agent.generation_profile = [value * self.time_step_hours for value in agent.generation_profile]
+                agent.demand_profile = [value * self.time_step_hours for value in agent.demand_profile]
+        self._configured_profiles = {
+            agent.id: (list(agent.generation_profile), list(agent.demand_profile))
+            for agent in _config_agents
+        }
 
         # Check environment configuration
         self._set_default_values()
@@ -112,7 +124,8 @@ class LocalEnergyMarket(MultiAgentEnv):
         # Initialize action handler
         self.action_handler = ActionHandler(_config_agents,
                                             self.dso,
-                                            self.market_config)
+                                            self.market_config,
+                                            self.time_step_hours)
         self.action_spaces: spaces.Dict[str, spaces.Box] = self.action_handler.action_space
 
         # Initialize reward handler
@@ -156,6 +169,11 @@ class LocalEnergyMarket(MultiAgentEnv):
         # Check max_steps
         if not isinstance(env_config.get("max_steps"), int) or env_config.get("max_steps") <= 0:
             raise ValueError(f"The <max_steps> must be a positive integer, got <max_steps = {env_config.get("max_steps")}>.")
+
+        if not isinstance(env_config.get("time_step_hours", 1.0), (int, float)) or env_config.get("time_step_hours", 1.0) <= 0:
+            raise ValueError("The <time_step_hours> must be a positive number.")
+        if not isinstance(env_config.get("profile_values_are_power", False), bool):
+            raise ValueError("The <profile_values_are_power> must be a boolean.")
 
         # Check market_config
         if not isinstance(env_config.get("market_config"), MarketConfig):
@@ -225,14 +243,14 @@ class LocalEnergyMarket(MultiAgentEnv):
 
             # Check profile values only if profiles are not empty
             if agent.generation_profile:
-                if min(agent.generation_profile) < self.market_config.min_quantity:
-                    raise ValueError(f"The <generation_profile> of agent <{agent.id}> is below market <min_quantity> ({self.market_config.min_quantity}).")
+                if min(agent.generation_profile) < 0:
+                    raise ValueError(f"The <generation_profile> of agent <{agent.id}> contains negative energy.")
                 if max(agent.generation_profile) > self.market_config.max_quantity:
                     raise ValueError(f"The <generation_profile> of agent <{agent.id}> exceeds market <max_quantity> ({self.market_config.max_quantity}).")
 
             if agent.demand_profile:
-                if min(agent.demand_profile) < self.market_config.min_quantity:
-                    raise ValueError(f"The <demand_profile> of agent <{agent.id}> is below market <min_quantity> ({self.market_config.min_quantity}).")
+                if min(agent.demand_profile) < 0:
+                    raise ValueError(f"The <demand_profile> of agent <{agent.id}> contains negative energy.")
                 if max(agent.demand_profile) > self.market_config.max_quantity:
                     raise ValueError(f"The <demand_profile> of agent <{agent.id}> exceeds market <max_quantity> ({self.market_config.max_quantity}).")
 
@@ -270,8 +288,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         """
         # Use provided seed or fallback to environment seed
         seed = seed if seed is not None else self.seed
-        if seed is not None:
-            np.random.seed(seed)
+        self._rng = np.random.default_rng(seed)
 
         # Reset environment state
         self.current_step = 0
@@ -280,17 +297,17 @@ class LocalEnergyMarket(MultiAgentEnv):
         # Reset agents
         for agent in self._agents.values():
             # Reset agent's reputation
-            reputation = self.reputation_handler.reset(seed)
+            reputation = self.reputation_handler.reset(rng=self._rng)
 
             # Reset agent's profiles
-            generation, demand = self.der_profile_handler.reset(agent.capacity,
-                                                                self.max_steps)
+            generation, demand = self._configured_profiles[agent.id]
 
             # Reset agent
             agent.reset(reputation,
                         generation,
                         demand,
-                        seed)
+                        seed,
+                        rng=self._rng)
 
         # Reset market
         self.market.reset(seed)
@@ -347,38 +364,34 @@ class LocalEnergyMarket(MultiAgentEnv):
 
         # STEP 1. Format actions into orders
         orders: MultiAgentDict = {}
+        reward_orders: MultiAgentDict = {}
 
         for id in self.agents_id:
             # Extract action components
-            bid_price, bid_quantity, is_buy, preferred_partner = action_dict[id]
+            bid_price, signed_quantity = action_dict[id]
 
             # Constrain values to valid range
             bid_price = max(self.market_config.min_price, min(self.market_config.max_price, bid_price))
-            bid_quantity = max(self.market_config.min_quantity, min(self.market_config.max_quantity, bid_quantity))
-            is_buy = bool(is_buy > 0.5)
-            preferred_partner = self.action_handler.get_partner_id(int(preferred_partner))
-
-            # Fall back to rule-based selection if disabled RL-based selection
-            if not self.market_config.enable_partner_preference:
-                preferred_partner = self._agents[id].select_preferred_partner([*self._agents.values()],
-                                                                              self.grid_network.graph,
-                                                                              randomize=True)
+            bid_quantity = abs(float(signed_quantity))
+            is_buy = bool(signed_quantity > 0)
 
             # Simulate asynchronous order arrival
             if self.enable_asynchronous_order:
-                order_time = self.time_of_day + np.random.uniform(0, 1.0 / self.max_steps)
+                order_time = self.time_of_day + self._rng.uniform(0, 1.0 / self.max_steps)
             else:
                 order_time = self.time_of_day
 
             # Create order
-            orders[id] = Order(f"{id}_{self.current_step}_{order_time}",
-                               id,
-                               bid_price,
-                               bid_quantity,
-                               is_buy,
-                               order_time,
-                               self._agents[id].location,
-                               preferred_partner)
+            order = Order(f"{id}_{self.current_step}_{order_time}",
+                          id,
+                          bid_price,
+                          bid_quantity,
+                          is_buy,
+                          order_time,
+                          self._agents[id].location)
+            reward_orders[id] = order
+            if bid_quantity >= self.market_config.min_quantity and bid_quantity > 0:
+                orders[id] = order
 
         # STEP 2. Execute orders and clear market
         reputation_scores = {agent.id: agent.reputation for agent in self._agents.values()}
@@ -396,7 +409,7 @@ class LocalEnergyMarket(MultiAgentEnv):
 
             for trade in matching_result.trades:
                 if trade.buyer_id == id:
-                    energy_bought += trade.quantity
+                    energy_bought += trade.delivered_quantity
                 elif trade.seller_id == id:
                     energy_sold += trade.quantity
 
@@ -422,7 +435,7 @@ class LocalEnergyMarket(MultiAgentEnv):
 
         # Calculate rewards
         rewards = {id: self.reward_handler.calculate_reward(agent,
-                                                            orders[id],
+                                                            reward_orders[id],
                                                             matching_result,
                                                             kpis,
                                                             self.market_config.min_price,
@@ -438,10 +451,11 @@ class LocalEnergyMarket(MultiAgentEnv):
         # Agent attributes
         for id, agent in self._agents.items():
             agent.balance = self.market.get_agent_position(id)
+            agent.profit = self.market.get_agent_cash_position(id)
             agent.reputation = self.reputation_handler.update_reputation(agent, matching_result, self.time_of_day)
 
         # STEP 5. Check if episode is done
-        if self.current_step >= self.max_steps - 1:
+        if self.current_step >= self.max_steps:
             terminateds = {agent_id: True for agent_id in self.agents_id}
             terminateds["__all__"] = len([terminateds[agent] for agent in self.agents]) == len(self.agents)
             truncateds = {agent_id: False for agent_id in self.agents_id}
@@ -472,11 +486,16 @@ class LocalEnergyMarket(MultiAgentEnv):
                      "grid_balance": self.dso.balance,
                      "market_price": matching_result.clearing_price,
                      "market_volume": matching_result.clearing_volume,
+                     "kpis": kpis,
                      "matching_history": self.market.matching_history,
                      "dso_stats": dso_stats}
 
         # STEP 7. Update observation space and infos
-        observations = self.observation_handler.update_observation_space(self.current_step,
+        # ``current_step`` equals ``max_steps`` after the terminal transition.
+        # A terminal observation remains required by the MultiAgentEnv API, but
+        # profiles only contain indices 0..max_steps-1.
+        observation_step = min(self.current_step, self.max_steps - 1)
+        observations = self.observation_handler.update_observation_space(observation_step,
                                                                          self.time_of_day,
                                                                          [*orders.values()],
                                                                          self.market.matching_history,
@@ -510,5 +529,5 @@ class LocalEnergyMarket(MultiAgentEnv):
         Args:
             seed: Random seed value
         """
-        if seed is not None:
-            np.random.seed(seed)
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)

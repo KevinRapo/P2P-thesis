@@ -2,18 +2,15 @@
 Multi-agent reinforcement learning inference implementation using Ray RLlib.
 """
 
-from os import path
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
-import torch
-from ray.rllib.core import COMPONENT_LEARNER, COMPONENT_LEARNER_GROUP, COMPONENT_RL_MODULE, DEFAULT_MODULE_ID
-from ray.rllib.core.columns import Columns
-from ray.rllib.core.rl_module.multi_rl_module import MultiRLModule
-from ray.rllib.core.rl_module.rl_module import RLModule
+import ray
+from ray.rllib.algorithms.algorithm import Algorithm
+from ray.rllib.core import Columns
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
-from ray.rllib.utils.numpy import convert_to_numpy
+import torch
 
 from .lem import LocalEnergyMarket
 from .train import GroupedLEM
@@ -43,11 +40,15 @@ class RLInference:
         # Validate initialization parameters
         self._check_init()
 
-        # Initialize RL module
-        self.rl_module: RLModule | MultiRLModule = self._restore_from_checkpoint(checkpoint_path)
+        # Restore the complete Algorithm so evaluation uses its registered
+        # connectors and action distribution rather than a local approximation.
+        self._owns_ray = not ray.is_initialized()
+        self.algorithm: Algorithm = self._restore_from_checkpoint(checkpoint_path)
 
         # Initialize environment
-        self.env: MultiAgentEnv = LocalEnergyMarket(env_config) if isinstance(self.rl_module, MultiRLModule) else GroupedLEM(env_config)
+        env_class = self.algorithm.config.env
+        self._grouped = env_class is GroupedLEM or getattr(env_class, "__name__", None) == "GroupedLEM"
+        self.env: MultiAgentEnv = GroupedLEM(env_config) if self._grouped else LocalEnergyMarket(env_config)
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
@@ -83,25 +84,16 @@ class RLInference:
         if not isinstance(self.env_config["agents"], list) or len(self.env_config["agents"]) == 0:
             raise ValueError(f"The <agents> must be a non-empty list, got <agents = {self.env_config["agents"]}>.")
 
-    def _restore_from_checkpoint(self, checkpoint_path: str) -> None:
-        """Restore RL module from checkpoint directory for inference.
+    def _restore_from_checkpoint(self, checkpoint_path: str) -> Algorithm:
+        """Restore the complete RLlib Algorithm for inference.
 
         Args:
             checkpoint_path: Path to the checkpoint
         """
         try:
-            rl_module_path = path.join(checkpoint_path, COMPONENT_LEARNER_GROUP, COMPONENT_LEARNER, COMPONENT_RL_MODULE)
-            default_policy_path = path.join(rl_module_path, DEFAULT_MODULE_ID)
-
-            # CTCE or CTDE
-            if path.exists(default_policy_path):
-                return RLModule.from_checkpoint(default_policy_path)
-            # DTDE
-            else:
-                return MultiRLModule.from_checkpoint(rl_module_path)
-
+            return Algorithm.from_checkpoint(checkpoint_path)
         except Exception as e:
-            raise RuntimeError(f"Failed to restore the RL module from experiment <{checkpoint_path}>: {e}.")
+            raise RuntimeError(f"Failed to restore the RLlib Algorithm from experiment <{checkpoint_path}>: {e}.") from e
 
     def inference(self, iters: int = 10) -> Dict[str, float]:
         """Inference of a trained policy.
@@ -126,7 +118,7 @@ class RLInference:
 
         # Inference
         for episode in range(iters):
-            print(f"Running episode {episode + 1}/{iters} (RL Module inference)")
+            print(f"Running episode {episode + 1}/{iters} (RLlib Algorithm inference)")
 
             # STEP 1. Reset environment
             obs, info = self.env.reset()
@@ -138,82 +130,8 @@ class RLInference:
 
             # STEP 3. Run episode
             while not done:
-                # STEP 4. Get actions using the restored algorithm
-                actions = {}
-
-                # DTDE: Each agent has its own RL module
-                if isinstance(self.rl_module, MultiRLModule):
-                    for agent_id, agent_obs in obs.items():
-                        # Convert to torch tensor and add batch dimension
-                        obs_batch = {Columns.OBS: torch.from_numpy(agent_obs).unsqueeze(0)}
-
-                        # Forward pass for this agent using the individual agent RLModule
-                        model_outputs = self.rl_module[agent_id].forward_inference(obs_batch)
-
-                        # For continuous actions the action_dist_inputs contains distribution parameters
-                        action_dist_params = convert_to_numpy(model_outputs[Columns.ACTION_DIST_INPUTS][0])
-
-                        # Get the action space for this agent
-                        action_space = self.env.action_spaces[agent_id]
-                        action_dim = action_space.shape[0]
-
-                        # The model outputs mean + log_std for each action dimension
-                        means = action_dist_params[..., :action_dim]
-
-                        # Get the stochastic (exploration) or deterministic (exploitation) action
-                        if self.exploration:
-                            log_stds = action_dist_params[..., action_dim:]
-                            sampled_actions = torch.distributions.Normal(torch.from_numpy(means),
-                                                                            torch.exp(torch.from_numpy(log_stds))).sample().numpy()
-                        else:
-                            sampled_actions = means
-
-                        # Clip actions to valid range
-                        actions[agent_id] = np.clip(sampled_actions,
-                                                    a_min=action_space.low,
-                                                    a_max=action_space.high)
-
-                # CTCE/CTDE: Single RL module with grouped agents
-                else:
-                    # Convert grouped observations to the expected format for CTDE
-                    obs_batch = {Columns.OBS: {"grouped_agents": tuple(torch.from_numpy(agent_obs) for agent_obs in obs["grouped_agents"])}}
-
-                    # Forward pass through the single CTDE RLModule
-                    model_outputs = self.rl_module.forward_inference(obs_batch)
-
-                    # For continuous actions the action_dist_inputs contains distribution parameters
-                    action_dist_params = convert_to_numpy(model_outputs[Columns.ACTION_DIST_INPUTS])
-
-                    # Split the action parameters for each agent
-                    start_idx = 0
-
-                    # Use the original agent IDs from the environment config
-                    for i, agent_id in enumerate(self.env.original_agents_id):
-                        # Get the action space for this agent from the grouped action space
-                        action_space = self.env.action_space["grouped_agents"].spaces[i]
-                        action_dim = action_space.shape[0]
-
-                        # Extract this agent's action parameters (mean + log_std)
-                        agent_action_params = action_dist_params[start_idx:start_idx + action_dim * 2]
-
-                        # Split into means and log_stds
-                        means = agent_action_params[..., :action_dim]
-
-                        # Get the stochastic (exploration) or deterministic (exploitation) action
-                        if self.exploration:
-                            log_stds = agent_action_params[..., action_dim:]
-                            sampled_actions = torch.distributions.Normal(torch.from_numpy(means),
-                                                                            torch.exp(torch.from_numpy(log_stds))).sample().numpy()
-                        else:
-                            sampled_actions = means
-
-                        # Clip actions to valid range
-                        actions[agent_id] = np.clip(sampled_actions,
-                                                    a_min=action_space.low,
-                                                    a_max=action_space.high)
-
-                        # Move to next agent's action parameters
-                        start_idx += action_dim * 2
+                # STEP 4. Use the Algorithm's supported inference path.
+                actions = self._compute_actions(obs)
 
                 # STEP 5. Step environment
                 obs, rewards, terminateds, truncateds, info = self.env.step(actions)
@@ -226,13 +144,13 @@ class RLInference:
                     episode_rewards["grouped_agents"] = episode_rewards.get("grouped_agents", 0.0) + rewards
 
                 # STEP 7. Track metrics
-                if info and isinstance(info, dict):
-                    price_history.append(info.get("market_price", 0.0))
-                    volume_history.append(info.get("market_volume", 0.0))
-                    grid_balance_history.append(info.get("grid_balance", 0.0))
-
-                    if "dso_stats" in info:
-                        dso_stats_history.append(info["dso_stats"])
+                episode_info = self._episode_info(info)
+                if episode_info:
+                    price_history.append(episode_info.get("market_price", 0.0))
+                    volume_history.append(episode_info.get("market_volume", 0.0))
+                    grid_balance_history.append(episode_info.get("grid_balance", 0.0))
+                    if "dso_stats" in episode_info:
+                        dso_stats_history.append(episode_info["dso_stats"])
 
                 # STEP 8. Check termination
                 episode_step += 1
@@ -263,6 +181,64 @@ class RLInference:
                                        volume_history,
                                        grid_balance_history,
                                        dso_stats_history)
+
+    def close(self) -> None:
+        """Release checkpoint workers; only stop Ray when this instance started it."""
+        self.algorithm.stop()
+        if self._owns_ray and ray.is_initialized():
+            ray.shutdown()
+
+    def _compute_actions(self, observations: Dict[str, Any]) -> Dict[str, Any]:
+        """Return actions from the restored Algorithm's registered RLModules.
+
+        Ray's new API stack no longer exposes legacy Policy objects through
+        ``compute_single_action``. The registered module and its distribution
+        remain the authoritative evaluation path, so no local distribution
+        parameters or agent ordering are reconstructed here.
+        """
+        if self._grouped:
+            return {"grouped_agents": self._module_action(
+                self.algorithm.get_module(), observations["grouped_agents"], grouped=True)}
+        return {agent_id: self._module_action(self.algorithm.get_module(agent_id), observation)
+                for agent_id, observation in observations.items()}
+
+    def _module_action(self, module: Any, observation: Any, grouped: bool = False) -> Any:
+        """Sample an action using the module's own registered distribution class."""
+        if module is None:
+            raise RuntimeError("The restored Algorithm does not contain the requested policy module.")
+        if grouped:
+            batched_observation = {"grouped_agents": tuple(
+                torch.as_tensor(item, dtype=torch.float32).unsqueeze(0) for item in observation)}
+        else:
+            batched_observation = torch.as_tensor(observation, dtype=torch.float32).unsqueeze(0)
+        forward = module.forward_exploration if self.exploration else module.forward_inference
+        output = forward({Columns.OBS: batched_observation})
+        distribution = module.get_exploration_action_dist_cls().from_logits(
+            output[Columns.ACTION_DIST_INPUTS]) if self.exploration else \
+            module.get_inference_action_dist_cls().from_logits(output[Columns.ACTION_DIST_INPUTS])
+        sampled = distribution.sample() if self.exploration else distribution.to_deterministic().sample()
+        return self._unbatch_action(sampled)
+
+    @staticmethod
+    def _unbatch_action(action: Any) -> Any:
+        """Convert a one-item Torch action batch back to the environment action shape."""
+        if isinstance(action, dict):
+            return {name: RLInference._unbatch_action(value) for name, value in action.items()}
+        if isinstance(action, tuple):
+            return tuple(RLInference._unbatch_action(value) for value in action)
+        if isinstance(action, torch.Tensor):
+            return action.squeeze(0).detach().cpu().numpy()
+        return action
+
+    @staticmethod
+    def _episode_info(info: Any) -> Dict[str, Any]:
+        """Extract the shared LocalEnergyMarket info record from an API envelope."""
+        if not isinstance(info, dict):
+            return {}
+        if "market_price" in info:
+            return info
+        return next((value for value in info.values()
+                     if isinstance(value, dict) and "market_price" in value), {})
 
     def _calculate_metrics(self,
                            total_rewards: Dict,

@@ -21,8 +21,15 @@ class DERProfileHandler(ProfileHandler):
                  max_quantity: float,
                  generation_file_path: Optional[str] = None,
                  demand_file_path: Optional[str] = None,
+                 generation_column: Optional[str] = None,
+                 demand_column: Optional[str] = None,
                  decimals: int = 1,
-                 seed: Optional[int] = None) -> None:
+                 seed: Optional[int] = None,
+                 generation_timestamp_column: Optional[str] = None,
+                 demand_timestamp_column: Optional[str] = None,
+                 replay_start: Optional[str] = None,
+                 replay_end: Optional[str] = None,
+                 expected_frequency: Optional[str] = None) -> None:
         """Initialize the DER ProfileHandler.
 
         Args:
@@ -39,6 +46,13 @@ class DERProfileHandler(ProfileHandler):
         self.max_quantity = max_quantity
         self.generation_file_path: Optional[Path] = Path(generation_file_path) if generation_file_path else None
         self.demand_file_path: Optional[Path] = Path(demand_file_path) if demand_file_path else None
+        self.generation_column = generation_column
+        self.demand_column = demand_column
+        self.generation_timestamp_column = generation_timestamp_column
+        self.demand_timestamp_column = demand_timestamp_column
+        self.replay_start = replay_start
+        self.replay_end = replay_end
+        self.expected_frequency = expected_frequency
         self.decimals = decimals
 
         # Check initialization
@@ -75,10 +89,10 @@ class DERProfileHandler(ProfileHandler):
                 raise ValueError(f"Demand file must be a CSV file: <{self.demand_file_path}>.")
 
         # Validate min_quantity and max_quantity
-        if not isinstance(self.min_quantity, float) or self.min_quantity < 0:
-            raise ValueError(f"The <min_quantity> must be a positive integer, got <min_quantity = {self.min_quantity}>.")
-        if not isinstance(self.max_quantity, float) or self.max_quantity < 0:
-            raise ValueError(f"The <max_quantity> must be a positive integer, got <max_quantity = {self.max_quantity}>.")
+        if not isinstance(self.min_quantity, (int, float)) or self.min_quantity < 0:
+            raise ValueError(f"The <min_quantity> must be a non-negative number, got <min_quantity = {self.min_quantity}>.")
+        if not isinstance(self.max_quantity, (int, float)) or self.max_quantity < 0:
+            raise ValueError(f"The <max_quantity> must be a non-negative number, got <max_quantity = {self.max_quantity}>.")
 
         # Validate decimals
         if not isinstance(self.decimals, int) or self.decimals < 0:
@@ -97,8 +111,12 @@ class DERProfileHandler(ProfileHandler):
         Returns:
             Tuple of (generation_profile, demand_profile)
         """
-        generation = self._clip(self._get_generation_profile(steps, capacity, constant))
-        demand = self._clip(self._get_demand_profile(steps, capacity, constant))
+        generation = self._get_generation_profile(steps, capacity, constant)
+        demand = self._get_demand_profile(steps, capacity, constant)
+        if not self.generation_file_path:
+            generation = self._clip(generation)
+        if not self.demand_file_path:
+            demand = self._clip(demand)
 
         return generation, demand
 
@@ -117,18 +135,9 @@ class DERProfileHandler(ProfileHandler):
             Generation profile
         """
         if self.generation_file_path:
-            base_profile = self._load_profile(self.generation_file_path)
-            scale_factor = np.random.uniform(1.0, 1.3)
-            noise_factor = 0.05
-            varied_profile = []
-
-            for value in base_profile:
-                noise = np.random.uniform(-noise_factor, noise_factor)
-                varied_value = value * scale_factor * (1 + noise)
-                scaled_value = max(0.0, varied_value * capacity)
-                varied_profile.append(round(float(scaled_value), self.decimals))
-
-            return self._apply_smoothing(varied_profile)
+            return self._load_profile(self.generation_file_path, self.generation_column, steps,
+                                      self.generation_timestamp_column, self.replay_start,
+                                      self.replay_end, self.expected_frequency)
 
         else:
             if constant:
@@ -151,18 +160,9 @@ class DERProfileHandler(ProfileHandler):
             Demand profile
         """
         if self.demand_file_path:
-            base_profile = self._load_profile(self.demand_file_path)
-            scale_factor = np.random.uniform(0.6, 1.0)
-            noise_factor = 0.1
-            varied_profile = []
-
-            for value in base_profile:
-                noise = np.random.uniform(-noise_factor, noise_factor)
-                varied_value = value * scale_factor * (1 + noise)
-                scaled_value = max(0.0, varied_value * capacity)
-                varied_profile.append(round(float(scaled_value), self.decimals))
-
-            return self._apply_smoothing(varied_profile)
+            return self._load_profile(self.demand_file_path, self.demand_column, steps,
+                                      self.demand_timestamp_column, self.replay_start,
+                                      self.replay_end, self.expected_frequency)
         else:
             if constant:
                 return [capacity] * steps
@@ -185,7 +185,7 @@ class DERProfileHandler(ProfileHandler):
         """
         profile = []
         noise_magnitude = 0.1 if steps == 24 else 0.05
-        cloudiness = np.random.uniform(0.0, 1.0)
+        cloudiness = self._rng.uniform(0.0, 1.0)
         effective_max_value = max_value * (1 - 0.5 * cloudiness)
 
         for i in range(steps):
@@ -193,8 +193,8 @@ class DERProfileHandler(ProfileHandler):
             if 6 <= hour <= 18:
                 normalized_hour = (hour - 12) / 6
                 base_value = effective_max_value * np.exp(-normalized_hour**2)
-                cloud_noise = np.random.uniform(-0.2 * cloudiness, 0.2 * cloudiness)
-                noise = np.random.uniform(-noise_magnitude, noise_magnitude)
+                cloud_noise = self._rng.uniform(-0.2 * cloudiness, 0.2 * cloudiness)
+                noise = self._rng.uniform(-noise_magnitude, noise_magnitude)
                 value = max(0.0, (base_value + noise + cloud_noise) * capacity)
             else:
                 value = 0.0
@@ -224,13 +224,13 @@ class DERProfileHandler(ProfileHandler):
         for i in range(steps):
             hour = (i / steps) * 24
             if (7 <= hour < 9) or (19 <= hour < 21):
-                base_value = np.random.uniform(0.7, max_value)
+                base_value = self._rng.uniform(0.7, max_value)
             elif (1 <= hour < 6):
-                base_value = np.random.uniform(min_value, 0.4)
+                base_value = self._rng.uniform(min_value, 0.4)
             else:
-                base_value = np.random.uniform(0.4, 0.7)
+                base_value = self._rng.uniform(0.4, 0.7)
 
-            noise = np.random.uniform(-noise_magnitude, noise_magnitude)
+            noise = self._rng.uniform(-noise_magnitude, noise_magnitude)
             value = max(0.0, (base_value + noise) * capacity)
             profile.append(round(float(value), self.decimals))
 

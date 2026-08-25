@@ -55,6 +55,10 @@ target/
 
 # Generated training, inference, and visualization outputs
 storage/
+downloads/case5/
+notebooks/tmp/
+results/case6_env_config.json
+results/lem_*/
 
 # pyenv
 .python-version

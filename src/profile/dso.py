@@ -21,8 +21,15 @@ class DSOProfileHandler(ProfileHandler):
                  max_price: float,
                  feed_in_tariff_file_path: Optional[str] = None,
                  utility_price_file_path: Optional[str] = None,
+                 feed_in_tariff_column: Optional[str] = None,
+                 utility_price_column: Optional[str] = None,
                  decimals: int = 1,
-                 seed: Optional[int] = None) -> None:
+                 seed: Optional[int] = None,
+                 feed_in_tariff_timestamp_column: Optional[str] = None,
+                 utility_price_timestamp_column: Optional[str] = None,
+                 replay_start: Optional[str] = None,
+                 replay_end: Optional[str] = None,
+                 expected_frequency: Optional[str] = None) -> None:
         """Initialize the DSO ProfileHandler.
 
         Args:
@@ -39,6 +46,13 @@ class DSOProfileHandler(ProfileHandler):
         self.max_price = max_price
         self.feed_in_tariff_file_path = Path(feed_in_tariff_file_path) if feed_in_tariff_file_path else None
         self.utility_price_file_path = Path(utility_price_file_path) if utility_price_file_path else None
+        self.feed_in_tariff_column = feed_in_tariff_column
+        self.utility_price_column = utility_price_column
+        self.feed_in_tariff_timestamp_column = feed_in_tariff_timestamp_column
+        self.utility_price_timestamp_column = utility_price_timestamp_column
+        self.replay_start = replay_start
+        self.replay_end = replay_end
+        self.expected_frequency = expected_frequency
         self.decimals = decimals
 
         # Check initialization
@@ -72,10 +86,10 @@ class DSOProfileHandler(ProfileHandler):
                 raise ValueError(f"Utility price file must be a CSV file: <{self.utility_price_file_path}>.")
 
         # Validate min_price and max_price
-        if not isinstance(self.min_price, float) or self.min_price < 0:
-            raise ValueError(f"The <min_price> must be a positive integer, got <min_price = {self.min_price}>.")
-        if not isinstance(self.max_price, float) or self.max_price < 0:
-            raise ValueError(f"The <max_price> must be a positive integer, got <max_price = {self.max_price}>.")
+        if not isinstance(self.min_price, (int, float)) or self.min_price < 0:
+            raise ValueError(f"The <min_price> must be a non-negative number, got <min_price = {self.min_price}>.")
+        if not isinstance(self.max_price, (int, float)) or self.max_price < 0:
+            raise ValueError(f"The <max_price> must be a non-negative number, got <max_price = {self.max_price}>.")
 
         # Validate decimals
         if not isinstance(self.decimals, int) or self.decimals < 0:
@@ -90,8 +104,16 @@ class DSOProfileHandler(ProfileHandler):
         Returns:
             Tuple of (feed_in_tariff_profile, utility_price_profile)
         """
-        feed_in_tariff_profile = self._clip(self._get_feed_in_tariff_profile(steps))
-        utility_price_profile = self._clip(self._get_utility_price_profile(steps))
+        feed_in_tariff_profile = self._get_feed_in_tariff_profile(steps)
+        utility_price_profile = self._get_utility_price_profile(steps)
+
+        # Supplied tariff series are measured replay and must not be clipped,
+        # rounded, or altered to satisfy a synthetic-price convention.
+        if self.feed_in_tariff_file_path and self.utility_price_file_path:
+            return feed_in_tariff_profile, utility_price_profile
+
+        feed_in_tariff_profile = self._clip(feed_in_tariff_profile)
+        utility_price_profile = self._clip(utility_price_profile)
 
         # Ensure utility prices are always higher than feed-in tariffs
         return self._enforce_price_relationship(feed_in_tariff_profile, utility_price_profile)
@@ -152,27 +174,9 @@ class DSOProfileHandler(ProfileHandler):
             Feed-in tariff profile
         """
         if self.feed_in_tariff_file_path:
-            base_profile = self._load_profile(self.feed_in_tariff_file_path)
-
-            # Scale profile to price range
-            min_val, max_val = min(base_profile), max(base_profile)
-            scaled_profile = []
-
-            if max_val > min_val:
-                for value in base_profile:
-                    normalized = (value - min_val) / (max_val - min_val)
-                    base_scaled_value = self.min_price + normalized * (self.max_price - self.min_price) * 0.6
-                    scaled_value = base_scaled_value * np.random.uniform(0.7, 1.3)
-                    scaled_profile.append(round(float(np.clip(scaled_value, self.min_price, self.max_price * 0.9)), self.decimals))
-
-                return self._apply_smoothing(scaled_profile)
-
-            else:
-                for _ in base_profile:
-                    scaled_value = self.min_price * np.random.uniform(0.7, 1.5)
-                    scaled_profile.append(round(float(np.clip(scaled_value, self.min_price, self.max_price * 0.9)), self.decimals))
-
-                return self._apply_smoothing(scaled_profile)
+            return self._load_profile(self.feed_in_tariff_file_path, self.feed_in_tariff_column, steps,
+                                      self.feed_in_tariff_timestamp_column, self.replay_start,
+                                      self.replay_end, self.expected_frequency)
 
         else:
             return self._apply_smoothing(self._random_feed_in_tariff_profile(steps))
@@ -187,31 +191,9 @@ class DSOProfileHandler(ProfileHandler):
             Utility price profile
         """
         if self.utility_price_file_path:
-            base_profile = self._load_profile(self.utility_price_file_path)
-
-            # Scale profile to price range
-            min_val, max_val = min(base_profile), max(base_profile)
-            scaled_profile = []
-
-            if max_val > min_val:
-                for value in base_profile:
-                    normalized = (value - min_val) / (max_val - min_val)
-                    base_scaled_value = self.min_price * 1.5 + normalized * (self.max_price - self.min_price * 1.5)
-                    random_factor = np.random.uniform(0.75, 1.25)
-                    scaled_value = base_scaled_value * random_factor
-                    scaled_profile.append(round(float(np.clip(scaled_value, self.min_price * 1.1, self.max_price)), self.decimals))
-
-                return self._apply_smoothing(scaled_profile)
-
-            else:
-                base_val = self.max_price
-
-                for _ in base_profile:
-                    random_factor = np.random.uniform(0.75, 1.25)
-                    scaled_value = base_val * random_factor
-                    scaled_profile.append(round(float(np.clip(scaled_value, self.min_price * 1.1, self.max_price)), self.decimals))
-
-                return self._apply_smoothing(scaled_profile)
+            return self._load_profile(self.utility_price_file_path, self.utility_price_column, steps,
+                                      self.utility_price_timestamp_column, self.replay_start,
+                                      self.replay_end, self.expected_frequency)
 
         else:
             return self._apply_smoothing(self._random_utility_price_profile(steps))
@@ -228,7 +210,7 @@ class DSOProfileHandler(ProfileHandler):
         profile = []
 
         # Feed-in tariff is typically lower and has step function behavior
-        base_price = self.min_price + (self.max_price - self.min_price) * np.random.uniform(0.2, 0.4)
+        base_price = self.min_price + (self.max_price - self.min_price) * self._rng.uniform(0.2, 0.4)
 
         # Define step periods with randomized timing and factors
         # Base periods with random shifts in timing (±1-2 hours) and factors (±20%)
@@ -243,8 +225,8 @@ class DSOProfileHandler(ProfileHandler):
         step_periods = []
         for start, end, factor in base_periods:
             # Add random shifts to period boundaries (±1-2 hours)
-            start_shift = np.random.uniform(-1.5, 1.5)
-            end_shift = np.random.uniform(-1.5, 1.5)
+            start_shift = self._rng.uniform(-1.5, 1.5)
+            end_shift = self._rng.uniform(-1.5, 1.5)
             new_start = max(0, start + start_shift)
             new_end = min(24, end + end_shift)
 
@@ -253,7 +235,7 @@ class DSOProfileHandler(ProfileHandler):
                 new_end = new_start + 1
 
             # Randomize the price factor (±30%)
-            new_factor = factor * np.random.uniform(0.7, 1.3)
+            new_factor = factor * self._rng.uniform(0.7, 1.3)
             step_periods.append((new_start, new_end, new_factor))
 
         for i in range(steps):
@@ -267,7 +249,7 @@ class DSOProfileHandler(ProfileHandler):
                     break
 
             # Add additional randomness to individual steps (+/- 25%)
-            random_factor = np.random.uniform(0.75, 1.25)
+            random_factor = self._rng.uniform(0.75, 1.25)
             value = max(self.min_price, base_price * price_factor * random_factor)
 
             # Clip to ensure we don't exceed max bounds
@@ -288,7 +270,7 @@ class DSOProfileHandler(ProfileHandler):
         profile = []
 
         # Utility price is typically higher and has step function behavior
-        base_price = self.min_price * 2 + (self.max_price - self.min_price * 2) * np.random.uniform(0.6, 0.8)
+        base_price = self.min_price * 2 + (self.max_price - self.min_price * 2) * self._rng.uniform(0.6, 0.8)
 
         # Define step periods with randomized timing and factors
         # Base periods with random shifts in timing (±1-2 hours) and factors (±20%)
@@ -305,8 +287,8 @@ class DSOProfileHandler(ProfileHandler):
         step_periods = []
         for start, end, factor in base_periods:
             # Add random shifts to period boundaries (±1-2 hours)
-            start_shift = np.random.uniform(-1.5, 1.5)
-            end_shift = np.random.uniform(-1.5, 1.5)
+            start_shift = self._rng.uniform(-1.5, 1.5)
+            end_shift = self._rng.uniform(-1.5, 1.5)
             new_start = max(0, start + start_shift)
             new_end = min(24, end + end_shift)
 
@@ -315,7 +297,7 @@ class DSOProfileHandler(ProfileHandler):
                 new_end = new_start + 1
 
             # Randomize the price factor (±25%)
-            new_factor = factor * np.random.uniform(0.75, 1.25)
+            new_factor = factor * self._rng.uniform(0.75, 1.25)
             step_periods.append((new_start, new_end, new_factor))
 
         for i in range(steps):
@@ -329,7 +311,7 @@ class DSOProfileHandler(ProfileHandler):
                     break
 
             # Add additional randomness to individual steps (+/- 20%)
-            random_factor = np.random.uniform(0.8, 1.2)
+            random_factor = self._rng.uniform(0.8, 1.2)
             value = min(self.max_price, base_price * price_factor * random_factor)
 
             # Clip to ensure we don't go below min bounds

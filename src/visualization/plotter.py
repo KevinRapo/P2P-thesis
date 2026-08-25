@@ -97,6 +97,49 @@ class Plotter:
 
             plt.savefig(full_path, **save_kwargs)
 
+    def _plot_recorded_grid_metrics(self, metrics: GridMetrics) -> Figure:
+        """Plot only balance, congestion, and clearing quantities that are recorded."""
+        fig, axes = plt.subplots(1, 2, figsize=self.figsize)
+        steps = range(len(metrics.grid_balance_over_time))
+        axes[0].plot(steps, metrics.grid_balance_over_time, label="Grid balance")
+        axes[0].plot(steps, metrics.grid_congestion_over_time, label="Congestion")
+        axes[0].plot(steps, metrics.clearing_volume_over_time, label="Clearing volume")
+        axes[0].set_title("Recorded grid quantities")
+        axes[0].set_xlabel("Step")
+        axes[0].legend()
+
+        names = ["Mean |balance|", "Mean congestion", "Transmission loss"]
+        values = [metrics.mean_absolute_grid_balance,
+                  metrics.mean_grid_congestion,
+                  metrics.total_transmission_loss]
+        axes[1].bar(names, values, color=["#4A90E2", "#FF9800", "#7ED321"])
+        axes[1].set_title("Recorded grid summary")
+        axes[1].tick_params(axis="x", rotation=20)
+        fig.tight_layout()
+        self._save_figure("recorded_grid_metrics")
+        return fig
+
+    def _plot_recorded_dso_metrics(self, metrics: DSOMetrics) -> Figure:
+        """Plot recorded local and DSO settlement quantities and prices."""
+        fig, axes = plt.subplots(1, 2, figsize=self.figsize)
+        axes[0].bar(["P2P", "DSO buy", "DSO sell"],
+                    [metrics.p2p_volume, metrics.dso_buy_volume, metrics.dso_sell_volume],
+                    color=["#4CAF50", "#FF9800", "#4A90E2"])
+        axes[0].set_title("Recorded settlement volume")
+        axes[0].set_ylabel("Energy (kWh)")
+
+        axes[1].bar(["Local", "DSO buy", "DSO sell", "Spread"],
+                    [metrics.local_settlement_price_average,
+                     metrics.dso_buy_price_average,
+                     metrics.dso_sell_price_average,
+                     metrics.mean_price_spread],
+                    color=["#4CAF50", "#FF9800", "#4A90E2", "#757575"])
+        axes[1].set_title("Recorded settlement prices")
+        axes[1].set_ylabel("Price")
+        fig.tight_layout()
+        self._save_figure("recorded_dso_metrics")
+        return fig
+
     def trading_network(self,
                         matching_history: MatchingHistory,
                         units: str = "Wh") -> Figure:
@@ -1119,7 +1162,7 @@ class Plotter:
         return fig
 
     def plot_grid_stability_metrics(self, metrics: GridMetrics) -> Figure:
-        """Create a comprehensive plot of grid stability metrics with time series analysis.
+        """Plot the recorded grid quantities (not an electrical-stability assessment).
 
         Args:
             metrics: GridMetrics object
@@ -1127,6 +1170,9 @@ class Plotter:
         Returns:
             Matplotlib figure
         """
+        return self._plot_recorded_grid_metrics(metrics)
+
+        # Historical implementation retained below temporarily for reference.
         # Check if we have time series data
         has_time_series = (metrics.grid_balance_over_time and
                            metrics.grid_congestion_over_time and
@@ -1396,20 +1442,20 @@ class Plotter:
         # Price metrics
         ax1 = fig.add_subplot(gs[0, 0])
 
-        bars1 = ax1.bar(["Average Clearing Price"],
-                        [metrics.avg_clearing_price],
+        bars1 = ax1.bar(["Average Settlement Price"],
+                        [metrics.average_settlement_price],
                         color=colors[0],
                         alpha=0.8,
                         edgecolor='white',
                         linewidth=2)
 
-        ax1.set_title("Market Clearing Price", fontsize=14, fontweight="bold", color=self.colors["title"])
+        ax1.set_title("Settlement Price", fontsize=14, fontweight="bold", color=self.colors["title"])
         ax1.set_ylabel("Price ($/kWh)", fontsize=12, color=self.colors["text"])
         ax1.grid(True, alpha=0.3, color=self.colors["grid"], zorder=0)
 
         # Add value on top of bar
-        ax1.text(0, metrics.avg_clearing_price + max(metrics.avg_clearing_price * 0.05, 1),
-                 f'${metrics.avg_clearing_price:.2f}',
+        ax1.text(0, metrics.average_settlement_price + max(metrics.average_settlement_price * 0.05, 1),
+                 f'${metrics.average_settlement_price:.2f}',
                  ha='center',
                  va='bottom',
                  fontweight='bold',
@@ -1417,9 +1463,9 @@ class Plotter:
 
         # Market quality metrics
         ax2 = fig.add_subplot(gs[0, 1])
-        market_metrics = {"Price Volatility": metrics.price_volatility,
-                          "Market Liquidity": metrics.market_liquidity,
-                          "Market Concentration": metrics.market_concentration}
+        market_metrics = {"Transaction Price CV": metrics.transaction_price_cv,
+                          "Settlement Price Trend": metrics.settlement_price_trend,
+                          "Market Concentration (HHI)": metrics.market_concentration_hhi}
 
         y_pos = np.arange(len(market_metrics))
         values = list(market_metrics.values())
@@ -1440,10 +1486,10 @@ class Plotter:
                     fontweight='bold',
                     fontsize=10)
 
-        # Surplus distribution
+        # Recorded trade-volume split
         ax3 = fig.add_subplot(gs[1, 0])
-        surplus_data = {"Consumer Surplus": metrics.consumer_surplus,
-                        "Producer Surplus": metrics.producer_surplus}
+        surplus_data = {"P2P volume share": metrics.p2p_volume_share,
+                        "DSO volume share": metrics.dso_volume_share}
 
         if sum(surplus_data.values()) > 0:
             wedges, texts, autotexts = ax3.pie(surplus_data.values(),
@@ -1461,19 +1507,19 @@ class Plotter:
         else:
             ax3.text(0.5,
                      0.5,
-                     "No surplus data available",
+                     "No trade-volume data available",
                      ha="center",
                      va="center",
                      transform=ax3.transAxes,
                      fontsize=12,
                      color=self.colors["text"])
-        ax3.set_title("Surplus Distribution", fontsize=14, fontweight="bold", color=self.colors["title"])
+        ax3.set_title("Trade-Volume Distribution", fontsize=14, fontweight="bold", color=self.colors["title"])
 
         # Trading metrics
         ax4 = fig.add_subplot(gs[1, 1])
-        trading_metrics = {"Total Volume": metrics.total_trading_volume,
+        trading_metrics = {"Traded Energy": metrics.total_traded_energy,
                            "Transaction Count": metrics.transaction_count,
-                           "Avg Trade Size": metrics.avg_trade_size}
+                           "Average Trade Size": metrics.average_trade_size}
 
         y_pos = np.arange(len(trading_metrics))
         values = list(trading_metrics.values())
@@ -1526,10 +1572,10 @@ class Plotter:
         # Define color palette
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
 
-        # Market efficiency metrics
+        # Directly recorded distribution metrics
         ax1 = fig.add_subplot(gs[0, 0])
-        efficiency_metrics = {"Allocation Efficiency": metrics.allocation_efficiency,
-                              "Price Discovery Efficiency": metrics.price_discovery_efficiency}
+        efficiency_metrics = {"Transaction Price CV": metrics.transaction_price_cv,
+                              "Market Concentration (HHI)": metrics.market_concentration_hhi}
 
         y_pos = np.arange(len(efficiency_metrics))
         values = list(efficiency_metrics.values())
@@ -1538,8 +1584,8 @@ class Plotter:
         bars1 = ax1.barh(y_pos, values, color=bar_colors, alpha=0.8, edgecolor='white', linewidth=1)
         ax1.set_yticks(y_pos)
         ax1.set_yticklabels(efficiency_metrics.keys(), fontsize=11)
-        ax1.set_xlabel("Efficiency Score", fontsize=12, color=self.colors["text"])
-        ax1.set_title("Market Efficiency", fontsize=14, fontweight="bold", color=self.colors["title"])
+        ax1.set_xlabel("Value", fontsize=12, color=self.colors["text"])
+        ax1.set_title("Settlement Distribution", fontsize=14, fontweight="bold", color=self.colors["title"])
         ax1.grid(True, alpha=0.3, color=self.colors["grid"], zorder=0, axis='x')
 
         # Add value labels
@@ -1551,11 +1597,11 @@ class Plotter:
                      fontweight='bold',
                      fontsize=10)
 
-        # Welfare metrics
+        # Settlement totals
         ax2 = fig.add_subplot(gs[0, 1])
-        welfare_metrics = {"Social Welfare": metrics.social_welfare / 1000,  # Normalize for display
-                           "Welfare Gini": metrics.welfare_distribution_gini,
-                           "Price Fairness": metrics.price_fairness_index}
+        welfare_metrics = {"Settlement Turnover": metrics.settlement_turnover,
+                           "Traded Energy": metrics.total_traded_energy,
+                           "Price Trend": metrics.settlement_price_trend}
 
         y_pos = np.arange(len(welfare_metrics))
         values = list(welfare_metrics.values())
@@ -1565,7 +1611,7 @@ class Plotter:
         ax2.set_yticks(y_pos)
         ax2.set_yticklabels(welfare_metrics.keys(), fontsize=11)
         ax2.set_xlabel("Value", fontsize=12, color=self.colors["text"])
-        ax2.set_title("Welfare Metrics", fontsize=14, fontweight="bold", color=self.colors["title"])
+        ax2.set_title("Recorded Settlement Totals", fontsize=14, fontweight="bold", color=self.colors["title"])
         ax2.grid(True, alpha=0.3, color=self.colors["grid"], zorder=0, axis='x')
 
         # Add value labels
@@ -1580,9 +1626,9 @@ class Plotter:
 
         # Market structure
         ax3 = fig.add_subplot(gs[1, 0])
-        structure_metrics = {"P2P Trade Ratio": metrics.p2p_trade_ratio,
-                             "DSO Dependency": metrics.dso_dependency_ratio,
-                             "Market Liquidity": metrics.market_liquidity}
+        structure_metrics = {"P2P Volume Share": metrics.p2p_volume_share,
+                             "DSO Volume Share": metrics.dso_volume_share,
+                             "Market Concentration (HHI)": metrics.market_concentration_hhi}
 
         y_pos = np.arange(len(structure_metrics))
         values = list(structure_metrics.values())
@@ -1615,9 +1661,9 @@ class Plotter:
 
         # Trading activity
         ax4 = fig.add_subplot(gs[1, 1])
-        trading_metrics = {"Total Volume": metrics.total_trading_volume / 1000,  # Normalize for display
+        trading_metrics = {"Traded Energy": metrics.total_traded_energy,
                            "Transaction Count": metrics.transaction_count,
-                           "Avg Trade Size": metrics.avg_trade_size}
+                           "Average Trade Size": metrics.average_trade_size}
 
         y_pos = np.arange(len(trading_metrics))
         values = list(trading_metrics.values())
@@ -1655,7 +1701,7 @@ class Plotter:
         return fig
 
     def plot_dso_metrics(self, metrics: DSOMetrics) -> Figure:
-        """Create a comprehensive plot of DSO fallback mechanism performance metrics.
+        """Plot recorded DSO fallback settlement quantities and prices.
 
         Args:
             metrics: DSOMetrics object
@@ -1663,6 +1709,9 @@ class Plotter:
         Returns:
             Matplotlib figure
         """
+        return self._plot_recorded_dso_metrics(metrics)
+
+        # Historical implementation retained below temporarily for reference.
         # Create figure with subplots
         fig = plt.figure(figsize=(15, 12))
         gs = plt.GridSpec(3, 2, height_ratios=[1, 1, 1.2])

@@ -33,9 +33,18 @@ class GridNetwork:
             capacity: Total grid capacity (kW)
             seed: Random seed for reproducible topology generation
         """
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)
+        if not isinstance(topology, GridTopology):
+            try:
+                topology = GridTopology(topology)
+            except ValueError as exc:
+                raise ValueError(f"Invalid topology '{topology}'. Available: {list(GridTopology)}") from exc
+        if capacity < 0:
+            raise ValueError(f"Grid capacity must be non-negative, got {capacity}")
         self.topology = topology
         self.num_nodes = num_nodes
-        self.capacity = max(0.0, capacity)
+        self.capacity = capacity
 
         # Initialize grid network
         self.graph: nx.Graph = self._create_grid_network(seed)
@@ -58,7 +67,8 @@ class GridNetwork:
             seed: Random seed for reproducible topology generation
         """
         if seed is not None:
-            np.random.seed(seed)
+            self.seed = seed
+            self._rng = np.random.default_rng(seed)
 
         # Reset dictionaries
         self.edge_capacities = {}
@@ -81,8 +91,9 @@ class GridNetwork:
             # Store capacity
             self.edge_capacities[(u, v)] = edge_capacity
 
-            # Initialize flow to a small random value (0-30% of capacity)
-            self.edge_flows[(u, v)] = np.random.uniform(0, 0.3) * edge_capacity
+            # This is an abstract per-timestep capacity graph: no unspecified
+            # baseline injection is assumed.
+            self.edge_flows[(u, v)] = 0.0
 
     def _check_init(self) -> None:
         """Validate GridNetwork configuration parameters.
@@ -99,7 +110,7 @@ class GridNetwork:
             raise ValueError(f"Invalid topology '{self.topology}'. Available: {list(GridTopology)}")
 
         # For procedural topologies, validate num_nodes
-        if self.topology in GridTopology._value2member_map_:
+        if self.topology in {GridTopology.MESH, GridTopology.RING, GridTopology.LINE}:
             if self.num_nodes < 2:
                 raise ValueError(f"Procedural topology '{self.topology}' requires at least 2 nodes, got {self.num_nodes}")
 
@@ -118,9 +129,6 @@ class GridNetwork:
         """
         if self.topology not in GridTopology:
             raise ValueError(f"Topology '{self.topology}' not defined. Available topologies: {GridTopology._member_names_}.")
-
-        if seed is not None:
-            np.random.seed(seed)
 
         graph = nx.Graph()
 
@@ -148,7 +156,7 @@ class GridNetwork:
             if self.topology == GridTopology.MESH:
                 for i in range(self.num_nodes):
                     for j in range(i+1, self.num_nodes):
-                        weight = 0.5 + np.random.rand()  # Random weight between 0.5 and 1.5
+                        weight = 0.5 + self._rng.random()  # Random weight between 0.5 and 1.5
                         graph.add_edge(str(i), str(j), weight=weight)
 
                 # Create positions in a circle
@@ -173,7 +181,7 @@ class GridNetwork:
             elif self.topology == GridTopology.RING:
                 for i in range(self.num_nodes):
                     next_node = (i + 1) % self.num_nodes
-                    weight = 0.5 + np.random.rand()
+                    weight = 0.5 + self._rng.random()
                     graph.add_edge(str(i), str(next_node), weight=weight)
 
                 # Create positions in a circle
@@ -199,7 +207,7 @@ class GridNetwork:
             # Linear network (nodes in sequence)
             elif self.topology == GridTopology.LINE:
                 for i in range(self.num_nodes - 1):
-                    weight = 0.5 + np.random.rand()
+                    weight = 0.5 + self._rng.random()
                     graph.add_edge(str(i), str(i + 1), weight=weight)
 
                 # Create positions in a line
@@ -242,7 +250,7 @@ class GridNetwork:
             if len(positions) == len(agents):
                 assigned_nodes = positions
             else:
-                assigned_nodes = np.random.choice(positions, size=len(agents), replace=False)
+                assigned_nodes = self._rng.choice(positions, size=len(agents), replace=False)
 
             # Create mapping for all agents (random assignment)
             self.agent_to_node = {agent_id: str(node) for agent_id, node in zip(agent_ids, assigned_nodes)}
@@ -267,7 +275,7 @@ class GridNetwork:
                 if len(remaining_agents) > len(available_nodes):
                     raise ValueError("Not enough available nodes to assign all remaining agents.")
 
-                randomly_assigned_nodes = np.random.choice(available_nodes, size=len(remaining_agents), replace=False)
+                randomly_assigned_nodes = self._rng.choice(available_nodes, size=len(remaining_agents), replace=False)
 
                 for agent_id, node_id in zip(remaining_agents, randomly_assigned_nodes):
                     self.agent_to_node[agent_id] = str(node_id)
@@ -291,6 +299,9 @@ class GridNetwork:
             seller_node: Node ID of the seller
             quantity: Trade quantity (energy units) at the source
         """
+        if not self.can_settle(buyer_node, seller_node, quantity):
+            return False
+
         try:
             # Find shortest path between buyer and seller
             path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
@@ -318,15 +329,32 @@ class GridNetwork:
                 # Update remaining power after this edge
                 remaining_power -= self.transmission_loss(edge_length, power_at_edge)
 
-                # Increase flow on this edge (use power at start of edge)
-                self.edge_flows[key] += power_at_edge
+                # Keep a signed net flow in the orientation used for this edge.
+                direction = 1.0 if key == (u, v) else -1.0
+                self.edge_flows[key] += direction * power_at_edge
 
-                # Cap at capacity to avoid unrealistic values
-                self.edge_flows[key] = float(min(self.edge_flows[key], self.edge_capacities[key]))
+            return True
 
-        # No path exists between nodes
-        except nx.NetworkXNoPath:
-            pass
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return False
+
+    def can_settle(self, buyer_node: str, seller_node: str, quantity: float) -> bool:
+        """Project a source-energy fill onto the capacity graph without mutating it."""
+        if quantity <= 0:
+            return False
+        try:
+            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight="weight")
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return False
+
+        remaining_power = quantity
+        for u, v in zip(path, path[1:]):
+            key = (u, v) if (u, v) in self.edge_flows else (v, u)
+            direction = 1.0 if key == (u, v) else -1.0
+            if abs(self.edge_flows[key] + direction * remaining_power) > self.edge_capacities[key]:
+                return False
+            remaining_power -= self.transmission_loss(self.graph[u][v]["weight"], remaining_power)
+        return True
 
     def transmission_loss(self,
                           distance: float,
@@ -408,20 +436,9 @@ class GridNetwork:
         Returns:
             Congestion level (0-1 scale, where 1 is fully congested)
         """
-        # Calculate average congestion across all edges
-        try:
-            edge_congestions = []
-            for u, v in self.edge_flows.keys():
-                edge_congestions.append(self.get_edge_congestion(u, v))
-
-            # Return average congestion if there are edges
-            return sum(edge_congestions) / len(edge_congestions) if edge_congestions else 0.0
-
-        # Fallback to simple flow-based congestion calculation
-        except Exception:
-            total_flow = sum(self.edge_flows.values())
-            total_capacity = sum(self.edge_capacities.values())
-            return min(1.0, total_flow / total_capacity) if total_capacity > 0 else 0.0
+        edge_congestions = [self.get_edge_congestion(u, v)
+                            for u, v in self.edge_flows]
+        return sum(edge_congestions) / len(edge_congestions) if edge_congestions else 0.0
 
     def get_location(self, agent_id: str) -> Location:
         """Convert a node position and metadata to a Location object.

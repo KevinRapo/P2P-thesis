@@ -4,7 +4,7 @@ This module implements a decentralized reputation system that evaluates agent
 reliability, price fairness, and grid contribution based on market outcomes.
 """
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -17,23 +17,26 @@ class ReputationHandler:
     """Manages agent reputation in the Local Energy Market.
 
     This system calculates reputation scores based on market matching results,
-    evaluating agents on reliability, price fairness, and grid contribution.
+    evaluating agents on fulfilled quantities and quote-compliant settlement.
     """
 
     def __init__(self,
                  reliability_weight: float = 0.3,
                  fairness_weight: float = 0.2,
-                 grid_weight: float = 0.5) -> None:
+                 grid_weight: float = 0.5,
+                 smoothing: float = 0.2) -> None:
         """Initialize the reputation system.
 
         Args:
             reliability_weight: Weight for reliability in overall score
             fairness_weight: Weight for price fairness in overall score
-            grid_weight: Weight for grid contribution in overall score
+            grid_weight: Retained for configuration compatibility. Grid contribution
+                is excluded until a marginal grid metric is recorded.
         """
         self.reliability_weight = reliability_weight
         self.fairness_weight = fairness_weight
         self.grid_weight = grid_weight
+        self.smoothing = smoothing
         self._neutral = 0.5
 
         # Check initialization
@@ -52,8 +55,12 @@ class ReputationHandler:
 
         if self.reliability_weight + self.fairness_weight + self.grid_weight != 1.0:
             raise ValueError(f"Weights must sum to 1.0. Current value: <reliability_weight = {self.reliability_weight}, fairness_weight = {self.fairness_weight}, grid_weight = {self.grid_weight}>.")
+        if not 0 < self.smoothing <= 1:
+            raise ValueError("Smoothing must be in (0, 1].")
 
-    def reset(self, seed: int = None) -> float:
+    def reset(self,
+              seed: Optional[int] = None,
+              rng: Optional[np.random.Generator] = None) -> float:
         """Generate initial reputation score for an agent.
 
         Args:
@@ -62,10 +69,8 @@ class ReputationHandler:
         Returns:
             Initial reputation score between 0.0 and 1.0
         """
-        if seed is not None:
-            np.random.seed(seed)
-
-        return np.random.uniform(0.0, 1.0)
+        generator = rng if rng is not None else np.random.default_rng(seed)
+        return float(generator.uniform(0.0, 1.0))
 
     def update_reputation(self,
                           agent: DERAgent,
@@ -84,7 +89,9 @@ class ReputationHandler:
             Updated reputation score
         """
         new_reputation = self._calculate_reputation(agent, matching_result, dso_id)
-        return (time_of_day * agent.reputation) + ((1.0 - time_of_day) * new_reputation)
+        # A fixed exponential smoothing coefficient makes recent evidence have
+        # the same meaning in every settlement period.
+        return ((1.0 - self.smoothing) * agent.reputation) + (self.smoothing * new_reputation)
 
     def get_agent_ranking(self, agents: List[DERAgent]) -> List[Tuple[str, float]]:
         """Get ranked list of agents by overall reputation.
@@ -121,41 +128,35 @@ class ReputationHandler:
         if not matching_result.trades:
             return agent.reputation
 
-        # STEP 1. Reliability score
-        agent_trades = [t for t in matching_result.trades if t.buyer_id == agent.id or t.seller_id == agent.id]
-        agent_unmatched = [o for o in matching_result.unmatched_orders if o.agent_id == agent.id]
+        orders = {order.id: order for order in matching_result.submitted_orders
+                  if order.agent_id == agent.id and order.quantity > 0}
+        if not orders:
+            # Older persisted results do not contain submitted-order provenance.
+            # Avoid pretending that a fragment count is a reliability measure.
+            return agent.reputation
 
-        # Higher reliability if more orders were matched
-        reliability = len(agent_trades) / (len(agent_trades) + len(agent_unmatched)) if (agent_trades or agent_unmatched) else self._neutral
+        requested = sum(order.quantity for order in orders.values())
+        filled = 0.0
+        compliant = 0.0
+        for trade in matching_result.trades:
+            if trade.buyer_id == agent.id and trade.buyer_order_id in orders:
+                quantity = trade.delivered_quantity
+                filled += quantity
+                compliant += quantity if trade.price <= orders[trade.buyer_order_id].price else 0.0
+            if trade.seller_id == agent.id and trade.seller_order_id in orders:
+                quantity = trade.quantity
+                filled += quantity
+                compliant += quantity if trade.price >= orders[trade.seller_order_id].price else 0.0
 
-        # STEP 2. Price fairness
-        if agent_trades:
-            price_deviations = [abs(t.price - matching_result.clearing_price) / matching_result.clearing_price for t in agent_trades if matching_result.clearing_price > 0]
-            fairness = 1.0 - min(1.0, np.mean(price_deviations) if price_deviations else 0.0)
-        else:
-            fairness = self._neutral
+        # Split fills are additive, and residual quantity lowers reliability.
+        reliability = min(1.0, filled / requested) if requested else self._neutral
+        fairness = compliant / filled if filled else self._neutral
 
-        # STEP 3. Grid contribution
-        if agent_trades:
-            grid_contributions = []
-
-            for trade in agent_trades:
-                # Only consider trades where this agent is directly involved
-                if (trade.buyer_id == agent.id) or (trade.seller_id == agent.id):
-                    # Calculate the impact of this trade on grid stability
-                    impact = self._calculate_grid_impact(agent.id, trade, matching_result.grid_balance, dso_id)
-                    grid_contributions.append(impact)
-
-            # Average the contributions across all trades
-            grid_contribution = np.mean(grid_contributions) if grid_contributions else 0.0
-
-            # Normalize to 0-1 range (since _calculate_grid_impact returns -1 to 1)
-            grid_contribution = (grid_contribution + 1) / 2
-        else:
-            grid_contribution = self._neutral
-
-        # Calculate overall score with weights
-        overall_score = (self.reliability_weight * reliability) + (self.fairness_weight * fairness) + (self.grid_weight * grid_contribution)
+        # A final aggregate grid balance is not a marginal grid-contribution
+        # measure. Exclude it and renormalize the two observable components.
+        active_weight = self.reliability_weight + self.fairness_weight
+        overall_score = ((self.reliability_weight * reliability) +
+                         (self.fairness_weight * fairness)) / active_weight
 
         return max(0.0, min(1.0, overall_score))
 

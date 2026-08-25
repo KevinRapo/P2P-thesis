@@ -41,21 +41,21 @@ def test_der() -> None:
     print(f"  - Balance: {agent.balance:.2f} kW, Profit: ${agent.profit:.2f}")
 
     # Test action adjustment with battery constraints
-    raw_action = np.array([0.25, 40.0, 1.0, 0], dtype=object)  # price, quantity, is_buy, partner
+    raw_action = np.array([0.25, 40.0], dtype=object)  # price, signed quantity
     adjusted_action = agent.adjust_action_for_battery(step=5,
                                                       action=raw_action,
                                                       market_config=create_market_config())
     print(f"✓ Action adjustment: {raw_action} → {adjusted_action}")
 
     # Test max_quantity constraint - action that would exceed maximum
-    raw_action_large = np.array([0.30, 150.0, 0.0, 0], dtype=object)  # sell 150 Wh (above max 100)
+    raw_action_large = np.array([0.30, -150.0], dtype=object)  # sell 150 Wh (above max 100)
     adjusted_action_large = agent.adjust_action_for_battery(step=5,
                                                             action=raw_action_large,
                                                             market_config=create_market_config())
     print(f"✓ Max quantity constraint: {raw_action_large} → {adjusted_action_large}")
 
     # Test min_quantity constraint - action that would be below minimum
-    raw_action_small = np.array([0.20, 0.5, 1.0, 0], dtype=object)  # buy 0.5 Wh (below min 1.0)
+    raw_action_small = np.array([0.20, 0.5], dtype=object)  # buy 0.5 Wh (below min 1.0)
     adjusted_action_small = agent.adjust_action_for_battery(step=5,
                                                             action=raw_action_small,
                                                             market_config=create_market_config())

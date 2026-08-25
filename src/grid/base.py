@@ -53,7 +53,7 @@ class Location:
                                            source=self.node_id,
                                            target=other.node_id,
                                            weight='weight')
-        except:
+        except (nx.NetworkXNoPath, nx.NodeNotFound, TypeError):
             return self._euclidean_distance(other.x, other.y)
 
     def _euclidean_distance(self, x: float, y: float) -> float:

@@ -15,7 +15,11 @@ class BasePricing(Protocol):
     different parameters based on their specific needs.
     """
 
-    def calculate_price(self, *args, **kwargs) -> float:
+    def calculate_price(self,
+                        buy_order: Order,
+                        sell_order: Order,
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Calculate the trade price for a matched pair of orders.
 
         Args:
@@ -34,8 +38,8 @@ class AveragePricing(BasePricing):
     def calculate_price(self,
                         buy_order: Order,
                         sell_order: Order,
-                        *args,
-                        **kwargs) -> float:
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Calculate average of buy and sell prices.
 
         Args:
@@ -53,8 +57,9 @@ class BuyerPricing(BasePricing):
 
     def calculate_price(self,
                         buy_order: Order,
-                        *args,
-                        **kwargs) -> float:
+                        sell_order: Order,
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Calculate price based on pay-as-bid principle.
 
         Args:
@@ -70,9 +75,10 @@ class SellerPricing(BasePricing):
     """Sets trade price to seller's ask price."""
 
     def calculate_price(self,
+                        buy_order: Order,
                         sell_order: Order,
-                        *args,
-                        **kwargs) -> float:
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Use seller's price as trade price.
 
         Args:
@@ -90,9 +96,8 @@ class BidAskSpreadPricing(BasePricing):
     def calculate_price(self,
                         buy_order: Order,
                         sell_order: Order,
-                        factor: float = 0.5,
-                        *args,
-                        **kwargs) -> float:
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Calculate price based on continuous double auction principles.
 
         The price is set at a point within the bid-ask spread, determined by an
@@ -108,6 +113,7 @@ class BidAskSpreadPricing(BasePricing):
         """
         bid_ask_spread = buy_order.price - sell_order.price
 
+        factor = 0.5 if factor is None else factor
         return sell_order.price + bid_ask_spread * max(0.0, min(factor, 1.0))
 
 
@@ -122,8 +128,8 @@ class NashBargainingPricing(BasePricing):
     def calculate_price(self,
                         buy_order: Order,
                         sell_order: Order,
-                        *args,
-                        **kwargs) -> float:
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Calculate price based on Nash bargaining solution.
 
         The solution maximizes (buyer_gain - d1) * (seller_gain - d2) where
@@ -159,9 +165,8 @@ class ProportionalSurplusPricing(BasePricing):
     def calculate_price(self,
                         buy_order: Order,
                         sell_order: Order,
-                        market_price: float,
-                        *args,
-                        **kwargs) -> float:
+                        reference_price: float | None = None,
+                        factor: float | None = None) -> float:
         """Calculate price based on proportional surplus sharing.
 
         Surplus is allocated proportionally to each agent's bid distance from
@@ -175,9 +180,12 @@ class ProportionalSurplusPricing(BasePricing):
         Returns:
             Proportional surplus sharing price
         """
+        if reference_price is None:
+            return AveragePricing().calculate_price(buy_order, sell_order)
+
         # Calculate distances from reference price
-        buyer_distance = max(0, buy_order.price - market_price)
-        seller_distance = max(0, market_price - sell_order.price)
+        buyer_distance = max(0, buy_order.price - reference_price)
+        seller_distance = max(0, reference_price - sell_order.price)
         total_distance = buyer_distance + seller_distance
 
         # Calculate surplus

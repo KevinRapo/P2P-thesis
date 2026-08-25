@@ -59,7 +59,6 @@ class ObservationHandler:
         _max_quantity = RLProtection.clip_value(value=market_config.max_quantity * len(self.agents), min_value=0.0)
         _max_dso_quantity = RLProtection.clip_value(value=_max_quantity * 2, min_value=0.0)
         _max_demand = RLProtection.clip_value(value=self.max_steps * market_config.max_quantity, min_value=0.0)
-        _max_social_welfare = RLProtection.clip_value(value=market_config.max_price * market_config.max_quantity * len(self.agents), min_value=0.0)
 
         for agent in self.agents:
             low = np.array([
@@ -99,18 +98,7 @@ class ObservationHandler:
                 0.0,  # battery_cumulative_charge
                 0.0,  # battery_cumulative_discharge
 
-                # Implicit cooperation KPIs - Economic Efficiency
-                0.0,  # social_welfare (sum of price * quantity, always >= 0)
-                0.0,  # market_liquidity (total trading volume, always >= 0)
-                -market_config.max_price,  # avg_bid_ask_spread (can be negative if bids > asks)
-                0.0,  # price_volatility (standard deviation, always >= 0)
-                0.0,  # supply_demand_imbalance (normalized ratio)
-                0.0,  # grid_congestion (normalized ratio)
-                0.0,  # coordination_score (normalized score)
-                0.0,  # coordination_convergence
-                0.0,  # der_self_consumption
-                0.0   # flexibility_utilization
-            ])
+            ], dtype=np.float32)
 
             # Safe calculation of high values to prevent overflow (agent-specific)
             _max_supply = RLProtection.clip_value(value=self.max_steps * agent.capacity, min_value=0.0)
@@ -154,23 +142,7 @@ class ObservationHandler:
                 _battery_max_cumulative,  # battery_cumulative_charge
                 _battery_max_cumulative,  # battery_cumulative_discharge
 
-                # Implicit cooperation KPIs - Economic Efficiency
-                _max_social_welfare,  # social_welfare (max price * max total volume)
-                _max_quantity,  # market_liquidity (max total trading volume)
-                market_config.max_price,  # avg_bid_ask_spread (max possible spread)
-                market_config.max_price,  # price_volatility (max possible volatility)
-                1.0,  # supply_demand_imbalance (normalized ratio)
-                1.0,  # grid_congestion (normalized ratio)
-                1.0,  # coordination_score (normalized score)
-                1.0,  # coordination_convergence
-                1.0,  # der_self_consumption
-                1.0   # flexibility_utilization
-            ])
-
-            # If partner preference is enabled, add partner reputation to observation space
-            if self.market_config.enable_partner_preference:
-                low = np.concatenate([low, np.zeros(len(self.agents))])
-                high = np.concatenate([high, np.ones(len(self.agents))])
+            ], dtype=np.float32)
 
             # Add to observation space
             self.observation_space[agent.id] = spaces.Box(low=low, high=high, dtype=np.float32)
@@ -220,39 +192,24 @@ class ObservationHandler:
                 0.0,  # local_price_advantage
 
                 # Agent signals
-                0.0,  # energy_generation
-                0.0,  # energy_demand
+                agent.get_generation(0),  # energy_generation
+                agent.get_demand(0),  # energy_demand
                 0.0,  # cumulative_demand_satisfied
                 0.0,  # cumulative_demand_deferred
-                0.0,  # remaining_demand
+                0.0,  # no unavailable future-demand oracle
                 0.0,  # cumulative_supply_satisfied
                 0.0,  # cumulative_supply_deferred
-                0.0,  # remaining_supply
-                0.0,  # average_profit
+                0.0,  # no unavailable future-generation oracle
+                agent.profit,  # average_profit
                 agent.reputation,  # reputation
                 battery_status["energy_level"],  # battery_energy_level
                 battery_status["soc"],  # battery_soc
                 battery_status["available_charge"],  # battery_available_charge
                 battery_status["available_discharge"],  # battery_available_discharge
-                0.0,  # battery_cumulative_charge
-                0.0,  # battery_cumulative_discharge
+                battery_status["cumulative_charge"],
+                battery_status["cumulative_discharge"],
 
-                # Implicit cooperation KPIs - Economic Efficiency
-                0.0,  # social_welfare (sum of price * quantity, always >= 0)
-                0.0,  # market_liquidity (total trading volume, always >= 0)
-                0.0,  # avg_bid_ask_spread (can be negative if bids > asks)
-                0.0,  # price_volatility (standard deviation, always >= 0)
-                0.0,  # supply_demand_imbalance (normalized ratio)
-                0.0,  # grid_congestion (normalized ratio)
-                0.0,  # coordination_score (normalized score)
-                0.0,  # coordination_convergence
-                0.0,  # der_self_consumption
-                0.0,  # flexibility_utilization
             ], dtype=np.float32)
-
-            if self.market_config.enable_partner_preference:
-                agents_reputation = np.array([other_agent.reputation for other_agent in self.agents], dtype=np.float32)
-                obs[agent.id] = np.concatenate([obs[agent.id], agents_reputation])
 
         return obs
 
@@ -296,34 +253,9 @@ class ObservationHandler:
             matching.local_price_advantage
         ], dtype=np.float32)
 
-        # Implicit cooperation KPIs
-        kpis = implicit_cooperation.get_kpis(current_step,
-                                             self.dso.id,
-                                             self.agents,
-                                             orders,
-                                             matching.trades,
-                                             self.dso.congestion_level,
-                                             matching_history)
-
-        implicit_cooperation_kpis = np.array([
-            # Economic Efficiency KPIs
-            kpis["social_welfare"],
-            kpis["market_liquidity"],
-            kpis["avg_bid_ask_spread"],
-            kpis["price_volatility"],
-
-            # Grid Stability KPIs
-            kpis["supply_demand_imbalance"],
-            kpis["grid_congestion"],
-
-            # Coordination Effectiveness KPIs
-            kpis["coordination_score"],
-            kpis["coordination_convergence"],
-
-            # Resource Coordination KPIs
-            kpis["der_self_consumption"],
-            kpis["flexibility_utilization"]
-        ], dtype=np.float32)
+        # KPI summaries are reported in step info rather than fed to a
+        # decentralized policy as global state.
+        del implicit_cooperation, orders
 
         # Agent signals
         obs = {}
@@ -335,10 +267,10 @@ class ObservationHandler:
                 agent.get_demand(current_step),
                 agent.cumulative_demand_satisfied,
                 agent.cumulative_demand_deferred,
-                agent.get_remaining_demand(current_step),
+                0.0,  # no unavailable future-demand oracle
                 agent.cumulative_supply_satisfied,
                 agent.cumulative_supply_deferred,
-                agent.get_remaining_supply(current_step),
+                0.0,  # no unavailable future-generation oracle
                 agent.profit,
                 agent.reputation,
                 battery_status["energy_level"],
@@ -350,11 +282,7 @@ class ObservationHandler:
             ], dtype=np.float32)
 
             # Add to observation space
-            obs[agent.id] = np.concatenate([market_signals, agent_signals, implicit_cooperation_kpis])
-
-            if self.market_config.enable_partner_preference:
-                agents_reputation = np.array([other_agent.reputation for other_agent in self.agents], dtype=np.float32)
-                obs[agent.id] = np.concatenate([obs[agent.id], agents_reputation])
+            obs[agent.id] = np.concatenate([market_signals, agent_signals])
 
         return obs
 

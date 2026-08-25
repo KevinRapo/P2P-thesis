@@ -46,3 +46,10 @@ explicit = true
 
 [tool.uv.sources]
 torch = { index = "pytorch-cu126" }
+
+[tool.pytest.ini_options]
+# The inherited test_*.py files are executable demonstrations, not assertion
+# suites.  Keep the default gate limited to focused regression/invariant tests
+# until each demonstration is converted and re-enabled deliberately.
+python_files = ["test_p[0-3]_*.py"]
+testpaths = ["tests"]

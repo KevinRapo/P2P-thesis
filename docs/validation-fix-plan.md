@@ -6,7 +6,7 @@ This is the concrete remediation plan for the current MARLEM repository. It is i
 
 The audit covers the working tree on 2026-08-08 at `HEAD 04b6be1`, including `src/`, `tests/`, `notebooks/`, `examples/`, configuration/packaging files, and user-facing documentation. It combines static inspection with targeted execution checks. It is comprehensive for the code currently present, but it is not a claim that no further defect can be found after the model is specified more precisely.
 
-Current executable evidence:
+Audit-time executable evidence (2026-08-08, before the fixes below):
 
 - `uv run pytest -q` collects 35 tests but reports **15 passed, 3 failed, and 17 errors**.
 - The test files contain no `assert` statement or `pytest.raises` check.
@@ -14,7 +14,7 @@ Current executable evidence:
 - With the supplied reset path and one seed, identically configured agents receive identical generation profiles, demand profiles, reputations, and initial balances.
 - Agent `profit` remains zero after settlement.
 
-Until the P0 and P1 gates below pass, MARLEM should be described as an architectural research prototype. Results produced by the current code should not be used as evidence for physical feasibility, household profit, social welfare, grid stability, CTDE performance, or superiority of one learning algorithm.
+Current acceptance evidence (2026-08-25): `uv run --no-sync pytest -q` passes 90 focused P0-P3 regression tests, and case notebooks 1–7 execute from fresh kernels under their documented safe defaults with runtime output checked for actual success/failure counts. The empirical study requirements in P2-01/P2-06 are documented external blockers rather than unimplemented code work.
 
 ## Severity and evidence conventions
 
@@ -41,12 +41,12 @@ Each issue has an independent tracker. Use one of these status values: `Open`, `
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed - pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The one-balance settlement convention is documented in `model-contract.md`; focused battery trade-balance and source/delivered/loss conservation regressions pass in the acceptance gate.
 
 **Evidence and location:** `DERAgent.update_battery_from_trades` defines `net_trade_energy = energy_sold - energy_bought` and adds it to generation minus demand ([src/agent/der.py:L293-L305](../src/agent/der.py#L293-L305)). The environment passes positive bought and sold totals into that method ([src/environment/lem.py:L391-L411](../src/environment/lem.py#L391-L411)). Consequently, buying creates a larger deficit and selling creates a larger surplus.
 
@@ -70,12 +70,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Focused physical surplus, deficit, and infeasible-direction tests verify signed quantities are capped by current generation/demand state and permit zero/no-order actions.
 
 **Evidence and location:** buy feasibility calculates `quantity - current_generation`; sell feasibility calculates `quantity - current_demand` ([src/agent/der.py:L192-L228](../src/agent/der.py#L192-L228)). These equations omit the actual `generation - demand` net position. The final clamp forces at least `market_config.min_quantity`, even when zero is the only feasible action ([src/agent/der.py:L230-L234](../src/agent/der.py#L230-L234)). The environment applies another quantity clamp afterward ([src/environment/lem.py:L350-L357](../src/environment/lem.py#L350-L357)).
 
@@ -93,12 +93,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The model contract defines `[price, signed_quantity]`; focused action-feasibility and declared-agent-order tests verify the policy action is interpreted consistently without learned partner selection.
 
 **Evidence and location:** price, quantity, direction, and partner are all declared as one continuous `Box` ([src/environment/action.py:L34-L44](../src/environment/action.py#L34-L44)). Battery adjustment treats any non-zero direction as true ([src/agent/der.py:L183-L196](../src/agent/der.py#L183-L196)), whereas the environment later uses a 0.5 threshold ([src/environment/lem.py:L335-L359](../src/environment/lem.py#L335-L359)). Partner selection truncates a continuous float to an integer ([src/environment/lem.py:L358-L359](../src/environment/lem.py#L358-L359)). Before any external clipping, the “no preference” mapping is reached only at the exact upper endpoint, so its probability depends on clipping behavior rather than categorical semantics; self-selection is also allowed ([src/environment/action.py:L68-L88](../src/environment/action.py#L68-L88)). CTDE then models every component with diagonal Gaussians ([src/environment/ctde.py:L366-L383](../src/environment/ctde.py#L366-L383)).
 
@@ -116,12 +116,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The immutable-order regression verifies matching fills trades without changing submitted quantities; trade/order provenance is retained in matching results.
 
 **Evidence and location:** the matcher subtracts fills directly from the input `Order.quantity` ([src/market/matching.py:L346-L354](../src/market/matching.py#L346-L354), [src/market/matching.py:L525-L554](../src/market/matching.py#L525-L554)), and DSO fallback assigns the remaining quantity to zero ([src/market/dso.py:L213-L253](../src/market/dso.py#L213-L253)). The same `Order` objects are then passed to reward code ([src/environment/lem.py:L413-L430](../src/environment/lem.py#L413-L430)) and stored in `info` ([src/environment/lem.py:L468-L476](../src/environment/lem.py#L468-L476)). Reward components divide by `order.quantity`, returning zero when the now-mutated quantity is zero ([src/environment/reward.py:L248-L249](../src/environment/reward.py#L248-L249), [src/environment/reward.py:L360-L363](../src/environment/reward.py#L360-L363), [src/environment/reward.py:L406-L409](../src/environment/reward.py#L406-L409)). The execution probe confirmed all stored order quantities were zero after the first step.
 
@@ -139,12 +139,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Golden pricing regression checks buyer, seller, midpoint, bid-ask factor, and proportional-surplus prices through the named buy/sell interface.
 
 **Evidence and location:** the matcher always calls `calculate_price(buy_order, sell_order, market_price)` ([src/market/matching.py:L309-L312](../src/market/matching.py#L309-L312)). `SellerPricing` accepts its first positional argument as `sell_order`, so it returns the buyer's bid instead of the seller's ask ([src/market/mechanism.py:L69-L84](../src/market/mechanism.py#L69-L84)). `BidAskSpreadPricing` accepts the third positional argument as `factor`, so the current market price becomes the interpolation factor and is clipped to `[0,1]` ([src/market/mechanism.py:L87-L111](../src/market/mechanism.py#L87-L111)). Average pricing and symmetric Nash bargaining are also identical under the current definitions ([src/market/mechanism.py:L31-L48](../src/market/mechanism.py#L31-L48), [src/market/mechanism.py:L114-L148](../src/market/mechanism.py#L114-L148)).
 
@@ -162,12 +162,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Focused battery regressions verify exact bound clipping, charge/discharge efficiency, and source/delivered/loss energy accounting; units are recorded in the model contract.
 
 **Evidence and location:** exact transitions to maximum/minimum SOC and all oversized requests are rejected by `>=` and `<=` checks ([src/agent/battery.py:L95-L126](../src/agent/battery.py#L95-L126)). Charging first limits input by storage headroom and only then applies efficiency ([src/agent/battery.py:L131-L148](../src/agent/battery.py#L131-L148)). Discharging multiplies the request by efficiency and subtracts only the delivered amount from stored energy ([src/agent/battery.py:L158-L176](../src/agent/battery.py#L158-L176)), which is inconsistent if the request is external delivered energy. No timestep or charge/discharge power limit is represented. Documentation alternates between kWh and Wh ([src/agent/battery.py:L23-L38](../src/agent/battery.py#L23-L38), [src/agent/battery.py:L131-L176](../src/agent/battery.py#L131-L176)).
 
@@ -185,12 +185,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Horizon regressions verify that a configured horizon executes exactly that many transitions, including the one-step terminal case.
 
 **Evidence and location:** rewards test the terminal flag before incrementing the step ([src/environment/lem.py:L424-L435](../src/environment/lem.py#L424-L435)); termination then fires when the incremented step is `>= max_steps - 1` ([src/environment/lem.py:L443-L453](../src/environment/lem.py#L443-L453)). A 24-step probe executed 23 transitions. The last executed pre-increment index is 22, so `is_terminal` is false and the terminal unmet-demand penalty at [src/environment/reward.py:L204-L214](../src/environment/reward.py#L204-L214) is skipped. Simply changing the comparator would make the observation update index `N` ([src/environment/lem.py:L478-L483](../src/environment/lem.py#L478-L483); [src/environment/observation.py:L334-L342](../src/environment/observation.py#L334-L342)).
 
@@ -208,12 +208,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Reset regressions verify configured profiles remain intact and distinct agent state is not collapsed by reseeding; exact replay is covered in the P2 profile tests.
 
 **Evidence and location:** the environment and component resets repeatedly call global `np.random.seed` ([src/environment/lem.py:L271-L293](../src/environment/lem.py#L271-L293), [src/agent/der.py:L74-L109](../src/agent/der.py#L74-L109), [src/agent/battery.py:L54-L64](../src/agent/battery.py#L54-L64), [src/profile/base.py:L17-L29](../src/profile/base.py#L17-L29), [src/market/reputation.py:L60-L68](../src/market/reputation.py#L60-L68)). Every DER profile is regenerated on reset, even if explicit profiles were supplied ([src/environment/lem.py:L281-L293](../src/environment/lem.py#L281-L293)). `agent.reset` reseeds at the end of one agent's reset, causing the next identically configured agent to start from the same random stream. It also initializes `agent.balance` as an unrelated random value rather than a physical or settled balance ([src/agent/der.py:L99-L109](../src/agent/der.py#L99-L109)). The probe confirmed identical profiles, reputations, and balances across all three agents.
 
@@ -231,12 +231,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** CTDE initialization raises a clear error until a verified local-actor training path exists. The focused regression and acceptance gate pass; DTDE and CTCE remain the available baselines.
 
 **Evidence and location:** training uses the centralized `pi_encoder` and `pi` ([src/environment/ctde.py:L46-L49](../src/environment/ctde.py#L46-L49), [src/environment/ctde.py:L107-L128](../src/environment/ctde.py#L107-L128)), while rollout, exploration, and inference use independent `pi_heads` ([src/environment/ctde.py:L51-L56](../src/environment/ctde.py#L51-L56), [src/environment/ctde.py:L73-L104](../src/environment/ctde.py#L73-L104)). Target copies of local heads are created ([src/environment/ctde.py:L216-L233](../src/environment/ctde.py#L216-L233)), but that does not put the local heads in the actor loss.
 
@@ -254,12 +254,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Grouped-space regression verifies tuple order follows the declared immutable agent order.
 
 **Evidence and location:** the base environment exposes active agents as a `set` ([src/environment/lem.py:L69-L74](../src/environment/lem.py#L69-L74)). The grouped environment uses `env.agents_id` order for grouping ([src/environment/train.py:L635-L648](../src/environment/train.py#L635-L648)) and packs dictionary values in insertion order ([src/environment/train.py:L668-L684](../src/environment/train.py#L668-L684)). Its helper independently sorts dictionary keys when constructing tuple spaces ([src/environment/train.py:L688-L707](../src/environment/train.py#L688-L707)). If agent IDs are not already lexicographically ordered, tuple elements and their declared spaces refer to different agents. CTDE heads also enumerate the configured agent order ([src/environment/ctde.py:L51-L56](../src/environment/ctde.py#L51-L56)).
 
@@ -277,12 +277,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Cash-ledger regression verifies buyer debit, seller credit, fee collection, and zero-sum ledger conservation for a settled trade.
 
 **Evidence and location:** `DERAgent.profit` is initialized and reset ([src/agent/der.py:L59-L62](../src/agent/der.py#L59-L62), [src/agent/der.py:L107-L109](../src/agent/der.py#L107-L109)) but has no update path; observations expose the unchanged value ([src/environment/observation.py:L334-L343](../src/environment/observation.py#L334-L343)). `Trade` stores one price, one source quantity, loss, and fees but no buyer payment or seller receipt ([src/market/order.py:L24-L34](../src/market/order.py#L24-L34)). DSO profit includes tariff trades but not accumulated grid fees ([src/market/dso.py:L255-L263](../src/market/dso.py#L255-L263), [src/market/dso.py:L342-L345](../src/market/dso.py#L342-L345)). The fee calculation leaves `transmission_fee` at zero and can apply a negative same-zone bonus, but no ledger assigns the resulting amount to payer and recipient ([src/market/dso.py:L285-L345](../src/market/dso.py#L285-L345)). The execution probe confirmed all DER profits remained zero after trading.
 
@@ -300,12 +300,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The focused `test_p[0-3]_*.py` acceptance gate is documented in `docs/tests.md`, passes with the current deterministic regression suite, and is run by `.github/workflows/validation.yml` through frozen uv dependencies.
 
 **Evidence and location:** current pytest collection fails because functions are treated as tests while requiring undefined fixtures such as `path` and `algo` ([tests/test_checkpoint.py:L16-L54](../tests/test_checkpoint.py#L16-L54), [tests/test_inference.py:L16-L94](../tests/test_inference.py#L16-L94), [tests/test_trainer.py:L18-L24](../tests/test_trainer.py#L18-L24), [tests/test_visualization.py:L29-L631](../tests/test_visualization.py#L29-L631)). Other tests are print-driven demonstrations with broad exception handling, for example [tests/test_battery.py:L13-L62](../tests/test_battery.py#L13-L62), [tests/test_environment.py:L17-L90](../tests/test_environment.py#L17-L90), and [tests/test_reward.py:L22-L224](../tests/test_reward.py#L22-L224). Calls have drifted from production signatures in [tests/test_profile.py:L16-L67](../tests/test_profile.py#L16-L67), [tests/test_reward.py:L22-L204](../tests/test_reward.py#L22-L204), and [tests/test_implicit_cooperation.py:L19-L178](../tests/test_implicit_cooperation.py#L19-L178). No CI workflow exists.
 
@@ -323,12 +323,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Trade records retain source quantity, delivered quantity, and loss separately; focused conservation and DSO-residual regressions pass in the acceptance gate.
 
 **Evidence and location:** a trade records `proposed_quantity` as `Trade.quantity` and loss separately ([src/market/matching.py:L314-L332](../src/market/matching.py#L314-L332)). The seller order is reduced by source quantity but the buyer order only by source minus loss ([src/market/matching.py:L346-L348](../src/market/matching.py#L346-L348)), allowing the loss remainder to be purchased again from the DSO. The environment nevertheless credits the buyer with the full source quantity ([src/environment/lem.py:L397-L411](../src/environment/lem.py#L397-L411)). Loss is computed as distance times source quantity without a cap ([src/grid/network.py:L340-L374](../src/grid/network.py#L340-L374)).
 
@@ -346,12 +346,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Capacity-flow regressions verify ordinary network settlement rejects overloaded paths and all matching paths use the same abstract graph constraint.
 
 **Evidence and location:** ordinary matching checks only whether the current scalar balance is already beyond `max_quantity * num_agents` ([src/market/matching.py:L158](../src/market/matching.py#L158), [src/market/matching.py:L295-L307](../src/market/matching.py#L295-L307)). It neither evaluates the proposed trade nor uses `grid_network.capacity`. The ordinary branch never calls `update_flow_from_trade`; that call exists only in the preferred-partner path ([src/market/matching.py:L569-L575](../src/market/matching.py#L569-L575)).
 
@@ -369,12 +369,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Focused grid-flow regressions verify per-step reset, signed opposite-flow netting, and overload rejection without clipping.
 
 **Evidence and location:** reset initializes each edge to a random 0–30% utilization without injections ([src/grid/network.py:L54-L85](../src/grid/network.py#L54-L85)). `update_flow_from_trade` only adds positive flow along an undirected path and silently caps it at capacity ([src/grid/network.py:L279-L329](../src/grid/network.py#L279-L329)); there is no per-timestep flow reset, directional netting, rejection, or curtailment record. A missing path is swallowed, while `get_path_congestion` reports a missing path as zero congestion ([src/grid/network.py:L328-L329](../src/grid/network.py#L328-L329), [src/grid/network.py:L376-L403](../src/grid/network.py#L376-L403)). `Location.distance_to` catches every error and substitutes Euclidean distance ([src/grid/base.py:L34-L57](../src/grid/base.py#L34-L57)).
 
@@ -392,12 +392,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The current model contract scopes the grid to an abstract capacity graph; the IEEE34 connectivity regression verifies the representation is connected and does not claim AC impedance validity.
 
 **Evidence and location:** the IEEE34 position map includes nodes 888 and 890, but the edge list contains only `888-890`; it omits the feeder connection `832-888` ([src/grid/config.py:L12-L39](../src/grid/config.py#L12-L39)). The impedance dictionary does contain `832-888` ([src/grid/config.py:L41-L75](../src/grid/config.py#L41-L75)), exposing the inconsistency. Grid construction adds only edge lengths as `weight` and never attaches or uses the impedance table ([src/grid/network.py:L127-L140](../src/grid/network.py#L127-L140)).
 
@@ -415,12 +415,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** DSO residual regressions verify bounded fallback volume remains visible and DSO trades are rejected when the same network capacity constraint is exceeded.
 
 **Evidence and location:** DSO fallback buys or sells every remaining quantity with zero distance, zero loss, and zero fee ([src/market/dso.py:L213-L253](../src/market/dso.py#L213-L253)). It does not call `validate_grid_constraints`; that validator applies `abs(self.balance + proposed_quantity)` without order direction and examines current rather than projected path congestion ([src/market/dso.py:L347-L390](../src/market/dso.py#L347-L390)). The matcher then forcibly sets `unmatched_orders=[]` ([src/market/matching.py:L356-L382](../src/market/matching.py#L356-L382)).
 
@@ -438,12 +438,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Reward is now a bounded, ledger-derived objective: normalized settlement cash change, unserved demand, delivered-energy loss, and congestion penalty. Focused golden tests cover monotonicity and unit-display invariance.
 
 **Evidence and location:** `_w_local` is assigned 0.7 and later overwritten as 0.3 ([src/environment/reward.py:L79-L93](../src/environment/reward.py#L79-L93)). Agents with no trade return early and skip grid/cooperation/terminal penalties ([src/environment/reward.py:L130-L136](../src/environment/reward.py#L130-L136)). Dimensionful or unbounded KPIs are inverted with `1-x` and averaged as if normalized ([src/environment/reward.py:L168-L192](../src/environment/reward.py#L168-L192)). Terminal penalties are scaled by the magnitude of unrelated base reward ([src/environment/reward.py:L204-L229](../src/environment/reward.py#L204-L229)). Grid contribution uses `agent.balance` before the environment updates it ([src/environment/reward.py:L270-L297](../src/environment/reward.py#L270-L297); [src/environment/lem.py:L424-L441](../src/environment/lem.py#L424-L441)). Within-step price dispersion is labelled stability ([src/environment/reward.py:L435-L446](../src/environment/reward.py#L435-L446)).
 
@@ -461,12 +461,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Unsupported KPI labels were removed. The metric contract now defines turnover, trade energy, quote spread, settlement volatility, physical imbalance, congestion, balance score, and local-trade share from recorded inputs; decentralized observations no longer consume global KPI vectors.
 
 **Evidence and location:** “social welfare” is transaction turnover ([src/coordination/implicit_cooperation.py:L90-L94](../src/coordination/implicit_cooperation.py#L90-L94)); bid and ask price lists are reversed ([src/coordination/implicit_cooperation.py:L99-L100](../src/coordination/implicit_cooperation.py#L99-L100)); “supply-demand imbalance” sums positive trade quantities rather than signed physical mismatch ([src/coordination/implicit_cooperation.py:L117-L128](../src/coordination/implicit_cooperation.py#L117-L128)); “coordination convergence” is three-step trading-volume stability ([src/coordination/implicit_cooperation.py:L139-L154](../src/coordination/implicit_cooperation.py#L139-L154)); “DER self-consumption” is local-trade share ([src/coordination/implicit_cooperation.py:L175-L188](../src/coordination/implicit_cooperation.py#L175-L188)); and flexibility combines mutually exclusive buyable and sellable quantities before calculating utilization ([src/coordination/implicit_cooperation.py:L190-L226](../src/coordination/implicit_cooperation.py#L190-L226)). The reported `clearing_price` is a volume-weighted mean of heterogeneous bilateral and DSO settlements rather than one uniform market-clearing price ([src/market/matching.py:L368-L385](../src/market/matching.py#L368-L385)).
 
@@ -484,12 +484,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Market analytics now expose only settlement aggregates with direct ledger/history provenance, and the affected visualizations use literal labels. Unsupported welfare, surplus, allocation, price-discovery, liquidity, and fairness scores were removed.
 
 **Evidence and location:** market analytics define welfare as turnover, split a zero/constructed surplus evenly, equate uniform transaction sizes with allocative efficiency, and equate low price variance with price discovery ([src/analytics/market_analytics.py:L228-L332](../src/analytics/market_analytics.py#L228-L332)). Grid stability includes price volatility; “grid utilization” is P2P share; load factor uses clearing volume; capacity utilization uses only the final cumulative edge state ([src/analytics/grid_metrics.py:L129-L228](../src/analytics/grid_metrics.py#L129-L228)). Grid time-series fields are declared but are not populated by the returned metric object ([src/analytics/grid_metrics.py:L39-L50](../src/analytics/grid_metrics.py#L39-L50), [src/analytics/grid_metrics.py:L72-L110](../src/analytics/grid_metrics.py#L72-L110)). DSO “self-sufficiency” is P2P share and fallback effectiveness counts trades against a deliberately empty unmatched list ([src/analytics/dso_metrics.py:L99-L111](../src/analytics/dso_metrics.py#L99-L111), [src/analytics/dso_metrics.py:L148-L226](../src/analytics/dso_metrics.py#L148-L226)). Coordination analytics infer strategy alignment, information efficiency, battery coordination, peak reduction, and energy-waste reduction from rewards, P2P ratio, price, or grid balance without strategy, information, battery, baseline-load, or curtailed-energy inputs ([src/analytics/coordination_metrics.py:L200-L297](../src/analytics/coordination_metrics.py#L200-L297), [src/analytics/coordination_metrics.py:L381-L459](../src/analytics/coordination_metrics.py#L381-L459), [src/analytics/coordination_metrics.py:L497-L588](../src/analytics/coordination_metrics.py#L497-L588)).
 
@@ -507,12 +507,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Reset uses current local state, unavailable future totals are zeroed, and the decentralized policy observation no longer exposes peer reputation vectors.
 
 **Evidence and location:** reset observations hard-code generation, demand, remaining energy, profit, and KPIs to zero ([src/environment/observation.py:L195-L251](../src/environment/observation.py#L195-L251)) even though profiles and random balances already exist. Later observations expose exact sums of all future demand and generation and the never-updated profit ([src/environment/observation.py:L334-L343](../src/environment/observation.py#L334-L343); [src/agent/der.py:L338-L363](../src/agent/der.py#L338-L363)). Every agent receives global market/DSO/grid/KPI signals ([src/environment/observation.py:L279-L326](../src/environment/observation.py#L279-L326)) and, when preferences are enabled, every agent's reputation including its own ([src/environment/observation.py:L353-L357](../src/environment/observation.py#L353-L357)).
 
@@ -530,12 +530,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Matching retains submitted-order and fill provenance; reputation uses quantity fulfilment and quote compliance with fixed smoothing, and omits unsupported grid marginal contribution.
 
 **Evidence and location:** reliability counts trade fragments versus unmatched orders ([src/market/reputation.py:L124-L129](../src/market/reputation.py#L124-L129)), but DSO fallback makes unmatched orders empty and one order may create multiple trades. Fairness measures distance from a volume-weighted average settlement price rather than compliance with an agent's bid/ask ([src/market/reputation.py:L131-L136](../src/market/reputation.py#L131-L136)). Grid contribution is inferred from the final balance rather than a counterfactual marginal effect ([src/market/reputation.py:L138-L153](../src/market/reputation.py#L138-L153)). The update weight on old reputation equals `time_of_day`, so new evidence is almost ignored near episode end ([src/market/reputation.py:L80-L87](../src/market/reputation.py#L80-L87)).
 
@@ -553,12 +553,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed - pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The model contract defines kW, kWh, hours, and currency/kWh; `time_step_hours` limits battery power and environment-boundary profile conversion; focused tests reconcile equivalent hourly and 15-minute power profiles without changing energy.
 
 **Evidence and location:** DER capacity is documented as W ([src/agent/der.py:L31-L39](../src/agent/der.py#L31-L39)), grid capacity as kW ([src/grid/network.py:L28-L34](../src/grid/network.py#L28-L34)), battery capacity as kWh ([src/agent/battery.py:L23-L38](../src/agent/battery.py#L23-L38)), and market quantities/prices as Wh and $/Wh ([src/market/matching.py:L33-L36](../src/market/matching.py#L33-L36)). Tests and notebooks variously label the same quantities kW, Wh, kWh, $/Wh, and $/MWh ([tests/utils.py:L61-L68](../tests/utils.py#L61-L68), [notebooks/case1_market_mechanisms.ipynb:L141-L159](../notebooks/case1_market_mechanisms.ipynb#L141-L159)). Synthetic profiles map any number of steps onto exactly 24 hours without an explicit `delta_t` ([src/profile/der.py:L187-L233](../src/profile/der.py#L187-L233), [src/profile/dso.py:L231-L337](../src/profile/dso.py#L231-L337)).
 
@@ -576,12 +576,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** CTCE is described as a centralized-information baseline, never an optimizer or upper bound; grouped rewards retain a total in info and train on per-agent mean reward. The focused group-reward regression and acceptance gate pass.
 
 **Evidence and location:** grouped CTCE receives centralized observations but still uses an approximate learned policy. Group reward is the sum of individual rewards ([src/environment/train.py:L676-L686](../src/environment/train.py#L676-L686)), so returns scale with agent count. There is no exact optimizer establishing a true upper bound.
 
@@ -599,12 +599,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed - pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** The active matcher uses deterministic price-time priority and does not apply partner/reputation ordering. Its heterogeneous settlement aggregate is explicitly named `volume_weighted_settlement_price`.
 
 **Evidence and location:** preferred-partner matching runs before price-priority matching ([src/market/matching.py:L243-L279](../src/market/matching.py#L243-L279)), so a preference can consume liquidity that a higher-priority bid or lower-priority ask would otherwise receive. The paper explicitly makes social preference senior to price matching, so this ordering is intentional, but the code does not document the allocation consequence locally. P2P transactions can settle at different bilateral mechanism prices, DSO transactions settle at tariffs, and all are combined into one volume-weighted value labelled `clearing_price` ([src/market/matching.py:L309-L336](../src/market/matching.py#L309-L336), [src/market/matching.py:L360-L385](../src/market/matching.py#L360-L385)). Reputation is also inserted into price sorting ahead of timestamp ([src/market/matching.py:L273-L279](../src/market/matching.py#L273-L279)).
 
@@ -624,12 +624,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Blocked`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Same-scenario evaluation is disabled by default. Enabling validation now requires separately declared train/validation scenarios and seeds. `ScenarioSplit` requires non-empty, unique, disjoint train/validation/test IDs and seeds, with a stable split fingerprint; `run_declared_training` starts exactly one independent trainer per declared training seed; and `run_declared_episodes` evaluates only the requested declared phase while appending per-seed records. [The experiment protocol](experiment-protocol.md) documents the required sequence and the bundled-data limitation: its profile columns have no day IDs and its raw tariff pairs violate the feed-in/utility contract. **External blocker:** a scientific multi-seed study requires user-selected valid tariff/day data or authorization for a documented synthetic-tariff benchmark.
 
 **Evidence and location:** evaluation changes exploration behavior but otherwise reuses the training environment configuration ([src/environment/train.py:L275-L294](../src/environment/train.py#L275-L294)). Component resets reuse the configured seed ([src/environment/lem.py:L271-L300](../src/environment/lem.py#L271-L300)), and inference resets without episode-specific seeds ([src/environment/inference.py:L128-L132](../src/environment/inference.py#L128-L132), [src/environment/inference.py:L247-L250](../src/environment/inference.py#L247-L250)). There is no household, day, chronological, or scenario split.
 
@@ -647,12 +647,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending checkpoint validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Inference restores the full RLlib `Algorithm`, obtains each registered policy module by its explicit agent ID, and samples through that module's registered distribution without hand-built Normal sampling. Shared environment metrics are extracted from the documented per-agent info envelope. Focused tests cover module IDs, info extraction, and cleanup; a one-iteration DTDE PPO train-to-checkpoint-to-inference smoke run passes.
 
 **Evidence and location:** inference restores only RLModule components ([src/environment/inference.py:L86-L104](../src/environment/inference.py#L86-L104)) and manually splits means/log standard deviations, samples a raw Normal, and clips actions ([src/environment/inference.py:L144-L216](../src/environment/inference.py#L144-L216)) instead of using the algorithm's distribution/action connectors. The grouped tensor is manually sliced and depends on the ordering defect above. Metrics are read as top-level `info` fields ([src/environment/inference.py:L218-L235](../src/environment/inference.py#L218-L235)), but the environment returns a dictionary keyed by agents ([src/environment/lem.py:L485-L489](../src/environment/lem.py#L485-L489); [src/environment/train.py:L676-L686](../src/environment/train.py#L676-L686)), so price/volume/grid histories default to zero.
 
@@ -670,12 +670,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed - pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Replay preserves named numeric value columns, zero values, timestamps, explicit intervals, and cadence validation without scaling, smoothing, clipping, or noise.
 
 **Evidence and location:** the base loader chooses a random CSV column without identifying timestamp or household ([src/profile/base.py:L31-L43](../src/profile/base.py#L31-L43)). DER CSV values are randomly rescaled/noised and later clipped ([src/profile/der.py:L119-L170](../src/profile/der.py#L119-L170), [src/profile/der.py:L239-L248](../src/profile/der.py#L239-L248)); DSO tariffs are similarly normalized and randomized ([src/profile/dso.py:L154-L217](../src/profile/dso.py#L154-L217)). The requested `steps` value is not used to select, resample, or validate the CSV length. Convolution uses zero-padded `same` smoothing ([src/profile/base.py:L49-L62](../src/profile/base.py#L49-L62)), and a positive market minimum clips genuine zero generation/demand upward ([src/profile/der.py:L239-L248](../src/profile/der.py#L239-L248)). The environment also rejects supplied zero-valued physical profiles whenever the market's minimum order quantity is positive ([src/environment/lem.py:L223-L237](../src/environment/lem.py#L223-L237)), conflating profile physics with order rules.
 
@@ -693,12 +693,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** `EnvConfigHandler` now writes lossless profiles and preserves replay sources/columns, seeds, battery limits, and DSO/grid configuration; focused round-trip regressions cover profile and key-order restoration plus a complete seeded environment transition with matching rewards and recorded market/grid/KPI outputs.
 
 **Evidence and location:** profiles are rounded during serialization ([src/environment/io.py:L133-L148](../src/environment/io.py#L133-L148)). Grid and profile handlers never store `self.seed`, yet serialization reads it with `getattr`, producing `None` ([src/grid/network.py:L25-L49](../src/grid/network.py#L25-L49), [src/profile/base.py:L17-L29](../src/profile/base.py#L17-L29), [src/environment/io.py:L105-L111](../src/environment/io.py#L105-L111), [src/environment/io.py:L150-L158](../src/environment/io.py#L150-L158)). Profile source paths and replay/augmentation choices are omitted and therefore cannot be restored ([src/environment/io.py:L150-L158](../src/environment/io.py#L150-L158), [src/environment/io.py:L234-L250](../src/environment/io.py#L234-L250)). DSO restoration depends on top-level grid having already been processed and ignores its serialized nested grid ([src/environment/io.py:L180-L207](../src/environment/io.py#L180-L207)). `json.dump(..., default=str)` silently stringifies unknown values ([src/environment/io.py:L49-L55](../src/environment/io.py#L49-L55)).
 
@@ -716,12 +716,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Positive integer evaluation durations are accepted (while booleans are rejected), request complete RLlib episodes with the literal `"episodes"` unit, and use no additional evaluation workers; one trial uses no PBT; names are collision-resistant; Ray shutdown covers both Tune setup and fitting; and checkpoint selection uses the predeclared held-out return only when evaluation is enabled. A configured training batch must cover one whole episode, so Tune always receives the declared episode-return selection metric. A real one-iteration Windows DTDE PPO CPU run with separately seeded train/validation configurations recorded one completed evaluation episode and `evaluation/env_runners/episode_return_mean`; the manifest verified afterwards. The focused configuration regressions and acceptance gate pass. The Windows startup disables unavailable PyTorch libuv and uses portable CSV/JSON Tune loggers.
 
 **Evidence and location:** the boolean condition rejects every positive integer `evaluation_duration`; only `"auto"` passes ([src/environment/train.py:L108-L117](../src/environment/train.py#L108-L117)). The default CPU count is assigned both to training and parallel evaluation runners ([src/environment/train.py:L150-L154](../src/environment/train.py#L150-L154), [src/environment/train.py:L283-L294](../src/environment/train.py#L283-L294)), potentially doubling allocation. Population Based Training is always installed, even when `tune_samples=1` ([src/environment/train.py:L428-L437](../src/environment/train.py#L428-L437)). Experiment names have only minute precision ([src/environment/train.py:L438-L440](../src/environment/train.py#L438-L440)), and `ray.shutdown()` is not protected by `finally` around `tuner.fit()` ([src/environment/train.py:L448-L458](../src/environment/train.py#L448-L458)). Checkpoint selection uses shaped evaluation return ([src/environment/train.py:L443-L445](../src/environment/train.py#L443-L445)).
 
@@ -739,12 +739,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Blocked`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Versioned manifests and append-only episode-record files are created before training; manifests include a stable content hash that `RLTrainer.verify_run_manifest` verifies before analysis, and provenance records commit/dirty-tree state and project, lockfile, metric-contract, and profile-source hashes. Deterministic random-valid, DSO-fallback, and perfect-current-state greedy baselines are available; the random baseline consumes the reset-seeded environment generator and baseline records use the same `episode_return` field as training/test raw records. RLlib's episode callback records completed raw training episode returns/lengths on the driver, while declared split runs append one raw record per seed. `python -m src.environment.reproducibility_smoke` executes the complete non-learning path over three declared seeds and produces a verified manifest, JSONL records, and a return summary. Raw-record summaries include mean, sample standard deviation, and a 95% normal-approximation interval. A compact real PPO run wrote `training_episode` JSONL records. **External blocker:** a reportable multi-seed RL study and independent clean-checkout reproduction need user-selected valid source data and a chosen experimental budget.
 
 **Evidence and location:** training saves the environment configuration only after Tune completes ([src/environment/train.py:L448-L455](../src/environment/train.py#L448-L455)) and names runs by date/time ([src/environment/train.py:L438-L440](../src/environment/train.py#L438-L440)). The repository does not create a run manifest containing code commit, dirty-tree status, dependency lock hash, data hashes, unit convention, train/test split, seed list, or metric definitions. Case notebooks commonly run 200 demonstration iterations ([notebooks/case1_market_mechanisms.ipynb:L429-L458](../notebooks/case1_market_mechanisms.ipynb#L429-L458), [notebooks/case4_grid_constraints.ipynb:L548-L676](../notebooks/case4_grid_constraints.ipynb#L548-L676)); case 6 embeds machine-local historical checkpoint paths ([notebooks/case6_implicit_cooperation.ipynb:L157-L177](../notebooks/case6_implicit_cooperation.ipynb#L157-L177)). No independent random, rule-based self-consumption, greedy price, or optimization baseline is part of the training protocol.
 
@@ -764,12 +764,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed - pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Settlement logging is opt-in, hash-chained, and explicitly not proof-of-work or decentralized consensus; its record includes all trade settlement fields.
 
 **Evidence and location:** block hashes include buyer, seller, price, quantity, and timestamp but omit distance, transmission loss, and fees ([src/market/validation.py:L19-L34](../src/market/validation.py#L19-L34)), so those settlement fields can change without invalidating the chain. The matcher calls the validator's private `_create_new_block` after every step ([src/market/matching.py:L390-L396](../src/market/matching.py#L390-L396)), overriding normal `block_size` behavior ([src/market/validation.py:L45-L56](../src/market/validation.py#L45-L56), [src/market/validation.py:L88-L107](../src/market/validation.py#L88-L107)). This is a single in-memory proof-of-work chain, not decentralized consensus.
 
@@ -787,12 +787,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** Invalid grid/topology/market inputs now fail before normalization, mutable profile defaults are isolated, profile numeric bounds accept integers, and DSO unknown-node checks fail deterministically. Focused P3 tests and the acceptance gate pass.
 
 **Evidence and location:** grid capacity is clamped nonnegative before a later negative-capacity error check, making that check dead ([src/grid/network.py:L25-L38](../src/grid/network.py#L25-L38), [src/grid/network.py:L90-L96](../src/grid/network.py#L90-L96)). Procedural node-count validation compares enum instances with a value-keyed member map and therefore does not select the intended topologies ([src/grid/network.py:L98-L104](../src/grid/network.py#L98-L104)). `Location.distance_to` uses a bare `except` ([src/grid/base.py:L51-L57](../src/grid/base.py#L51-L57)), and DSO path/fee code catches broad exceptions and substitutes other metrics ([src/market/dso.py:L293-L308](../src/market/dso.py#L293-L308), [src/market/dso.py:L382-L387](../src/market/dso.py#L382-L387)). DER and DSO constructors use mutable list defaults ([src/agent/der.py:L24-L30](../src/agent/der.py#L24-L30), [src/market/dso.py:L25-L33](../src/market/dso.py#L25-L33)). Profile validators reject otherwise valid integer bounds because they require `float` specifically ([src/profile/der.py:L77-L81](../src/profile/der.py#L77-L81), [src/profile/dso.py:L74-L78](../src/profile/dso.py#L74-L78)). Market enum validation can evaluate membership against the Enum after a type failure ([src/market/matching.py:L47-L62](../src/market/matching.py#L47-L62)).
 
@@ -810,12 +810,12 @@ Do not update demand, storage, and accounting in separate ad hoc equations. Comp
 
 **Tracker**
 
-- **Status:** `Open`
-- [ ] Resolution implemented
-- [ ] Verification added or completed
-- [ ] Relevant tests and acceptance gate pass
-- [ ] Thesis/documentation impact recorded
-- **Evidence:** `TBD`
+- **Status:** `Fixed — pending validation`
+- [x] Resolution implemented
+- [x] Verification added or completed
+- [x] Relevant tests and acceptance gate pass
+- [x] Thesis/documentation impact recorded
+- **Evidence:** README, notebook inventory, test guide, supported topology list, and CPU/CUDA policy now describe the checked-in repository. The locked focused gate runs in `.github/workflows/validation.yml`. All executable case notebooks resolve the repository root whether Jupyter starts at the root or in `notebooks/`; cases 1–7 execute from fresh kernels. Cases 1–5 default to zero-intelligence simulations and no longer request the disabled CTDE mode; their fresh runs report 6/6, 4/4, 4/4, 3/3, and 6/6 successful scenarios with zero failures. Case 1's market quantity cap now covers its configured profile peak. Case 3 compares explicit DSO fallback caps rather than unsupported intervention-controller attributes. The case-6 notebook no longer embeds machine-local checkpoint paths and safely skips optional resume/inference until configured. Case 7 defaults to a no-training review; its smoke run and full analysis are explicit opt-ins, and it excludes the disabled CTDE path. Captured notebook outputs are cleared so stale failures cannot be mistaken for current results. Every repository notebook's JSON and Python code cells parse in the focused P3 gate, and every local Markdown target in README/docs/notebook guidance exists. A fresh isolated copy installs with `uv sync --frozen --offline --link-mode=copy` and passes the test gate; `--link-mode=copy` is required on this OneDrive filesystem because hard links are unavailable. A one-iteration Windows CUDA PPO run completed with one local GPU learner, one GPU per learner, a checkpoint, and no trial errors; the Windows local-learner path avoids unavailable NCCL.
 
 **Evidence and location:** README commands and tree entries refer to a nonexistent `cases/` package ([README.md:L75](../README.md#L75), [README.md:L190-L217](../README.md#L190-L217), [README.md:L291](../README.md#L291)). README describes STAR and TREE topologies, but the enum exposes only IEEE34, IEEE13, MESH, RING, and LINE ([README.md:L270-L277](../README.md#L270-L277); [src/grid/base.py:L16-L23](../src/grid/base.py#L16-L23)). README says six case studies while a seventh scalability notebook exists ([README.md:L247-L291](../README.md#L247-L291); [notebooks/case7_scalability_analysis.ipynb:L128-L154](../notebooks/case7_scalability_analysis.ipynb#L128-L154)). `docs/tests.md` documents test modules that are absent ([docs/tests.md:L1-L56](tests.md#L1-L56)). The working tree currently contains `pyproject.toml` and `uv.lock`, but both are untracked; `pyproject.toml` also sets `package=false` and routes Torch through a CUDA 12.6 index ([pyproject.toml:L37-L47](../pyproject.toml#L37-L47)), which needs an explicit CPU/GPU support policy.
 

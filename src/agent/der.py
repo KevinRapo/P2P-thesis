@@ -26,8 +26,8 @@ class DERAgent:
                  capacity: float,
                  battery: Optional[Battery] = None,
                  node_id: Optional[str] = None,
-                 generation_profile: List[float] = [],
-                 demand_profile: List[float] = []) -> None:
+                 generation_profile: Optional[List[float]] = None,
+                 demand_profile: Optional[List[float]] = None) -> None:
         """Initialize the DER agent.
 
         Args:
@@ -42,8 +42,9 @@ class DERAgent:
         self.capacity = capacity
         self.battery = battery
         self.node_id = node_id
-        self.generation_profile = generation_profile
-        self.demand_profile = demand_profile
+        self.generation_profile = [] if generation_profile is None else generation_profile
+        self.demand_profile = [] if demand_profile is None else demand_profile
+        self._rng = np.random.default_rng()
 
         # Demand response tracking
         self.cumulative_demand_satisfied: float = 0.0
@@ -75,7 +76,8 @@ class DERAgent:
               reputation: float,
               generation_profile: List[float],
               demand_profile: List[float],
-              seed: Optional[int] = None) -> None:
+              seed: Optional[int] = None,
+              rng: Optional[np.random.Generator] = None) -> None:
         """Reset the DER agent state.
 
         Args:
@@ -84,8 +86,10 @@ class DERAgent:
             demand_profile: Demand profile
             seed: Random seed for reproducibility
         """
-        if seed is not None:
-            np.random.seed(seed)
+        if rng is not None:
+            self._rng = rng
+        elif seed is not None:
+            self._rng = np.random.default_rng(seed)
 
         # Reset agent attributes
         self.reputation = reputation
@@ -105,7 +109,7 @@ class DERAgent:
         self.total_supply_required = sum(self.generation_profile)
 
         # Reset attributes from the environment
-        self.balance = np.random.uniform(-self.capacity, self.capacity)
+        self.balance = 0.0
         self.profit = 0.0
 
         # Reset market state tracking
@@ -156,7 +160,7 @@ class DERAgent:
         # Sort candidates by reputation and distance
         candidates.sort(key=lambda x: (-x.reputation, self.location.distance_to(x.location, graph)))
 
-        return np.random.choice(candidates[:max(1, len(candidates) // 2 + 1)]).id if randomize else candidates[0].id
+        return self._rng.choice(candidates[:max(1, len(candidates) // 2 + 1)]).id if randomize else candidates[0].id
 
     def adjust_action_for_battery(self,
                                   step: int,
@@ -174,64 +178,41 @@ class DERAgent:
 
         Args:
             step: Current time step
-            action: Raw action from policy containing [price, quantity, is_buy, preferred_partner]
+            action: Raw action from policy containing [price, signed_quantity].
+                Positive quantity means buy; negative quantity means sell.
             market_config: Market configuration parameters
 
         Returns:
             Adjusted action that respects physical constraints and market rules
         """
-        # Unpack action components
-        price, quantity, is_buy, preferred_partner = action
-
-        # Get available energy from battery (if available)
-        if self.battery:
-            available_charge, available_discharge = self.battery.estimate_available_energy()
-        else:
-            available_charge, available_discharge = 0.0, 0.0
+        price, requested_signed_quantity = action
+        is_buy = bool(requested_signed_quantity > 0)
+        requested_quantity = abs(float(requested_signed_quantity))
 
         # Current step's generation and base demand
         current_generation = self.generation_profile[step]
         current_demand = self.demand_profile[step]
 
-        if is_buy:
-            # Calculate how much energy we need to buy after using our own generation
-            energy_deficit = quantity - current_generation
-
-            # If we have excess generation, we can charge the battery
-            if energy_deficit < 0:
-                potential_charge = min(abs(energy_deficit), available_charge)
-                energy_deficit += potential_charge
-
-            # If we still have energy deficit, we need to buy or discharge battery
-            if energy_deficit > 0:
-                potential_discharge = min(energy_deficit, available_discharge)
-                energy_deficit -= potential_discharge
-
-            # Final quantity to buy is the remaining deficit (if positive)
-            quantity = max(0.0, energy_deficit)
-
-        else:
-            # Calculate how much energy we can export after using our own generation
-            energy_surplus = quantity - current_demand
-
-            # If we have excess generation, we can charge the battery
-            if energy_surplus > 0:
-                potential_charge = min(energy_surplus, available_charge)
-                energy_surplus -= potential_charge
-
-            # If we have a deficit, we can discharge the battery to meet the export
-            if energy_surplus < 0:
-                potential_discharge = min(abs(energy_surplus), available_discharge)
-                energy_surplus += potential_discharge
-
-            # Final quantity to export is the remaining surplus (if positive)
-            quantity = max(0.0, energy_surplus)
+        # Orders can only offer the current physical surplus or request the
+        # current physical deficit.  Battery dispatch is applied separately at
+        # settlement, so a requested action never creates energy on its own.
+        physical_quantity = (
+            max(0.0, current_demand - current_generation)
+            if is_buy
+            else max(0.0, current_generation - current_demand)
+        )
+        quantity = min(float(requested_quantity), physical_quantity, market_config.max_quantity)
+        quantity = max(0.0, quantity)
 
         # Ensure price and quantity respects market constraints
         price = max(market_config.min_price, min(market_config.max_price, price))
-        quantity = max(market_config.min_quantity, min(market_config.max_quantity, quantity))
+        # Zero is the valid no-order outcome when there is no surplus/deficit or
+        # the feasible amount is below the market's minimum tradable quantity.
+        if quantity < market_config.min_quantity:
+            quantity = 0.0
 
-        return np.array([price, quantity, is_buy, preferred_partner], dtype=np.float32)
+        signed_quantity = quantity if is_buy else -quantity
+        return np.array([price, signed_quantity], dtype=np.float32)
 
     def update_energy_tracking(self,
                                step: int,
@@ -290,10 +271,11 @@ class DERAgent:
         if not self.battery:
             return
 
-        # Calculate total energy balance: generation - demand + net trading
+        # Calculate the household balance at the settlement boundary.  Purchases
+        # add energy available to the household; sales remove energy from it.
         current_generation = self.generation_profile[step]
         current_demand = self.demand_profile[step]
-        net_trade_energy = energy_sold - energy_bought
+        net_trade_energy = energy_bought - energy_sold
 
         energy_balance = current_generation - current_demand + net_trade_energy
 

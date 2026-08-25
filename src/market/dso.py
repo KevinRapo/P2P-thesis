@@ -9,6 +9,7 @@ collecting grid fees.
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+import networkx as nx
 
 from ..grid.network import GridNetwork
 from .order import Order, Trade
@@ -29,9 +30,12 @@ class DSOAgent:
 
     def __init__(self,
                  id: str = "DSO",
-                 feed_in_tariff: List[float] = [],
-                 utility_price: List[float] = [],
-                 grid_network: Optional[GridNetwork] = None) -> None:
+                 feed_in_tariff: Optional[List[float]] = None,
+                 utility_price: Optional[List[float]] = None,
+                 grid_network: Optional[GridNetwork] = None,
+                 max_buy_quantity: Optional[float] = None,
+                 max_sell_quantity: Optional[float] = None,
+                 node_id: Optional[str] = None) -> None:
         """
         Initialize the DSO agent.
 
@@ -43,9 +47,15 @@ class DSOAgent:
         """
         # Initialization
         self.id = id
-        self.feed_in_tariff = feed_in_tariff  # Price DSO pays for excess generation ($/kWh)
-        self.utility_price = utility_price  # Price DSO charges for additional demand ($/kWh)
+        self.feed_in_tariff = [] if feed_in_tariff is None else feed_in_tariff
+        self.utility_price = [] if utility_price is None else utility_price
         self.grid_network = grid_network  # Grid network for operations
+        self.node_id = node_id or (next(iter(grid_network.graph.nodes), None) if grid_network else None)
+        self.max_buy_quantity = float("inf") if max_buy_quantity is None else max_buy_quantity
+        self.max_sell_quantity = float("inf") if max_sell_quantity is None else max_sell_quantity
+        self._capacity_step: Optional[int] = None
+        self._remaining_buy_quantity = self.max_buy_quantity
+        self._remaining_sell_quantity = self.max_sell_quantity
 
         # Grid state tracking
         self.balance: float = 0.0
@@ -113,9 +123,6 @@ class DSOAgent:
         """
         Reset the DSO agent state.
         """
-        if seed is not None:
-            np.random.seed(seed)
-
         # Reset grid state
         self.balance = 0.0
         self.congestion_level = 0.0
@@ -211,46 +218,75 @@ class DSOAgent:
         dso_trades = []
 
         # DSO buys excess generation at feed-in tariff
+        if self._capacity_step != step:
+            self._capacity_step = step
+            self._remaining_buy_quantity = self.max_buy_quantity
+            self._remaining_sell_quantity = self.max_sell_quantity
+
         for sell_order in unmatched_sell_orders:
             if sell_order.quantity <= 0:
+                continue
+
+            settled_quantity = min(sell_order.quantity, self._remaining_buy_quantity)
+            if settled_quantity <= 0:
+                continue
+            seller_node = sell_order.location.node_id if sell_order.location else None
+            if seller_node and self.node_id and self.grid_network and not self.grid_network.can_settle(self.node_id, seller_node, settled_quantity):
                 continue
 
             # Create a DSO purchase trade
             dso_trades.append(Trade(self.id,
                                     sell_order.agent_id,
                                     self.get_feed_in_tariff(step),
-                                    sell_order.quantity,
+                                    settled_quantity,
                                     sell_order.timestamp,
                                     0.0,  # DSO is assumed to be at zero distance
                                     0.0,   # No transmission loss with DSO
-                                    0.0))  # No grid fees for DSO trades
+                                    0.0,   # No grid fees for DSO trades
+                                    None,
+                                    sell_order.id))
 
             # Update totals
-            dso_buy_volume += sell_order.quantity
+            dso_buy_volume += settled_quantity
+            self._remaining_buy_quantity -= settled_quantity
 
             # Mark as matched
-            sell_order.quantity = 0
+            sell_order.quantity -= settled_quantity
+            if seller_node and self.node_id and self.grid_network:
+                self.grid_network.update_flow_from_trade(self.node_id, seller_node, settled_quantity)
 
         # DSO sells to meet unmet demand at utility price
         for buy_order in unmatched_buy_orders:
             if buy_order.quantity <= 0:
                 continue
 
+            settled_quantity = min(buy_order.quantity, self._remaining_sell_quantity)
+            if settled_quantity <= 0:
+                continue
+            buyer_node = buy_order.location.node_id if buy_order.location else None
+            if buyer_node and self.node_id and self.grid_network and not self.grid_network.can_settle(buyer_node, self.node_id, settled_quantity):
+                continue
+
             # Create a DSO sale trade
             dso_trades.append(Trade(buy_order.agent_id,
                                     self.id,
                                     self.get_utility_price(step),
-                                    buy_order.quantity,
+                                    settled_quantity,
                                     buy_order.timestamp,
                                     0.0,  # DSO is assumed to be at zero distance
                                     0.0,  # No transmission loss with DSO
-                                    0.0))  # No grid fees for DSO trades
+                                    0.0,  # No grid fees for DSO trades
+                                    buy_order.id,
+                                    None))
 
             # Update totals
-            dso_sell_volume += buy_order.quantity
+            dso_sell_volume += settled_quantity
+            self._remaining_sell_quantity -= settled_quantity
 
             # Mark as matched
-            buy_order.quantity = 0
+            buy_order.quantity -= settled_quantity
+            if buyer_node and self.node_id and self.grid_network:
+                self.grid_network.update_flow_from_trade(buyer_node, self.node_id, settled_quantity)
 
         # Update DSO statistics
         self.buy_volume += dso_buy_volume
@@ -304,7 +340,7 @@ class DSOAgent:
         if buyer_node and seller_node and self.grid_network:
             try:
                 congestion_level = self.grid_network.get_path_congestion(buyer_node, seller_node)
-            except Exception:
+            except nx.NodeNotFound:
                 congestion_level = self.grid_network.calculate_congestion_level()
         else:
             # No location information available, use global congestion
@@ -382,9 +418,8 @@ class DSOAgent:
         # Check path congestion
         try:
             path_congestion = self.grid_network.get_path_congestion(buyer_node, seller_node)
-        except Exception:
-            # Fallback to global congestion if path calculation fails
-            path_congestion = self.grid_network.calculate_congestion_level()
+        except nx.NodeNotFound:
+            return False
 
         if path_congestion > self.congestion_threshold:
             return False

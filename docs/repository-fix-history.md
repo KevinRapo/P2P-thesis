@@ -73,7 +73,7 @@ As of 2026-08-14, the changes relative to the original repository baseline are c
 - **Observed impact:** Running inference either failed on a foreign path or required the user to manually discover and copy a Ray checkpoint.
 - **Change:** Enable the short training cell, store experiments under `storage/TRAIN`, copy the selected checkpoint to `storage/INFERENCE/selected_checkpoint`, assign it to `CHECKPOINT_PATH_INFERENCE`, and guard inference when no checkpoint exists.
 - **Validation:** A checkpoint was created, copied, restored by `RLInference`, and used for three complete inference episodes.
-- **Caveat:** RF-011 shows that the current checkpoint is not genuinely selected by evaluation performance yet.
+- **Historical caveat:** The checkpoint described above predated RF-011's evaluation repair and was not selected by held-out evaluation performance.
 
 ### RF-006 — Environment smoke test stepped before an explicit reset
 
@@ -124,12 +124,13 @@ As of 2026-08-14, the changes relative to the original repository baseline are c
 
 ### RF-011 — Evaluation duration uses the wrong type and produces no evaluation episodes
 
-- **Status:** `Open`
+- **Status:** `Validated`
 - **Category:** Experimental validity
 - **Original issue:** `RLTrainer` passes `StorageUnit.EPISODES` from the replay-buffer API as `evaluation_duration_unit`. Ray's algorithm configuration expects the string `"episodes"`.
 - **Observed impact:** The saved Ray configuration contains `"StorageUnit.EPISODES"`. Each evaluation sampled only three timesteps, completed zero episodes, and produced no evaluation-return metric. The notebook's “best evaluation checkpoint” therefore was not selected using actual evaluation performance.
 - **Evidence:** The successful run logged `evaluation/env_runners/num_episodes = 0`, emitted an empty-evaluation warning, and had no evaluation return fields.
-- **Required fix:** Pass `evaluation_duration_unit="episodes"`, add a regression assertion that evaluation completes the requested number of episodes, and fail checkpoint selection when the requested metric is absent.
+- **Change:** Pass `evaluation_duration_unit="episodes"`, require separately declared evaluation scenarios/seeds, and select checkpoints using the held-out episode-return metric only when evaluation is enabled.
+- **Validation:** A one-iteration DTDE PPO CPU run with distinct train/validation configurations completed one evaluation episode, recorded `evaluation/env_runners/episode_return_mean`, and retained a verified run manifest. Focused configuration regressions cover the literal unit and cleanup if Tune setup fails.
 
 ### RF-012 — The SAC quick run ends before learning begins
 

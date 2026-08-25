@@ -18,7 +18,8 @@ class ActionHandler:
     def __init__(self,
                  agents: List[DERAgent],
                  dso: DSOAgent,
-                 market_config: MarketConfig) -> None:
+                 market_config: MarketConfig,
+                 time_step_hours: float = 1.0) -> None:
         """Initialize action handler.
 
         Args:
@@ -27,19 +28,19 @@ class ActionHandler:
         """
         self._agents = agents
         self._dso = dso
+        self.time_step_hours = time_step_hours
 
         # Check initialization
         self._check_init()
 
-        # Define action spaces based on configuration
+        # The policy controls only continuous quantities.  A positive signed
+        # quantity requests an import and a negative quantity offers an export.
+        # Matching is deterministic price-time priority; partner choice is not
+        # part of this baseline action space.
         self.action_space = Dict({agent.id: Box(low=array([market_config.min_price,  # bid_price
-                                                           market_config.min_quantity,  # bid_quantity
-                                                           0.0,  # is_buy
-                                                           0.0]),  # preferred_partner
+                                                           -min(market_config.max_quantity, agent.capacity * time_step_hours)], dtype=float32),
                                                 high=array([market_config.max_price,  # bid_price
-                                                            min(market_config.max_quantity, agent.capacity),  # bid_quantity
-                                                            1.0,  # is_buy
-                                                            len(agents) + 1]),  # preferred_partner
+                                                            min(market_config.max_quantity, agent.capacity * time_step_hours)], dtype=float32),
                                                 dtype=float32)
                                   for agent in agents})
 

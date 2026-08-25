@@ -33,7 +33,7 @@ This project implements a decentralized multi-agent reinforcement learning (MARL
 This framework enables researchers and practitioners to:
 
 - **Simulate decentralized local energy markets** with multiple agents trading energy through peer-to-peer mechanisms
-- **Train MARL agents** using various algorithms (PPO, SAC, APPO) in different training paradigms (CTCE, CTDE, DTDE)
+- **Train MARL baselines** using PPO, SAC, or APPO in DTDE or CTCE modes; CTDE is disabled pending validation
 - **Evaluate market mechanisms** through comprehensive case studies covering market design, agent heterogeneity, grid constraints, and coordination strategies
 - **Analyze coordination effectiveness** through implicit cooperation models that enable agents to coordinate without explicit communication
 - **Visualize market outcomes** with comprehensive analytics and visualization tools
@@ -49,9 +49,9 @@ This PhD research project focuses on developing an implicit cooperation model fo
 ## Main Features
 
 - **Decentralized Market Clearing**: Agent-to-agent matching with multiple pricing mechanisms (average, buyer, seller, Nash bargaining, proportional surplus)
-- **Multi-Agent Reinforcement Learning**: Support for CTCE, CTDE, and DTDE training paradigms with multiple RL algorithms
+- **Multi-Agent Reinforcement Learning**: DTDE and centralized-information CTCE baselines; CTDE is disabled pending validation
 - **Implicit Cooperation Model**: Privacy-preserving coordination mechanisms that enable agents to coordinate without explicit communication
-- **Comprehensive Case Studies**: Six case studies covering market mechanisms, agent heterogeneity, DSO intervention, grid constraints, battery coordination, and implicit cooperation effectiveness
+- **Notebook explorations**: Seven notebooks covering market mechanisms, agent heterogeneity, DSO intervention, grid constraints, battery coordination, cooperation, and scalability
 - **Grid Integration**: Physical grid modeling with topology constraints, congestion management, and DSO fallback mechanisms
 - **Scenario Testing**: Framework for evaluating system behavior under various market conditions
 - **Ablation Studies**: Tools for analyzing component contributions to system performance
@@ -72,7 +72,6 @@ This PhD research project focuses on developing an implicit cooperation model fo
 │   ├── market/             # Market mechanisms and clearing
 │   ├── profile/            # Energy profile generation
 │   └── visualization/      # Plotting and visualization tools
-├── cases/                  # Case studies and scenarios
 ├── data/                   # Input data (demand, generation, prices)
 ├── docs/                   # Documentation
 ├── tests/                  # Unit and integration tests
@@ -126,6 +125,30 @@ A detailed breakdown of the simulation process is as follows:
 It is recommended to install [Miniforge](https://github.com/conda-forge/miniforge) as an environment to install Python and the necessary libraries. Miniforge is a distribution of Python and the `conda` package manager, which easily allows for environment configuration and package installation from the `conda-forge` repository.
 
 During installation, use the recommended options in the `Advanced Installation Options`.
+
+### CPU and CUDA policy
+
+The checked-in `pyproject.toml`/`uv.lock` workflow pins the CUDA 12.6 PyTorch
+wheel and is intended for an NVIDIA CUDA 12.6-compatible training machine:
+
+```powershell
+uv sync
+uv run pytest -q
+```
+
+On an OneDrive-backed Windows workspace, add `--link-mode=copy` to `uv sync`
+if hard links are unavailable.
+
+For CPU-only validation, create the provided Conda environment below. It lets
+PyTorch resolve its platform-appropriate wheel; use it for the focused test
+gate and small simulations, not as a claim of CUDA training performance.
+
+On Windows, `RLTrainer` automatically disables PyTorch's unavailable libuv
+TCP-store backend and writes Tune results as CSV/JSON instead of TensorBoardX
+logs. The one-iteration CPU smoke configuration is `train_batch_size=24`,
+which covers the notebook's complete 24-step episode.
+For a single Windows GPU, RLlib uses its supported local-learner path to avoid
+NCCL, which is not included in the Windows PyTorch build.
 
 #### Step 1: Clone the Repository
 
@@ -185,58 +208,34 @@ conda env remove -n marlem
 
 ## Quick Start
 
-### Running a Simple Case Study
+### Validate the simulation kernel
 
-The simplest way to get started is to run one of the demo case studies:
+Run the maintained, deterministic acceptance gate before using notebooks or
+training experiments:
 
-```bash
-python cases/run_demo_case_studies.py
+```powershell
+uv run pytest -q
 ```
 
-This will execute demonstrative case studies and save results in the `downloads/` directory.
-
-### Running All Case Studies
-
-To run all comprehensive case studies:
-
-```bash
-python cases/run_case_studies.py
-```
-
-### Running Specific Case Studies
-
-You can also run individual case studies programmatically:
-
-```python
-from cases import get_case_study
-
-# Get scenarios from Case 1 (Market Mechanisms)
-case1_scenarios = get_case_study("case1_market_mechanisms")
-
-# Iterate through scenarios
-for scenario_name, config in case1_scenarios.items():
-    print(f"Scenario: {scenario_name}")
-    print(f"Agents: {len(config.agents)}")
-    print(f"Market mechanism: {config.market.price_mechanism}")
-```
+The focused suites and their scope are documented in
+[`docs/tests.md`](docs/tests.md).
 
 ### Training MARL Agents
 
 To train agents using reinforcement learning:
 
 ```python
-from src.environment.train import RLTrainer, TrainingMode, RLAlgorithm
-from cases import get_case_study
+from src.environment.train import RLTrainer
+from src.environment.base import TrainingMode, RLAlgorithm
 
-# Get a scenario
-scenarios = get_case_study("case1_market_mechanisms")
-scenario_name, config = next(iter(scenarios.items()))
+# Build or load a validated environment configuration.
+config = {...}
 
-# Train with CTDE (Centralized Training, Decentralized Execution)
+# Train the decentralized baseline.
 trainer = RLTrainer(
     env_config=config,
     algorithm=RLAlgorithm.PPO,
-    training=TrainingMode.CTDE,
+    training=TrainingMode.DTDE,
     iters=100
 )
 trainer.train()
@@ -244,7 +243,8 @@ trainer.train()
 
 ## Case Studies
 
-The project includes six comprehensive case studies designed to systematically answer the research questions:
+The repository contains seven exploratory notebooks plus an index. They are
+presentation and exploration material, not a replacement for the test gate.
 
 ### Case 1: Market Mechanism Comparison ([🔗](./notebooks/case1_market_mechanisms.ipynb))
 
@@ -272,7 +272,7 @@ The project includes six comprehensive case studies designed to systematically a
 **Objective**: Examine how grid physical constraints affect market outcomes.
 
 - **Scenarios**: 12 combinations of 4 topologies × 3 capacity levels
-- **Key Variables**: Grid topology (STAR, MESH, RING, TREE), capacity constraints
+- **Key Variables**: Grid topology (IEEE13, IEEE34, MESH, RING, LINE), capacity constraints
 
 ### Case 5: Battery Storage Coordination ([🔗](./notebooks/case5_battery_coordination.ipynb))
 
@@ -288,21 +288,20 @@ The project includes six comprehensive case studies designed to systematically a
 - **Scenarios**: 6 scenarios testing coordination effectiveness
 - **Key Variables**: Coordination level (none, implicit, explicit), cooperation conditions
 
-For detailed information about each case study, see [`cases/README.md`](cases/README.md).
+### Case 7: Scalability Analysis ([🔗](./notebooks/case7_scalability_analysis.ipynb))
+
+**Objective**: Explore how the simulation behaves as the number of agents grows.
+
+Open [`notebooks/case_studies_index.ipynb`](./notebooks/case_studies_index.ipynb)
+for the notebook index.
 
 ## Testing Framework
 
-Comprehensive testing ensures code quality:
+The acceptance gate is the deterministic focused regression suite described in
+[`docs/tests.md`](docs/tests.md). Run it with:
 
-- **Unit Tests**: Test individual components in isolation (`tests/test_*.py`)
-- **Integration Tests**: Verify interactions between components
-- **Scenario Tests**: Evaluate system behavior under different conditions
-- **Consistency Tests**: Ensure consistent behavior across different implementations
-
-Run tests with:
-
-```bash
-python -m pytest tests/
+```powershell
+uv run pytest -q
 ```
 
 ## Analysis Tools
@@ -313,10 +312,10 @@ The project includes comprehensive tools for analyzing the behavior and performa
 
 The framework provides several analytics modules for performance evaluation:
 
-- **Coordination Metrics** (`src/analytics/coordination_metrics.py`): Measures coordination effectiveness between agents
-- **DSO Metrics** (`src/analytics/dso_metrics.py`): Tracks DSO intervention and grid stability metrics
-- **Grid Metrics** (`src/analytics/grid_metrics.py`): Evaluates grid performance and constraint violations
-- **Market Analytics** (`src/analytics/market_analytics.py`): Analyzes market outcomes, prices, and trading volumes
+- **Coordination Metrics** (`src/analytics/coordination_metrics.py`): Recorded outcome summaries without causal claims
+- **DSO Metrics** (`src/analytics/dso_metrics.py`): DSO/P2P volumes, prices, and grid-import records
+- **Grid Metrics** (`src/analytics/grid_metrics.py`): Recorded balance, congestion, volume, and loss summaries
+- **Market Analytics** (`src/analytics/market_analytics.py`): Settlement prices, volumes, turnover, and concentration
 
 ### Visualization
 
@@ -332,7 +331,7 @@ The framework includes visualization tools in `src/visualization/` for:
 Contributions to this project are welcome! When contributing:
 
 1. Follow the coding guidelines in [`docs/guidelines.md`](docs/guidelines.md)
-2. Ensure all tests pass: `python -m pytest tests/`
+2. Ensure the focused gate passes: `uv run pytest -q`
 3. Maintain code coverage and documentation
 4. Follow the project structure and design patterns
 

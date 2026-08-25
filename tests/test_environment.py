@@ -42,9 +42,7 @@ def test_environment() -> None:
         for agent_id in env.agents:
             # Create a simple, definitely valid action
             actions[agent_id] = np.array([np.random.uniform(market_config.min_price, market_config.max_price),  # price (mid-range)
-                                          np.random.uniform(market_config.min_quantity, market_config.max_quantity),  # quantity (ensure above minimum)
-                                          1.0 if step % 2 == 0 else 0.0,  # alternating buy/sell
-                                          np.random.randint(0, len(env.agents))],  # preferred_partner (first agent index)
+                                          np.random.uniform(market_config.min_quantity, market_config.max_quantity) * (1.0 if step % 2 == 0 else -1.0)],
                                          dtype=np.float32)
 
         # Step environment
