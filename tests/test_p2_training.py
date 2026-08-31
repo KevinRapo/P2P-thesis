@@ -235,7 +235,7 @@ def test_run_manifest_is_written_before_training(tmp_path) -> None:
     assert manifest["schema_version"] == 3
     assert manifest["environment"]["seed"] == 7
     assert manifest["unit_contract"]["energy"] == "kWh"
-    assert manifest["repository"]["lockfile_sha256"]
+    assert manifest["repository"]["environment_sha256"]
     assert manifest["repository"]["metric_contract_sha256"]
     assert manifest["metadata"]["scenario_split_sha256"] == split.fingerprint()
     manifest_fingerprint = manifest.pop("manifest_sha256")

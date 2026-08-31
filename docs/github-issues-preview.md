@@ -608,11 +608,11 @@ Validate before normalization, use explicit topology sets, narrow exception hand
 
 ### Problem
 
-README files, notebooks, package metadata, and commands refer to missing cases, mismatched topology names, outdated case counts, absent modules, and inconsistent CPU/GPU or UV installation guidance.
+README files, notebooks, package metadata, and commands refer to missing cases, mismatched topology names, outdated case counts, absent modules, and inconsistent CPU/GPU or Conda installation guidance.
 
 ### Proposed resolution
 
-Regenerate documentation from the actual repository state, restore or remove documented commands, list supported notebooks, define one packaging/UV workflow, and document CPU/GPU policies.
+Regenerate documentation from the actual repository state, restore or remove documented commands, list supported notebooks, define one Conda environment workflow, and document CPU/GPU policies.
 
 ### Acceptance criteria
 

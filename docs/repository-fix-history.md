@@ -21,20 +21,20 @@ As of 2026-08-14, the changes relative to the original repository baseline are c
 - `.gitignore`: generated training and inference artifacts are excluded.
 - `examples/getting_started.ipynb`: portable paths, real input data, Windows/Ray setup, environment smoke testing, checkpoint handoff, and inference workflow.
 - `src/environment/train.py`: evaluation-duration validation and reliable Ray shutdown.
-- `pyproject.toml` and `uv.lock`: reproducible UV-managed Python environment.
+- `environment.yml`: reproducible Conda-managed Python environment.
 - `examples/zero_to_hero.ipynb`: currently contains execution evidence of unresolved example failures; its source workflow has not yet been repaired.
 
 ## 2026-08-05 — Environment and test baseline
 
-### RF-001 — No project-native locked Python environment
+### RF-001 - Conda environment and test baseline
 
 - **Status:** `Fixed in working tree`
 - **Category:** Reproducibility and portability
-- **Original issue:** The repository provided `environment.yml`, but no `pyproject.toml` or cross-platform lockfile. The Conda file fixed Python at 3.12.10 while the active Miniconda base interpreter was 3.12.3.
-- **Observed impact:** Recreating the exact Python and package set depended on manually following the Conda definition. PyTorch CUDA wheel selection was not explicitly represented outside the environment setup.
-- **Change:** Added `pyproject.toml`, pinned Python to 3.12.10, migrated the package requirements, separated development and notebook groups, selected the PyTorch CUDA 12.6 index, and generated `uv.lock`. The original `environment.yml` remains as a reference and Conda fallback.
-- **Validation:** `uv sync` created the project `.venv`; Python 3.12.10, Torch 2.6.0+cu126, Ray 2.51.1, and CUDA availability were confirmed.
-- **Follow-up:** Decide whether `environment.yml` remains supported or becomes an explicitly documented legacy setup after the UV workflow is committed.
+- **Original issue:** The repository's Conda definition did not include every dependency used by the application and prototypes. The file fixed Python at 3.12.10 while the active Miniconda base interpreter was 3.12.3.
+- **Observed impact:** Recreating the exact Python and package set required manually tracking dependencies used by the prototypes.
+- **Change:** Expanded `environment.yml` with the complete runtime and test dependency set, including NiceGUI, NumPy/NetworkX-compatible SimBench and pandapower support, and notebook tooling.
+- **Validation:** The Conda environment definition is used by local setup and the focused CI test workflow.
+- **Follow-up:** Keep `environment.yml` as the single supported environment definition.
 
 ### RF-002 — Test suite and implementation have drifted apart
 
@@ -42,7 +42,7 @@ As of 2026-08-14, the changes relative to the original repository baseline are c
 - **Category:** Testing and validation
 - **Original issue:** Several files under `tests/` use function parameters such as `path`, `algo`, and `mode` as though pytest will supply them, but no fixtures or parametrization define those values. Other tests call signatures that no longer match the source implementation.
 - **Observed impact:** The original suite cannot serve as a clean regression gate.
-- **Evidence:** `uv run python -m pytest` collected 35 tests: 15 passed, 3 failed, 17 errored, and 6 warnings. The failures included stale calls involving `get_kpis`, `DERProfileHandler`, and `RewardHandler`.
+- **Evidence:** `python -m pytest` collected 35 tests: 15 passed, 3 failed, 17 errored, and 6 warnings. The failures included stale calls involving `get_kpis`, `DERProfileHandler`, and `RewardHandler`.
 - **Follow-up:** Repair collection and fixture structure first, then determine which failures represent stale tests and which expose source defects. Track the deeper corrections in `validation-fix-plan.md`.
 
 ## 2026-08-14 — Getting-started workflow audit

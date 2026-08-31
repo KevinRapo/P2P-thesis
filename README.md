@@ -128,18 +128,7 @@ During installation, use the recommended options in the `Advanced Installation O
 
 ### CPU and CUDA policy
 
-The checked-in `pyproject.toml`/`uv.lock` workflow pins the CUDA 12.6 PyTorch
-wheel and is intended for an NVIDIA CUDA 12.6-compatible training machine:
-
-```powershell
-uv sync
-uv run pytest -q
-```
-
-On an OneDrive-backed Windows workspace, add `--link-mode=copy` to `uv sync`
-if hard links are unavailable.
-
-For CPU-only validation, create the provided Conda environment below. It lets
+The checked-in `environment.yml` is the canonical Conda environment. It lets
 PyTorch resolve its platform-appropriate wheel; use it for the focused test
 gate and small simulations, not as a claim of CUDA training performance.
 
@@ -214,7 +203,7 @@ Run the maintained, deterministic acceptance gate before using notebooks or
 training experiments:
 
 ```powershell
-uv run pytest -q
+pytest -q
 ```
 
 The focused suites and their scope are documented in
@@ -301,7 +290,7 @@ The acceptance gate is the deterministic focused regression suite described in
 [`docs/tests.md`](docs/tests.md). Run it with:
 
 ```powershell
-uv run pytest -q
+pytest -q
 ```
 
 ## Analysis Tools
@@ -331,7 +320,7 @@ The framework includes visualization tools in `src/visualization/` for:
 Contributions to this project are welcome! When contributing:
 
 1. Follow the coding guidelines in [`docs/guidelines.md`](docs/guidelines.md)
-2. Ensure the focused gate passes: `uv run pytest -q`
+2. Ensure the focused gate passes: `pytest -q`
 3. Maintain code coverage and documentation
 4. Follow the project structure and design patterns
 

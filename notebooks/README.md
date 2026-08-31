@@ -6,7 +6,7 @@ command-line case scripts and do not substitute for the focused validation gate.
 Run the validated regression suite first:
 
 ```powershell
-uv run pytest -q
+pytest -q
 ```
 
 Available notebooks:

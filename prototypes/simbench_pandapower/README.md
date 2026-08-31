@@ -23,22 +23,21 @@ series and they do not represent a MARLEM participant mapping yet.
 From this folder:
 
 ```powershell
-uv sync --group dev --link-mode=copy
-uv run --no-sync python run_demo.py
-uv run --no-sync pytest -q
+conda activate marlem
+python run_demo.py
+pytest -q
 ```
 
 To retain machine-readable evidence without altering MARLEM output folders:
 
 ```powershell
-uv run --no-sync python run_demo.py --json-output output/demo-results.json
+python run_demo.py --json-output output/demo-results.json
 ```
 
-`output/` is ignored by Git. `pandapower` uses MW internally; the command
+`output/` is ignored by Git. The shared Conda environment is defined by the
+repository root's `environment.yml` file. `pandapower` uses MW internally; the command
 reports powers and losses in kW. The external-grid sign is shown unchanged from
 pandapower (normally positive means upstream import for this example).
-`--link-mode=copy` avoids known hard-link limitations when the project lives in
-OneDrive; outside such a directory, ordinary `uv sync --group dev` is fine.
 
 ## What success proves
 

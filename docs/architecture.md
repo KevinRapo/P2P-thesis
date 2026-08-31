@@ -61,7 +61,7 @@ These can be reconsidered only when a demonstrated requirement exceeds the local
 | Validation | Explicit preflight service plus invariant tests | Validation is a first-class thesis contribution, not a UI form check |
 | Charts | Plotly for interactive Studio views | Already present in the project and supported by NiceGUI |
 | Static publication figures | Matplotlib/Seaborn | Suitable for deterministic thesis figures and existing project code |
-| Dependency management | `uv`, `pyproject.toml`, and `uv.lock` | Reproducible Python environment and one canonical dependency workflow |
+| Dependency management | Conda and `environment.yml` | Reproducible Python environment and one canonical dependency workflow |
 | Deployment | Local browser application first | Lowest operational complexity and appropriate for a research platform |
 
 NiceGUI currently uses a Python/FastAPI backend with a Vue/Quasar frontend and a persistent browser connection for UI events. Its own architecture documentation describes a single Uvicorn worker, which reinforces the decision to place Ray jobs in separate processes rather than inside UI callbacks. See the [official NiceGUI architecture](https://github.com/zauberzeug/nicegui#architecture) and [NiceGUI documentation](https://nicegui.io/documentation/).
@@ -503,8 +503,8 @@ Tests should mirror the new modules under `tests/`. Small deterministic fixtures
 
 | Concern | Technology | Notes |
 |---|---|---|
-| Language | Python 3.12 | Already selected in `pyproject.toml` |
-| Environment/dependencies | uv | `pyproject.toml` plus committed `uv.lock` |
+| Language | Python 3.12 | Declared in `environment.yml` |
+| Environment/dependencies | Conda | `environment.yml` is the canonical dependency definition |
 | Typed contracts | Pydantic | Scenario, manifest, validation, status, and artifact models |
 | Numeric/data processing | NumPy, Pandas, SciPy | Existing scientific stack |
 | Simulation API | Gymnasium | Existing environment contract |
@@ -530,11 +530,11 @@ Tests should mirror the new modules under `tests/`. Small deterministic fixtures
 | Tests | pytest | Assertion-based unit, invariant, integration, and smoke tests |
 | Static typing | To decide: Pyright or mypy | Add only after the new public contracts are defined |
 | Formatting/linting | To decide: Ruff | Prefer one tool if introduced |
-| CI | GitHub Actions | Clean uv sync, tests, and documentation checks |
-| Container | Docker, optional | Add after local uv workflow is stable |
+| CI | GitHub Actions | Clean Conda environment, tests, and documentation checks |
+| Container | Docker, optional | Add after local Conda workflow is stable |
 | Native window | NiceGUI native mode, optional | Presentation option only; browser mode remains canonical |
 
-NiceGUI should be added and pinned through uv when implementation begins; this document intentionally does not hard-code a version independently of the lockfile.
+NiceGUI is pinned in `environment.yml` when the implementation requires it.
 
 ## 14. NiceGUI implementation rules
 
@@ -585,13 +585,13 @@ Scientific correctness remains primarily in domain and invariant tests. UI tests
 Once architecture milestone A has added the Studio entry point and dependency:
 
 ```text
-uv sync
-uv run python -m src.studio.app
+conda env update --file environment.yml
+python -m src.studio.app
 ```
 
 - browser-based NiceGUI application;
 - experiment data stored under a local configurable directory;
-- worker subprocesses use the same uv environment;
+- worker subprocesses use the same Conda environment;
 - hot reload allowed only when no research run depends on the UI process.
 
 ### Thesis/research release
@@ -621,7 +621,7 @@ NiceGUI can display the same server-driven application in a native window. This 
 - define versioned `ScenarioSpec`, `ValidationReport`, `ExperimentManifest`, and `RunStatus`;
 - implement filesystem scenario/run loading;
 - create NiceGUI application shell, dashboard, and read-only run browser;
-- add NiceGUI through uv and commit the updated lockfile;
+- add NiceGUI to `environment.yml` and commit the updated environment definition;
 - no training launched from the UI yet.
 
 ### Architecture milestone B — validation and scenario editor

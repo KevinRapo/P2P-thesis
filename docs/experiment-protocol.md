@@ -41,7 +41,7 @@ single-seed result is a smoke test, not a comparison result.
 Before a real training study, run the three-seed, non-learning protocol smoke:
 
 ```powershell
-uv run python -m src.environment.reproducibility_smoke
+python -m src.environment.reproducibility_smoke
 ```
 
 It creates a new ignored directory under `tmp/` containing a verified manifest

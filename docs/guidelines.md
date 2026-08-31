@@ -78,7 +78,7 @@ Reason deeply, critically and iteratively. Take your time. This step is critical
 
 ## Development Tools
 
-    - Dependency Management: rye or uv
+    - Dependency Management: Conda via `environment.yml`
     - Virtual Environments: Required
     - Code Formatting: Black
     - Linting: Ruff

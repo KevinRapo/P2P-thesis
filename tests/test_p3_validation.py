@@ -172,12 +172,13 @@ def test_local_markdown_links_point_to_existing_artifacts() -> None:
             assert (markdown.parent / target).resolve().exists(), f"Broken link: {markdown}: {target}"
 
 
-def test_focused_gate_has_a_frozen_uv_ci_workflow() -> None:
+def test_focused_gate_has_a_conda_ci_workflow() -> None:
     root = Path(__file__).resolve().parents[1]
     workflow = (root / ".github/workflows/validation.yml").read_text(encoding="utf-8")
 
-    assert "uv sync --frozen --group dev" in workflow
-    assert "uv run pytest -q" in workflow
+    assert "conda-incubator/setup-miniconda@v3" in workflow
+    assert "environment-file: environment.yml" in workflow
+    assert "pytest -q" in workflow
 
 
 def test_notebook_validation_outputs_are_ignored() -> None:

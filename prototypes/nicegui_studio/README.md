@@ -25,8 +25,8 @@ architecture is learned. A future SimBench/pandapower adapter can replace
 From this folder:
 
 ```powershell
-uv sync --group dev --link-mode=copy
-uv run --no-sync python app.py
+conda activate marlem
+python app.py
 ```
 
 Open <http://127.0.0.1:8081>.
@@ -35,13 +35,13 @@ The prototype runs with NiceGUI development reload enabled. Saving a Python file
 reloads the server and refreshes the browser; in-memory demo history and
 selection state are reset after that reload.
 
-The OneDrive-safe `--link-mode=copy` avoids hard-link installation issues in
-this workspace. Outside OneDrive, ordinary `uv sync --group dev` is sufficient.
+The shared Conda environment is defined by the repository root's
+`environment.yml` file.
 
 Run the tests with:
 
 ```powershell
-uv run --no-sync pytest -q
+pytest -q
 ```
 
 ## What you can do in the UI

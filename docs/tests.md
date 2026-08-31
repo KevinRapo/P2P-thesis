@@ -3,7 +3,7 @@
 Run the maintained validation gate from the repository root:
 
 ```powershell
-uv run pytest -q
+pytest -q
 ```
 
 The test configuration collects the focused `test_p[0-3]_*.py` suites. They are

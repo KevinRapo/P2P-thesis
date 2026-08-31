@@ -9,9 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.12.10"
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --frozen --group dev
-      - run: uv run pytest -q
+          activate-environment: marlem
+          environment-file: environment.yml
+          auto-activate-base: false
+      - run: pytest -q
+        shell: bash -el {0}

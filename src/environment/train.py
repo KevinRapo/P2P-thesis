@@ -426,7 +426,7 @@ class RLTrainer:
 
     @staticmethod
     def _repository_provenance() -> Dict[str, Any]:
-        """Record code, lockfile, and metric-contract identities without mutating the tree."""
+        """Record repository environment and metric-contract identities without mutating the tree."""
         root = Path(__file__).resolve().parents[2]
 
         def git(*arguments: str) -> Optional[str]:
@@ -442,8 +442,7 @@ class RLTrainer:
         status = git("status", "--porcelain")
         return {"commit": git("rev-parse", "HEAD"),
                 "dirty_tree": bool(status) if status is not None else None,
-                "lockfile_sha256": file_hash("uv.lock"),
-                "project_sha256": file_hash("pyproject.toml"),
+                "environment_sha256": file_hash("environment.yml"),
                 "metric_contract_sha256": file_hash("docs/metric-contract.md")}
 
     @staticmethod
