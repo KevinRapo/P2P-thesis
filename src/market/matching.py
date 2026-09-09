@@ -5,7 +5,7 @@ This module handles the matching of buy and sell orders in a decentralized manne
 considering grid constraints and market rules.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -58,7 +58,7 @@ class MarketConfig:
         if self.blockchain_difficulty < 1:
             raise ValueError(f"Blockchain difficulty must be at least 1, got <blockchain_difficulty = {self.blockchain_difficulty}>.")
 
-        if not isinstance(self.price_mechanism, ClearingMechanism) and self.price_mechanism not in ClearingMechanism:
+        if not isinstance(self.price_mechanism, ClearingMechanism):
             raise ValueError(f"Unknown pricing mechanism: <price_mechanism = {self.price_mechanism}>. Valid options are: {list(ClearingMechanism)}.")
 
         if self._threshold < 0:
@@ -89,6 +89,9 @@ class MatchingResult:
     # Grid metrics
     grid_balance: float
     grid_congestion: float
+    submitted_orders: List[Order] = field(default_factory=list)
+    physical_settlements: Dict = field(default_factory=dict)
+    kpis: Dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Convert all numpy numeric types to standard float."""
@@ -157,6 +160,7 @@ class OrderMatcher:
         self.matching_history: MatchingHistory = MatchingHistory()
         self.grid_capacity: float = config.max_quantity * self.num_agents
         self.trades: List[Trade] = []
+        self.cash_ledger = {}
 
         # Check initialization
         self._check_init()
@@ -175,6 +179,7 @@ class OrderMatcher:
         # Reset market state
         self.matching_history.reset()
         self.trades = []
+        self.cash_ledger = {}
 
     def _check_init(self) -> None:
         """Validate the market configuration parameters.
@@ -221,207 +226,78 @@ class OrderMatcher:
         if self.config.blockchain_difficulty < 1:
             raise ValueError(f"Blockchain difficulty must be at least 1, got <blockchain_difficulty = {self.config.blockchain_difficulty}>.")
 
-    def match_orders(self,
-                     current_step: int,
-                     orders: List[Order],
-                     reputation_scores: Dict[str, float],
-                     grid_balance: float = 0.0) -> MatchingResult:
-        """Match orders while respecting grid constraints.
+    def match_orders(self, current_step, orders, reputation_scores, grid_balance=0.):
+        """Clear preferences, price/reputation/time priority, then bounded fallback.
 
-        Args:
-            current_step: Current simulation step
-            orders: List of orders to match
-            reputation_scores: Dictionary mapping agent IDs to reputation scores
-            grid_balance: Current grid balance (positive means excess supply)
-
-        Returns:
-            MatchingResult containing trades and matching statistics
+        Every stage owns residual copies and uses one common feasible fill routine.
+        Buy residuals are delivered energy; sell residuals are source energy.
         """
-        # Initialize trades and other tracking variables
-        trades = []
-        total_volume = 0.0
-        total_value = 0.0
-        remaining_orders = orders.copy()
-
-        # STAGE 1: Preference-based matching
-        market_price = self.matching_history.history[-1].clearing_price if self.matching_history.history else self.dso.get_market_price(current_step)
-        preference_trades, remaining_orders = self._match_preferred_partners(current_step,
-                                                                             orders,
-                                                                             grid_balance,
-                                                                             market_price)
-
-        # Update totals with preference trades
-        trades = preference_trades.copy()
-        total_volume = sum(trade.quantity for trade in preference_trades)
-        total_value = sum(trade.quantity * trade.price for trade in preference_trades)
-
-        # Update grid state based on preference trades
-        for trade in preference_trades:
-            # DSO buying (consuming excess) reduces grid balance
-            if trade.buyer_id == self.dso.id:
-                grid_balance -= trade.quantity
-
-            # DSO selling (providing shortage) increases grid balance
-            elif trade.seller_id == self.dso.id:
-                grid_balance += trade.quantity
-
-        # STAGE 2: Price-based matching for remaining orders
-        # Separate buy and sell orders
-        buy_orders = [o for o in remaining_orders if o.is_buy]
-        sell_orders = [o for o in remaining_orders if not o.is_buy]
-
-        # Consider reputation in sorting if provided
-        if reputation_scores:
-            buy_orders.sort(key=lambda x: (-x.price, -(reputation_scores.get(x.agent_id, 0.5)), x.timestamp)) # Higher reputation and price for buyers
-            sell_orders.sort(key=lambda x: (x.price, -(reputation_scores.get(x.agent_id, 0.5)), x.timestamp)) # Lower price and higher reputation for sellers
-        else:
-            buy_orders.sort(key=lambda x: (-x.price, x.timestamp))  # Highest price first, then earliest
-            sell_orders.sort(key=lambda x: (x.price, x.timestamp))  # Lowest price first, then earliest
-
-        # Match orders considering grid constraints
-        buy_idx = sell_idx = 0
-        while (buy_idx < len(buy_orders)) and (sell_idx < len(sell_orders)) and (buy_orders[buy_idx].price >= sell_orders[sell_idx].price):
-            buy_order = buy_orders[buy_idx]
-            sell_order = sell_orders[sell_idx]
-
-            # Skip orders with negligible quantities
-            if buy_order.quantity < self.config._threshold:
-                buy_idx += 1
-                continue
-            if sell_order.quantity < self.config._threshold:
-                sell_idx += 1
-                continue
-
-            # Calculate potential match quantity
-            proposed_quantity = min(buy_order.quantity, sell_order.quantity)
-
-            # Check grid constraints
-            if abs(grid_balance) > self.grid_capacity:
-                # Grid is already at capacity, skip this match
-                if grid_balance > 0:
-                    # Too much supply, try next seller
-                    sell_idx += 1
-                else:
-                    # Too much demand, try next buyer
-                    buy_idx += 1
-                continue
-
-            # Calculate trade price using selected mechanism
-            trade_price = self.config.price_mechanism.get_instance().calculate_price(buy_order,
-                                                                                     sell_order,
-                                                                                     market_price)
-
-            # Calculate transmission loss for this trade
-            distance = buy_order.location.distance_to(sell_order.location, self.grid_network.graph) if buy_order.location and sell_order.location else 0.0
-            transmission_loss = self.grid_network.transmission_loss(distance, proposed_quantity)
-
-            # Calculate grid-related fees
-            grid_fees = self.dso.calculate_fees(buy_order,
-                                                sell_order,
-                                                trade_price,
-                                                proposed_quantity)
-
-            # Record the trade
-            trades.append(Trade(buy_order.agent_id,
-                                sell_order.agent_id,
-                                trade_price,
-                                proposed_quantity,
-                                max(buy_order.timestamp, sell_order.timestamp),
-                                distance,
-                                transmission_loss,
-                                grid_fees))
-
-            # Update totals
-            total_volume += proposed_quantity
-            total_value += proposed_quantity * trade_price
-
-            # DSO buying (consuming excess) reduces grid balance
-            if buy_order.agent_id == self.dso.id:
-                grid_balance -= proposed_quantity
-
-            # DSO selling (providing shortage) increases grid balance
-            elif sell_order.agent_id == self.dso.id:
-                grid_balance += proposed_quantity
-
-            # Update order quantities
-            buy_order.quantity -= (proposed_quantity - transmission_loss)  # Buyer receives less due to losses
-            sell_order.quantity -= proposed_quantity  # Seller provides the full amount
-
-            # Move to next order if current is fully matched
-            if buy_order.quantity <= self.config._threshold:
-                buy_idx += 1
-            if sell_order.quantity <= self.config._threshold:
-                sell_idx += 1
-
-        # Collect unmatched orders with remaining quantity
-        unmatched_buy_orders = [o for o in buy_orders if o.quantity > 0]
-        unmatched_sell_orders = [o for o in sell_orders if o.quantity > 0]
-
-        # STAGE 3: Process unmatched orders with DSO using shared utility
-        dso_trades, dso_stats = self.dso.clear_unmatched_orders(current_step,
-                                                                unmatched_buy_orders,
-                                                                unmatched_sell_orders)
-
-        # Add DSO trades to the trade list
-        trades.extend(dso_trades)
-
-        # Update totals with DSO trades
-        for trade in dso_trades:
-            total_volume += trade.quantity
-            total_value += trade.quantity * trade.price
-
-        # Update DSO with local market information
+        self.grid_network.begin_period()
         self.dso.balance = grid_balance
-        self.dso.congestion_level = self.grid_network.calculate_congestion_level()
-        self.dso_stats = self.calculate_market_statistics(current_step,
-                                                          trades,
-                                                          dso_stats)
-
-        # Handle unmatched orders
-        # DSO is always active, so all orders should be matched
-        unmatched_orders = []
-
-        # Calculate clearing price
-        clearing_price = total_value / total_volume if total_volume > 0 else self.dso.get_market_price(current_step)
-
-        # Store trades for later reference
-        self.trades = trades
-
-        # Add all trades to validator for decentralized validation
+        self.dso.prepare_period(current_step)
+        remaining = [replace(order) for order in orders if order.quantity > self.config._threshold]
+        for order in remaining:
+            if not np.isfinite([order.quantity,order.price,order.timestamp]).all() or order.quantity < 0:
+                raise ValueError('Order quantities, prices and timestamps must be finite.')
+        reference = (self.matching_history.history[-1].clearing_price if self.matching_history.history
+                     else self.dso.get_market_price(current_step))
+        trades = []
+        if self.config.enable_partner_preference:
+            preferred = [o for o in remaining if o.partner_id == self.dso.id]
+            fills,_ = self.dso.clear_unmatched_orders(current_step,[o for o in preferred if o.is_buy],
+                                                      [o for o in preferred if not o.is_buy])
+            trades.extend(fills)
+            for buy in [o for o in remaining if o.is_buy]:
+                for sell in [o for o in remaining if not o.is_buy]:
+                    if buy.partner_id == sell.agent_id and sell.partner_id == buy.agent_id:
+                        fill,_ = self._create_trade(buy,sell,grid_balance,reference)
+                        if fill is not None:
+                            trades.append(fill)
+        buys = sorted((o for o in remaining if o.is_buy),
+                      key=lambda o:(-o.price,-reputation_scores.get(o.agent_id,0.),o.timestamp,o.id))
+        sells = sorted((o for o in remaining if not o.is_buy),
+                       key=lambda o:(o.price,-reputation_scores.get(o.agent_id,0.),o.timestamp,o.id))
+        for buy in buys:
+            for sell in sells:
+                if buy.quantity <= self.config._threshold:
+                    break
+                if sell.price > buy.price:
+                    break
+                fill,_ = self._create_trade(buy,sell,grid_balance,reference)
+                if fill is not None:
+                    trades.append(fill)
+        fallback,_ = self.dso.clear_unmatched_orders(current_step,buys,sells)
+        trades.extend(fallback)
+        bought = sum(t.quantity for t in trades if t.buyer_id == self.dso.id)
+        sold = sum(t.quantity for t in trades if t.seller_id == self.dso.id)
+        stats = self.calculate_market_statistics(current_step,trades,
+                    dict(dso_buy_volume=bought,dso_sell_volume=sold,dso_total_volume=bought+sold,
+                         dso_grid_import=sold-bought,dso_profit=self.dso.profit))
+        volume = sum(t.quantity for t in trades)
+        price = sum(t.price*t.quantity for t in trades)/volume if volume else self.dso.get_market_price(current_step)
         for trade in trades:
+            value = trade.price*trade.quantity
+            for agent_id,amount in [(trade.buyer_id,-value-trade.fees),
+                                    (trade.seller_id,value),(self.dso.id,trade.fees)]:
+                self.cash_ledger[agent_id] = self.cash_ledger.get(agent_id,0.)+amount
             self.validator.add_trade(trade)
-
-        # Force block creation at the end of the market step to ensure all trades in this step are validated as one block
-        if self.validator.pending_trades:
-            self.validator._create_new_block()
-
-        # Visualize blockchain if enabled
+        self.dso.profit = self.get_agent_cash_position(self.dso.id)
+        self.dso.congestion_level = self.grid_network.calculate_congestion_level()
+        self.dso.balance = grid_balance
+        self.dso.balance += sold - sum(t.delivered_quantity for t in trades if t.buyer_id == self.dso.id)
+        self.dso_stats = stats
+        self.trades = trades
+        result = MatchingResult(trades=trades,
+                     unmatched_orders=[replace(o) for o in remaining if o.quantity > self.config._threshold],
+                     clearing_price=price,clearing_volume=volume,grid_balance=self.dso.balance,
+                     grid_congestion=self.dso.congestion_level,submitted_orders=[replace(o) for o in orders],
+                     **{key:stats[key] for key in ('dso_buy_volume','dso_sell_volume','dso_total_volume','p2p_volume',
+                         'dso_trade_ratio','dso_grid_import','dso_buy_price','dso_sell_price','price_spread',
+                         'local_price_avg','local_price_advantage')})
+        self.matching_history.update(result)
         if self.config.visualize_blockchain:
             self.validator.visualize_blockchain()
-
-        # Matching result
-        matching_result = MatchingResult(trades,
-                                         unmatched_orders,
-                                         clearing_price,
-                                         total_volume,
-                                         self.dso_stats["dso_buy_volume"],
-                                         self.dso_stats["dso_sell_volume"],
-                                         self.dso_stats["dso_total_volume"],
-                                         self.dso_stats["p2p_volume"],
-                                         self.dso_stats["dso_trade_ratio"],
-                                         self.dso_stats["dso_grid_import"],
-                                         self.dso_stats["dso_buy_price"],
-                                         self.dso_stats["dso_sell_price"],
-                                         self.dso_stats["price_spread"],
-                                         self.dso_stats["local_price_avg"],
-                                         self.dso_stats["local_price_advantage"],
-                                         self.dso.balance,
-                                         self.dso.congestion_level)
-
-        # Update matching history
-        self.matching_history.update(matching_result)
-
-        return matching_result
+        return result
 
     def get_agent_position(self, agent_id: str) -> float:
         """Calculate the net energy position of an agent.
@@ -440,7 +316,7 @@ class OrderMatcher:
                 position += trade.quantity  # Positive when selling
 
             if trade.buyer_id == agent_id:
-                position -= trade.quantity  # Negative when buying
+                position -= trade.delivered_quantity  # Negative when buying
 
         return position
 
@@ -501,80 +377,34 @@ class OrderMatcher:
 
         return stats
 
-    def _create_trade(self,
-                      buy_order: Order,
-                      sell_order: Order,
-                      grid_balance: float,
-                      market_price: float) -> Tuple[Trade, float]:
-        """Create a trade object from matching buy and sell orders.
-
-        This method handles the creation of a Trade object, calculating the trade price
-        and updating the order quantities appropriately. It also calculates grid-related fees
-        that are collected by the DSO and affect the final earnings/expenses of the agents.
-
-        Args:
-            buy_order: Buy order
-            sell_order: Sell order
-            grid_balance: Current grid balance (for updating grid state)
-            market_price: Market reference price for pricing mechanisms
-
-        Returns:
-            Tuple containing (trade, new_grid_balance)
-        """
-        # Calculate potential match quantity
-        proposed_quantity = min(buy_order.quantity, sell_order.quantity)
-
-        # Calculate base trade price using selected mechanism
-        base_price = self.config.price_mechanism.get_instance().calculate_price(buy_order,
-                                                                                sell_order,
-                                                                                market_price)
-
-        # Calculate transmission loss for this trade
-        distance = buy_order.location.distance_to(sell_order.location, self.grid_network.graph) if buy_order.location and sell_order.location else 0.0
-        transmission_loss = self.grid_network.transmission_loss(distance, proposed_quantity) if self.grid_network else 0.0
-
-        # Calculate grid-related fees
-        grid_fees = self.dso.calculate_fees(buy_order,
-                                            sell_order,
-                                            base_price,
-                                            proposed_quantity)
-
-        # Create the trade object with fees information
-        trade = Trade(buy_order.agent_id,
-                      sell_order.agent_id,
-                      base_price,
-                      proposed_quantity,
-                      max(buy_order.timestamp, sell_order.timestamp),
-                      distance,
-                      transmission_loss,
-                      grid_fees)
-
-        # Update order quantities
-        buy_order.quantity -= (proposed_quantity - transmission_loss)  # Buyer receives less due to losses
-        sell_order.quantity -= proposed_quantity  # Seller provides the full amount
-
-        # Update grid state
-        # DSO buying (consuming excess) reduces grid balance
-        if buy_order.agent_id == self.dso.id:
-            new_grid_balance = grid_balance - proposed_quantity
-
-        # DSO selling (providing shortage) increases grid balance
-        elif sell_order.agent_id == self.dso.id:
-            new_grid_balance = grid_balance + proposed_quantity
-
-        # P2P trades don't change grid balance (buyer and seller cancel out)
-        else:
-            new_grid_balance = grid_balance
-
-        # Update edge congestion in the grid network if available
-        if self.grid_network:
-            buyer_node = buy_order.location.node_id if buy_order.location else None
-            seller_node = sell_order.location.node_id if sell_order.location else None
-
-            if buyer_node and seller_node:
-                self.grid_network.update_flow_from_trade(buyer_node, seller_node, proposed_quantity)
-
-        return trade, new_grid_balance
+    def _create_trade(self, buy_order, sell_order, grid_balance, market_price):
+        """Create a partial feasible fill; return None when this pair cannot trade."""
+        if (buy_order.agent_id == sell_order.agent_id or buy_order.price < sell_order.price
+                or min(buy_order.quantity,sell_order.quantity) <= self.config._threshold):
+            return None,grid_balance
+        buyer = buy_order.location.node_id if buy_order.location else None
+        seller = sell_order.location.node_id if sell_order.location else None
+        routed = buyer is not None and seller is not None
+        fraction = self.grid_network.path_delivery_factor(buyer,seller) if routed else 1.
+        if fraction <= 0:
+            return None,grid_balance
+        quantity = min(sell_order.quantity,buy_order.quantity/fraction)
+        if routed:
+            quantity = self.grid_network.max_transfer(buyer,seller,quantity)
+        if quantity <= self.config._threshold:
+            return None,grid_balance
+        price = self.config.price_mechanism.get_instance().calculate_price(
+                    buy_order=buy_order,sell_order=sell_order,reference_price=market_price)
+        distance = buy_order.location.distance_to(sell_order.location,self.grid_network.graph) if routed else 0.
+        fees = self.dso.calculate_fees(buy_order,sell_order,price,quantity)
+        trade = Trade(buy_order.agent_id,sell_order.agent_id,price,quantity,
+                      max(buy_order.timestamp,sell_order.timestamp),distance,quantity*(1-fraction),fees,
+                      buy_order.id,sell_order.id)
+        if routed and not self.grid_network.update_flow_from_trade(buyer,seller,quantity):
+            raise ArithmeticError('Previously checked P2P fill became infeasible.')
+        buy_order.quantity = max(0.,buy_order.quantity-trade.delivered_quantity)
+        sell_order.quantity = max(0.,sell_order.quantity-trade.quantity)
+        return trade,grid_balance
 
     def _match_preferred_partners(self,
                                   current_step: int,
@@ -720,3 +550,6 @@ class OrderMatcher:
                 remaining_orders.append(order)
 
         return preference_trades, remaining_orders
+
+    def get_agent_cash_position(self, agent_id):
+        return float(self.cash_ledger.get(agent_id,0.))

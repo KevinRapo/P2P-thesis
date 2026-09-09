@@ -33,9 +33,19 @@ class GridNetwork:
             capacity: Total grid capacity (kW)
             seed: Random seed for reproducible topology generation
         """
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)
+        if not isinstance(topology, GridTopology):
+            try:
+                topology = GridTopology(topology)
+            except ValueError as exc:
+                raise ValueError(f"Invalid topology '{topology}'. Available: {list(GridTopology)}") from exc
+        if capacity < 0:
+            raise ValueError(f"Grid capacity must be non-negative, got {capacity}")
         self.topology = topology
         self.num_nodes = num_nodes
-        self.capacity = max(0.0, capacity)
+        self.capacity = capacity
+        self.time_step_hours = 1.0
 
         # Initialize grid network
         self.graph: nx.Graph = self._create_grid_network(seed)
@@ -58,7 +68,8 @@ class GridNetwork:
             seed: Random seed for reproducible topology generation
         """
         if seed is not None:
-            np.random.seed(seed)
+            self.seed = seed
+            self._rng = np.random.default_rng(seed)
 
         # Reset dictionaries
         self.edge_capacities = {}
@@ -81,8 +92,9 @@ class GridNetwork:
             # Store capacity
             self.edge_capacities[(u, v)] = edge_capacity
 
-            # Initialize flow to a small random value (0-30% of capacity)
-            self.edge_flows[(u, v)] = np.random.uniform(0, 0.3) * edge_capacity
+            # This is an abstract per-timestep capacity graph: no unspecified
+            # baseline injection is assumed.
+            self.edge_flows[(u, v)] = 0.0
 
     def _check_init(self) -> None:
         """Validate GridNetwork configuration parameters.
@@ -99,7 +111,7 @@ class GridNetwork:
             raise ValueError(f"Invalid topology '{self.topology}'. Available: {list(GridTopology)}")
 
         # For procedural topologies, validate num_nodes
-        if self.topology in GridTopology._value2member_map_:
+        if self.topology in {GridTopology.MESH, GridTopology.RING, GridTopology.LINE}:
             if self.num_nodes < 2:
                 raise ValueError(f"Procedural topology '{self.topology}' requires at least 2 nodes, got {self.num_nodes}")
 
@@ -118,9 +130,6 @@ class GridNetwork:
         """
         if self.topology not in GridTopology:
             raise ValueError(f"Topology '{self.topology}' not defined. Available topologies: {GridTopology._member_names_}.")
-
-        if seed is not None:
-            np.random.seed(seed)
 
         graph = nx.Graph()
 
@@ -148,7 +157,7 @@ class GridNetwork:
             if self.topology == GridTopology.MESH:
                 for i in range(self.num_nodes):
                     for j in range(i+1, self.num_nodes):
-                        weight = 0.5 + np.random.rand()  # Random weight between 0.5 and 1.5
+                        weight = 0.5 + self._rng.random()  # Random weight between 0.5 and 1.5
                         graph.add_edge(str(i), str(j), weight=weight)
 
                 # Create positions in a circle
@@ -173,7 +182,7 @@ class GridNetwork:
             elif self.topology == GridTopology.RING:
                 for i in range(self.num_nodes):
                     next_node = (i + 1) % self.num_nodes
-                    weight = 0.5 + np.random.rand()
+                    weight = 0.5 + self._rng.random()
                     graph.add_edge(str(i), str(next_node), weight=weight)
 
                 # Create positions in a circle
@@ -199,7 +208,7 @@ class GridNetwork:
             # Linear network (nodes in sequence)
             elif self.topology == GridTopology.LINE:
                 for i in range(self.num_nodes - 1):
-                    weight = 0.5 + np.random.rand()
+                    weight = 0.5 + self._rng.random()
                     graph.add_edge(str(i), str(i + 1), weight=weight)
 
                 # Create positions in a line
@@ -242,7 +251,7 @@ class GridNetwork:
             if len(positions) == len(agents):
                 assigned_nodes = positions
             else:
-                assigned_nodes = np.random.choice(positions, size=len(agents), replace=False)
+                assigned_nodes = self._rng.choice(positions, size=len(agents), replace=False)
 
             # Create mapping for all agents (random assignment)
             self.agent_to_node = {agent_id: str(node) for agent_id, node in zip(agent_ids, assigned_nodes)}
@@ -267,7 +276,7 @@ class GridNetwork:
                 if len(remaining_agents) > len(available_nodes):
                     raise ValueError("Not enough available nodes to assign all remaining agents.")
 
-                randomly_assigned_nodes = np.random.choice(available_nodes, size=len(remaining_agents), replace=False)
+                randomly_assigned_nodes = self._rng.choice(available_nodes, size=len(remaining_agents), replace=False)
 
                 for agent_id, node_id in zip(remaining_agents, randomly_assigned_nodes):
                     self.agent_to_node[agent_id] = str(node_id)
@@ -276,76 +285,26 @@ class GridNetwork:
         for agent in agents:
             agent.update_location(self.get_location(agent.id))
 
-    def update_flow_from_trade(self,
-                               buyer_node: str,
-                               seller_node: str,
-                               quantity: float) -> None:
-        """Update power flow based on a trade between two nodes.
+    def update_flow_from_trade(self, buyer_node, seller_node, quantity):
+        """Commit a checked source-energy transfer as signed edge powers (kW)."""
+        if not self.can_settle(buyer_node, seller_node, quantity):
+            return False
+        path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+        remaining = quantity
+        for u,v in zip(path,path[1:]):
+            key = (u,v) if (u,v) in self.edge_flows else (v,u)
+            self.edge_flows[key] += (1. if key == (u,v) else -1.)*remaining/self.time_step_hours
+            remaining -= self.transmission_loss(self.graph[u][v]['weight'], remaining)
+        return True
 
-        This simulates the impact of power flow on the network by increasing
-        the flow along the shortest path between buyer and seller. The flow
-        decreases along the path due to transmission losses.
+    def can_settle(self, buyer_node, seller_node, quantity):
+        return quantity > 0 and self.max_transfer(buyer_node, seller_node, quantity) >= quantity - 1e-8
 
-        Args:
-            buyer_node: Node ID of the buyer
-            seller_node: Node ID of the seller
-            quantity: Trade quantity (energy units) at the source
-        """
-        try:
-            # Find shortest path between buyer and seller
-            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
-
-            # Initialize remaining power (starts with full quantity at seller node)
-            remaining_power = quantity
-
-            # Update flow along the path
-            for i in range(len(path) - 1):
-                u, v = path[i], path[i+1]
-
-                # Ensure edge is in the correct orientation
-                key = (u, v) if (u, v) in self.edge_flows else (v, u)
-
-                # Skip if edge not found (shouldn't happen with valid path)
-                if key not in self.edge_flows:
-                    continue
-
-                # Get edge length
-                edge_length = self.graph[u][v]['weight']
-
-                # Calculate power at the start of this edge
-                power_at_edge = remaining_power
-
-                # Update remaining power after this edge
-                remaining_power -= self.transmission_loss(edge_length, power_at_edge)
-
-                # Increase flow on this edge (use power at start of edge)
-                self.edge_flows[key] += power_at_edge
-
-                # Cap at capacity to avoid unrealistic values
-                self.edge_flows[key] = float(min(self.edge_flows[key], self.edge_capacities[key]))
-
-        # No path exists between nodes
-        except nx.NetworkXNoPath:
-            pass
-
-    def transmission_loss(self,
-                          distance: float,
-                          quantity: float,
-                          loss_factor: float = 0.03) -> float:
-        """Calculate transmission losses based on distance between two locations.
-
-        Transmission losses are proportional to the distance between nodes and the
-        quantity of energy being transmitted.
-
-        Args:
-            distance: Distance between nodes
-            quantity: Energy quantity being transmitted (in energy units)
-            loss_factor: Transmission loss factor (dimensionless)
-
-        Returns:
-            Transmission loss in energy units
-        """
-        return distance * quantity * np.clip(loss_factor, 0.0, 1.0)
+    def transmission_loss(self, distance, quantity, loss_factor=.03):
+        """Abstract edge loss in kWh, bounded by its source energy."""
+        if distance < 0 or quantity < 0 or not np.isfinite([distance, quantity, loss_factor]).all():
+            raise ValueError('Loss inputs must be finite and distance/quantity non-negative.')
+        return quantity * min(1., distance * np.clip(loss_factor, 0., 1.))
 
     def get_edge_congestion(self,
                             node1: str,
@@ -363,12 +322,12 @@ class GridNetwork:
         if (node1, node2) in self.edge_flows:
             flow = self.edge_flows[(node1, node2)]
             capacity = self.edge_capacities[(node1, node2)]
-            return min(1.0, flow / capacity) if capacity > 0 else 0.0
+            return min(1.0, abs(flow) / capacity) if capacity > 0 else 0.0
 
         elif (node2, node1) in self.edge_flows:
             flow = self.edge_flows[(node2, node1)]
             capacity = self.edge_capacities[(node2, node1)]
-            return min(1.0, flow / capacity) if capacity > 0 else 0.0
+            return min(1.0, abs(flow) / capacity) if capacity > 0 else 0.0
 
         # Edge not found
         return 0.0
@@ -408,20 +367,9 @@ class GridNetwork:
         Returns:
             Congestion level (0-1 scale, where 1 is fully congested)
         """
-        # Calculate average congestion across all edges
-        try:
-            edge_congestions = []
-            for u, v in self.edge_flows.keys():
-                edge_congestions.append(self.get_edge_congestion(u, v))
-
-            # Return average congestion if there are edges
-            return sum(edge_congestions) / len(edge_congestions) if edge_congestions else 0.0
-
-        # Fallback to simple flow-based congestion calculation
-        except Exception:
-            total_flow = sum(self.edge_flows.values())
-            total_capacity = sum(self.edge_capacities.values())
-            return min(1.0, total_flow / total_capacity) if total_capacity > 0 else 0.0
+        edge_congestions = [self.get_edge_congestion(u, v)
+                            for u, v in self.edge_flows]
+        return sum(edge_congestions) / len(edge_congestions) if edge_congestions else 0.0
 
     def get_location(self, agent_id: str) -> Location:
         """Convert a node position and metadata to a Location object.
@@ -516,3 +464,37 @@ class GridNetwork:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
 
         plt.show()
+
+    def begin_period(self):
+        """Clear instantaneous flows, retaining topology and configured edge ratings."""
+        self.edge_flows = {edge: 0.0 for edge in self.edge_capacities}
+
+    def path_delivery_factor(self, buyer_node, seller_node):
+        """Fraction of source energy arriving at the buyer along the chosen path."""
+        try:
+            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return 0.
+        fraction = 1.
+        for u, v in zip(path, path[1:]):
+            fraction *= 1. - self.transmission_loss(self.graph[u][v]['weight'], 1.)
+        return fraction
+
+    def max_transfer(self, buyer_node, seller_node, requested):
+        """Largest feasible source kWh fill given signed edge kW and period duration."""
+        if requested <= 0 or not np.isfinite(requested):
+            return 0.
+        try:
+            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+        except (nx.NetworkXNoPath, nx.NodeNotFound):
+            return 0.
+        fraction, limit = 1., requested
+        for u, v in zip(path, path[1:]):
+            key = (u,v) if (u,v) in self.edge_flows else (v,u)
+            sign = 1. if key == (u,v) else -1.
+            headroom = self.edge_capacities[key] - sign*self.edge_flows[key]
+            if fraction <= 0:
+                return 0.
+            limit = min(limit, max(0., headroom)*self.time_step_hours/fraction)
+            fraction *= 1. - self.transmission_loss(self.graph[u][v]['weight'], 1.)
+        return max(0., limit) if fraction > 0 else 0.

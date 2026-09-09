@@ -9,6 +9,7 @@ collecting grid fees.
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+import networkx as nx
 
 from ..grid.network import GridNetwork
 from .order import Order, Trade
@@ -29,9 +30,19 @@ class DSOAgent:
 
     def __init__(self,
                  id: str = "DSO",
-                 feed_in_tariff: List[float] = [],
-                 utility_price: List[float] = [],
-                 grid_network: Optional[GridNetwork] = None) -> None:
+                 feed_in_tariff: Optional[List[float]] = None,
+                 utility_price: Optional[List[float]] = None,
+                 grid_network: Optional[GridNetwork] = None,
+                 max_buy_quantity: Optional[float] = None,
+                 max_sell_quantity: Optional[float] = None,
+                 node_id: Optional[str] = None,
+                 intervention_threshold: float = 0.8,
+                 penalty_multiplier: float = 1.0,
+                 price_adjustment_factor: float = 0.0,
+                 grid_stability_weight: float = 0.5,
+                 market_efficiency_weight: float = 0.5,
+                 intervention_frequency: float = 0.0,
+                 adaptive_threshold: bool = False) -> None:
         """
         Initialize the DSO agent.
 
@@ -43,9 +54,15 @@ class DSOAgent:
         """
         # Initialization
         self.id = id
-        self.feed_in_tariff = feed_in_tariff  # Price DSO pays for excess generation ($/kWh)
-        self.utility_price = utility_price  # Price DSO charges for additional demand ($/kWh)
+        self.feed_in_tariff = [] if feed_in_tariff is None else feed_in_tariff
+        self.utility_price = [] if utility_price is None else utility_price
         self.grid_network = grid_network  # Grid network for operations
+        self.node_id = node_id or (next(iter(grid_network.graph.nodes), None) if grid_network else None)
+        self.max_buy_quantity = float("inf") if max_buy_quantity is None else max_buy_quantity
+        self.max_sell_quantity = float("inf") if max_sell_quantity is None else max_sell_quantity
+        self._capacity_step: Optional[int] = None
+        self._remaining_buy_quantity = self.max_buy_quantity
+        self._remaining_sell_quantity = self.max_sell_quantity
 
         # Grid state tracking
         self.balance: float = 0.0
@@ -73,6 +90,18 @@ class DSOAgent:
         self.voltage_factor: float = 0.15  # Factor for voltage drop fees
         self.imbalance_factor: float = 0.15  # Factor for grid stability fees
 
+        self.intervention_threshold = intervention_threshold
+        self.penalty_multiplier = penalty_multiplier
+        self.price_adjustment_factor = price_adjustment_factor
+        self.grid_stability_weight = grid_stability_weight
+        self.market_efficiency_weight = market_efficiency_weight
+        self.intervention_frequency = intervention_frequency
+        self.adaptive_threshold = adaptive_threshold
+        self._rng = np.random.default_rng()
+        self._effective_tariffs = {}
+        self.intervention_history = []
+        self.intervention_active = False
+        self.market_price_bounds = (0., float('inf'))
         # Check initialization
         self._check_init()
 
@@ -88,6 +117,14 @@ class DSOAgent:
             ValueError: If both feed_in_tariff and utility_price are time-varying and have different lengths
             ValueError: If feed_in_tariff is greater than utility_price
         """
+        for name in ('intervention_threshold','price_adjustment_factor','grid_stability_weight','market_efficiency_weight','intervention_frequency'):
+            value=getattr(self,name)
+            if not np.isfinite(value) or not 0<=value<=1:
+                raise ValueError(f'{name} must be finite and in [0,1].')
+        if not np.isclose(self.grid_stability_weight+self.market_efficiency_weight,1.):
+            raise ValueError('DSO policy weights must sum to one.')
+        if not np.isfinite(self.penalty_multiplier) or self.penalty_multiplier<0:
+            raise ValueError('penalty_multiplier must be finite and non-negative.')
         # Allow empty lists for profile management - they will be set by ProfileHandler
         if len(self.feed_in_tariff) == 0:
             raise ValueError("The attribute <feed_in_tariff> cannot be empty.")
@@ -113,9 +150,13 @@ class DSOAgent:
         """
         Reset the DSO agent state.
         """
-        if seed is not None:
-            np.random.seed(seed)
-
+        self._rng = np.random.default_rng(seed)
+        self._effective_tariffs = {}
+        self.intervention_history = []
+        self.intervention_active = False
+        self._capacity_step = None
+        self._remaining_buy_quantity = self.max_buy_quantity
+        self._remaining_sell_quantity = self.max_sell_quantity
         # Reset grid state
         self.balance = 0.0
         self.congestion_level = 0.0
@@ -146,7 +187,7 @@ class DSOAgent:
             IndexError: If using time-varying tariff and step is out of range
         """
         try:
-            return self.feed_in_tariff[step]
+            return self._effective_tariffs.get(step, (self.feed_in_tariff[step], self.utility_price[step]))[0]
         except IndexError:
             raise IndexError(f"Time step {step} is out of range for <feed_in_tariff> with length {len(self.feed_in_tariff)}.")
 
@@ -166,7 +207,7 @@ class DSOAgent:
             IndexError: If using time-varying price and step is out of range
         """
         try:
-            return self.utility_price[step]
+            return self._effective_tariffs.get(step, (self.feed_in_tariff[step], self.utility_price[step]))[1]
         except IndexError:
             raise IndexError(f"Time step {step} is out of range for <utility_price> with length {len(self.utility_price)}.")
 
@@ -187,89 +228,52 @@ class DSOAgent:
         """
         return (self.get_feed_in_tariff(step) + self.get_utility_price(step)) / 2
 
-    def clear_unmatched_orders(self,
-                               step: int,
-                               unmatched_buy_orders: List[Order],
-                               unmatched_sell_orders: List[Order]) -> Tuple[List[Trade], Dict]:
-        """Process unmatched orders through the DSO fallback mechanism.
-
-        This function handles unmatched orders by creating trades with the DSO
-        using the feed-in tariff for selling excess generation and the utility price
-        for buying additional energy.
-
-        Args:
-            step: Current time step in the simulation
-            unmatched_buy_orders: Buy orders that couldn't be matched in the market
-            unmatched_sell_orders: Sell orders that couldn't be matched in the market
-
-        Returns:
-            Tuple of (dso_trades, dso_statistics)
-        """
-        # Initialize DSO statistics
-        dso_buy_volume = 0.0
-        dso_sell_volume = 0.0
-        dso_trades = []
-
-        # DSO buys excess generation at feed-in tariff
-        for sell_order in unmatched_sell_orders:
-            if sell_order.quantity <= 0:
+    def clear_unmatched_orders(self, step, unmatched_buy_orders, unmatched_sell_orders):
+        """Settle bounded fallback fills using the same path/loss model as P2P."""
+        if self._capacity_step != step:
+            self._capacity_step = step
+            self._remaining_buy_quantity = self.max_buy_quantity
+            self._remaining_sell_quantity = self.max_sell_quantity
+        trades = []
+        for order in [*unmatched_sell_orders, *unmatched_buy_orders]:
+            if order.quantity <= 1e-9:
                 continue
-
-            # Create a DSO purchase trade
-            dso_trades.append(Trade(self.id,
-                                    sell_order.agent_id,
-                                    self.get_feed_in_tariff(step),
-                                    sell_order.quantity,
-                                    sell_order.timestamp,
-                                    0.0,  # DSO is assumed to be at zero distance
-                                    0.0,   # No transmission loss with DSO
-                                    0.0))  # No grid fees for DSO trades
-
-            # Update totals
-            dso_buy_volume += sell_order.quantity
-
-            # Mark as matched
-            sell_order.quantity = 0
-
-        # DSO sells to meet unmet demand at utility price
-        for buy_order in unmatched_buy_orders:
-            if buy_order.quantity <= 0:
+            participant_node = order.location.node_id if order.location else None
+            buyer_node, seller_node = ((participant_node,self.node_id) if order.is_buy else (self.node_id,participant_node))
+            routed = self.grid_network is not None and buyer_node is not None and seller_node is not None
+            fraction = self.grid_network.path_delivery_factor(buyer_node,seller_node) if routed else 1.
+            if fraction <= 0:
                 continue
-
-            # Create a DSO sale trade
-            dso_trades.append(Trade(buy_order.agent_id,
-                                    self.id,
-                                    self.get_utility_price(step),
-                                    buy_order.quantity,
-                                    buy_order.timestamp,
-                                    0.0,  # DSO is assumed to be at zero distance
-                                    0.0,  # No transmission loss with DSO
-                                    0.0))  # No grid fees for DSO trades
-
-            # Update totals
-            dso_sell_volume += buy_order.quantity
-
-            # Mark as matched
-            buy_order.quantity = 0
-
-        # Update DSO statistics
-        self.buy_volume += dso_buy_volume
-        self.sell_volume += dso_sell_volume
-        self.total_volume += dso_buy_volume + dso_sell_volume
-        self.grid_import += dso_sell_volume - dso_buy_volume
-
-        # Calculate DSO profit from these trades
-        dso_profit = (dso_sell_volume * self.get_utility_price(step)) - (dso_buy_volume * self.get_feed_in_tariff(step))
-        self.profit += dso_profit
-
-        # Create statistics dictionary
-        dso_stats = {"dso_buy_volume": dso_buy_volume,
-                     "dso_sell_volume": dso_sell_volume,
-                     "dso_total_volume": dso_buy_volume + dso_sell_volume,
-                     "dso_grid_import": dso_sell_volume - dso_buy_volume,
-                     "dso_profit": dso_profit}
-
-        return dso_trades, dso_stats
+            remaining = self._remaining_sell_quantity if order.is_buy else self._remaining_buy_quantity
+            source = min(order.quantity/fraction if order.is_buy else order.quantity, remaining)
+            if routed:
+                source = self.grid_network.max_transfer(buyer_node,seller_node,source)
+            if source <= 1e-9:
+                continue
+            distance = nx.shortest_path_length(self.grid_network.graph,seller_node,buyer_node,weight='weight') if routed else 0.
+            trade = Trade(order.agent_id if order.is_buy else self.id,
+                          self.id if order.is_buy else order.agent_id,
+                          self.get_utility_price(step) if order.is_buy else self.get_feed_in_tariff(step),
+                          source,order.timestamp,distance,source*(1-fraction),0.,
+                          order.id if order.is_buy else None,None if order.is_buy else order.id)
+            trades.append(trade)
+            order.quantity = max(0.,order.quantity-(trade.delivered_quantity if order.is_buy else source))
+            if order.is_buy:
+                self._remaining_sell_quantity -= source
+            else:
+                self._remaining_buy_quantity -= source
+            if routed and not self.grid_network.update_flow_from_trade(buyer_node,seller_node,source):
+                raise ArithmeticError('Previously checked DSO fill became infeasible.')
+        bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
+        sold = sum(t.quantity for t in trades if t.seller_id == self.id)
+        profit = sum(t.price*t.quantity*(1 if t.seller_id == self.id else -1) for t in trades)
+        self.buy_volume += bought
+        self.sell_volume += sold
+        self.total_volume += bought+sold
+        self.grid_import += sold-bought
+        self.profit += profit
+        return trades, dict(dso_buy_volume=bought,dso_sell_volume=sold,dso_total_volume=bought+sold,
+                            dso_grid_import=sold-bought,dso_profit=profit)
 
     def calculate_fees(self,
                        buy_order: Order,
@@ -304,7 +308,7 @@ class DSOAgent:
         if buyer_node and seller_node and self.grid_network:
             try:
                 congestion_level = self.grid_network.get_path_congestion(buyer_node, seller_node)
-            except Exception:
+            except nx.NodeNotFound:
                 congestion_level = self.grid_network.calculate_congestion_level()
         else:
             # No location information available, use global congestion
@@ -340,6 +344,7 @@ class DSOAgent:
 
         # Total all fees
         total_fee = congestion_fee + transmission_fee + imbalance_fee + voltage_fee + thermal_fee + zone_bonus
+        total_fee *= self.penalty_multiplier if self.intervention_active else 1.0
         self.fees += total_fee
 
         return total_fee
@@ -382,9 +387,8 @@ class DSOAgent:
         # Check path congestion
         try:
             path_congestion = self.grid_network.get_path_congestion(buyer_node, seller_node)
-        except Exception:
-            # Fallback to global congestion if path calculation fails
-            path_congestion = self.grid_network.calculate_congestion_level()
+        except nx.NodeNotFound:
+            return False
 
         if path_congestion > self.congestion_threshold:
             return False
@@ -440,3 +444,30 @@ class DSOAgent:
 
         # Grid is perfectly balanced
         return 0.0
+
+    def prepare_period(self, step):
+        """Decide intervention once using last congestion and current net demand.
+
+        Frequency is a seeded per-period activation probability above threshold.
+        Adaptive policies lower their threshold under higher physical pressure.
+        This explicit abstract controller implements the Case 3 configuration;
+        it is not a voltage or AC stability controller.
+        """
+        capacity=self.grid_network.capacity*self.grid_network.time_step_hours if self.grid_network else 1.
+        pressure=min(1.,max(self.congestion_level,abs(self.balance)/max(capacity,1e-12)))
+        threshold=self.intervention_threshold*(1.-.25*pressure) if self.adaptive_threshold else self.intervention_threshold
+        self.intervention_active=bool(pressure>=threshold and self._rng.random()<self.intervention_frequency)
+        fit,utility=self.feed_in_tariff[step],self.utility_price[step]
+        if self.intervention_active:
+            adjustment=self.price_adjustment_factor*pressure*self.grid_stability_weight
+            if self.balance<0:
+                utility*=1.+adjustment
+                fit*=1.+adjustment*self.market_efficiency_weight
+            else:
+                fit*=1.-adjustment
+                utility*=1.-adjustment*self.market_efficiency_weight
+        low,high=self.market_price_bounds
+        fit=float(np.clip(fit,low,high)); utility=float(np.clip(utility,max(low,fit),high))
+        self._effective_tariffs[step]=(fit,utility)
+        self.intervention_history.append(dict(step=step,pressure=pressure,threshold=threshold,
+                                             active=self.intervention_active,feed_in_tariff=fit,utility_price=utility))
