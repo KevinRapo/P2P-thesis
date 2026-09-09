@@ -67,24 +67,28 @@ class ReputationHandler:
 
         return np.random.uniform(0.0, 1.0)
 
-    def update_reputation(self,
-                          agent: DERAgent,
-                          matching_result: MatchingResult,
-                          time_of_day: float,
-                          dso_id: str = "DSO") -> float:
-        """Update reputation metrics for an agent based on matching results.
-
-        Args:
-            agent: DERAgent object
-            matching_result: Result of the order matching process
-            time_of_day: Current time of day (0-1)
-            dso_id: ID of the DSO agent for identifying DSO trades
-
-        Returns:
-            Updated reputation score
-        """
-        new_reputation = self._calculate_reputation(agent, matching_result, dso_id)
-        return (time_of_day * agent.reputation) + ((1.0 - time_of_day) * new_reputation)
+    def update_reputation(self, agent, matching_result, time_of_day, dso_id='DSO'):
+        """Smooth quantity fulfillment, quote compliance and physical service."""
+        orders=[o for o in getattr(matching_result,'submitted_orders',[]) if o.agent_id==agent.id and o.quantity>0]
+        if not orders:
+            return agent.reputation
+        requested=sum(o.quantity for o in orders)
+        filled=compliant=0.
+        lookup={o.id:o for o in orders}
+        for t in matching_result.trades:
+            oid=t.buyer_order_id if t.buyer_id==agent.id else t.seller_order_id if t.seller_id==agent.id else None
+            if oid not in lookup:
+                continue
+            q=t.delivered_quantity if t.buyer_id==agent.id else t.quantity
+            filled+=q
+            if (t.price<=lookup[oid].price if lookup[oid].is_buy else t.price>=lookup[oid].price):
+                compliant+=q
+        physical=getattr(matching_result,'physical_settlements',{}).get(agent.id)
+        service=(1.-min(1.,(physical.unserved_demand+physical.curtailed_generation)/max(physical.demand+physical.generation,1e-12))
+                 if physical else .5)
+        score=(self.reliability_weight*min(1.,filled/requested)
+               +self.fairness_weight*(compliant/filled if filled else .5)+self.grid_weight*service)
+        return float(np.clip(.8*agent.reputation+.2*score,0.,1.))
 
     def get_agent_ranking(self, agents: List[DERAgent]) -> List[Tuple[str, float]]:
         """Get ranked list of agents by overall reputation.

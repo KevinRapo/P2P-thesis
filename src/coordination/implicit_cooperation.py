@@ -45,39 +45,57 @@ class ImplicitCooperation:
         if self.grid_capacity <= 0:
             raise ValueError(f"Grid capacity must be greater than 0. Current value: <grid_capacity = {self.grid_capacity}>.")
 
-    def get_kpis(self,
-                 current_step: int,
-                 dso_id: str,
-                 agents: List[DERAgent],
-                 orders: List[Order],
-                 trades: List[Trade],
-                 grid_congestion: float,
-                 matching_history: MatchingHistory) -> Dict[str, float]:
+    def get_kpis(self, current_step, dso_id, agents, orders, trades, grid_congestion, matching_history):
+        """Publish quote/settlement and physical resource indicators for one period.
+
+        Welfare is revealed bid/ask surplus, not settlement turnover. Coordination
+        scores are descriptive outcome indicators; they do not establish causality.
         """
-        Calculate all coordination KPIs for scientific reporting.
-
-        Args:
-            current_step: Current step
-            dso_id: ID of the DSO agent
-            agents: List of DER agents (optional, for advanced metrics)
-            orders: List of orders in the current step
-            trades: List of executed trades in the current step
-            grid_congestion: Overall grid congestion level (0-1 scale)
-            matching_history: Historical matching results
-
-        Returns:
-            Dictionary with all KPIs at the top level
-        """
-        kpis = {}
-        dso_trades = [t for t in trades if t.buyer_id == dso_id or t.seller_id == dso_id]
-
-        # Core coordination metrics (always calculated)
-        kpis.update(self._get_economic_efficiency_metrics(orders, trades, matching_history))
-        kpis.update(self._get_grid_stability_metrics(grid_congestion, trades))
-        kpis.update(self._get_coordination_effectiveness_metrics(trades, matching_history))
-        kpis.update(self._get_resource_coordination_metrics(current_step, agents, trades, dso_trades))
-
-        return kpis
+        submitted = {o.id:o for o in orders}
+        local = [t for t in trades if t.buyer_id!=dso_id and t.seller_id!=dso_id]
+        welfare = 0.
+        for t in local:
+            buy,sell = submitted.get(t.buyer_order_id),submitted.get(t.seller_order_id)
+            if buy is not None and sell is not None:
+                welfare += buy.price*t.delivered_quantity-sell.price*t.quantity-t.fees
+        bids,asks = [o.price for o in orders if o.is_buy and o.quantity>0], [o.price for o in orders if not o.is_buy and o.quantity>0]
+        prices = [m.clearing_price for m in matching_history.history[-24:]]
+        records = [a.settlements[-1] for a in agents if getattr(a,'settlements',[]) and a.settlements[-1].step==current_step]
+        generation = sum(a.get_generation(current_step) for a in agents)
+        demand = sum(a.get_demand(current_step) for a in agents)
+        residual = sum(r.unserved_demand+r.curtailed_generation for r in records)
+        if not records:
+            residual = abs(generation-demand)
+        imbalance = min(1.,residual/max(generation+demand,1e-12))
+        recent = [m.kpis['supply_demand_imbalance'] for m in matching_history.history[-3:] if getattr(m,'kpis',None)] + [imbalance]
+        convergence = max(0.,1.-float(np.std(recent))) if len(recent)>1 else 0.
+        generation_export = 0.
+        for a in agents:
+            if not getattr(a,'settlements',[]):
+                continue
+            r=a.settlements[-1]
+            sold_to_dso=sum(t.quantity for t in trades if t.seller_id==a.id and t.buyer_id==dso_id)
+            # Dispatch uses on-site generation for demand first, then export/storage.
+            generation_export += min(sold_to_dso,max(0.,r.generation-r.served_demand))
+        curtailed=sum(r.curtailed_generation for r in records)
+        self_consumption = np.clip((generation-curtailed-generation_export)/generation,0.,1.) if generation else 0.
+        available=used=0.
+        for a in agents:
+            if a.battery and getattr(a,'settlements',[]):
+                r=a.settlements[-1]; b=a.battery
+                charge=min((b.max_soc*b.nominal_capacity-r.stored_before)/b.charge_efficiency if b.charge_efficiency else 0.,
+                           b.max_charge_power*b.time_step_hours if b.max_charge_power is not None else float('inf'))
+                discharge=min((r.stored_before-b.min_soc*b.nominal_capacity)*b.discharge_efficiency,
+                              b.max_discharge_power*b.time_step_hours if b.max_discharge_power is not None else float('inf'))
+                available += max(charge,discharge)
+                used += r.battery_charge+r.battery_discharge
+        return dict(social_welfare=float(welfare),market_liquidity=sum(t.quantity for t in trades),
+                    avg_bid_ask_spread=float(np.mean(bids)-np.mean(asks)) if bids and asks else 0.,
+                    price_volatility=float(np.std(prices)) if len(prices)>1 else 0.,
+                    supply_demand_imbalance=imbalance,grid_congestion=float(np.clip(grid_congestion,0.,1.)),
+                    coordination_score=1.-imbalance,coordination_convergence=convergence,
+                    der_self_consumption=float(self_consumption),
+                    flexibility_utilization=float(np.clip(used/available,0.,1.)) if available else 0.)
 
     def _get_economic_efficiency_metrics(self,
                                          orders: List[Order],

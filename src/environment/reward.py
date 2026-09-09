@@ -90,7 +90,7 @@ class RewardHandler:
         # Contribution weights
         self._w_grid: float = 0.5  # Grid contribution
         self._w_price: float = 0.2  # Price contribution
-        self._w_local: float = 0.3  # Local trading contribution
+        self._w_local_contribution: float = 0.3  # Local trading contribution
 
     def _check_init(self) -> None:
         """Check if the reward handler is initialized correctly."""
@@ -100,136 +100,57 @@ class RewardHandler:
         if self.grid_network is None:
             raise ValueError(f"Grid network must be provided in the config. Current value: <grid_network = {self.grid_network}>.")
 
-    def calculate_reward(self,
-                         agent: DERAgent,
-                         order: Order,
-                         matching: MatchingResult,
-                         kpis: Dict[str, float],
-                         min_price: float,
-                         max_price: float,
-                         is_terminal: bool = False) -> float:
-        """Calculate the reward for an agent's market action.
+    def calculate_reward(self, agent, order, matching, kpis, min_price, max_price, is_terminal=False):
+        """Paper-structured individual objective with public cooperation shaping.
 
-        This method implements a hierarchical reward structure that combines:
-        1. Base reward: Agent-specific performance metrics
-        2. Cooperation factor: Market-wide health metrics
-        3. Contribution factor: How much the agent helped improve the system
-        4. DSO penalty: Penalizes excessive reliance on DSO
-
-        Args:
-            agent: DERAgent object representing the agent
-            order: Agent's submitted order
-            matching: MatchingResult object representing the matching result
-            min_price: Minimum price in the market
-            max_price: Maximum price in the market
-            is_terminal: Whether this is the terminal step
-
-        Returns:
-            float: The total reward value with adaptive scaling
+        All physical penalties use completed household settlement. The paper's
+        weighted components and sign-preserving compression are retained; currency
+        and energy KPIs are normalized before the cooperation factor is evaluated.
         """
-        # STEP 1. Estimate trades
-        # Get agent's trades (those where agent is buyer or seller)
-        agent_trades = [trade for trade in matching.trades if (trade.buyer_id == agent.id) or (trade.seller_id == agent.id)]
-
-        # Return penalty if no trades (using same log normalization as final reward)
-        if not agent_trades:
-            return np.sign(-self.p_no_trades) * np.log1p(np.abs(-self.p_no_trades) / 20.0) * 20.0
-
-        # Separate agent's trades between local and DSO
-        agent_local_trades = [t for t in agent_trades if t.buyer_id != self.dso.id and t.seller_id != self.dso.id]
-        agent_dso_trades = [t for t in agent_trades if t.buyer_id == self.dso.id or t.seller_id == self.dso.id]
-
-        # Calculate volumes for trading ratios and DSO penalty
-        local_quantity = sum(trade.quantity for trade in agent_local_trades)
-        dso_quantity = sum(trade.quantity for trade in agent_dso_trades)
-        total_quantity = local_quantity + dso_quantity
-
-        # STEP 2. Calculate base reward (individual performance)
-        r_grid_balance = self._calculate_grid_balance_reward(agent, order)
-        r_resource = self._calculate_resource_allocation_reward(order, agent_trades)
-        r_trading = self._calculate_trading_reward(order, local_quantity, dso_quantity)
-        r_stability = self._calculate_stability_reward(order, agent_trades, matching.clearing_price)
-        r_economic = self._calculate_economic_reward(order,
-                                                     agent_local_trades,
-                                                     agent_dso_trades,
-                                                     matching.clearing_price,
-                                                     min_price,
-                                                     max_price,
-                                                     matching.dso_buy_price,
-                                                     matching.dso_sell_price)
-
-        # Base reward (individual performance)
-        base_reward = ((self.f_grid_balance * r_grid_balance) +
-                       (self.f_resource * r_resource) +
-                       (self.f_trading * r_trading) +
-                       (self.f_stability * r_stability) +
-                       (self.f_economic * r_economic))
-
-        # STEP 3. Calculate cooperation factor (market-wide performance)
-        # Invert metrics where lower is better (penalties become rewards)
-        inverted_kpis = kpis.copy()
-        for metric in ["supply_demand_imbalance", "grid_congestion", "price_volatility", "avg_bid_ask_spread"]:
-            if metric in inverted_kpis:
-                inverted_kpis[metric] = 1.0 - float(inverted_kpis[metric])
-
-        # Calculate normalized cooperation factor using available KPIs
-        cooperation_factor = ((self.f_social_welfare * inverted_kpis.get("social_welfare", 0.0)) +
-                              (self.f_market_liquidity * inverted_kpis.get("market_liquidity", 0.0)) +
-                              (self.f_avg_bid_ask_spread * inverted_kpis.get("avg_bid_ask_spread", 0.0)) +
-                              (self.f_price_volatility * inverted_kpis.get("price_volatility", 0.0)) +
-                              (self.f_supply_demand_imbalance * inverted_kpis.get("supply_demand_imbalance", 0.0)) +
-                              (self.f_grid_congestion * inverted_kpis.get("grid_congestion", 0.0)) +
-                              (self.f_coordination_score * inverted_kpis.get("coordination_score", 0.0)) +
-                              (self.f_coordination_convergence * inverted_kpis.get("coordination_convergence", 0.0)) +
-                              (self.f_der_self_consumption * inverted_kpis.get("der_self_consumption", 0.0)) +
-                              (self.f_flexibility_utilization * inverted_kpis.get("flexibility_utilization", 0.0)))
-
-        total_weight = sum([self.f_social_welfare, self.f_market_liquidity, self.f_avg_bid_ask_spread, self.f_price_volatility,
-                            self.f_supply_demand_imbalance, self.f_grid_congestion, self.f_coordination_score,
-                            self.f_coordination_convergence, self.f_der_self_consumption, self.f_flexibility_utilization])
-
-        # Normalize to [0, 1] range
-        cooperation_factor = cooperation_factor / total_weight if total_weight > 0 else 0.0
-
-        # STEP 4. Calculate agent's contribution to system improvement
-        contribution_factor = self._calculate_contribution_factor(agent,
-                                                                  matching,
-                                                                  agent_trades,
-                                                                  agent_local_trades)
-
-        # STEP 5. Calculate DSO penalty (negative impact)
-        dso_ratio = dso_quantity / total_quantity if total_quantity > 0 else 0.0
-        dso_penalty = dso_ratio * self.p_dso * abs(self.dso.balance) / max(self.grid_network.capacity, 1.0)
-
-        # STEP 6. Apply terminal penalty for unmet demand (negative impact)
-        demand_response_penalty = 0.0
-
-        if is_terminal:
-            # Calculate unmet demand at episode end
-            unmet_demand = max(0.0, agent.total_demand_required - agent.cumulative_demand_satisfied)
-
-            # Normalize by total demand required to get a ratio between 0 and 1
-            if agent.total_demand_required > 0:
-                unmet_demand_ratio = unmet_demand / agent.total_demand_required
-                demand_response_penalty = self.p_dso * (unmet_demand_ratio ** 2)
-
-        # STEP 7. Combine all components
-        # Calculate cooperation boost
-        cooperation_boost = (1.0 + cooperation_factor * contribution_factor)
-
-        # Apply log normalization to compress large values while preserving relative ordering
-        boosted_base_reward = base_reward * (1.0 + np.log1p(max(0.0, cooperation_boost - 1.0)) / 5.0)
-
-        # Scale penalties proportionally to base reward magnitude
-        penalty_scale = max(max(abs(boosted_base_reward), 1.0), 1.0) * 0.3
-        normalized_dso_penalty = dso_penalty * penalty_scale
-        normalized_demand_penalty = demand_response_penalty * penalty_scale / self.p_dso
-
-        # Final reward calculation with soft log normalization
-        raw_reward = boosted_base_reward - normalized_dso_penalty - normalized_demand_penalty
-
-        # Use sign-preserving log compression: smooths large values while preserving relative ordering
-        return np.sign(raw_reward) * np.log1p(np.abs(raw_reward) / 20.0) * 20.0
+        trades=[t for t in matching.trades if agent.id in (t.buyer_id,t.seller_id)]
+        local=[t for t in trades if self.dso.id not in (t.buyer_id,t.seller_id)]
+        dso=[t for t in trades if self.dso.id in (t.buyer_id,t.seller_id)]
+        amount=lambda t:t.delivered_quantity if t.buyer_id==agent.id else t.quantity
+        local_q,dso_q=sum(map(amount,local)),sum(map(amount,dso))
+        total_q=local_q+dso_q
+        physical=getattr(matching,'physical_settlements',{}).get(agent.id)
+        physical_scale=max(physical.demand,physical.generation,1e-12) if physical else max(order.quantity,1e-12)
+        unserved=(physical.unserved_demand/physical_scale if physical else
+                  max(0.,order.quantity-total_q)/physical_scale if order.is_buy else 0.)
+        wasted=physical.curtailed_generation/physical_scale if physical else 0.
+        resource=1.-min(1.,unserved+wasted)
+        trading=self._calculate_trading_reward(order,local_q,dso_q)
+        economic=self._calculate_economic_reward(order,local,dso,matching.clearing_price,
+                                                 min_price,max_price,matching.dso_buy_price,matching.dso_sell_price)
+        congestion=float(np.clip(matching.grid_congestion,0.,1.))
+        grid_score=1.-min(1.,unserved+wasted)-congestion
+        price_stability=1.-min(1.,np.std([t.price for t in trades])/max(max_price-min_price,1e-12)) if trades else 1.
+        stability=self._w_volatility*price_stability+self._w_imbalance*max(0.,grid_score)
+        base=(self.f_grid_balance*grid_score+self.f_resource*resource+self.f_trading*trading
+              +self.f_stability*stability+self.f_economic*economic)
+        normalized=dict(kpis)
+        requested=sum(o.quantity for o in getattr(matching,'submitted_orders',[]))
+        price_span=max(max_price-min_price,1e-12)
+        normalized['social_welfare']=np.clip(kpis.get('social_welfare',0.)/(price_span*max(requested,1e-12)),0.,1.)
+        normalized['market_liquidity']=np.clip(2*kpis.get('market_liquidity',0.)/max(requested,1e-12),0.,1.)
+        normalized['avg_bid_ask_spread']=np.clip(abs(kpis.get('avg_bid_ask_spread',0.))/price_span,0.,1.)
+        normalized['price_volatility']=np.clip(kpis.get('price_volatility',0.)/price_span,0.,1.)
+        weights={key:getattr(self,'f_'+key) for key in ('social_welfare','market_liquidity','avg_bid_ask_spread',
+                      'price_volatility','supply_demand_imbalance','grid_congestion','coordination_score',
+                      'coordination_convergence','der_self_consumption','flexibility_utilization')}
+        costs={'avg_bid_ask_spread','price_volatility','supply_demand_imbalance','grid_congestion'}
+        coop=sum(w*(1.-np.clip(normalized.get(key,0.),0.,1.) if key in costs else np.clip(normalized.get(key,0.),0.,1.))
+                 for key,w in weights.items())/max(sum(weights.values()),1e-12)
+        # Individual contribution combines physical service, local participation and price stability.
+        contribution=(self._w_grid*resource+self._w_local_contribution*(local_q/total_q if total_q else 0.)
+                      +self._w_price*price_stability)
+        boosted=base*(1.+np.log1p(max(0.,coop*contribution))/5.)
+        dso_penalty=self.p_dso*dso_q/max(physical_scale,total_q)
+        unmet_penalty=self.p_no_trades*unserved
+        terminal_penalty=(self.p_dso*agent.cumulative_demand_deferred/agent.total_demand_required
+                          if is_terminal and agent.total_demand_required>0 else 0.)
+        raw=boosted-dso_penalty-unmet_penalty-terminal_penalty
+        return float(np.sign(raw)*np.log1p(abs(raw)/20.)*20.)
 
     def _calculate_trading_reward(self,
                                   order: Order,
@@ -496,4 +417,4 @@ class RewardHandler:
         # STEP 3. Local trading contribution
         local_contribution = len(agent_local_trades) / len(agent_trades) if agent_trades else 0 # [0-1] range
 
-        return (self._w_grid * grid_contribution) + (self._w_price * price_contribution) + (self._w_local * local_contribution)
+        return (self._w_grid * grid_contribution) + (self._w_price * price_contribution) + (self._w_local_contribution * local_contribution)
