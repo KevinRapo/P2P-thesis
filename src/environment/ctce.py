@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Tuple
 import torch
 from ray.rllib.algorithms.sac.sac_learner import QF_PREDS, QF_TWIN_PREDS
 from ray.rllib.core import Columns
-from ray.rllib.core.distribution.torch.torch_distribution import TorchDiagGaussian, TorchMultiDistribution
+from ray.rllib.core.distribution.torch.torch_distribution import TorchDiagGaussian, TorchMultiDistribution, TorchSquashedGaussian
 from ray.rllib.core.learner.utils import make_target_network
 from ray.rllib.core.rl_module.apis import TARGET_NETWORK_ACTION_DIST_INPUTS, QNetAPI, TargetNetworkAPI, ValueFunctionAPI
 from ray.rllib.core.rl_module.torch import TorchRLModule
@@ -17,6 +17,10 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import NetworkType, StateDict, TensorType
 
 from .base import RLAlgorithm
+
+
+_LOG_STD_MIN = -5.0
+_LOG_STD_MAX = 2.0
 
 
 class CTCEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
@@ -133,7 +137,7 @@ class CTCEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             # SECOND PASS: Compute Q-values for actions sampled from current policy to train the actor
             # Action distribution from the current policy action_logits
             curr_action_dist = self.action_dist_cls.from_logits(action_logits)
-            curr_actions_resampled = curr_action_dist.sample()
+            curr_actions_resampled = curr_action_dist.rsample()
 
             # Embeddings from Q-network encoders with the current concatenated observations/actions
             curr_qf_input = torch.cat([concat_obs, *curr_actions_resampled["grouped_agents"]], dim=-1)
@@ -151,7 +155,7 @@ class CTCEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
 
             # Get embeddings and action_logits from next observations
             next_obs_embeddings = self.target_pi_encoder(concat_next_obs)
-            next_obs_action_logits = self.target_pi(next_obs_embeddings)
+            next_obs_action_logits = self._stabilize_action_logits(self.target_pi(next_obs_embeddings))
 
             # Target action distribution from the next observation's policy action_logits
             target_action_dist = self.action_dist_cls.from_logits(next_obs_action_logits)
@@ -239,7 +243,7 @@ class CTCEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
         target_embeddings = self.target_pi_encoder(concat_obs)
 
         # Get action logits from target policy head
-        return {TARGET_NETWORK_ACTION_DIST_INPUTS: self.target_pi(target_embeddings)}
+        return {TARGET_NETWORK_ACTION_DIST_INPUTS: self._stabilize_action_logits(self.target_pi(target_embeddings))}
 
     @override(QNetAPI)
     def compute_q_values(self, batch: StateDict) -> StateDict:
@@ -348,12 +352,21 @@ class CTCEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             A tuple with the action logits and value predictions.
         """
         # Get action_logits from policy head
-        action_logits = self.pi(embeddings)
+        action_logits = self._stabilize_action_logits(self.pi(embeddings))
 
         # Get value predictions from value function head
         vf_preds = self.vf_head(embeddings).squeeze(-1)
 
         return action_logits, vf_preds
+
+    def _stabilize_action_logits(self, action_logits):
+        """Clamp each child distribution's log scales, preserving every mean."""
+        lengths=[2*space.shape[0] for space in self.action_space['grouped_agents'].spaces]
+        result=[]
+        for segment in torch.split(action_logits,lengths,dim=-1):
+            means,log_stds=segment.chunk(2,dim=-1)
+            result.append(torch.cat((means,log_stds.clamp(_LOG_STD_MIN,_LOG_STD_MAX)),dim=-1))
+        return torch.cat(result,dim=-1)
 
     def _get_distribution_class(self) -> TorchMultiDistribution:
         """Creates a TorchMultiDistribution class with a baked-in dict structure.
@@ -362,7 +375,7 @@ class CTCEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             A TorchMultiDistribution class with a baked-in dict structure.
         """
         tuple_space = self.action_space["grouped_agents"]
-        child_dist_cls = TorchDiagGaussian
+        child_dist_cls = TorchSquashedGaussian if self.algorithm == RLAlgorithm.SAC.value else TorchDiagGaussian
 
         class CustomTorchMultiDistribution(TorchMultiDistribution):
             @classmethod

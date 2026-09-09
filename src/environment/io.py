@@ -7,7 +7,8 @@ to/from JSON files, ensuring consistency between training and inference.
 
 import json
 from pathlib import Path
-from typing import Any, Dict
+import networkx as nx
+from typing import Any, Dict, Optional
 
 from ..agent.battery import Battery
 from ..agent.der import DERAgent
@@ -29,14 +30,14 @@ class EnvConfigHandler:
              env_config: Dict[str, Any],
              storage_path: str = None,
              name: str = "env_config",
-             decimals: int = 1) -> None:
+             decimals: Optional[int] = None) -> None:
         """Save environment configuration to JSON file.
 
         Args:
             env_config: Environment configuration dictionary
             storage_path: Directory path where to save the configuration (default: downloads/)
             name: Name of the configuration file without .json extension (default: env_config)
-            decimals: Number of decimal places for rounding (default: 1)
+            decimals: Optional number of decimal places; None preserves profiles exactly.
         """
         # Ensure storage_path is a Path object
         storage_path = Path(__main__) / "downloads" if storage_path is None else Path(storage_path)
@@ -51,8 +52,8 @@ class EnvConfigHandler:
         serializable_config = cls._make_config_serializable(env_config, decimals)
 
         # Save to JSON file
-        with open(config_path, "w") as f:
-            json.dump(serializable_config, f, indent=2, default=str)
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(serializable_config, f, indent=2)
 
     @classmethod
     def load(cls, file_path: str) -> Dict[str, Any]:
@@ -79,12 +80,12 @@ class EnvConfigHandler:
     @classmethod
     def _make_config_serializable(cls,
                                   config: Dict[str, Any],
-                                  decimals: int = 1) -> Dict[str, Any]:
+                                  decimals: Optional[int] = None) -> Dict[str, Any]:
         """Convert environment configuration to serializable format.
 
         Args:
             config: Environment configuration dictionary
-            decimals: Number of decimal places for rounding (default: 1)
+            decimals: Optional number of decimal places; None preserves profiles exactly.
 
         Returns:
             Serializable configuration dictionary
@@ -104,13 +105,12 @@ class EnvConfigHandler:
 
             # Convert GridNetwork to dict
             elif key == "grid_network":
-                if value is not None:
-                    serializable[key] = {"topology": value.topology.value if hasattr(value.topology, "value") else str(value.topology),
-                                         "num_nodes": value.num_nodes,
-                                         "capacity": value.capacity,
-                                         "seed": getattr(value, "seed", None)}
-                else:
-                    serializable[key] = None
+                serializable[key] = None if value is None else dict(
+                    topology=value.topology.value,num_nodes=value.num_nodes,capacity=value.capacity,seed=value.seed,
+                    graph=nx.node_link_data(value.graph,edges="edges"),
+                    positions={str(k):list(v) for k,v in value.graph.pos.items()},
+                    zones=getattr(value.graph,"node_to_zone",{}),
+                    edge_capacities=[[u,v,c] for (u,v),c in value.edge_capacities.items()])
 
             # Convert DSOAgent to dict
             elif key == "dso":
@@ -126,7 +126,16 @@ class EnvConfigHandler:
                     serializable[key] = {"id": value.id,
                                          "feed_in_tariff": value.feed_in_tariff,
                                          "utility_price": value.utility_price,
-                                         "grid_network": grid_network_dict}
+                                         "grid_network": grid_network_dict,
+                                         "max_buy_quantity": value.max_buy_quantity,
+                                         "max_sell_quantity": value.max_sell_quantity,
+                                         "node_id": value.node_id,
+                                         "policy": {name:getattr(value,name) for name in
+                                             ('intervention_threshold','penalty_multiplier','price_adjustment_factor',
+                                              'grid_stability_weight','market_efficiency_weight','intervention_frequency',
+                                              'adaptive_threshold','congestion_threshold','voltage_threshold',
+                                              'instability_threshold','congestion_factor','distance_factor','zone_factor',
+                                              'voltage_factor','imbalance_factor')}}
                 else:
                     serializable[key] = None
 
@@ -140,10 +149,14 @@ class EnvConfigHandler:
                                               "min_soc": agent.battery.min_soc,
                                               "max_soc": agent.battery.max_soc,
                                               "charge_efficiency": agent.battery.charge_efficiency,
-                                              "discharge_efficiency": agent.battery.discharge_efficiency} if agent.battery else None,
+                                              "discharge_efficiency": agent.battery.discharge_efficiency,
+                                              "max_charge_power": agent.battery.max_charge_power,
+                                              "max_discharge_power": agent.battery.max_discharge_power,
+                                              "time_step_hours": agent.battery.time_step_hours,
+                                              "initial_soc": agent.battery.initial_soc} if agent.battery else None,
                                               "node_id": agent.node_id,
-                                              "generation_profile": [round(float(val), decimals) for val in agent.generation_profile],
-                                              "demand_profile": [round(float(val), decimals) for val in agent.demand_profile]}
+                                              "generation_profile": [float(val) if decimals is None else round(float(val), decimals) for val in agent.generation_profile],
+                                              "demand_profile": [float(val) if decimals is None else round(float(val), decimals) for val in agent.demand_profile]}
 
                     serializable[key].append(agent_dict)
 
@@ -154,6 +167,15 @@ class EnvConfigHandler:
                                          "max_quantity": getattr(value, "max_quantity", None),
                                          "min_price": getattr(value, "min_price", None),
                                          "max_price": getattr(value, "max_price", None),
+                                         "generation_file_path": str(value.generation_file_path) if getattr(value, "generation_file_path", None) else None,
+                                         "demand_file_path": str(value.demand_file_path) if getattr(value, "demand_file_path", None) else None,
+                                         "generation_column": getattr(value, "generation_column", None),
+                                         "file_profile_mode": getattr(value, "file_profile_mode", "energy"),
+                                         "demand_column": getattr(value, "demand_column", None),
+                                         "feed_in_tariff_file_path": str(value.feed_in_tariff_file_path) if getattr(value, "feed_in_tariff_file_path", None) else None,
+                                         "utility_price_file_path": str(value.utility_price_file_path) if getattr(value, "utility_price_file_path", None) else None,
+                                         "feed_in_tariff_column": getattr(value, "feed_in_tariff_column", None),
+                                         "utility_price_column": getattr(value, "utility_price_column", None),
                                          "decimals": getattr(value, "decimals", 1),
                                          "seed": getattr(value, "seed", None)}
                 else:
@@ -176,6 +198,8 @@ class EnvConfigHandler:
             Environment configuration dictionary with proper objects
         """
         config = {}
+        deferred_dso = None
+        deferred_dso_seen = False
 
         for key, value in serializable_config.items():
             # Restore MarketConfig object
@@ -195,18 +219,19 @@ class EnvConfigHandler:
                                               num_nodes=value["num_nodes"],
                                               capacity=value["capacity"],
                                               seed=value["seed"])
+                    if "graph" in value:
+                        config[key].graph=nx.node_link_graph(value["graph"],edges="edges")
+                        config[key].graph.pos={str(k):tuple(v) for k,v in value["positions"].items()}
+                        config[key].graph.node_to_zone=value["zones"]
+                        config[key].edge_capacities={(u,v):c for u,v,c in value["edge_capacities"]}
+                        config[key].begin_period()
                 else:
                     config[key] = None
 
             # Restore DSOAgent object
             elif key == "dso":
-                if value is not None:
-                    config[key] = DSOAgent(id=value["id"],
-                                           feed_in_tariff=value["feed_in_tariff"],
-                                           utility_price=value["utility_price"],
-                                           grid_network=config.get("grid_network", None))
-                else:
-                    config[key] = None
+                deferred_dso = value
+                deferred_dso_seen = True
 
             # Restore list of DERAgents
             elif key == "agents":
@@ -220,7 +245,11 @@ class EnvConfigHandler:
                                           min_soc=agent_dict["battery"]["min_soc"],
                                           max_soc=agent_dict["battery"]["max_soc"],
                                           charge_efficiency=agent_dict["battery"]["charge_efficiency"],
-                                          discharge_efficiency=agent_dict["battery"]["discharge_efficiency"])
+                                          discharge_efficiency=agent_dict["battery"]["discharge_efficiency"],
+                                          max_charge_power=agent_dict["battery"].get("max_charge_power"),
+                                          max_discharge_power=agent_dict["battery"].get("max_discharge_power"),
+                                          time_step_hours=agent_dict["battery"].get("time_step_hours", 1.0),
+                                          initial_soc=agent_dict["battery"].get("initial_soc"))
 
                     agent = DERAgent(id=agent_dict["id"],
                                      capacity=agent_dict["capacity"],
@@ -236,6 +265,11 @@ class EnvConfigHandler:
                 if value is not None:
                     config[key] = DERProfileHandler(min_quantity=value["min_quantity"],
                                                     max_quantity=value["max_quantity"],
+                                                    generation_file_path=value.get("generation_file_path"),
+                                                    demand_file_path=value.get("demand_file_path"),
+                                                    generation_column=value.get("generation_column"),
+                                                    file_profile_mode=value.get("file_profile_mode", "energy"),
+                                                    demand_column=value.get("demand_column"),
                                                     decimals=value.get("decimals", 1),
                                                     seed=value["seed"])
                 else:
@@ -246,6 +280,11 @@ class EnvConfigHandler:
                 if value is not None:
                     config[key] = DSOProfileHandler(min_price=value["min_price"],
                                                     max_price=value["max_price"],
+                                                    feed_in_tariff_file_path=value.get("feed_in_tariff_file_path"),
+                                                    utility_price_file_path=value.get("utility_price_file_path"),
+                                                    feed_in_tariff_column=value.get("feed_in_tariff_column"),
+                                                    file_profile_mode=value.get("file_profile_mode", "price"),
+                                                    utility_price_column=value.get("utility_price_column"),
                                                     decimals=value.get("decimals", 1),
                                                     seed=value["seed"])
                 else:
@@ -255,4 +294,28 @@ class EnvConfigHandler:
             else:
                 config[key] = value
 
+        if deferred_dso_seen and deferred_dso is None:
+            config["dso"] = None
+        elif deferred_dso is not None:
+            dso_grid = config.get("grid_network")
+            nested_grid = deferred_dso.get("grid_network")
+            if dso_grid is None and nested_grid is not None:
+                dso_grid = GridNetwork(
+                    topology=GridTopology[nested_grid["topology"]],
+                    num_nodes=nested_grid["num_nodes"],
+                    capacity=nested_grid["capacity"],
+                    seed=nested_grid.get("seed"),
+                )
+            config["dso"] = DSOAgent(id=deferred_dso["id"],
+                                       feed_in_tariff=deferred_dso["feed_in_tariff"],
+                                       utility_price=deferred_dso["utility_price"],
+                                       grid_network=dso_grid,
+                                       max_buy_quantity=deferred_dso.get("max_buy_quantity"),
+                                       max_sell_quantity=deferred_dso.get("max_sell_quantity"),
+                                       node_id=deferred_dso.get("node_id"))
+
+        if deferred_dso is not None:
+            for name,value in deferred_dso.get("policy",{}).items():
+                setattr(config["dso"],name,value)
+            config["dso"]._check_init()
         return config

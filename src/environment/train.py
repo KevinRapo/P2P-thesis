@@ -3,9 +3,24 @@ Multi-agent reinforcement learning training implementation using Ray RLlib.
 """
 
 from datetime import datetime
+from copy import deepcopy
+from gymnasium import Env
+import hashlib
+import json
+import os
 from os import cpu_count
 from pathlib import Path
+import subprocess
 from typing import Any, Dict, Literal, Optional, Tuple
+from uuid import uuid4
+
+# Windows PyTorch wheels commonly omit libuv, while Ray's TCP rendezvous defaults
+# to it. Set this before worker processes are spawned; explicit user settings win.
+if os.name == "nt":
+    os.environ.setdefault("USE_LIBUV", "0")
+# We explicitly install portable CSV/JSON callbacks below. Prevent Ray from
+# adding TensorBoardX as a duplicate default logger on Windows paths.
+os.environ.setdefault("TUNE_DISABLE_AUTO_CALLBACK_LOGGERS", "1")
 
 import ray
 from gymnasium import spaces
@@ -14,6 +29,7 @@ from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.appo import APPOConfig
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.algorithms.sac import SACConfig
+from ray.rllib.algorithms.sac.torch.sac_torch_learner import SACTorchLearner
 from ray.rllib.callbacks.callbacks import RLlibCallback
 from ray.rllib.core.learner.learner import Learner
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
@@ -21,9 +37,9 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.metrics import ENV_RUNNER_RESULTS, EPISODE_RETURN_MEAN, EVALUATION_RESULTS
-from ray.rllib.utils.replay_buffers.replay_buffer import StorageUnit
 from ray.rllib.utils.typing import MultiAgentDict
 from ray.tune import CheckpointConfig, ResultGrid, RunConfig, TuneConfig, Tuner, loguniform
+from ray.tune.logger import CSVLoggerCallback, JsonLoggerCallback
 from ray.tune.result import DONE, TRAINING_ITERATION
 from ray.tune.schedulers import PopulationBasedTraining
 from torch import Tensor
@@ -46,10 +62,12 @@ class RLTrainer:
                  iters: int = 100,
                  tune_samples: int = 1,
                  checkpoint_freq: int = 10,
-                 evaluation_interval: int = 1,
+                 evaluation_interval: Optional[int] = None,
                  evaluation_duration: int | Literal["auto"] = "auto",
+                 evaluation_env_config: Optional[Dict[str, Any]] = None,
                  cpus: Optional[int] = None,
                  gpus: Optional[int] = None,
+                 train_batch_size: Optional[int] = None,
                  storage_path: Optional[str] = None):
         """Initialize the RL trainer.
 
@@ -60,13 +78,15 @@ class RLTrainer:
             iters: Number of training iterations
             tune_samples: Number of samples for tuning
             checkpoint_freq: Frequency of checkpoints
-            evaluation_interval: Frequency of evaluation
+            evaluation_interval: Frequency of held-out evaluation; disabled by default
             evaluation_duration: Duration of evaluation
+            evaluation_env_config: Separately seeded evaluation scenario configuration
             cpus: Number of CPUs for parallel sampling
             gpus: Number of GPUs per learner
+            train_batch_size: Optional PPO batch size; useful for short smoke runs
             storage_path: Path to store training results
         """
-        self.env_config = env_config
+        self.env_config = deepcopy(env_config)
         self.algorithm = algorithm
         self.training = training
         self.iters = iters
@@ -74,9 +94,12 @@ class RLTrainer:
         self.checkpoint_freq = checkpoint_freq
         self.evaluation_interval = evaluation_interval
         self.evaluation_duration = evaluation_duration
+        self.evaluation_env_config = evaluation_env_config
         self.cpus = self._get_cpus_count() if cpus is None else cpus
         self.gpus = self._get_cuda_gpu_count() if gpus is None else gpus
-        self.storage_path = storage_path
+        self.train_batch_size = train_batch_size
+        # Ray/pyarrow require an absolute filesystem URI for Tune storage.
+        self.storage_path = str(Path(storage_path).resolve()) if storage_path is not None else None
 
         # Validate initialization parameters
         self._check_init()
@@ -101,6 +124,13 @@ class RLTrainer:
         if not isinstance(self.gpus, int) or self.gpus < 0:
             raise ValueError(f"The <gpus> must be a non-negative integer, got <gpus = {self.gpus}>.")
 
+        train_batch_size = getattr(self, "train_batch_size", None)
+        if (train_batch_size is not None and
+                (not isinstance(train_batch_size, int)
+                 or isinstance(train_batch_size, bool)
+                 or train_batch_size <= 0)):
+            raise ValueError("The <train_batch_size> must be a positive integer or None.")
+
         if not isinstance(self.iters, int) or self.iters <= 0:
             raise ValueError(f"The <iters> must be a positive integer, got <iters = {self.iters}>.")
 
@@ -110,15 +140,20 @@ class RLTrainer:
         if not isinstance(self.checkpoint_freq, int) or self.checkpoint_freq <= 0:
             raise ValueError(f"The <checkpoint_freq> must be a positive integer, got <checkpoint_freq = {self.checkpoint_freq}>.")
 
-        if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
-            raise ValueError(f"The <evaluation_interval> must be a positive integer, got <evaluation_interval = {self.evaluation_interval}>.")
+        if self.evaluation_interval is not None:
+            if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
+                raise ValueError(f"The <evaluation_interval> must be a positive integer or None, got <evaluation_interval = {self.evaluation_interval}>.")
 
-        if not (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto") or (isinstance(self.evaluation_duration, int) and self.evaluation_duration <= 0):
+        if not (
+            (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto")
+            or (isinstance(self.evaluation_duration, int)
+                and not isinstance(self.evaluation_duration, bool)
+                and self.evaluation_duration > 0)
+        ):
             raise ValueError(f"The <evaluation_duration> must be a positive integer or 'auto', got <evaluation_duration = {self.evaluation_duration}>.")
 
-        # Validate checkpoint frequency doesn't exceed iterations
-        if self.checkpoint_freq > self.iters:
-            raise ValueError(f"The <checkpoint_freq> ({self.checkpoint_freq}) cannot be greater than <iters> ({self.iters}).")
+        # Short runs still save their final checkpoint when the periodic
+        # checkpoint interval is longer than the requested training budget.
 
         # Validate storage path if provided
         if self.storage_path is not None:
@@ -139,9 +174,18 @@ class RLTrainer:
         if not isinstance(self.env_config["max_steps"], int) or self.env_config["max_steps"] <= 0:
             raise ValueError(f"The <max_steps> must be a positive integer, got <max_steps = {self.env_config["max_steps"]}>.")
 
+        if (train_batch_size is not None and
+                train_batch_size < self.env_config["max_steps"]):
+            raise ValueError(
+                "The <train_batch_size> must cover at least one complete environment episode "
+                "so Tune receives the declared episode-return selection metric."
+            )
+
         # Validate agents
         if not isinstance(self.env_config["agents"], list) or len(self.env_config["agents"]) == 0:
             raise ValueError(f"The <agents> must be a non-empty list, got <agents = {self.env_config["agents"]}>.")
+
+
 
     @staticmethod
     def _get_cpus_count() -> int:
@@ -199,9 +243,19 @@ class RLTrainer:
 
         # Setup the complete configuration
         config = self._setup_algorithm_config()
+        if self.train_batch_size is not None:
+            if self.algorithm == RLAlgorithm.SAC:
+                config = config.training(train_batch_size_per_learner=self.train_batch_size,
+                                          num_steps_sampled_before_learning_starts=self.train_batch_size)
+                config = config.reporting(min_sample_timesteps_per_iteration=self.train_batch_size,
+                                          min_time_s_per_iteration=0)
+            elif self.algorithm == RLAlgorithm.APPO:
+                config = config.training(train_batch_size_per_learner=self.train_batch_size)
+                config = config.reporting(min_time_s_per_iteration=0)
         config = self._setup_extra_config(config)
         config = self._setup_training_config(config, embeddings_dim)
 
+        config = config.debugging(seed=self.env_config.get("seed"))
         return config, hyperparam_mutations
 
     def _setup_algorithm_config(self) -> AlgorithmConfig:
@@ -212,18 +266,17 @@ class RLTrainer:
             AlgorithmConfig: The algorithm configuration.
         """
         if self.algorithm == RLAlgorithm.PPO:
-            return (PPOConfig()
-                    .training(lr=1e-5,
-                              gamma=0.99,
-                              use_critic=True,
-                              use_gae=True,
-                              lambda_=0.95,
-                              num_epochs=30,
-                              minibatch_size=128,
-                              kl_coeff=0.0,
-                              entropy_coeff=0.01,
-                              clip_param=0.2,
-                              grad_clip=0.5))
+            train_batch_size = getattr(self, "train_batch_size", None)
+            training_options = {"lr": 1e-5, "gamma": 0.99,
+                                "use_critic": True, "use_gae": True,
+                                "lambda_": 0.95, "num_epochs": 30,
+                                "minibatch_size": min(128, train_batch_size)
+                                if train_batch_size else 128,
+                                "kl_coeff": 0.0, "entropy_coeff": 0.01,
+                                "clip_param": 0.2, "grad_clip": 0.5}
+            if train_batch_size is not None:
+                training_options["train_batch_size"] = train_batch_size
+            return PPOConfig().training(**training_options)
 
         elif self.algorithm == RLAlgorithm.APPO:
             return (APPOConfig()
@@ -271,27 +324,162 @@ class RLTrainer:
         Returns:
             AlgorithmConfig: The algorithm configuration with the extra configuration.
         """
-        if self.algorithm == RLAlgorithm.PPO:
-            evaluation_config = PPOConfig.overrides(exploration=False)
-        elif self.algorithm == RLAlgorithm.APPO:
-            evaluation_config = APPOConfig.overrides(exploration=False)
-        elif self.algorithm == RLAlgorithm.SAC:
-            evaluation_config = SACConfig.overrides(exploration=False)
-        else:
-            raise ValueError(f"The <algorithm> must be an RLAlgorithm enum, got <algorithm = {self.algorithm}>, supported algorithms: ['PPO', 'APPO', 'SAC'].")
+        # Windows PyTorch builds do not include NCCL. A single local learner is
+        # the supported RLlib path for one GPU and avoids creating a NCCL process
+        # group; CPU and non-Windows runs retain the remote learner process.
+        num_learners = 0 if os.name == "nt" else 1
+        if self.algorithm == RLAlgorithm.SAC and self.training != TrainingMode.DTDE:
+            config = config.training(learner_class=GroupedSACTorchLearner)
+        configured = (config
+                      .framework("torch")
+                      .env_runners(num_env_runners=self.cpus,
+                                   sample_timeout_s=None)
+                      .learners(num_learners=num_learners,
+                                num_gpus_per_learner=self.gpus))
+        if self.algorithm == RLAlgorithm.APPO:
+            # APPO's first asynchronous poll may return before any episode or
+            # learner update exists. A reported iteration must contain work.
+            configured = configured.reporting(
+                min_sample_timesteps_per_iteration=self.train_batch_size or 512,
+                min_train_timesteps_per_iteration=self.train_batch_size or 512,
+                min_time_s_per_iteration=1.)
+        if self.evaluation_interval is None:
+            return configured.evaluation(evaluation_interval=None)
+        return configured.evaluation(
+            evaluation_interval=self.evaluation_interval,
+            evaluation_duration=self.evaluation_duration,
+            evaluation_duration_unit="episodes",
+            evaluation_num_env_runners=0,
+            evaluation_parallel_to_training=False,
+            evaluation_config={"explore": False, "env_config": self.evaluation_env_config or deepcopy(self.env_config)},
+        )
 
-        return (config
-                .framework("torch")
-                .env_runners(num_env_runners=self.cpus,
-                             sample_timeout_s=None)
-                .learners(num_learners=1,
-                          num_gpus_per_learner=self.gpus)
-                .evaluation(evaluation_interval=self.evaluation_interval,
-                            evaluation_duration=self.evaluation_duration,
-                            evaluation_duration_unit=StorageUnit.EPISODES,
-                            evaluation_num_env_runners=self.cpus,
-                            evaluation_parallel_to_training=True,
-                            evaluation_config=evaluation_config))
+    def _get_tune_scheduler(self, hyperparam_mutations: Dict[str, Any]):
+        """Use PBT only when there is an actual population to perturb."""
+        if self.tune_samples <= 1:
+            return None
+        return PopulationBasedTraining(time_attr=TRAINING_ITERATION,
+                                      perturbation_interval=self.checkpoint_freq,
+                                      hyperparam_mutations=hyperparam_mutations)
+
+    def _experiment_name(self) -> str:
+        """Return a collision-resistant run identifier without hidden state."""
+        # RLlib checkpoints contain deep subdirectories; short components keep
+        # PyArrow's Windows file copies below the legacy path-length limit.
+        return f"{self.algorithm.value}_{self.training.value}_{uuid4().hex[:8]}"
+
+    @staticmethod
+    def write_run_manifest(env_config: Dict[str, Any],
+                           run_directory: Path,
+                           metadata: Dict[str, Any]) -> Path:
+        """Write the minimal immutable run description before any training starts."""
+        run_directory.mkdir(parents=True, exist_ok=True)
+        serialized_environment = EnvConfigHandler._make_config_serializable(env_config, decimals=12)
+        manifest = {
+            "schema_version": 3,
+            "created_at": datetime.now().isoformat(),
+            "metadata": metadata,
+            "environment": serialized_environment,
+            "unit_contract": {
+                "power": "kW",
+                "energy": "kWh",
+                "time": "hours",
+                "price": "currency/kWh",
+                "cash": "currency",
+            },
+            "profile_source_hashes": RLTrainer._profile_source_hashes(serialized_environment),
+            "repository": RLTrainer._repository_provenance(),
+        }
+        manifest["manifest_sha256"] = hashlib.sha256(
+            json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        path = run_directory / "run_manifest.json"
+        with path.open("x", encoding="utf-8") as file:
+            json.dump(manifest, file, indent=2)
+        (run_directory / "episode_records.jsonl").touch()
+        return path
+
+
+    @staticmethod
+    def _repository_provenance() -> Dict[str, Any]:
+        """Record repository environment and metric-contract identities without mutating the tree."""
+        root = Path(__file__).resolve().parents[2]
+
+        def git(*arguments: str) -> Optional[str]:
+            completed = subprocess.run(["git", *arguments], cwd=root, text=True,
+                                       stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                       check=False)
+            return completed.stdout.strip() if completed.returncode == 0 else None
+
+        def file_hash(filename: str) -> Optional[str]:
+            source = root / filename
+            return hashlib.sha256(source.read_bytes()).hexdigest() if source.is_file() else None
+
+        status = git("status", "--porcelain")
+        return {"commit": git("rev-parse", "HEAD"),
+                "dirty_tree": bool(status) if status is not None else None,
+                "environment_sha256": file_hash("environment.yml"),
+                "metric_contract_sha256": file_hash("docs/metric-contract.md")}
+
+    @staticmethod
+    def _start_ray(cpus: int, gpus: int):
+        """Start the notebook runtime with the Windows Ray 2.51 port workaround.
+
+        Ray chooses auxiliary ports in the OS ephemeral range, then releases
+        them before child services bind. On Windows another Ray service can
+        take the same port during startup (WinError 10048). Choose checked
+        auxiliary ports below Windows' default 49152+ dynamic range instead.
+        The installed Ray package and other running sessions are not changed.
+        """
+        options = dict(num_cpus=cpus + 2, num_gpus=gpus, include_dashboard=False,
+                       runtime_env=RLTrainer._ray_runtime_env())
+        if os.name != 'nt':
+            return ray.init(**options)
+        import socket
+        from random import SystemRandom
+        from unittest.mock import patch
+        from ray._private.node import Node
+
+        def unused_port(node, allocated_ports=None):
+            allocated_ports = allocated_ports or set()
+            for _ in range(100):
+                port = SystemRandom().randrange(20000, 40000)
+                if port in allocated_ports:
+                    continue
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+                    probe.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+                    try:
+                        probe.bind(('', port))
+                    except OSError:
+                        continue
+                    return port
+            raise RuntimeError('Could not allocate a free local Ray service port.')
+
+        with patch.object(Node, '_get_unused_port', unused_port):
+            return ray.init(**options)
+
+    @staticmethod
+    def _ray_runtime_env() -> Dict[str, Dict[str, str]]:
+        """Expose the repository source root to Ray workers started from notebooks."""
+        root = str(Path(__file__).resolve().parents[2])
+        existing = os.environ.get("PYTHONPATH", "")
+        paths = [root, *(path for path in existing.split(os.pathsep) if path and path != root)]
+        return {"env_vars": {"PYTHONPATH": os.pathsep.join(paths)}}
+
+    @staticmethod
+    def _profile_source_hashes(serialized_environment: Dict[str, Any]) -> Dict[str, str]:
+        """Hash configured replay files so a manifest identifies its data exactly."""
+        hashes = {}
+        for handler_name in ("der_profile_handler", "dso_profile_handler"):
+            handler = serialized_environment.get(handler_name) or {}
+            for key, value in handler.items():
+                if key.endswith("_file_path") and value:
+                    source = Path(value)
+                    if not source.is_file():
+                        raise FileNotFoundError(f"Configured profile source is missing: {source}")
+                    digest = hashlib.sha256(source.read_bytes()).hexdigest()
+                    hashes[str(source)] = digest
+        return hashes
 
     def _setup_training_config(self,
                                config: AlgorithmConfig,
@@ -338,7 +526,10 @@ class RLTrainer:
             # Setup the RL module of each agent
             agents_rl_module = {agent_id: RLModuleSpec(module_class=self.algorithm.get_module_class(),
                                                        observation_space=agents_policy[agent_id].observation_space,
-                                                       action_space=agents_policy[agent_id].action_space)
+                                                       action_space=agents_policy[agent_id].action_space,
+                                                       # Honor the same notebook network-size control
+                                                       # used by the centralized training modes.
+                                                       model_config={"fcnet_hiddens": [embeddings_dim, embeddings_dim]})
                                 for agent_id in self.env.agents_id}
 
             return (config
@@ -421,43 +612,69 @@ class RLTrainer:
         if _checkpoint_path:
             algo_config.callbacks(on_algorithm_init=lambda algorithm, **kwargs: algorithm.restore_from_path(_checkpoint_path))
 
-        # Initialize ray
-        if not ray.is_initialized():
-            ray.init()
+        run_name = self._experiment_name()
+        run_storage = Path(self.storage_path) if self.storage_path is not None else Path.cwd() / "results"
+        self.write_run_manifest(
+            self.env_config,
+            run_storage / run_name,
+            {"algorithm": self.algorithm.value, "training": self.training.value,
+             "iterations": self.iters, "tune_samples": self.tune_samples,
+             "evaluation": (EnvConfigHandler._make_config_serializable(self.evaluation_env_config)
+                            if self.evaluation_env_config is not None else None),
+             },
+        )
+        # The callback receives this private path from the Algorithm config and
+        # appends driver-side, per-episode records without changing the scenario.
+        algo_config = algo_config.environment(
+            env_config={**self.env_config,
+                        "_episode_record_path": str(run_storage / run_name /
+                                                    "episode_records.jsonl")})
 
-        # Initialize the tuner
-        tuner = Tuner(trainable=algo_config.algo_class,
-                      param_space=algo_config,
-                      tune_config=TuneConfig(num_samples=self.tune_samples,
-                                             scheduler=PopulationBasedTraining(time_attr=TRAINING_ITERATION,
-                                                                               perturbation_interval=self.checkpoint_freq,
-                                                                               hyperparam_mutations=hyperparam_mutations),
-                                             metric=f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
-                                             mode="max",
-                                             reuse_actors=False),
-                      run_config=RunConfig(storage_path=self.storage_path,
-                                           name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
-                                           stop={TRAINING_ITERATION: self.iters if _iters is None else abs(int(_iters)),
-                                                 #  "time_total_s": None,
-                                                 DONE: True},
-                                           checkpoint_config=CheckpointConfig(checkpoint_score_attribute=f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
-                                                                              checkpoint_frequency=self.checkpoint_freq,
-                                                                              checkpoint_at_end=True,
-                                                                              num_to_keep=3)))
+        owns_ray = not ray.is_initialized()
+        try:
+            # Constructing Tune can itself fail (for example, for invalid storage
+            # paths), so include setup in the same cleanup scope as `fit`.
+            if not ray.is_initialized():
+                self._start_ray(self.cpus, self.gpus)
 
-        # Run the tuner and capture the results
-        results = tuner.fit()
+            tuner = Tuner(trainable=algo_config.algo_class,
+                          param_space=algo_config,
+                          tune_config=TuneConfig(num_samples=self.tune_samples,
+                                                 trial_dirname_creator=lambda trial: trial.trial_id,
+                                                 scheduler=self._get_tune_scheduler(hyperparam_mutations),
+                                                 metric=f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
+                                                 mode="max",
+                                                 reuse_actors=False),
+                          run_config=RunConfig(storage_path=str(run_storage),
+                                               verbose=0,
+                                               name=run_name,
+                                               # JSON/CSV retain portable, machine-readable Tune results.
+                                               callbacks=[CSVLoggerCallback(), JsonLoggerCallback()],
+                                               stop={("iterations_since_restore" if _checkpoint_path else TRAINING_ITERATION):
+                                                     self.iters if _iters is None else abs(int(_iters)),
+                                                     DONE: True},
+                                               checkpoint_config=CheckpointConfig(checkpoint_score_attribute=self._selection_metric(),
+                                                                                  checkpoint_frequency=self.checkpoint_freq,
+                                                                                  checkpoint_at_end=True,
+                                                                                  num_to_keep=3)))
 
-        # Save environment configuration
-        self._save_env_config(results)
+            # Run the tuner and capture the results
+            results = tuner.fit()
+            if results.num_errors:
+                messages = "; ".join(str(error) for error in results.errors)
+                raise RuntimeError(f"Training failed in {results.num_errors} trial(s): {messages}")
 
-        # Extract metrics from the best result
-        metrics = self.get_best_metrics(results)
+            # Save environment configuration
+            self._save_env_config(results)
 
-        # Shutdown ray
-        ray.shutdown()
+            # Extract metrics from the best result
+            metrics = self.get_best_metrics(results)
 
-        return results, metrics
+            return results, metrics
+        finally:
+            # Ensure failed notebook runs do not leave Ray workers alive.
+            if owns_ray and ray.is_initialized():
+                ray.shutdown()
 
     def restore_experiment(self,
                            experiment_path: str,
@@ -487,22 +704,24 @@ class RLTrainer:
             raise ValueError(f"Failed to restore tuner from experiment {experiment_path}: {e}.")
 
         # Initialize ray
+        owns_ray = not ray.is_initialized()
         if not ray.is_initialized():
-            ray.init()
+            self._start_ray(self.cpus, self.gpus)
 
-        # Run the restored tuner and capture the results
-        results = tuner.fit()
+        try:
+            # Run the restored tuner and capture the results
+            results = tuner.fit()
 
-        # Save environment configuration to experiment directory
-        self._save_env_config(results)
+            # Save environment configuration to experiment directory
+            self._save_env_config(results)
 
-        # Extract metrics from the best result
-        metrics = self.get_best_metrics(results)
+            # Extract metrics from the best result
+            metrics = self.get_best_metrics(results)
 
-        # Shutdown ray
-        ray.shutdown()
-
-        return results, metrics
+            return results, metrics
+        finally:
+            if owns_ray and ray.is_initialized():
+                ray.shutdown()
 
     def train_checkpoint(self,
                          checkpoint_path: str,
@@ -523,8 +742,12 @@ class RLTrainer:
                           checkpoint_path,
                           iters)
 
-    @staticmethod
-    def get_best_results(results: ResultGrid) -> Tuple[ResultGrid, ResultGrid]:
+    def _selection_metric(self) -> str:
+        """Use held-out return only when a held-out evaluation is configured."""
+        base = f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}"
+        return f"{EVALUATION_RESULTS}/{base}" if self.evaluation_interval is not None else base
+
+    def get_best_results(self, results: ResultGrid) -> Tuple[ResultGrid, Optional[ResultGrid]]:
         """Get the best results of an experiment using as principal metric the
         `episode_return_mean`.
 
@@ -537,8 +760,9 @@ class RLTrainer:
         train = results.get_best_result(metric=f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
                                         mode="max")
 
-        eval = results.get_best_result(metric=f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
-                                       mode="max")
+        eval = (results.get_best_result(metric=f"{EVALUATION_RESULTS}/{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
+                                        mode="max")
+                if self.evaluation_interval is not None else None)
 
         return train, eval
 
@@ -557,7 +781,7 @@ class RLTrainer:
         train, eval = self.get_best_results(results)
 
         return {"train": train.metrics_dataframe if as_dataframe else train.metrics,
-                "eval": eval.metrics_dataframe if as_dataframe else eval.metrics}
+                "eval": (eval.metrics_dataframe if as_dataframe else eval.metrics) if eval else None}
 
     def get_best_hyperparameters(self, results: ResultGrid) -> Dict[str, Any]:
         """Get the hyperparameters for the best result of an experiment.
@@ -571,7 +795,7 @@ class RLTrainer:
         train, eval = self.get_best_results(results)
 
         return {"train": train.config,
-                "eval": eval.config}
+                "eval": eval.config if eval else None}
 
     def get_best_experiment(self, results: ResultGrid) -> Dict[str, Any]:
         """Get the path of the best result of an experiment.
@@ -585,7 +809,7 @@ class RLTrainer:
         train, eval = self.get_best_results(results)
 
         return {"train": train.path,
-                "eval": eval.path}
+                "eval": eval.path if eval else None}
 
     def get_best_checkpoint(self, results: ResultGrid) -> Dict[str, Any]:
         """Get the checkpoint for the best result of an experiment.
@@ -599,7 +823,7 @@ class RLTrainer:
         train, eval = self.get_best_results(results)
 
         return {"train": train.checkpoint,
-                "eval": eval.checkpoint}
+                "eval": eval.checkpoint if eval else None}
 
     def get_best_trial(self, results: ResultGrid) -> Dict[str, Any]:
         """Get the trial for the best result of an experiment.
@@ -617,80 +841,52 @@ class RLTrainer:
         train, eval = self.get_best_results(results)
 
         return {"train": {k: v for k, v in train.config.items() if k in hyperparam_mutations},
-                "eval": {k: v for k, v in eval.config.items() if k in hyperparam_mutations}}
+                "eval": {k: v for k, v in eval.config.items() if k in hyperparam_mutations} if eval else None}
 
 
-class GroupedLEM(MultiAgentEnv):
+class GroupedLEM(Env):
     """
     Grouped environment for the local energy market.
     """
 
-    def __init__(self, env_config: Dict[str, Any]) -> None:
-        """Initialize the grouped environment.
-
-        Args:
-            env_config: Environment configuration dictionary
-        """
+    def __init__(self, env_config):
+        """Single centralized decision process with an explicitly ordered tuple."""
         super().__init__()
+        self.env = LocalEnergyMarket(env_config)
+        self.original_agents_id = self.env.agent_order
+        self.agents_id = ['grouped_agents']
+        self.agents = list(self.agents_id)
+        self.possible_agents = list(self.agents_id)
+        self.observation_space = spaces.Dict({'grouped_agents':self._dict_to_tuple_space(self.env.observation_spaces,self.original_agents_id)})
+        self.action_space = spaces.Dict({'grouped_agents':self._dict_to_tuple_space(self.env.action_spaces,self.original_agents_id)})
 
-        # Multi-agent environment
-        env = LocalEnergyMarket(env_config)
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+        observations,infos=self.env.reset(seed=seed,options=options)
+        return {'grouped_agents':tuple(observations[id] for id in self.original_agents_id)}, {'grouped_agents':infos}
 
-        _tuple_obs_space = self._dict_to_tuple_space(env.observation_spaces)
-        _tuple_act_space = self._dict_to_tuple_space(env.action_spaces)
-
-        # Original `agents_id`
-        self.original_agents_id = env.agents_id
-
-        # Grouped environment
-        self.env = env.with_agent_groups(groups={"grouped_agents": env.agents_id},
-                                         obs_space=_tuple_obs_space,
-                                         act_space=_tuple_act_space)
-        self.agents_id = ["grouped_agents"]
-        self.agents = self.possible_agents = self.agents_id
-        self.observation_space = spaces.Dict({"grouped_agents": _tuple_obs_space})
-        self.action_space = spaces.Dict({"grouped_agents": _tuple_act_space})
-
-    def reset(self,
-              *,
-              seed: Optional[int] = None,
-              options: Optional[Dict] = None) -> Tuple[MultiAgentDict, MultiAgentDict]:
-        """Reset the environment.
-
-        Args:
-            seed: The seed for the environment.
-            options: The options for the environment.
-
-        Returns:
-            obs, infos = self.env.reset(seed, options)
-        """
-        # Reset the environment
-        obs, infos = self.env.reset(seed=seed,
-                                    options=options)
-
-        # Pack the observations into a group
-        grouped_obs = {k: tuple(v) for k, v in obs.items()}
-
-        return grouped_obs, infos
-
-    def step(self, action_dict: MultiAgentDict) -> Tuple[MultiAgentDict, float, bool, bool, MultiAgentDict]:
-        # Unpack the actions from the group to individual agent actions
-        obs, rewards, terminateds, truncateds, infos = self.env.step(action_dict)
-
-        # Pack the observations into a group
-        grouped_obs = {k: tuple(v) for k, v in obs.items()}
-
-        # The reward for the group is the sum of individual rewards
-        grouped_reward = sum(rewards.values())
-
-        return grouped_obs, grouped_reward, terminateds["__all__"], truncateds["__all__"], infos
+    def step(self, action_dict):
+        controls=action_dict['grouped_agents']
+        if len(controls)!=len(self.original_agents_id):
+            raise ValueError('Grouped action count does not match agent ordering.')
+        obs,rewards,terminated,truncated,infos=self.env.step(dict(zip(self.original_agents_id,controls)))
+        total,mean=self._aggregate_group_reward(rewards)
+        info=dict(self.env.info)
+        info.update(group_total_reward=total,group_mean_reward=mean,
+                    group_agent_rewards=dict(rewards))
+        return {'grouped_agents':tuple(obs[id] for id in self.original_agents_id)},mean,terminated['__all__'],truncated['__all__'],info
 
     @staticmethod
-    def _dict_to_tuple_space(dict_space: spaces.Dict) -> spaces.Tuple:
+    def _aggregate_group_reward(rewards: MultiAgentDict) -> Tuple[float, float]:
+        total = float(sum(rewards.values()))
+        return total, total / len(rewards) if rewards else 0.0
+
+    @staticmethod
+    def _dict_to_tuple_space(dict_space: spaces.Dict,
+                             agent_order: Tuple[str, ...]) -> spaces.Tuple:
         """Converts a gymnasium Dict space to a Tuple space.
 
-        It sorts the dictionary keys to ensure the resulting tuple has a
-        consistent order.
+        It uses the environment's immutable agent order.
 
         Args:
             dict_space: The Dict space to convert.
@@ -698,16 +894,80 @@ class GroupedLEM(MultiAgentEnv):
         Returns:
             A Tuple space containing the subspaces from the original Dict.
         """
-        # Sort keys to ensure the order of spaces is always the same
-        sorted_keys = sorted(dict_space.keys())
+        if set(dict_space.keys()) != set(agent_order):
+            raise ValueError("Agent order does not match the provided spaces.")
 
-        # Create a tuple of the subspaces in the sorted order
-        tuple_of_spaces = tuple(dict_space[key] for key in sorted_keys)
+        tuple_of_spaces = tuple(dict_space[agent_id] for agent_id in agent_order)
 
         return spaces.Tuple(tuple_of_spaces)
 
+    def close(self):
+        self.env.close()
 
-class SingleOptimizerCallback(RLlibCallback):
+
+class GroupedSACTorchLearner(SACTorchLearner):
+    """Use SAC's continuous joint-action loss for MARLEM's tuple of Boxes.
+
+    The CTDE/CTCE modules already compute joint Q values and summed Gaussian
+    log probabilities. Only stock RLlib's Box-only dispatch needs adapting.
+    """
+
+    def compute_loss_for_module(self, *, module_id, config, batch, fwd_out):
+        action_space = self.module[module_id].action_space
+        if (isinstance(action_space, spaces.Dict)
+                and set(action_space.spaces) == {'grouped_agents'}
+                and isinstance(action_space['grouped_agents'], spaces.Tuple)
+                and all(isinstance(child, spaces.Box) for child in action_space['grouped_agents'])):
+            return self._compute_loss_for_module_continuous(
+                module_id=module_id, config=config, batch=batch, fwd_out=fwd_out)
+        return super().compute_loss_for_module(
+            module_id=module_id, config=config, batch=batch, fwd_out=fwd_out)
+
+
+class EpisodeRecordCallback(RLlibCallback):
+    """Collect completed episode values in workers and append them on the driver."""
+
+    _returns_key = "raw_episode_returns"
+    _lengths_key = "raw_episode_lengths"
+
+    def on_episode_end(self,
+                       *,
+                       episode: Any,
+                       metrics_logger: Any = None,
+                       **kwargs) -> None:
+        if metrics_logger is None:
+            return
+        metrics_logger.log_value(self._returns_key, float(episode.get_return()),
+                                 reduce=None, clear_on_reduce=True)
+        metrics_logger.log_value(self._lengths_key, int(episode.env_steps()),
+                                 reduce=None, clear_on_reduce=True)
+
+    def on_train_result(self,
+                        *,
+                        algorithm: Algorithm,
+                        result: Dict[str, Any],
+                        **kwargs) -> None:
+        record_path = algorithm.config.env_config.get("_episode_record_path")
+        if not record_path:
+            return
+        values = result.get(ENV_RUNNER_RESULTS, {})
+        returns = values.get(self._returns_key, [])
+        lengths = values.get(self._lengths_key, [])
+        if not isinstance(returns, list) or not isinstance(lengths, list):
+            return
+        for episode_return, episode_length in zip(returns, lengths):
+            record = {"record_type": "training_episode",
+                          "phase": "train",
+                          "scenario_id": algorithm.config.env_config.get("scenario_id"),
+                          "seed": algorithm.config.env_config.get("seed"),
+                          "training_iteration": result.get(TRAINING_ITERATION),
+                          "episode_return": float(episode_return),
+                          "steps": int(episode_length)}
+            with Path(record_path).open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(record) + "\n")
+
+
+class SingleOptimizerCallback(EpisodeRecordCallback):
     """Callback to fix optimizer settings to prevent beta1 Tensor error.
 
     This callback fixes the "beta1 as a Tensor is not supported for capturable=False
@@ -721,15 +981,15 @@ class SingleOptimizerCallback(RLlibCallback):
                              algorithm: Algorithm,
                              **kwargs) -> None:
         def betas_tensor_to_float(learner: Learner) -> None:
-            param_grp = next(iter(learner._optimizer_parameters.keys())).param_groups[0]
-
-            if not param_grp["capturable"] and isinstance(param_grp["betas"][0], Tensor):
-                param_grp["betas"] = tuple(beta.item() for beta in param_grp["betas"])
+            for optimizer in learner._optimizer_parameters:
+                for param_grp in optimizer.param_groups:
+                    param_grp["betas"] = tuple(beta.item() if isinstance(beta, Tensor) else beta
+                                               for beta in param_grp["betas"])
 
         algorithm.learner_group.foreach_learner(betas_tensor_to_float)
 
 
-class MultiOptimizerCallback(RLlibCallback):
+class MultiOptimizerCallback(EpisodeRecordCallback):
     """Callback to fix optimizer settings to prevent beta1 Tensor error.
 
     This callback fixes the "beta1 as a Tensor is not supported for capturable=False
@@ -743,8 +1003,9 @@ class MultiOptimizerCallback(RLlibCallback):
                              algorithm: Algorithm,
                              **kwargs) -> None:
         def betas_tensor_to_float(learner: Learner) -> None:
-            for param_grp_key in learner._optimizer_parameters.keys():
-                param_grp = param_grp_key.param_groups[0]
-                param_grp["betas"] = tuple(beta.item() for beta in param_grp["betas"])
+            for optimizer in learner._optimizer_parameters:
+                for param_grp in optimizer.param_groups:
+                    param_grp["betas"] = tuple(beta.item() if isinstance(beta, Tensor) else beta
+                                               for beta in param_grp["betas"])
 
         algorithm.learner_group.foreach_learner(betas_tensor_to_float)

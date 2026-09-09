@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Tuple
 import torch
 from ray.rllib.algorithms.sac.sac_learner import QF_PREDS, QF_TWIN_PREDS
 from ray.rllib.core import Columns
-from ray.rllib.core.distribution.torch.torch_distribution import TorchDiagGaussian, TorchMultiDistribution
+from ray.rllib.core.distribution.torch.torch_distribution import TorchDiagGaussian, TorchMultiDistribution, TorchSquashedGaussian
 from ray.rllib.core.learner.utils import make_target_network
 from ray.rllib.core.rl_module.apis import TARGET_NETWORK_ACTION_DIST_INPUTS, QNetAPI, TargetNetworkAPI, ValueFunctionAPI
 from ray.rllib.core.rl_module.torch import TorchRLModule
@@ -17,6 +17,14 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import NetworkType, StateDict, TensorType
 
 from .base import RLAlgorithm
+
+
+# TorchDiagGaussian interprets the second half of each action-logit vector as
+# log standard deviations.  Leaving those values completely unconstrained lets
+# a small PPO batch drive ``exp(log_std)`` to infinity, producing invalid KLs
+# and gradients before the policy has learned anything.
+_LOG_STD_MIN = -5.0
+_LOG_STD_MAX = 2.0
 
 
 class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
@@ -43,19 +51,24 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
         concat_obs_dim = sum(space.shape[0] for space in tuple_obs_space)
         concat_act_dim = sum(space.shape[0] for space in tuple_act_space)
 
-        # Centralized training: encoder and policy heads for centralized actor, and value head for centralized critic
-        self.pi_encoder = self._get_encoder_network(concat_obs_dim, embeddings_dim)
-        self.pi = self._get_head_network(embeddings_dim, concat_act_dim * 2)
-        self.vf_head = self._get_head_network(embeddings_dim, 1)
-
-        # Decentralized execution: each agent gets its own separate policy heads
+        # CTDE has decentralized actors and a centralized critic.  The same
+        # local actors are used by execution and by the learner's policy loss;
+        # only the critic is allowed to see the concatenated global state.
         self.pi_heads  = torch.nn.ModuleDict({
             agent_id: self._get_network(input_dim=tuple_obs_space[i].shape[0],
                                         output_dim=tuple_act_space[i].shape[0] * 2,  # action_dim * 2 for TorchDiagGaussian (i.e., mean + log_std)
                                         embedding_dim=embeddings_dim)
             for i, agent_id in enumerate(self.agents_id)})
+        self.vf_encoder = self._get_encoder_network(concat_obs_dim, embeddings_dim)
+        self.vf_head = self._get_head_network(embeddings_dim, 1)
 
         if self.algorithm == RLAlgorithm.SAC.value:
+            # RLlib's stock SAC learner groups actor parameters through the
+            # conventional ``pi_encoder``/``pi`` attributes.  Expose the
+            # decentralized heads through that interface without introducing
+            # another actor (the identity has no trainable parameters).
+            self.pi_encoder = torch.nn.Identity()
+            self.pi = self.pi_heads
             # Input to Q-networks is [concat_obs_dim, concat_act_dim]
             qf_encoder_input_dim = concat_obs_dim + concat_act_dim
 
@@ -84,7 +97,10 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             to create the action distribution.
         """
         obs_tuple = batch[Columns.OBS]["grouped_agents"]
-        action_logits = [self.pi_heads[agent_id](obs_tuple[i]) for i, agent_id in enumerate(self.agents_id)]
+        action_logits = [
+            self._stabilize_action_logits(self.pi_heads[agent_id](obs_tuple[i]))
+            for i, agent_id in enumerate(self.agents_id)
+        ]
 
         return {Columns.ACTION_DIST_INPUTS: torch.cat(action_logits, dim=-1)}
 
@@ -117,14 +133,22 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             A dictionary with action logits. The learner will use these
             to create the action distribution.
         """
-        # Concatenate the tuple of observations into a single tensor
-        concat_obs = torch.cat(batch[Columns.OBS]["grouped_agents"], dim=-1)
+        obs_tuple = batch[Columns.OBS]["grouped_agents"]
+        # Concatenate the tuple of observations into a single tensor for the
+        # centralized critic only.
+        concat_obs = torch.cat(obs_tuple, dim=-1)
 
-        # Get embeddings from policy encoder and action logits from policy head
-        central_embeddings = self.pi_encoder(concat_obs)
-        central_action_logits = self.pi(central_embeddings)
+        # The actor remains decentralized during training.  This is the same
+        # path used during rollout, so PPO/APPO/SAC actor losses update the
+        # executed local policy heads rather than an unused centralized actor.
+        action_logits = torch.cat(
+            [self._stabilize_action_logits(self.pi_heads[agent_id](obs_tuple[i]))
+             for i, agent_id in enumerate(self.agents_id)], dim=-1)
 
-        fwd_out = {Columns.ACTION_DIST_INPUTS: central_action_logits,
+        # The critic alone receives the centralized observation.
+        central_embeddings = self.vf_encoder(concat_obs)
+
+        fwd_out = {Columns.ACTION_DIST_INPUTS: action_logits,
                    Columns.EMBEDDINGS: central_embeddings}
 
         if self.algorithm == RLAlgorithm.SAC.value:
@@ -143,8 +167,8 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
 
             # SECOND PASS: Compute Q-values for actions sampled from current policy to train the actor
             # Action distribution from the current policy action_logits
-            curr_action_dist = self.action_dist_cls.from_logits(central_action_logits)
-            curr_actions_resampled = curr_action_dist.sample()
+            curr_action_dist = self.action_dist_cls.from_logits(action_logits)
+            curr_actions_resampled = curr_action_dist.rsample()
 
             # Embeddings from Q-network encoders with the current concatenated observations/actions
             curr_qf_input = torch.cat([concat_obs, *curr_actions_resampled["grouped_agents"]], dim=-1)
@@ -161,8 +185,10 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             concat_next_obs = torch.cat(batch[Columns.NEXT_OBS]["grouped_agents"], dim=-1)
 
             # Get embeddings and action_logits from next observations
-            next_obs_embeddings = self.target_pi_encoder(concat_next_obs)
-            next_obs_action_logits = self.target_pi(next_obs_embeddings)
+            next_obs_tuple = batch[Columns.NEXT_OBS]["grouped_agents"]
+            next_obs_action_logits = torch.cat(
+                [self._stabilize_action_logits(self.target_pi_heads[agent_id](next_obs_tuple[i]))
+                 for i, agent_id in enumerate(self.agents_id)], dim=-1)
 
             # Target action distribution from the next observation's policy action_logits
             target_action_dist = self.action_dist_cls.from_logits(next_obs_action_logits)
@@ -198,8 +224,8 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             # Concatenate the tuple of observations into a single tensor
             concat_obs = torch.cat(batch[Columns.OBS]["grouped_agents"], dim=-1)
 
-            # Get embeddings from policy encoder
-            embeddings = self.pi_encoder(concat_obs)
+            # Get embeddings from the centralized value encoder.
+            embeddings = self.vf_encoder(concat_obs)
 
         # Get value output from the value head
         vf_preds = self.vf_head(embeddings).squeeze(-1)
@@ -209,11 +235,9 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
     @override(TargetNetworkAPI)
     def make_target_networks(self) -> None:
         """Creates the required target networks for this RLModule."""
-        # Create target networks for centralized encoder and policy head
-        self.target_pi_encoder = make_target_network(self.pi_encoder)
-        self.target_pi = make_target_network(self.pi)
-
-        # Create target networks for decentralized policy heads
+        # SAC needs target copies of the decentralized actor heads.  PPO/APPO
+        # simply ignore these copies, but keeping them here gives all modes a
+        # uniform TargetNetworkAPI implementation.
         self.target_pi_heads = torch.nn.ModuleDict({agent_id: make_target_network(self.pi_heads[agent_id]) for agent_id in self.agents_id})
 
         if self.algorithm == RLAlgorithm.SAC.value:
@@ -225,12 +249,8 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
     @override(TargetNetworkAPI)
     def get_target_network_pairs(self) -> List[Tuple[NetworkType, NetworkType]]:
         """Returns a list of (main_net, target_net) tuples for the target networks."""
-        # Add centralized encoder and policy head pairs
-        target_pairs = [(self.pi_encoder, self.target_pi_encoder),
-                        (self.pi, self.target_pi)]
-
-        # Add decentralized policy head pairs for each agent
-        target_pairs.extend([(self.pi_heads[agent_id], self.target_pi_heads[agent_id]) for agent_id in self.agents_id])
+        target_pairs = [(self.pi_heads[agent_id], self.target_pi_heads[agent_id])
+                        for agent_id in self.agents_id]
 
         if self.algorithm == RLAlgorithm.SAC.value:
             target_pairs.extend([(self.qf_encoder, self.target_qf_encoder),
@@ -252,14 +272,11 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             A dictionary with action logits. The learner will use these
             to create the action distribution.
         """
-        # Concatenate the tuple of observations into a single tensor
-        concat_obs = torch.cat(batch[Columns.OBS]["grouped_agents"], dim=-1)
-
-        # Get embeddings from target policy encoder
-        central_target_embeddings = self.target_pi_encoder(concat_obs)
-
-        # Get action logits from target policy head
-        return {TARGET_NETWORK_ACTION_DIST_INPUTS: self.target_pi(central_target_embeddings)}
+        obs_tuple = batch[Columns.OBS]["grouped_agents"]
+        target_action_logits = torch.cat(
+            [self._stabilize_action_logits(self.target_pi_heads[agent_id](obs_tuple[i]))
+             for i, agent_id in enumerate(self.agents_id)], dim=-1)
+        return {TARGET_NETWORK_ACTION_DIST_INPUTS: target_action_logits}
 
     @override(QNetAPI)
     def compute_q_values(self, batch: StateDict) -> StateDict:
@@ -370,7 +387,7 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
             A TorchMultiDistribution class with a baked-in dict structure.
         """
         tuple_space = self.action_space["grouped_agents"]
-        child_dist_cls = TorchDiagGaussian
+        child_dist_cls = TorchSquashedGaussian if self.algorithm == RLAlgorithm.SAC.value else TorchDiagGaussian
 
         class CustomTorchMultiDistribution(TorchMultiDistribution):
             @classmethod
@@ -381,3 +398,8 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
                                            **kwargs)
 
         return CustomTorchMultiDistribution
+
+    def _stabilize_action_logits(self, action_logits: TensorType) -> TensorType:
+        """Bound one agent's Gaussian log-scales, leaving means unchanged."""
+        means, log_stds = action_logits.chunk(2, dim=-1)
+        return torch.cat((means, log_stds.clamp(_LOG_STD_MIN, _LOG_STD_MAX)), dim=-1)
