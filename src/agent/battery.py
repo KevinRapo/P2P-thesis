@@ -8,8 +8,6 @@ tracking and efficiency losses during charging and discharging operations.
 from enum import Enum
 from typing import Dict, Optional, Tuple
 
-import numpy as np
-
 
 class BatteryState(Enum):
     """Possible states of a battery."""
@@ -27,21 +25,33 @@ class Battery:
                  min_soc: float = 0.0,
                  max_soc: float = 1.0,
                  charge_efficiency: float = 1.0,
-                 discharge_efficiency: float = 1.0) -> None:
+                 discharge_efficiency: float = 1.0,
+                 max_charge_power: Optional[float] = None,
+                 max_discharge_power: Optional[float] = None,
+                 time_step_hours: float = 1.0,
+                 initial_soc: Optional[float] = None) -> None:
         """Initialize the battery model.
 
         Args:
-            nominal_capacity: Nominal capacity of the battery in kWh
+            nominal_capacity: Nominal internal energy capacity in kWh
             min_soc: Minimum state of charge (0-1)
             max_soc: Maximum state of charge (0-1)
             charge_efficiency: Charging efficiency (0-1)
-            discharge_efficiency: Discharging efficiency (0-1)
+            discharge_efficiency: Grid-side delivery efficiency (0-1)
+            max_charge_power: Optional grid-side charging limit in kW
+            max_discharge_power: Optional grid-side discharging limit in kW
+            time_step_hours: Duration of one simulation step in hours
+            initial_soc: Fixed initial SOC. Defaults to the midpoint of SOC bounds.
         """
         self.nominal_capacity = nominal_capacity
         self.min_soc = min_soc
         self.max_soc = max_soc
         self.charge_efficiency = charge_efficiency
         self.discharge_efficiency = discharge_efficiency
+        self.max_charge_power = max_charge_power
+        self.max_discharge_power = max_discharge_power
+        self.time_step_hours = time_step_hours
+        self.initial_soc = (min_soc + max_soc) / 2 if initial_soc is None else initial_soc
 
         # Initialize state
         self.state: BatteryState = None
@@ -54,14 +64,12 @@ class Battery:
         """Reset the battery state.
 
         Args:
-            seed: Random seed for reproducibility
+            seed: Retained for backwards compatibility. Battery reset is
+                deterministic and always restores ``initial_soc``.
         """
-        if seed is not None:
-            np.random.seed(seed)
-
         # Reset state
         self.state = BatteryState.IDLE
-        self.energy_level = np.random.uniform(self.min_soc * self.nominal_capacity, self.max_soc * self.nominal_capacity)
+        self.energy_level = self.initial_soc * self.nominal_capacity
         self.cumulative_charge = 0.0
         self.cumulative_discharge = 0.0
 
@@ -89,6 +97,14 @@ class Battery:
             raise ValueError("Charge efficiency must be between 0 and 1.")
         if not 0 <= self.discharge_efficiency <= 1:
             raise ValueError("Discharge efficiency must be between 0 and 1.")
+        if self.max_charge_power is not None and self.max_charge_power <= 0:
+            raise ValueError("Maximum charge power must be greater than zero.")
+        if self.max_discharge_power is not None and self.max_discharge_power <= 0:
+            raise ValueError("Maximum discharge power must be greater than zero.")
+        if self.time_step_hours <= 0:
+            raise ValueError("Time step must be greater than zero.")
+        if not self.min_soc <= self.initial_soc <= self.max_soc:
+            raise ValueError("Initial SOC must be between min SOC and max SOC.")
         if self.energy_level < self.min_soc * self.nominal_capacity or self.energy_level > self.max_soc * self.nominal_capacity:
             raise ValueError("Energy level must be between min SOC and max SOC.")
 
@@ -104,11 +120,7 @@ class Battery:
         if energy <= 0:
             return False
 
-        # Check if battery is already full
-        if self.energy_level + energy >= self.max_soc * self.nominal_capacity:
-            return False
-
-        return True
+        return self.energy_level < self.max_soc * self.nominal_capacity
 
     def _can_discharge(self, energy: float) -> bool:
         """Check if discharging is possible.
@@ -122,27 +134,22 @@ class Battery:
         if energy <= 0:
             return False
 
-        # Check if battery is already empty
-        if self.energy_level - energy <= self.min_soc * self.nominal_capacity:
-            return False
-
-        return True
+        return self.energy_level > self.min_soc * self.nominal_capacity
 
     def charge(self, energy: float) -> float:
         """Charge the battery.
 
         Args:
-            energy: Charging energy in Wh
+            energy: Grid-side charging energy in kWh
 
         Returns:
-            Energy charged to the battery
+            Internal energy stored in the battery (kWh)
         """
         if self._can_charge(energy):
-            # Calculate maximum possible charge considering efficiency
-            max_energy = min(energy,  # Energy from requested charge
-                             self.max_soc * self.nominal_capacity - self.energy_level)  # Energy until full
-
-            energy_stored = max_energy * self.charge_efficiency
+            headroom = self.max_soc * self.nominal_capacity - self.energy_level
+            power_limit = float("inf") if self.max_charge_power is None else self.max_charge_power * self.time_step_hours
+            grid_energy = min(energy, headroom / self.charge_efficiency, power_limit) if self.charge_efficiency else 0.0
+            energy_stored = grid_energy * self.charge_efficiency
 
             # Update state
             self.energy_level += energy_stored
@@ -159,20 +166,19 @@ class Battery:
         """Discharge the battery.
 
         Args:
-            energy: Discharging energy in Wh
+            energy: Requested grid-side delivered energy in kWh
 
         Returns:
-            Energy discharged from the battery
+            Grid-side energy delivered by the battery (kWh)
         """
         if self._can_discharge(energy):
-            # Calculate maximum possible discharge considering efficiency
-            max_energy = min(energy,  # Energy from requested discharge
-                             self.energy_level - self.min_soc * self.nominal_capacity)  # Energy until empty
-
-            energy_discharged = max_energy * self.discharge_efficiency
+            available_internal = self.energy_level - self.min_soc * self.nominal_capacity
+            power_limit = float("inf") if self.max_discharge_power is None else self.max_discharge_power * self.time_step_hours
+            energy_discharged = min(energy, available_internal * self.discharge_efficiency, power_limit)
+            removed_from_storage = energy_discharged / self.discharge_efficiency if self.discharge_efficiency else 0.0
 
             # Update state
-            self.energy_level -= energy_discharged
+            self.energy_level -= removed_from_storage
             self.cumulative_discharge += energy_discharged
             self.state = BatteryState.DISCHARGING
 
@@ -208,7 +214,11 @@ class Battery:
         Returns:
             Tuple of (available charge capacity, available discharge capacity)
         """
-        available_charge = self.max_soc * self.nominal_capacity - self.energy_level
-        available_discharge = self.energy_level - self.min_soc * self.nominal_capacity
+        headroom = self.max_soc * self.nominal_capacity - self.energy_level
+        available_internal = self.energy_level - self.min_soc * self.nominal_capacity
+        charge_limit = float("inf") if self.max_charge_power is None else self.max_charge_power * self.time_step_hours
+        discharge_limit = float("inf") if self.max_discharge_power is None else self.max_discharge_power * self.time_step_hours
+        available_charge = min(headroom / self.charge_efficiency, charge_limit) if self.charge_efficiency else 0.0
+        available_discharge = min(available_internal * self.discharge_efficiency, discharge_limit)
 
         return (available_charge, available_discharge)
