@@ -67,7 +67,7 @@ class ObservationHandler:
                 0.0,  # current_step
                 0.0,  # time_of_day
                 market_config.min_price,  # clearing_price
-                market_config.min_quantity,  # clearing_volume
+                0.0,  # clearing_volume
                 -grid_network.capacity,  # grid_balance
                 0.0,  # dso_buy_volume
                 0.0,  # dso_sell_volume
@@ -75,9 +75,9 @@ class ObservationHandler:
                 0.0,  # p2p_volume
                 0.0,  # dso_trade_ratio
                 -grid_network.capacity,  # net_grid_import
-                min(dso.feed_in_tariff),  # dso_buy_price
-                min(dso.utility_price),  # dso_sell_price
-                market_config.min_price,  # local_price_avg
+                market_config.min_price,  # dso_buy_price
+                market_config.min_price,  # dso_sell_price
+                0.0,  # local_price_avg
                 0.0,  # price_spread
                 -market_config.max_price,  # local_price_advantage
 
@@ -100,7 +100,7 @@ class ObservationHandler:
                 0.0,  # battery_cumulative_discharge
 
                 # Implicit cooperation KPIs - Economic Efficiency
-                0.0,  # social_welfare (sum of price * quantity, always >= 0)
+                -_max_social_welfare,  # revealed surplus may be negative after losses/fees
                 0.0,  # market_liquidity (total trading volume, always >= 0)
                 -market_config.max_price,  # avg_bid_ask_spread (can be negative if bids > asks)
                 0.0,  # price_volatility (standard deviation, always >= 0)
@@ -130,14 +130,14 @@ class ObservationHandler:
                 _max_quantity,  # p2p_volume (can be sum of all agents)
                 1.0,  # dso_trade_ratio
                 grid_network.capacity,  # net_grid_import
-                max(dso.feed_in_tariff),  # dso_buy_price
-                max(dso.utility_price),  # dso_sell_price
+                market_config.max_price,  # dso_buy_price
+                market_config.max_price,  # dso_sell_price
                 market_config.max_price,  # local_price_avg
                 market_config.max_price,  # price_spread
                 market_config.max_price,  # local_price_advantage
 
                 # Agent signals
-                agent.capacity,  # energy_generation
+                max(agent.generation_profile),  # energy_generation
                 max(agent.demand_profile) if len(agent.demand_profile) > 0 else market_config.max_quantity,  # energy_demand
                 sum(agent.demand_profile) if len(agent.demand_profile) > 0 else _max_demand,  # cumulative_demand_satisfied
                 sum(agent.demand_profile) if len(agent.demand_profile) > 0 else _max_demand,  # cumulative_demand_deferred
@@ -149,7 +149,7 @@ class ObservationHandler:
                 1.0,  # reputation
                 _battery_max_energy,  # battery_energy_level
                 agent.battery.max_soc if agent.battery else 0.0,  # battery_soc
-                _battery_max_energy,  # battery_available_charge
+                (_battery_max_energy / agent.battery.charge_efficiency if agent.battery and agent.battery.charge_efficiency else 0.0),  # battery_available_charge
                 _battery_max_energy,  # battery_available_discharge
                 _battery_max_cumulative,  # battery_cumulative_charge
                 _battery_max_cumulative,  # battery_cumulative_discharge
@@ -173,7 +173,7 @@ class ObservationHandler:
                 high = np.concatenate([high, np.ones(len(self.agents))])
 
             # Add to observation space
-            self.observation_space[agent.id] = spaces.Box(low=low, high=high, dtype=np.float32)
+            self.observation_space[agent.id] = spaces.Box(low=low.astype(np.float32), high=high.astype(np.float32), dtype=np.float32)
 
     def _check_init(self) -> None:
         """Check if the observation handler is initialized correctly."""
@@ -205,7 +205,7 @@ class ObservationHandler:
                 0.0,  # current_step
                 0.0,  # time_of_day
                 self.market_config.min_price,  # clearing_price
-                self.market_config.min_quantity,  # clearing_volume
+                0.0,  # clearing_volume
                 0.0,  # grid_balance
                 0.0,  # dso_buy_volume
                 0.0,  # dso_sell_volume
@@ -220,8 +220,8 @@ class ObservationHandler:
                 0.0,  # local_price_advantage
 
                 # Agent signals
-                0.0,  # energy_generation
-                0.0,  # energy_demand
+                agent.get_generation(0),  # energy_generation
+                agent.get_demand(0),  # energy_demand
                 0.0,  # cumulative_demand_satisfied
                 0.0,  # cumulative_demand_deferred
                 0.0,  # remaining_demand
@@ -238,7 +238,7 @@ class ObservationHandler:
                 0.0,  # battery_cumulative_discharge
 
                 # Implicit cooperation KPIs - Economic Efficiency
-                0.0,  # social_welfare (sum of price * quantity, always >= 0)
+                0.0,  # no previous-period revealed surplus
                 0.0,  # market_liquidity (total trading volume, always >= 0)
                 0.0,  # avg_bid_ask_spread (can be negative if bids > asks)
                 0.0,  # price_volatility (standard deviation, always >= 0)
@@ -297,13 +297,11 @@ class ObservationHandler:
         ], dtype=np.float32)
 
         # Implicit cooperation KPIs
-        kpis = implicit_cooperation.get_kpis(current_step,
-                                             self.dso.id,
-                                             self.agents,
-                                             orders,
-                                             matching.trades,
-                                             self.dso.congestion_level,
-                                             matching_history)
+        # Public KPIs are the completed period's values, not recomputed using
+        # the next period's profiles with the previous period's trades.
+        kpis = matching.kpis or implicit_cooperation.get_kpis(
+            max(0,current_step-1),self.dso.id,self.agents,orders,matching.trades,
+            self.dso.congestion_level,matching_history)
 
         implicit_cooperation_kpis = np.array([
             # Economic Efficiency KPIs

@@ -9,6 +9,9 @@ offers for energy trading. The environment handles:
 - Decentralized market clearing
 """
 
+from copy import deepcopy
+from dataclasses import asdict
+
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -49,6 +52,7 @@ class LocalEnergyMarket(MultiAgentEnv):
             config: RLlib env_config dict.
         """
         super().__init__()
+        env_config = deepcopy(env_config)
 
         # Check environment configuration
         self._check_env_config(env_config)
@@ -66,14 +70,37 @@ class LocalEnergyMarket(MultiAgentEnv):
         self.num_anchor: int = env_config.get("num_anchor", 4)
         self.seed: Optional[int] = env_config.get("seed", None)
 
+        self.time_step_hours = float(env_config.get("time_step_hours", 1.0))
+        if not np.isfinite(self.time_step_hours) or self.time_step_hours <= 0:
+            raise ValueError("time_step_hours must be finite and positive.")
+        self._rng = np.random.default_rng(self.seed)
         # Agents configuration
         _config_agents = env_config["agents"]
         self._agents: Dict[str, DERAgent] = {agent.id: agent for agent in _config_agents}
         self.agents_id: List[str] = [*self._agents.keys()]
-        self.agents = self.possible_agents = set(self.agents_id)
+        self.agent_order = tuple(self.agents_id)
+        self.agents = list(self.agent_order)
+        self.possible_agents = list(self.agent_order)
+        self._agent_ids = set(self.agent_order)
 
         # Check environment configuration
         self._set_default_values()
+        self.grid_network.time_step_hours = self.time_step_hours
+        self.dso.grid_network = self.grid_network
+        self.dso.market_price_bounds = (self.market_config.min_price,self.market_config.max_price)
+        if self.dso.node_id not in self.grid_network.graph:
+            self.dso.node_id = next(iter(self.grid_network.graph))
+        for agent in _config_agents:
+            agent.time_step_hours = self.time_step_hours
+            if agent.battery:
+                agent.battery.time_step_hours = self.time_step_hours
+            if not agent.generation_profile and not agent.demand_profile:
+                agent.generation_profile, agent.demand_profile = self.der_profile_handler.reset(agent.capacity, self.max_steps)
+            if env_config.get("profile_values_are_power", False):
+                agent.generation_profile = [v*self.time_step_hours for v in agent.generation_profile]
+                agent.demand_profile = [v*self.time_step_hours for v in agent.demand_profile]
+        self._configured_profiles = {a.id:(list(a.generation_profile),list(a.demand_profile)) for a in _config_agents}
+        self._initial_tariffs = (list(self.dso.feed_in_tariff),list(self.dso.utility_price))
 
         # Check initialization
         self._check_init()
@@ -206,287 +233,103 @@ class LocalEnergyMarket(MultiAgentEnv):
                                 utility_price,
                                 self.grid_network)
 
-    def _check_init(self) -> None:
-        """ Validate DERAgent and DSOAgent parameters against market constraints.
-
-        Raises:
-            ValueError: If generation_profile or demand_profile have different lengths
-            ValueError: If generation_profile length is not equal to max_steps
-            ValueError: If generation_profile or demand_profile values are outside market quantity bounds
-            ValueError: If feed_in_tariff or utility_price values are outside market price bounds
-        """
-        # Check DERAgent parameters
+    def _check_init(self):
+        """Validate physical profiles independently of the market order-size cap."""
         for agent in self._agents.values():
-            # Check profile lengths
-            if len(agent.generation_profile) != len(agent.demand_profile):
-                raise ValueError(f"Length mismatch: <generation_profile> ({len(agent.generation_profile)}), <demand_profile> ({len(agent.demand_profile)}).")
-            if len(agent.generation_profile) != self.max_steps:
-                raise ValueError(f"Length mismatch: <generation_profile> ({len(agent.generation_profile)}), <max_steps> ({self.max_steps}).")
+            for name in ('generation_profile','demand_profile'):
+                values = getattr(agent,name)
+                if len(values) != self.max_steps or not np.isfinite(values).all() or min(values)<0:
+                    raise ValueError(f'{agent.id} {name} must contain max_steps finite non-negative energies.')
+            if not np.isfinite(agent.capacity) or agent.capacity < 0:
+                raise ValueError('DER generation capacity must be finite and non-negative.')
+        if self.dso.id in self._agents:
+            raise ValueError('DSO and household IDs must be distinct.')
+        for values in (self.dso.feed_in_tariff,self.dso.utility_price):
+            if len(values)!=self.max_steps or not np.isfinite(values).all():
+                raise ValueError('Tariffs must contain max_steps finite values.')
+            if min(values)<self.market_config.min_price or max(values)>self.market_config.max_price:
+                raise ValueError('Tariffs must lie within market price bounds.')
+        self.dso._check_init()
 
-            # Check profile values only if profiles are not empty
-            if agent.generation_profile:
-                if min(agent.generation_profile) < self.market_config.min_quantity:
-                    raise ValueError(f"The <generation_profile> of agent <{agent.id}> is below market <min_quantity> ({self.market_config.min_quantity}).")
-                if max(agent.generation_profile) > self.market_config.max_quantity:
-                    raise ValueError(f"The <generation_profile> of agent <{agent.id}> exceeds market <max_quantity> ({self.market_config.max_quantity}).")
-
-            if agent.demand_profile:
-                if min(agent.demand_profile) < self.market_config.min_quantity:
-                    raise ValueError(f"The <demand_profile> of agent <{agent.id}> is below market <min_quantity> ({self.market_config.min_quantity}).")
-                if max(agent.demand_profile) > self.market_config.max_quantity:
-                    raise ValueError(f"The <demand_profile> of agent <{agent.id}> exceeds market <max_quantity> ({self.market_config.max_quantity}).")
-
-        # Check DSOAgent parameters
-        if len(self.dso.feed_in_tariff) != self.max_steps:
-            raise ValueError(f"Length mismatch: <feed_in_tariff> ({len(self.dso.feed_in_tariff)}), <max_steps> ({self.max_steps}).")
-        if len(self.dso.utility_price) != self.max_steps:
-            raise ValueError(f"Length mismatch: <utility_price> ({len(self.dso.utility_price)}), <max_steps> ({self.max_steps}).")
-
-        # Check pricing profile values only if profiles are not empty
-        if self.dso.feed_in_tariff:
-            if min(self.dso.feed_in_tariff) < self.market_config.min_price:
-                raise ValueError(f"DSO <feed_in_tariff> is below market <min_price> ({self.market_config.min_price}).")
-            if max(self.dso.feed_in_tariff) > self.market_config.max_price:
-                raise ValueError(f"DSO <feed_in_tariff> exceeds market <max_price> ({self.market_config.max_price}).")
-
-        if self.dso.utility_price:
-            if min(self.dso.utility_price) < self.market_config.min_price:
-                raise ValueError(f"DSO <utility_price> is below market <min_price> ({self.market_config.min_price}).")
-            if max(self.dso.utility_price) > self.market_config.max_price:
-                raise ValueError(f"DSO <utility_price> exceeds market <max_price> ({self.market_config.max_price}).")
-
-    def reset(self,
-              *,
-              seed: Optional[int] = None,
-              options: Optional[Dict] = None) -> Tuple[MultiAgentDict, MultiAgentDict]:
-        """Reset the environment to initial state.
-
-        Args:
-            seed: Random seed for reproducibility
-            options: Additional options for reset
-
-        Returns:
-            Tuple of (initial observations dict, info dictionary)
-        """
-        # Use provided seed or fallback to environment seed
-        seed = seed if seed is not None else self.seed
-        if seed is not None:
-            np.random.seed(seed)
-
-        # Reset environment state
+    def reset(self, *, seed=None, options=None):
+        """Restore configured physical state using independent local random streams."""
+        super().reset(seed=seed, options=options)
+        selected_seed = seed if seed is not None else self.seed
+        self._rng = np.random.default_rng(selected_seed)
         self.current_step = 0
-        self.time_of_day = 0.0
-
-        # Reset agents
+        self.time_of_day = 0.
+        self.agents = list(self.agent_order)
         for agent in self._agents.values():
-            # Reset agent's reputation
-            reputation = self.reputation_handler.reset(seed)
-
-            # Reset agent's profiles
-            generation, demand = self.der_profile_handler.reset(agent.capacity,
-                                                                self.max_steps)
-
-            # Reset agent
-            agent.reset(reputation,
-                        generation,
-                        demand,
-                        seed)
-
-        # Reset market
-        self.market.reset(seed)
-
-        # Reset DSO profiles
+            generation,demand = self._configured_profiles[agent.id]
+            agent.reset(float(self._rng.uniform(0.,1.)),list(generation),list(demand),
+                        int(self._rng.integers(0,2**31-1)))
+        self.market.reset(selected_seed)
+        self.grid_network.begin_period()
         if self.enable_reset_dso_profiles:
-            self.dso.feed_in_tariff, self.dso.utility_price = self.dso_profile_handler.reset(self.max_steps)
-
-        # Reset grid network
-        self.grid_network.reset(seed)
-
-        # Reset environment attributes
-        self.rewards = {id: [] for id in self.agents_id}
-
-        # Reset environment parameters
-        observations = self.observation_handler.reset_observation_space()
-        infos = {agent_id: {} for agent_id in self.agents_id}
-
-        return observations, infos
-
-    def step(self, action_dict: MultiAgentDict) -> Tuple[MultiAgentDict, MultiAgentDict, MultiAgentDict, MultiAgentDict, MultiAgentDict]:
-        """Execute one time step in the environment.
-
-        This method handles:
-        1. Processing agent actions into orders
-        2. Matching orders and executing trades
-        3. Tracking market state (prices, volumes, trades)
-        4. Tracking grid state (global balance and zone-specific metrics)
-        5. Computing rewards for each agent
-        6. Providing observations back to agents
-
-        The implementation maintains detailed zone-specific grid metrics when
-        grid_network is enabled, providing richer state representation for the
-        Dec-POMDP framework.
-
-        Args:
-            action_dict: Dictionary of actions for each agent
-
-        Returns:
-            Tuple of (observations dict, rewards dict, terminateds dict, truncateds dict, infos dict)
-        """
-        # Adjust and validate actions for each agent in consistent order
-        for id in self.agents_id:
-            action = action_dict[id]
-            action_dict[id] = self._agents[id].adjust_action_for_battery(self.current_step,
-                                                                         action,
-                                                                         self.market_config)
-
-            if not self.action_handler.is_valid_action(id, action_dict[id]):
-                raise ValueError(f"Invalid action for {id}: {action_dict[id]}")
-
-        # Initialize observation, reward, terminated, truncated, and info dictionaries
-        observations, rewards, terminateds, truncateds, infos = {}, {}, {}, {}, {}
-
-        # STEP 1. Format actions into orders
-        orders: MultiAgentDict = {}
-
-        for id in self.agents_id:
-            # Extract action components
-            bid_price, bid_quantity, is_buy, preferred_partner = action_dict[id]
-
-            # Constrain values to valid range
-            bid_price = max(self.market_config.min_price, min(self.market_config.max_price, bid_price))
-            bid_quantity = max(self.market_config.min_quantity, min(self.market_config.max_quantity, bid_quantity))
-            is_buy = bool(is_buy > 0.5)
-            preferred_partner = self.action_handler.get_partner_id(int(preferred_partner))
-
-            # Fall back to rule-based selection if disabled RL-based selection
-            if not self.market_config.enable_partner_preference:
-                preferred_partner = self._agents[id].select_preferred_partner([*self._agents.values()],
-                                                                              self.grid_network.graph,
-                                                                              randomize=True)
-
-            # Simulate asynchronous order arrival
-            if self.enable_asynchronous_order:
-                order_time = self.time_of_day + np.random.uniform(0, 1.0 / self.max_steps)
-            else:
-                order_time = self.time_of_day
-
-            # Create order
-            orders[id] = Order(f"{id}_{self.current_step}_{order_time}",
-                               id,
-                               bid_price,
-                               bid_quantity,
-                               is_buy,
-                               order_time,
-                               self._agents[id].location,
-                               preferred_partner)
-
-        # STEP 2. Execute orders and clear market
-        reputation_scores = {agent.id: agent.reputation for agent in self._agents.values()}
-
-        matching_result = self.market.match_orders(self.current_step,
-                                                   [*orders.values()],
-                                                   reputation_scores,
-                                                   self.dso.balance)
-
-        # Update energy tracking and battery states based on market outcomes
-        for id in self.agents_id:
-            # Calculate energy bought and sold for this agent
-            energy_bought = 0.0
-            energy_sold = 0.0
-
-            for trade in matching_result.trades:
-                if trade.buyer_id == id:
-                    energy_bought += trade.quantity
-                elif trade.seller_id == id:
-                    energy_sold += trade.quantity
-
-            # Update cumulative tracking based on market results
-            self._agents[id].update_energy_tracking(self.current_step,
-                                                    energy_bought,
-                                                    energy_sold)
-
-            # Update battery state based on actual trade outcomes
-            self._agents[id].update_battery_from_trades(self.current_step,
-                                                        energy_bought,
-                                                        energy_sold)
-
-        # STEP 3. Rewards
-        # Get coordination KPIs for reward calculation and scientific reporting
-        kpis = self.implicit_cooperation.get_kpis(self.current_step,
-                                                  self.dso.id,
-                                                  [*self._agents.values()],
-                                                  [*orders.values()],
-                                                  matching_result.trades,
-                                                  self.dso.congestion_level,
-                                                  self.market.matching_history)
-
-        # Calculate rewards
-        rewards = {id: self.reward_handler.calculate_reward(agent,
-                                                            orders[id],
-                                                            matching_result,
-                                                            kpis,
-                                                            self.market_config.min_price,
-                                                            self.market_config.max_price,
-                                                            is_terminal=self.current_step >= self.max_steps - 1)
-                   for id, agent in self._agents.items()}
-
-        # STEP 4. Update environment state
-        # Time attributes
-        self.current_step += 1
-        self.time_of_day = (self.current_step % self.max_steps) / self.max_steps
-
-        # Agent attributes
-        for id, agent in self._agents.items():
-            agent.balance = self.market.get_agent_position(id)
-            agent.reputation = self.reputation_handler.update_reputation(agent, matching_result, self.time_of_day)
-
-        # STEP 5. Check if episode is done
-        if self.current_step >= self.max_steps - 1:
-            terminateds = {agent_id: True for agent_id in self.agents_id}
-            terminateds["__all__"] = len([terminateds[agent] for agent in self.agents]) == len(self.agents)
-            truncateds = {agent_id: False for agent_id in self.agents_id}
-            truncateds["__all__"] = len([truncateds[agent] for agent in self.agents]) == len(self.agents)
+            self.dso_profile_handler._rng = np.random.default_rng(int(self._rng.integers(0,2**31-1)))
+            self.dso.feed_in_tariff,self.dso.utility_price = self.dso_profile_handler.reset(self.max_steps)
         else:
-            terminateds = {agent_id: False for agent_id in self.agents_id}
-            terminateds["__all__"] = False
-            truncateds = {agent_id: False for agent_id in self.agents_id}
-            truncateds["__all__"] = False
+            self.dso.feed_in_tariff,self.dso.utility_price = map(list,self._initial_tariffs)
+        self._check_init()
+        self.rewards = {id:[] for id in self.agent_order}
+        self.info = {}
+        return self.observation_handler.reset_observation_space(), {id:{} for id in self.agent_order}
 
-        # STEP 6. Additional info
-        dso_stats = {"dso_buy_volume": matching_result.dso_buy_volume,
-                     "dso_sell_volume": matching_result.dso_sell_volume,
-                     "dso_total_volume": matching_result.dso_total_volume,
-                     "p2p_volume": matching_result.p2p_volume,
-                     "dso_trade_ratio": matching_result.dso_trade_ratio,
-                     "dso_grid_import": matching_result.dso_grid_import,
-                     "dso_buy_price": matching_result.dso_buy_price,
-                     "dso_sell_price": matching_result.dso_sell_price,
-                     "price_spread": matching_result.price_spread,
-                     "local_price_avg": matching_result.local_price_avg,
-                     "local_price_advantage": matching_result.local_price_advantage}
-
-        self.info = {"current_step": self.current_step,
-                     "time_of_day": self.time_of_day,
-                     "orders": sorted([*orders.values()], key=lambda o: o.agent_id), # TODO
-                     "trades": matching_result.trades,
-                     "grid_balance": self.dso.balance,
-                     "market_price": matching_result.clearing_price,
-                     "market_volume": matching_result.clearing_volume,
-                     "matching_history": self.market.matching_history,
-                     "dso_stats": dso_stats}
-
-        # STEP 7. Update observation space and infos
-        observations = self.observation_handler.update_observation_space(self.current_step,
-                                                                         self.time_of_day,
-                                                                         [*orders.values()],
-                                                                         self.market.matching_history,
-                                                                         self.implicit_cooperation)
-
-        # Initialize infos for all agents
-        infos = {agent_id: self.info for agent_id in self.agents_id}
-
-        # Return observation, reward, terminated, truncated, and info dictionaries
-        return observations, rewards, terminateds, truncateds, infos
+    def step(self, action_dict):
+        """Execute exactly one physical market period, then publish its outcomes."""
+        if self.current_step >= self.max_steps:
+            raise RuntimeError('Episode is complete; call reset before stepping again.')
+        if set(action_dict) != set(self.agent_order):
+            raise ValueError('One action per active agent is required.')
+        orders = {}
+        raw_actions = {id:np.asarray(action_dict[id]).copy() for id in self.agent_order}
+        for id in self.agent_order:
+            agent = self._agents[id]
+            action = agent.adjust_action_for_battery(self.current_step,raw_actions[id],self.market_config)
+            if not self.action_handler.is_valid_action(id,action):
+                raise ValueError(f'Invalid action for {id}: {action}')
+            price,quantity,direction,partner = action
+            preferred = self.action_handler.get_partner_id(partner) if self.market_config.enable_partner_preference else None
+            if preferred == id:
+                preferred = None
+            time = self.time_of_day + (self._rng.uniform(0.,1./self.max_steps) if self.enable_asynchronous_order else 0.)
+            orders[id] = Order(f'{id}_{self.current_step}',id,float(price),float(quantity),bool(direction>.5),time,agent.location,preferred)
+        baseline = sum(a.get_generation(self.current_step)-a.get_demand(self.current_step) for a in self._agents.values())
+        matching = self.market.match_orders(self.current_step,list(orders.values()),
+                                           {id:a.reputation for id,a in self._agents.items()},baseline)
+        for id,agent in self._agents.items():
+            bought = sum(t.delivered_quantity for t in matching.trades if t.buyer_id==id)
+            sold = sum(t.quantity for t in matching.trades if t.seller_id==id)
+            record = agent.settle_energy(self.current_step,bought,sold)
+            matching.physical_settlements[id] = record
+            agent.profit = self.market.get_agent_cash_position(id)
+            agent.balance = self.market.get_agent_position(id)
+        # Residual balance is remaining curtailment minus unmet demand after storage.
+        self.dso.balance = sum(r.curtailed_generation-r.unserved_demand for r in matching.physical_settlements.values())
+        matching.grid_balance = self.dso.balance
+        kpis = self.implicit_cooperation.get_kpis(self.current_step,self.dso.id,list(self._agents.values()),
+                                                 list(orders.values()),matching.trades,self.dso.congestion_level,self.market.matching_history)
+        matching.kpis = dict(kpis)
+        terminal = self.current_step == self.max_steps-1
+        rewards = {id:self.reward_handler.calculate_reward(a,orders[id],matching,kpis,
+                      self.market_config.min_price,self.market_config.max_price,is_terminal=terminal)
+                   for id,a in self._agents.items()}
+        for id,agent in self._agents.items():
+            self.rewards[id].append(rewards[id])
+            agent.reputation = self.reputation_handler.update_reputation(agent,matching,self.time_of_day,self.dso.id)
+        self.current_step += 1
+        self.time_of_day = self.current_step/self.max_steps
+        self.info = dict(current_step=self.current_step,time_of_day=self.time_of_day,
+                         orders=list(orders.values()),trades=matching.trades,grid_balance=self.dso.balance,
+                         market_price=matching.clearing_price,market_volume=matching.clearing_volume,
+                         matching_history=self.market.matching_history,dso_stats=dict(self.market.dso_stats),
+                         kpis=dict(kpis),dso_intervention=dict(self.dso.intervention_history[-1]),physical_settlements={id:asdict(r) for id,r in matching.physical_settlements.items()},
+                         raw_actions={id:a.tolist() for id,a in raw_actions.items()},cash_ledger=dict(self.market.cash_ledger))
+        observations = self.observation_handler.update_observation_space(min(self.current_step,self.max_steps-1),
+                              self.time_of_day,list(orders.values()),self.market.matching_history,self.implicit_cooperation)
+        terminateds = {id:terminal for id in self.agent_order}; terminateds['__all__']=terminal
+        truncateds = {id:False for id in self.agent_order}; truncateds['__all__']=False
+        return observations,rewards,terminateds,truncateds,{id:self.info for id in self.agent_order}
 
     def render(self) -> Optional[Union[np.ndarray, str]]:
         """Render the environment.

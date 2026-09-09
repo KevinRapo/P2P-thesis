@@ -33,13 +33,13 @@ class ActionHandler:
 
         # Define action spaces based on configuration
         self.action_space = Dict({agent.id: Box(low=array([market_config.min_price,  # bid_price
-                                                           market_config.min_quantity,  # bid_quantity
+                                                           0.0,  # zero is a valid no-order control
                                                            0.0,  # is_buy
-                                                           0.0]),  # preferred_partner
+                                                           0.0], dtype=float32),  # preferred_partner
                                                 high=array([market_config.max_price,  # bid_price
-                                                            min(market_config.max_quantity, agent.capacity),  # bid_quantity
+                                                            market_config.max_quantity,  # bid_quantity
                                                             1.0,  # is_buy
-                                                            len(agents) + 1]),  # preferred_partner
+                                                            len(agents) + 2], dtype=float32),  # agents, DSO, then no preference
                                                 dtype=float32)
                                   for agent in agents})
 
@@ -65,25 +65,9 @@ class ActionHandler:
         """
         return self.action_space[agent_id].contains(action)
 
-    def get_partner_id(self, index: int) -> Optional[str]:
-        """Get the partner ID from the action.
-
-        Index mapping:
-        - 0 to len(agents)-1: DER agent IDs
-        - len(agents): DSO agent ID
-        - len(agents)+1: No preference (None)
-
-        Args:
-            index: Index of the partner given in the action
-
-        Returns:
-            Partner ID extracted from the action, or None for no preference
-        """
-        if index < len(self._agents):
+    def get_partner_id(self, index):
+        """Decode the bounded partner control; final category means no preference."""
+        index = int(index)
+        if 0 <= index < len(self._agents):
             return self._agents[index].id
-
-        elif index == len(self._agents):
-            return self._dso.id
-
-        else:
-            return None
+        return self._dso.id if index == len(self._agents) else None
