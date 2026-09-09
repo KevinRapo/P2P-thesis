@@ -79,6 +79,8 @@ shapes/*
 shp/*
 test/*
 tmp/*
+downloads/*
+!downloads/.gitkeep
 *~*
 warehouse/
 .DS_Store

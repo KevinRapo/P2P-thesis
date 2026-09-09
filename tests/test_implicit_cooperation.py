@@ -80,13 +80,12 @@ def test_implicit_cooperation() -> None:
     test_agents = create_agents(num_agents=3, capacity=100.0)
 
     # Test KPI calculation with DSO trades
-    kpis = implicit_cooperation.get_kpis("DSO",
+    kpis = implicit_cooperation.get_kpis(0, "DSO",
                                          test_agents,
                                          orders,
                                          trades,
                                          grid_congestion,
-                                         matching_history,
-                                         current_step=0)
+                                         matching_history)
 
     print(f"\n✓ KPIs calculated:")
     print(f"  - Social welfare: {kpis['social_welfare']:.3f}")
@@ -102,13 +101,12 @@ def test_implicit_cooperation() -> None:
     balanced_trades = [Trade("agent_1", "agent_2", 0.25, 50.0, datetime.datetime.now().timestamp(), 5.0, 0.1)]
     balanced_congestion = 0.1  # 10% congestion
 
-    kpis_balanced = implicit_cooperation.get_kpis("DSO",
+    kpis_balanced = implicit_cooperation.get_kpis(0, "DSO",
                                                   test_agents,
                                                   orders,
                                                   balanced_trades,
                                                   balanced_congestion,
-                                                  matching_history,
-                                                  current_step=0)
+                                                  matching_history)
 
     print(f"✓ Balanced market scenario (P2P only):")
     print(f"  - Coordination score: {kpis_balanced['coordination_score']:.3f}")
@@ -120,13 +118,12 @@ def test_implicit_cooperation() -> None:
     imbalanced_dso_trades = [t for t in imbalanced_trades if t.buyer_id == "DSO" or t.seller_id == "DSO"]
     high_congestion = 0.9  # 90% congestion
 
-    kpis_imbalanced = implicit_cooperation.get_kpis("DSO",
+    kpis_imbalanced = implicit_cooperation.get_kpis(0, "DSO",
                                                     test_agents,
                                                     orders,
                                                     imbalanced_trades,
                                                     high_congestion,
-                                                    matching_history,
-                                                    current_step=0)
+                                                    matching_history)
 
     print(f"✓ Imbalanced market scenario (with DSO intervention):")
     print(f"  - Coordination score: {kpis_imbalanced['coordination_score']:.3f}")
@@ -140,13 +137,12 @@ def test_implicit_cooperation() -> None:
                          Trade("agent_3", "CUSTOM_DSO", 0.08, 60.0, datetime.datetime.now().timestamp(), 4.8, 0.12)]  # Custom DSO trade
     custom_dso_only = [t for t in custom_dso_trades if t.buyer_id == "CUSTOM_DSO" or t.seller_id == "CUSTOM_DSO"]
 
-    kpis_custom_dso = implicit_cooperation.get_kpis("CUSTOM_DSO",
+    kpis_custom_dso = implicit_cooperation.get_kpis(0, "CUSTOM_DSO",
                                                     test_agents,
                                                     orders,
                                                     custom_dso_trades,
                                                     0.3,
-                                                    matching_history,
-                                                    current_step=0)
+                                                    matching_history)
 
     print(f"✓ Custom DSO scenario:")
     print(f"  - Total trades: {len(custom_dso_trades)}")

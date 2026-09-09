@@ -35,7 +35,7 @@ def test_reward() -> None:
 
     # Create reward handler
     num_agents = 3
-    reward_handler = RewardHandler(num_agents, dso_agent, grid, implicit_cooperation)
+    reward_handler = RewardHandler(dso_agent, grid)
     print(f"✓ Reward handler created for {num_agents} agents")
     print(f"  - Grid balance factor: {reward_handler.f_grid_balance}")
     print(f"  - Trading factor: {reward_handler.f_trading}")
@@ -63,7 +63,7 @@ def test_reward() -> None:
     order_p2p = Order("order_p2p", "test_agent", 0.25, 50.0, True, 1.0, location)
     trades_p2p = [Trade("test_agent", "other_agent", 0.25, 50.0, datetime.datetime.now().timestamp(), 5.0, 0.1)]
 
-    matching_p2p = MatchingResult(trades=trades_p2p,
+    matching_p2p = MatchingResult(grid_congestion=0., trades=trades_p2p,
                                   unmatched_orders=[],
                                   clearing_price=0.25,
                                   clearing_volume=50.0,
@@ -96,7 +96,7 @@ def test_reward() -> None:
     order_dso = Order("order_dso", "test_agent", 0.20, 40.0, False, 1.0, location)
     trades_dso = [Trade("test_agent", "DSO", 0.08, 40.0, datetime.datetime.now().timestamp(), 3.2, 0.08)]
 
-    matching_dso = MatchingResult(trades=trades_dso,
+    matching_dso = MatchingResult(grid_congestion=0., trades=trades_dso,
                                   unmatched_orders=[],
                                   clearing_price=0.08,
                                   clearing_volume=40.0,
@@ -130,7 +130,7 @@ def test_reward() -> None:
     trades_mixed = [Trade("test_agent", "other_agent", 0.24, 35.0, datetime.datetime.now().timestamp(), 4.2, 0.08),
                     Trade("test_agent", "DSO", 0.25, 25.0, datetime.datetime.now().timestamp(), 3.1, 0.05)]
 
-    matching_mixed = MatchingResult(trades=trades_mixed,
+    matching_mixed = MatchingResult(grid_congestion=0., trades=trades_mixed,
                                     unmatched_orders=[],
                                     clearing_price=0.245,
                                     clearing_volume=60.0,
@@ -162,7 +162,7 @@ def test_reward() -> None:
     print(f"Scenario 4: No Trades (Unmatched Order)")
     order_unmatched = Order("order_unmatched", "test_agent", 0.10, 30.0, True, 1.0, location)
 
-    matching_unmatched = MatchingResult(trades=[],
+    matching_unmatched = MatchingResult(grid_congestion=0., trades=[],
                                         unmatched_orders=[order_unmatched],
                                         clearing_price=0.25,
                                         clearing_volume=0.0,

@@ -47,15 +47,8 @@ def test_market_mechanism() -> None:
                   "Proportional Surplus Pricing": ProportionalSurplusPricing()}
 
     for name, mechanism in mechanisms.items():
-        if name == "Buyer Pricing":
-            price = mechanism.calculate_price(buy_order)
-        elif name == "Seller Pricing":
-            price = mechanism.calculate_price(sell_order)
-        else:
-            price = mechanism.calculate_price(buy_order,
-                                              sell_order,
-                                              factor=0.3,
-                                              market_price=0.225)
+        price = mechanism.calculate_price(buy_order, sell_order, factor=0.3, reference_price=0.225)
+        assert sell_order.price <= price <= buy_order.price
         print(f"✓ {name}: ${price:.3f}/Wh")
 
 

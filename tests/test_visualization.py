@@ -14,6 +14,13 @@ import sys
 import time
 
 import numpy as np
+import pytest
+
+
+@pytest.fixture
+def path(tmp_path):
+    """Give the original plotting demonstrations an isolated output directory."""
+    return str(tmp_path)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -268,7 +275,9 @@ def test_spatial_distribution(path: str) -> None:
     visualizer = Plotter(save_path=path)
 
     # Test with automatic grid size (equal to number of unique agents)
-    fig = visualizer.spatial_heatmap(matching_history, grid_network=None)
+    figures = visualizer.spatial_heatmap(matching_history, grid_size=None)
+    assert len(figures) == 3
+    fig = figures[0]
 
     # Calculate number of unique agents
     unique_agents = set()

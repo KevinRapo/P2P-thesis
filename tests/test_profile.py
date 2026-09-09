@@ -17,7 +17,7 @@ def test_profile() -> None:
     """Test DER and DSO profile handlers thoroughly."""
     # Test DER profile handler
     print("--- STEP 1. DER Profile Handler ---")
-    der_handler = DERProfileHandler(seed=42)
+    der_handler = DERProfileHandler(min_quantity=0., max_quantity=100., seed=42)
 
     # Generate energy profiles
     generation, demand = der_handler.get_energy_profiles(steps=24,
