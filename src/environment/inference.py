@@ -2,31 +2,38 @@
 Multi-agent reinforcement learning inference implementation using Ray RLlib.
 """
 
-from pathlib import Path
 import pickle
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
 import ray
+import torch
 from ray.rllib.algorithms.algorithm import Algorithm
 from ray.rllib.core import Columns
-from ray.rllib.utils.spaces.space_utils import unsquash_action, clip_action, get_base_struct_from_space
-from gymnasium.spaces.utils import flatten_space
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
-import torch
+from ray.rllib.utils.spaces.space_utils import (
+    clip_action,
+    get_base_struct_from_space,
+    unsquash_action,
+)
 
 from .lem import LocalEnergyMarket
 from .train import GroupedLEM, RLTrainer
 
 
+# region RLlib inference
 class RLInference:
     """Manages training using Ray RLlib with support for multiple algorithms."""
 
-    def __init__(self,
-                 env_config: Dict[str, Any],
-                 exploration: bool = False,
-                 checkpoint_path: Optional[str] = None,
-                 storage_path: Optional[str] = None):
+    # region Setup and checkpoint restoration
+    def __init__(
+        self,
+        env_config: Dict[str, Any],
+        exploration: bool = False,
+        checkpoint_path: Optional[str] = None,
+        storage_path: Optional[str] = None,
+    ):
         """Initialize the RL trainer.
 
         Args:
@@ -40,52 +47,75 @@ class RLInference:
         self.checkpoint_path = checkpoint_path
         self.storage_path = storage_path
 
-        # Validate initialization parameters
+        # Validate inputs before starting Ray or restoring a checkpoint.
         self._check_init()
 
-        # Restore the complete Algorithm so evaluation uses its registered
-        # connectors and action distribution rather than a local approximation.
+        # Restore RLlib's complete algorithm, connectors, and action modules.
         self._owns_ray = not ray.is_initialized()
         self.algorithm: Algorithm = self._restore_from_checkpoint(checkpoint_path)
 
-        # Initialize environment
+        # Match the checkpoint's grouped or independent environment contract.
         env_class = self.algorithm.config.env
-        self._grouped = env_class is GroupedLEM or getattr(env_class, "__name__", None) == "GroupedLEM"
-        self.env: MultiAgentEnv = GroupedLEM(env_config) if self._grouped else LocalEnergyMarket(env_config)
+        self._grouped = (
+            env_class is GroupedLEM
+            or getattr(env_class, "__name__", None) == "GroupedLEM"
+        )
+        self.env: MultiAgentEnv = (
+            GroupedLEM(env_config) if self._grouped else LocalEnergyMarket(env_config)
+        )
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
-        # Validate checkpoint path if provided
+        # Validate checkpoint and storage paths before external work.
         if self.checkpoint_path is None:
-            raise ValueError("No checkpoint provided to restore the RL module. Please provide <checkpoint_path>.")
+            raise ValueError(
+                "No checkpoint provided to restore the RL module. Please provide <checkpoint_path>."
+            )
 
         if self.checkpoint_path is not None:
             checkpoint_path = Path(self.checkpoint_path)
             if not checkpoint_path.parent.exists():
-                raise ValueError(f"The <checkpoint_path> parent directory does not exist: <{checkpoint_path.parent}>.")
+                raise ValueError(
+                    f"The <checkpoint_path> parent directory does not exist: <{checkpoint_path.parent}>."
+                )
 
-        # Validate storage path if provided
         if self.storage_path is not None:
             storage_path = Path(self.storage_path)
             if not storage_path.parent.exists():
-                raise ValueError(f"The <storage_path> parent directory does not exist: <{storage_path.parent}>.")
+                raise ValueError(
+                    f"The <storage_path> parent directory does not exist: <{storage_path.parent}>."
+                )
 
-        # Validate environment configuration
+        # Validate the minimum environment contract required for inference.
         if not isinstance(self.env_config, dict):
-            raise ValueError(f"The <env_config> must be a dictionary, got <env_config = {self.env_config}>.")
+            raise ValueError(
+                f"The <env_config> must be a dictionary, got <env_config = {self.env_config}>."
+            )
 
         # Check required environment configuration keys
         for key in ["max_steps", "market_config", "agents"]:
             if key not in self.env_config:
-                raise ValueError(f"The <env_config> is missing the required key: <key = {key}>.")
+                raise ValueError(
+                    f"The <env_config> is missing the required key: <key = {key}>."
+                )
 
         # Validate max_steps
-        if not isinstance(self.env_config["max_steps"], int) or self.env_config["max_steps"] <= 0:
-            raise ValueError(f"The <max_steps> must be a positive integer, got <max_steps = {self.env_config["max_steps"]}>.")
+        if (
+            not isinstance(self.env_config["max_steps"], int)
+            or self.env_config["max_steps"] <= 0
+        ):
+            raise ValueError(
+                f"The <max_steps> must be a positive integer, got <max_steps = {self.env_config['max_steps']}>."
+            )
 
         # Validate agents
-        if not isinstance(self.env_config["agents"], list) or len(self.env_config["agents"]) == 0:
-            raise ValueError(f"The <agents> must be a non-empty list, got <agents = {self.env_config["agents"]}>.")
+        if (
+            not isinstance(self.env_config["agents"], list)
+            or len(self.env_config["agents"]) == 0
+        ):
+            raise ValueError(
+                f"The <agents> must be a non-empty list, got <agents = {self.env_config['agents']}>."
+            )
 
     def _restore_from_checkpoint(self, checkpoint_path: str) -> Algorithm:
         """Restore the complete RLlib Algorithm for inference.
@@ -97,20 +127,31 @@ class RLInference:
             if not ray.is_initialized():
                 # Use the resources requested by this saved Algorithm instead
                 # of Ray's automatic startup on every CPU in the machine.
-                with (Path(checkpoint_path) / 'class_and_ctor_args.pkl').open('rb') as stream:
-                    args, kwargs = pickle.load(stream)['ctor_args_and_kwargs']
-                saved_config = kwargs.get('config', args[0] if args else {})
-                if hasattr(saved_config, 'to_dict'):
+                with (Path(checkpoint_path) / "class_and_ctor_args.pkl").open(
+                    "rb"
+                ) as stream:
+                    args, kwargs = pickle.load(stream)["ctor_args_and_kwargs"]
+                saved_config = kwargs.get("config", args[0] if args else {})
+                if hasattr(saved_config, "to_dict"):
                     saved_config = saved_config.to_dict()
-                RLTrainer._start_ray(int(saved_config.get('num_env_runners', 1)),
-                                     saved_config.get('num_gpus_per_learner', 0))
+                RLTrainer._start_ray(
+                    int(saved_config.get("num_env_runners", 1)),
+                    saved_config.get("num_gpus_per_learner", 0),
+                )
             return Algorithm.from_checkpoint(checkpoint_path)
         except Exception as e:
             if self._owns_ray and ray.is_initialized():
                 ray.shutdown()
-            raise RuntimeError(f"Failed to restore the RLlib Algorithm from experiment <{checkpoint_path}>: {e}.") from e
+            raise RuntimeError(
+                f"Failed to restore the RLlib Algorithm from experiment <{checkpoint_path}>: {e}."
+            ) from e
 
-    def inference(self, iters: int = 10) -> Dict[str, float]:
+    # endregion
+
+    # region Episode evaluation
+    def inference(
+        self, iters: int = 10, seed_schedule: Optional[list[int]] = None
+    ) -> Dict[str, float]:
         """Inference of a trained policy.
 
         Args:
@@ -121,7 +162,9 @@ class RLInference:
         """
         # Validate iters
         if not isinstance(iters, int) or iters <= 0:
-            raise ValueError(f"The <iters> must be a positive integer, got <iters = {iters}>.")
+            raise ValueError(
+                f"The <iters> must be a positive integer, got <iters = {iters}>."
+            )
 
         # Metrics to track
         total_rewards = {}
@@ -131,14 +174,20 @@ class RLInference:
         grid_balance_history = []
         dso_stats_history = []
 
+        if seed_schedule is not None and len(seed_schedule) < iters:
+            raise ValueError(
+                "seed_schedule must contain at least one seed per inference episode."
+            )
+
         # Inference
         for episode in range(iters):
             print(f"Running episode {episode + 1}/{iters} (RLlib Algorithm inference)")
 
-            # STEP 1. Reset environment
-            obs, info = self.env.reset()
+            # Reset with an explicit seed when evaluating a schedule.
+            episode_seed = seed_schedule[episode] if seed_schedule is not None else None
+            obs, info = self.env.reset(seed=episode_seed)
 
-            # STEP 2. Initialize episode tracking
+            # Track only this episode; done does not trigger an extra reset.
             episode_rewards = {agent_id: 0.0 for agent_id in obs.keys()}
             episode_step = 0
             done = False
@@ -156,7 +205,9 @@ class RLInference:
                     for agent_id, reward in rewards.items():
                         episode_rewards[agent_id] += reward
                 else:
-                    episode_rewards["grouped_agents"] = episode_rewards.get("grouped_agents", 0.0) + rewards
+                    episode_rewards["grouped_agents"] = (
+                        episode_rewards.get("grouped_agents", 0.0) + rewards
+                    )
 
                 # STEP 7. Track metrics
                 episode_info = self._episode_info(info)
@@ -170,7 +221,9 @@ class RLInference:
                 # STEP 8. Check termination
                 episode_step += 1
                 if isinstance(terminateds, dict):
-                    done = terminateds.get("__all__", False) or truncateds.get("__all__", False)
+                    done = terminateds.get("__all__", False) or truncateds.get(
+                        "__all__", False
+                    )
                 else:
                     done = terminateds or truncateds
 
@@ -178,8 +231,12 @@ class RLInference:
                 done = done or episode_step >= self.env_config["max_steps"]
 
                 if done:
-                    print(f"Episode {episode + 1} | Done: {done} | Reward = {episode_rewards}")
-                    obs, info = self.env.reset()
+                    print(
+                        f"Episode {episode + 1} | Done: {done} | Reward = {episode_rewards}"
+                    )
+                    # Do not silently start an extra untracked episode.  The
+                    # next loop iteration performs the explicitly seeded
+                    # reset for the next evaluation episode.
                     break
 
             # STEP 10. Record episode metrics
@@ -190,13 +247,18 @@ class RLInference:
 
             episode_lengths.append(episode_step)
 
-        return self._calculate_metrics(total_rewards,
-                                       episode_lengths,
-                                       price_history,
-                                       volume_history,
-                                       grid_balance_history,
-                                       dso_stats_history)
+        return self._calculate_metrics(
+            total_rewards,
+            episode_lengths,
+            price_history,
+            volume_history,
+            grid_balance_history,
+            dso_stats_history,
+        )
 
+    # endregion
+
+    # region Action conversion and metrics
     def close(self) -> None:
         """Release checkpoint workers; only stop Ray when this instance started it."""
         self.algorithm.stop()
@@ -212,9 +274,17 @@ class RLInference:
         parameters or agent ordering are reconstructed here.
         """
         if self._grouped:
-            return self._module_action(self.algorithm.get_module(), observations["grouped_agents"], grouped=True)
-        return {agent_id: self._module_action(self.algorithm.get_module(agent_id), observation)
-                for agent_id, observation in observations.items()}
+            return self._module_action(
+                self.algorithm.get_module(),
+                observations["grouped_agents"],
+                grouped=True,
+            )
+        return {
+            agent_id: self._module_action(
+                self.algorithm.get_module(agent_id), observation
+            )
+            for agent_id, observation in observations.items()
+        }
 
     def _module_action(self, module, observation, grouped=False):
         """Use the registered module/distribution and configured action transform.
@@ -223,27 +293,54 @@ class RLInference:
         connectors. Unsquashing/clipping matches RLlib's module-to-env connector.
         """
         if module is None:
-            raise RuntimeError('Checkpoint does not contain the requested module.')
-        device=next(module.parameters()).device
-        convert=lambda value:torch.as_tensor(value,dtype=torch.float32,device=device).unsqueeze(0)
-        batched={'grouped_agents':tuple(map(convert,observation))} if grouped else convert(observation)
+            raise RuntimeError("Checkpoint does not contain the requested module.")
+        device = next(module.parameters()).device
+
+        def convert(value):
+            """Batch one observation for the restored Torch module."""
+            return torch.as_tensor(value, dtype=torch.float32, device=device).unsqueeze(
+                0
+            )
+
+        batched = (
+            {"grouped_agents": tuple(map(convert, observation))}
+            if grouped
+            else convert(observation)
+        )
         with torch.no_grad():
-            output=(module.forward_exploration if self.exploration else module.forward_inference)({Columns.OBS:batched})
-            dist_cls=module.get_exploration_action_dist_cls() if self.exploration else module.get_inference_action_dist_cls()
-            dist=dist_cls.from_logits(output[Columns.ACTION_DIST_INPUTS])
-            sampled=dist.sample() if self.exploration else dist.to_deterministic().sample()
-        action=self._unbatch_action(sampled)
+            output = (
+                module.forward_exploration
+                if self.exploration
+                else module.forward_inference
+            )({Columns.OBS: batched})
+            dist_cls = (
+                module.get_exploration_action_dist_cls()
+                if self.exploration
+                else module.get_inference_action_dist_cls()
+            )
+            dist = dist_cls.from_logits(output[Columns.ACTION_DIST_INPUTS])
+            sampled = (
+                dist.sample() if self.exploration else dist.to_deterministic().sample()
+            )
+        action = self._unbatch_action(sampled)
         if self.algorithm.config.normalize_actions:
-            action=unsquash_action(action,get_base_struct_from_space(module.action_space))
+            action = unsquash_action(
+                action, get_base_struct_from_space(module.action_space)
+            )
         elif self.algorithm.config.clip_actions:
-            action=clip_action(action,get_base_struct_from_space(module.action_space))
+            action = clip_action(
+                action, get_base_struct_from_space(module.action_space)
+            )
         return action
 
     @staticmethod
     def _unbatch_action(action: Any) -> Any:
         """Convert a one-item Torch action batch back to the environment action shape."""
         if isinstance(action, dict):
-            return {name: RLInference._unbatch_action(value) for name, value in action.items()}
+            return {
+                name: RLInference._unbatch_action(value)
+                for name, value in action.items()
+            }
         if isinstance(action, tuple):
             return tuple(RLInference._unbatch_action(value) for value in action)
         if isinstance(action, torch.Tensor):
@@ -257,16 +354,24 @@ class RLInference:
             return {}
         if "market_price" in info:
             return info
-        return next((value for value in info.values()
-                     if isinstance(value, dict) and "market_price" in value), {})
+        return next(
+            (
+                value
+                for value in info.values()
+                if isinstance(value, dict) and "market_price" in value
+            ),
+            {},
+        )
 
-    def _calculate_metrics(self,
-                           total_rewards: Dict,
-                           episode_lengths: list,
-                           price_history: list,
-                           volume_history: list,
-                           grid_balance_history: list,
-                           dso_stats_history: list) -> Dict[str, float]:
+    def _calculate_metrics(
+        self,
+        total_rewards: Dict,
+        episode_lengths: list,
+        price_history: list,
+        volume_history: list,
+        grid_balance_history: list,
+        dso_stats_history: list,
+    ) -> Dict[str, float]:
         """Calculate comprehensive evaluation metrics."""
         metrics = {}
 
@@ -279,7 +384,9 @@ class RLInference:
                 metrics[f"{agent_id}_max_reward"] = np.max(rewards)
 
         # Overall metrics
-        all_rewards = [reward for rewards in total_rewards.values() for reward in rewards]
+        all_rewards = [
+            reward for rewards in total_rewards.values() for reward in rewards
+        ]
         if all_rewards:
             metrics["mean_reward"] = np.mean(all_rewards)
             metrics["std_reward"] = np.std(all_rewards)
@@ -305,11 +412,22 @@ class RLInference:
         # DSO metrics
         if dso_stats_history:
             try:
-                metrics["mean_dso_trade_ratio"] = np.mean([stats["dso_trade_ratio"] for stats in dso_stats_history])
-                metrics["mean_dso_volume"] = np.mean([stats["dso_total_volume"] for stats in dso_stats_history])
-                metrics["mean_p2p_volume"] = np.mean([stats["p2p_volume"] for stats in dso_stats_history])
+                metrics["mean_dso_trade_ratio"] = np.mean(
+                    [stats["dso_trade_ratio"] for stats in dso_stats_history]
+                )
+                metrics["mean_dso_volume"] = np.mean(
+                    [stats["dso_total_volume"] for stats in dso_stats_history]
+                )
+                metrics["mean_p2p_volume"] = np.mean(
+                    [stats["p2p_volume"] for stats in dso_stats_history]
+                )
             except (KeyError, TypeError):
                 # Handle case where dso_stats structure is different
                 pass
 
         return metrics
+
+    # endregion
+
+
+# endregion

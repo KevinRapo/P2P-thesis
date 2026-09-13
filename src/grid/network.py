@@ -237,6 +237,12 @@ class GridNetwork:
         Args:
             agents: List of DERAgent objects to be assigned locations
         """
+        # Rebuild the mapping on every assignment. A scenario object can be
+        # reused across multiple environment constructions; retaining entries
+        # from a prior call would make unspecified locations depend on call
+        # history rather than the configured seed.
+        self.agent_to_node = {}
+
         # Extract agent IDs and node IDs from agents
         agent_ids = [a.id for a in agents]
         node_ids = [a.node_id for a in agents]
