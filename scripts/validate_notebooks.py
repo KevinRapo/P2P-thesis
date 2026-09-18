@@ -22,7 +22,10 @@ if __name__=='__main__':
     os.environ.update(MARLEM_NOTEBOOK_TRAIN=str(int(args.training)),
                       MARLEM_NOTEBOOK_EPISODES=str(args.episodes),
                       MARLEM_NOTEBOOK_ITERATIONS=str(args.iterations),
-                      MARLEM_NOTEBOOK_BATCH='32',MPLBACKEND='Agg',
+                      MARLEM_NOTEBOOK_BATCH='32',
+                      # Use the inline backend so headless execution retains
+                      # the same figure outputs a Jupyter user sees.
+                      MPLBACKEND='module://matplotlib_inline.backend_inline',
                       PYTHONPATH=str(ROOT),PYTHONUTF8='1')
     target=ROOT/'tmp/executed_notebooks'/('training' if args.training else 'simulation')
     target.mkdir(parents=True,exist_ok=True)
