@@ -5,6 +5,7 @@ This module provides functions to create and manage different grid network topol
 that can be used for realistic distance calculations in market mechanisms.
 """
 
+import math
 from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
@@ -50,6 +51,11 @@ class GridNetwork:
         # Initialize grid network
         self.graph: nx.Graph = self._create_grid_network(seed)
         self.agent_to_node: Dict[str, str] = {}
+
+        # Topology and edge weights never change after construction, so the
+        # shortest path between any two nodes is invariant for the network's
+        # lifetime. Cache it instead of re-running Dijkstra on every lookup.
+        self._shortest_path_cache: Dict[Tuple[str, str], List[str]] = {}
 
         # Edge-specific congestion tracking
         self.edge_flows: Dict[Tuple[str, str], float] = {}
@@ -291,11 +297,25 @@ class GridNetwork:
         for agent in agents:
             agent.update_location(self.get_location(agent.id))
 
+    def _cached_shortest_path(self, source: str, target: str) -> List[str]:
+        """Memoized Dijkstra lookup; safe since graph/weights are fixed post-construction."""
+        key = (source, target)
+        path = self._shortest_path_cache.get(key)
+        if path is None:
+            path = nx.shortest_path(self.graph, source, target, weight='weight')
+            self._shortest_path_cache[key] = path
+        return path
+
+    def path_length(self, source: str, target: str) -> float:
+        """Shortest-path distance, summed from the cached path (same cost as shortest_path_length)."""
+        path = self._cached_shortest_path(source, target)
+        return sum(self.graph[u][v]['weight'] for u, v in zip(path, path[1:]))
+
     def update_flow_from_trade(self, buyer_node, seller_node, quantity):
         """Commit a checked source-energy transfer as signed edge powers (kW)."""
         if not self.can_settle(buyer_node, seller_node, quantity):
             return False
-        path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+        path = self._cached_shortest_path(seller_node, buyer_node)
         remaining = quantity
         for u,v in zip(path,path[1:]):
             key = (u,v) if (u,v) in self.edge_flows else (v,u)
@@ -308,9 +328,13 @@ class GridNetwork:
 
     def transmission_loss(self, distance, quantity, loss_factor=.03):
         """Abstract edge loss in kWh, bounded by its source energy."""
-        if distance < 0 or quantity < 0 or not np.isfinite([distance, quantity, loss_factor]).all():
+        if (
+            distance < 0
+            or quantity < 0
+            or not (math.isfinite(distance) and math.isfinite(quantity) and math.isfinite(loss_factor))
+        ):
             raise ValueError('Loss inputs must be finite and distance/quantity non-negative.')
-        return quantity * min(1., distance * np.clip(loss_factor, 0., 1.))
+        return quantity * min(1., distance * min(1., max(0., loss_factor)))
 
     def get_edge_congestion(self,
                             node1: str,
@@ -352,7 +376,7 @@ class GridNetwork:
         """
         try:
             # Find shortest path
-            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+            path = self._cached_shortest_path(seller_node, buyer_node)
 
             # Calculate maximum congestion along the path
             max_congestion = 0.0
@@ -478,7 +502,7 @@ class GridNetwork:
     def path_delivery_factor(self, buyer_node, seller_node):
         """Fraction of source energy arriving at the buyer along the chosen path."""
         try:
-            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+            path = self._cached_shortest_path(seller_node, buyer_node)
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             return 0.
         fraction = 1.
@@ -491,7 +515,7 @@ class GridNetwork:
         if requested <= 0 or not np.isfinite(requested):
             return 0.
         try:
-            path = nx.shortest_path(self.graph, seller_node, buyer_node, weight='weight')
+            path = self._cached_shortest_path(seller_node, buyer_node)
         except (nx.NetworkXNoPath, nx.NodeNotFound):
             return 0.
         fraction, limit = 1., requested

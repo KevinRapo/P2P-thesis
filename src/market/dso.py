@@ -250,7 +250,7 @@ class DSOAgent:
                 source = self.grid_network.max_transfer(buyer_node,seller_node,source)
             if source <= 1e-9:
                 continue
-            distance = nx.shortest_path_length(self.grid_network.graph,seller_node,buyer_node,weight='weight') if routed else 0.
+            distance = self.grid_network.path_length(seller_node,buyer_node) if routed else 0.
             trade = Trade(order.agent_id if order.is_buy else self.id,
                           self.id if order.is_buy else order.agent_id,
                           self.get_utility_price(step) if order.is_buy else self.get_feed_in_tariff(step),
@@ -279,7 +279,8 @@ class DSOAgent:
                        buy_order: Order,
                        sell_order: Order,
                        trade_price: float,
-                       quantity: float) -> float:
+                       quantity: float,
+                       distance: Optional[float] = None) -> float:
         """Calculate and collect grid-related fees based on grid conditions.
 
         Args:
@@ -287,6 +288,8 @@ class DSOAgent:
             sell_order: Sell order (for single trade fee calculation)
             trade_price: Base price of the trade ($/kWh) (for single trade fee calculation)
             quantity: Quantity of energy being traded (kWh) (for single trade fee calculation)
+            distance: Precomputed buyer-seller distance, when the caller already
+                has it, to avoid recomputing the same shortest path twice.
             grid_network: GridNetwork object containing grid state information
 
         Returns:
@@ -315,7 +318,8 @@ class DSOAgent:
             congestion_level = self.grid_network.calculate_congestion_level() if self.grid_network else 0.0
 
         # Calculate transmission distance and fee
-        distance = buy_order.location.distance_to(sell_order.location, self.grid_network.graph) if buy_order.location and sell_order.location and self.grid_network else 0.0
+        if distance is None:
+            distance = buy_order.location.distance_to(sell_order.location, self.grid_network.graph) if buy_order.location and sell_order.location and self.grid_network else 0.0
 
         # Check if buyer and seller are in the same zone and apply bonus
         if buy_order.location and sell_order.location and buy_order.location.zone == sell_order.location.zone:

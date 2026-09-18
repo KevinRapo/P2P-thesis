@@ -540,7 +540,7 @@ class OrderMatcher:
             if routed
             else 0.0
         )
-        fees = self.dso.calculate_fees(buy_order, sell_order, price, quantity)
+        fees = self.dso.calculate_fees(buy_order, sell_order, price, quantity, distance)
         trade = Trade(
             buy_order.agent_id,
             sell_order.agent_id,
