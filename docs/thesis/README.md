@@ -15,12 +15,14 @@ were treated as design input, not as evidence that their code exists in
 1. [Baseline knowledge map](baseline-knowledge-map.md) — current architecture,
    scientific contracts, known limits, and the disposition of useful material
    found in the other worktrees.
-2. [SimBench and NiceGUI implementation plan](simbench-nicegui-implementation-plan.md)
+2. [Paper-faithful freeze contract](paper-faithful-freeze-contract.md) — the
+   finite conceptual and behavioral gate for ending baseline re-audits.
+3. [SimBench and NiceGUI implementation plan](simbench-nicegui-implementation-plan.md)
    — the implementation sequence, proposed contracts, source layout, tests,
    and acceptance gates.
-3. [Baseline methodology](methodology-baseline.md) — what the restored baseline
+4. [Baseline methodology](methodology-baseline.md) — what the restored baseline
    currently claims and how Case 6 is configured.
-4. [Validation and fix record](validation-fix-plan.md) — defect-by-defect status
+5. [Validation and fix record](validation-fix-plan.md) — defect-by-defect status
    and remaining validation gaps.
 
 ## Supporting records
@@ -48,4 +50,3 @@ Do not copy a status claim from another worktree without checking the baseline
 source and tests. In particular, the `marlem` validation branch, `marlem-dev`,
 and `marlem-astra` contain different model choices and different unfinished or
 uncommitted work.
-

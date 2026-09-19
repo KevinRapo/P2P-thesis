@@ -50,52 +50,113 @@ class ImplicitCooperation:
 
         Welfare is revealed bid/ask surplus, not settlement turnover. Coordination
         scores are descriptive outcome indicators; they do not establish causality.
+        The resource and convergence definitions otherwise follow Equations 8-10
+        and the accompanying text in the implicit-cooperation paper.
         """
-        submitted = {o.id:o for o in orders}
-        local = [t for t in trades if t.buyer_id!=dso_id and t.seller_id!=dso_id]
-        welfare = 0.
+        submitted = {order.id: order for order in orders}
+        local = [
+            trade
+            for trade in trades
+            if trade.buyer_id != dso_id and trade.seller_id != dso_id
+        ]
+        dso_trades = [trade for trade in trades if dso_id in (trade.buyer_id, trade.seller_id)]
+        welfare = 0.0
         for t in local:
-            buy,sell = submitted.get(t.buyer_order_id),submitted.get(t.seller_order_id)
+            buy, sell = submitted.get(t.buyer_order_id), submitted.get(t.seller_order_id)
             if buy is not None and sell is not None:
-                welfare += buy.price*t.delivered_quantity-sell.price*t.quantity-t.fees
-        bids,asks = [o.price for o in orders if o.is_buy and o.quantity>0], [o.price for o in orders if not o.is_buy and o.quantity>0]
-        prices = [m.clearing_price for m in matching_history.history[-24:]]
-        records = [a.settlements[-1] for a in agents if getattr(a,'settlements',[]) and a.settlements[-1].step==current_step]
+                welfare += (
+                    buy.price * t.delivered_quantity
+                    - sell.price * t.quantity
+                    - t.fees
+                )
+        bids = [order.price for order in orders if order.is_buy and order.quantity > 0]
+        asks = [order.price for order in orders if not order.is_buy and order.quantity > 0]
+        prices = [
+            result.clearing_price
+            for result in matching_history.history[-24:]
+            if result.clearing_volume > 0
+        ]
+        records = [
+            agent.settlements[-1]
+            for agent in agents
+            if getattr(agent, "settlements", [])
+            and agent.settlements[-1].step == current_step
+        ]
         generation = sum(a.get_generation(current_step) for a in agents)
         demand = sum(a.get_demand(current_step) for a in agents)
-        residual = sum(r.unserved_demand+r.curtailed_generation for r in records)
+        residual = sum(record.unserved_demand + record.curtailed_generation for record in records)
         if not records:
-            residual = abs(generation-demand)
-        imbalance = min(1.,residual/max(generation+demand,1e-12))
-        recent = [m.kpis['supply_demand_imbalance'] for m in matching_history.history[-3:] if getattr(m,'kpis',None)] + [imbalance]
-        convergence = max(0.,1.-float(np.std(recent))) if len(recent)>1 else 0.
-        generation_export = 0.
-        for a in agents:
-            if not getattr(a,'settlements',[]):
-                continue
-            r=a.settlements[-1]
-            sold_to_dso=sum(t.quantity for t in trades if t.seller_id==a.id and t.buyer_id==dso_id)
-            # Dispatch uses on-site generation for demand first, then export/storage.
-            generation_export += min(sold_to_dso,max(0.,r.generation-r.served_demand))
-        curtailed=sum(r.curtailed_generation for r in records)
-        self_consumption = np.clip((generation-curtailed-generation_export)/generation,0.,1.) if generation else 0.
-        available=used=0.
-        for a in agents:
-            if a.battery and getattr(a,'settlements',[]):
-                r=a.settlements[-1]; b=a.battery
-                charge=min((b.max_soc*b.nominal_capacity-r.stored_before)/b.charge_efficiency if b.charge_efficiency else 0.,
-                           b.max_charge_power*b.time_step_hours if b.max_charge_power is not None else float('inf'))
-                discharge=min((r.stored_before-b.min_soc*b.nominal_capacity)*b.discharge_efficiency,
-                              b.max_discharge_power*b.time_step_hours if b.max_discharge_power is not None else float('inf'))
-                available += max(charge,discharge)
-                used += r.battery_charge+r.battery_discharge
-        return dict(social_welfare=float(welfare),market_liquidity=sum(t.quantity for t in trades),
-                    avg_bid_ask_spread=float(np.mean(bids)-np.mean(asks)) if bids and asks else 0.,
-                    price_volatility=float(np.std(prices)) if len(prices)>1 else 0.,
-                    supply_demand_imbalance=imbalance,grid_congestion=float(np.clip(grid_congestion,0.,1.)),
-                    coordination_score=1.-imbalance,coordination_convergence=convergence,
-                    der_self_consumption=float(self_consumption),
-                    flexibility_utilization=float(np.clip(used/available,0.,1.)) if available else 0.)
+            residual = abs(generation - demand)
+        imbalance = min(1.0, residual / max(generation + demand, 1e-12))
+
+        current_volume = sum(trade.quantity for trade in trades)
+        recent_volumes = [
+            result.clearing_volume for result in matching_history.history[-2:]
+        ] + [current_volume]
+        mean_volume = float(np.mean(recent_volumes)) if recent_volumes else 0.0
+        convergence = (
+            max(0.0, 1.0 - min(1.0, float(np.std(recent_volumes)) / mean_volume))
+            if len(recent_volumes) > 1 and mean_volume > 0
+            else 0.0
+        )
+
+        local_volume = sum(trade.quantity for trade in local)
+        dso_volume = sum(trade.quantity for trade in dso_trades)
+        self_consumption = (
+            local_volume / (local_volume + dso_volume)
+            if local_volume + dso_volume > 0
+            else 0.0
+        )
+
+        available_flexibility = 0.0
+        for agent in agents:
+            available_charge = available_discharge = 0.0
+            if agent.battery:
+                if getattr(agent, "settlements", []):
+                    stored = agent.settlements[-1].stored_before
+                    battery = agent.battery
+                    available_charge = min(
+                        (battery.max_soc * battery.nominal_capacity - stored)
+                        / battery.charge_efficiency,
+                        battery.max_charge_power * battery.time_step_hours
+                        if battery.max_charge_power is not None
+                        else float("inf"),
+                    )
+                    available_discharge = min(
+                        (stored - battery.min_soc * battery.nominal_capacity)
+                        * battery.discharge_efficiency,
+                        battery.max_discharge_power * battery.time_step_hours
+                        if battery.max_discharge_power is not None
+                        else float("inf"),
+                    )
+                else:
+                    available_charge, available_discharge = (
+                        agent.battery.estimate_available_energy()
+                    )
+            net_generation = agent.get_generation(current_step) - agent.get_demand(current_step)
+            available_flexibility += (
+                max(0.0, net_generation + available_discharge)
+                + max(0.0, -net_generation + available_charge)
+            )
+
+        return {
+            "social_welfare": float(welfare),
+            "market_liquidity": current_volume,
+            "avg_bid_ask_spread": (
+                float(np.mean(asks) - np.mean(bids)) if bids and asks else 0.0
+            ),
+            "price_volatility": float(np.std(prices)) if len(prices) > 1 else 0.0,
+            "supply_demand_imbalance": imbalance,
+            "grid_congestion": float(np.clip(grid_congestion, 0.0, 1.0)),
+            "coordination_score": 1.0 - imbalance,
+            "coordination_convergence": convergence,
+            "der_self_consumption": float(self_consumption),
+            "flexibility_utilization": (
+                float(np.clip(local_volume / available_flexibility, 0.0, 1.0))
+                if available_flexibility > 0
+                else 0.0
+            ),
+        }
 
     def _get_economic_efficiency_metrics(self,
                                          orders: List[Order],

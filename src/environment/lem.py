@@ -347,6 +347,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         else:
             selected_seed = int(self._rng.integers(0, 2**31 - 1))
             self._reset_count += 1
+        self.episode_seed = selected_seed
         episode_rng = np.random.default_rng(selected_seed)
         self.current_step = 0
         self.time_of_day = 0.0
@@ -494,6 +495,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         self.current_step += 1
         self.time_of_day = self.current_step / self.max_steps
         self.info = dict(
+            episode_seed=self.episode_seed,
             current_step=self.current_step,
             time_of_day=self.time_of_day,
             orders=list(orders.values()),

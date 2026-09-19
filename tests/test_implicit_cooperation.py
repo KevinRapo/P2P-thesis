@@ -6,6 +6,8 @@ import datetime
 import os
 import sys
 
+import pytest
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_agents
@@ -155,6 +157,11 @@ def test_implicit_cooperation() -> None:
     print(f"  - DSO-agnostic implementation works with any DSO ID")
     print(f"  - Resource coordination metrics properly identify DSO vs P2P trades")
     print(f"  - Grid congestion integration uses actual DSO congestion level")
+
+    assert kpis["avg_bid_ask_spread"] == pytest.approx(-0.055)
+    assert kpis_custom_dso["der_self_consumption"] == pytest.approx(0.4)
+    assert 0.0 <= kpis_custom_dso["flexibility_utilization"] <= 1.0
+    assert 0.0 <= kpis_custom_dso["coordination_convergence"] <= 1.0
 
 
 def run_tests() -> bool:

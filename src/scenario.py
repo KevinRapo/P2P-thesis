@@ -138,6 +138,8 @@ def build_case6_config(
     fit, utility = dso_handler.get_price_profiles(max_steps)
     dso = DSOAgent("dso", fit, utility, grid, node_id="800")
     config: Dict[str, Any] = {
+        "scenario_id": "case6-reconstructed-v1",
+        "profile_mapping_status": "reconstructed-unverified",
         "max_steps": max_steps,
         "agents": build_case6_agents(max_steps, seed),
         "market_config": market,

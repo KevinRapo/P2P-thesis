@@ -6,17 +6,21 @@ import datetime
 import os
 import sys
 
+import numpy as np
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.agent.battery import Battery
 from src.agent.der import DERAgent
 from src.coordination.implicit_cooperation import ImplicitCooperation
+from src.environment.lem import LocalEnergyMarket
 from src.environment.reward import RewardHandler
 from src.grid.base import GridTopology, Location
 from src.grid.network import GridNetwork
 from src.market.dso import DSOAgent
 from src.market.matching import MatchingResult
 from src.market.order import Order, Trade
+from src.scenario import build_case6_config
 
 
 def test_reward() -> None:
@@ -93,8 +97,8 @@ def test_reward() -> None:
 
     # Scenario 2: DSO trade
     print(f"Scenario 2: DSO Trade")
-    order_dso = Order("order_dso", "test_agent", 0.20, 40.0, False, 1.0, location)
-    trades_dso = [Trade("test_agent", "DSO", 0.08, 40.0, datetime.datetime.now().timestamp(), 3.2, 0.08)]
+    order_dso = Order("order_dso", "test_agent", 0.20, 40.0, True, 1.0, location)
+    trades_dso = [Trade("test_agent", "DSO_reward", 0.08, 40.0, datetime.datetime.now().timestamp(), 3.2, 0.08)]
 
     matching_dso = MatchingResult(grid_congestion=0., trades=trades_dso,
                                   unmatched_orders=[],
@@ -128,7 +132,7 @@ def test_reward() -> None:
     print(f"Scenario 3: Mixed Trades (P2P + DSO)")
     order_mixed = Order("order_mixed", "test_agent", 0.22, 60.0, True, 1.0, location)
     trades_mixed = [Trade("test_agent", "other_agent", 0.24, 35.0, datetime.datetime.now().timestamp(), 4.2, 0.08),
-                    Trade("test_agent", "DSO", 0.25, 25.0, datetime.datetime.now().timestamp(), 3.1, 0.05)]
+                    Trade("test_agent", "DSO_reward", 0.25, 25.0, datetime.datetime.now().timestamp(), 3.1, 0.05)]
 
     matching_mixed = MatchingResult(grid_congestion=0., trades=trades_mixed,
                                     unmatched_orders=[],
@@ -194,6 +198,7 @@ def test_reward() -> None:
     print(f"Scenario 5: Terminal Reward with Unmet Demand")
     agent.total_demand_required = 600.0  # 24 hours * 25 kW
     agent.cumulative_demand_satisfied = 450.0  # 75% satisfied
+    agent.cumulative_demand_deferred = 150.0
 
     reward_terminal = reward_handler.calculate_reward(agent, order_p2p, matching_p2p, kpis_p2p, 0.05, 0.50, is_terminal=True)
     print(f"✓ Terminal reward with unmet demand: {reward_terminal:.4f}")
@@ -205,6 +210,48 @@ def test_reward() -> None:
     print(f"  - Mixed trades receive intermediate rewards")
     print(f"  - Unmatched orders receive minimal rewards")
     print(f"  - Terminal penalties apply for unmet demand")
+
+    assert reward_p2p > reward_dso > reward_unmatched
+    assert reward_terminal < reward_p2p
+
+
+def test_case6_active_market_policy_beats_no_order_policy() -> None:
+    """A policy may not maximize return by abandoning the energy market."""
+
+    def episode_return(active: bool) -> float:
+        env = LocalEnergyMarket(build_case6_config(seed=42, max_steps=24))
+        env.reset(seed=10042)
+        total = 0.0
+        for _ in range(env.max_steps):
+            actions = {}
+            for agent_id in env.agent_order:
+                agent = env._agents[agent_id]
+                if not active:
+                    actions[agent_id] = np.array(
+                        [20.0, 0.0, 0.0, len(env.agent_order) + 1.5],
+                        dtype=np.float32,
+                    )
+                    continue
+                net_demand = agent.get_demand(env.current_step) - agent.get_generation(
+                    env.current_step
+                )
+                is_buy = net_demand >= 0.0
+                actions[agent_id] = np.array(
+                    [
+                        600.0 if is_buy else 20.0,
+                        min(180.0, abs(net_demand)),
+                        1.0 if is_buy else 0.0,
+                        float(len(env.agent_order)),
+                    ],
+                    dtype=np.float32,
+                )
+            _, rewards, terminated, truncated, _ = env.step(actions)
+            total += sum(rewards.values()) / len(rewards)
+            if terminated["__all__"] or truncated["__all__"]:
+                break
+        return total
+
+    assert episode_return(active=True) > episode_return(active=False)
 
 
 def run_tests() -> bool:

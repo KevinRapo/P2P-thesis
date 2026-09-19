@@ -118,13 +118,23 @@ class RewardHandler:
         unserved=(physical.unserved_demand/physical_scale if physical else
                   max(0.,order.quantity-total_q)/physical_scale if order.is_buy else 0.)
         wasted=physical.curtailed_generation/physical_scale if physical else 0.
+        terminal_penalty=(self.p_dso*agent.cumulative_demand_deferred/agent.total_demand_required
+                          if is_terminal and agent.total_demand_required>0 else 0.)
+        # The original MARLEM objective explicitly penalized an agent that did
+        # not execute a trade.  Keep that paper-intended guard, but also retain
+        # the restored physical and terminal penalties instead of returning
+        # before they are evaluated.  Without this guard, an inactive policy can
+        # collect stability/cooperation rewards while leaving demand unserved.
+        if not trades:
+            raw = -self.p_no_trades-self.p_no_trades*unserved-terminal_penalty
+            return float(np.sign(raw)*np.log1p(abs(raw)/20.)*20.)
         resource=1.-min(1.,unserved+wasted)
         trading=self._calculate_trading_reward(order,local_q,dso_q)
         economic=self._calculate_economic_reward(order,local,dso,matching.clearing_price,
                                                  min_price,max_price,matching.dso_buy_price,matching.dso_sell_price)
         congestion=float(np.clip(matching.grid_congestion,0.,1.))
         grid_score=1.-min(1.,unserved+wasted)-congestion
-        price_stability=1.-min(1.,np.std([t.price for t in trades])/max(max_price-min_price,1e-12)) if trades else 1.
+        price_stability=1.-min(1.,np.std([t.price for t in trades])/max(max_price-min_price,1e-12))
         stability=self._w_volatility*price_stability+self._w_imbalance*max(0.,grid_score)
         base=(self.f_grid_balance*grid_score+self.f_resource*resource+self.f_trading*trading
               +self.f_stability*stability+self.f_economic*economic)
@@ -145,10 +155,12 @@ class RewardHandler:
         contribution=(self._w_grid*resource+self._w_local_contribution*(local_q/total_q if total_q else 0.)
                       +self._w_price*price_stability)
         boosted=base*(1.+np.log1p(max(0.,coop*contribution))/5.)
-        dso_penalty=self.p_dso*dso_q/max(physical_scale,total_q)
+        # Equation 3 describes DSO reliance as a volume penalty scaled by the
+        # current grid imbalance.  A DSO trade that actually clears a deficit
+        # must therefore be preferable to leaving that demand unmet.
+        imbalance_scale=min(1.,abs(matching.grid_balance)/max(self.grid_network.capacity,1e-12))
+        dso_penalty=self.p_dso*(dso_q/max(physical_scale,total_q))*imbalance_scale
         unmet_penalty=self.p_no_trades*unserved
-        terminal_penalty=(self.p_dso*agent.cumulative_demand_deferred/agent.total_demand_required
-                          if is_terminal and agent.total_demand_required>0 else 0.)
         raw=boosted-dso_penalty-unmet_penalty-terminal_penalty
         return float(np.sign(raw)*np.log1p(abs(raw)/20.)*20.)
 

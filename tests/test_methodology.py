@@ -1,10 +1,19 @@
 """Regression tests for the paper-aligned experiment protocol."""
 
+import json
+from types import SimpleNamespace
+
 import numpy as np
 
 from src.environment.lem import LocalEnergyMarket
 from src.environment.base import RLAlgorithm, TrainingMode
-from src.environment.train import GroupedLEM, RLTrainer, extract_run_metrics
+from src.environment.train import (
+    ENV_RUNNER_RESULTS,
+    EpisodeRecordCallback,
+    GroupedLEM,
+    RLTrainer,
+    extract_run_metrics,
+)
 from src.market.matching import MarketConfig
 from src.market.validation import Validator
 from src.scenario import CASE6_PARTICIPANTS, build_case6_config, build_case6_evaluation_config
@@ -23,6 +32,8 @@ def test_case6_scenario_matches_paper_table_and_has_heterogeneous_profiles():
     assert {a.id: a.location.node_id for a in agents} == config["paper_node_mapping"]
     assert all(max(a.generation_profile) <= a.capacity + 1e-8 for a in agents)
     assert all(max(a.demand_profile) <= a.capacity + 1e-8 for a in agents)
+    assert config["scenario_id"] == "case6-reconstructed-v1"
+    assert config["profile_mapping_status"] == "reconstructed-unverified"
 
 
 def test_forecast_error_is_seeded_bounded_and_does_not_change_physical_profiles():
@@ -51,6 +62,60 @@ def test_group_reward_reports_total_and_per_agent_mean():
     total, mean = GroupedLEM._aggregate_group_reward({"a": 2.0, "b": 6.0})
     assert total == 8.0
     assert mean == 4.0
+
+
+def test_environment_reports_the_episode_seed_used_for_settlement():
+    env = LocalEnergyMarket(build_case6_config(seed=42, max_steps=1))
+    env.reset(seed=12345)
+    actions = {
+        agent_id: np.array([20.0, 0.0, 0.0, 9.5], dtype=np.float32)
+        for agent_id in env.agent_order
+    }
+    _, _, _, _, infos = env.step(actions)
+    assert env.info["episode_seed"] == 12345
+    assert all(info["episode_seed"] == 12345 for info in infos.values())
+
+
+def test_pbt_resamples_within_declared_domains_instead_of_multiplying():
+    trainer = object.__new__(RLTrainer)
+    trainer.tune_samples = 2
+    trainer.checkpoint_freq = 10
+    scheduler = trainer._get_tune_scheduler({"lambda_": [0.8, 0.95, 0.99]})
+    assert scheduler._resample_probability == 1.0
+
+
+def test_episode_records_are_written_inside_each_trial_directory(tmp_path):
+    trial_dir = tmp_path / "trial_a"
+    trial_dir.mkdir()
+    result = {
+        "trial_id": "trial_a",
+        "training_iteration": 3,
+        "config": {"env_config": {"scenario_id": "case6", "seed": 42}},
+        ENV_RUNNER_RESULTS: {
+            "raw_episode_returns": [12.5],
+            "raw_episode_lengths": [24],
+            "raw_episode_seeds": [10043],
+        },
+    }
+    (trial_dir / "result.json").write_text(json.dumps(result) + "\n")
+    trainer = object.__new__(RLTrainer)
+
+    trainer._save_episode_records([SimpleNamespace(path=str(trial_dir))])
+
+    record = json.loads((trial_dir / "episode_records.jsonl").read_text())
+    assert record["trial_id"] == "trial_a"
+    assert record["seed"] == 10043
+    assert record["episode_return"] == 12.5
+
+
+def test_episode_info_values_are_found_inside_group_wrappers():
+    infos = {
+        "grouped_agents": [
+            {"_group_info": [{"episode_seed": 99, "group_mean_reward": 2.5}]}
+        ]
+    }
+    assert EpisodeRecordCallback._find_info_value(infos, "episode_seed") == 99
+    assert EpisodeRecordCallback._find_info_value(infos, "group_mean_reward") == 2.5
 
 
 def test_case6_observations_remain_inside_declared_spaces_for_full_episode():

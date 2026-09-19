@@ -157,6 +157,9 @@ class RLTrainer:
         gpus: Optional[int] = None,
         train_batch_size: Optional[int] = None,
         storage_path: Optional[str] = None,
+        num_env_runners: Optional[int] = None,
+        ray_cpus: Optional[int] = None,
+        max_concurrent_trials: Optional[int] = None,
     ):
         """Initialize the RL trainer.
 
@@ -170,11 +173,14 @@ class RLTrainer:
             evaluation_interval: Frequency of held-out evaluation; disabled by default
             evaluation_duration: Duration of evaluation
             evaluation_env_config: Separately seeded evaluation scenario configuration
-            cpus: Number of CPUs for parallel sampling
+            cpus: Legacy alias for the number of parallel environment runners.
             gpus: Number of GPUs per learner
             train_batch_size: Optional PPO batch size; useful for short smoke runs
             storage_path: Path to store training results
             env_steps: Optional common sampled-environment-step stopping budget
+            num_env_runners: Environment runner actors allocated to each trial.
+            ray_cpus: Total CPU resource units exposed to the Ray cluster.
+            max_concurrent_trials: Maximum Tune trials allowed to run at once.
         """
         self.env_config = deepcopy(env_config)
         self.algorithm = algorithm
@@ -196,7 +202,20 @@ class RLTrainer:
             )
         self.evaluation_env_config.setdefault("evaluation_split", "held_out")
         self.env_steps = env_steps
-        self.cpus = self._get_cpus_count() if cpus is None else cpus
+        # Keep the historical ``cpus`` argument as a backwards-compatible
+        # alias, while allowing cluster capacity and per-trial sampling
+        # parallelism to be configured independently.
+        requested_cpus = self._get_cpus_count() if cpus is None else cpus
+        self.num_env_runners = (
+            requested_cpus if num_env_runners is None else num_env_runners
+        )
+        self.ray_cpus = (
+            requested_cpus + 2 if ray_cpus is None else ray_cpus
+        )
+        self.max_concurrent_trials = max_concurrent_trials
+        # ``self.cpus`` remains an internal compatibility alias for callers
+        # that inspect the old attribute.
+        self.cpus = self.num_env_runners
         self.gpus = self._get_cuda_gpu_count() if gpus is None else gpus
         self.train_batch_size = train_batch_size
         # Ray/pyarrow require an absolute filesystem URI for Tune storage.
@@ -232,6 +251,28 @@ class RLTrainer:
         if not isinstance(self.cpus, int) or self.cpus <= 0:
             raise ValueError(
                 f"The <cpus> must be a positive integer, got <cpus = {self.cpus}>."
+            )
+
+        if not isinstance(self.num_env_runners, int) or self.num_env_runners <= 0:
+            raise ValueError(
+                "The <num_env_runners> must be a positive integer."
+            )
+
+        if not isinstance(self.ray_cpus, int) or self.ray_cpus <= 0:
+            raise ValueError("The <ray_cpus> must be a positive integer.")
+
+        if self.ray_cpus < self.num_env_runners + 1:
+            raise ValueError(
+                "<ray_cpus> must cover the configured environment runners "
+                "and the trial main process."
+            )
+
+        if self.max_concurrent_trials is not None and (
+            not isinstance(self.max_concurrent_trials, int)
+            or self.max_concurrent_trials <= 0
+        ):
+            raise ValueError(
+                "The <max_concurrent_trials> must be a positive integer or None."
             )
 
         if not isinstance(self.gpus, int) or self.gpus < 0:
@@ -386,23 +427,23 @@ class RLTrainer:
         # Define only algorithm-valid PBT mutations.
         if self.algorithm == RLAlgorithm.PPO:
             hyperparam_mutations = {
-                "lr": loguniform(0.0001, 0.01),
-                "entropy_coeff": loguniform(0.01, 10.0),
+                "lr": loguniform(0.000001, 0.001),
+                "entropy_coeff": loguniform(0.0001, 0.1),
                 "lambda_": loguniform(0.8, 0.99),
                 # "clip_param": loguniform(0.1, 0.3),
             }
 
         elif self.algorithm == RLAlgorithm.APPO:
             hyperparam_mutations = {
-                "lr": loguniform(0.0001, 0.01),
-                "entropy_coeff": loguniform(0.01, 10.0),
+                "lr": loguniform(0.000001, 0.001),
+                "entropy_coeff": loguniform(0.0001, 0.1),
                 "lambda_": loguniform(0.8, 0.99),
             }
 
         elif self.algorithm == RLAlgorithm.SAC:
             hyperparam_mutations = {
-                "actor_lr": loguniform(0.0001, 0.01),
-                "critic_lr": loguniform(0.0001, 0.01),
+                "actor_lr": loguniform(0.000001, 0.001),
+                "critic_lr": loguniform(0.000001, 0.001),
                 # "tau": loguniform(0.001, 0.01),  # Soft update, if configurable
             }
 
@@ -535,7 +576,7 @@ class RLTrainer:
         configured = (
             config.framework("torch")
             .env_runners(
-                num_env_runners=self.cpus,
+                num_env_runners=self.num_env_runners,
                 sample_timeout_s=None,
                 batch_mode="complete_episodes",
             )
@@ -549,10 +590,26 @@ class RLTrainer:
                 min_time_s_per_iteration=1.0,
             )
         if self.evaluation_interval is None:
-            return configured.evaluation(evaluation_interval=None)
+            # `evaluation_duration="auto"` (the class default) is only valid
+            # with `evaluation_parallel_to_training=True`; leaving it
+            # unresolved here is harmless for a single build but fails
+            # RLlib's stricter re-validation when Tune's PBT scheduler
+            # reconstructs this config for a cloned/perturbed trial.
+            return configured.evaluation(
+                evaluation_interval=None,
+                evaluation_duration=1,
+                evaluation_parallel_to_training=False,
+            )
         return configured.evaluation(
             evaluation_interval=self.evaluation_interval,
-            evaluation_duration=self.evaluation_duration,
+            # `evaluation_duration="auto"` is only valid with
+            # `evaluation_parallel_to_training=True`; this path always sets
+            # it False (evaluation runs on the local worker, not dedicated
+            # remote runners), so resolve "auto" to a concrete duration
+            # instead of passing it through to RLlib's validator.
+            evaluation_duration=(
+                1 if self.evaluation_duration == "auto" else self.evaluation_duration
+            ),
             evaluation_duration_unit="episodes",
             evaluation_num_env_runners=0,
             evaluation_parallel_to_training=False,
@@ -570,6 +627,10 @@ class RLTrainer:
             time_attr=TRAINING_ITERATION,
             perturbation_interval=self.checkpoint_freq,
             hyperparam_mutations=hyperparam_mutations,
+            # Multiplicative perturbations escape Domain bounds (the previous
+            # runs produced lambda_ > 1).  Always resample from the declared
+            # paper-centred ranges so every PBT configuration remains valid.
+            resample_probability=1.0,
         )
 
     def _experiment_name(self) -> str:
@@ -610,7 +671,6 @@ class RLTrainer:
         path = run_directory / "run_manifest.json"
         with path.open("x", encoding="utf-8") as file:
             json.dump(manifest, file, indent=2)
-        (run_directory / "episode_records.jsonl").touch()
         return path
 
     @staticmethod
@@ -646,7 +706,7 @@ class RLTrainer:
         }
 
     @staticmethod
-    def _start_ray(cpus: int, gpus: int):
+    def _start_ray(ray_cpus: int, gpus: int):
         """Start the notebook runtime with the Windows Ray 2.51 port workaround.
 
         Ray chooses auxiliary ports in the OS ephemeral range, then releases
@@ -656,7 +716,9 @@ class RLTrainer:
         The installed Ray package and other running sessions are not changed.
         """
         options = dict(
-            num_cpus=cpus + 2,
+            # Cluster capacity is intentionally independent from the number
+            # of environment runners assigned to one Tune trial.
+            num_cpus=ray_cpus,
             num_gpus=gpus,
             include_dashboard=False,
             runtime_env=RLTrainer._ray_runtime_env(),
@@ -872,6 +934,61 @@ class RLTrainer:
             name="env_config",
         )
 
+    def _save_episode_records(self, results: ResultGrid) -> None:
+        """Materialize raw episode metrics inside their owning Tune trial.
+
+        RLlib callbacks run inside the Algorithm actor, where Ray 2.51 exposes
+        ``trial_id='default'`` even though Tune assigns a real trial ID on the
+        driver.  The driver's ResultGrid has the authoritative trial path, so
+        writing here is both race-free under PBT and correctly attributable.
+        """
+        for trial_result in results:
+            trial_path = Path(trial_result.path)
+            result_path = trial_path / "result.json"
+            if not result_path.exists():
+                continue
+            records = []
+            with result_path.open(encoding="utf-8") as stream:
+                for line in stream:
+                    if not line.strip():
+                        continue
+                    row = json.loads(line)
+                    values = row.get(ENV_RUNNER_RESULTS, {})
+                    returns = values.get(EpisodeRecordCallback._returns_key, [])
+                    lengths = values.get(EpisodeRecordCallback._lengths_key, [])
+                    seeds = values.get(EpisodeRecordCallback._seeds_key, [])
+                    totals = values.get("group_total_reward", [])
+                    means = values.get("group_mean_reward", [])
+                    if not isinstance(returns, list) or not isinstance(lengths, list):
+                        continue
+                    env_config = row.get("config", {}).get("env_config", {})
+                    for index, (episode_return, episode_length) in enumerate(
+                        zip(returns, lengths)
+                    ):
+                        record = {
+                            "record_type": "training_episode",
+                            "phase": "train",
+                            "scenario_id": env_config.get("scenario_id"),
+                            "seed": (
+                                int(seeds[index])
+                                if isinstance(seeds, list) and index < len(seeds)
+                                else env_config.get("seed")
+                            ),
+                            "trial_id": trial_path.name,
+                            "training_iteration": row.get(TRAINING_ITERATION),
+                            "episode_return": float(episode_return),
+                            "steps": int(episode_length),
+                        }
+                        if isinstance(totals, list) and index < len(totals):
+                            record["group_total_reward"] = float(totals[index])
+                        if isinstance(means, list) and index < len(means):
+                            record["group_mean_reward"] = float(means[index])
+                        records.append(record)
+            record_path = trial_path / "episode_records.jsonl"
+            with record_path.open("w", encoding="utf-8") as stream:
+                for record in records:
+                    stream.write(json.dumps(record) + "\n")
+
     def train(
         self,
         embeddings_dim: int = 128,
@@ -923,33 +1040,28 @@ class RLTrainer:
                 },
                 "train_batch_size": self.train_batch_size,
                 "tune_samples": self.tune_samples,
+                "resources": {
+                    "num_env_runners_per_trial": self.num_env_runners,
+                    "ray_cpus": self.ray_cpus,
+                    "max_concurrent_trials": self.max_concurrent_trials,
+                },
                 "evaluation": EnvConfigHandler._make_config_serializable(
                     effective_eval_config
                 ),
             },
         )
-        # The callback receives this private path from the Algorithm config and
-        # appends driver-side, per-episode records without changing the scenario.
-        algo_config = algo_config.environment(
-            env_config={
-                **self.env_config,
-                "_episode_record_path": str(
-                    run_storage / run_name / "episode_records.jsonl"
-                ),
-            }
-        )
-
         owns_ray = not ray.is_initialized()
         try:
             # Keep Ray setup and Tune execution in one cleanup scope.
             if not ray.is_initialized():
-                self._start_ray(self.cpus, self.gpus)
+                self._start_ray(self.ray_cpus, self.gpus)
 
             tuner = Tuner(
                 trainable=algo_config.algo_class,
                 param_space=algo_config,
                 tune_config=TuneConfig(
                     num_samples=self.tune_samples,
+                    max_concurrent_trials=self.max_concurrent_trials,
                     trial_dirname_creator=lambda trial: trial.trial_id,
                     scheduler=self._get_tune_scheduler(hyperparam_mutations),
                     metric=f"{ENV_RUNNER_RESULTS}/{EPISODE_RETURN_MEAN}",
@@ -958,7 +1070,7 @@ class RLTrainer:
                 ),
                 run_config=RunConfig(
                     storage_path=str(run_storage),
-                    verbose=0,
+                    verbose=1,
                     name=run_name,
                     # JSON/CSV retain portable, machine-readable Tune results.
                     callbacks=[CSVLoggerCallback(), JsonLoggerCallback()],
@@ -992,6 +1104,7 @@ class RLTrainer:
                 )
 
             self._save_env_config(results)
+            self._save_episode_records(results)
 
             metrics = self.get_best_metrics(results)
 
@@ -1038,7 +1151,7 @@ class RLTrainer:
         # Initialize ray
         owns_ray = not ray.is_initialized()
         if not ray.is_initialized():
-            self._start_ray(self.cpus, self.gpus)
+            self._start_ray(self.ray_cpus, self.gpus)
 
         try:
             # Run the restored tuner and capture the results
@@ -1046,6 +1159,7 @@ class RLTrainer:
 
             # Save environment configuration to experiment directory
             self._save_env_config(results)
+            self._save_episode_records(results)
 
             # Extract metrics from the best result
             metrics = self.get_best_metrics(results)
@@ -1338,6 +1452,24 @@ class EpisodeRecordCallback(RLlibCallback):
 
     _returns_key = "raw_episode_returns"
     _lengths_key = "raw_episode_lengths"
+    _seeds_key = "raw_episode_seeds"
+
+    @staticmethod
+    def _find_info_value(value: Any, key: str) -> Any:
+        """Find a value in direct or grouped multi-agent info structures."""
+        if isinstance(value, dict):
+            if key in value:
+                return value[key]
+            for nested in value.values():
+                found = EpisodeRecordCallback._find_info_value(nested, key)
+                if found is not None:
+                    return found
+        elif isinstance(value, (list, tuple)):
+            for nested in reversed(value):
+                found = EpisodeRecordCallback._find_info_value(nested, key)
+                if found is not None:
+                    return found
+        return None
 
     def on_episode_end(
         self, *, episode: Any, metrics_logger: Any = None, **kwargs
@@ -1356,54 +1488,25 @@ class EpisodeRecordCallback(RLlibCallback):
         )
         try:
             infos = episode.get_infos()
-            last_info = (
-                next(reversed(infos.values()))
-                if isinstance(infos, dict) and infos
-                else {}
-            )
-            if isinstance(last_info, list) and last_info:
-                last_info = last_info[-1]
-            if isinstance(last_info, dict):
-                for key in ("group_total_reward", "group_mean_reward"):
-                    if key in last_info:
-                        metrics_logger.log_value(
-                            key,
-                            float(last_info[key]),
-                            reduce=None,
-                            clear_on_reduce=True,
-                        )
+            episode_seed = self._find_info_value(infos, "episode_seed")
+            if episode_seed is not None:
+                metrics_logger.log_value(
+                    self._seeds_key,
+                    int(episode_seed),
+                    reduce=None,
+                    clear_on_reduce=True,
+                )
+            for key in ("group_total_reward", "group_mean_reward"):
+                value = self._find_info_value(infos, key)
+                if value is not None:
+                    metrics_logger.log_value(
+                        key,
+                        float(value),
+                        reduce=None,
+                        clear_on_reduce=True,
+                    )
         except (AttributeError, TypeError, StopIteration):
             pass
-
-    def on_train_result(
-        self, *, algorithm: Algorithm, result: Dict[str, Any], **kwargs
-    ) -> None:
-        record_path = algorithm.config.env_config.get("_episode_record_path")
-        if not record_path:
-            return
-        values = result.get(ENV_RUNNER_RESULTS, {})
-        returns = values.get(self._returns_key, [])
-        lengths = values.get(self._lengths_key, [])
-        totals = values.get("group_total_reward", [])
-        means = values.get("group_mean_reward", [])
-        if not isinstance(returns, list) or not isinstance(lengths, list):
-            return
-        for index, (episode_return, episode_length) in enumerate(zip(returns, lengths)):
-            record = {
-                "record_type": "training_episode",
-                "phase": "train",
-                "scenario_id": algorithm.config.env_config.get("scenario_id"),
-                "seed": algorithm.config.env_config.get("seed"),
-                "training_iteration": result.get(TRAINING_ITERATION),
-                "episode_return": float(episode_return),
-                "steps": int(episode_length),
-            }
-            if isinstance(totals, list) and index < len(totals):
-                record["group_total_reward"] = float(totals[index])
-            if isinstance(means, list) and index < len(means):
-                record["group_mean_reward"] = float(means[index])
-            with Path(record_path).open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(record) + "\n")
 
 
 # endregion

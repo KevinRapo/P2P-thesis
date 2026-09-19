@@ -4,6 +4,7 @@ import json
 import pickle
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -22,7 +23,7 @@ from src.market.matching import MarketConfig
 
 def capture_initial_weights(*, algorithm, **kwargs):
     """Validation-only snapshot; ordinary notebook training does not save this."""
-    destination = Path(algorithm.config.env_config['_episode_record_path']).parent / 'initial_module_state.pkl'
+    destination = Path(algorithm.config.env_config['_validation_state_path'])
     with destination.open('wb') as stream:
         pickle.dump(algorithm.learner_group.get_weights(), stream)
 
@@ -57,12 +58,14 @@ def leaves(value,prefix=''):
 
 def run(algorithm,mode,iterations,batch):
     cfg=config()
+    initial_path=ROOT/'tmp/learning'/f'initial_module_state_{uuid4().hex}.pkl'
+    initial_path.parent.mkdir(parents=True,exist_ok=True)
+    cfg['_validation_state_path']=str(initial_path)
     trainer=ValidationTrainer(cfg,algorithm=RLAlgorithm(algorithm),training=TrainingMode(mode),
                       iters=iterations,checkpoint_freq=1,cpus=1,gpus=0,train_batch_size=batch,
                       storage_path=str(ROOT/'tmp/learning'))
     results,metrics=trainer.train(embeddings_dim=32)
     checkpoint=trainer.get_best_checkpoint(results)['train']
-    initial_path=Path(results.get_best_result().path).parent/'initial_module_state.pkl'
     with initial_path.open('rb') as stream:
         initial=dict(leaves(pickle.load(stream)))
     inference=RLInference(cfg,checkpoint_path=checkpoint.path)

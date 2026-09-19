@@ -77,6 +77,23 @@ original-iteration training protocol with sampled-step diagnostics. The
 historical statuses above describe the earlier restoration commits and are
 retained as an audit trail.
 
+The 2026-09-19 working-tree audit adds a stricter current-state gate. The full
+suite passes with 74 tests, and short validations for all nine algorithm/mode
+combinations change actor parameters, restore those parameters exactly, finish
+inference, and report zero Tune trial errors. These are software-mechanics
+checks, not evidence of converged policies. The same audit closes the inactive
+policy reward exploit, aligns the resource/convergence KPIs with the published
+definitions, bounds PBT resampling, and materializes episode records from the
+driver into each authoritative Tune trial directory. The finite acceptance
+boundary is recorded in `paper-faithful-freeze-contract.md`.
+
+Exact numerical Case 6 reproduction remains blocked: neither the papers nor
+the upstream notebook identify the published eight profile columns and scaling,
+and the current deterministic reconstruction makes all eight participants net
+consumers. It is therefore labelled `reconstructed-unverified`; it must not be
+presented as a numerical reproduction until author artifacts are obtained or a
+separate, disclosed reconstruction is validated.
+
 - `src/analytics/*.py` (P1-08) — unmodified from `main`, unsupported metric claims still present. Only reachable via `examples/zero_to_hero.ipynb`.
 - `src/market/validation.py` (P3-01) — still a single-process proof-of-work/audit chain; it is intentionally not presented as decentralized consensus.
 - `examples/zero_to_hero.ipynb` — basic, full-day, and quickstart examples now construct explicit agents, grid, DSO, and profile handlers; the notebook passes the same direct `nbclient` execution gate as the other executable examples.
