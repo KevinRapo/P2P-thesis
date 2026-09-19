@@ -15,7 +15,7 @@ This is a different lens than the other docs in this folder:
 
 **Note on history rewrite (2026-09-18):** this branch's history was
 reworked from an original 20-commit sequence built across two untracked
-phases (2026-09-08/09, then 2026-09-13) into the 20 commits below. The
+phases (2026-09-08/09, then 2026-09-13) into a clean sequence. The
 original sequence had a real problem: some things were fixed once and then
 substantially rewritten later without ever landing as one clean commit —
 most visibly the case6 notebook (touched 3 times, only the final version was
@@ -419,6 +419,13 @@ timings), both referenced elsewhere but never actually written until now.
 pass — see the note at the top of this file for why the original two-pass
 version of these docs was collapsed.)*
 
+### `664edcd` — docs: rewrite commit-history.md to describe the reworked history
+
+Replaced the old pre-rewrite narrative with the actual cleaned branch history,
+including the rationale, dependency ordering, validation evidence, and the
+local preservation branch for the literal pre-rework sequence. This was a
+documentation-only history-maintenance commit.
+
 ### `42a6f36` — docs: plan SimBench and NiceGUI integration
 
 Reorganized the documentation using the ownership convention established in
@@ -440,16 +447,56 @@ keeps Ray training in an owned worker process, and defines contracts, file
 layout, tests, acceptance gates, and the first implementation tickets. No
 runtime integration was included in this documentation commit.
 
+### `35d555e` — docs: record integration planning commit
+
+Updated this history after the planning work landed and explicitly recorded
+the then-uncommitted notebook, resource-control, benchmark, and Salazar profile
+work. This made the separation between validated branch history and local
+experimental artifacts visible before further baseline corrections began.
+
+### `98dd174` — fix: close baseline reward and reproducibility gaps
+
+Applied the final minimal correction set found by the paper-versus-code audit:
+
+- restored a no-executed-trade guard without bypassing physical unserved-demand
+  or terminal deferred-demand penalties, and made DSO reliance depend on both
+  volume and the remaining grid imbalance;
+- aligned P2P share, flexibility utilization, bid/ask spread, and convergence
+  KPIs with the papers while retaining revealed bid/ask surplus as the named
+  welfare deviation;
+- kept DTDE on individual rewards and documented CTCE/CTDE group mean as the
+  fixed-population rescaling of the paper's group sum;
+- constrained PBT sampling to valid learning-rate, entropy, and lambda domains;
+- separated Ray cluster capacity, per-trial environment runners, and Tune
+  concurrency, and resolved RLlib's incompatible `evaluation_duration="auto"`
+  configuration;
+- moved episode-record materialization to the Tune driver so concurrent trials
+  write only inside their authoritative directories, including actual episode
+  seeds;
+- labelled Case 6 `case6-reconstructed-v1` / `reconstructed-unverified` rather
+  than claiming unavailable paper-profile provenance; and
+- added the finite paper-faithful freeze contract and regression tests for the
+  corrected reward, KPIs, PBT, seeds, and trial records.
+
+Validation at this point was 74 passing tests. Short validations for all nine
+PPO/APPO/SAC × DTDE/CTDE/CTCE combinations changed actor weights, restored them
+exactly, completed inference, and reported zero Tune trial errors. These are
+software-mechanics checks, not claims of policy convergence or numerical paper
+reproduction.
+
 ---
 
 ## Open items not addressed by any commit above
 
-- **`GroupedLEM`'s training objective is still group-mean reward for
-  CTCE/CTDE vs. DTDE's summed multi-agent return** — `7327717` fixed the
-  *reported comparison metric* (`extract_run_metrics`'s
-  `comparison_reward`), not this underlying asymmetry in what each mode's
-  policy actually optimizes. This remains a documented, deliberate
-  difference between training paradigms, not a bug.
+- **The finite empirical freeze gates remain incomplete.** No-order and
+  direction-aware policies have been compared, but the common-seed
+  no-order/random/direction-aware/rule-based matrix and three independent
+  short seeds per algorithm/mode still need to be recorded. These are bounded
+  experiment-protocol tasks, not reasons to reopen the settled architecture.
+- **Exact numerical Case 6 reproduction remains blocked** because neither the
+  papers nor the upstream notebook identify the published eight CSV profiles
+  and scaling. Until author artifacts or a disclosed reconstruction resolve
+  this, the committed scenario remains `reconstructed-unverified`.
 - **The case6 sweep's default stopping criterion is still
   `training_iteration`**, not the new `env_steps` sample-matched budget —
   by deliberate choice, to preserve the original paper's protocol. A
@@ -464,18 +511,14 @@ runtime integration was included in this documentation commit.
 
 ## Uncommitted work in progress (not part of any commit above)
 
-After `42a6f36`, the working tree still contains four intentionally excluded
+After `98dd174`, the working tree still contains three intentionally excluded
 groups:
 
 - `notebooks/case6_implicit_cooperation.ipynb` contains an in-progress smoke
   run and roughly 123 MB of captured output. It must not be committed in this
   form; any useful source-cell changes need to be separated from generated
   output and reviewed independently.
-- `src/environment/train.py` contains resource-configuration work that
-  separates `num_env_runners`, Ray CPU capacity, and Tune trial concurrency,
-  plus an `evaluation_duration="auto"` compatibility change. It has no focused
-  regression coverage yet.
-- `scripts/benchmark_resources.py` depends on that trainer API and remains an
+- `scripts/benchmark_resources.py` uses the now-committed trainer API but remains an
   untracked benchmark experiment rather than a validated repository tool.
 - `notebooks/salazar_*` and their PNGs are exploratory profile-analysis
   artifacts and have not been curated into a reproducible notebook workflow.
