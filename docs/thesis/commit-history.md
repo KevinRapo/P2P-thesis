@@ -419,6 +419,27 @@ timings), both referenced elsewhere but never actually written until now.
 pass — see the note at the top of this file for why the original two-pass
 version of these docs was collapsed.)*
 
+### `42a6f36` — docs: plan SimBench and NiceGUI integration
+
+Reorganized the documentation using the ownership convention established in
+the dev worktree: repository-facing material stays in `docs/`, the two MARLEM
+papers live in `docs/paper/`, and thesis-authored methodology, validation,
+history, synthesis, and planning live in `docs/thesis/`. Updated repository and
+notebook references to the moved files.
+
+Added a cross-worktree knowledge map after reviewing the documentation in
+`marlem`, `marlem-main`, `marlem-dev`, `marlem-astra`, and this baseline. The
+map records which architecture, validation, experiment, and prototype lessons
+apply here without importing status claims from other branches.
+
+Added the implementation plan for the SimBench and NiceGUI layers. The plan
+separates economic trade transport from post-settlement physical-grid
+assessment, derives nodal injections from the conserved household settlement,
+starts SimBench in shadow mode, preserves the legacy graph as a comparator,
+keeps Ray training in an owned worker process, and defines contracts, file
+layout, tests, acceptance gates, and the first implementation tickets. No
+runtime integration was included in this documentation commit.
+
 ---
 
 ## Open items not addressed by any commit above
@@ -443,13 +464,21 @@ version of these docs was collapsed.)*
 
 ## Uncommitted work in progress (not part of any commit above)
 
-As of this rework, `git status` on `restore-baseline` shows further
-uncommitted changes on top of this history: an in-progress case6
-notebook smoke run, a resource-config feature in `src/environment/train.py`
-(`num_env_runners`/`ray_cpus`/`max_concurrent_trials` decoupling, plus an
-`evaluation_duration="auto"` resolution fix for PBT-cloned trial configs —
-distinct from the perf commit above), two new exploratory notebooks/PNGs
-(`salazar_*`), and a new `scripts/benchmark_resources.py`. None of this was
-folded into the rework — it's genuinely unfinished, not yet reviewed. The
-complete prior state (including this WIP) is preserved on the local branch
-`restore-baseline-pre-rework` if anything here needs to be cross-checked.
+After `42a6f36`, the working tree still contains four intentionally excluded
+groups:
+
+- `notebooks/case6_implicit_cooperation.ipynb` contains an in-progress smoke
+  run and roughly 123 MB of captured output. It must not be committed in this
+  form; any useful source-cell changes need to be separated from generated
+  output and reviewed independently.
+- `src/environment/train.py` contains resource-configuration work that
+  separates `num_env_runners`, Ray CPU capacity, and Tune trial concurrency,
+  plus an `evaluation_duration="auto"` compatibility change. It has no focused
+  regression coverage yet.
+- `scripts/benchmark_resources.py` depends on that trainer API and remains an
+  untracked benchmark experiment rather than a validated repository tool.
+- `notebooks/salazar_*` and their PNGs are exploratory profile-analysis
+  artifacts and have not been curated into a reproducible notebook workflow.
+
+The complete pre-rework state remains available on the local branch
+`restore-baseline-pre-rework` for cross-checking.
