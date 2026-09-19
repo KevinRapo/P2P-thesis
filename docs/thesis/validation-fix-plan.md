@@ -70,7 +70,7 @@ Both in the reward/KPI layer (`8db3875`), both because the literal formula is de
 ## Follow-up protocol corrections
 
 The current `MARLEM-restored baseline` follow-up implements the previously
-open reproducibility items in `docs/methodology-baseline.md`: explicit Case 6
+open reproducibility items in `docs/thesis/methodology-baseline.md`: explicit Case 6
 scenario construction, normalized heterogeneous profile columns, seeded
 bounded forecast errors, independent evaluation seeds, and an explicit
 original-iteration training protocol with sampled-step diagnostics. The

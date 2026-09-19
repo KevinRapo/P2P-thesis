@@ -32,7 +32,7 @@ This is the acceptance gate for the restored baseline: **69 passed, 0 failed, 0 
 | `test_restoration_kernel.py` | The physical/economic invariant suite: energy and cash conservation, battery dispatch accounting, network flow limits, profile/config isolation across environment instances, public cooperation signals, reward response to physical outcomes, and preferred-partner allocation. This is the closest thing to a formal specification test for the restoration. |
 | `test_reward.py` | `RewardHandler` — the reward formula (Eq. 3–6 in the framework paper: base components, cooperation factor, contribution factor, sign-preserving log compression). |
 | `test_trainer.py` | Every original algorithm × training-mode combination (PPO/APPO/SAC × DTDE/CTDE/CTCE) builds and takes one real training step, before any expensive full-length run is attempted. |
-| `test_validator.py` | `Validator` — the hash-chained settlement log (tamper-evident logging, not decentralized consensus — see `docs/validation-fix-plan.md` P3-01). |
+| `test_validator.py` | `Validator` — the hash-chained settlement log (tamper-evident logging, not decentralized consensus — see `docs/thesis/validation-fix-plan.md` P3-01). |
 | `test_visualization.py` | The visualization module — trading network, price/volume, spatial distribution, and KPI figure generation. |
 
 ## Other validation entry points
@@ -48,7 +48,7 @@ contract; run the complete suite and report the installed-version count.
 Analytics tests currently provide smoke coverage only and should not be cited
 as validation of unsupported economic metrics.
 
-- `docs/validation-fix-plan.md` — the defect-by-defect audit and fix record for this restoration, including the paper correspondence for each fix and the known gaps not yet addressed.
-- `docs/training-benchmarks.md` — measured real-training wall-clock costs on this hardware.
+- `docs/thesis/validation-fix-plan.md` — the defect-by-defect audit and fix record for this restoration, including the paper correspondence for each fix and the known gaps not yet addressed.
+- `docs/thesis/training-benchmarks.md` — measured real-training wall-clock costs on this hardware.
 - `docs/guidelines.md` — coding guidelines.
 - `notebooks/README.md` — how to run the case-study notebooks.

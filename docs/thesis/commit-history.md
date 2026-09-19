@@ -331,7 +331,7 @@ gets real held-out content.
   synced folders like OneDrive) and `MARLEM_KEEP_RAY_ALIVE` (suppress
   `ray.shutdown()` between sequential `trainer.train()` calls within one
   process).
-- New `docs/methodology-baseline.md`: the methodology description
+- New `docs/thesis/methodology-baseline.md`: the methodology description
   referenced throughout this doc.
 - New `tests/test_methodology.py` (11 tests): locks in the case6 factory
   matching the paper table, forecast noise being seeded/bounded/
@@ -411,8 +411,8 @@ literal paper-faithful behavior, not touched here.
 existed in `tests/`; `notebooks/README.md` referenced a nonexistent
 `cases/` Python package — both pre-existing rot from the original repo.
 Rewritten to accurately describe the real suite and the real 7 notebooks.
-Adds `docs/validation-fix-plan.md` (P0–P3 defect tracker) and
-`docs/training-benchmarks.md` (this machine's measured `RLTrainer`
+Adds `docs/thesis/validation-fix-plan.md` (P0–P3 defect tracker) and
+`docs/thesis/training-benchmarks.md` (this machine's measured `RLTrainer`
 timings), both referenced elsewhere but never actually written until now.
 
 *(This describes the fully restored, methodology-hardened repository in one
