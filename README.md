@@ -1,6 +1,7 @@
 <img src="./img/00-uniandes.png" align="center" width="1500" alt="results">
 
 # MARLEM: Multi-Agent Reinforcement Learning Simulation Framework for Implicit Cooperation in Decentralized Local Energy Markets
+<!-- smoke test edit: verifying Claude Desktop UI diff rendering (2026-09-08) -->
 
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
@@ -331,10 +332,9 @@ The framework includes visualization tools in `src/visualization/` for:
 
 Contributions to this project are welcome! When contributing:
 
-1. Follow the coding guidelines in [`docs/guidelines.md`](docs/guidelines.md)
-2. Ensure all tests pass: `python -m pytest tests/`
-3. Maintain code coverage and documentation
-4. Follow the project structure and design patterns
+1. Ensure all tests pass: `python -m pytest tests/`
+2. Maintain code coverage and documentation
+3. Follow the project structure and design patterns
 
 For major changes or new features, please open an issue first to discuss the proposed changes.
 
