@@ -143,6 +143,7 @@ class RLInference:
 
                 # DTDE: Each agent has its own RL module
                 if isinstance(self.rl_module, MultiRLModule):
+                    # FAULT I-61 [D2] Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` …
                     for agent_id, agent_obs in obs.items():
                         # Convert to torch tensor and add batch dimension
                         obs_batch = {Columns.OBS: torch.from_numpy(agent_obs).unsqueeze(0)}
@@ -232,6 +233,7 @@ class RLInference:
                     grid_balance_history.append(info.get("grid_balance", 0.0))
 
                     if "dso_stats" in info:
+                        # FAULT I-61 [D2] Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` …
                         dso_stats_history.append(info["dso_stats"])
 
                 # STEP 8. Check termination

@@ -65,6 +65,14 @@ flowchart LR
 
 **Code links** open the exact lines in `src_thesis/` as of 2026-09-23 (the original code). Line numbers shift once a step edits that file, so update the links when you close a step.
 
+**Markers in the code.** Each issue location in `src_thesis/` carries a one-line comment directly above it. It uses the same ID and step as this plan:
+
+- `# FAULT I-12 [A5] …` for ❌ issues (red)
+- `# DEVIATION I-14 [A5] …` for ⚠️ issues (amber)
+- `# DECIDE I-16 [A5] …` for ❓ issues, where the paper is silent (blue)
+
+The Todo Tree extension highlights these lines, marks them on the scrollbar, and lists them all in its sidebar tree grouped by tag. When an issue is fixed or decided, delete its marker in the same commit. The doc links point to the code line *below* each marker. The markers were inserted on 2026-09-24, and every link was shifted to match.
+
 **Status values:** `open` → `agreed` (plan and test agreed) → `fixed` / `decided` / `wontfix`.
 
 **Origin:** Paper = the paper's method is unsound or silent. Fidelity = the code deviates from the paper. Code = an internal code defect where the paper is silent.
@@ -100,7 +108,7 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
 | I-52 | Code | ❌ | No functioning test gate: tests without assertions, fixtures that fail, signatures that have drifted | [test_battery.py:L13-L62](../../../tests/test_battery.py#L13-L62)<br>[test_checkpoint.py](../../../tests/test_checkpoint.py) | — | — | open |
-| I-53 | Code | ⚠️ | Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults) | [network.py:L38](../../../src_thesis/adapters/grid/network.py#L38)<br>[network.py:L95-L96](../../../src_thesis/adapters/grid/network.py#L95-L96)<br>[base.py:L56](../../../src_thesis/marketplace/grid/base.py#L56) | — | — | open |
+| I-53 | Code | ⚠️ | Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults) | [network.py:L39](../../../src_thesis/adapters/grid/network.py#L39)<br>[network.py:L98-L99](../../../src_thesis/adapters/grid/network.py#L98-L99)<br>[base.py:L57](../../../src_thesis/marketplace/grid/base.py#L57) | — | — | open |
 
 ### A1. Episode loop
 
@@ -111,11 +119,11 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-01 | Fidelity | ❌ | Only 23 of 24 periods run: termination is checked after the step increment against `max_steps − 1` | [lem.py:L443-L453](../../../src_thesis/marketplace/lem.py#L443-L453) | T1 | 2.11 | open |
-| I-02 | Fidelity | ❌ | `is_terminal` is never true, so the terminal unmet-demand penalty never applies | [lem.py:L430](../../../src_thesis/marketplace/lem.py#L430)<br>[reward.py:L207-L214](../../../src_thesis/marketplace/reward.py#L207-L214) | T2 | 2.10 | open |
-| I-03 | Code | ⚠️ | `reset(seed=None)` falls back to the config seed, so every episode is identical | [lem.py:L272-L274](../../../src_thesis/marketplace/lem.py#L272-L274) | C | 2.11 | open |
-| I-04 | Code | ⚠️ | `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute | [lem.py:L67](../../../src_thesis/marketplace/lem.py#L67)<br>[lem.py:L507-L514](../../../src_thesis/marketplace/lem.py#L507-L514) | C | 2.11 | open |
-| I-78 | Fidelity | ⚠️ | Invalid actions raise `ValueError` instead of being dropped (Alg. 1 `ValidateOrder`) | [lem.py:L342-L343](../../../src_thesis/marketplace/lem.py#L342-L343) | C | 2.2 | open |
+| I-01 | Fidelity | ❌ | Only 23 of 24 periods run: termination is checked after the step increment against `max_steps − 1` | [lem.py:L459-L469](../../../src_thesis/marketplace/lem.py#L459-L469) | T1 | 2.11 | open |
+| I-02 | Fidelity | ❌ | `is_terminal` is never true, so the terminal unmet-demand penalty never applies | [lem.py:L444](../../../src_thesis/marketplace/lem.py#L444)<br>[reward.py:L207-L214](../../../src_thesis/marketplace/reward.py#L207-L214) | T2 | 2.10 | open |
+| I-03 | Code | ⚠️ | `reset(seed=None)` falls back to the config seed, so every episode is identical | [lem.py:L276-L278](../../../src_thesis/marketplace/lem.py#L276-L278) | C | 2.11 | open |
+| I-04 | Code | ⚠️ | `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute | [lem.py:L69](../../../src_thesis/marketplace/lem.py#L69)<br>[lem.py:L525-L532](../../../src_thesis/marketplace/lem.py#L525-L532) | C | 2.11 | open |
+| I-78 | Fidelity | ⚠️ | Invalid actions raise `ValueError` instead of being dropped (Alg. 1 `ValidateOrder`) | [lem.py:L349-L350](../../../src_thesis/marketplace/lem.py#L349-L350) | C | 2.2 | open |
 
 ### A2. Inputs: profiles and units
 
@@ -126,9 +134,9 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-05 | Code | ⚠️ | Profiles passed to `DERAgent(...)` are overwritten at `reset()` | [lem.py:L280-L293](../../../src_thesis/marketplace/lem.py#L280-L293) | T11 | 2.11 | open |
-| I-06 | Fidelity | ⚠️ | CSV profiles use a random column and random scale per reset. Procedural G is additive, not eq. 17's multiplicative form | [base.py:L31-L43](../../../src_thesis/adapters/profiles/base.py#L31-L43)<br>[der.py:L119-L131](../../../src_thesis/adapters/profiles/der.py#L119-L131)<br>[der.py:L172-L198](../../../src_thesis/adapters/profiles/der.py#L172-L198) | C | 2.11 | open |
-| I-56 | Paper | ❓ | Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh). There is no explicit Δt | [der.py:L35](../../../src_thesis/marl/agents/der.py#L35)<br>[matching.py:L34-L37](../../../src_thesis/marketplace/market/matching.py#L34-L37) | — | — | open |
+| I-05 | Code | ⚠️ | Profiles passed to `DERAgent(...)` are overwritten at `reset()` | [lem.py:L285-L299](../../../src_thesis/marketplace/lem.py#L285-L299) | T11 | 2.11 | open |
+| I-06 | Fidelity | ⚠️ | CSV profiles use a random column and random scale per reset. Procedural G is additive, not eq. 17's multiplicative form | [base.py:L32-L44](../../../src_thesis/adapters/profiles/base.py#L32-L44)<br>[der.py:L120-L132](../../../src_thesis/adapters/profiles/der.py#L120-L132)<br>[der.py:L174-L200](../../../src_thesis/adapters/profiles/der.py#L174-L200) | C | 2.11 | open |
+| I-56 | Paper | ❓ | Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh). There is no explicit Δt | [der.py:L36](../../../src_thesis/marl/agents/der.py#L36)<br>[matching.py:L35-L38](../../../src_thesis/marketplace/market/matching.py#L35-L38) | — | — | open |
 
 ### A3. Action → order
 
@@ -139,11 +147,11 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-08 | Fidelity | ❌ | Feasibility clipping does not implement eq. 15: it treats the requested `q` as the need | [der.py:L196-L228](../../../src_thesis/marl/agents/der.py#L196-L228) | C | 2.1 | open |
-| I-09 | Fidelity | ❌ | `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong direction | [der.py:L196](../../../src_thesis/marl/agents/der.py#L196)<br>[lem.py:L358](../../../src_thesis/marketplace/lem.py#L358) | T8 | 2.1 | open |
-| I-10 | Fidelity | ⚠️ | β = "no preference" is reachable only at the exact upper bound | [action.py:L35-L44](../../../src_thesis/marketplace/action.py#L35-L44)<br>[action.py:L68-L89](../../../src_thesis/marketplace/action.py#L68-L89)<br>[lem.py:L359](../../../src_thesis/marketplace/lem.py#L359) | C | 2.1 | open |
-| I-11 | Paper | ❓ | No "submit nothing" action when `q_min > 0` | [der.py:L231-L232](../../../src_thesis/marl/agents/der.py#L231-L232) | — | 2.1 | open |
-| I-77 | Fidelity | ⚠️ | Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score | [der.py:L136-L159](../../../src_thesis/marl/agents/der.py#L136-L159)<br>[lem.py:L362-L365](../../../src_thesis/marketplace/lem.py#L362-L365) | C | 2.2 | open |
+| I-08 | Fidelity | ❌ | Feasibility clipping does not implement eq. 15: it treats the requested `q` as the need | [der.py:L202-L234](../../../src_thesis/marl/agents/der.py#L202-L234) | C | 2.1 | open |
+| I-09 | Fidelity | ❌ | `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong direction | [der.py:L202](../../../src_thesis/marl/agents/der.py#L202)<br>[lem.py:L366](../../../src_thesis/marketplace/lem.py#L366) | T8 | 2.1 | open |
+| I-10 | Fidelity | ⚠️ | β = "no preference" is reachable only at the exact upper bound | [action.py:L36-L45](../../../src_thesis/marketplace/action.py#L36-L45)<br>[action.py:L70-L91](../../../src_thesis/marketplace/action.py#L70-L91)<br>[lem.py:L368](../../../src_thesis/marketplace/lem.py#L368) | C | 2.1 | open |
+| I-11 | Paper | ❓ | No "submit nothing" action when `q_min > 0` | [der.py:L238-L239](../../../src_thesis/marl/agents/der.py#L238-L239) | — | 2.1 | open |
+| I-77 | Fidelity | ⚠️ | Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score | [der.py:L140-L163](../../../src_thesis/marl/agents/der.py#L140-L163)<br>[lem.py:L372-L375](../../../src_thesis/marketplace/lem.py#L372-L375) | C | 2.2 | open |
 
 ### A4. Pricing
 
@@ -154,8 +162,8 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-13 | Fidelity | ❌ | `SELLER` pricing returns the buyer's price (positional-argument bug) | [mechanism.py:L69-L84](../../../src_thesis/marketplace/market/mechanism.py#L69-L84)<br>[matching.py:L324-L326](../../../src_thesis/marketplace/market/matching.py#L324-L326) | T6 | 2.3 | open |
-| I-17 | Fidelity | ❌ | `BID_ASK_SPREAD` pricing receives `market_price` as `factor`, so it returns the buyer's price. The mechanism is also absent from §3.3.3 | [mechanism.py:L87-L111](../../../src_thesis/marketplace/market/mechanism.py#L87-L111)<br>[matching.py:L324-L326](../../../src_thesis/marketplace/market/matching.py#L324-L326) | T12 | 2.3 | open |
+| I-13 | Fidelity | ❌ | `SELLER` pricing returns the buyer's price (positional-argument bug) | [mechanism.py:L70-L85](../../../src_thesis/marketplace/market/mechanism.py#L70-L85)<br>[matching.py:L330-L332](../../../src_thesis/marketplace/market/matching.py#L330-L332) | T6 | 2.3 | open |
+| I-17 | Fidelity | ❌ | `BID_ASK_SPREAD` pricing receives `market_price` as `factor`, so it returns the buyer's price. The mechanism is also absent from §3.3.3 | [mechanism.py:L89-L113](../../../src_thesis/marketplace/market/mechanism.py#L89-L113)<br>[matching.py:L330-L332](../../../src_thesis/marketplace/market/matching.py#L330-L332) | T12 | 2.3 | open |
 
 ### A5. Matching
 
@@ -166,12 +174,12 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-12 | Code | ❌ | Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones | [matching.py:L361-L362](../../../src_thesis/marketplace/market/matching.py#L361-L362)<br>[dso.py:L212-L253](../../../src_thesis/marketplace/dso/dso.py#L212-L253)<br>[lem.py:L424-L431](../../../src_thesis/marketplace/lem.py#L424-L431) | T3 | 2.2 | open |
-| I-14 | Fidelity | ⚠️ | P2P loss is topped up from the DSO. The buyer's `energy_bought` counts `q + loss` | [matching.py:L361](../../../src_thesis/marketplace/market/matching.py#L361)<br>[lem.py:L392-L411](../../../src_thesis/marketplace/lem.py#L392-L411) | C | 2.2 | open |
-| I-15 | Paper | ❓ | Stage 1 clears DSO-preferred orders with the DSO before any P2P matching | [matching.py:L620-L647](../../../src_thesis/marketplace/market/matching.py#L620-L647) | — | 2.2 | open |
-| I-16 | Paper | ❓ | The clearing price is a VWAP that includes DSO trades | [matching.py:L399](../../../src_thesis/marketplace/market/matching.py#L399) | — | 2.2 | open |
-| I-54 | Code | ⚠️ | DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores direction | [dso.py:L190-L272](../../../src_thesis/marketplace/dso/dso.py#L190-L272)<br>[dso.py:L347-L392](../../../src_thesis/marketplace/dso/dso.py#L347-L392) | — | 2.2 | open |
-| I-55 | Code | ❌ | The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade | [matching.py:L172](../../../src_thesis/marketplace/market/matching.py#L172)<br>[matching.py:L312-L313](../../../src_thesis/marketplace/market/matching.py#L312-L313) | C | 2.2 | open |
+| I-12 | Code | ❌ | Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones | [matching.py:L370-L371](../../../src_thesis/marketplace/market/matching.py#L370-L371)<br>[dso.py:L215-L256](../../../src_thesis/marketplace/dso/dso.py#L215-L256)<br>[lem.py:L437-L445](../../../src_thesis/marketplace/lem.py#L437-L445) | T3 | 2.2 | open |
+| I-14 | Fidelity | ⚠️ | P2P loss is topped up from the DSO. The buyer's `energy_bought` counts `q + loss` | [matching.py:L370](../../../src_thesis/marketplace/market/matching.py#L370)<br>[lem.py:L404-L423](../../../src_thesis/marketplace/lem.py#L404-L423) | C | 2.2 | open |
+| I-15 | Paper | ❓ | Stage 1 clears DSO-preferred orders with the DSO before any P2P matching | [matching.py:L635-L663](../../../src_thesis/marketplace/market/matching.py#L635-L663) | — | 2.2 | open |
+| I-16 | Paper | ❓ | The clearing price is a VWAP that includes DSO trades | [matching.py:L410](../../../src_thesis/marketplace/market/matching.py#L410) | — | 2.2 | open |
+| I-54 | Code | ⚠️ | DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores direction | [dso.py:L192-L275](../../../src_thesis/marketplace/dso/dso.py#L192-L275)<br>[dso.py:L356-L401](../../../src_thesis/marketplace/dso/dso.py#L356-L401) | — | 2.2 | open |
+| I-55 | Code | ❌ | The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade | [matching.py:L174](../../../src_thesis/marketplace/market/matching.py#L174)<br>[matching.py:L317-L318](../../../src_thesis/marketplace/market/matching.py#L317-L318) | C | 2.2 | open |
 
 ### A6. DSO: balance and fees
 
@@ -182,13 +190,13 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-24 | Fidelity | ❌ | `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default | [matching.py:L272-L280](../../../src_thesis/marketplace/market/matching.py#L272-L280)<br>[matching.py:L388](../../../src_thesis/marketplace/market/matching.py#L388) | T4 | 2.4 | open |
-| I-25 | Code | ❓ | The B_DSO sign convention is inconsistent between `match_orders` and `_match_preferred_partners` | [matching.py:L272-L280](../../../src_thesis/marketplace/market/matching.py#L272-L280)<br>[matching.py:L640-L647](../../../src_thesis/marketplace/market/matching.py#L640-L647) | C | 2.4 | open |
-| I-28 | Fidelity | ❌ | Grid fees are computed but never charged to anyone | [dso.py:L342-L343](../../../src_thesis/marketplace/dso/dso.py#L342-L343)<br>[matching.py:L333-L346](../../../src_thesis/marketplace/market/matching.py#L333-L346) | C | 2.4 | open |
-| I-29 | Paper | ❓ | `F_trans` has no formula in the paper; the code uses 0 | [dso.py:L293](../../../src_thesis/marketplace/dso/dso.py#L293) | — | 2.4 | open |
-| I-30 | Fidelity | ⚠️ | `F_volt` and `F_thermal` caps (0.2, 0.3) differ from or are undefined in the paper | [dso.py:L326-L333](../../../src_thesis/marketplace/dso/dso.py#L326-L333) | C | 2.4 | open |
-| I-31 | Fidelity | ⚠️ | `F_imb` is effectively always 0 | [dso.py:L336-L339](../../../src_thesis/marketplace/dso/dso.py#L336-L339)<br>[dso.py:L394-L442](../../../src_thesis/marketplace/dso/dso.py#L394-L442) | C | 2.4 | open |
-| I-74 | Paper | ⚠️ | Thermal-fee threshold (20 %) sits below the congestion threshold (80 %) | [dso.py:L65-L67](../../../src_thesis/marketplace/dso/dso.py#L65-L67) | — | 2.4 | open |
+| I-24 | Fidelity | ❌ | `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default | [matching.py:L275-L283](../../../src_thesis/marketplace/market/matching.py#L275-L283)<br>[matching.py:L398](../../../src_thesis/marketplace/market/matching.py#L398) | T4 | 2.4 | open |
+| I-25 | Code | ❓ | The B_DSO sign convention is inconsistent between `match_orders` and `_match_preferred_partners` | [matching.py:L275-L283](../../../src_thesis/marketplace/market/matching.py#L275-L283)<br>[matching.py:L656-L663](../../../src_thesis/marketplace/market/matching.py#L656-L663) | C | 2.4 | open |
+| I-28 | Fidelity | ❌ | Grid fees are computed but never charged to anyone | [dso.py:L350-L351](../../../src_thesis/marketplace/dso/dso.py#L350-L351)<br>[matching.py:L340-L353](../../../src_thesis/marketplace/market/matching.py#L340-L353) | C | 2.4 | open |
+| I-29 | Paper | ❓ | `F_trans` has no formula in the paper; the code uses 0 | [dso.py:L297](../../../src_thesis/marketplace/dso/dso.py#L297) | — | 2.4 | open |
+| I-30 | Fidelity | ⚠️ | `F_volt` and `F_thermal` caps (0.2, 0.3) differ from or are undefined in the paper | [dso.py:L332-L339](../../../src_thesis/marketplace/dso/dso.py#L332-L339) | C | 2.4 | open |
+| I-31 | Fidelity | ⚠️ | `F_imb` is effectively always 0 | [dso.py:L343-L346](../../../src_thesis/marketplace/dso/dso.py#L343-L346)<br>[dso.py:L403-L451](../../../src_thesis/marketplace/dso/dso.py#L403-L451) | C | 2.4 | open |
+| I-74 | Paper | ⚠️ | Thermal-fee threshold (20 %) sits below the congestion threshold (80 %) | [dso.py:L66-L68](../../../src_thesis/marketplace/dso/dso.py#L66-L68) | — | 2.4 | open |
 
 ### A7. Grid
 
@@ -199,11 +207,11 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-32 | Fidelity | ❌ | Only Stage-1 trades update edge flows | [matching.py:L589](../../../src_thesis/marketplace/market/matching.py#L589)<br>[matching.py:L282-L370](../../../src_thesis/marketplace/market/matching.py#L282-L370) | C | 2.6 | open |
-| I-33 | Fidelity | ❌ | Edge flows start random and accumulate over the episode instead of being per period | [network.py:L85](../../../src_thesis/adapters/grid/network.py#L85)<br>[network.py:L325](../../../src_thesis/adapters/grid/network.py#L325) | T10 | 2.6 | open |
-| I-34 | Code | ⚠️ | Loss factor κ = 0.03 is hard-coded | [network.py:L331-L348](../../../src_thesis/adapters/grid/network.py#L331-L348) | C | 2.6 | open |
-| I-57 | Fidelity | ❌ | IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused | [config.py:L29-L39](../../../src_thesis/marketplace/grid/config.py#L29-L39)<br>[config.py:L43-L75](../../../src_thesis/marketplace/grid/config.py#L43-L75)<br>[network.py:L133](../../../src_thesis/adapters/grid/network.py#L133) | T13 | 2.6 | open |
-| I-70 | Paper | ❓ | Grid physics scope: linear unbounded losses, `V_drop = f·d`, transport flows. "High-fidelity" is an overclaim | [network.py:L331-L348](../../../src_thesis/adapters/grid/network.py#L331-L348)<br>[dso.py:L326-L328](../../../src_thesis/marketplace/dso/dso.py#L326-L328) | — | 3 | open |
+| I-32 | Fidelity | ❌ | Only Stage-1 trades update edge flows | [matching.py:L603](../../../src_thesis/marketplace/market/matching.py#L603)<br>[matching.py:L286-L379](../../../src_thesis/marketplace/market/matching.py#L286-L379) | C | 2.6 | open |
+| I-33 | Fidelity | ❌ | Edge flows start random and accumulate over the episode instead of being per period | [network.py:L87](../../../src_thesis/adapters/grid/network.py#L87)<br>[network.py:L330](../../../src_thesis/adapters/grid/network.py#L330) | T10 | 2.6 | open |
+| I-34 | Code | ⚠️ | Loss factor κ = 0.03 is hard-coded | [network.py:L338-L355](../../../src_thesis/adapters/grid/network.py#L338-L355) | C | 2.6 | open |
+| I-57 | Fidelity | ❌ | IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused | [config.py:L30-L40](../../../src_thesis/marketplace/grid/config.py#L30-L40)<br>[config.py:L45-L77](../../../src_thesis/marketplace/grid/config.py#L45-L77)<br>[network.py:L137](../../../src_thesis/adapters/grid/network.py#L137) | T13 | 2.6 | open |
+| I-70 | Paper | ❓ | Grid physics scope: linear unbounded losses, `V_drop = f·d`, transport flows. "High-fidelity" is an overclaim | [network.py:L338-L355](../../../src_thesis/adapters/grid/network.py#L338-L355)<br>[dso.py:L332-L334](../../../src_thesis/marketplace/dso/dso.py#L332-L334) | — | 3 | open |
 
 ### A8. Settlement: energy and cash
 
@@ -214,15 +222,15 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-18 | Fidelity | ❌ | Battery dispatch has the trade term's sign reversed: selling charges the battery | [der.py:L293-L305](../../../src_thesis/marl/agents/der.py#L293-L305) | T7 | 2.5 | open |
-| I-19 | Fidelity | ❌ | A charge is refused entirely if it would reach SoC_max; there is no partial fill | [battery.py:L95-L111](../../../src_thesis/marl/agents/battery.py#L95-L111)<br>[battery.py:L131-L156](../../../src_thesis/marl/agents/battery.py#L131-L156) | C | 2.5 | open |
-| I-20 | Fidelity | ❌ | Discharge efficiency is applied in the wrong direction (`·η` instead of `/η`) | [battery.py:L158-L176](../../../src_thesis/marl/agents/battery.py#L158-L176) | C | 2.5 | open |
-| I-21 | Code | ⚠️ | Demand satisfaction ignores battery discharge | [der.py:L250-L262](../../../src_thesis/marl/agents/der.py#L250-L262) | C | 2.5 | open |
-| I-22 | Paper | ❓ | No household energy-conservation identity is enforced | [lem.py:L391-L411](../../../src_thesis/marketplace/lem.py#L391-L411) | — | 2.5 | open |
-| I-23 | Fidelity | ❌ | `B_grid` (eq. 20) is never computed. The "grid balance" observation is `dso.balance` | [lem.py:L472](../../../src_thesis/marketplace/lem.py#L472)<br>[observation.py:L285](../../../src_thesis/marketplace/observation.py#L285) | C | 2.6 | open |
-| I-26 | Fidelity | ⚠️ | `agent.balance = sold − bought`, not eq. 13 | [lem.py:L440](../../../src_thesis/marketplace/lem.py#L440)<br>[matching.py:L440-L459](../../../src_thesis/marketplace/market/matching.py#L440-L459) | C | 2.5 | open |
-| I-27 | Fidelity | ❌ | Agent profit (eq. 14) is never updated | [der.py:L61](../../../src_thesis/marl/agents/der.py#L61)<br>[der.py:L109](../../../src_thesis/marl/agents/der.py#L109)<br>[observation.py:L342](../../../src_thesis/marketplace/observation.py#L342) | T5 | 2.5 | open |
-| I-71 | Paper | ❓ | Battery model has no charge/discharge power limit (claimed in the text), and eq. 15 ignores efficiency | [battery.py:L131-L176](../../../src_thesis/marl/agents/battery.py#L131-L176)<br>[battery.py:L205-L214](../../../src_thesis/marl/agents/battery.py#L205-L214) | — | 2.5 | open |
+| I-18 | Fidelity | ❌ | Battery dispatch has the trade term's sign reversed: selling charges the battery | [der.py:L302-L314](../../../src_thesis/marl/agents/der.py#L302-L314) | T7 | 2.5 | open |
+| I-19 | Fidelity | ❌ | A charge is refused entirely if it would reach SoC_max; there is no partial fill | [battery.py:L96-L112](../../../src_thesis/marl/agents/battery.py#L96-L112)<br>[battery.py:L134-L159](../../../src_thesis/marl/agents/battery.py#L134-L159) | C | 2.5 | open |
+| I-20 | Fidelity | ❌ | Discharge efficiency is applied in the wrong direction (`·η` instead of `/η`) | [battery.py:L162-L180](../../../src_thesis/marl/agents/battery.py#L162-L180) | C | 2.5 | open |
+| I-21 | Code | ⚠️ | Demand satisfaction ignores battery discharge | [der.py:L258-L270](../../../src_thesis/marl/agents/der.py#L258-L270) | C | 2.5 | open |
+| I-22 | Paper | ❓ | No household energy-conservation identity is enforced | [lem.py:L402-L423](../../../src_thesis/marketplace/lem.py#L402-L423) | — | 2.5 | open |
+| I-23 | Fidelity | ❌ | `B_grid` (eq. 20) is never computed. The "grid balance" observation is `dso.balance` | [lem.py:L489](../../../src_thesis/marketplace/lem.py#L489)<br>[observation.py:L287](../../../src_thesis/marketplace/observation.py#L287) | C | 2.6 | open |
+| I-26 | Fidelity | ⚠️ | `agent.balance = sold − bought`, not eq. 13 | [lem.py:L455](../../../src_thesis/marketplace/lem.py#L455)<br>[matching.py:L453-L472](../../../src_thesis/marketplace/market/matching.py#L453-L472) | C | 2.5 | open |
+| I-27 | Fidelity | ❌ | Agent profit (eq. 14) is never updated | [der.py:L63](../../../src_thesis/marl/agents/der.py#L63)<br>[der.py:L112](../../../src_thesis/marl/agents/der.py#L112)<br>[observation.py:L347](../../../src_thesis/marketplace/observation.py#L347) | T5 | 2.5 | open |
+| I-71 | Paper | ❓ | Battery model has no charge/discharge power limit (claimed in the text), and eq. 15 ignores efficiency | [battery.py:L134-L180](../../../src_thesis/marl/agents/battery.py#L134-L180)<br>[battery.py:L210-L219](../../../src_thesis/marl/agents/battery.py#L210-L219) | — | 2.5 | open |
 
 ### A9. Reputation
 
@@ -233,8 +241,8 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-07 | Code | ⚠️ | All agents get the same initial reputation (the RNG is reseeded before each draw) | [lem.py:L283](../../../src_thesis/marketplace/lem.py#L283)<br>[reputation.py:L56-L68](../../../src_thesis/marketplace/market/reputation.py#L56-L68) | C | 2.7 | open |
-| I-38 | Code | ⚠️ | Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day | [reputation.py:L129](../../../src_thesis/marketplace/market/reputation.py#L129)<br>[reputation.py:L87](../../../src_thesis/marketplace/market/reputation.py#L87) | C | 2.7 | open |
+| I-07 | Code | ⚠️ | All agents get the same initial reputation (the RNG is reseeded before each draw) | [lem.py:L289](../../../src_thesis/marketplace/lem.py#L289)<br>[reputation.py:L57-L69](../../../src_thesis/marketplace/market/reputation.py#L57-L69) | C | 2.7 | open |
+| I-38 | Code | ⚠️ | Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day | [reputation.py:L132](../../../src_thesis/marketplace/market/reputation.py#L132)<br>[reputation.py:L89](../../../src_thesis/marketplace/market/reputation.py#L89) | C | 2.7 | open |
 
 ### A10. Ledger
 
@@ -245,7 +253,7 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-66 | Code | ⚠️ | The block hash omits loss and fees, and blocks are forced every step (in-memory PoW, not consensus) | [validation.py:L25-L34](../../../src_thesis/marketplace/market/validation.py#L25-L34)<br>[matching.py:L410](../../../src_thesis/marketplace/market/matching.py#L410) | — | 2.2 | open |
+| I-66 | Code | ⚠️ | The block hash omits loss and fees, and blocks are forced every step (in-memory PoW, not consensus) | [validation.py:L26-L35](../../../src_thesis/marketplace/market/validation.py#L26-L35)<br>[matching.py:L422](../../../src_thesis/marketplace/market/matching.py#L422) | — | 2.2 | open |
 
 ## 4. Stage B: Level 2, Implicit Cooperation
 
@@ -260,11 +268,11 @@ The KPIs computed from Stage A's outcomes. They can only be validated once A is 
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-35 | Fidelity | ❌ | "Supply-demand imbalance" is volume/C, not `\|Σbuy − Σsell\|/C`. The coordination score inherits this | [implicit_cooperation.py:L122-L123](../../../src_thesis/cooperation/implicit_cooperation.py#L122-L123)<br>[implicit_cooperation.py:L141-L142](../../../src_thesis/cooperation/implicit_cooperation.py#L141-L142) | C | 2.8 | open |
-| I-36 | Paper | ❓ | Social welfare is turnover `Σ p·q`, not surplus | [implicit_cooperation.py:L93](../../../src_thesis/cooperation/implicit_cooperation.py#L93) | — | 2.8 | open |
-| I-37 | Fidelity | ⚠️ | Price volatility is computed over the whole episode, not a window | [implicit_cooperation.py:L104-L105](../../../src_thesis/cooperation/implicit_cooperation.py#L104-L105) | C | 2.8 | open |
-| I-68 | Paper | ❓ | Imbalance (eq. 24) over trades is ≡ 0 by construction. Needs a definition over orders or physical net positions, and a timing (before or after DSO clearing) for `B_grid` | [implicit_cooperation.py:L122-L123](../../../src_thesis/cooperation/implicit_cooperation.py#L122-L123) | — | 3 | open |
-| I-69 | Paper | ⚠️ | "DER self-consumption" is defined as P2P share; the label does not match the quantity | [implicit_cooperation.py:L188](../../../src_thesis/cooperation/implicit_cooperation.py#L188) | — | 2.8 | open |
+| I-35 | Fidelity | ❌ | "Supply-demand imbalance" is volume/C, not `\|Σbuy − Σsell\|/C`. The coordination score inherits this | [implicit_cooperation.py:L127-L128](../../../src_thesis/cooperation/implicit_cooperation.py#L127-L128)<br>[implicit_cooperation.py:L147-L148](../../../src_thesis/cooperation/implicit_cooperation.py#L147-L148) | C | 2.8 | open |
+| I-36 | Paper | ❓ | Social welfare is turnover `Σ p·q`, not surplus | [implicit_cooperation.py:L95](../../../src_thesis/cooperation/implicit_cooperation.py#L95) | — | 2.8 | open |
+| I-37 | Fidelity | ⚠️ | Price volatility is computed over the whole episode, not a window | [implicit_cooperation.py:L107-L108](../../../src_thesis/cooperation/implicit_cooperation.py#L107-L108) | C | 2.8 | open |
+| I-68 | Paper | ❓ | Imbalance (eq. 24) over trades is ≡ 0 by construction. Needs a definition over orders or physical net positions, and a timing (before or after DSO clearing) for `B_grid` | [implicit_cooperation.py:L127-L128](../../../src_thesis/cooperation/implicit_cooperation.py#L127-L128) | — | 3 | open |
+| I-69 | Paper | ⚠️ | "DER self-consumption" is defined as P2P share; the label does not match the quantity | [implicit_cooperation.py:L195](../../../src_thesis/cooperation/implicit_cooperation.py#L195) | — | 2.8 | open |
 
 ### B2. Metrics and plots
 
@@ -275,7 +283,7 @@ The KPIs computed from Stage A's outcomes. They can only be validated once A is 
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-65 | Code | ❌ | `src/analytics` reports welfare, grid and coordination concepts without the required inputs | [market_analytics.py:L123-L136](../../../src_thesis/cooperation/metrics/market_analytics.py#L123-L136) | — | — | open |
+| I-65 | Code | ❌ | `src/analytics` reports welfare, grid and coordination concepts without the required inputs | [market_analytics.py:L124-L137](../../../src_thesis/cooperation/metrics/market_analytics.py#L124-L137) | — | — | open |
 
 ## 5. Stage C: Level 0 agent interface (observation and reward)
 
@@ -290,9 +298,9 @@ These are drawn in Level 0 in Fig. 2 but consume Level 2 KPIs, so they come afte
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-39 | Fidelity | ❌ | Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true future | [lem.py:L65-L66](../../../src_thesis/marketplace/lem.py#L65-L66)<br>[observation.py:L338-L341](../../../src_thesis/marketplace/observation.py#L338-L341) | C | 2.9 | open |
-| I-40 | Paper | ❓ | Observations are raw and unnormalised | [observation.py:L333-L353](../../../src_thesis/marketplace/observation.py#L333-L353) | — | 2.9 | open |
-| I-58 | Code | ⚠️ | The reset observation hard-codes G, D, remaining energy and KPIs to 0 | [observation.py:L195-L257](../../../src_thesis/marketplace/observation.py#L195-L257) | — | 2.9 | open |
+| I-39 | Fidelity | ❌ | Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true future | [lem.py:L66-L67](../../../src_thesis/marketplace/lem.py#L66-L67)<br>[observation.py:L342-L345](../../../src_thesis/marketplace/observation.py#L342-L345) | C | 2.9 | open |
+| I-40 | Paper | ❓ | Observations are raw and unnormalised | [observation.py:L336-L358](../../../src_thesis/marketplace/observation.py#L336-L358) | — | 2.9 | open |
+| I-58 | Code | ⚠️ | The reset observation hard-codes G, D, remaining energy and KPIs to 0 | [observation.py:L196-L258](../../../src_thesis/marketplace/observation.py#L196-L258) | — | 2.9 | open |
 
 ### C2. Reward
 
@@ -310,7 +318,7 @@ These are drawn in Level 0 in Fig. 2 but consume Level 2 KPIs, so they come afte
 | I-45 | Code | ⚠️ | `_w_local` is overwritten 0.7 → 0.3, so `r_trade = 0.3ρ_local + 0.3ρ_dso` (the paper prints 0.3/0.3) | [reward.py:L79](../../../src_thesis/marketplace/reward.py#L79)<br>[reward.py:L93](../../../src_thesis/marketplace/reward.py#L93) | C | 2.10 | open |
 | I-46 | Fidelity | ⚠️ | The unmet-demand penalty uses `p_dso`, not the paper's `p_no_trades = 5` | [reward.py:L207-L214](../../../src_thesis/marketplace/reward.py#L207-L214)<br>[reward.py:L226](../../../src_thesis/marketplace/reward.py#L226) | C | 2.10 | open |
 | I-47 | Paper | ❓ | The no-trade guard returns a fixed −4.46 before any other term | [reward.py:L135-L136](../../../src_thesis/marketplace/reward.py#L135-L136) | — | 2.10 | open |
-| I-75 | Paper | ❓ | `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported | [reward.py:L170-L192](../../../src_thesis/marketplace/reward.py#L170-L192)<br>[implicit_cooperation.py:L93](../../../src_thesis/cooperation/implicit_cooperation.py#L93) | — | 3 | open |
+| I-75 | Paper | ❓ | `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported | [reward.py:L170-L192](../../../src_thesis/marketplace/reward.py#L170-L192)<br>[implicit_cooperation.py:L95](../../../src_thesis/cooperation/implicit_cooperation.py#L95) | — | 3 | open |
 | I-76 | Paper | ❓ | `R_base` components have no formulas in the paper; the code is the only specification | [reward.py:L148-L166](../../../src_thesis/marketplace/reward.py#L148-L166) | — | 2.10 | open |
 | I-79 | Fidelity | ⚠️ | `f_contrib` grid term is a heuristic, not [P2]'s marginal `−∂\|B_grid\|/∂a_i` | [reward.py:L472-L484](../../../src_thesis/marketplace/reward.py#L472-L484) | C | 2.10 | open |
 
@@ -327,13 +335,13 @@ The learning layer, last. It needs a correct environment, observations and rewar
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-48 | Fidelity | ❌ | CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained | [ctde.py:L47-L56](../../../src_thesis/marl/ctde.py#L47-L56)<br>[ctde.py:L74-L87](../../../src_thesis/marl/ctde.py#L74-L87)<br>[ctde.py:L124-L125](../../../src_thesis/marl/ctde.py#L124-L125) | C | 2.12 | open |
-| I-49 | Code | ⚠️ | The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10 | [train.py:L180-L195](../../../src_thesis/marl/train.py#L180-L195)<br>[train.py:L216](../../../src_thesis/marl/train.py#L216) | C | 2.12 | open |
-| I-50 | Paper | ❓ | The budget is counted in training iterations, but the paper says "10 000 episodes" | [train.py:L440](../../../src_thesis/marl/train.py#L440) | — | 2.12 | open |
-| I-59 | Code | ❌ | Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys | [train.py:L646](../../../src_thesis/marl/train.py#L646)<br>[train.py:L681](../../../src_thesis/marl/train.py#L681)<br>[train.py:L702](../../../src_thesis/marl/train.py#L702) | — | 2.12 | open |
-| I-60 | Paper | ❓ | CTCE is a centralized-information baseline, not a true upper bound. The group reward sum scales with N | [train.py:L684](../../../src_thesis/marl/train.py#L684) | — | 2.12 | open |
-| I-62 | Code | ⚠️ | Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown` | [train.py:L116](../../../src_thesis/marl/train.py#L116)<br>[train.py:L285-L294](../../../src_thesis/marl/train.py#L285-L294)<br>[train.py:L432](../../../src_thesis/marl/train.py#L432)<br>[train.py:L449-L458](../../../src_thesis/marl/train.py#L449-L458) | — | 2.12 | open |
-| I-73 | Paper | ❓ | Cross-paradigm return comparability: group sum vs per-agent returns | [train.py:L684](../../../src_thesis/marl/train.py#L684) | — | 3 | open |
+| I-48 | Fidelity | ❌ | CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained | [ctde.py:L48-L57](../../../src_thesis/marl/ctde.py#L48-L57)<br>[ctde.py:L76-L89](../../../src_thesis/marl/ctde.py#L76-L89)<br>[ctde.py:L127-L128](../../../src_thesis/marl/ctde.py#L127-L128) | C | 2.12 | open |
+| I-49 | Code | ⚠️ | The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10 | [train.py:L182-L197](../../../src_thesis/marl/train.py#L182-L197)<br>[train.py:L219](../../../src_thesis/marl/train.py#L219) | C | 2.12 | open |
+| I-50 | Paper | ❓ | The budget is counted in training iterations, but the paper says "10 000 episodes" | [train.py:L449](../../../src_thesis/marl/train.py#L449) | — | 2.12 | open |
+| I-59 | Code | ❌ | Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys | [train.py:L657](../../../src_thesis/marl/train.py#L657)<br>[train.py:L693](../../../src_thesis/marl/train.py#L693)<br>[train.py:L717](../../../src_thesis/marl/train.py#L717) | — | 2.12 | open |
+| I-60 | Paper | ❓ | CTCE is a centralized-information baseline, not a true upper bound. The group reward sum scales with N | [train.py:L698](../../../src_thesis/marl/train.py#L698) | — | 2.12 | open |
+| I-62 | Code | ⚠️ | Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown` | [train.py:L117](../../../src_thesis/marl/train.py#L117)<br>[train.py:L290-L299](../../../src_thesis/marl/train.py#L290-L299)<br>[train.py:L439](../../../src_thesis/marl/train.py#L439)<br>[train.py:L459-L468](../../../src_thesis/marl/train.py#L459-L468) | — | 2.12 | open |
+| I-73 | Paper | ❓ | Cross-paradigm return comparability: group sum vs per-agent returns | [train.py:L698](../../../src_thesis/marl/train.py#L698) | — | 3 | open |
 
 ### D2. Inference
 
@@ -344,7 +352,7 @@ The learning layer, last. It needs a correct environment, observations and rewar
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-61 | Code | ❌ | Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly | [inference.py:L146-L216](../../../src_thesis/marl/inference.py#L146-L216)<br>[inference.py:L235](../../../src_thesis/marl/inference.py#L235) | — | — | open |
+| I-61 | Code | ❌ | Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly | [inference.py:L147-L217](../../../src_thesis/marl/inference.py#L147-L217)<br>[inference.py:L237](../../../src_thesis/marl/inference.py#L237) | — | — | open |
 
 ### D3. Experiments and reporting
 
@@ -356,10 +364,10 @@ The learning layer, last. It needs a correct environment, observations and rewar
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
 | I-51 | Paper | ❓ | The Case 6 profile-to-agent mapping is unpublished | [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) | — | 2.12 | open |
-| I-63 | Code | ⚠️ | The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding) | [io.py:L111](../../../src_thesis/marketplace/io.py#L111)<br>[io.py:L145-L146](../../../src_thesis/marketplace/io.py#L145-L146)<br>[io.py:L55](../../../src_thesis/marketplace/io.py#L55) | — | — | open |
-| I-64 | Code | ⚠️ | No run manifests, non-learning baselines or multi-seed statistics | [train.py:L439](../../../src_thesis/marl/train.py#L439)<br>[train.py:L391](../../../src_thesis/marl/train.py#L391) | — | — | open |
+| I-63 | Code | ⚠️ | The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding) | [io.py:L113](../../../src_thesis/marketplace/io.py#L113)<br>[io.py:L148-L149](../../../src_thesis/marketplace/io.py#L148-L149)<br>[io.py:L56](../../../src_thesis/marketplace/io.py#L56) | — | — | open |
+| I-64 | Code | ⚠️ | No run manifests, non-learning baselines or multi-seed statistics | [train.py:L447](../../../src_thesis/marl/train.py#L447)<br>[train.py:L397](../../../src_thesis/marl/train.py#L397) | — | — | open |
 | I-67 | Code | ⚠️ | README, notebooks and docs describe a different repository state | [README.md](../../../README.md)<br>tests.md (removed from this repo; see upstream `marlem-main`) | — | — | open |
-| I-72 | Paper | ❓ | [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward | [train.py:L275-L294](../../../src_thesis/marl/train.py#L275-L294)<br>[lem.py:L272-L274](../../../src_thesis/marketplace/lem.py#L272-L274) | — | 3 | open |
+| I-72 | Paper | ❓ | [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward | [train.py:L279-L299](../../../src_thesis/marl/train.py#L279-L299)<br>[lem.py:L276-L278](../../../src_thesis/marketplace/lem.py#L276-L278) | — | 3 | open |
 | I-80 | Paper | ❓ | [P2] evaluation metric `B_index` is undefined in the paper and absent from the code | — | C | 2.12 | open |
 
 ## 7. Progress summary

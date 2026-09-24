@@ -32,6 +32,7 @@ class DERAgent:
 
         Args:
             id: Unique identifier for the agent
+            # DECIDE I-56 [A2] Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
             capacity: Maximum capacity of the DER (W)
             battery: Optional battery object
             node_id: Optional node ID in the grid network
@@ -58,6 +59,7 @@ class DERAgent:
 
         # Attributes from the environment
         self.balance: float = 0.0
+        # FAULT I-27 [A8] Agent profit (eq
         self.profit: float = 0.0
         self.reputation: float = 0.5
 
@@ -106,6 +108,7 @@ class DERAgent:
 
         # Reset attributes from the environment
         self.balance = np.random.uniform(-self.capacity, self.capacity)
+        # FAULT I-27 [A8] Agent profit (eq
         self.profit = 0.0
 
         # Reset market state tracking
@@ -133,6 +136,7 @@ class DERAgent:
         """
         self.location = location
 
+    # DEVIATION I-77 [A3] Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score
     def select_preferred_partner(self,
                                  candidates: List['DERAgent'],
                                  graph: Graph,
@@ -193,6 +197,8 @@ class DERAgent:
         current_generation = self.generation_profile[step]
         current_demand = self.demand_profile[step]
 
+        # FAULT I-08 [A3] Feasibility clipping does not implement eq
+        # FAULT I-09 [A3] `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong …
         if is_buy:
             # Calculate how much energy we need to buy after using our own generation
             energy_deficit = quantity - current_generation
@@ -228,6 +234,7 @@ class DERAgent:
             quantity = max(0.0, energy_surplus)
 
         # Ensure price and quantity respects market constraints
+        # DECIDE I-11 [A3] No "submit nothing" action when `q_min > 0`
         price = max(market_config.min_price, min(market_config.max_price, price))
         quantity = max(market_config.min_quantity, min(market_config.max_quantity, quantity))
 
@@ -247,6 +254,7 @@ class DERAgent:
             energy_bought: Energy bought in the market this step
             energy_sold: Energy sold in the market this step
         """
+        # DEVIATION I-21 [A8] Demand satisfaction ignores battery discharge
         current_generation = self.generation_profile[step]
         current_demand = self.demand_profile[step]
 
@@ -290,6 +298,7 @@ class DERAgent:
         if not self.battery:
             return
 
+        # FAULT I-18 [A8] Battery dispatch has the trade term's sign reversed: selling charges the battery
         # Calculate total energy balance: generation - demand + net trading
         current_generation = self.generation_profile[step]
         current_demand = self.demand_profile[step]

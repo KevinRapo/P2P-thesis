@@ -35,6 +35,7 @@ class GridNetwork:
         """
         self.topology = topology
         self.num_nodes = num_nodes
+        # DEVIATION I-53 [A0] Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults)
         self.capacity = max(0.0, capacity)
 
         # Initialize grid network
@@ -82,6 +83,7 @@ class GridNetwork:
             self.edge_capacities[(u, v)] = edge_capacity
 
             # Initialize flow to a small random value (0-30% of capacity)
+            # FAULT I-33 [A7] Edge flows start random and accumulate over the episode instead of being per period
             self.edge_flows[(u, v)] = np.random.uniform(0, 0.3) * edge_capacity
 
     def _check_init(self) -> None:
@@ -92,6 +94,7 @@ class GridNetwork:
             ValueError: If topology is invalid
             ValueError: If num_nodes is invalid for procedural topologies
         """
+        # DEVIATION I-53 [A0] Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults)
         if self.capacity < 0:
             raise ValueError(f"Grid capacity must be non-negative, got {self.capacity}")
 
@@ -130,6 +133,7 @@ class GridNetwork:
 
             # Add edges to graph
             for u, v, w in config["edges"]:
+                # FAULT I-57 [A7] IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
                 graph.add_edge(u, v, weight=w)
 
             # Store node positions and zone information as graph attributes
@@ -322,12 +326,15 @@ class GridNetwork:
                 self.edge_flows[key] += power_at_edge
 
                 # Cap at capacity to avoid unrealistic values
+                # FAULT I-33 [A7] Edge flows start random and accumulate over the episode instead of being per period
                 self.edge_flows[key] = float(min(self.edge_flows[key], self.edge_capacities[key]))
 
         # No path exists between nodes
         except nx.NetworkXNoPath:
             pass
 
+    # DEVIATION I-34 [A7] Loss factor κ = 0.03 is hard-coded
+    # DECIDE I-70 [A7] Grid physics scope: linear unbounded losses, `V_drop = f·d`, transport flows
     def transmission_loss(self,
                           distance: float,
                           quantity: float,

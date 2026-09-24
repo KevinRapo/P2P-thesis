@@ -62,6 +62,7 @@ class DSOAgent:
         self.grid_import: float = 0.0
 
         # Intervention thresholds
+        # DEVIATION I-74 [A6] Thermal-fee threshold (20 %) sits below the congestion threshold (80 %)
         self.congestion_threshold: float = 0.8  # Threshold for congestion intervention
         self.voltage_threshold: float = 0.05  # Threshold for voltage drop
         self.instability_threshold: float = 0.2  # Threshold for grid stability
@@ -187,6 +188,7 @@ class DSOAgent:
         """
         return (self.get_feed_in_tariff(step) + self.get_utility_price(step)) / 2
 
+    # DEVIATION I-54 [A5] DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
     def clear_unmatched_orders(self,
                                step: int,
                                unmatched_buy_orders: List[Order],
@@ -209,6 +211,7 @@ class DSOAgent:
         dso_buy_volume = 0.0
         dso_sell_volume = 0.0
         dso_trades = []
+        # FAULT I-12 [A5] Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
 
         # DSO buys excess generation at feed-in tariff
         for sell_order in unmatched_sell_orders:
@@ -290,6 +293,7 @@ class DSOAgent:
         """
         # Initialize fees
         congestion_fee = 0.0
+        # DECIDE I-29 [A6] `F_trans` has no formula in the paper; the code uses 0
         transmission_fee = 0.0
         imbalance_fee = 0.0
         voltage_fee = 0.0
@@ -323,6 +327,8 @@ class DSOAgent:
             congestion_fee = self.congestion_factor * (congestion_level - self.congestion_threshold) * quantity * trade_price
 
         # Voltage drop calculation and fee
+        # DEVIATION I-30 [A6] `F_volt` and `F_thermal` caps (0.2, 0.3) differ from or are undefined in the paper
+        # DECIDE I-70 [A7] Grid physics scope: linear unbounded losses, `V_drop = f·d`, transport flows
         voltage_drop = distance * self.voltage_factor
         if voltage_drop > self.voltage_threshold:
             voltage_fee = min(0.2, voltage_drop) * quantity * trade_price
@@ -333,17 +339,20 @@ class DSOAgent:
             thermal_fee = min(0.3, thermal_factor) * quantity * trade_price
 
         # Calculate imbalance fee based on how the trade affects grid balance
+        # DEVIATION I-31 [A6] `F_imb` is effectively always 0
         balance_impact = self._calculate_balance_impact(buy_order.agent_id, sell_order.agent_id, quantity)
 
         if balance_impact < 0:  # Trade worsens grid balance
             imbalance_fee = abs(balance_impact) * quantity * trade_price * self.imbalance_factor
 
         # Total all fees
+        # FAULT I-28 [A6] Grid fees are computed but never charged to anyone
         total_fee = congestion_fee + transmission_fee + imbalance_fee + voltage_fee + thermal_fee + zone_bonus
         self.fees += total_fee
 
         return total_fee
 
+    # DEVIATION I-54 [A5] DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
     def validate_grid_constraints(self,
                                   buy_order: Order,
                                   sell_order: Order) -> bool:

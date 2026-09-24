@@ -134,7 +134,7 @@ The existing stubs in [application/](../../../src_thesis/application/) (`*_servi
 4. Build the pandapower grid model from `grid.source` and the participant mapping.
 5. Set the observation, reward and reputation settings and the assessment mode from `environment`.
 
-The trainer side, `experiments/training.py`, turns `learning` + cell into the RLlib `AlgorithmConfig`: algorithm parameters, paradigm module, tuning, rollouts, checkpoints and evaluation. It replaces the hard-coded blocks in [train.py](../../../src_thesis/marl/train.py#L166-L262).
+The trainer side, `experiments/training.py`, turns `learning` + cell into the RLlib `AlgorithmConfig`: algorithm parameters, paradigm module, tuning, rollouts, checkpoints and evaluation. It replaces the hard-coded blocks in [train.py](../../../src_thesis/marl/train.py#L167-L265).
 
 RLlib env runners call the factory **inside** each runner. Only the resolved file section travels in `env_config`, never a net or agents.
 

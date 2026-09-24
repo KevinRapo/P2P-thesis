@@ -66,6 +66,7 @@ class BuyerPricing(BasePricing):
         return buy_order.price
 
 
+# FAULT I-13 [A4] `SELLER` pricing returns the buyer's price (positional-argument bug)
 class SellerPricing(BasePricing):
     """Sets trade price to seller's ask price."""
 
@@ -84,6 +85,7 @@ class SellerPricing(BasePricing):
         return sell_order.price
 
 
+# FAULT I-17 [A4] `BID_ASK_SPREAD` pricing receives `market_price` as `factor`, so it returns the buyer's price
 class BidAskSpreadPricing(BasePricing):
     """Implement a pricing mechanism that sets the price at a point within the bid-ask spread."""
 

@@ -192,6 +192,7 @@ class ObservationHandler:
         if self.grid_network is None:
             raise ValueError(f"Grid network must be provided in the config. Current value: <grid_network = {self.grid_network}>.")
 
+    # DEVIATION I-58 [C1] The reset observation hard-codes G, D, remaining energy and KPIs to 0
     def reset_observation_space(self) -> Dict[str, np.array]:
         """Create initial observation space."""
         obs = {}
@@ -282,6 +283,7 @@ class ObservationHandler:
             time_of_day,
             matching.clearing_price,
             matching.clearing_volume,
+            # FAULT I-23 [A8] `B_grid` (eq
             matching.grid_balance,
             matching.dso_buy_volume,
             matching.dso_sell_volume,
@@ -330,15 +332,18 @@ class ObservationHandler:
         for agent in self.agents:
             battery_status = agent.battery.get_state() if agent.battery else self._battery_null_state()
 
+            # DECIDE I-40 [C1] Observations are raw and unnormalised
             agent_signals = np.array([
                 agent.get_generation(current_step),
                 agent.get_demand(current_step),
                 agent.cumulative_demand_satisfied,
                 agent.cumulative_demand_deferred,
+                # FAULT I-39 [C1] Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true …
                 agent.get_remaining_demand(current_step),
                 agent.cumulative_supply_satisfied,
                 agent.cumulative_supply_deferred,
                 agent.get_remaining_supply(current_step),
+                # FAULT I-27 [A8] Agent profit (eq
                 agent.profit,
                 agent.reputation,
                 battery_status["energy_level"],

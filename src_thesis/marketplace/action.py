@@ -32,6 +32,7 @@ class ActionHandler:
         self._check_init()
 
         # Define action spaces based on configuration
+        # DEVIATION I-10 [A3] β = "no preference" is reachable only at the exact upper bound
         self.action_space = Dict({agent.id: Box(low=array([market_config.min_price,  # bid_price
                                                            market_config.min_quantity,  # bid_quantity
                                                            0.0,  # is_buy
@@ -65,6 +66,7 @@ class ActionHandler:
         """
         return self.action_space[agent_id].contains(action)
 
+    # DEVIATION I-10 [A3] β = "no preference" is reachable only at the exact upper bound
     def get_partner_id(self, index: int) -> Optional[str]:
         """Get the partner ID from the action.
 

@@ -22,6 +22,7 @@ class TransactionBlock:
     nonce: int
     hash: str = ""
 
+    # DEVIATION I-66 [A10] The block hash omits loss and fees, and blocks are forced every step (in-memory PoW, not consensus)
     def calculate_hash(self) -> str:
         """Calculate block hash using trades and previous hash."""
         block_content = {"timestamp": self.timestamp,

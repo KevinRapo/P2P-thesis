@@ -92,6 +92,7 @@ class Battery:
         if self.energy_level < self.min_soc * self.nominal_capacity or self.energy_level > self.max_soc * self.nominal_capacity:
             raise ValueError("Energy level must be between min SOC and max SOC.")
 
+    # FAULT I-19 [A8] A charge is refused entirely if it would reach SoC_max; there is no partial fill
     def _can_charge(self, energy: float) -> bool:
         """Check if charging is possible.
 
@@ -128,6 +129,8 @@ class Battery:
 
         return True
 
+    # FAULT I-19 [A8] A charge is refused entirely if it would reach SoC_max; there is no partial fill
+    # DECIDE I-71 [A8] Battery model has no charge/discharge power limit (claimed in the text), and eq
     def charge(self, energy: float) -> float:
         """Charge the battery.
 
@@ -155,6 +158,7 @@ class Battery:
             self.state = BatteryState.IDLE
             return 0.0
 
+    # FAULT I-20 [A8] Discharge efficiency is applied in the wrong direction (`·η` instead of `/η`)
     def discharge(self, energy: float) -> float:
         """Discharge the battery.
 
@@ -202,6 +206,7 @@ class Battery:
                 "cumulative_charge": self.cumulative_charge,
                 "cumulative_discharge": self.cumulative_discharge}
 
+    # DECIDE I-71 [A8] Battery model has no charge/discharge power limit (claimed in the text), and eq
     def estimate_available_energy(self) -> Tuple[float, float]:
         """Estimate available energy for charging and discharging.
 

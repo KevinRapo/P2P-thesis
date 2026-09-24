@@ -109,7 +109,7 @@ Either an explicit list, or a `placement_rule` that is resolved at validation.
 
 ### 3.5 `market`
 
-Original: [`MarketConfig`](../../../src_thesis/marketplace/market/matching.py#L34-L42).
+Original: [`MarketConfig`](../../../src_thesis/marketplace/market/matching.py#L35-L43).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
@@ -124,7 +124,7 @@ Original: [`MarketConfig`](../../../src_thesis/marketplace/market/matching.py#L3
 
 ### 3.6 `dso`
 
-Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L74) (all constants were hard-coded; exposed here).
+Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L75) (all constants were hard-coded; exposed here).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
@@ -161,7 +161,7 @@ Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L74) (all 
 
 ### 3.8 `learning`
 
-This section replaces the original `RLTrainer` arguments ([train.py](../../../src_thesis/marl/train.py#L42-L54)) and the hard-coded algorithm configs ([train.py](../../../src_thesis/marl/train.py#L207-L262)).
+This section replaces the original `RLTrainer` arguments ([train.py](../../../src_thesis/marl/train.py#L42-L54)) and the hard-coded algorithm configs ([train.py](../../../src_thesis/marl/train.py#L209-L265)).
 
 **General**
 
@@ -186,7 +186,7 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
-| `model.embeddings_dim` | int | 128 | Width of the CTCE/CTDE custom module encoders ([ctde.py](../../../src_thesis/marl/ctde.py#L310-L326)): 2 × Linear + ReLU |
+| `model.embeddings_dim` | int | 128 | Width of the CTCE/CTDE custom module encoders ([ctde.py](../../../src_thesis/marl/ctde.py#L313-L329)): 2 × Linear + ReLU |
 | `model.dtde_hiddens` | list[int] | RLlib default | DTDE uses RLlib's default module per algorithm |
 | `model.activation` | enum | `"relu"` | |
 
@@ -229,7 +229,7 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 | | `grad_clip` | 0.5 | 0.5 |
 | | `batch_mode` | `"complete_episodes"` | |
 
-**Tuning** (`learning.tuning`). Original: PBT always on ([train.py](../../../src_thesis/marl/train.py#L178-L195), [L432](../../../src_thesis/marl/train.py#L432)).
+**Tuning** (`learning.tuning`). Original: PBT always on ([train.py](../../../src_thesis/marl/train.py#L179-L197), [L439](../../../src_thesis/marl/train.py#L439)).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|

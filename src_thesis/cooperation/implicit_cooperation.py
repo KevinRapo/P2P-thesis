@@ -90,6 +90,8 @@ class ImplicitCooperation:
             Dictionary containing economic efficiency KPIs
         """
         # Social welfare (total economic value created)
+        # DECIDE I-36 [B1] Social welfare is turnover `Σ p·q`, not surplus
+        # DECIDE I-75 [C2] `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported
         social_welfare = sum(t.price * abs(t.quantity) for t in trades)
 
         # Market liquidity (total trading volume)
@@ -101,6 +103,7 @@ class ImplicitCooperation:
         avg_bid_ask_spread = (np.mean(asks) - np.mean(bids)) if bids and asks else 0.0
 
         # Price stability over time
+        # DEVIATION I-37 [B1] Price volatility is computed over the whole episode, not a window
         price_history = [m.clearing_price for m in matching_history.history if m.clearing_price > 0]
         price_volatility = np.std(price_history) if len(price_history) > 1 else 0.0
 
@@ -119,6 +122,8 @@ class ImplicitCooperation:
             Dictionary containing grid stability KPIs
         """
         # Supply-demand balance (normalized by grid capacity)
+        # FAULT I-35 [B1] "Supply-demand imbalance" is volume/C, not `|Σbuy − Σsell|/C`
+        # DECIDE I-68 [B1] Imbalance (eq
         total_imbalance = abs(sum(t.quantity for t in trades)) / (self.grid_capacity or 1.0)
         supply_demand_imbalance = min(1.0, total_imbalance)
 
@@ -138,6 +143,7 @@ class ImplicitCooperation:
             Dictionary containing coordination effectiveness KPIs
         """
         # Coordination score based on supply-demand balance
+        # FAULT I-35 [B1] "Supply-demand imbalance" is volume/C, not `|Σbuy − Σsell|/C`
         imbalance = abs(sum(t.quantity for t in trades)) / (self.grid_capacity or 1.0)
         coordination_score = max(0.0, min(1.0, 1.0 - imbalance))
 
@@ -185,6 +191,7 @@ class ImplicitCooperation:
         total_volume = sum(t.quantity for t in trades)
         local_volume = sum(t.quantity for t in local_trades)
 
+        # DEVIATION I-69 [B1] "DER self-consumption" is defined as P2P share; the label does not match the quantity
         der_self_consumption = local_volume / total_volume if total_volume > 0 else 0.0
 
         # Flexibility utilization: proportion of available flexible energy that is utilized
