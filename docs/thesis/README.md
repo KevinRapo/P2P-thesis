@@ -4,7 +4,10 @@
 docs/
 ├── paper/                          # Source papers (the reference)
 │   ├── marlem.pdf                  # [P1] MARLEM, Applied Energy 2026
-│   └── marlem-results.pdf          # [P2] Implicit-cooperation results (preprint)
+│   ├── marlem-results.pdf          # [P2] Implicit-cooperation results (preprint)
+│   ├── marlem-methodology.md       # Both papers' methodology + implementation status per section
+│   ├── marlem-methodology copy.md  # Methodology without the implementation-status tables
+│   └── marlem-faults-by-level.md   # Faulty modules per Fig. 2 level, with diagrams
 └── thesis/
     ├── README.md                   # This index
     ├── validation/                 # Active work: validating the original MARLEM
