@@ -3,6 +3,21 @@
 > The structure of the web application: shell, pages, what each page contains, which services it calls and how pages lead into each other. This is structure, not visual design.
 > Master: [README.md](README.md) · Services: [04-services.md](04-services.md).
 
+## 0. Implementation status (scaffold, 2026-09-23)
+
+Run it with the `marlem` conda env from the repository root: `python -m src_thesis.studio`, then open http://localhost:8080. The port can be changed with `MARLEM_STUDIO_PORT`.
+
+| Part | Location | State |
+|---|---|---|
+| Service contracts | [application/contracts.py](../../../src_thesis/application/contracts.py) | Protocols for the six services in 04 §2 |
+| Returned data | [application/models.py](../../../src_thesis/application/models.py) | Pydantic models. `ExperimentFile` sections are still plain dicts. |
+| Demo services | [application/demo.py](../../../src_thesis/application/demo.py) | Deterministic sample data; no MARLEM, pandapower or Ray. Labelled "DEMO DATA" in the header. |
+| Wiring | [application/container.py](../../../src_thesis/application/container.py) | `build_services("demo")`; `"real"` is reserved for P6–P7 |
+| Studio | [studio/](../../../src_thesis/studio/) | Shell, theme (light and dark), navigation, all pages below with their layout and demo data. Buttons without a service behind them show "not implemented yet". |
+| Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`, or if `application/` imports MARLEM runtime, adapters, pandapower, simbench, Ray or torch |
+
+Next steps: form fields write back to the draft file (`ConfigService.save`); typed section models replace the dicts; real services replace the demo ones.
+
 ## 1. Principles
 
 - Pages call **services only** (04 §2). They never build environments, nets or Ray jobs.

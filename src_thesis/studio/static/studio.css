@@ -1,0 +1,55 @@
+/* MARLEM Studio styles. Loaded by theme.apply_theme() on every page load:
+   edit and refresh the browser, no restart needed.
+   Quasar colour names (primary, accent, ...) are set in theme.PALETTE. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --mls-bg: #F4F6F8;
+  --mls-surface: #FFFFFF;
+  --mls-border: #E2E8F0;
+  --mls-muted: #64748B;
+  --mls-text: #0F172A;
+  --mls-nav-active: rgba(15, 118, 110, 0.10);
+}
+.body--dark {
+  --mls-bg: #0B1220;
+  --mls-surface: #111A2C;
+  --mls-border: #1E293B;
+  --mls-muted: #94A3B8;
+  --mls-text: #E2E8F0;
+  --mls-nav-active: rgba(45, 212, 191, 0.14);
+}
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--mls-bg); color: var(--mls-text); }
+.nicegui-content { padding: 0; }
+.mls-header { background: #0B3B37 !important; color: #F8FAFC; height: 56px; }
+.mls-brand { font-weight: 700; letter-spacing: 0.02em; font-size: 1.05rem; }
+.mls-drawer { background: var(--mls-surface) !important; }
+.mls-nav-group { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.09em; color: var(--mls-muted);
+                 text-transform: uppercase; padding: 14px 18px 4px 18px; }
+.mls-nav-item { border-radius: 8px; margin: 1px 10px; min-height: 36px; padding: 4px 10px; color: var(--mls-text); }
+.mls-nav-item .q-icon { color: var(--mls-muted); }
+.mls-nav-active { background: var(--mls-nav-active); color: #0F766E; font-weight: 600; }
+.body--dark .mls-nav-active { color: #5EEAD4; }
+.mls-nav-active .q-icon { color: inherit; }
+.mls-page { max-width: 1400px; margin: 0 auto; padding: 24px 28px 48px 28px; gap: 18px; }
+.mls-title { font-size: 1.45rem; font-weight: 700; line-height: 1.2; }
+.mls-subtitle { color: var(--mls-muted); font-size: 0.9rem; }
+.mls-card { background: var(--mls-surface); border: 1px solid var(--mls-border); border-radius: 12px;
+            box-shadow: none; padding: 16px 18px; }
+.mls-card-title { font-weight: 600; font-size: 0.95rem; }
+.mls-card-caption { color: var(--mls-muted); font-size: 0.8rem; }
+.mls-stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.mls-stat-value-sm { font-size: 1.05rem; font-weight: 600; line-height: 1.3; word-break: break-word; }
+.mls-stat-label { color: var(--mls-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.mls-placeholder { border: 1.5px dashed var(--mls-border); border-radius: 10px; color: var(--mls-muted);
+                   padding: 18px; text-align: center; font-size: 0.85rem; }
+.mls-footer { background: var(--mls-surface) !important; color: var(--mls-muted); border-top: 1px solid var(--mls-border);
+              font-size: 0.78rem; min-height: 30px; }
+.mls-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.8rem; }
+.q-table__card { box-shadow: none; border: 1px solid var(--mls-border); border-radius: 10px; }
+.q-tab-panels { background: transparent; }
+.q-btn { text-transform: none; font-weight: 500; letter-spacing: 0; }
+.mls-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; width: 100%; }
+.mls-kv { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; }
+.mls-draft-chip { background: rgba(255,255,255,0.10); border-radius: 16px; padding: 2px 12px 2px 8px; cursor: pointer; }

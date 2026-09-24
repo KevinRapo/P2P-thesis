@@ -30,12 +30,16 @@ src_thesis/
 |-- adapters/                    # Replaceable infrastructure implementations
 |   |-- grid/network.py
 |   `-- profiles/
-|-- application/                 # UI/CLI-facing use-case facades
-|   |-- scenario_service_new.py
-|   |-- validation_service_new.py
-|   |-- experiment_service_new.py
-|   |-- result_service_new.py
-|   `-- dataset_service_new.py
+|-- application/                 # UI/CLI-facing services (no MARLEM runtime imports)
+|   |-- contracts.py             # service protocols
+|   |-- models.py                # returned data (Pydantic)
+|   |-- demo.py                  # demo services with sample data
+|   `-- container.py             # build_services("demo")
+|-- studio/                      # NiceGUI Studio; imports only application/
+|   |-- app.py, __main__.py
+|   |-- layout.py, navigation.py, theme.py, state.py
+|   |-- components/
+|   `-- pages/
 |-- experiments/                 # Run construction and worker boundaries
 |   |-- factory_new.py
 |   |-- runner_new.py

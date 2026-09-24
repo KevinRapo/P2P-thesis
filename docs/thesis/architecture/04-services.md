@@ -52,7 +52,7 @@ flowchart LR
 
 ## 2. Services
 
-The existing stubs in [application/](../../../src_thesis/application/) (`*_service_new.py`) become these modules. `scenario_service_new.py` becomes `ConfigService`, and `dataset_service_new.py` merges into `ProfileService`.
+The protocols live in [application/contracts.py](../../../src_thesis/application/contracts.py) and the demo implementations in [application/demo.py](../../../src_thesis/application/demo.py). The earlier `*_service_new.py` stubs were removed: `scenario_service_new.py` became `ConfigService`, and `dataset_service_new.py` merged into `ProfileService`.
 
 ### 2.1 `ConfigService`: experiment files
 
