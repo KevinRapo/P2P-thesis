@@ -9,9 +9,9 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.market.matching import MatchingHistory
-from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis_implement.marl.agents.der import DERAgent
+from src_thesis_implement.marketplace.market.matching import MatchingHistory
+from src_thesis_implement.marketplace.market.order import Order, Trade
 
 
 class ImplicitCooperation:

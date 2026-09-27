@@ -5,7 +5,7 @@ Order and trade data classes for the Local Energy Market.
 from dataclasses import dataclass
 from typing import Optional
 
-from src_thesis.marketplace.grid.base import Location
+from src_thesis_implement.marketplace.grid.base import Location
 
 
 @dataclass

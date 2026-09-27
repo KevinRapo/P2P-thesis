@@ -2,14 +2,14 @@
 
 Run with the `marlem` conda env, either from the repository root:
 
-    python -m src_thesis.studio            # http://localhost:8080
+    python -m src_thesis_implement.studio            # http://localhost:8080
 
 or by running this file directly (e.g. the "Run Python File" button in VS Code).
 Environment variables: MARLEM_STUDIO_PORT (default 8080), MARLEM_STUDIO_SHOW
 ("0" to not open a browser tab), MARLEM_STUDIO_SECRET.
 
 The Studio is presentation only: every page calls application services
-(`src_thesis.application`) and never imports MARLEM, grid adapters or Ray.
+(`src_thesis_implement.application`) and never imports MARLEM, grid adapters or Ray.
 """
 
 import os
@@ -23,7 +23,7 @@ if __package__ in (None, ""):
 
 from nicegui import ui
 
-from src_thesis.studio import pages  # noqa: F401, E402  (registers routes)
+from src_thesis_implement.studio import pages  # noqa: F401, E402  (registers routes)
 
 
 def main(port: int | None = None, show: bool | None = None) -> None:

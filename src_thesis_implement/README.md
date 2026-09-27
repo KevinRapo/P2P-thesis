@@ -1,5 +1,7 @@
 # Standalone thesis implementation
 
+> **Implementation copy.** `src_thesis_implement/` started on 2026-09-27 as a raw copy of `src_thesis/`, with its imports pointed at itself. All new work happens here; `src_thesis/` stays the untouched reference for on-disk comparison. The text below describes the original relocation and still says `src_thesis/`.
+
 `src_thesis/` is the standalone, paper-aligned refactoring of MARLEM. It does
 not import or delegate to the original `src/` package. The original package is
 kept only as a comparison baseline while this implementation is inspected,

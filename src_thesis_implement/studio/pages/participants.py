@@ -2,7 +2,7 @@
 
 from nicegui import ui
 
-from src_thesis.application.models import NetworkSource
+from src_thesis_implement.application.models import NetworkSource
 
 from ..components import (
     data_table,

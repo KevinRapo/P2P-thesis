@@ -15,7 +15,7 @@ from ..components import (
 )
 from ..layout import shell
 from ..state import services
-from src_thesis.application.models import NetworkSource
+from src_thesis_implement.application.models import NetworkSource
 
 _OUTCOME_LABELS = {
     "served_demand_share": ("Served demand", "{:.1%}"),

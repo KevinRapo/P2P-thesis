@@ -15,7 +15,7 @@ from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.utils.numpy import convert_to_numpy
 
-from src_thesis.marketplace.lem import LocalEnergyMarket
+from src_thesis_implement.marketplace.lem import LocalEnergyMarket
 from .train import GroupedLEM
 
 

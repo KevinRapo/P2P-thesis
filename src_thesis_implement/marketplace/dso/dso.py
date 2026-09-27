@@ -10,8 +10,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis_implement.adapters.grid.network import GridNetwork
+from src_thesis_implement.marketplace.market.order import Order, Trade
 
 
 class DSOAgent:

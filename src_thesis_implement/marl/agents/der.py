@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING, List, Optional
 import numpy as np
 from networkx import Graph
 
-from src_thesis.marketplace.grid.base import Location
+from src_thesis_implement.marketplace.grid.base import Location
 from .battery import Battery
 
 if TYPE_CHECKING:
-    from src_thesis.marketplace.market.matching import MarketConfig
+    from src_thesis_implement.marketplace.market.matching import MarketConfig
 
 
 class DERAgent:

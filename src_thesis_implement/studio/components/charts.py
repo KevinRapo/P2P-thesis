@@ -2,7 +2,7 @@
 
 import plotly.graph_objects as go
 
-from src_thesis.application.models import MatrixTable, Series, TopologyView
+from src_thesis_implement.application.models import MatrixTable, Series, TopologyView
 
 from ..theme import SERIES
 

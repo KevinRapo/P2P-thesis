@@ -9,16 +9,16 @@ import json
 from pathlib import Path
 from typing import Any, Dict
 
-from src_thesis.marl.agents.battery import Battery
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.grid.base import GridTopology
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.matching import MarketConfig
-from src_thesis.marketplace.market.mechanism import ClearingMechanism
-from src_thesis.adapters.profiles.der import DERProfileHandler
-from src_thesis.adapters.profiles.dso import DSOProfileHandler
-from src_thesis.root import __main__
+from src_thesis_implement.marl.agents.battery import Battery
+from src_thesis_implement.marl.agents.der import DERAgent
+from src_thesis_implement.marketplace.grid.base import GridTopology
+from src_thesis_implement.adapters.grid.network import GridNetwork
+from src_thesis_implement.marketplace.dso.dso import DSOAgent
+from src_thesis_implement.marketplace.market.matching import MarketConfig
+from src_thesis_implement.marketplace.market.mechanism import ClearingMechanism
+from src_thesis_implement.adapters.profiles.der import DERProfileHandler
+from src_thesis_implement.adapters.profiles.dso import DSOProfileHandler
+from src_thesis_implement.root import __main__
 
 
 class EnvConfigHandler:

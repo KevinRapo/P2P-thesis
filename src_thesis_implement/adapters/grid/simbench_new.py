@@ -20,7 +20,7 @@ from datetime import date
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Sequence
 
-from src_thesis.marketplace.grid.contract_new import (
+from src_thesis_implement.marketplace.grid.contract_new import (
     BranchView,
     BusView,
     ElementRecord,

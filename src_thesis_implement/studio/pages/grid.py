@@ -7,7 +7,7 @@ thread (``run.io_bound``) while the page shows a spinner.
 
 from nicegui import run, ui
 
-from src_thesis.application.models import NetworkSource
+from src_thesis_implement.application.models import NetworkSource
 
 from ..components import data_table, not_implemented, section, topology_figure
 from ..layout import shell

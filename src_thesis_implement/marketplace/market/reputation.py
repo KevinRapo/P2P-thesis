@@ -8,7 +8,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from src_thesis.marl.agents.der import DERAgent
+from src_thesis_implement.marl.agents.der import DERAgent
 from .matching import MatchingResult
 from .order import Trade
 

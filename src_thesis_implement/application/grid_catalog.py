@@ -5,8 +5,8 @@ The service translates between the API models the Studio and CLI use
 (``marketplace.grid.contract_new``). It never touches pandapower itself.
 """
 
-import src_thesis.marketplace.grid.contract_new as contract
-from src_thesis.adapters.grid import simbench_new as adapter
+import src_thesis_implement.marketplace.grid.contract_new as contract
+from src_thesis_implement.adapters.grid import simbench_new as adapter
 
 from .models import (
     ElementInfo,

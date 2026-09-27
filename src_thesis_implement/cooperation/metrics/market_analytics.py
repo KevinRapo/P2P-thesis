@@ -11,7 +11,7 @@ from typing import Dict, List
 import numpy as np
 from scipy.stats import linregress
 
-from src_thesis.marketplace.market.matching import MatchingHistory
+from src_thesis_implement.marketplace.market.matching import MatchingHistory
 
 
 @dataclass

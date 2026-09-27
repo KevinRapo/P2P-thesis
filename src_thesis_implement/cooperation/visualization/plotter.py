@@ -17,10 +17,10 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from scipy.stats import gaussian_kde
 
-from src_thesis.cooperation.metrics.dso_metrics import DSOMetrics
-from src_thesis.cooperation.metrics.grid_metrics import GridMetrics
-from src_thesis.cooperation.metrics.market_analytics import MarketMetrics
-from src_thesis.marketplace.market.matching import MatchingHistory
+from src_thesis_implement.cooperation.metrics.dso_metrics import DSOMetrics
+from src_thesis_implement.cooperation.metrics.grid_metrics import GridMetrics
+from src_thesis_implement.cooperation.metrics.market_analytics import MarketMetrics
+from src_thesis_implement.marketplace.market.matching import MatchingHistory
 
 
 class Plotter:

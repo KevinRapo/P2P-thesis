@@ -8,8 +8,8 @@ import os
 
 from nicegui import app
 
-from src_thesis.application import Services, build_services
-from src_thesis.application.models import ExperimentFile
+from src_thesis_implement.application import Services, build_services
+from src_thesis_implement.application.models import ExperimentFile
 
 _SERVICES: Services | None = None
 DEFAULT_PRESET = "case6-3x3"

@@ -16,16 +16,16 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.utils.typing import MultiAgentDict
 
-from src_thesis.cooperation.implicit_cooperation import ImplicitCooperation
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.grid.base import GridTopology
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.matching import MarketConfig, OrderMatcher
-from src_thesis.marketplace.market.order import Order
-from src_thesis.marketplace.market.reputation import ReputationHandler
-from src_thesis.adapters.profiles.der import DERProfileHandler
-from src_thesis.adapters.profiles.dso import DSOProfileHandler
+from src_thesis_implement.cooperation.implicit_cooperation import ImplicitCooperation
+from src_thesis_implement.marl.agents.der import DERAgent
+from src_thesis_implement.marketplace.grid.base import GridTopology
+from src_thesis_implement.adapters.grid.network import GridNetwork
+from src_thesis_implement.marketplace.dso.dso import DSOAgent
+from src_thesis_implement.marketplace.market.matching import MarketConfig, OrderMatcher
+from src_thesis_implement.marketplace.market.order import Order
+from src_thesis_implement.marketplace.market.reputation import ReputationHandler
+from src_thesis_implement.adapters.profiles.der import DERProfileHandler
+from src_thesis_implement.adapters.profiles.dso import DSOProfileHandler
 from .action import ActionHandler
 from .observation import ObservationHandler
 from .reward import RewardHandler

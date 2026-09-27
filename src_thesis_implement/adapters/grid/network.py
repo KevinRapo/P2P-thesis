@@ -12,9 +12,9 @@ import networkx as nx
 import numpy as np
 from matplotlib.patches import Patch
 
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.grid.config import get_predefined_config
-from src_thesis.marketplace.grid.base import GridTopology, Location
+from src_thesis_implement.marl.agents.der import DERAgent
+from src_thesis_implement.marketplace.grid.config import get_predefined_config
+from src_thesis_implement.marketplace.grid.base import GridTopology, Location
 
 
 class GridNetwork:

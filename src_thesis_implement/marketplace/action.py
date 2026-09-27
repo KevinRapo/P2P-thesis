@@ -7,9 +7,9 @@ from typing import List, Optional
 from gymnasium.spaces import Box, Dict
 from numpy import array, float32, ndarray
 
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.matching import MarketConfig
+from src_thesis_implement.marl.agents.der import DERAgent
+from src_thesis_implement.marketplace.dso.dso import DSOAgent
+from src_thesis_implement.marketplace.market.matching import MarketConfig
 
 
 class ActionHandler:

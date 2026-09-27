@@ -32,8 +32,8 @@ from torch.cuda import device_count, is_available
 from .base import RLAlgorithm, TrainingMode
 from .ctce import CTCEModule
 from .ctde import CTDEModule
-from src_thesis.marketplace.lem import LocalEnergyMarket
-from src_thesis.marketplace.io import EnvConfigHandler
+from src_thesis_implement.marketplace.lem import LocalEnergyMarket
+from src_thesis_implement.marketplace.io import EnvConfigHandler
 
 
 class RLTrainer:
