@@ -4,6 +4,31 @@
 > Master: [README.md](README.md) · Decisions: D-07, D-08.
 > "Original default" = the value in the original MARLEM code (frozen in `src_thesis_reference/`, see link) or in [P2] Table 7/8. Fields marked *(new)* do not exist in the original.
 
+## 0. At a glance
+
+One JSON file holds the whole study; the system expands it into runs and writes a manifest for each (§1, §5).
+
+```mermaid
+flowchart LR
+  subgraph FILE["experiment file · *.marlem.json"]
+    META["meta"]
+    subgraph WORLD["world"]
+      W1["time · grid · participants"]
+      W2["market · dso · environment"]
+    end
+    subgraph PLAN["learning plan"]
+      P1["learning · evaluation · baselines"]
+    end
+    SWEEP["sweep"]
+    RES["resources · outputs"]
+  end
+  FILE -->|"preflight (§9)"| OK{"valid?"}
+  OK -->|"expand: sweep × paradigms × algorithms × seeds, + baselines"| CELLS["run cells"]
+  CELLS -->|"resolve defaults · build manifest (§5)"| RUNS["runs/&lt;run_id&gt;/ resolved.json + manifest.json"]
+  WORLD -. "build_env (06 §3.7)" .-> ENV["environment"]
+  PLAN -. "build_algorithm_config (06 §3.8)" .-> RL["RLlib configuration"]
+```
+
 ## 1. One file, one study (D-08)
 
 ```text

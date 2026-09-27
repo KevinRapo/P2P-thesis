@@ -3,6 +3,42 @@
 > `src_thesis/application/`: the services that the Studio, the CLI and notebooks call. They hide MARLEM, the experiment layer and the adapters behind typed, plain-data methods.
 > Master: [README.md](README.md) (layers and who may call whom: §2.1) · Experiment layer: [06-experiment-layer.md](06-experiment-layer.md) · Presentation: [05-presentation.md](05-presentation.md) · Decisions: D-09, D-13.
 
+## 0. At a glance
+
+Every caller gets the six services from one container; each service reaches exactly the lower layers it needs (§4). Green = real implementation today, grey = demo.
+
+```mermaid
+flowchart LR
+  CALL["Studio · CLI · notebooks"] --> BS["build_services(mode, grid)"]
+  BS --> CF["ConfigService"]:::demo
+  BS --> GC["GridCatalogService"]:::real
+  BS --> PR["ProfileService"]:::demo
+  BS --> VA["ValidationService"]:::demo
+  BS --> EX["ExperimentService"]:::demo
+  BS --> RE["ResultService"]:::demo
+  subgraph LOW["lower layers"]
+    EM["experiments.models"]
+    EF["experiments.factory"]
+    ES["experiments.store"]
+    EW["experiments.worker.pool"]
+    AG["adapters.grid"]
+    AP["adapters.profiles"]
+  end
+  CF --> EM
+  GC --> AG
+  PR --> AP
+  VA --> EM
+  VA --> EF
+  EX --> EM
+  EX --> ES
+  EX --> EW
+  RE --> ES
+  classDef real fill:#dcfce7,stroke:#15803d,color:#111
+  classDef demo fill:#e5e7eb,stroke:#6b7280,color:#111
+```
+
+Services return plain data only (§3); nothing from the lower layers reaches the caller.
+
 ## 1. Status and wiring
 
 | File | Holds | State (2026-09-27) |

@@ -7,6 +7,62 @@
 
 **Change legend:** **—** unchanged · **Adapt** small additive edit in the same file · **Rewrite** same file and responsibility, new implementation (D-04) · **New** new module · **Replace** implementation swapped behind a contract. The verdict per function is in the [keep / replace audit](../validation/marlem-keep-replace-audit.md).
 
+## 0. At a glance
+
+The [P1] Fig. 2 classes by level, where they live in `src_thesis/`, and what happens to each in the SimBench edition (colour = change verdict of §1–§4).
+
+```mermaid
+flowchart TB
+  PLAT["experiments/ · application/ · studio/"]:::new
+  subgraph L1["Level 1: MARL Agents · marl/"]
+    direction LR
+    TRN["RLTrainer · GroupedLEM"]:::adapt
+    INF["RLInference"]:::adapt
+    DER["DERAgent"]:::rewrite
+    BAT["Battery"]:::keep
+    DER --> BAT
+  end
+  subgraph L0["Level 0: Platform Marketplace · marketplace/"]
+    direction TB
+    LEM["LEM · lem.py"]:::rewrite
+    ACT["ActionHandler"]:::keep
+    OBS["ObservationHandler"]:::rewrite
+    REW["RewardHandler"]:::rewrite
+    REP["ReputationHandler"]:::adapt
+    MAT["OrderMatcher"]:::rewrite
+    PRC["MarketConfig · pricing"]:::keep
+    ORD["Order · Trade"]:::adapt
+    DSO["DSOAgent"]:::adapt
+    VAL["Validator (ledger)"]:::keep
+    GRID["GridNetwork · GridTopology<br/>(replaced by the pandapower adapter)"]:::removed
+    LEM --> ACT & OBS & REW & REP & MAT
+    MAT --> PRC & ORD & DSO & VAL
+  end
+  subgraph L2["Level 2: Implicit Cooperation · cooperation/"]
+    direction LR
+    IC["ImplicitCooperation KPIs"]:::adapt
+    MET["Metrics handlers"]:::removed
+  end
+  subgraph ADD["Platform additions (grid side)"]
+    direction LR
+    SET["settlement ledger"]:::new
+    INJ["injection builder"]:::new
+    SBG["pandapower adapter"]:::new
+    SET --> INJ --> SBG
+  end
+  PLAT -->|builds and runs| L1
+  L1 -->|"trains on · acts in"| L0
+  L0 -->|KPIs| L2
+  L0 -->|settlement| ADD
+  classDef keep fill:#dcfce7,stroke:#15803d,color:#111
+  classDef adapt fill:#fef3c7,stroke:#b45309,color:#111
+  classDef rewrite fill:#fed7aa,stroke:#c2410c,color:#111
+  classDef new fill:#dbeafe,stroke:#1d4ed8,color:#111
+  classDef removed fill:#e5e7eb,stroke:#6b7280,color:#555,stroke-dasharray:4 3
+```
+
+Legend: green unchanged · amber adapt (small edit) · orange rewrite (same file and responsibility, D-04) · blue new · grey removed or replaced.
+
 ## 1. Level 0: Platform Marketplace
 
 | Fig. 2 class | File | Role | Validation | SimBench / platform change |

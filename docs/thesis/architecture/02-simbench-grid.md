@@ -4,6 +4,38 @@
 > Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15.
 > Checked against the installed `simbench` 1.6.2 / `pandapower` 3.5.4 on 2026-09-25 (the Studio's grid catalog uses them).
 
+## 0. At a glance
+
+From a network source to one power flow per step. The market never calls the grid; it reads last step's signals (§5.1).
+
+```mermaid
+flowchart TB
+  subgraph PREP["Before an episode"]
+    direction LR
+    SRC["network source (§1):<br/>SimBench code · pandapower<br/>built-in · JSON file"]
+    LOAD["load once per process<br/>· catalog (§2)"]
+    PROF["profile sources (§3.3):<br/>SimBench · catalogue ·<br/>CSV · synthetic"]
+    MAP["participant mapping (§3):<br/>bus, owned elements, scaling"]
+    COPY["working copy<br/>per environment"]
+    SRC --> LOAD --> COPY
+    PROF --> MAP --> COPY
+  end
+  subgraph STEP["Every step t (§6)"]
+    direction LR
+    MKT["market clears<br/>reads GridTopologyInfo<br/>and GridSignals t−1 (§5.1)"]
+    SETL["settlement<br/>per agent"]
+    INJ["injections"]
+    PFLOW["one AC power flow<br/>on the working copy"]
+    ASS["GridAssessment t"]
+    OUT["KPIs · reward ·<br/>observation · info"]
+    MKT --> SETL --> INJ --> PFLOW --> ASS --> OUT
+    ASS -. "GridSignals for t+1" .-> MKT
+  end
+  STUDIO["Studio Grid page:<br/>catalog and one-hour preview"]
+  PREP --> STEP
+  PREP -.-> STUDIO
+```
+
 ## 1. One grid technology, several network sources (D-02)
 
 The tool has **one** grid implementation: a pandapower adapter running an AC power flow. The paper's abstract NetworkX grid lives only in the frozen reference copy (`src_thesis_reference/`). It is not maintained in the tool.
