@@ -3,6 +3,30 @@
 > How people reach the system: the NiceGUI Studio (§0–§5: shell, pages, what each page contains, which services it calls and how pages lead into each other; structure, not visual design) and the CLI (§6). Both call only the application layer.
 > Master: [README.md](README.md) · Services: [03-application-layer.md](03-application-layer.md).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [0. Implementation status (scaffold, 2026-09-23)](#0-implementation-status-scaffold-2026-09-23)
+- [1. Principles](#1-principles)
+- [2. Shell (every page)](#2-shell-every-page)
+- [3. Page map and flow](#3-page-map-and-flow)
+- [4. Pages](#4-pages)
+  - [4.1 Home (`/`)](#41-home-)
+  - [4.2 Grid (`/build/grid`)](#42-grid-buildgrid)
+  - [4.3 Participants (`/build/participants`)](#43-participants-buildparticipants)
+  - [4.4 Market & DSO (`/build/market`)](#44-market--dso-buildmarket)
+  - [4.5 Summary (`/build/summary`)](#45-summary-buildsummary)
+  - [4.6 Design (`/experiment/design`)](#46-design-experimentdesign)
+  - [4.7 Validate (`/experiment/validate`)](#47-validate-experimentvalidate)
+  - [4.8 Runs (`/runs`)](#48-runs-runs)
+  - [4.9 Results (`/results/{run_id}`)](#49-results-resultsrun_id)
+  - [4.10 Compare (`/compare`)](#410-compare-compare)
+  - [4.11 Library (`/library`)](#411-library-library)
+- [5. Build order (R8)](#5-build-order-r8)
+- [6. CLI](#6-cli)
+
+<!-- END toc -->
+
 ## 0. Implementation status (scaffold, 2026-09-23)
 
 Run it with the `marlem` conda env from the repository root: `python -m src_thesis.studio`, then open http://localhost:8080. The port can be changed with `MARLEM_STUDIO_PORT`.
@@ -15,6 +39,8 @@ Run it with the `marlem` conda env from the repository root: `python -m src_thes
 
 Next steps: form fields write back to the draft file (`ConfigService.save`); typed section models replace the dicts; real services replace the demo ones.
 
+[↑ Contents](#contents)
+
 ## 1. Principles
 
 - Pages call **services only** (03 §2). They never build environments, nets or Ray jobs.
@@ -22,6 +48,8 @@ Next steps: form fields write back to the draft file (`ConfigService.save`); typ
 - Long work runs in the **worker**. Closing the browser never affects a run.
 - Unvalidated options are shown **disabled with a reason**, never silently available.
 - Research outcomes are always shown next to, and separately from, RL reward.
+
+[↑ Contents](#contents)
 
 ## 2. Shell (every page)
 
@@ -57,6 +85,8 @@ Next steps: form fields write back to the draft file (`ConfigService.save`); typ
 
 Drafts autosave to the library (as experiment files), not to the browser, so a refresh loses nothing.
 
+[↑ Contents](#contents)
+
 ## 3. Page map and flow
 
 ```mermaid
@@ -75,6 +105,8 @@ flowchart LR
 ```
 
 The **BUILD** pages edit the world sections of one draft experiment file (`time`, `grid`, `participants`, `market`, `dso`, `environment`). They can be visited in any order, but they are laid out left to right as a guided sequence. **Validate** is the only gate to **Runs**.
+
+[↑ Contents](#contents)
 
 ## 4. Pages
 
@@ -192,6 +224,8 @@ Services: `ResultService.matrix`, `compare`.
 - Experiment files and presets: open, clone, delete (drafts only), import and export bundles.
 - Shows the provenance chain: preset → experiment file → runs.
 
+[↑ Contents](#contents)
+
 ## 5. Build order (R8)
 
 1. **Shell + Runs + Results (Overview and Learning).** Read-only; proves the store and the service boundary.
@@ -202,6 +236,8 @@ Services: `ResultService.matrix`, `compare`.
 6. **Results replay and Grid tabs, then Compare.**
 
 Each step ends with a CLI-equivalence check: the experiment file saved by the Studio, run via the CLI, gives the same manifest hash.
+
+[↑ Contents](#contents)
 
 ## 6. CLI
 
@@ -228,3 +264,5 @@ marlem bundle <file>                           ConfigService.export_bundle
 `marlem run` keeps polling the worker pool until its runs finish (`WorkerPool.wait_all`, 05 §3.11); the Studio polls with a timer instead.
 
 Notebooks call the same services. The case notebooks become short: load a preset → `ExperimentService` → plot from `ResultService`.
+
+[↑ Contents](#contents)

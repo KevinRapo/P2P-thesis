@@ -47,6 +47,50 @@ Equation numbers are the papers' own, e.g. [P1] (4). Equations garbled in the PD
 
 ---
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [1. Architecture ([P1] §3.1, Fig. 2)](#1-architecture-p1-31-fig-2)
+- [2. Problem formulation: Dec-POMDP ([P1] §3.2)](#2-problem-formulation-dec-pomdp-p1-32)
+  - [2.1 Action ([P1] (2), §3.2.3)](#21-action-p1-2-323)
+  - [2.2 Observation ([P1] §3.2.2, Table 2)](#22-observation-p1-322-table-2)
+  - [Implementation in the original code (§2 formulation)](#implementation-in-the-original-code-2-formulation)
+- [3. Environment loop ([P1] §3.9, Fig. 4)](#3-environment-loop-p1-39-fig-4)
+  - [Implementation in the original code (§3 loop)](#implementation-in-the-original-code-3-loop)
+- [4. Market ([P1] §3.3)](#4-market-p1-33)
+  - [4.1 Market operation workflow ([P1] Algorithm 1)](#41-market-operation-workflow-p1-algorithm-1)
+  - [4.2 Three-stage matching ([P1] §3.3.2, Fig. 3)](#42-three-stage-matching-p1-332-fig-3)
+  - [4.3 Clearing (pricing) mechanisms ([P1] §3.3.3)](#43-clearing-pricing-mechanisms-p1-333)
+  - [4.4 DSO: balance and fees ([P1] §3.3.1)](#44-dso-balance-and-fees-p1-331)
+  - [4.5 Reputation and validation ([P1] §3.3.4)](#45-reputation-and-validation-p1-334)
+  - [Implementation in the original code (§4 market)](#implementation-in-the-original-code-4-market)
+- [5. Agents ([P1] §3.4)](#5-agents-p1-34)
+  - [5.1 State and accounting](#51-state-and-accounting)
+  - [5.2 Physical feasibility ([P1] (15))](#52-physical-feasibility-p1-15)
+  - [5.3 Battery ([P1] (16))](#53-battery-p1-16)
+  - [5.4 Profiles ([P1] §3.4.4)](#54-profiles-p1-344)
+  - [Implementation in the original code (§5 agents)](#implementation-in-the-original-code-5-agents)
+- [6. Grid ([P1] §3.5)](#6-grid-p1-35)
+  - [6.1 Topology](#61-topology)
+  - [6.2 Constraints](#62-constraints)
+  - [6.3 State updates ([P1] §3.5.3)](#63-state-updates-p1-353)
+  - [Implementation in the original code (§6 grid)](#implementation-in-the-original-code-6-grid)
+- [7. Implicit-cooperation KPIs ([P1] §3.6, [P2] §3.2)](#7-implicit-cooperation-kpis-p1-36-p2-32)
+  - [Implementation in the original code (§7 KPIs)](#implementation-in-the-original-code-7-kpis)
+- [8. Reward ([P1] §3.2.4)](#8-reward-p1-324)
+  - [Implementation in the original code (§8 reward)](#implementation-in-the-original-code-8-reward)
+- [9. MARL paradigms ([P1] §3.7.1, [P2] §3.4)](#9-marl-paradigms-p1-371-p2-34)
+  - [Implementation in the original code (§9 paradigms)](#implementation-in-the-original-code-9-paradigms)
+- [10. Algorithms ([P2] §3.3)](#10-algorithms-p2-33)
+  - [Implementation in the original code (§10 algorithms)](#implementation-in-the-original-code-10-algorithms)
+- [11. Experiments](#11-experiments)
+  - [11.1 [P1] case study: battery storage coordination (§4–5)](#111-p1-case-study-battery-storage-coordination-45)
+  - [11.2 [P2] Case 6: 3 × 3 MARL matrix (§4)](#112-p2-case-6-3--3-marl-matrix-4)
+  - [Implementation in the original code (§11 experiments)](#implementation-in-the-original-code-11-experiments)
+- [12. Points the papers leave unspecified](#12-points-the-papers-leave-unspecified)
+
+<!-- END toc -->
+
 ## 1. Architecture ([P1] §3.1, Fig. 2)
 
 Three conceptual levels:
@@ -56,6 +100,8 @@ Three conceptual levels:
 | **Level 0: Platform Marketplace** | Market Module (order matching, clearing, DSO, reputation, validation) and Grid Module (network, losses, congestion). Provides the physical and economic environment. |
 | **Level 1: MARL Agents** | Self-interested DER agents with generation and demand profiles and an optional battery. Each learns a bidding policy from local observations. |
 | **Level 2: Implicit Cooperation** | Not a controller. It is the emergent coordination produced by the design of observations (shared KPIs) and rewards (cooperation terms). Also measures it through KPIs. |
+
+[↑ Contents](#contents)
 
 ## 2. Problem formulation: Dec-POMDP ([P1] §3.2)
 
@@ -138,6 +184,8 @@ That is $16 + 16 + 10 = 42$ values, plus $N$ reputations when partner preference
 | Optional reputation vector | Appended when partner preference is on [observation.py:360-362](../../../src_thesis_reference/marketplace/observation.py#L360-L362) | ✅ |  |
 | Observation scaling (not in paper) | Raw units: box bounds are set but nothing is normalised [observation.py:336-358](../../../src_thesis_reference/marketplace/observation.py#L336-L358) | ❓ | [I-40](issues.md#I-40) |
 
+[↑ Contents](#contents)
+
 ## 3. Environment loop ([P1] §3.9, Fig. 4)
 
 One trading period $t$ runs eight phases:
@@ -167,6 +215,8 @@ One trading period $t$ runs eight phases:
 | 7 Observation from the new state | [lem.py:495-500](../../../src_thesis_reference/marketplace/lem.py#L495-L500) (KPIs recomputed) | ✅ |  |
 | 8 Terminate at $\tau$ | Checked after the increment against `max_steps − 1`: **23 of 24** periods run, and the terminal flag never reaches the reward [lem.py:459-469](../../../src_thesis_reference/marketplace/lem.py#L459-L469) | ❌ | [I-01](issues.md#I-01), [I-02](issues.md#I-02) |
 | Reset (not specified in the papers) | Regenerates profiles, draws the same random reputation for every agent, a random balance and a random initial SoC [lem.py:260-318](../../../src_thesis_reference/marketplace/lem.py#L260-L318) | ⚠️ | [I-05](issues.md#I-05), [I-07](issues.md#I-07) |
+
+[↑ Contents](#contents)
 
 ## 4. Market ([P1] §3.3)
 
@@ -330,6 +380,8 @@ The weights $w$ are not given. Reputation is the tie-breaker in the double aucti
 | Decay factor | $r \leftarrow t_{\text{day}} \cdot r_{\text{old}} + (1 - t_{\text{day}}) \cdot r_{\text{new}}$ [reputation.py:89](../../../src_thesis_reference/marketplace/market/reputation.py#L89) | ❓ | [I-38](issues.md#I-38) |
 | SHA-256 block + proof-of-work per period | [matching.py:415-422](../../../src_thesis_reference/marketplace/market/matching.py#L415-L422), [validation.py:26-35](../../../src_thesis_reference/marketplace/market/validation.py#L26-L35); the hash omits loss and fees Proof-of-work is the largest cost of `env.step`. | ✅ | [I-66](issues.md#I-66) |
 
+[↑ Contents](#contents)
+
 ## 5. Agents ([P1] §3.4)
 
 ### 5.1 State and accounting
@@ -411,6 +463,8 @@ $C_{\text{gen},i}$ is the nominal capacity (PV plus battery). $I_t$ is irradianc
 | Demand pattern, smoothing | [der.py:207](../../../src_thesis_reference/adapters/profiles/der.py#L207), [base.py:46](../../../src_thesis_reference/adapters/profiles/base.py#L46) | ✅ |  |
 | DSO step prices, $p_{\text{utility}} > p_{\text{FiT}}$ | [dso.py:219](../../../src_thesis_reference/adapters/profiles/dso.py#L219), [dso.py:279](../../../src_thesis_reference/adapters/profiles/dso.py#L279), [dso.py:99](../../../src_thesis_reference/adapters/profiles/dso.py#L99) | ✅ |  |
 
+[↑ Contents](#contents)
+
 ## 6. Grid ([P1] §3.5)
 
 ### 6.1 Topology
@@ -470,6 +524,8 @@ $$
 | Violations penalized or disallowed | Silently capped at edge capacity; no penalty or rejection [network.py:330](../../../src_thesis_reference/adapters/grid/network.py#L330) | ⚠️ | [I-33](issues.md#I-33) |
 | Grid balance (20) | Never computed; the observation uses `dso.balance` [lem.py:489](../../../src_thesis_reference/marketplace/lem.py#L489) | ❌ | [I-23](issues.md#I-23) |
 | Mean congestion $\bar\zeta$ | [network.py:412-431](../../../src_thesis_reference/adapters/grid/network.py#L412-L431) | ✅ |  |
+
+[↑ Contents](#contents)
 
 ## 7. Implicit-cooperation KPIs ([P1] §3.6, [P2] §3.2)
 
@@ -535,6 +591,8 @@ $$
 | Coordination convergence | $1 - \sigma/\mu$ of the last 3 clearing volumes [implicit_cooperation.py:151-157](../../../src_thesis_reference/cooperation/implicit_cooperation.py#L151-L157) | ✅ |  |
 | Self-consumption (25) | [implicit_cooperation.py:195](../../../src_thesis_reference/cooperation/implicit_cooperation.py#L195) | ✅ | [I-69](issues.md#I-69) (label) |
 | Flexibility utilization (26) | [implicit_cooperation.py:197-230](../../../src_thesis_reference/cooperation/implicit_cooperation.py#L197-L230) | ✅ |  |
+
+[↑ Contents](#contents)
 
 ## 8. Reward ([P1] §3.2.4)
 
@@ -645,6 +703,8 @@ Penalties are "implicitly scaled relative to the reward magnitude" (no formula i
 | $\gamma_{\text{UD}}$ | Terminal only, and the terminal flag never arrives [reward.py:216-223](../../../src_thesis_reference/marketplace/reward.py#L216-L223) | ❌ | [I-02](issues.md#I-02), [I-46](issues.md#I-46) |
 | No-trade rule (not in paper) | Fixed −4.46 [reward.py:138-139](../../../src_thesis_reference/marketplace/reward.py#L138-L139) Reachable only when $q_{\min} = 0$ (Case 6's setting); otherwise the DSO always fills. | ❓ | [I-47](issues.md#I-47) |
 
+[↑ Contents](#contents)
+
 ## 9. MARL paradigms ([P1] §3.7.1, [P2] §3.4)
 
 | Paradigm | Training | Execution | Objective |
@@ -695,6 +755,8 @@ The paper's claim is that injecting the KPIs into $o_i$ makes the DTDE environme
 | CTDE: centralized critic, local actors | Trains a centralized `pi` on all observations [ctde.py:127-128](../../../src_thesis_reference/marl/ctde.py#L127-L128) but acts with per-agent `pi_heads` [ctde.py:76-89](../../../src_thesis_reference/marl/ctde.py#L76-L89) that are **never trained** | ❌ | [I-48](issues.md#I-48) |
 | Agent ordering in grouped modes | Grouping uses insertion order, spaces use sorted keys [train.py:657](../../../src_thesis_reference/marl/train.py#L657), [train.py:717](../../../src_thesis_reference/marl/train.py#L717) | ⚠️ | [I-59](issues.md#I-59) |
 
+[↑ Contents](#contents)
+
 ## 10. Algorithms ([P2] §3.3)
 
 **PPO** (on-policy). Clipped surrogate objective with GAE advantages; $\varepsilon$ is typically 0.2.
@@ -732,6 +794,8 @@ $$
 | PPO (11)–(12), GAE | RLlib PPO; clip 0.2, λ 0.95 [train.py:216-230](../../../src_thesis_reference/marl/train.py#L216-L230) | ✅ |  |
 | APPO, V-trace (13)–(14) | RLlib APPO, `vtrace=True` [train.py:231-239](../../../src_thesis_reference/marl/train.py#L231-L239) | ✅ |  |
 | SAC (15), twin Q, target entropy rule | RLlib SAC; target entropy −Σdim for CTCE/CTDE, −dim for DTDE [train.py:240-265](../../../src_thesis_reference/marl/train.py#L240-L265) | ✅ |  |
+
+[↑ Contents](#contents)
 
 ## 11. Experiments
 
@@ -833,6 +897,8 @@ DSO tariffs: time-varying feed-in tariff and utility price ([P2] Fig. 3).
 | Grid balance index $B_{\text{index}}$ | Not implemented anywhere in the code (and not defined in the paper) | ❓ | [I-80](issues.md#I-80) |
 | Units and time step ([P1] \$/MWh, [P2] up to 600) | Mixed W / kW / kWh / Wh and \$/Wh vs \$/kWh in defaults and docstrings; $\Delta t$ is implicit [der.py:36](../../../src_thesis_reference/marl/agents/der.py#L36), [matching.py:35-38](../../../src_thesis_reference/marketplace/market/matching.py#L35-L38) | ❓ | [I-56](issues.md#I-56) |
 
+[↑ Contents](#contents)
+
 ## 12. Points the papers leave unspecified
 
 These are needed to implement the method but are not defined in either paper:
@@ -849,3 +915,5 @@ These are needed to implement the method but are not defined in either paper:
 - The Case 6 mapping of profile data to agents and its scaling.
 - What "10 000 episodes" means in terms of RLlib iterations, and the PBT mutation domains and perturbation interval.
 - The definition of $B_{\text{index}}$ and of agent responsiveness.
+
+[↑ Contents](#contents)

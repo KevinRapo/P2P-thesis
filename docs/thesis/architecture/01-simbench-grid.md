@@ -4,6 +4,28 @@
 > Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15.
 > Checked against the installed `simbench` 1.6.2 / `pandapower` 3.5.4 on 2026-09-25 (the Studio's grid catalog uses them).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [0. At a glance](#0-at-a-glance)
+- [1. One grid technology, several network sources (D-02)](#1-one-grid-technology-several-network-sources-d-02)
+- [2. Network loading](#2-network-loading)
+- [3. Profile assignment (the core flexibility)](#3-profile-assignment-the-core-flexibility)
+  - [3.1 Placement: which bus does the agent sit on?](#31-placement-which-bus-does-the-agent-sit-on)
+  - [3.2 Ownership: which network elements does the agent replace?](#32-ownership-which-network-elements-does-the-agent-replace)
+  - [3.3 Profile source per agent](#33-profile-source-per-agent)
+  - [3.4 Scaling, time window, resolution](#34-scaling-time-window-resolution)
+  - [3.5 Background elements](#35-background-elements)
+- [4. Time alignment with MARLEM](#4-time-alignment-with-marlem)
+- [5. Grid contract (the seam)](#5-grid-contract-the-seam)
+  - [5.1 Ownership and data flow (D-13): the target architecture](#51-ownership-and-data-flow-d-13-the-target-architecture)
+- [6. The step with SimBench (D-01)](#6-the-step-with-simbench-d-01)
+- [7. File-by-file changes to MARLEM (D-04)](#7-file-by-file-changes-to-marlem-d-04)
+- [8. Open decisions](#8-open-decisions)
+- [9. Performance (measure in R4)](#9-performance-measure-in-r4)
+
+<!-- END toc -->
+
 ## 0. At a glance
 
 From a network source to one power flow per step. The market never calls the grid; it reads last step's signals (§5.1).
@@ -36,6 +58,8 @@ flowchart TB
   PREP -.-> STUDIO
 ```
 
+[↑ Contents](#contents)
+
 ## 1. One grid technology, several network sources (D-02)
 
 The tool has **one** grid implementation: a pandapower adapter running an AC power flow. The paper's abstract NetworkX grid lives only in the frozen reference copy (`src_thesis_reference/`). It is not maintained in the tool.
@@ -47,6 +71,8 @@ The tool has **one** grid implementation: a pandapower adapter running an AC pow
 | `pandapower_file` | Any pandapower JSON, e.g. a one-time balanced IEEE 34 build | No (as above) | How extra networks enter without code |
 
 Unbalanced networks (IEEE European LV, which needs `runpp_3ph`) are out of scope for the first version.
+
+[↑ Contents](#contents)
 
 ## 2. Network loading
 
@@ -60,6 +86,8 @@ Unbalanced networks (IEEE European LV, which needs `runpp_3ph`) are out of scope
 | **Voltage limits** (D-15) | `grid.limits` in the experiment file overrides every bus when set. When unset, each bus uses the network's own `min_vm_pu` / `max_vm_pu` (SimBench: 0.9–1.1), with 0.95–1.05 pu as the fallback. |
 | **Summary / topology view** | Plain data for UI and plots: buses with coordinates, lines, transformers, elements per bus. No pandapower objects cross the adapter boundary. |
 | **Validation** | Profile tables agree in length and time. Selected bus and element IDs exist. The unmodified net converges at the selected timestep. |
+
+[↑ Contents](#contents)
 
 ## 3. Profile assignment (the core flexibility)
 
@@ -116,6 +144,8 @@ The **day sampler** is what makes "many more profiles" useful: training episodes
 | `scaled_background` | As above, times a factor | Stress tests (Case 4 congestion) |
 | `no_background` | Non-owned elements are set to 0 | Small deterministic tests |
 
+[↑ Contents](#contents)
+
 ## 4. Time alignment with MARLEM
 
 MARLEM's episode is `max_steps` periods of `time_step_hours`, with quantities in kWh per period. The adapter maps episode step `t` to a profile row range:
@@ -127,6 +157,8 @@ background p at step t = mean of the p values over the rows in that range
 
 - Paper-parity presets use the hourly rule (24 steps) (D-07).
 - A 15-minute experiment is a different experiment file, not a silent resampling.
+
+[↑ Contents](#contents)
 
 ## 5. Grid contract (the seam)
 
@@ -237,6 +269,8 @@ def step(self, actions):
 
 **Accepted fallback:** if a method must keep a reference, give it a **read-only view** (a `Protocol` with only `distance`, `zone` and `signals`) that the loop refreshes between steps. Plain arguments are preferred because the signature shows what is read and when.
 
+[↑ Contents](#contents)
+
 ## 6. The step with SimBench (D-01)
 
 ```text
@@ -281,6 +315,8 @@ actions
 
 Whether the agent's own bus voltage is private or public is an experiment option.
 
+[↑ Contents](#contents)
+
 ## 7. File-by-file changes to MARLEM (D-04)
 
 These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names; a file may be rewritten:
@@ -303,6 +339,8 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 | [cooperation/metrics/grid_metrics.py](../../../src_thesis_reference/cooperation/metrics/grid_metrics.py) | Rebuilt on the assessment history | R5 |
 | [marl/train.py](../../../src_thesis_reference/marl/train.py) | `env_config` carries the experiment file section. Each runner builds its env through the factory. | R6 |
 
+[↑ Contents](#contents)
+
 ## 8. Open decisions
 
 | Question | Recommendation | Linked issue |
@@ -316,6 +354,8 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 | Physical `B_grid` | `−external_grid_kwh` replaces the trade-based imbalance | I-23, I-68 |
 | Line ratings for `case33bw` | Check whether the "Enhanced IEEE 33-bus" paper provides them; otherwise a documented rule | — |
 
+[↑ Contents](#contents)
+
 ## 9. Performance (measure in R4)
 
 Measure the following per network and resolution. Compare against the corrected original in `marlem-baseline`: about 15 ms per `env.step` for Case 6 after its speed-ups, dominated by blockchain proof-of-work.
@@ -327,3 +367,5 @@ Measure the following per network and resolution. Compare against the corrected 
 - throughput for 1, 2, 4 and 6 runners.
 
 If power flow dominates, the levers are: warm-starting `runpp` from the previous step, fewer env runners, or hourly instead of 15-minute resolution.
+
+[↑ Contents](#contents)

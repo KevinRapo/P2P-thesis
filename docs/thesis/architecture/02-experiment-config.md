@@ -4,6 +4,35 @@
 > Master: [README.md](README.md) · Decisions: D-07, D-08.
 > "Original default" = the value in the original MARLEM code (frozen in `src_thesis_reference/`, see link) or in [P2] Table 7/8. Fields marked *(new)* do not exist in the original.
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [0. At a glance](#0-at-a-glance)
+- [1. One file, one study (D-08)](#1-one-file-one-study-d-08)
+- [2. Top-level structure](#2-top-level-structure)
+- [3. Field reference](#3-field-reference)
+  - [3.1 `meta`](#31-meta)
+  - [3.2 `time`](#32-time)
+  - [3.3 `grid`](#33-grid)
+  - [3.4 `participants`](#34-participants)
+  - [3.5 `market`](#35-market)
+  - [3.6 `dso`](#36-dso)
+  - [3.7 `environment`](#37-environment)
+  - [3.8 `learning`](#38-learning)
+  - [3.9 `evaluation`](#39-evaluation)
+  - [3.10 `baselines`](#310-baselines)
+  - [3.11 `sweep`](#311-sweep)
+  - [3.12 `resources`](#312-resources)
+  - [3.13 `outputs`](#313-outputs)
+- [4. Example (Case 6, 3 × 3 on SimBench)](#4-example-case-6-3--3-on-simbench)
+- [5. Run manifest (system-written)](#5-run-manifest-system-written)
+- [6. Sharing](#6-sharing)
+- [7. Presets (original experiments on SimBench)](#7-presets-original-experiments-on-simbench)
+- [8. Relation to the original](#8-relation-to-the-original)
+- [9. Validation (preflight)](#9-validation-preflight)
+
+<!-- END toc -->
+
 ## 0. At a glance
 
 One JSON file holds the whole study; the system expands it into runs and writes a manifest for each (§1, §5).
@@ -29,6 +58,8 @@ flowchart LR
   PLAN -. "build_algorithm_config (05 §3.8)" .-> RL["RLlib configuration"]
 ```
 
+[↑ Contents](#contents)
+
 ## 1. One file, one study (D-08)
 
 ```text
@@ -41,6 +72,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 - **The experiment file** is the only thing a user writes or shares. Everything is in it: the world, the learning plan, evaluation and baselines.
 - **The run manifest** is written by the system. It is the fully resolved file (all defaults filled, placement rules resolved, sweep point applied) plus code, data and environment fingerprints (§5).
 - **The 3 × 3 matrix is one file.** `learning.paradigms × learning.algorithms × learning.seeds` expand to runs. A `sweep` (e.g. Case 1's six mechanisms) multiplies that.
+
+[↑ Contents](#contents)
 
 ## 2. Top-level structure
 
@@ -60,6 +93,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 | `sweep` | Parameter variations across runs | 3.11 |
 | `resources` | CPUs, GPUs, parallel runs, store path | 3.12 |
 | `outputs` | What is recorded | 3.13 |
+
+[↑ Contents](#contents)
 
 ## 3. Field reference
 
@@ -320,6 +355,8 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 | `grid_element_results` | bool | false | Per-bus/line result tables (large) |
 | `figures` | list[str] | [] | Figures to render at the end |
 
+[↑ Contents](#contents)
+
 ## 4. Example (Case 6, 3 × 3 on SimBench)
 
 ```json
@@ -366,6 +403,8 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 
 The example lists one participant for brevity. Unlisted fields take their defaults, and the manifest records the resolved values.
 
+[↑ Contents](#contents)
+
 ## 5. Run manifest (system-written)
 
 - the fully resolved experiment file for this run: defaults filled, placement rule resolved, sweep point applied, cell fixed;
@@ -376,6 +415,8 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 - the resolved train and eval day lists and the time-alignment rule;
 - validation report hash and platform (OS, CPU).
 
+[↑ Contents](#contents)
+
 ## 6. Sharing
 
 - **Share = send the one JSON file.** SimBench and built-in networks are referenced by code or name plus the package version, so they are not copied.
@@ -383,6 +424,8 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 - The canonical hash is computed on sorted-key JSON with defaults filled in. It identifies "the same study" regardless of formatting.
 - `schema_version` plus migration functions keep old files loadable.
 - A JSON Schema is generated from the Pydantic models. Editors (VS Code) then autocomplete and validate the file. JSON has no comments, so the `description` fields and this document carry the explanations.
+
+[↑ Contents](#contents)
 
 ## 7. Presets (original experiments on SimBench)
 
@@ -400,11 +443,15 @@ experiments/presets/              # in the repo
 - Case 4 on SimBench is a different study from the paper's topology/capacity comparison (real physics). This is documented in the preset's `description`.
 - The [P2] Case 6 profile mapping is unpublished (I-51), so the Case 6 preset is `reconstructed-unverified`.
 
+[↑ Contents](#contents)
+
 ## 8. Relation to the original
 
 - There is no validated NetworkX release (retired 2026-09-27, D-02). The original is kept frozen in `src_thesis_reference/` for code comparison; the tool never runs it.
 - Presets reproduce the papers' cases on SimBench and say in `meta.description` which case and which deviations (e.g. Case 4 has real physics).
 - R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (03 §4, `ResultService.reference`).
+
+[↑ Contents](#contents)
 
 ## 9. Validation (preflight)
 
@@ -422,3 +469,5 @@ Run by `ValidationService` before any run (03 §2):
 - resources.
 
 Findings have stable codes. For example `GRID_MAPPING_DUPLICATE_OWNER` is an error, and `PBT_DOMAIN_EXCLUDES_INITIAL` is an error.
+
+[↑ Contents](#contents)

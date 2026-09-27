@@ -4,6 +4,39 @@
 > Issue text, code lines and **status** live in [issues.md](issues.md) only. The issue tables and diagrams below marked *generated* are rebuilt from it by [check_docs.py](check_docs.py) (`--write`); do not edit them by hand.
 > Legends and conventions: [README.md](README.md).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [1. How this plan is organised](#1-how-this-plan-is-organised)
+- [2. Fault map](#2-fault-map)
+  - [How the root faults propagate](#how-the-root-faults-propagate)
+- [3. Stage A: Level 0, Platform Marketplace](#3-stage-a-level-0-platform-marketplace)
+  - [A0. Test harness](#a0-test-harness)
+  - [A1. Episode loop](#a1-episode-loop)
+  - [A2. Inputs: profiles and units](#a2-inputs-profiles-and-units)
+  - [A3. Action → order](#a3-action--order)
+  - [A4. Pricing](#a4-pricing)
+  - [A5. Matching](#a5-matching)
+  - [A6. DSO: balance and fees](#a6-dso-balance-and-fees)
+  - [A7. Grid](#a7-grid)
+  - [A8. Settlement: energy and cash](#a8-settlement-energy-and-cash)
+  - [A9. Reputation](#a9-reputation)
+  - [A10. Ledger](#a10-ledger)
+- [4. Stage B: Level 2, Implicit Cooperation](#4-stage-b-level-2-implicit-cooperation)
+  - [B1. Cooperation KPIs](#b1-cooperation-kpis)
+  - [B2. Metrics and plots](#b2-metrics-and-plots)
+- [5. Stage C: Level 0 agent interface (observation and reward)](#5-stage-c-level-0-agent-interface-observation-and-reward)
+  - [C1. Observation](#c1-observation)
+  - [C2. Reward](#c2-reward)
+- [6. Stage D: Level 1, MARL Agents (learning)](#6-stage-d-level-1-marl-agents-learning)
+  - [D1. Training paradigms](#d1-training-paradigms)
+  - [D2. Inference](#d2-inference)
+  - [D3. Experiments and reporting](#d3-experiments-and-reporting)
+- [7. Decision log](#7-decision-log)
+- [8. Progress](#8-progress)
+
+<!-- END toc -->
+
 ## 1. How this plan is organised
 
 The plan follows the three levels of [P1] Fig. 2 (the high-level class diagram), in the order **Level 0 → Level 2 → Level 1**:
@@ -62,6 +95,8 @@ flowchart LR
 2. Write the step's **acceptance test** on a hand-sized case (2–3 agents, 1–3 periods). It must fail on the original code.
 3. Port the minimal change (from `marlem-baseline` where it exists). Rerun the test and the evidence trace, and record a before/after.
 4. Set the status in [issues.md](issues.md) to `fixed` and delete the issue's code markers in the same commit. Move to the next step only when all of the step's issues are `fixed`, `decided` or `wontfix`.
+
+[↑ Contents](#contents)
 
 ## 2. Fault map
 
@@ -248,6 +283,8 @@ flowchart LR
   classDef warn fill:#fef3c7,stroke:#b45309,color:#111
 ```
 
+[↑ Contents](#contents)
+
 ## 3. Stage A: Level 0, Platform Marketplace
 
 Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes that Level 0 physically calls (`DERAgent` action/settlement, `Battery`). The goal is that one hand-sized period produces correct orders, trades, prices, energy, cash and grid state.
@@ -431,6 +468,8 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 | [I-66](issues.md#I-66) | ⚠️ | Code | open | The block hash omits loss and fees, and blocks are forced every step (in-memory PoW, not consensus) |
 <!-- END generated:step-A10 -->
 
+[↑ Contents](#contents)
+
 ## 4. Stage B: Level 2, Implicit Cooperation
 
 The KPIs computed from Stage A's outcomes. They can only be validated once A is correct, because they are functions of its output.
@@ -464,6 +503,8 @@ The KPIs computed from Stage A's outcomes. They can only be validated once A is 
 |---|---|---|---|---|
 | [I-65](issues.md#I-65) | ❌ | Code | open | `src/analytics` reports welfare, grid and coordination concepts without the required inputs |
 <!-- END generated:step-B2 -->
+
+[↑ Contents](#contents)
 
 ## 5. Stage C: Level 0 agent interface (observation and reward)
 
@@ -505,6 +546,8 @@ These are drawn in Level 0 in Fig. 2 but consume Level 2 KPIs, so they come afte
 | [I-76](issues.md#I-76) | ❓ | Paper | open | `R_base` components have no formulas in the paper; the code is the only specification |
 | [I-79](issues.md#I-79) | ⚠️ | Fidelity | open | `f_contrib` grid term is a heuristic, not [P2]'s marginal `−∂\|B_grid\|/∂a_i` |
 <!-- END generated:step-C2 -->
+
+[↑ Contents](#contents)
 
 ## 6. Stage D: Level 1, MARL Agents (learning)
 
@@ -560,12 +603,16 @@ The learning layer, last. It needs a correct environment, observations and rewar
 | [I-80](issues.md#I-80) | ❓ | Paper | open | [P2] evaluation metric `B_index` is undefined in the paper and absent from the code |
 <!-- END generated:step-D3 -->
 
+[↑ Contents](#contents)
+
 ## 7. Decision log
 
 Every Paper-origin (❓) issue is settled here before the step that needs it. A changed decision is a new row, not an edit.
 
 | Date | Issue | Rule | Reason |
 |---|---|---|---|
+
+[↑ Contents](#contents)
 
 ## 8. Progress
 
@@ -580,3 +627,5 @@ Generated from the register's Step and Status columns.
 | D: Level 1, MARL Agents | 14 | 14 | 0 | 0 | 0 | 0 |
 | **Total** | **80** | **80** | **0** | **0** | **0** | **0** |
 <!-- END generated:progress -->
+
+[↑ Contents](#contents)

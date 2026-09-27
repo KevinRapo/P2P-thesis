@@ -2,6 +2,19 @@
 
 > Adopted 2026-09-27: this layout replaced the earlier `validation/` files (paper-vs-code, plan-by-level, validation-plan-fix) and the two validation files in `paper/`. §"Where the old content went" maps each old section to its new place.
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [Files](#files)
+- [Rules that keep the files in sync](#rules-that-keep-the-files-in-sync)
+- [ID scheme](#id-scheme)
+- [Legends](#legends)
+- [Code markers](#code-markers)
+- [Where the old content went](#where-the-old-content-went)
+- [Adoption (2026-09-27)](#adoption-2026-09-27)
+
+<!-- END toc -->
+
 ## Files
 
 | File | Holds | Edit it when |
@@ -14,6 +27,8 @@
 | [marlem-keep-replace-audit.md](marlem-keep-replace-audit.md) | Rebuild or repair: function-by-function verdicts for a SimBench edition built on the papers' method, the grid coupling, and what happens to the 80 issues | The rebuild plan changes |
 | [archive/validation-plan-fix.md](archive/validation-plan-fix.md) | The earlier audit (P0-01 … P3-03). Frozen, not kept in sync. | Never |
 
+[↑ Contents](#contents)
+
 ## Rules that keep the files in sync
 
 1. **One home per fact.** Issue text, code lines, evidence and status live only in [issues.md](issues.md). The other files cite `I-xx` (linked to its register row) and do not restate the issue.
@@ -25,8 +40,12 @@
    ```
 
    Without `--write` it only checks, and fails if a block is stale. Use the `marlem` conda env.
+
+   The **Contents** block at the top of each document and the `↑ Contents` links under each section are generated too. After adding or renaming a `##` / `###` heading, run `python docs/toc.py` ([tests/test_docs_toc.py](../../../tests/test_docs_toc.py) fails while they are stale).
 4. **Code links point at exact lines in the frozen original** (`src_thesis_reference/`), so they never move while `src_thesis/` is rewritten (D-14). `check_docs.py` fails on a link past the end of its file. Links to new platform code (application, Studio, experiments, SimBench adapter, grid contract) still point at `src_thesis/`; update them in the same commit that edits the file.
 5. **Closing an issue deletes its code markers in the same commit.** `check_docs.py` fails if a closed issue still has a marker, or if a marker's tag or step disagrees with the register.
+
+[↑ Contents](#contents)
 
 ## ID scheme
 
@@ -38,6 +57,8 @@
 | `[P1]`, `[P2]` | The two papers. `P` with brackets means a paper, nothing else. | [methodology.md](methodology.md) |
 | `P0-01` … `P3-03` | Old fix-plan IDs. Aliases only, in the register's Old ID column. | [issues.md §6](issues.md#6-old-fix-plan-ids) |
 | `R1` … `R9` | Architecture roadmap phases (renamed from `P1`–`P9` on 2026-09-27 to free `P` for the papers) | [../architecture/README.md](../architecture/README.md) |
+
+[↑ Contents](#contents)
 
 ## Legends
 
@@ -64,6 +85,8 @@ These are *not* the paper's Levels 0–2; the levels order the plan.
 
 **Evidence**: `T1`…`T13` = reproduced by the trace script; `C` = code reading only; `—` = judgment or taken from the earlier audit.
 
+[↑ Contents](#contents)
+
 ## Code markers
 
 Each issue location in `src_thesis/` has a one-line comment directly above it, e.g.
@@ -74,6 +97,8 @@ buy_order.quantity -= (proposed_quantity - transmission_loss)
 ```
 
 The Todo Tree extension colours these lines, marks them on the scrollbar, and lists them grouped by tag. Register code links point at the line below the marker in `src_thesis_reference/`, where the markers stay; in `src_thesis/` a marker is deleted when its issue is closed. An issue with several locations numbers its markers and points to the next one, e.g. `# FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) …`; the last points back to the first. `check_docs.py --write` keeps the numbering and the next-location line numbers current after code edits; without `--write` it fails when they are stale.
+
+[↑ Contents](#contents)
 
 ## Where the old content went
 
@@ -91,8 +116,12 @@ The Todo Tree extension colours these lines, marks them on the scrollbar, and li
 | `paper/marlem-methodology.md` | [methodology.md](methodology.md); the hand-counted totals are generated |
 | `validation/validation-plan-fix.md` | [archive/](archive/validation-plan-fix.md), frozen |
 
+[↑ Contents](#contents)
+
 ## Adoption (2026-09-27)
 
 Done: this folder replaced `validation/`; `paper/marlem-faults-by-level.md` and the code-annotated `paper/marlem-methodology.md` were removed (merged here); the paper-only copy became `paper/marlem-methodology.md`; inbound links were repointed; [tests/test_validation_docs.py](../../../tests/test_validation_docs.py) runs `check_docs.py`, so a stale doc fails `pytest`.
 
 Also done 2026-09-27: roadmap phases renamed `P1`–`P9` → `R1`–`R9`; the NetworkX validated release (old P2) retired.
+
+[↑ Contents](#contents)

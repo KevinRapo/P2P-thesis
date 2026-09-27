@@ -4,6 +4,29 @@
 > Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [03-application-layer.md](03-application-layer.md) · Decisions: D-08, D-09, D-14.
 > Written 2026-09-27. Code: [experiments/](../../../src_thesis/experiments/) · Tests: [tests/test_experiments.py](../../../tests/test_experiments.py).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [1. Place in the system and status](#1-place-in-the-system-and-status)
+- [2. Records (models/records.py)](#2-records-modelsrecordspy)
+- [3. Functions](#3-functions)
+  - [3.1 Files (models/files.py)](#31-files-modelsfilespy)
+  - [3.2 Runs of a file (models/expand.py)](#32-runs-of-a-file-modelsexpandpy)
+  - [3.3 Resolution (models/resolve.py)](#33-resolution-modelsresolvepy)
+  - [3.4 Manifest (models/manifest.py)](#34-manifest-modelsmanifestpy)
+  - [3.5 Store (store/filesystem.py)](#35-store-storefilesystempy)
+  - [3.6 Step records (store/recorder.py)](#36-step-records-storerecorderpy)
+  - [3.7 Environment factory (factory/environment.py)](#37-environment-factory-factoryenvironmentpy)
+  - [3.8 RL configuration (factory/training.py)](#38-rl-configuration-factorytrainingpy)
+  - [3.9 Runners (worker/runner.py)](#39-runners-workerrunnerpy)
+  - [3.10 Worker (worker/process.py)](#310-worker-workerprocesspy)
+  - [3.11 Pool (worker/pool.py)](#311-pool-workerpoolpy)
+- [4. Run lifecycle](#4-run-lifecycle)
+- [5. How the services use it](#5-how-the-services-use-it)
+- [6. Tests (tests/test_experiments.py)](#6-tests-teststest_experimentspy)
+
+<!-- END toc -->
+
 ## 1. Place in the system and status
 
 ```mermaid
@@ -73,6 +96,8 @@ experiments/
 
 The four earlier stubs (`factory_new.py`, `runner_new.py`, `store_new.py`, `worker_new.py`) were replaced by these modules.
 
+[↑ Contents](#contents)
+
 ## 2. Records (models/records.py)
 
 Code: [models/records.py](../../../src_thesis/experiments/models/records.py)
@@ -85,6 +110,8 @@ Code: [models/records.py](../../../src_thesis/experiments/models/records.py)
 | `Manifest` | `run_id`, `experiment_id`, `cell`, `created`, `file_hash`, `resolved_hash`, `code`, `environment`, `data`, `days`, `time_alignment`, `validation_hash`, `platform` | `build_manifest`, once | Never changed after creation (02 §5) |
 | `StatusRecord` | `run_id`, `experiment_id`, `state`, `pid`, `created`, `started`, `updated`, `finished`, `progress`, `iteration`, `last_metrics`, `message` | store (worker, pool) | `status.json`, replaced atomically |
 | `ArtifactIndex` | `files`: name → path in the run folder | worker | `artifacts.json` |
+
+[↑ Contents](#contents)
 
 ## 3. Functions
 
@@ -250,6 +277,8 @@ Lives in the process that owns `ExperimentService` (Studio or CLI) and is polled
 | `reconcile(store)` | → `[run_id]` | On start-up: RUNNING / CANCELLING runs whose process is gone → FAILED |
 | `pid_alive(pid)` | → bool | Windows: `OpenProcess` + `GetExitCodeProcess`; elsewhere `os.kill(pid, 0)` |
 
+[↑ Contents](#contents)
+
 ## 4. Run lifecycle
 
 ```mermaid
@@ -295,9 +324,13 @@ sequenceDiagram
   end
 ```
 
+[↑ Contents](#contents)
+
 ## 5. How the services use it
 
 The application services are the only callers of this layer. Which service method calls which function here is listed once, from the services' side, in [03 §4](03-application-layer.md#4-what-each-real-service-calls). The services are still the demo implementations; wiring them to this layer is the next step of R7.
+
+[↑ Contents](#contents)
 
 ## 6. Tests ([tests/test_experiments.py](../../../tests/test_experiments.py))
 
@@ -309,3 +342,5 @@ The application services are the only callers of this layer. Which service metho
 - Worker: noop run completes; an edited `resolved.json` fails; cancel before start; a runner error ends in FAILED with its message.
 - Pool: two runs as real subprocesses, one slot; `reconcile` marks a dead worker FAILED.
 - Boundaries: importing the worker and pool loads no heavy package.
+
+[↑ Contents](#contents)

@@ -5,6 +5,28 @@
 > Written: 2026-09-27 · Branch: `dev` · Code links point at the frozen original, `src_thesis_reference/` (identical to `src_thesis/` on 2026-09-27).
 > Issue IDs link to the register in [issues.md](issues.md#2-register). Target design: [architecture/01-simbench-grid.md](../architecture/01-simbench-grid.md).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [0. Verdicts](#0-verdicts)
+- [1. Bottom line](#1-bottom-line)
+- [2. Where the original is coupled to its grid](#2-where-the-original-is-coupled-to-its-grid)
+- [3. Module by module](#3-module-by-module)
+  - [3.1 Market: pricing, orders, trades, ledger](#31-market-pricing-orders-trades-ledger)
+  - [3.2 Market: matching](#32-market-matching)
+  - [3.3 DSO](#33-dso)
+  - [3.4 Agents and battery](#34-agents-and-battery)
+  - [3.5 Grid and profiles](#35-grid-and-profiles)
+  - [3.6 Episode loop, observation, reward](#36-episode-loop-observation-reward)
+  - [3.7 Cooperation KPIs, analytics, plots](#37-cooperation-kpis-analytics-plots)
+  - [3.8 RL layer (parked)](#38-rl-layer-parked)
+- [4. What happens to the 80 issues](#4-what-happens-to-the-80-issues)
+- [5. What the original never had (the new build needs it)](#5-what-the-original-never-had-the-new-build-needs-it)
+- [6. Proposed build order (RL isolated)](#6-proposed-build-order-rl-isolated)
+- [7. Consequences for the existing plans](#7-consequences-for-the-existing-plans)
+
+<!-- END toc -->
+
 ## 0. Verdicts
 
 | Verdict | Meaning |
@@ -15,6 +37,8 @@
 | **Replace** | Superseded by SimBench / pandapower or by the experiment layer (02, 03) |
 | **Drop** | Not needed for the thesis |
 | **Later (RL)** | The learning layer: park it unchanged until the environment is validated |
+
+[↑ Contents](#contents)
 
 ## 1. Bottom line
 
@@ -42,6 +66,8 @@
 
 **Decided 2026-09-27 (D-04, D-14):** the rebuild happens in place in `src_thesis/`, keeping file names and class responsibilities (files may be rewritten); `src_thesis/`'s original state is frozen in `src_thesis_reference/`. *Original recommendation:* build the SimBench edition as a new environment package that *imports* the kept pieces (pricing, orders, battery, tariffs, KPIs, reputation) and rewrites the orchestration (loop, matching, settlement, observation, reward). Repairing the original loop first buys little: two of its three most coupled parts (grid flows and losses in matching, the NetworkX grid) are thrown away anyway, and the third (the episode loop) needs a new settlement and grid step regardless.
 
+[↑ Contents](#contents)
+
 ## 2. Where the original is coupled to its grid
 
 Every place the original reaches into the NetworkX grid, and what replaces it in the SimBench edition (01 §5–§6).
@@ -64,6 +90,8 @@ Every place the original reaches into the NetworkX grid, and what replaces it in
 | Config serialises the `GridNetwork` | [io.py:81-169](../../../src_thesis_reference/marketplace/io.py#L81-L169) | The experiment file's `grid` section |
 
 The coupling is wide (13 places in 8 files) but shallow: almost every point reads one number (a distance, a congestion level, a capacity or `dso.balance`). That is why the market code can be kept or rewritten independently of the grid. The target design for this seam is agreed as D-13 ([01 §5.1](../architecture/01-simbench-grid.md#51-ownership-and-data-flow-d-13-the-target-architecture)): `LocalEnergyMarket` stays the orchestrator and the only holder of the grid, and the market receives `GridTopologyInfo` and last step's `GridSignals` as arguments instead of holding a grid reference.
+
+[↑ Contents](#contents)
 
 ## 3. Module by module
 
@@ -158,6 +186,8 @@ The coupling is wide (13 places in 8 files) but shallow: almost every point read
 
 The environment only has to honour RLlib's `MultiAgentEnv` interface (reset / step / spaces). As long as the rebuilt environment keeps that interface and the Table 2 observation and the ⟨p, q, α, β⟩ action, the parked trainer plugs in unchanged.
 
+[↑ Contents](#contents)
+
 ## 4. What happens to the 80 issues
 
 | Group | Issues | In the SimBench edition |
@@ -171,6 +201,8 @@ The environment only has to honour RLlib's `MultiAgentEnv` interface (reset / st
 
 So the rebuild removes 14 issues outright, but 53 describe logic or decisions that apply to any faithful implementation of the paper. **The issue register and the paper decisions are the real asset of the validation work, not the original code.**
 
+[↑ Contents](#contents)
+
 ## 5. What the original never had (the new build needs it)
 
 - A **settlement ledger** per agent and step (energy identity, battery dispatch, cash with fees) as the single source for KPIs, observation, reward and grid injections.
@@ -179,6 +211,8 @@ So the rebuild removes 14 issues outright, but 53 describe logic or decisions th
 - One **seeded RNG** threaded through the environment instead of `np.random.seed` in eight places.
 - **Scripted baseline policies** (no order, zero-intelligence random, rule-based) to test the environment without RL, and to report next to RL results.
 - An **experiment file** that rebuilds any run exactly (02).
+
+[↑ Contents](#contents)
 
 ## 6. Proposed build order (RL isolated)
 
@@ -195,6 +229,8 @@ So the rebuild removes 14 issues outright, but 53 describe logic or decisions th
 
 Steps 1–7 need no Ray at all, so every environment bug is found and fixed before learning is involved.
 
+[↑ Contents](#contents)
+
 ## 7. Consequences for the existing plans
 
 - **Validation plan (Stages A–D):** the steps stay as the checklist, but each is satisfied by the *new* code. "Port the fix into the original" becomes "build the component, run its issue demos".
@@ -205,3 +241,5 @@ Steps 1–7 need no Ray at all, so every environment bug is found and fixed befo
 1. ~~Adopt the rebuild route and retire the NetworkX validated release?~~ **Yes** (2026-09-27, D-02).
 2. ~~New package or rewrite in place?~~ **In place in `src_thesis/`**, same file names; frozen original in `src_thesis_reference/` (2026-09-27, D-04, D-14).
 3. Keep the blockchain ledger at all (optional, off by default), or drop it? **Open.**
+
+[↑ Contents](#contents)

@@ -7,12 +7,30 @@
 > Code: `src_thesis/` is the live code; `src_thesis_reference/` is the frozen original for comparison (D-14).
 > Roadmap phases are called R1–R9 (they were P1–P9 until 2026-09-27; P now always means a paper).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [1. Goal](#1-goal)
+- [2. System at a glance](#2-system-at-a-glance)
+  - [2.1 Layers and who may call whom](#21-layers-and-who-may-call-whom)
+  - [2.2 Dependencies (D-10)](#22-dependencies-d-10)
+  - [2.3 Tests per layer](#23-tests-per-layer)
+  - [2.4 New components (not in the paper)](#24-new-components-not-in-the-paper)
+- [3. Documents](#3-documents)
+- [4. Roadmap](#4-roadmap)
+- [5. Decision log](#5-decision-log)
+- [6. Glossary](#6-glossary)
+
+<!-- END toc -->
+
 ## 1. Goal
 
 1. **Rebuild and validate** MARLEM's method faithfully to the papers in `src_thesis/` (a paper-faithful reimplementation). Every issue in the validation register is closed by the new code (its issue demo passes) or by a recorded decision. The original stays frozen in `src_thesis_reference/` for comparison; no separate NetworkX release is published (retired 2026-09-27).
 2. **Build the tool on SimBench + pandapower only.** The grid is a realistic AC power flow on real distribution feeders, with far more (and more realistic) load and generation profiles. The NetworkX grid is removed from the tool.
 3. **Run all original experiments on the SimBench grid.** That means the 3 × 3 paradigm × algorithm matrix (Case 6) and the other case studies (Cases 1–7). They are compared with the figures published in [P1] and [P2], qualitatively; the original NetworkX grid is not rerun.
 4. **Make experiments shareable and reproducible** through one versioned JSON experiment file, executable identically from the CLI, notebooks and the NiceGUI Studio.
+
+[↑ Contents](#contents)
 
 ## 2. System at a glance
 
@@ -148,6 +166,8 @@ Where the SimBench edition adds to the original; the [P1] Fig. 2 classes themsel
 | CLI | `src_thesis/cli.py` | New | 04 §6 |
 | NiceGUI Studio | `studio/` (separate presentation package) | New | 04 |
 
+[↑ Contents](#contents)
+
 ## 3. Documents
 
 Read the [paper-to-code map](../../paper/marlem-paper-to-code-map.md) first (it sits with the papers, because it describes the original code in `src_thesis_reference/`), then these in order:
@@ -159,6 +179,8 @@ Read the [paper-to-code map](../../paper/marlem-paper-to-code-map.md) first (it 
 | 03 | [03-application-layer.md](03-application-layer.md) | Application layer: status and wiring, every service method, the returned data, and what each real service calls |
 | 04 | [04-presentation.md](04-presentation.md) | Presentation: the NiceGUI Studio (shell, every page, the services it calls, how pages connect) and the CLI |
 | 05 | [05-experiment-layer.md](05-experiment-layer.md) | `experiments/` in detail: records, every function with inputs and outputs, the store, worker, pool, run lifecycle and tests |
+
+[↑ Contents](#contents)
 
 ## 4. Roadmap
 
@@ -175,6 +197,8 @@ Each phase has an exit criterion.
 | **R7 Services, CLI, worker** | Application services, filesystem store, worker process, CLI | `marlem run <file>` executes a 3 × 3 smoke matrix end to end | 03 |
 | **R8 Studio** | Read-only (Runs, Results, Grid) → editors → launch | An experiment built in the Studio produces a run identical to its CLI equivalent | 04 |
 | **R9 Evidence runs** | Original experiments on SimBench; qualitative comparison with the papers' published figures; thesis figures | Results reproducible from the stored manifests | 02 §7 |
+
+[↑ Contents](#contents)
 
 ## 5. Decision log
 
@@ -196,6 +220,8 @@ Each phase has an exit criterion.
 | D-14 | **Code home.** `src_thesis/` is the live code (domain, adapters, services, Studio, tests and launch configuration unchanged). `src_thesis_reference/` is a frozen snapshot of the original with its issue markers, never edited. | **Agreed** (2026-09-27) | code map |
 | D-15 | **Voltage limits.** `grid.limits` in the experiment file overrides every bus when set; when unset, each bus uses the network's own `min_vm_pu` / `max_vm_pu`, with 0.95–1.05 pu as the fallback. The Studio preview follows the same rule. | **Agreed** (2026-09-27) | 01 §2, 02 §3.3 |
 
+[↑ Contents](#contents)
+
 ## 6. Glossary
 
 | Term | Meaning |
@@ -209,3 +235,5 @@ Each phase has an exit criterion.
 | **Reference copy** | `src_thesis_reference/`: the frozen original MARLEM (relocated, with issue markers). Never edited; compare it with `src_thesis/` on disk (D-14). |
 | **Experiment file** | The single JSON describing one study (02) |
 | **Preset** | A checked-in experiment file reproducing an original MARLEM case on SimBench |
+
+[↑ Contents](#contents)

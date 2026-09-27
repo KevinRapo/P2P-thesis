@@ -3,6 +3,23 @@
 > `src_thesis/application/`: the services that the Studio, the CLI and notebooks call. They hide MARLEM, the experiment layer and the adapters behind typed, plain-data methods.
 > Master: [README.md](README.md) (layers and who may call whom: §2.1) · Experiment layer: [05-experiment-layer.md](05-experiment-layer.md) · Presentation: [04-presentation.md](04-presentation.md) · Decisions: D-09, D-13.
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [0. At a glance](#0-at-a-glance)
+- [1. Status and wiring](#1-status-and-wiring)
+- [2. Services](#2-services)
+  - [2.1 `ConfigService`: experiment files](#21-configservice-experiment-files)
+  - [2.2 `GridCatalogService`: networks without an environment](#22-gridcatalogservice-networks-without-an-environment)
+  - [2.3 `ProfileService`: profiles and participant mapping](#23-profileservice-profiles-and-participant-mapping)
+  - [2.4 `ValidationService`: preflight](#24-validationservice-preflight)
+  - [2.5 `ExperimentService`: runs](#25-experimentservice-runs)
+  - [2.6 `ResultService`: reading results](#26-resultservice-reading-results)
+- [3. Returned data](#3-returned-data)
+- [4. What each real service calls](#4-what-each-real-service-calls)
+
+<!-- END toc -->
+
 ## 0. At a glance
 
 Every caller gets the six services from one container; each service reaches exactly the lower layers it needs (§4). Green = real implementation today, grey = demo.
@@ -39,6 +56,8 @@ flowchart LR
 
 Services return plain data only (§3); nothing from the lower layers reaches the caller.
 
+[↑ Contents](#contents)
+
 ## 1. Status and wiring
 
 | File | Holds | State (2026-09-27) |
@@ -65,6 +84,8 @@ Services return plain data only (§3); nothing from the lower layers reaches the
 - `build_services("real")`: reserved; raises until R6–R7.
 
 Real services replace demo ones one at a time, in roadmap order, and are imported lazily inside `build_services`. Only this module changes when a real service arrives.
+
+[↑ Contents](#contents)
 
 ## 2. Services
 
@@ -140,6 +161,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 | `reference(case, metric)` | → series | Values reported in the papers for that case (reference data entered by hand), read-only |
 | `export(run_ids, fmt)` | → path | CSV/JSON of raw series, figures |
 
+[↑ Contents](#contents)
+
 ## 3. Returned data
 
 [models.py](../../../src_thesis/application/models.py) holds the only types that cross the boundary to the Studio, the CLI and notebooks.
@@ -156,6 +179,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 | `ValidationService` | `ValidationReport` (`Finding`s with `Severity`), `DryRunResult` |
 | `ExperimentService` | run IDs, `RunStatus`, `RunSummary`, `RunEstimate`, `RepositoryHealth` |
 | `ResultService` | `RunResult`, `Series`, step records (dicts), `MatrixTable`, export paths |
+
+[↑ Contents](#contents)
 
 ## 4. What each real service calls
 
@@ -174,3 +199,5 @@ Services run in the process of their caller (no REST layer, D-09). Anything long
 | `ExperimentService.snapshot` / `list_runs` / `reconcile` | `store.read_status`, `log_tail` / `store.list_runs` / `worker.pool.reconcile` |
 | `ResultService.summary` / `step_records` / `grid_series` | `store.read_manifest`, `metrics/*` / `store.read_jsonl("raw/steps.jsonl")` |
 | `ResultService.reference(case, metric)` | Values reported in the papers, entered by hand as reference data in a read-only `reference/` folder beside the store, each with its source (paper, figure or table) |
+
+[↑ Contents](#contents)

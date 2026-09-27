@@ -4,6 +4,18 @@
 > The description is of the **original** code (frozen 2026-09-23; line numbers updated 2026-09-24 when the code markers were added). The status column is live.
 > Legends and the ID scheme: [README.md](README.md#legends). Paper vs code per equation: [methodology.md](methodology.md). Work order: [plan.md](plan.md).
 
+<!-- BEGIN toc (python docs/toc.py) -->
+## Contents
+
+- [1. Evidence](#1-evidence)
+- [2. Register](#2-register)
+- [3. Paper origin: is the paper's method sound?](#3-paper-origin-is-the-papers-method-sound)
+- [4. Impact on the published results](#4-impact-on-the-published-results)
+- [5. Completeness check and readiness](#5-completeness-check-and-readiness)
+- [6. Old fix-plan IDs](#6-old-fix-plan-ids)
+
+<!-- END toc -->
+
 ## 1. Evidence
 
 - **T*n*** means confirmed by running [evidence/trace_original_episode.py](evidence/trace_original_episode.py). It uses 3 agents, a mesh grid, seeded random actions and the original code. Run it with the `marlem` conda env.
@@ -24,6 +36,8 @@
 | T11 | Profiles passed to `DERAgent(...)` are replaced at `reset()`. |
 | T12 | `BID_ASK_SPREAD` pricing with buy=200, sell=50 and market=100 returns **200**. |
 | T13 | The IEEE-34 graph is **not connected**: nodes 888–890 form an island. |
+
+[↑ Contents](#contents)
 
 ## 2. Register
 
@@ -132,6 +146,8 @@
 | <a id="I-79"></a>I-79 | RewardHandler | C2 | Fidelity | ⚠️ | open | `f_contrib` grid term is a heuristic, not [P2]'s marginal `−∂\|B_grid\|/∂a_i` | [reward.py:L487-L499](../../../src_thesis_reference/marketplace/reward.py#L487-L499) | C | [§8](methodology.md#implementation-in-the-original-code-8-reward) | — |
 | <a id="I-80"></a>I-80 | CaseNotebooks | D3 | Paper | ❓ | open | [P2] evaluation metric `B_index` is undefined in the paper and absent from the code | — | C | [§11](methodology.md#implementation-in-the-original-code-11-experiments) | — |
 
+[↑ Contents](#contents)
+
 ## 3. Paper origin: is the paper's method sound?
 
 This asks whether the paper's method holds up on its own terms, before any code is involved. None of these items prevents building a working model. Each one needs a **recorded decision** (paper text → options → chosen rule → reason), because the paper cannot settle it. The register rows carry the decisions.
@@ -157,6 +173,8 @@ This asks whether the paper's method holds up on its own terms, before any code 
 
 **Verdict on the paper's method:** the overall design is coherent and worth building on: a market with a physical-grid layer, KPI-shaped observations and rewards, and three training paradigms compared. The weak points are **definitions**, not architecture: reward and KPI formulas, grid-physics scope, and the evaluation protocol. They can all be fixed by recorded decisions. None of them requires abandoning the framework.
 
+[↑ Contents](#contents)
+
 ## 4. Impact on the published results
 
 The upstream repository is the published version. If the papers' figures were produced with this code (not independently confirmable), then:
@@ -165,6 +183,8 @@ The upstream repository is the published version. If the papers' figures were pr
 - **[P2] Case 6 (MARL 3×3):** the reward the agents optimised has constant or inactive components (I-43, I-44), an unnormalised `f_coop` (I-41), and no terminal penalty (I-02). Observations expose exact future demand (I-39) and a constant zero profit (I-27). The CTDE actor that acted was never trained (I-48). The ranking in Table 9 describes learning on *this* reward, not on the paper's intended model.
 
 **Thesis consequence:** the thesis cannot claim to reproduce either paper. The defensible framing is a **paper-faithful corrected reimplementation**: every paper decision and fidelity deviation is listed, and the original is kept as a named comparison.
+
+[↑ Contents](#contents)
 
 ## 5. Completeness check and readiness
 
@@ -208,6 +228,8 @@ The upstream repository is the published version. If the papers' figures were pr
 3. **The thesis claim is "paper-faithful corrected reimplementation"** (§4), not reproduction.
 4. **A new finding reopens a closed row only** if it shows a violated invariant, a paper contradiction not already listed, or a failed reproduction. A preference alone does not.
 
+[↑ Contents](#contents)
+
 ## 6. Old fix-plan IDs
 
 Reverse lookup from the archived plan's IDs (P0-01 … P3-03) to the issues here (generated). The old IDs are aliases only; use `I-xx` everywhere.
@@ -250,3 +272,5 @@ Reverse lookup from the archived plan's IDs (P0-01 … P3-03) to the issues here
 | P3-02 | [I-53](issues.md#I-53) |
 | P3-03 | [I-67](issues.md#I-67) |
 <!-- END generated:old-ids -->
+
+[↑ Contents](#contents)
