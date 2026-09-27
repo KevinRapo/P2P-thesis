@@ -31,38 +31,63 @@
 
 ```mermaid
 flowchart LR
-  subgraph APP["application/ (03)"]
+  subgraph APP["application/ (03) · demo today, real in R7"]
     CF["ConfigService"]
     EX["ExperimentService"]
     RE["ResultService"]
   end
   subgraph EXP["experiments/"]
-    FIL["files · expand · resolve"]
-    MAN["manifest"]
-    STO[("store")]
-    POOL["pool"]
-    WRK["worker (own process)"]
-    RUN["runner"]
-    REC["recorder"]
-    FAC["factory · training"]
+    subgraph MOD["models/"]
+      FIL["files.py<br/>load · save · canonical_hash"]
+      EXPD["expand.py · resolve.py<br/>expand · run_id · resolve_run"]
+      MAN["manifest.py<br/>build_manifest"]
+    end
+    STO[("store/filesystem.py<br/>ExperimentStore<br/>runs/&lt;run_id&gt;/")]
+    POOL["worker/pool.py<br/>WorkerPool"]
+    WRK["worker/process.py<br/>run_one (own process)"]
+    RUN["worker/runner.py<br/>Noop · Baseline · Training"]
+    REC["store/recorder.py<br/>EpisodeRecorder"]
+    FAC["factory/environment.py<br/>factory/training.py"]
   end
   subgraph DOM["MARLEM domain + adapters"]
     ENV["LocalEnergyMarket, agents, grid"]
   end
-  CF --> FIL
-  EX --> FIL
-  EX --> MAN
-  EX --> STO
-  EX --> POOL
-  RE --> STO
-  POOL -->|spawn| WRK
-  WRK --> RUN
-  RUN --> REC
-  RUN --> FAC
-  REC --> STO
-  WRK --> STO
-  FAC --> ENV
+  CF -. "1" .-> FIL
+  CF -. "2" .-> EXPD
+  EX -. "3" .-> EXPD
+  EX -. "4" .-> MAN
+  EX -. "5" .-> STO
+  EX -. "6" .-> POOL
+  POOL -->|"7 spawn"| WRK
+  WRK -->|"8"| STO
+  WRK -->|"9"| RUN
+  RUN -. "10" .-> FAC
+  RUN -->|"11"| REC
+  REC -->|"12"| STO
+  FAC -. "13" .-> ENV
+  RE -. "14" .-> STO
 ```
+
+Solid arrows are implemented and tested; dashed arrows are the planned calls (the services are demo implementations until R7, `build_env` waits for R1 / R4, training for stage D). Each number is one call in the table below.
+
+| # | Business step | Call (caller → callee) | State |
+|---|---|---|---|
+| 1 | Open, edit and save an experiment file | [`ConfigService`](03-application-layer.md#21-configservice-experiment-files) → [`files.load`](../../../src_thesis/experiments/models/files.py#L41) / [`save`](../../../src_thesis/experiments/models/files.py#L65) / [`canonical_hash`](../../../src_thesis/experiments/models/files.py#L75) / [`json_schema`](../../../src_thesis/experiments/models/files.py#L80) | planned (R7) |
+| 2 | Preview what a file will run | `ConfigService.resolve` / `expand` → [`resolve.resolve`](../../../src_thesis/experiments/models/resolve.py#L122), [`expand.expand`](../../../src_thesis/experiments/models/expand.py#L67) | planned (R7) |
+| 3 | Turn a file into runs | [`ExperimentService.create_runs`](03-application-layer.md#25-experimentservice-runs) → [`expand`](../../../src_thesis/experiments/models/expand.py#L67), then per cell [`resolve_run`](../../../src_thesis/experiments/models/resolve.py#L138) and [`run_id`](../../../src_thesis/experiments/models/expand.py#L101) | planned (R7) |
+| 4 | Pin what each run was built from | `create_runs` → [`build_manifest`](../../../src_thesis/experiments/models/manifest.py#L24) (code, environment and data fingerprints) | planned (R7) |
+| 5 | Create the run folder (state READY) | `create_runs` → [`ExperimentStore.create_run`](../../../src_thesis/experiments/store/filesystem.py#L58) writes `resolved.json`, `manifest.json`, `status.json` | planned (R7) |
+| 6 | Start, watch, cancel runs | `ExperimentService.start` / `snapshot` / `cancel` → [`WorkerPool.enqueue`](../../../src_thesis/experiments/worker/pool.py#L80) / [`poll`](../../../src_thesis/experiments/worker/pool.py#L85) / [`cancel`](../../../src_thesis/experiments/worker/pool.py#L106); after a restart [`reconcile`](../../../src_thesis/experiments/worker/pool.py#L62) | planned (R7) |
+| 7 | One subprocess per run | [`spawn`](../../../src_thesis/experiments/worker/pool.py#L23) starts `python -m src_thesis.experiments.worker <run_dir>` → [`__main__.py`](../../../src_thesis/experiments/worker/__main__.py) → [`process.main`](../../../src_thesis/experiments/worker/process.py#L74) → [`run_one`](../../../src_thesis/experiments/worker/process.py#L24) | implemented |
+| 8 | The run's state and log | `run_one` → [`read_manifest`](../../../src_thesis/experiments/store/filesystem.py#L89), [`read_resolved`](../../../src_thesis/experiments/store/filesystem.py#L86), [`set_state`](../../../src_thesis/experiments/store/filesystem.py#L100) (RUNNING, then COMPLETED / FAILED / CANCELLED), [`append_log`](../../../src_thesis/experiments/store/filesystem.py#L169), [`write_artifacts`](../../../src_thesis/experiments/store/filesystem.py#L208) | implemented |
+| 9 | Do the work for this kind of run | `run_one` → [`select_runner(cell)`](../../../src_thesis/experiments/worker/runner.py#L100)`.run(ctx)`; the [`RunContext`](../../../src_thesis/experiments/worker/runner.py#L20) gives the runner `should_stop`, `report` (progress) and `log` on the store | implemented (noop runner) |
+| 10 | Build the environment and the RL configuration | runner → [`build_env_config`](../../../src_thesis/experiments/factory/environment.py#L24) → [`build_env`](../../../src_thesis/experiments/factory/environment.py#L39); [`build_algorithm_config`](../../../src_thesis/experiments/factory/training.py#L18) | `build_env_config` implemented; the rest after R1 / R4 / stage D |
+| 11 | Record every step of an episode | runner → [`ctx.recorder()`](../../../src_thesis/experiments/worker/runner.py#L42) → [`EpisodeRecorder.start_episode`](../../../src_thesis/experiments/store/recorder.py#L52) / [`record`](../../../src_thesis/experiments/store/recorder.py#L56) / [`end_episode`](../../../src_thesis/experiments/store/recorder.py#L62) | implemented |
+| 12 | Persist the step records | `end_episode` → [`append_jsonl`](../../../src_thesis/experiments/store/filesystem.py#L192) to `raw/steps.jsonl` | implemented |
+| 13 | Live MARLEM objects | `build_env` → `LocalEnergyMarket`, agents; [`build_grid`](../../../src_thesis/experiments/factory/environment.py#L55) → the pandapower `GridModel` | after R1 / R4 |
+| 14 | Read results | [`ResultService`](03-application-layer.md#26-resultservice-reading-results) → [`read_manifest`](../../../src_thesis/experiments/store/filesystem.py#L89), [`read_status`](../../../src_thesis/experiments/store/filesystem.py#L95), [`read_jsonl`](../../../src_thesis/experiments/store/filesystem.py#L200), [`log_tail`](../../../src_thesis/experiments/store/filesystem.py#L175) | planned (R7) |
+
+The full list of service → experiment-layer calls is in [03 §4](03-application-layer.md#4-what-each-real-service-calls); the functions themselves are in §3 below.
 
 Rules:
 - `experiments/` never imports `application/` or `studio/`. The application layer imports `experiments/` and re-exports its models (`ExperimentFile`, `RunCell`, `RunState`) so callers keep one import path.
