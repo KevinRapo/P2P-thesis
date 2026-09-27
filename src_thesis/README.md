@@ -40,11 +40,11 @@ src_thesis/
 |   |-- layout.py, navigation.py, theme.py, state.py
 |   |-- components/
 |   `-- pages/
-|-- experiments/                 # Run construction and worker boundaries
-|   |-- factory_new.py
-|   |-- runner_new.py
-|   |-- worker_new.py
-|   `-- store_new.py
+|-- experiments/                 # Experiment files, runs, store and workers (docs 06)
+|   |-- models/                  # records, files, expand, resolve, manifest
+|   |-- factory/                 # environment and RLlib configuration
+|   |-- store/                   # run folders, step recorder
+|   `-- worker/                  # runners, worker process, pool
 `-- root.py
 ```
 
@@ -57,9 +57,8 @@ The inherited grid behavior currently lives in
 operations, so the next architectural step is to define a grid contract and
 redirect those consumers before introducing SimBench.
 
-The service and worker modules are intentionally skeletons at this stage. The
-future NiceGUI and CLI should call `application/`; only `experiments/worker.py`
-should own long-running simulation or Ray execution. The future UI belongs in a
+The Studio and CLI call `application/`; only the worker process
+(`experiments/worker/`) runs long simulations or Ray. The future UI belongs in a
 separate presentation package and should not import grid adapters directly.
 
 ## Original-to-thesis path map

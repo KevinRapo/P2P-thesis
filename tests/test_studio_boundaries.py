@@ -57,6 +57,11 @@ def test_application_layer_is_free_of_marlem_runtime() -> None:
     assert _violations("application", forbidden, APPLICATION_ALLOWED) == []
 
 
+def test_experiment_layer_never_imports_application_or_studio() -> None:
+    forbidden = ("src_thesis.application", "src_thesis.studio")
+    assert _violations("experiments", forbidden) == []
+
+
 def test_only_adapters_import_pandapower_and_simbench() -> None:
     out = []
     for path in ROOT.rglob("*.py"):

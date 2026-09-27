@@ -1,0 +1,101 @@
+"""What a worker actually runs (06-experiment-layer.md §3.9).
+
+A runner executes one run inside the worker process. It never touches the
+status file itself: it reports progress through its ``RunContext`` and returns
+a ``RunOutcome``; the worker turns that into the terminal state.
+"""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass, field
+from typing import Callable, Protocol
+
+from ..models.records import ExperimentFile, Manifest, RunCell, RunState
+from ..store.recorder import EpisodeRecorder
+from ..store.filesystem import ExperimentStore
+
+
+@dataclass
+class RunContext:
+    store: ExperimentStore
+    run_id: str
+    resolved: ExperimentFile
+    manifest: Manifest
+
+    @property
+    def cell(self) -> RunCell:
+        return self.manifest.cell
+
+    def should_stop(self) -> bool:
+        """True once a cancel was requested; check at iteration or episode ends."""
+        return self.store.cancel_requested(self.run_id)
+
+    def report(
+        self, progress: float, iteration: int, metrics: dict[str, float] | None = None
+    ) -> None:
+        self.store.update_progress(self.run_id, progress, iteration, metrics)
+
+    def log(self, message: str) -> None:
+        self.store.append_log(self.run_id, message)
+
+    def recorder(self) -> EpisodeRecorder:
+        mode = self.resolved.outputs.get("record_steps", "evaluation")
+        return EpisodeRecorder(self.store, self.run_id, mode)
+
+
+@dataclass(frozen=True)
+class RunOutcome:
+    state: RunState  # COMPLETED, CANCELLED or FAILED
+    message: str = ""
+    artifacts: dict[str, str] = field(default_factory=dict)
+
+
+class Runner(Protocol):
+    def run(self, ctx: RunContext) -> RunOutcome: ...
+
+
+class NoopRunner:
+    """A smoke run: a few iterations that only report progress and honour cancel."""
+
+    def __init__(self, iterations: int = 3, delay_s: float = 0.0) -> None:
+        self.iterations = iterations
+        self.delay_s = delay_s
+
+    def run(self, ctx: RunContext) -> RunOutcome:
+        for i in range(1, self.iterations + 1):
+            if ctx.should_stop():
+                return RunOutcome(
+                    RunState.CANCELLED, f"cancelled after {i - 1} iterations"
+                )
+            time.sleep(self.delay_s)
+            ctx.report(i / self.iterations, i, {"noop": float(i)})
+            ctx.store.append_metrics_row(ctx.run_id, "training", {"iteration": i})
+        return RunOutcome(RunState.COMPLETED, "noop run finished")
+
+
+class BaselineRunner:
+    """Scripted policies (no order, random, rule-based) on the eval days (03 §3.10)."""
+
+    def run(self, ctx: RunContext) -> RunOutcome:
+        raise NotImplementedError(
+            "baselines need factory.build_env (R1, R4) and marl/baselines.py"
+        )
+
+
+class TrainingRunner:
+    """RLlib training with evaluation; owns ``ray.init`` / ``ray.shutdown`` (04 §4)."""
+
+    def run(self, ctx: RunContext) -> RunOutcome:
+        raise NotImplementedError("training runs are built in validation stage D")
+
+
+RUNNERS: dict[str, Callable[[], Runner]] = {
+    "noop": NoopRunner,
+    "baseline": BaselineRunner,
+    "train": TrainingRunner,
+}
+
+
+def select_runner(cell: RunCell) -> Runner:
+    return RUNNERS[cell.kind]()

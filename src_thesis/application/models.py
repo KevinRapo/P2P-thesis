@@ -12,43 +12,16 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+# The experiment file and run records belong to the experiment layer (04 §1);
+# they are re-exported here so callers keep importing them from one place.
+from src_thesis.experiments.models import (  # noqa: F401
+    ExperimentFile,
+    ExperimentMeta,
+    RunCell,
+    RunState,
+)
+
 # --------------------------------------------------------------------------- experiment file
-
-
-class ExperimentMeta(BaseModel):
-    id: str
-    name: str
-    description: str = ""
-    author: str = ""
-    tags: list[str] = Field(default_factory=list)
-    derived_from: str | None = None
-    data_status: Literal["synthetic", "measured", "reconstructed-unverified"] = (
-        "synthetic"
-    )
-
-
-class ExperimentFile(BaseModel):
-    """One study, see docs/thesis/architecture/03-experiment-config.md.
-
-    The sections are kept as dictionaries in this scaffold; each becomes a
-    typed model when its page and validation rules are implemented.
-    """
-
-    schema_version: str = "1.0"
-    kind: Literal["marlem-experiment"] = "marlem-experiment"
-    meta: ExperimentMeta
-    time: dict[str, Any] = Field(default_factory=dict)
-    grid: dict[str, Any] = Field(default_factory=dict)
-    participants: list[dict[str, Any]] = Field(default_factory=list)
-    market: dict[str, Any] = Field(default_factory=dict)
-    dso: dict[str, Any] = Field(default_factory=dict)
-    environment: dict[str, Any] = Field(default_factory=dict)
-    learning: dict[str, Any] = Field(default_factory=dict)
-    evaluation: dict[str, Any] = Field(default_factory=dict)
-    baselines: list[Any] = Field(default_factory=list)
-    sweep: dict[str, Any] = Field(default_factory=dict)
-    resources: dict[str, Any] = Field(default_factory=dict)
-    outputs: dict[str, Any] = Field(default_factory=dict)
 
 
 class FileSummary(BaseModel):
@@ -67,13 +40,6 @@ class FieldChange(BaseModel):
     path: str
     before: Any = None
     after: Any = None
-
-
-class RunCell(BaseModel):
-    sweep_label: str = ""
-    algorithm: str
-    paradigm: str
-    seed: int
 
 
 # --------------------------------------------------------------------------- grid catalogue
@@ -202,16 +168,6 @@ class DryRunResult(BaseModel):
 
 
 # --------------------------------------------------------------------------- runs and results
-
-
-class RunState(str, Enum):
-    READY = "READY"
-    QUEUED = "QUEUED"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    CANCELLING = "CANCELLING"
-    CANCELLED = "CANCELLED"
 
 
 class RunSummary(BaseModel):
