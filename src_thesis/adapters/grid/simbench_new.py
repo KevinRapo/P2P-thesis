@@ -4,10 +4,10 @@ This module and the profile adapter are the only places that import
 ``pandapower`` and ``simbench``. Everything it returns is plain contract data
 from ``marketplace/grid/contract_new.py``; no pandapower object leaves it.
 
-Implemented (phase P3, catalog part): list networks, load them once per process,
+Implemented (phase R3, catalog part): list networks, load them once per process,
 summarise them, build a topology view, list their elements, and run one power
 flow on the unmodified network for a chosen day and hour. The step-time
-``GridModel`` (``SimBenchGrid``) is still a stub for phase P4.
+``GridModel`` (``SimBenchGrid``) is still a stub for phase R4.
 
 Heavy imports happen inside the functions, so importing this module is cheap.
 """
@@ -500,7 +500,7 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
 
 # --------------------------------------------------------------------- step-time model
 class SimBenchGrid:
-    """Step-time ``GridModel`` for the environment (phase P4). Not implemented yet."""
+    """Step-time ``GridModel`` for the environment (phase R4). Not implemented yet."""
 
     def __init__(self, grid_spec: Any) -> None:
         raise NotImplementedError

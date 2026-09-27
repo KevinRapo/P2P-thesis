@@ -5,8 +5,8 @@ seam. The pandapower adapter (``adapters/grid/simbench_new.py``) produces these
 records; the market, the application services and the Studio consume them.
 
 Status: the catalog and preview records are used by the Studio's Grid page
-(phase P3). ``ParticipantInjection`` and ``GridModel`` are the step-time
-contract for phase P4 and have no implementation yet.
+(phase R3). ``ParticipantInjection`` and ``GridModel`` are the step-time
+contract for phase R4 and have no implementation yet.
 """
 
 from dataclasses import dataclass, field
@@ -124,7 +124,7 @@ class GridAssessment:
 
 
 class GridModel(Protocol):
-    """Step-time grid used by the environment (phase P4)."""
+    """Step-time grid used by the environment (phase R4)."""
 
     def reset(
         self, episode_seed: int | None = None, day: str | None = None

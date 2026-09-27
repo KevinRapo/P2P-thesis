@@ -5,7 +5,7 @@ and depend only on the protocols in `contracts.py`. Switching from the demo to
 the real implementations later changes this module only.
 
 Real implementations replace demo ones one service at a time, in roadmap order:
-the grid catalog (phase P3) is the first. Real services are imported lazily, so
+the grid catalog (phase R3) is the first. Real services are imported lazily, so
 `build_services("demo")` never loads pandapower.
 """
 
@@ -42,13 +42,13 @@ def build_services(
     """Build all services.
 
     Args:
-        mode: "demo" for sample data everywhere; "real" is reserved for P6–P7.
+        mode: "demo" for sample data everywhere; "real" is reserved for R6–R7.
         grid: "pandapower" swaps in the real grid catalog (SimBench and
             pandapower built-in networks) while the other services stay demo.
     """
     if mode != "demo":
         raise NotImplementedError(
-            "Real services are implemented in roadmap phases P6-P7 "
+            "Real services are implemented in roadmap phases R6-R7 "
             "(docs/thesis/architecture/README.md §4)."
         )
     from .demo import (

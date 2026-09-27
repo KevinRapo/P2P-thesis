@@ -26,7 +26,7 @@ def compare_page() -> None:
             metric = ui.select(_METRICS, value="p2p_share", label="Metric").classes(
                 "w-56"
             )
-            ui.switch("Show validated-release reference", value=False)
+            ui.switch("Show paper reference", value=False)
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(

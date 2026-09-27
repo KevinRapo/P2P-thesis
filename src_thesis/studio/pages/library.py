@@ -84,7 +84,7 @@ def settings_page() -> None:
         with section("Services", icon="lan"):
             ui.label(f"Mode: {s.mode}").classes("text-body2")
             ui.label(
-                "Switch to real services once roadmap phases P6–P7 exist."
+                "Switch to real services once roadmap phases R6–R7 exist."
             ).classes("mls-card-caption")
         with section("Appearance", icon="palette"):
             ui.switch(
