@@ -125,7 +125,7 @@ The coupling is wide (13 places in 8 files) but shallow: almost every point read
 
 | Code | Verdict | Why / what changes | Issues |
 |---|---|---|---|
-| [LocalEnergyMarket.__init__ / _check_* / _set_default_values](../../../src_thesis_reference/marketplace/lem.py#L45-L258) | Rewrite | Built by the environment factory from the experiment file (04 §3); no hidden defaults | [I-04](issues.md#I-04), [I-39](issues.md#I-39) |
+| [LocalEnergyMarket.__init__ / _check_* / _set_default_values](../../../src_thesis_reference/marketplace/lem.py#L45-L258) | Rewrite | Built by the environment factory from the experiment file (06 §3.7); no hidden defaults | [I-04](issues.md#I-04), [I-39](issues.md#I-39) |
 | [reset](../../../src_thesis_reference/marketplace/lem.py#L260-L318) | Rewrite | Episode day from the sampler; one seeded RNG passed down instead of reseeding `np.random` everywhere | [I-03](issues.md#I-03), [I-05](issues.md#I-05), [I-07](issues.md#I-07) |
 | [step](../../../src_thesis_reference/marketplace/lem.py#L320-L506) | Rewrite | Same phase order as [P1] §3.9, plus settlement → injections → power flow (02 §6); correct horizon and terminal flag; invalid orders dropped | [I-01](issues.md#I-01), [I-02](issues.md#I-02), [I-12](issues.md#I-12), [I-78](issues.md#I-78) |
 | [ObservationHandler](../../../src_thesis_reference/marketplace/observation.py#L23-L378) | Rewrite | Keep the Table 2 layout (16 + 16 + 10); forecasts with error; a real reset observation; scaling decided; grid block from the assessment | [I-39](issues.md#I-39), [I-40](issues.md#I-40), [I-58](issues.md#I-58) |

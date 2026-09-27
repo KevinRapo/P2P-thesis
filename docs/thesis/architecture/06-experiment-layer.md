@@ -1,7 +1,7 @@
 # 06. Experiment layer
 
 > `src_thesis/experiments/`: from an experiment file to runs, run folders and worker processes. The application services (04) call it; it calls MARLEM only through the environment factory.
-> Master: [README.md](README.md) · Experiment file: [03-experiment-config.md](03-experiment-config.md) · Services: [04-services.md](04-services.md) · Decisions: D-08, D-09, D-14.
+> Master: [README.md](README.md) · Experiment file: [03-experiment-config.md](03-experiment-config.md) · Services: [04-application-layer.md](04-application-layer.md) · Decisions: D-08, D-09, D-14.
 > Written 2026-09-27. Code: [experiments/](../../../src_thesis/experiments/) · Tests: [tests/test_experiments.py](../../../tests/test_experiments.py).
 
 ## 1. Place in the system and status
@@ -61,7 +61,7 @@ Rules:
 | [worker/process.py](../../../src_thesis/experiments/worker/process.py) | Process entry point for one run | Implemented |
 | [worker/pool.py](../../../src_thesis/experiments/worker/pool.py) | Start, watch, cancel and reconcile workers | Implemented |
 
-The package has four parts, as in the services diagram (04 §1):
+The package has four parts, as in the layer diagram (README §2.1):
 
 ```text
 experiments/
@@ -168,7 +168,7 @@ Code: [store/filesystem.py](../../../src_thesis/experiments/store/filesystem.py)
 | `append_jsonl` / `read_jsonl(run_id, relative_path, …)` | → None / iterator | Step records, evaluation outcomes |
 | `write_artifacts(run_id, files)` / `read_artifacts(run_id)` | → `ArtifactIndex` | Merges names |
 
-Small state files are replaced atomically; streams are append-only. RL learning metrics (`metrics/training.csv`, RLlib's own files) and research outcomes (`metrics/evaluation.jsonl`: served and unmet demand, curtailment, P2P share, costs, violations, losses) are stored apart, so results never present reward as a proxy for outcomes (04 §5).
+Small state files are replaced atomically; streams are append-only. RL learning metrics (`metrics/training.csv`, RLlib's own files) and research outcomes (`metrics/evaluation.jsonl`: served and unmet demand, curtailment, P2P share, costs, violations, losses) are stored apart, so results never present reward as a proxy for outcomes.
 
 ### 3.6 Step records (store/recorder.py)
 
@@ -242,7 +242,7 @@ Lives in the process that owns `ExperimentService` (Studio or CLI) and is polled
 | Function / method | Input → output | Notes |
 |---|---|---|
 | `spawn(run_dir)` | → `Popen` | Own process group on Windows (own session elsewhere); output to `logs/worker.stdout` |
-| `WorkerPool(store, max_parallel)` | | `max_parallel` defaults to 1, because Ray runners already use the cores (04 §4) |
+| `WorkerPool(store, max_parallel)` | | `max_parallel` defaults to 1, because Ray runners already use the cores |
 | `.enqueue(run_ids)` | → None | State QUEUED |
 | `.poll()` | → `{run_id: RunState}` | Reaps finished workers (a worker that died without a terminal state → FAILED), starts queued runs while slots are free |
 | `.cancel(run_id, force_after_s)` | → None | Queued: CANCELLED at once. Running: `cancel.request` + CANCELLING; optional kill after a timeout |
@@ -297,17 +297,7 @@ sequenceDiagram
 
 ## 5. How the services use it
 
-| Service method (04 §2) | Experiment layer calls |
-|---|---|
-| `ConfigService.load` / `save` / `hash` / `json_schema` | `files.load` / `files.save` / `files.canonical_hash` / `files.json_schema` |
-| `ConfigService.resolve` / `expand` | `resolve.resolve` / `expand.expand` |
-| `ExperimentService.create_runs(file)` | validate → `expand` → per cell: `resolve_run`, `run_id`, `build_manifest`, `store.create_run` |
-| `ExperimentService.start` / `cancel` | `pool.enqueue` + `poll` / `pool.cancel` |
-| `ExperimentService.snapshot` / `list_runs` | `store.read_status`, `log_tail` / `store.list_runs` |
-| `ExperimentService.reconcile` | `pool.reconcile` |
-| `ResultService.step_records` / `summary` | `store.read_jsonl("raw/steps.jsonl")` / `metrics/*`, `read_manifest` |
-
-The services are still the demo implementations; wiring them to this layer is the next step of R7.
+The application services are the only callers of this layer. Which service method calls which function here is listed once, from the services' side, in [04 §4](04-application-layer.md#4-what-each-real-service-calls). The services are still the demo implementations; wiring them to this layer is the next step of R7.
 
 ## 6. Tests ([tests/test_experiments.py](../../../tests/test_experiments.py))
 

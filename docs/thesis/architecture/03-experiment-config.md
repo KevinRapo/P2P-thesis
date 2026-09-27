@@ -379,7 +379,7 @@ experiments/presets/              # in the repo
 
 - There is no validated NetworkX release (retired 2026-09-27, D-02). The original is kept frozen in `src_thesis_reference/` for code comparison; the tool never runs it.
 - Presets reproduce the papers' cases on SimBench and say in `meta.description` which case and which deviations (e.g. Case 4 has real physics).
-- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (04 §5).
+- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (04 §4, `ResultService.reference`).
 
 ## 9. Validation (preflight)
 

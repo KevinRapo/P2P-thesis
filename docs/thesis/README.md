@@ -24,8 +24,8 @@ docs/
         ├── 01-paper-to-code-map.md # Fig. 2 → src_thesis, what changes
         ├── 02-simbench-grid.md     # Networks, profile assignment, grid contract, step changes
         ├── 03-experiment-config.md # Scenario / Experiment / Run specs, presets, sharing
-        ├── 04-services.md          # Services, factory, worker, store, CLI
-        ├── 05-studio-ui.md         # NiceGUI shell and pages
+        ├── 04-application-layer.md # Services: status, wiring, methods, returned data
+        ├── 05-presentation.md      # NiceGUI Studio pages and the CLI
         └── 06-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
 ```
 

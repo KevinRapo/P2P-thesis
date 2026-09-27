@@ -19,14 +19,14 @@
 ```mermaid
 flowchart TB
   subgraph Presentation
-    Studio["NiceGUI Studio<br/>05-studio-ui"]
-    CLI["CLI<br/>04-services"]
+    Studio["NiceGUI Studio<br/>05-presentation"]
+    CLI["CLI<br/>05-presentation"]
     NB["Case notebooks"]
   end
-  subgraph Application["Application services, 04-services"]
+  subgraph Application["Application services, 04-application-layer"]
     SVC["Config · Grid catalog · Profiles · Validation · Experiment · Result"]
   end
-  subgraph Experiments["Experiment layer, 03-experiment-config / 04-services"]
+  subgraph Experiments["Experiment layer, 03-experiment-config / 06-experiment-layer"]
     SPEC["Experiment file (one JSON)"]
     FACT["Environment factory"]
     WORK["Worker process"]
@@ -64,6 +64,72 @@ flowchart TB
 5. **One grid technology.** Every network (SimBench, pandapower built-in such as IEEE 33-bus or CIGRE, or a pandapower JSON file) goes through the same pandapower adapter.
 6. **Heavy work runs in a worker process.** Ray/RLlib never runs inside the UI process.
 
+### 2.1 Layers and who may call whom
+
+```mermaid
+flowchart LR
+  subgraph P[Presentation, 05]
+    UI[studio/ NiceGUI]
+    CLI[cli.py]
+    NB[notebooks]
+  end
+  subgraph A[application/, 04]
+    CF[ConfigService]
+    GC[GridCatalogService]
+    PR[ProfileService]
+    VA[ValidationService]
+    EX[ExperimentService]
+    RE[ResultService]
+  end
+  subgraph E[experiments/, 06]
+    MOD[models: experiment file, manifest, status]
+    FAC[factory: file → env_config]
+    STO[store: filesystem]
+    WRK[worker: pool + subprocess]
+  end
+  subgraph D[MARLEM domain + adapters, 01 and 02]
+    ENV[marketplace / marl / cooperation]
+    ADP[adapters: pandapower grid, profiles]
+  end
+  UI --> A
+  CLI --> A
+  NB --> A
+  A --> MOD
+  A --> STO
+  EX -->|spawn| WRK
+  WRK --> FAC --> ENV
+  FAC --> ADP
+  GC --> ADP
+  PR --> ADP
+  VA --> FAC
+  WRK --> STO
+  RE --> STO
+```
+
+- Presentation calls **only** `application/`.
+- Services return typed, plain data: Pydantic models, dicts, lists and chart-ready series. They never return NiceGUI elements, Ray objects or pandapower nets (04 §3).
+- Only the **factory** turns an experiment file into live MARLEM objects. Everyone uses it: the worker, validation dry runs, notebooks and tests.
+- Services run **in-process** with the UI or CLI (no REST layer). Anything long-running (training, multi-episode simulation) runs in the **worker subprocess** (D-09).
+- `experiments/` never imports `application/` or `studio/`; `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces these rules.
+
+### 2.2 Dependencies (D-10)
+
+- Canonical environment: conda `marlem` ([environment.yml](../../../environment.yml)).
+- Grid: `pandapower` 3.5.4 and `simbench` 1.6.2. Studio: `nicegui` 3.16. Models: `pydantic` 2.13. All pinned in `environment.yml` since 2026-09-27.
+- Only `adapters/` imports `simbench` and `pandapower`. Only `studio/` imports `nicegui`.
+
+### 2.3 Tests per layer
+
+| Layer | Tests | State |
+|---|---|---|
+| Domain | Validation acceptance tests: the issue demos ([../validation/evidence/](../validation/evidence/)) | 48 demos, strict xfail |
+| Adapters | Grid catalog on SimBench and built-in networks; later mapping validation, alignment, injection identity, power flow per step | [tests/test_grid_catalog.py](../../../tests/test_grid_catalog.py) |
+| Experiment layer | Round trip, hash stability, expansion, resolution, store, recorder, worker and pool with a noop runner | [tests/test_experiments.py](../../../tests/test_experiments.py) |
+| Factory / training config | Presets build an environment; each algorithm × paradigm builds an `AlgorithmConfig`; mutation domains contain initial values | after R1 / R4 and stage D |
+| Services | Temp store: create, expand, validate, start (noop worker), snapshot, cancel | with the real services (R7) |
+| Presentation | Import boundaries; demo services satisfy every page call | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) |
+| Docs | Validation docs consistent with the code markers | [tests/test_validation_docs.py](../../../tests/test_validation_docs.py) |
+
 ## 3. Documents
 
 Read in this order:
@@ -73,8 +139,8 @@ Read in this order:
 | 01 | [01-paper-to-code-map.md](01-paper-to-code-map.md) | Where each [P1] Fig. 2 component lives in `src_thesis/`, and what changes for SimBench and the platform |
 | 02 | [02-simbench-grid.md](02-simbench-grid.md) | Network sources, loading, assigning profiles to agents, the grid contract, and the file-by-file changes to MARLEM's step |
 | 03 | [03-experiment-config.md](03-experiment-config.md) | The single experiment JSON: every section and field, including RL algorithms, training modes and hyperparameters; presets; sharing |
-| 04 | [04-services.md](04-services.md) | Application services, environment factory, worker, experiment store and CLI commands |
-| 05 | [05-studio-ui.md](05-studio-ui.md) | NiceGUI shell, every page, what it shows, which services it calls and how pages connect |
+| 04 | [04-application-layer.md](04-application-layer.md) | Application layer: status and wiring, every service method, the returned data, and what each real service calls |
+| 05 | [05-presentation.md](05-presentation.md) | Presentation: the NiceGUI Studio (shell, every page, the services it calls, how pages connect) and the CLI |
 | 06 | [06-experiment-layer.md](06-experiment-layer.md) | `experiments/` in detail: records, every function with inputs and outputs, the store, worker, pool, run lifecycle and tests |
 
 ## 4. Roadmap
@@ -106,7 +172,7 @@ Each phase has an exit criterion.
 | D-07 | Paper-parity presets use **hourly aggregation** (24 steps), energy-consistent. Native 15-min (96 steps) is an extension. | Proposed | 02 §4, 03 §7 |
 | D-08 | **One JSON file per experiment**. It contains the world (time, grid, participants, market, DSO, environment), the learning plan (algorithms, paradigms, hyperparameters, tuning, budget, seeds), evaluation, baselines and the sweep. Runs get a system-written manifest. | **Agreed** (2026-09-23) | 03 |
 | D-09 | Services run in-process for UI and CLI. Ray runs only in a worker subprocess. The filesystem experiment store is the source of truth. | Proposed | 04 |
-| D-10 | The canonical environment is the conda `marlem` env (`environment.yml`). pandapower 3.5.4 and simbench 1.6.2 are already installed. `pydantic` and `nicegui` are added after a compatibility check. | Proposed | 04 §7 |
+| D-10 | The canonical environment is the conda `marlem` env (`environment.yml`), with pandapower, simbench, pydantic and nicegui pinned. | Proposed | §2.2 |
 | D-11 | Violation feedback reward: shared vs bus-attributed vs marginal credit assignment | **Open** | 02 §6 |
 | D-12 | Non-convergent power flow during training: truncate with a fixed penalty vs fail the run | **Open** | 02 §6 |
 | D-13 | **Grid ownership and data flow.** `LocalEnergyMarket` is the only holder of the `GridModel`. `OrderMatcher`, `DSOAgent` and `DERAgent` get `GridTopologyInfo` (static distances and zones) and `GridSignals` (step t−1) as arguments and never call the grid; KPIs, reward and observation use `GridAssessment[t]`. A read-only view is the accepted fallback. | **Agreed** (2026-09-27) | 02 §5.1 |

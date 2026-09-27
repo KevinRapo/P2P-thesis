@@ -59,7 +59,7 @@ The paper's Fig. 2 shows `DSOMetricsHandler` twice. The second box is `GridMetri
 | Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | [experiments/](../../../src_thesis/experiments/) | Implemented (2026-09-27); environment factory and RLlib configuration are interfaces until R1 / R4 and stage D | 03, 06 |
 | Frozen reference copy | [src_thesis_reference/](../../../src_thesis_reference/) | Snapshot 2026-09-27, never edited | D-14 |
 | Application services | [application/](../../../src_thesis/application/) | Demo services; the real `GridCatalogService` is [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | 04 |
-| CLI | `src_thesis/cli.py` | New | 04 §6 |
+| CLI | `src_thesis/cli.py` | New | 05 §6 |
 | NiceGUI Studio | `studio/` (separate presentation package) | New | 05 |
 
 ## 5. Dependency direction (target)
