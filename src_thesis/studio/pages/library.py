@@ -1,4 +1,4 @@
-"""Library (05 §4.11) and Settings."""
+"""Library (04 §4.11) and Settings."""
 
 from nicegui import app, ui
 

@@ -1,4 +1,4 @@
-"""Summary (05 §4.5): read-only view of the draft experiment file."""
+"""Summary (04 §4.5): read-only view of the draft experiment file."""
 
 from nicegui import ui
 

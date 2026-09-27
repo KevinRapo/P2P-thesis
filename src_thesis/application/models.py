@@ -3,7 +3,7 @@
 These models are the only types that cross the boundary between the
 application layer and its callers (NiceGUI Studio, CLI, notebooks). They must
 stay free of MARLEM runtime objects, pandapower nets and Ray objects, see
-docs/thesis/architecture/04-application-layer.md.
+docs/thesis/architecture/03-application-layer.md.
 """
 
 from datetime import datetime

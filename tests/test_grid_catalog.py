@@ -1,4 +1,4 @@
-"""The real grid catalog: SimBench and pandapower built-in networks (02 §1–§2).
+"""The real grid catalog: SimBench and pandapower built-in networks (01 §1–§2).
 
 Loads real networks, so it needs `simbench` and `pandapower` (conda env `marlem`).
 """

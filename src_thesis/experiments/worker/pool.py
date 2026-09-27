@@ -1,4 +1,4 @@
-"""Starting, watching and cancelling worker processes (06-experiment-layer.md §3.11).
+"""Starting, watching and cancelling worker processes (05-experiment-layer.md §3.11).
 
 Lives in the process that owns ``ExperimentService`` (the Studio or the CLI).
 The pool is polled, not threaded: each ``poll()`` reaps finished workers and

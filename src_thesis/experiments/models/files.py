@@ -1,7 +1,7 @@
-"""Reading, writing and hashing experiment files (06-experiment-layer.md §3.1).
+"""Reading, writing and hashing experiment files (05-experiment-layer.md §3.1).
 
 The canonical hash identifies "the same study" regardless of formatting or key
-order (03 §6): it is computed on sorted-key, compact JSON of the model.
+order (02 §6): it is computed on sorted-key, compact JSON of the model.
 """
 
 from __future__ import annotations
@@ -78,5 +78,5 @@ def canonical_hash(data: ExperimentFile | dict[str, Any]) -> str:
 
 
 def json_schema() -> dict[str, Any]:
-    """JSON Schema of the experiment file, for editor autocompletion (03 §6)."""
+    """JSON Schema of the experiment file, for editor autocompletion (02 §6)."""
     return ExperimentFile.model_json_schema()

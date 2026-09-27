@@ -1,6 +1,6 @@
 """Architecture guard: layers only reach what the architecture README §2.1 allows.
 
-See docs/thesis/architecture/01-paper-to-code-map.md §5 and README.md §2.1–§2.2.
+See docs/thesis/architecture/README.md §2.1–§2.2.
 - studio/ imports only nicegui/plotly/stdlib and src_thesis.application.
 - application/ never imports MARLEM runtime, pandapower, simbench, Ray or torch.
   Real services reach infrastructure through adapters/ (the grid catalog calls

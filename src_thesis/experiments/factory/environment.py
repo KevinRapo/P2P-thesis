@@ -1,6 +1,6 @@
 """The only place that turns an experiment file into live MARLEM objects.
 
-06-experiment-layer.md §3.7. Everyone builds environments here: the
+05-experiment-layer.md §3.7. Everyone builds environments here: the
 worker, validation dry runs, notebooks and tests. RLlib env runners call the
 factory inside each runner; only the resolved file travels in ``env_config``,
 never a network or agents.
@@ -39,9 +39,9 @@ def build_env_config(
 def build_env(env_config: dict[str, Any]) -> Any:
     """Build one ``LocalEnergyMarket`` from an ``env_config``.
 
-    Steps (06 §3.7):
+    Steps (05 §3.7):
     1. take this episode's day from the resolved train (or eval) day list;
-    2. build profiles through the selected profile sources (02 §3);
+    2. build profiles through the selected profile sources (01 §3);
     3. build agents (with batteries), DSO tariffs and fees, and ``MarketConfig``;
     4. build the grid model from ``grid.source`` and the participant mapping;
     5. set observation, reward, reputation and the assessment mode from
@@ -53,5 +53,5 @@ def build_env(env_config: dict[str, Any]) -> Any:
 
 
 def build_grid(resolved: ExperimentFile) -> "GridModel":
-    """The step-time ``GridModel`` for ``grid.source`` (02 §5); one per env."""
+    """The step-time ``GridModel`` for ``grid.source`` (01 §5); one per env."""
     raise NotImplementedError("SimBenchGrid is implemented in phase R4")

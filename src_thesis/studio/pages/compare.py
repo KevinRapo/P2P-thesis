@@ -1,4 +1,4 @@
-"""Compare (05 §4.10): the 3 × 3 matrix view and run overlays."""
+"""Compare (04 §4.10): the 3 × 3 matrix view and run overlays."""
 
 from nicegui import ui
 

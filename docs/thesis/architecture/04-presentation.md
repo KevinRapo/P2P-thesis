@@ -1,7 +1,7 @@
 # 05. Presentation: Studio and CLI
 
 > How people reach the system: the NiceGUI Studio (§0–§5: shell, pages, what each page contains, which services it calls and how pages lead into each other; structure, not visual design) and the CLI (§6). Both call only the application layer.
-> Master: [README.md](README.md) · Services: [04-application-layer.md](04-application-layer.md).
+> Master: [README.md](README.md) · Services: [03-application-layer.md](03-application-layer.md).
 
 ## 0. Implementation status (scaffold, 2026-09-23)
 
@@ -9,7 +9,7 @@ Run it with the `marlem` conda env from the repository root: `python -m src_thes
 
 | Part | Location | State |
 |---|---|---|
-| Services behind the pages | [application/](../../../src_thesis/application/) | Demo services, except the real grid catalog on the Grid page; status per service in [04 §1](04-application-layer.md#1-status-and-wiring) |
+| Services behind the pages | [application/](../../../src_thesis/application/) | Demo services, except the real grid catalog on the Grid page; status per service in [03 §1](03-application-layer.md#1-status-and-wiring) |
 | Studio | [studio/](../../../src_thesis/studio/) | Shell, theme (light and dark), navigation, all pages below with their layout and demo data. Buttons without a service behind them show "not implemented yet". |
 | Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`; if `application/` imports MARLEM runtime, pandapower, simbench, Ray or torch (it may use `adapters/` and the grid contract, README §2.1); if anything outside `adapters/` imports pandapower or simbench; or if the demo services load pandapower |
 
@@ -17,8 +17,8 @@ Next steps: form fields write back to the draft file (`ConfigService.save`); typ
 
 ## 1. Principles
 
-- Pages call **services only** (04 §2). They never build environments, nets or Ray jobs.
-- The Studio edits **one experiment file** (03). Its output is always a JSON that the CLI could run identically.
+- Pages call **services only** (03 §2). They never build environments, nets or Ray jobs.
+- The Studio edits **one experiment file** (02). Its output is always a JSON that the CLI could run identically.
 - Long work runs in the **worker**. Closing the browser never affects a run.
 - Unvalidated options are shown **disabled with a reason**, never silently available.
 - Research outcomes are always shown next to, and separately from, RL reward.
@@ -101,7 +101,7 @@ The purpose of this page is to choose the network and to understand it before pl
 
 ### 4.3 Participants (`/build/participants`)
 
-The purpose of this page is to define the agents and tie them to buses and profiles (02 §3). This is the richest page.
+The purpose of this page is to define the agents and tie them to buses and profiles (01 §3). This is the richest page.
 
 | Region | Content | Services |
 |---|---|---|
@@ -135,9 +135,9 @@ Services: `ConfigService.save`, `export_bundle`.
 
 | Region | Content |
 |---|---|
-| Sweep | Parameters to vary across runs (e.g. `market.mechanism`), grid or zip mode (03 §3.11) |
+| Sweep | Parameters to vary across runs (e.g. `market.mechanism`), grid or zip mode (02 §3.11) |
 | Matrix | Algorithm × paradigm grid of checkboxes (default 3 × 3). Cells that aren't validated yet are disabled with a reason. |
-| Algorithm parameters | One tab per selected algorithm (PPO, APPO, SAC) with its hyperparameters, pre-filled with the original defaults (03 §3.8) |
+| Algorithm parameters | One tab per selected algorithm (PPO, APPO, SAC) with its hyperparameters, pre-filled with the original defaults (02 §3.8) |
 | Paradigm options | Reward aggregation (sum/mean), network model (`embeddings_dim`) |
 | Tuning | None or PBT: population size, perturbation interval, mutation domains (checked to contain the initial values) |
 | Seeds and budget | Seed list; budget in environment steps (the same for all cells) |
@@ -183,7 +183,7 @@ Services: `ExperimentService.list_runs`, `snapshot`, `cancel` (polled every 1–
 
 - **Matrix view** for an experiment: algorithm × paradigm heat table for any metric (mean ± std over seeds). This is the 3 × 3 result table.
 - **Run overlay**: pick runs and overlay a metric (for example two feeders, or reward v1 vs v2). Runs with different reward versions are flagged as non-comparable.
-- **Paper overlay**: values reported in the papers for the same case (reference data, 04 §4), drawn as reference lines. Nothing from the original is re-run.
+- **Paper overlay**: values reported in the papers for the same case (reference data, 03 §4), drawn as reference lines. Nothing from the original is re-run.
 
 Services: `ResultService.matrix`, `compare`.
 
@@ -205,7 +205,7 @@ Each step ends with a CLI-equivalence check: the experiment file saved by the St
 
 ## 6. CLI
 
-`python -m src_thesis.cli …`, exposed as `marlem …` once packaged (not built yet). Each command is a thin wrapper around one service method (04 §2):
+`python -m src_thesis.cli …`, exposed as `marlem …` once packaged (not built yet). Each command is a thin wrapper around one service method (03 §2):
 
 ```text
 marlem new <preset> -o my.marlem.json          ConfigService.new_from_preset + save
@@ -225,6 +225,6 @@ marlem export <run_id>... --fmt csv            ResultService.export
 marlem bundle <file>                           ConfigService.export_bundle
 ```
 
-`marlem run` keeps polling the worker pool until its runs finish (`WorkerPool.wait_all`, 06 §3.11); the Studio polls with a timer instead.
+`marlem run` keeps polling the worker pool until its runs finish (`WorkerPool.wait_all`, 05 §3.11); the Studio polls with a timer instead.
 
 Notebooks call the same services. The case notebooks become short: load a preset → `ExperimentService` → plot from `ResultService`.

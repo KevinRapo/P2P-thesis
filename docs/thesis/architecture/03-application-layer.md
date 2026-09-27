@@ -1,7 +1,7 @@
 # 04. Application layer
 
 > `src_thesis/application/`: the services that the Studio, the CLI and notebooks call. They hide MARLEM, the experiment layer and the adapters behind typed, plain-data methods.
-> Master: [README.md](README.md) (layers and who may call whom: §2.1) · Experiment layer: [06-experiment-layer.md](06-experiment-layer.md) · Presentation: [05-presentation.md](05-presentation.md) · Decisions: D-09, D-13.
+> Master: [README.md](README.md) (layers and who may call whom: §2.1) · Experiment layer: [05-experiment-layer.md](05-experiment-layer.md) · Presentation: [04-presentation.md](04-presentation.md) · Decisions: D-09, D-13.
 
 ## 0. At a glance
 
@@ -76,12 +76,12 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 |---|---|---|
 | `list(filter)` | → `[FileSummary]` | Library and presets |
 | `load(path_or_id)` | → `ExperimentFile` | Parses, migrates old `schema_version`s |
-| `new_from_preset(name)` | → `ExperimentFile` | Presets from `experiments/presets/` (03 §7) |
+| `new_from_preset(name)` | → `ExperimentFile` | Presets from `experiments/presets/` (02 §7) |
 | `save(file, path)` | → path | Writes canonical, pretty JSON |
 | `clone(id, new_id)` | → `ExperimentFile` | Sets `meta.derived_from` |
 | `resolve(file)` | → `ResolvedFile` | Fills defaults, resolves placement rules and day lists |
 | `expand(file)` | → `[RunCell]` | Sweep × paradigms × algorithms × seeds (+ baselines) |
-| `hash(file)` | → str | Canonical sha256 (03 §6) |
+| `hash(file)` | → str | Canonical sha256 (02 §6) |
 | `diff(a, b)` | → `[FieldChange]` | For "diff against preset" in the Studio |
 | `export_bundle(file)` / `import_bundle(zip)` | → path / `ExperimentFile` | Only external CSV/JSON files are added |
 | `json_schema()` | → dict | For editor autocomplete |
@@ -113,7 +113,7 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 | `validate(file, level)` | → `ValidationReport` | Levels: `schema` (instant, as you type) · `references` · `full` (includes the dry run) |
 | `dry_run(file)` | → `DryRunResult` | Builds one environment through the factory, takes one step with the no-order policy, and checks observation shapes, one power flow and the settlement identities |
 
-`ValidationReport` = `[Finding(code, severity, path, message, fix_hint)]`. The `path` (e.g. `participants[3].owns.loads[0]`) lets the Studio jump to the field. The checks are listed in 03 §9.
+`ValidationReport` = `[Finding(code, severity, path, message, fix_hint)]`. The `path` (e.g. `participants[3].owns.loads[0]`) lets the Studio jump to the field. The checks are listed in 02 §9.
 
 ### 2.5 `ExperimentService`: runs
 
@@ -145,7 +145,7 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 [models.py](../../../src_thesis/application/models.py) holds the only types that cross the boundary to the Studio, the CLI and notebooks.
 
 - **Plain data only:** Pydantic models, dicts, lists and chart-ready `Series`. Never NiceGUI elements, Ray objects, pandapower nets or MARLEM objects.
-- **One import path:** `ExperimentFile`, `ExperimentMeta`, `RunCell` and `RunState` belong to the experiment layer ([06 §2](06-experiment-layer.md#2-records-modelsrecordspy)) and are re-exported here, so callers import everything from `application.models`.
+- **One import path:** `ExperimentFile`, `ExperimentMeta`, `RunCell` and `RunState` belong to the experiment layer ([05 §2](05-experiment-layer.md#2-records-modelsrecordspy)) and are re-exported here, so callers import everything from `application.models`.
 - **Translation happens in the service:** a real service converts lower-layer records into these models (e.g. `grid_catalog.py` turns the grid contract's `NetworkInfo` / `TopologyView` into the API models of the same names).
 
 | Service | Returns |
@@ -167,7 +167,7 @@ Services run in the process of their caller (no REST layer, D-09). Anything long
 | `ConfigService.resolve` / `expand` | `experiments.models.resolve.resolve` / `expand.expand` |
 | `GridCatalogService.*` | `adapters.grid.simbench_new` (catalog, summary, topology, elements, preview) |
 | `ProfileService.*` | `adapters.profiles` (SimBench catalogue, mapping rules; R3) |
-| `ValidationService.validate` | schema via the models; references, time, units, grid mapping and RL checks (03 §9) |
+| `ValidationService.validate` | schema via the models; references, time, units, grid mapping and RL checks (02 §9) |
 | `ValidationService.dry_run` | `experiments.factory.environment.build_env` + one step with the no-order policy |
 | `ExperimentService.create_runs(file)` | validate → `expand` → per cell: `resolve_run`, `run_id`, `build_manifest`, `store.create_run` |
 | `ExperimentService.start` / `cancel` | `worker.pool.WorkerPool.enqueue` + `poll` / `cancel` |

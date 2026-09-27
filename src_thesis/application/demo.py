@@ -48,7 +48,7 @@ _NOW = datetime(2026, 9, 23, 12, 0)
 
 
 def _default_learning() -> dict:
-    """Original MARLEM defaults, see 03-experiment-config.md §3.8."""
+    """Original MARLEM defaults, see 02-experiment-config.md §3.8."""
     return {
         "paradigms": list(PARADIGMS),
         "algorithms": list(ALGORITHMS),

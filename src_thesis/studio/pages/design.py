@@ -1,4 +1,4 @@
-"""Design (05 §4.6): the learning plan, i.e. the `learning` section of the file."""
+"""Design (04 §4.6): the learning plan, i.e. the `learning` section of the file."""
 
 from nicegui import ui
 
@@ -75,7 +75,7 @@ def design_page() -> None:
 
             with section(
                 "Algorithm parameters",
-                "Pre-filled with the original MARLEM defaults (03 §3.8)",
+                "Pre-filled with the original MARLEM defaults (02 §3.8)",
                 "tune",
                 classes="grow basis-0",
             ):

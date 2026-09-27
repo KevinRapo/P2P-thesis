@@ -1,4 +1,4 @@
-"""Grid (05 §4.2): choose and understand the network before placing agents.
+"""Grid (04 §4.2): choose and understand the network before placing agents.
 
 All data comes from ``GridCatalogService``. With the pandapower backend, loading
 a network or running a power flow takes seconds, so those calls run in a worker

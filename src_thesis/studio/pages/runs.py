@@ -1,4 +1,4 @@
-"""Runs (05 §4.8): queue, live status, logs, cancellation."""
+"""Runs (04 §4.8): queue, live status, logs, cancellation."""
 
 from nicegui import ui
 

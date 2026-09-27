@@ -1,4 +1,4 @@
-"""Technology-neutral grid contract (docs/thesis/architecture/02-simbench-grid.md §5).
+"""Technology-neutral grid contract (docs/thesis/architecture/01-simbench-grid.md §5).
 
 Plain, frozen data only: no pandapower, SimBench or NetworkX objects cross this
 seam. The pandapower adapter (``adapters/grid/simbench_new.py``) produces these
@@ -88,7 +88,7 @@ class ElementRecord:
 # --------------------------------------------------------------------- step contract
 @dataclass(frozen=True)
 class ParticipantInjection:
-    """Built from settlement, never from trades (02 §5)."""
+    """Built from settlement, never from trades (01 §5)."""
 
     participant_id: str
     bus_id: str

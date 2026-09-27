@@ -25,8 +25,8 @@ flowchart LR
   FILE -->|"preflight (§9)"| OK{"valid?"}
   OK -->|"expand: sweep × paradigms × algorithms × seeds, + baselines"| CELLS["run cells"]
   CELLS -->|"resolve defaults · build manifest (§5)"| RUNS["runs/&lt;run_id&gt;/ resolved.json + manifest.json"]
-  WORLD -. "build_env (06 §3.7)" .-> ENV["environment"]
-  PLAN -. "build_algorithm_config (06 §3.8)" .-> RL["RLlib configuration"]
+  WORLD -. "build_env (05 §3.7)" .-> ENV["environment"]
+  PLAN -. "build_algorithm_config (05 §3.8)" .-> RL["RLlib configuration"]
 ```
 
 ## 1. One file, one study (D-08)
@@ -91,10 +91,10 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `source.type` | enum | `"simbench"` | `simbench` · `pandapower_builtin` · `pandapower_file` (02 §1) |
+| `source.type` | enum | `"simbench"` | `simbench` · `pandapower_builtin` · `pandapower_file` (01 §1) |
 | `source.code` / `name` / `path` | str | — | SimBench code, built-in name (e.g. `case33bw`) or JSON path |
 | `source.sha256` | str | — | For `pandapower_file` |
-| `background.mode` | enum | `"mapped_replacement"` | `mapped_replacement` · `scaled_background` · `no_background` (02 §3.5) |
+| `background.mode` | enum | `"mapped_replacement"` | `mapped_replacement` · `scaled_background` · `no_background` (01 §3.5) |
 | `background.scale` | float | 1.0 | For `scaled_background` |
 | `background.profiles` | enum | `"native"` | For non-SimBench networks: `static` (element values) or `catalog` assignment by load type |
 | `limits.v_min_pu`, `v_max_pu` | float \| null | null | Voltage band for every bus. `null` = each bus's own network limits, fallback 0.95 / 1.05 (D-15) |
@@ -106,7 +106,7 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 | `power_flow.init` | enum | `"results"` | Warm start from the previous step |
 | `reactive.load` | enum | `"profile_ratio"` | Keep the profile's q/p, or `fixed_pf` |
 | `reactive.fallback_pf` | float | 0.95 | Used when p = 0 or `fixed_pf` |
-| `assessment.mode` | enum | `"feedback"` | `shadow` · `feedback` (02 §6) |
+| `assessment.mode` | enum | `"feedback"` | `shadow` · `feedback` (01 §6) |
 | `assessment.non_convergence` | enum | open (D-12) | `fail_run` · `truncate_episode` |
 | `assessment.non_convergence_penalty` | float | — | For `truncate_episode` |
 
@@ -119,7 +119,7 @@ Either an explicit list, or a `placement_rule` that is resolved at validation.
 | `id` | str | — | Agent ID; order defines agent order everywhere |
 | `role` | str | — | Label, e.g. `"community_solar"` ([P2] Table 6) |
 | `bus` | str | — | Network bus name |
-| `owns.loads`, `owns.sgens`, `owns.storage` | list[str] | [] | Owned element names (02 §3.2) |
+| `owns.loads`, `owns.sgens`, `owns.storage` | list[str] | [] | Owned element names (01 §3.2) |
 | `profile.source` | enum | `"native"` | `native` · `catalog` · `csv` · `synthetic` |
 | `profile.demand`, `profile.generation` | object | — | `{"type": "H0-B"}`, `{"path": …, "column": …, "sha256": …}`, or synthetic parameters |
 | `scaling.mode` | enum | `"none"` | `none` · `peak_kw` · `energy_kwh` |
@@ -130,7 +130,7 @@ Either an explicit list, or a `placement_rule` that is resolved at validation.
 | `battery.charge_efficiency`, `discharge_efficiency` | float | 1.0, 1.0 | Original defaults ([P1] Case 5 uses 0.95) |
 | `battery.max_power_kw` | float \| null | null | *(new)* power limit (I-71) |
 | `battery.initial_soc` | float \| `"random"` | `"random"` | Original: uniform in [min, max] at reset |
-| `placement_rule` | object | — | `{"type": "household_with_pv", "n": 8, "seed": 1}`, `"feeder_ends"`, `"spread"`, or `{"file": …}` (02 §3.1) |
+| `placement_rule` | object | — | `{"type": "household_with_pv", "n": 8, "seed": 1}`, `"feeder_ends"`, `"spread"`, or `{"file": …}` (01 §3.1) |
 
 ### 3.5 `market`
 
@@ -169,7 +169,7 @@ Original: [`DSOAgent`](../../../src_thesis_reference/marketplace/dso/dso.py#L44-
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
-| `observation.version` | str | `"v1"` | `v1` = [P1] Table 2 (42 dims); `v2-grid` adds the grid block (02 §6) |
+| `observation.version` | str | `"v1"` | `v1` = [P1] Table 2 (42 dims); `v2-grid` adds the grid block (01 §6) |
 | `observation.forecast_error` | float | 0.3 | Max relative forecast error ([P2] Table 7; unused in the original, I-39) |
 | `observation.forecast_anchors` | int | 4 | Original `num_anchor` |
 | `observation.include_partner_reputation` | bool | = `market.partner_preference` | Appends N reputations |
@@ -404,11 +404,11 @@ experiments/presets/              # in the repo
 
 - There is no validated NetworkX release (retired 2026-09-27, D-02). The original is kept frozen in `src_thesis_reference/` for code comparison; the tool never runs it.
 - Presets reproduce the papers' cases on SimBench and say in `meta.description` which case and which deviations (e.g. Case 4 has real physics).
-- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (04 §4, `ResultService.reference`).
+- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (03 §4, `ResultService.reference`).
 
 ## 9. Validation (preflight)
 
-Run by `ValidationService` before any run (04 §2):
+Run by `ValidationService` before any run (03 §2):
 
 - schema;
 - references (buses, elements, CSVs, hashes);
@@ -416,7 +416,7 @@ Run by `ValidationService` before any run (04 §2):
 - units;
 - market bounds vs profiles;
 - battery feasibility;
-- grid mapping rules (02 §3.2);
+- grid mapping rules (01 §3.2);
 - RL (algorithm and paradigm supported; mutation domains contain initial values; budget equal across cells);
 - protocol (seeds distinct; held-out days disjoint);
 - resources.

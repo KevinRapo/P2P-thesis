@@ -1,4 +1,4 @@
-"""Step and episode records (06-experiment-layer.md §3.6).
+"""Step and episode records (05-experiment-layer.md §3.6).
 
 The environment builds one step record after settlement and the power flow; it
 is the single source for reward, observation, ``info`` and logging. This module
@@ -7,7 +7,7 @@ buffers those records per episode and writes them to the store at episode end:
 - ``raw/steps.jsonl``: one line per step (only if ``outputs.record_steps`` asks
   for it, by default evaluation episodes only);
 - ``metrics/evaluation.jsonl``: one line per evaluation episode with the
-  research outcomes, kept apart from RL learning metrics (06 §3.5).
+  research outcomes, kept apart from RL learning metrics (05 §3.5).
 
 The fields of ``StepRecord`` stay dictionaries until the rebuilt environment
 (R1, R4) fixes their content; the record shape is what matters here.

@@ -1,6 +1,6 @@
-"""Filling defaults and fixing one run's world (06-experiment-layer.md §3.3).
+"""Filling defaults and fixing one run's world (05-experiment-layer.md §3.3).
 
-``resolve`` fills every unset field with its default from 03, so the manifest
+``resolve`` fills every unset field with its default from 02, so the manifest
 records the values a run actually used. ``resolve_run`` additionally applies
 one sweep point and fixes the learning plan to one cell. ``resolve_days``
 turns the ``time.days`` section into explicit train and evaluation dates.
@@ -18,7 +18,7 @@ from typing import Any
 from .expand import apply_overrides
 from .records import ExperimentFile, RunCell
 
-# Defaults of 03-experiment-config.md §3 (only fields that have one).
+# Defaults of 02-experiment-config.md §3 (only fields that have one).
 DEFAULTS: dict[str, Any] = {
     "time": {
         "resolution": "hourly_aggregated",
@@ -149,7 +149,7 @@ def resolve_run(file: ExperimentFile, cell: RunCell) -> ExperimentFile:
 
 
 def resolve_days(time_section: dict[str, Any]) -> DaySplit:
-    """Explicit train and evaluation dates from ``time.days`` (03 §3.2).
+    """Explicit train and evaluation dates from ``time.days`` (02 §3.2).
 
     ``fixed`` trains and evaluates on the same date, like the original. For
     ``range`` and ``sampler`` a seeded share (or list) of dates is held out for

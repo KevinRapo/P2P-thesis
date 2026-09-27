@@ -1,4 +1,4 @@
-"""Market & DSO (05 §4.4): market rules, DSO tariffs and fees, environment settings."""
+"""Market & DSO (04 §4.4): market rules, DSO tariffs and fees, environment settings."""
 
 from nicegui import ui
 
@@ -29,7 +29,7 @@ def market_page() -> None:
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Market",
-                "market section (03 §3.5)",
+                "market section (02 §3.5)",
                 "storefront",
                 classes="grow basis-0",
             ):
@@ -65,7 +65,7 @@ def market_page() -> None:
 
             with section(
                 "DSO",
-                "dso section (03 §3.6)",
+                "dso section (02 §3.6)",
                 "account_balance",
                 classes="grow basis-0",
             ):
@@ -91,7 +91,7 @@ def market_page() -> None:
 
             with section(
                 "Environment",
-                "environment section (03 §3.7)",
+                "environment section (02 §3.7)",
                 "psychology",
                 classes="grow basis-0",
             ):
@@ -125,7 +125,7 @@ def market_page() -> None:
                 with ui.expansion(
                     "Reward and reputation weights", icon="balance"
                 ).classes("w-full"):
-                    ui.label("Weights of eq. 4–6 and eq. 12 (03 §3.7).").classes(
+                    ui.label("Weights of eq. 4–6 and eq. 12 (02 §3.7).").classes(
                         "mls-card-caption"
                     )
                     ui.button(

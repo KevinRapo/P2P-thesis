@@ -1,4 +1,4 @@
-"""Participants (05 §4.3): agents, placement, profiles, batteries, time window."""
+"""Participants (04 §4.3): agents, placement, profiles, batteries, time window."""
 
 from nicegui import ui
 

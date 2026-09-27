@@ -1,4 +1,4 @@
-"""The run manifest: what exactly a run used (06-experiment-layer.md §3.4, 03 §5).
+"""The run manifest: what exactly a run used (05-experiment-layer.md §3.4, 02 §5).
 
 Fingerprints are collected without importing heavy packages: versions come
 from package metadata, the code state from git.

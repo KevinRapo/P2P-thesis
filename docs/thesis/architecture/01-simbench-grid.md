@@ -63,7 +63,7 @@ Unbalanced networks (IEEE European LV, which needs `runpp_3ph`) are out of scope
 
 ## 3. Profile assignment (the core flexibility)
 
-An **agent** in MARLEM is one market participant with generation, demand and an optional battery. Each agent is tied to the network through a **participant mapping**. The mapping is part of the experiment file (03) and is persisted as data, never as a live net.
+An **agent** in MARLEM is one market participant with generation, demand and an optional battery. Each agent is tied to the network through a **participant mapping**. The mapping is part of the experiment file (02) and is persisted as data, never as a live net.
 
 ### 3.1 Placement: which bus does the agent sit on?
 

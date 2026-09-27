@@ -1,8 +1,8 @@
-"""From the ``learning`` section to an RLlib configuration (06 §3.8).
+"""From the ``learning`` section to an RLlib configuration (05 §3.8).
 
 Replaces the hard-coded blocks of ``marl/train.py`` (``RLTrainer``): algorithm
 hyperparameters, paradigm module, tuning, rollouts, checkpoints and evaluation
-all come from the resolved file (03 §3.8–3.9).
+all come from the resolved file (02 §3.8–3.9).
 
 Status: interface only; implemented with the RL stage (validation stage D)
 after the environment is validated. Ray is imported inside the functions.

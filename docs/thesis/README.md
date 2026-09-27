@@ -5,7 +5,8 @@ docs/
 ├── paper/                          # Source papers (the reference)
 │   ├── marlem.pdf                  # [P1] MARLEM, Applied Energy 2026
 │   ├── marlem-results.pdf          # [P2] Implicit-cooperation results (preprint)
-│   └── marlem-methodology.md       # Both papers' methodology and equations (paper only, no code)
+│   ├── marlem-methodology.md       # Both papers' methodology and equations (paper only, no code)
+│   └── marlem-paper-to-code-map.md # Fig. 2 → the original code (src_thesis_reference), what changes
 └── thesis/
     ├── README.md                   # This index
     ├── validation/                 # Active work: validating MARLEM against the papers
@@ -21,12 +22,11 @@ docs/
     │       └── trace_original_episode.py   # Reproduces trace facts T1–T13
     └── architecture/               # Next: SimBench grid and the platform
         ├── README.md               # Master: goal, roadmap R1–R9, decision log (start here)
-        ├── 01-paper-to-code-map.md # Fig. 2 → src_thesis, what changes
-        ├── 02-simbench-grid.md     # Networks, profile assignment, grid contract, step changes
-        ├── 03-experiment-config.md # Scenario / Experiment / Run specs, presets, sharing
-        ├── 04-application-layer.md # Services: status, wiring, methods, returned data
-        ├── 05-presentation.md      # NiceGUI Studio pages and the CLI
-        └── 06-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
+        ├── 01-simbench-grid.md     # Networks, profile assignment, grid contract, step changes
+        ├── 02-experiment-config.md # Scenario / Experiment / Run specs, presets, sharing
+        ├── 03-application-layer.md # Services: status, wiring, methods, returned data
+        ├── 04-presentation.md      # NiceGUI Studio pages and the CLI
+        └── 05-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
 ```
 
 ## Validation (current focus)
@@ -44,6 +44,6 @@ docs/
 
 ## Architecture (SimBench edition)
 
-Start with [architecture/README.md](architecture/README.md). It holds the goal, the roadmap (R1 = rebuild and validation above → R9 = evidence runs on SimBench), the decision log (D-01…) and the order to read the numbered documents 01–06.
+Start with [architecture/README.md](architecture/README.md). It holds the goal, the roadmap (R1 = rebuild and validation above → R9 = evidence runs on SimBench), the decision log (D-01…) and the order to read the numbered documents 01–05.
 
 `guidelines.md` and `tests.md` from the upstream repository were removed. See `marlem-main/docs/` for them.

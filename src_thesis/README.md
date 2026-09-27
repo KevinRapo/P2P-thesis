@@ -40,7 +40,7 @@ src_thesis/
 |   |-- layout.py, navigation.py, theme.py, state.py
 |   |-- components/
 |   `-- pages/
-|-- experiments/                 # Experiment files, runs, store and workers (docs 06)
+|-- experiments/                 # Experiment files, runs, store and workers (docs 05)
 |   |-- models/                  # records, files, expand, resolve, manifest
 |   |-- factory/                 # environment and RLlib configuration
 |   |-- store/                   # run folders, step recorder

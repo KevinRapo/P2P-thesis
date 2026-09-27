@@ -1,4 +1,4 @@
-"""Home (05 §4.1): health, recent work, start points."""
+"""Home (04 §4.1): health, recent work, start points."""
 
 from nicegui import ui
 

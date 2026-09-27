@@ -1,7 +1,7 @@
 """Access to services and the per-user draft experiment file.
 
 The Studio holds no research state of its own: services own the data, and the
-browser session only remembers which draft is open (05-presentation.md §2).
+browser session only remembers which draft is open (04-presentation.md §2).
 """
 
 import os

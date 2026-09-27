@@ -1,7 +1,7 @@
-"""From one experiment file to its runs (06-experiment-layer.md §3.2).
+"""From one experiment file to its runs (05-experiment-layer.md §3.2).
 
 An experiment expands to sweep points × paradigms × algorithms × seeds, plus
-one run per sweep point, baseline and seed (03 §1, §3.10, §3.11).
+one run per sweep point, baseline and seed (02 §1, §3.10, §3.11).
 """
 
 from __future__ import annotations
@@ -99,7 +99,7 @@ def expand(file: ExperimentFile) -> list[RunCell]:
 
 
 def run_id(experiment_id: str, cell: RunCell, file_hash: str) -> str:
-    """``<meta.id>__<sweep-label>__<algo>-<paradigm>__s<seed>__<hash8>`` (06 §3.2)."""
+    """``<meta.id>__<sweep-label>__<algo>-<paradigm>__s<seed>__<hash8>`` (05 §3.2)."""
     learner = (
         cell.algorithm if cell.kind != "train" else f"{cell.algorithm}-{cell.paradigm}"
     )

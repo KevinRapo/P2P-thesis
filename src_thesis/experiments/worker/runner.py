@@ -1,4 +1,4 @@
-"""What a worker actually runs (06-experiment-layer.md §3.9).
+"""What a worker actually runs (05-experiment-layer.md §3.9).
 
 A runner executes one run inside the worker process. It never touches the
 status file itself: it reports progress through its ``RunContext`` and returns
@@ -75,7 +75,7 @@ class NoopRunner:
 
 
 class BaselineRunner:
-    """Scripted policies (no order, random, rule-based) on the eval days (03 §3.10)."""
+    """Scripted policies (no order, random, rule-based) on the eval days (02 §3.10)."""
 
     def run(self, ctx: RunContext) -> RunOutcome:
         raise NotImplementedError(
@@ -84,7 +84,7 @@ class BaselineRunner:
 
 
 class TrainingRunner:
-    """RLlib training with evaluation; owns ``ray.init`` / ``ray.shutdown`` (06 §3.10)."""
+    """RLlib training with evaluation; owns ``ray.init`` / ``ray.shutdown`` (05 §3.10)."""
 
     def run(self, ctx: RunContext) -> RunOutcome:
         raise NotImplementedError("training runs are built in validation stage D")

@@ -1,4 +1,4 @@
-"""Validate (05 §4.7): preflight report, dry run, and the only launch point."""
+"""Validate (04 §4.7): preflight report, dry run, and the only launch point."""
 
 from nicegui import ui
 

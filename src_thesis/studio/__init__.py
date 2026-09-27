@@ -1,1 +1,1 @@
-"""MARLEM Studio: NiceGUI presentation layer (docs/thesis/architecture/05-presentation.md)."""
+"""MARLEM Studio: NiceGUI presentation layer (docs/thesis/architecture/04-presentation.md)."""

@@ -1,14 +1,14 @@
 # 06. Experiment layer
 
-> `src_thesis/experiments/`: from an experiment file to runs, run folders and worker processes. The application services (04) call it; it calls MARLEM only through the environment factory.
-> Master: [README.md](README.md) · Experiment file: [03-experiment-config.md](03-experiment-config.md) · Services: [04-application-layer.md](04-application-layer.md) · Decisions: D-08, D-09, D-14.
+> `src_thesis/experiments/`: from an experiment file to runs, run folders and worker processes. The application services (03) call it; it calls MARLEM only through the environment factory.
+> Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [03-application-layer.md](03-application-layer.md) · Decisions: D-08, D-09, D-14.
 > Written 2026-09-27. Code: [experiments/](../../../src_thesis/experiments/) · Tests: [tests/test_experiments.py](../../../tests/test_experiments.py).
 
 ## 1. Place in the system and status
 
 ```mermaid
 flowchart LR
-  subgraph APP["application/ (04)"]
+  subgraph APP["application/ (03)"]
     CF["ConfigService"]
     EX["ExperimentService"]
     RE["ResultService"]
@@ -79,10 +79,10 @@ Code: [models/records.py](../../../src_thesis/experiments/models/records.py)
 
 | Record | Fields | Written by | Notes |
 |---|---|---|---|
-| `ExperimentFile` | `schema_version`, `kind`, `meta` (`ExperimentMeta`), `time`, `grid`, `participants`, `market`, `dso`, `environment`, `learning`, `evaluation`, `baselines`, `sweep`, `resources`, `outputs` | the user / the Studio | Sections are dicts until each gets its typed model (03) |
+| `ExperimentFile` | `schema_version`, `kind`, `meta` (`ExperimentMeta`), `time`, `grid`, `participants`, `market`, `dso`, `environment`, `learning`, `evaluation`, `baselines`, `sweep`, `resources`, `outputs` | the user / the Studio | Sections are dicts until each gets its typed model (02) |
 | `RunCell` | `kind` (`train` · `baseline` · `noop`), `sweep_label`, `sweep_point`, `algorithm`, `paradigm`, `seed` | `expand` | For baselines `algorithm` is the baseline name and `paradigm` is `"-"` |
 | `RunState` | `READY`, `QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`, `CANCELLING`, `CANCELLED` | — | Transitions in §4 (`TRANSITIONS`, `can_transition`) |
-| `Manifest` | `run_id`, `experiment_id`, `cell`, `created`, `file_hash`, `resolved_hash`, `code`, `environment`, `data`, `days`, `time_alignment`, `validation_hash`, `platform` | `build_manifest`, once | Never changed after creation (03 §5) |
+| `Manifest` | `run_id`, `experiment_id`, `cell`, `created`, `file_hash`, `resolved_hash`, `code`, `environment`, `data`, `days`, `time_alignment`, `validation_hash`, `platform` | `build_manifest`, once | Never changed after creation (02 §5) |
 | `StatusRecord` | `run_id`, `experiment_id`, `state`, `pid`, `created`, `started`, `updated`, `finished`, `progress`, `iteration`, `last_metrics`, `message` | store (worker, pool) | `status.json`, replaced atomically |
 | `ArtifactIndex` | `files`: name → path in the run folder | worker | `artifacts.json` |
 
@@ -98,7 +98,7 @@ Code: [models/files.py](../../../src_thesis/experiments/models/files.py)
 | `load(path)` | path → `ExperimentFile` | |
 | `dumps(file)` | → str | Pretty JSON in field order, for people |
 | `save(file, path)` | → `Path` | Atomic |
-| `canonical_json(file_or_dict)` / `canonical_hash(...)` | → str | Sorted keys, compact; sha256. Same study = same hash (03 §6) |
+| `canonical_json(file_or_dict)` / `canonical_hash(...)` | → str | Sorted keys, compact; sha256. Same study = same hash (02 §6) |
 | `migrate(data)` | raw dict → raw dict at `SCHEMA_VERSION` | Steps through `MIGRATIONS`; unknown versions raise |
 | `json_schema()` | → dict | For editor autocompletion |
 | `atomic_write_text(path, text)` | → `Path` | Temp file in the same folder, then `os.replace` |
@@ -120,7 +120,7 @@ Code: [models/resolve.py](../../../src_thesis/experiments/models/resolve.py)
 
 | Function | Input → output | Notes |
 |---|---|---|
-| `resolve(file)` | → `ExperimentFile` | Fills every unset field from `DEFAULTS` (03 §3); set values win. Placement rules raise until R3 |
+| `resolve(file)` | → `ExperimentFile` | Fills every unset field from `DEFAULTS` (02 §3); set values win. Placement rules raise until R3 |
 | `resolve_run(file, cell)` | → `ExperimentFile` | Applies the sweep point, resolves, fixes `learning` to the cell. Stored as `resolved.json` |
 | `resolve_days(time_section)` | → `DaySplit(train, eval)` | `fixed`: the same date for both. `range` / `sampler`: filters (season, months, day type), then a seeded hold-out share or list for evaluation, disjoint from training |
 
@@ -191,8 +191,8 @@ Code: [factory/environment.py](../../../src_thesis/experiments/factory/environme
 | Function | Input → output | Notes |
 |---|---|---|
 | `build_env_config(resolved, cell, episode_seed)` | → dict | Plain data only: the resolved file, the cell, the seed (key `ENV_CONFIG_KEY`) |
-| `build_env(env_config)` | → `LocalEnergyMarket` | Day from the day list → profiles (02 §3) → agents, batteries, DSO, `MarketConfig` → grid model → observation, reward, reputation, assessment mode. **R1 / R4** |
-| `build_grid(resolved)` | → `GridModel` | `SimBenchGrid` for `grid.source` (02 §5). **R4** |
+| `build_env(env_config)` | → `LocalEnergyMarket` | Day from the day list → profiles (01 §3) → agents, batteries, DSO, `MarketConfig` → grid model → observation, reward, reputation, assessment mode. **R1 / R4** |
+| `build_grid(resolved)` | → `GridModel` | `SimBenchGrid` for `grid.source` (01 §5). **R4** |
 
 RLlib env runners call the factory inside each runner; a network or agents never travel in `env_config`.
 
@@ -202,7 +202,7 @@ Code: [factory/training.py](../../../src_thesis/experiments/factory/training.py)
 
 | Function | Input → output | Notes |
 |---|---|---|
-| `build_algorithm_config(resolved, cell)` | → RLlib `AlgorithmConfig` | Algorithm parameters, paradigm module, rollouts, evaluation, checkpoints (03 §3.8–3.9); replaces the hard-coded blocks of `marl/train.py`. Checks I-49 and I-50. **Stage D** |
+| `build_algorithm_config(resolved, cell)` | → RLlib `AlgorithmConfig` | Algorithm parameters, paradigm module, rollouts, evaluation, checkpoints (02 §3.8–3.9); replaces the hard-coded blocks of `marl/train.py`. Checks I-49 and I-50. **Stage D** |
 | `build_tuner_settings(resolved)` | → dict | Scheduler (`none` / PBT), stop criterion from `budget`, checkpoint settings. **Stage D** |
 
 ### 3.9 Runners (worker/runner.py)
@@ -214,7 +214,7 @@ Code: [worker/runner.py](../../../src_thesis/experiments/worker/runner.py)
 | Runner (`RUNNERS[cell.kind]`) | Does | Status |
 |---|---|---|
 | `NoopRunner` (`noop`) | A few iterations that report progress and honour cancel; for tests and smoke checks | Implemented |
-| `BaselineRunner` (`baseline`) | Scripted policies (`no_order`, `random`, `rule_based`, 03 §3.10) over the evaluation days, through `build_env` and `marl/baselines.py` | Waits for R1 / R4 |
+| `BaselineRunner` (`baseline`) | Scripted policies (`no_order`, `random`, `rule_based`, 02 §3.10) over the evaluation days, through `build_env` and `marl/baselines.py` | Waits for R1 / R4 |
 | `TrainingRunner` (`train`) | RLlib training with evaluation; owns `ray.init` / `ray.shutdown` | Stage D |
 
 ### 3.10 Worker (worker/process.py)
@@ -297,7 +297,7 @@ sequenceDiagram
 
 ## 5. How the services use it
 
-The application services are the only callers of this layer. Which service method calls which function here is listed once, from the services' side, in [04 §4](04-application-layer.md#4-what-each-real-service-calls). The services are still the demo implementations; wiring them to this layer is the next step of R7.
+The application services are the only callers of this layer. Which service method calls which function here is listed once, from the services' side, in [03 §4](03-application-layer.md#4-what-each-real-service-calls). The services are still the demo implementations; wiring them to this layer is the next step of R7.
 
 ## 6. Tests ([tests/test_experiments.py](../../../tests/test_experiments.py))
 

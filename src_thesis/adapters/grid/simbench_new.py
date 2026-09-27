@@ -1,4 +1,4 @@
-"""pandapower adapter for every network source (02-simbench-grid.md §1–§2).
+"""pandapower adapter for every network source (01-simbench-grid.md §1–§2).
 
 This module and the profile adapter are the only places that import
 ``pandapower`` and ``simbench``. Everything it returns is plain contract data
@@ -384,7 +384,7 @@ def _absolute_profiles(ref: NetworkRef) -> dict[tuple[str, str], Any]:
 def profile_rows(day: str, hour: int) -> range:
     """Rows of the 15-minute profile table for one hour of one day.
 
-    Hourly rule of 02-simbench-grid.md §4: four rows per hour, averaged.
+    Hourly rule of 01-simbench-grid.md §4: four rows per hour, averaged.
     """
     d = date.fromisoformat(day)
     if d.year != SIMBENCH_YEAR:
