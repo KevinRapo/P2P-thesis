@@ -1,4 +1,4 @@
-# 02. SimBench grid
+# 01. SimBench grid
 
 > Network sources, loading, assigning profiles to MARLEM agents, the grid contract, and what changes in MARLEM's step.
 > Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15.

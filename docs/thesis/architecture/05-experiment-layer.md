@@ -1,4 +1,4 @@
-# 06. Experiment layer
+# 05. Experiment layer
 
 > `src_thesis/experiments/`: from an experiment file to runs, run folders and worker processes. The application services (03) call it; it calls MARLEM only through the environment factory.
 > Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [03-application-layer.md](03-application-layer.md) · Decisions: D-08, D-09, D-14.

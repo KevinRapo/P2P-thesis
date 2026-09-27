@@ -1,4 +1,4 @@
-# 04. Application layer
+# 03. Application layer
 
 > `src_thesis/application/`: the services that the Studio, the CLI and notebooks call. They hide MARLEM, the experiment layer and the adapters behind typed, plain-data methods.
 > Master: [README.md](README.md) (layers and who may call whom: §2.1) · Experiment layer: [05-experiment-layer.md](05-experiment-layer.md) · Presentation: [04-presentation.md](04-presentation.md) · Decisions: D-09, D-13.

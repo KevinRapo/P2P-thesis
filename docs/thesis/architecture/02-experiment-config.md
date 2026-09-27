@@ -1,4 +1,4 @@
-# 03. Experiment file
+# 02. Experiment file
 
 > One JSON file describes a complete study: the simulated world, the reinforcement-learning plan, evaluation and the sweep. It is used identically by CLI, notebooks and Studio.
 > Master: [README.md](README.md) · Decisions: D-07, D-08.

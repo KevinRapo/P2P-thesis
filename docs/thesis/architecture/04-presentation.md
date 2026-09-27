@@ -1,4 +1,4 @@
-# 05. Presentation: Studio and CLI
+# 04. Presentation: Studio and CLI
 
 > How people reach the system: the NiceGUI Studio (§0–§5: shell, pages, what each page contains, which services it calls and how pages lead into each other; structure, not visual design) and the CLI (§6). Both call only the application layer.
 > Master: [README.md](README.md) · Services: [03-application-layer.md](03-application-layer.md).
