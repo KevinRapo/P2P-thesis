@@ -14,6 +14,7 @@ docs/
     │   ├── plan-by-level.md        # Live plan and status tracker (start here)
     │   ├── paper-vs-code.md        # Contract: paper vs code, evidence, issue register
     │   ├── validation-plan-fix.md  # Earlier audit (P-IDs), reference only
+    │   ├── marlem-keep-replace-audit.md # What to keep, rewrite or replace for a SimBench edition
     │   └── evidence/
     │       └── trace_original_episode.py   # Reproduces trace facts T1–T13
     └── architecture/               # Next: SimBench grid and the platform
@@ -32,6 +33,7 @@ docs/
 | [validation/plan-by-level.md](validation/plan-by-level.md) | **What to do next.** Steps A0 → D3, ordered by [P1] Fig. 2 levels (Level 0 → Level 2 → Level 1). Holds each issue's **status** (the only place status is tracked). |
 | [validation/paper-vs-code.md](validation/paper-vs-code.md) | **Why an issue exists.** What the paper says, what the code does, the trace evidence, and the full register I-01…I-80 with Origin (Paper / Fidelity / Code), Step and VP cross-reference. |
 | [validation/validation-plan-fix.md](validation/validation-plan-fix.md) | Detailed evidence and fix rationale from the earlier audit. Looked up via the register's **VP** column. Its status fields are not maintained. |
+| [validation/marlem-keep-replace-audit.md](validation/marlem-keep-replace-audit.md) | **Rebuild or repair?** Function-by-function verdicts (keep / keep + fix / rewrite / replace / drop / later RL) for building a SimBench edition on the papers' method, where the original is coupled to its grid, and what happens to the 80 issues. |
 | [validation/evidence/trace_original_episode.py](validation/evidence/trace_original_episode.py) | Rerunnable proof of the T1–T13 facts. Run with the `marlem` conda env: `python docs/thesis/validation/evidence/trace_original_episode.py` |
 
 ## Architecture (after validation)
