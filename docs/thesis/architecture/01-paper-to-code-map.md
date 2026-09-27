@@ -11,15 +11,15 @@
 
 | Fig. 2 class | File | Role | Validation | SimBench / platform change |
 |---|---|---|---|---|
-| `LEM` | [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Episode orchestration: reset, step | A1 | **Adapt**: receives the grid model from the factory; builds injections after settlement, calls `assess`, passes the assessment to KPIs, reward, observation and info (02 §7) |
+| `LEM` | [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Episode orchestration: reset, step | A1 | **Adapt**: receives the grid model from the factory and is its **only holder** (D-13); builds injections after settlement, calls `assess`, passes the assessment to KPIs, reward, observation and info, and `GridTopologyInfo` / `GridSignals[t−1]` to the market (02 §5.1, §7) |
 | `ActionHandler` | [marketplace/action.py](../../../src_thesis/marketplace/action.py) | Action space, partner index | A3 | — |
 | `ObservationHandler` | [marketplace/observation.py](../../../src_thesis/marketplace/observation.py) | 42-dim observation | C1 | **Adapt**: versioned schema; grid block sourced from `GridAssessment` (P5) |
 | `RewardHandler` | [marketplace/reward.py](../../../src_thesis/marketplace/reward.py) | Reward eq. 3–6 | C2 | **Adapt**: versioned reward; physical-violation term in feedback mode (P5) |
 | `ReputationHandler` | [marketplace/market/reputation.py](../../../src_thesis/marketplace/market/reputation.py) | Reputation eq. 12 | A9 | Adapt: grid term from assessment or dropped (**Decision** in 02 §8) |
-| `OrderMatcher`, `MatchingResult` | [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Stages 1–3, clearing | A5 | **Adapt**: NetworkX calls removed; lossless matching; distance from `GridModel.electrical_distance` |
+| `OrderMatcher`, `MatchingResult` | [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Stages 1–3, clearing | A5 | **Adapt**: NetworkX calls removed; lossless matching; holds no grid, receives `GridTopologyInfo` and `GridSignals` as arguments (D-13) |
 | `MarketConfig`, `ClearingMechanism` | [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py), [mechanism.py](../../../src_thesis/marketplace/market/mechanism.py) | Bounds, pricing | A4 | — |
 | `Order`, `Trade` | [marketplace/market/order.py](../../../src_thesis/marketplace/market/order.py) | Economic records | A5 | Adapt: `transmission_loss` removed (lossless market); `distance` = electrical distance |
-| `DSOAgent` | [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Tariffs, residual clearing, fees | A6 | **Adapt**: congestion and constraint inputs come from the previous step's assessment, not graph queries |
+| `DSOAgent` | [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Tariffs, residual clearing, fees | A6 | **Adapt**: holds no grid; fee inputs come from `GridSignals[t−1]` and `GridTopologyInfo` passed in by the loop (D-13), not graph queries |
 | `Validator`, `TransactionBlock` | [marketplace/market/validation.py](../../../src_thesis/marketplace/market/validation.py) | Hash-chained trade log | A10 | — |
 | `GridNetwork` | [adapters/grid/network.py](../../../src_thesis/adapters/grid/network.py) | NetworkX grid (abstract) | A7 | **Removed from the tool** (kept in the validated release); replaced by the pandapower adapter behind `GridModel` |
 | `GridTopology`, `Location` | [marketplace/grid/base.py](../../../src_thesis/marketplace/grid/base.py), [config.py](../../../src_thesis/marketplace/grid/config.py) | Synthetic topologies, coordinates | A7 | **Removed from the tool**; locations are bus IDs from the network |
@@ -30,7 +30,7 @@
 
 | Fig. 2 class | File | Role | Validation | SimBench / platform change |
 |---|---|---|---|---|
-| `DERAgent` | [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Action feasibility, settlement, partner choice | A3, A8 | Adapt: `node_id` becomes a bus ID from the mapping; partner distance via `GridModel.electrical_distance` |
+| `DERAgent` | [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Action feasibility, settlement, partner choice | A3, A8 | Adapt: `node_id` becomes a bus ID from the mapping; partner distance from `GridTopologyInfo` passed in (D-13) |
 | `Battery` | [marl/agents/battery.py](../../../src_thesis/marl/agents/battery.py) | Storage dynamics | A8 | — (a battery can be sized from a SimBench storage element; 02 §3) |
 | `RLTrainer`, `GroupedLEM` | [marl/train.py](../../../src_thesis/marl/train.py) | RLlib config, PBT, grouping | D1 | Adapt: `learning` section of the experiment file replaces its arguments; the environment is built by the factory inside each runner |
 | `RLInference` | [marl/inference.py](../../../src_thesis/marl/inference.py) | Checkpoint rollout | D2 | Adapt: called by the worker |

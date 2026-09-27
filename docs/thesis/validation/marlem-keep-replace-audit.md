@@ -63,7 +63,7 @@ Every place the original reaches into the NetworkX grid, and what replaces it in
 | Reputation grid term from the trade-based balance | [reputation.py:165-213](../../../src_thesis/marketplace/market/reputation.py#L165-L213) | Bus-attributed violations, or drop the term (02 §8) |
 | Config serialises the `GridNetwork` | [io.py:81-169](../../../src_thesis/marketplace/io.py#L81-L169) | The experiment file's `grid` section |
 
-The coupling is wide (13 places in 8 files) but shallow: almost every point reads one number (a distance, a congestion level, a capacity or `dso.balance`). That is why the market code can be kept or rewritten independently of the grid.
+The coupling is wide (13 places in 8 files) but shallow: almost every point reads one number (a distance, a congestion level, a capacity or `dso.balance`). That is why the market code can be kept or rewritten independently of the grid. The target design for this seam is agreed as D-13 ([02 §5.1](../architecture/02-simbench-grid.md#51-ownership-and-data-flow-d-13-the-target-architecture)): `LocalEnergyMarket` stays the orchestrator and the only holder of the grid, and the market receives `GridTopologyInfo` and last step's `GridSignals` as arguments instead of holding a grid reference.
 
 ## 3. Module by module
 

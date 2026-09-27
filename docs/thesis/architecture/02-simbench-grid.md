@@ -129,15 +129,80 @@ class GridAssessment:
     bus_voltage_pu: Mapping[str, float]         # participant buses (reward attribution)
     violations: tuple[GridViolation, ...]
 
+@dataclass(frozen=True)
+class GridTopologyInfo:              # static per network; built by the grid at reset (§5.1)
+    distance_km: Mapping[tuple[str, str], float]   # (bus_a, bus_b) -> electrical distance along lines
+    zone: Mapping[str, str]                        # bus -> zone
+
+@dataclass(frozen=True)
+class GridSignals:                   # what the market may know about the grid: step t−1 (§5.1)
+    max_line_loading: float          # 0..1; replaces calculate_congestion_level()
+    external_grid_kwh: float         # replaces dso.balance as the "grid balance" input
+
+    @classmethod
+    def from_assessment(cls, a: GridAssessment) -> "GridSignals": ...
+    @classmethod
+    def initial(cls) -> "GridSignals": ...          # before the first power flow of an episode
+
 class GridModel(Protocol):
     def reset(self, episode_seed: int | None = None, day: str | None = None) -> None: ...
     def assess(self, step: int, injections: Sequence[ParticipantInjection]) -> GridAssessment: ...
+    def topology_info(self) -> GridTopologyInfo: ...   # distances and zones, computed once
     def electrical_distance(self, bus_a: str, bus_b: str) -> float: ...   # along lines, km
     def summary(self) -> NetworkSummary: ...          # plain data for UI and reports
     def topology_view(self) -> TopologyView: ...
 ```
 
-**Market side (D-05).** Matching becomes lossless: delivered = sold, and there are no path limits in matching. The only grid information the market still uses is `electrical_distance`, for partner preference and distance-based DSO fees. Physical losses appear once, system-wide, in the assessment.
+**Market side (D-05).** Matching becomes lossless: delivered = sold, and there are no path limits in matching. The only grid information the market still uses is the electrical distance (partner preference, distance-based DSO fees), the zones, and last step's loading and external-grid exchange (fees, eq. 8h). It receives them as `GridTopologyInfo` and `GridSignals` (§5.1). Physical losses appear once, system-wide, in the assessment.
+
+### 5.1 Ownership and data flow (D-13): the target architecture
+
+`LocalEnergyMarket` stays the central orchestrator that owns and calls every component, as in the original. What changes is how the grid is reached. In the original, one mutable `GridNetwork` is shared by `OrderMatcher`, `DSOAgent`, `RewardHandler`, `ObservationHandler` and `ImplicitCooperation`; matching changes edge flows while it matches and reads them back for fees in the same step. The SimBench edition follows three rules:
+
+| Rule | Meaning | Why |
+|---|---|---|
+| **One owner** | Only `LocalEnergyMarket` holds the `GridModel` (`self.grid`). No other component keeps a reference to it. | pandapower nets are heavy and change during a power flow. One holder means one place where the net is modified, and one copy per RLlib env runner. |
+| **The market reads, never writes** | `OrderMatcher`, `DSOAgent` and `DERAgent` receive `GridTopologyInfo` and `GridSignals` as method arguments. They never call the grid. | A fee or a trade cannot depend on the order in which trades were matched. The market can be unit-tested with a hand-written 3-bus table and fixed signals, without pandapower. |
+| **Time is explicit** | The market at step t uses `GridSignals` from the power flow of t−1 (`GridSignals.initial()` at the first step). KPIs, reward and observation at t use `GridAssessment[t]`. | The t−1 / t split is a modelling decision (§6); it becomes visible in the signatures instead of depending on call order. |
+
+Data flow of one step:
+
+```text
+                 static at reset                       from step t−1
+        ┌──────────────────────────────┐     ┌───────────────────────────┐
+        │ GridTopologyInfo              │     │ GridSignals               │
+        │  distance_km, zone            │     │  max_line_loading,        │
+        │                               │     │  external_grid_kwh        │
+        └──────────────┬───────────────┘     └─────────────┬─────────────┘
+                       ▼                                   ▼
+orders ──► OrderMatcher.match_orders(orders, …, topology, signals) ──► trades   (no grid access)
+trades ──► settlement (DERAgent, Battery) ──► ledger + injections
+injections ──► self.grid.assess(t, injections) ──► GridAssessment[t]     (the only grid call)
+GridAssessment[t] ──► KPIs, reward, observation, info ──► GridSignals for t+1
+```
+
+Sketch of `LocalEnergyMarket.step`:
+
+```python
+def step(self, actions):
+    orders = self._to_orders(actions)
+    result = self.market.match_orders(
+        self.t, orders, self.reputation, self.topology, self.signals
+    )
+    ledger = self.settlement.settle(self.agents, orders, result.trades)
+    assessment = self.grid.assess(self.t, ledger.injections())
+    kpis = self.cooperation.get_kpis(result, ledger, assessment)
+    rewards = self.reward_handler.calculate(ledger, result, kpis, assessment)
+    self.signals = GridSignals.from_assessment(assessment)  # read by the market at t + 1
+    obs = self.observation_handler.build(self.agents, result, kpis, assessment)
+    ...
+```
+
+`reset` sets `self.topology = self.grid.topology_info()` and `self.signals = GridSignals.initial()`.
+
+**Example of the change in one method.** The original `DSOAgent.calculate_fees(buy, sell, price, q)` calls `self.grid_network.get_path_congestion(...)` and `distance_to(..., self.grid_network.graph)` while matching is still changing the flows. The SimBench edition is `calculate_fees(buy, sell, price, q, topology, signals)` and reads `signals.max_line_loading` and `topology.distance_km[(buy.bus, sell.bus)]`, which stay fixed for the whole step.
+
+**Accepted fallback:** if a method must keep a reference, give it a **read-only view** (a `Protocol` with only `distance`, `zone` and `signals`) that the loop refreshes between steps. Plain arguments are preferred because the signature shows what is read and when.
 
 ## 6. The step with SimBench (D-01)
 
@@ -145,7 +210,8 @@ class GridModel(Protocol):
 actions
  → orders                                   (DERAgent feasibility, ActionHandler)
  → economic matching + DSO residual          (OrderMatcher, lossless;
-                                              DSO fees use assessment[t−1])
+                                              receives GridTopologyInfo + GridSignals[t−1],
+                                              which the DSO fees use; §5.1)
  → cash + energy + battery settlement        (DERAgent, Battery)
  → injections  (settlement → ParticipantInjection)
  → ONE power flow  (background at t + injections)  → GridAssessment[t]
@@ -188,16 +254,16 @@ These are applied **after** the validated release (P2), in `src_thesis/`, keepin
 
 | File | Change | Phase |
 |---|---|---|
-| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 (rename to `contract.py` when stable). **Done 2026-09-25**, with the catalog records for §2. | P3 |
+| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 (rename to `contract.py` when stable). **Done 2026-09-25**, with the catalog records for §2; `GridTopologyInfo`, `GridSignals` and `GridModel.topology_info` (§5.1) still to add. | P3 |
 | `marketplace/grid/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | P3 |
 | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. **§2 catalog done 2026-09-25** (SimBench + built-in; files not yet); §4–§6 step-time model open. | P3 |
 | `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | P3 |
 | [adapters/grid/network.py](../../../src_thesis/adapters/grid/network.py), [marketplace/grid/base.py](../../../src_thesis/marketplace/grid/base.py), [config.py](../../../src_thesis/marketplace/grid/config.py) | **Removed from the tool** (kept in the validated release). `Location` shrinks to participant ID + bus ID. | P3 |
 | [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | P4 |
-| [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; distance from `electrical_distance` | P3 |
-| [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Congestion and constraint inputs come from `assessment[t−1]`; distance fees use electrical distance; tariffs and residual clearing unchanged | P3, P5 |
+| [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | P3 |
+| [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Holds no grid; `calculate_fees` takes `GridTopologyInfo` and `GridSignals[t−1]` (loading, external-grid exchange, electrical distance); `validate_grid_constraints` removed; tariffs and residual clearing unchanged | P3, P5 |
 | [marketplace/market/order.py](../../../src_thesis/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | P3 |
-| [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Location = bus ID; partner distance via `electrical_distance` | P3 |
+| [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | P3 |
 | [marketplace/observation.py](../../../src_thesis/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | P5 |
 | [marketplace/reward.py](../../../src_thesis/marketplace/reward.py) | `reward_version`; violation term (D-11) | P5 |
 | [cooperation/implicit_cooperation.py](../../../src_thesis/cooperation/implicit_cooperation.py) | `grid_congestion` and imbalance from the assessment | P4 |
@@ -211,7 +277,7 @@ These are applied **after** the validated release (P2), in `src_thesis/`, keepin
 | Violation reward attribution (D-11) | Bus-attributed + shared share | C2 (I-42, I-76) |
 | Non-convergence in training (D-12) | Truncate with a fixed penalty; flag the episode | — |
 | Does reputation keep a grid term? | Yes, from bus-attributed violations; otherwise drop it | I-38 |
-| Are DSO congestion fees charged? | Yes, from `assessment[t−1]` loading; fees become real only once I-28 is fixed | I-28, I-70 |
+| Are DSO congestion fees charged? | Yes, from `GridSignals[t−1]` loading (§5.1); fees become real only once I-28 is fixed | I-28, I-70 |
 | Partner preference distance | Electrical distance along lines | I-77 |
 | Units and Δt | kWh per step for the market; kW for injections; Δt explicit in the experiment file | I-56 |
 | Physical `B_grid` | `−external_grid_kwh` replaces the trade-based imbalance | I-23, I-68 |

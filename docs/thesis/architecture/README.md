@@ -58,8 +58,9 @@ flowchart TB
 1. **One way in.** UI, CLI and notebooks all go through the application services and one environment factory. Nothing builds a `LocalEnergyMarket` on its own.
 2. **Files, not objects.** Only the versioned experiment JSON is persisted or shared. Live pandapower nets, agents and environments are built inside the process that uses them.
 3. **The grid assesses; the market does not ask the grid.** The market clears economically. After settlement, one power flow per timestep assesses the resulting injections. Violations are fed back to the agents as observations and reward.
-4. **One grid technology.** Every network (SimBench, pandapower built-in such as IEEE 33-bus or CIGRE, or a pandapower JSON file) goes through the same pandapower adapter.
-5. **Heavy work runs in a worker process.** Ray/RLlib never runs inside the UI process.
+4. **One owner of the grid (D-13).** `LocalEnergyMarket` stays the central orchestrator and is the only holder of the grid model. Market components receive plain grid data as arguments (`GridTopologyInfo`, and `GridSignals` from step t−1) and never read or write the grid themselves (02 §5.1).
+5. **One grid technology.** Every network (SimBench, pandapower built-in such as IEEE 33-bus or CIGRE, or a pandapower JSON file) goes through the same pandapower adapter.
+6. **Heavy work runs in a worker process.** Ray/RLlib never runs inside the UI process.
 
 ## 3. Documents
 
@@ -105,6 +106,7 @@ Each phase has an exit criterion.
 | D-10 | The canonical environment is the conda `marlem` env (`environment.yml`). pandapower 3.5.4 and simbench 1.6.2 are already installed. `pydantic` and `nicegui` are added after a compatibility check. | Proposed | 04 §7 |
 | D-11 | Violation feedback reward: shared vs bus-attributed vs marginal credit assignment | **Open** | 02 §6 |
 | D-12 | Non-convergent power flow during training: truncate with a fixed penalty vs fail the run | **Open** | 02 §6 |
+| D-13 | **Grid ownership and data flow.** `LocalEnergyMarket` is the only holder of the `GridModel`. `OrderMatcher`, `DSOAgent` and `DERAgent` get `GridTopologyInfo` (static distances and zones) and `GridSignals` (step t−1) as arguments and never call the grid; KPIs, reward and observation use `GridAssessment[t]`. A read-only view is the accepted fallback. | **Agreed** (2026-09-27) | 02 §5.1 |
 
 ## 6. Glossary
 
@@ -113,6 +115,8 @@ Each phase has an exit criterion.
 | **Settlement** | Per agent and step: served demand, generation, curtailment, battery charge and discharge, imports, exports and cash. The output of the market step. |
 | **Injection** | An agent's net active power at its bus, derived from settlement: production − consumption, in kW. It is **not** trades counted as loads. |
 | **Assessment** | One power-flow result for one timestep: voltages, loadings, losses, external-grid exchange and violations |
+| **Grid signals** | The few numbers the market may use from the previous step's assessment (max line loading, external-grid exchange); passed as an argument (02 §5.1) |
+| **Topology info** | Static per network: electrical distance between buses and bus zones, computed once at reset and passed to the market (02 §5.1) |
 | **Background** | Network loads and generators not owned by an agent. They follow their own profiles. |
 | **Validated release** | The tagged, corrected original MARLEM with its NetworkX grid (P2). It is published separately and its stored results are the reference. |
 | **Experiment file** | The single JSON describing one study (03) |
