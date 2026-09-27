@@ -352,7 +352,7 @@ def check_markers(reg: dict[int, dict]) -> None:
         if (
             r["status"] not in CLOSED
             and r["id"] not in seen
-            and "src_thesis/" in r["code"]
+            and "src_thesis" in r["code"]
         ):
             code = short(r["code"], 60)
             warnings.append(f"I-{r['id']:02d}: no marker in src_thesis/ (code: {code})")

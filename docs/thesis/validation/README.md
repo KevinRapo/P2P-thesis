@@ -25,7 +25,7 @@
    ```
 
    Without `--write` it only checks, and fails if a block is stale. Use the `marlem` conda env.
-4. **Code links point at exact lines** (the global rule for this repo). `check_docs.py` fails on a link past the end of its file; a link that points at the wrong line after a code edit is not detectable, so update the links of a file in the same commit that edits it.
+4. **Code links point at exact lines in the frozen original** (`src_thesis_reference/`), so they never move while `src_thesis/` is rewritten (D-14). `check_docs.py` fails on a link past the end of its file. Links to new platform code (application, Studio, experiments, SimBench adapter, grid contract) still point at `src_thesis/`; update them in the same commit that edits the file.
 5. **Closing an issue deletes its code markers in the same commit.** `check_docs.py` fails if a closed issue still has a marker, or if a marker's tag or step disagrees with the register.
 
 ## ID scheme
@@ -73,7 +73,7 @@ Each issue location in `src_thesis/` has a one-line comment directly above it, e
 buy_order.quantity -= (proposed_quantity - transmission_loss)
 ```
 
-The Todo Tree extension colours these lines, marks them on the scrollbar, and lists them grouped by tag. Register code links point at the line below the marker. An issue with several locations numbers its markers and points to the next one, e.g. `# FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) …`; the last points back to the first. `check_docs.py --write` keeps the numbering and the next-location line numbers current after code edits; without `--write` it fails when they are stale.
+The Todo Tree extension colours these lines, marks them on the scrollbar, and lists them grouped by tag. Register code links point at the line below the marker in `src_thesis_reference/`, where the markers stay; in `src_thesis/` a marker is deleted when its issue is closed. An issue with several locations numbers its markers and points to the next one, e.g. `# FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) …`; the last points back to the first. `check_docs.py --write` keeps the numbering and the next-location line numbers current after code edits; without `--write` it fails when they are stale.
 
 ## Where the old content went
 

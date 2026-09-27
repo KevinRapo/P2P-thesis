@@ -259,17 +259,17 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 | `marketplace/grid/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
 | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. **§2 catalog done 2026-09-25** (SimBench + built-in; files not yet); §4–§6 step-time model open. | R3 |
 | `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | R3 |
-| [adapters/grid/network.py](../../../src_thesis/adapters/grid/network.py), [marketplace/grid/base.py](../../../src_thesis/marketplace/grid/base.py), [config.py](../../../src_thesis/marketplace/grid/config.py) | **Removed from the tool** (frozen in `src_thesis_reference/`). `Location` shrinks to participant ID + bus ID. | R3 |
-| [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |
-| [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | R3 |
-| [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Holds no grid; `calculate_fees` takes `GridTopologyInfo` and `GridSignals[t−1]` (loading, external-grid exchange, electrical distance); `validate_grid_constraints` removed; tariffs and residual clearing unchanged | R3, R5 |
-| [marketplace/market/order.py](../../../src_thesis/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | R3 |
-| [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | R3 |
-| [marketplace/observation.py](../../../src_thesis/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | R5 |
-| [marketplace/reward.py](../../../src_thesis/marketplace/reward.py) | `reward_version`; violation term (D-11) | R5 |
-| [cooperation/implicit_cooperation.py](../../../src_thesis/cooperation/implicit_cooperation.py) | `grid_congestion` and imbalance from the assessment | R4 |
-| [cooperation/metrics/grid_metrics.py](../../../src_thesis/cooperation/metrics/grid_metrics.py) | Rebuilt on the assessment history | R5 |
-| [marl/train.py](../../../src_thesis/marl/train.py) | `env_config` carries the experiment file section. Each runner builds its env through the factory. | R6 |
+| [adapters/grid/network.py](../../../src_thesis_reference/adapters/grid/network.py), [marketplace/grid/base.py](../../../src_thesis_reference/marketplace/grid/base.py), [config.py](../../../src_thesis_reference/marketplace/grid/config.py) | **Removed from the tool** (frozen in `src_thesis_reference/`). `Location` shrinks to participant ID + bus ID. | R3 |
+| [marketplace/lem.py](../../../src_thesis_reference/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |
+| [marketplace/market/matching.py](../../../src_thesis_reference/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | R3 |
+| [marketplace/dso/dso.py](../../../src_thesis_reference/marketplace/dso/dso.py) | Holds no grid; `calculate_fees` takes `GridTopologyInfo` and `GridSignals[t−1]` (loading, external-grid exchange, electrical distance); `validate_grid_constraints` removed; tariffs and residual clearing unchanged | R3, R5 |
+| [marketplace/market/order.py](../../../src_thesis_reference/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | R3 |
+| [marl/agents/der.py](../../../src_thesis_reference/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | R3 |
+| [marketplace/observation.py](../../../src_thesis_reference/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | R5 |
+| [marketplace/reward.py](../../../src_thesis_reference/marketplace/reward.py) | `reward_version`; violation term (D-11) | R5 |
+| [cooperation/implicit_cooperation.py](../../../src_thesis_reference/cooperation/implicit_cooperation.py) | `grid_congestion` and imbalance from the assessment | R4 |
+| [cooperation/metrics/grid_metrics.py](../../../src_thesis_reference/cooperation/metrics/grid_metrics.py) | Rebuilt on the assessment history | R5 |
+| [marl/train.py](../../../src_thesis_reference/marl/train.py) | `env_config` carries the experiment file section. Each runner builds its env through the factory. | R6 |
 
 ## 8. Open decisions
 
