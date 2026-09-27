@@ -283,7 +283,7 @@ class ObservationHandler:
             time_of_day,
             matching.clearing_price,
             matching.clearing_volume,
-            # FAULT I-23 [A8] (2/2; first marketplace/lem.py:488) `B_grid` (eq
+            # FAULT I-23 [A8] (2/2; first marketplace/lem.py:488) `B_grid` (eq. 20) is never computed
             matching.grid_balance,
             matching.dso_buy_volume,
             matching.dso_sell_volume,
@@ -338,12 +338,12 @@ class ObservationHandler:
                 agent.get_demand(current_step),
                 agent.cumulative_demand_satisfied,
                 agent.cumulative_demand_deferred,
-                # FAULT I-39 [C1] (2/2; first marketplace/lem.py:65) Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true …
+                # FAULT I-39 [C1] (2/2; first marketplace/lem.py:65) Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true future
                 agent.get_remaining_demand(current_step),
                 agent.cumulative_supply_satisfied,
                 agent.cumulative_supply_deferred,
                 agent.get_remaining_supply(current_step),
-                # FAULT I-27 [A8] (1/3; next marl/agents/der.py:62) Agent profit (eq
+                # FAULT I-27 [A8] (1/3; next marl/agents/der.py:62) Agent profit (eq. 14) is never updated
                 agent.profit,
                 agent.reputation,
                 battery_status["energy_level"],

@@ -130,7 +130,7 @@ class Battery:
         return True
 
     # FAULT I-19 [A8] (2/2; first marl/agents/battery.py:95) A charge is refused entirely if it would reach SoC_max; there is no partial fill
-    # DECIDE I-71 [A8] (1/2; next marl/agents/battery.py:209) Battery model has no charge/discharge power limit (claimed in the text), and eq
+    # DECIDE I-71 [A8] (1/2; next marl/agents/battery.py:209) Battery model has no charge/discharge power limit (claimed in the text), and eq. 15 ignores efficiency
     def charge(self, energy: float) -> float:
         """Charge the battery.
 
@@ -206,7 +206,7 @@ class Battery:
                 "cumulative_charge": self.cumulative_charge,
                 "cumulative_discharge": self.cumulative_discharge}
 
-    # DECIDE I-71 [A8] (2/2; first marl/agents/battery.py:133) Battery model has no charge/discharge power limit (claimed in the text), and eq
+    # DECIDE I-71 [A8] (2/2; first marl/agents/battery.py:133) Battery model has no charge/discharge power limit (claimed in the text), and eq. 15 ignores efficiency
     def estimate_available_energy(self) -> Tuple[float, float]:
         """Estimate available energy for charging and discharging.
 

@@ -280,7 +280,7 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 | [I-02](issues.md#I-02) | ❌ | Fidelity | open | `is_terminal` is never true, so the terminal unmet-demand penalty never applies |
 | [I-03](issues.md#I-03) | ⚠️ | Code | open | `reset(seed=None)` falls back to the config seed, so every episode is identical |
 | [I-04](issues.md#I-04) | ⚠️ | Code | open | `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute |
-| [I-78](issues.md#I-78) | ⚠️ | Fidelity | open | Invalid actions raise `ValueError` instead of being dropped (Alg |
+| [I-78](issues.md#I-78) | ⚠️ | Fidelity | open | Invalid actions raise `ValueError` instead of being dropped (Alg. 1 `ValidateOrder`) |
 <!-- END generated:step-A1 -->
 
 ### A2. Inputs: profiles and units
@@ -308,8 +308,8 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 <!-- BEGIN generated:step-A3 -->
 | ID | Type | Origin | Status | Issue |
 |---|---|---|---|---|
-| [I-08](issues.md#I-08) | ❌ | Fidelity | open | Feasibility clipping does not implement eq |
-| [I-09](issues.md#I-09) | ❌ | Fidelity | open | `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong … |
+| [I-08](issues.md#I-08) | ❌ | Fidelity | open | Feasibility clipping does not implement eq. 15: it treats the requested `q` as the need |
+| [I-09](issues.md#I-09) | ❌ | Fidelity | open | `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong direction |
 | [I-10](issues.md#I-10) | ⚠️ | Fidelity | open | β = "no preference" is reachable only at the exact upper bound |
 | [I-11](issues.md#I-11) | ❓ | Paper | open | No "submit nothing" action when `q_min > 0` |
 | [I-77](issues.md#I-77) | ⚠️ | Fidelity | open | Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score |
@@ -343,8 +343,8 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 | [I-14](issues.md#I-14) | ⚠️ | Fidelity | open | P2P loss is topped up from the DSO |
 | [I-15](issues.md#I-15) | ❓ | Paper | open | Stage 1 clears DSO-preferred orders with the DSO before any P2P matching |
 | [I-16](issues.md#I-16) | ❓ | Paper | open | The clearing price is a VWAP that includes DSO trades |
-| [I-54](issues.md#I-54) | ⚠️ | Code | open | DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores … |
-| [I-55](issues.md#I-55) | ❌ | Code | open | The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected … |
+| [I-54](issues.md#I-54) | ⚠️ | Code | open | DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores direction |
+| [I-55](issues.md#I-55) | ❌ | Code | open | The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade |
 <!-- END generated:step-A5 -->
 
 ### A6. DSO: balance and fees
@@ -398,10 +398,10 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 | [I-20](issues.md#I-20) | ❌ | Fidelity | open | Discharge efficiency is applied in the wrong direction (`·η` instead of `/η`) |
 | [I-21](issues.md#I-21) | ⚠️ | Code | open | Demand satisfaction ignores battery discharge |
 | [I-22](issues.md#I-22) | ❓ | Paper | open | No household energy-conservation identity is enforced |
-| [I-23](issues.md#I-23) | ❌ | Fidelity | open | `B_grid` (eq |
-| [I-26](issues.md#I-26) | ⚠️ | Fidelity | open | `agent.balance = sold − bought`, not eq |
-| [I-27](issues.md#I-27) | ❌ | Fidelity | open | Agent profit (eq |
-| [I-71](issues.md#I-71) | ❓ | Paper | open | Battery model has no charge/discharge power limit (claimed in the text), and eq |
+| [I-23](issues.md#I-23) | ❌ | Fidelity | open | `B_grid` (eq. 20) is never computed |
+| [I-26](issues.md#I-26) | ⚠️ | Fidelity | open | `agent.balance = sold − bought`, not eq. 13 |
+| [I-27](issues.md#I-27) | ❌ | Fidelity | open | Agent profit (eq. 14) is never updated |
+| [I-71](issues.md#I-71) | ❓ | Paper | open | Battery model has no charge/discharge power limit (claimed in the text), and eq. 15 ignores efficiency |
 <!-- END generated:step-A8 -->
 
 ### A9. Reputation
@@ -448,7 +448,7 @@ The KPIs computed from Stage A's outcomes. They can only be validated once A is 
 | [I-35](issues.md#I-35) | ❌ | Fidelity | open | "Supply-demand imbalance" is volume/C, not `\|Σbuy − Σsell\|/C` |
 | [I-36](issues.md#I-36) | ❓ | Paper | open | Social welfare is turnover `Σ p·q`, not surplus |
 | [I-37](issues.md#I-37) | ⚠️ | Fidelity | open | Price volatility is computed over the whole episode, not a window |
-| [I-68](issues.md#I-68) | ❓ | Paper | open | Imbalance (eq |
+| [I-68](issues.md#I-68) | ❓ | Paper | open | Imbalance (eq. 24) over trades is ≡ 0 by construction |
 | [I-69](issues.md#I-69) | ⚠️ | Paper | open | "DER self-consumption" is defined as P2P share; the label does not match the quantity |
 <!-- END generated:step-B1 -->
 
@@ -479,7 +479,7 @@ These are drawn in Level 0 in Fig. 2 but consume Level 2 KPIs, so they come afte
 <!-- BEGIN generated:step-C1 -->
 | ID | Type | Origin | Status | Issue |
 |---|---|---|---|---|
-| [I-39](issues.md#I-39) | ❌ | Fidelity | open | Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true … |
+| [I-39](issues.md#I-39) | ❌ | Fidelity | open | Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true future |
 | [I-40](issues.md#I-40) | ❓ | Paper | open | Observations are raw and unnormalised |
 | [I-58](issues.md#I-58) | ⚠️ | Code | open | The reset observation hard-codes G, D, remaining energy and KPIs to 0 |
 <!-- END generated:step-C1 -->
@@ -495,7 +495,7 @@ These are drawn in Level 0 in Fig. 2 but consume Level 2 KPIs, so they come afte
 | ID | Type | Origin | Status | Issue |
 |---|---|---|---|---|
 | [I-41](issues.md#I-41) | ❌ | Fidelity | open | `f_coop` is not in [0, 1] (≈ 1811) |
-| [I-42](issues.md#I-42) | ❓ | Paper | open | The cooperation-boost form differs across [P1] eq |
+| [I-42](issues.md#I-42) | ❓ | Paper | open | The cooperation-boost form differs across [P1] eq. 4, the code and [P2] eq. 3 |
 | [I-43](issues.md#I-43) | ❌ | Code | open | `r_res ≡ −1.5` and `r_trade ≡ 0` (caused by I-12) |
 | [I-44](issues.md#I-44) | ❌ | Fidelity | open | `r_grid`, `γ_DSO` and the grid part of `f_contrib` are inactive (caused by I-24) |
 | [I-45](issues.md#I-45) | ⚠️ | Code | open | `_w_local` is overwritten 0.7 → 0.3, so `r_trade = 0.3ρ_local + 0.3ρ_dso` (the paper prints 0.3/0.3) |
@@ -525,7 +525,7 @@ The learning layer, last. It needs a correct environment, observations and rewar
 | [I-50](issues.md#I-50) | ❓ | Paper | open | The budget is counted in training iterations, but the paper says "10 000 episodes" |
 | [I-59](issues.md#I-59) | ❌ | Code | open | Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys |
 | [I-60](issues.md#I-60) | ❓ | Paper | open | CTCE is a centralized-information baseline, not a true upper bound |
-| [I-62](issues.md#I-62) | ⚠️ | Code | open | Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no … |
+| [I-62](issues.md#I-62) | ⚠️ | Code | open | Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown` |
 | [I-73](issues.md#I-73) | ❓ | Paper | open | Cross-paradigm return comparability: group sum vs per-agent returns |
 <!-- END generated:step-D1 -->
 
@@ -539,7 +539,7 @@ The learning layer, last. It needs a correct environment, observations and rewar
 <!-- BEGIN generated:step-D2 -->
 | ID | Type | Origin | Status | Issue |
 |---|---|---|---|---|
-| [I-61](issues.md#I-61) | ❌ | Code | open | Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` … |
+| [I-61](issues.md#I-61) | ❌ | Code | open | Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly |
 <!-- END generated:step-D2 -->
 
 ### D3. Experiments and reporting

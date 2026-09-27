@@ -224,7 +224,7 @@ class RewardHandler:
 
         # STEP 7. Combine all components
         # Calculate cooperation boost
-        # DECIDE I-42 [C2] The cooperation-boost form differs across [P1] eq
+        # DECIDE I-42 [C2] The cooperation-boost form differs across [P1] eq. 4, the code and [P2] eq. 3
         cooperation_boost = (1.0 + cooperation_factor * contribution_factor)
 
         # Apply log normalization to compress large values while preserving relative ordering

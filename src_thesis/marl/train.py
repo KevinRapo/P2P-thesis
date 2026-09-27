@@ -113,7 +113,7 @@ class RLTrainer:
         if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
             raise ValueError(f"The <evaluation_interval> must be a positive integer, got <evaluation_interval = {self.evaluation_interval}>.")
 
-        # DEVIATION I-62 [D1] (1/4; next marl/train.py:289) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+        # DEVIATION I-62 [D1] (1/4; next marl/train.py:289) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
         if not (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto") or (isinstance(self.evaluation_duration, int) and self.evaluation_duration <= 0):
             raise ValueError(f"The <evaluation_duration> must be a positive integer or 'auto', got <evaluation_duration = {self.evaluation_duration}>.")
 
@@ -286,7 +286,7 @@ class RLTrainer:
 
         return (config
                 .framework("torch")
-                # DEVIATION I-62 [D1] (2/4; next marl/train.py:438) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+                # DEVIATION I-62 [D1] (2/4; next marl/train.py:438) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
                 .env_runners(num_env_runners=self.cpus,
                              sample_timeout_s=None)
                 .learners(num_learners=1,
@@ -435,7 +435,7 @@ class RLTrainer:
         tuner = Tuner(trainable=algo_config.algo_class,
                       param_space=algo_config,
                       tune_config=TuneConfig(num_samples=self.tune_samples,
-                                             # DEVIATION I-62 [D1] (3/4; next marl/train.py:458) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+                                             # DEVIATION I-62 [D1] (3/4; next marl/train.py:458) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
                                              scheduler=PopulationBasedTraining(time_attr=TRAINING_ITERATION,
                                                                                perturbation_interval=self.checkpoint_freq,
                                                                                hyperparam_mutations=hyperparam_mutations),
@@ -455,7 +455,7 @@ class RLTrainer:
                                                                               num_to_keep=3)))
 
         # Run the tuner and capture the results
-        # DEVIATION I-62 [D1] (4/4; first marl/train.py:116) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+        # DEVIATION I-62 [D1] (4/4; first marl/train.py:116) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
         results = tuner.fit()
 
         # Save environment configuration

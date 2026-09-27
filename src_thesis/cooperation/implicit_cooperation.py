@@ -123,7 +123,7 @@ class ImplicitCooperation:
         """
         # Supply-demand balance (normalized by grid capacity)
         # FAULT I-35 [B1] (1/2; next cooperation/implicit_cooperation.py:146) "Supply-demand imbalance" is volume/C, not `|Σbuy − Σsell|/C`
-        # DECIDE I-68 [B1] Imbalance (eq
+        # DECIDE I-68 [B1] Imbalance (eq. 24) over trades is ≡ 0 by construction
         total_imbalance = abs(sum(t.quantity for t in trades)) / (self.grid_capacity or 1.0)
         supply_demand_imbalance = min(1.0, total_imbalance)
 

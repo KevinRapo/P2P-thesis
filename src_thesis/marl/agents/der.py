@@ -59,7 +59,7 @@ class DERAgent:
 
         # Attributes from the environment
         self.balance: float = 0.0
-        # FAULT I-27 [A8] (2/3; next marl/agents/der.py:111) Agent profit (eq
+        # FAULT I-27 [A8] (2/3; next marl/agents/der.py:111) Agent profit (eq. 14) is never updated
         self.profit: float = 0.0
         self.reputation: float = 0.5
 
@@ -108,7 +108,7 @@ class DERAgent:
 
         # Reset attributes from the environment
         self.balance = np.random.uniform(-self.capacity, self.capacity)
-        # FAULT I-27 [A8] (3/3; first marketplace/observation.py:346) Agent profit (eq
+        # FAULT I-27 [A8] (3/3; first marketplace/observation.py:346) Agent profit (eq. 14) is never updated
         self.profit = 0.0
 
         # Reset market state tracking
@@ -197,8 +197,8 @@ class DERAgent:
         current_generation = self.generation_profile[step]
         current_demand = self.demand_profile[step]
 
-        # FAULT I-08 [A3] Feasibility clipping does not implement eq
-        # FAULT I-09 [A3] (2/2; first marketplace/lem.py:365) `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong …
+        # FAULT I-08 [A3] Feasibility clipping does not implement eq. 15: it treats the requested `q` as the need
+        # FAULT I-09 [A3] (2/2; first marketplace/lem.py:365) `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong direction
         if is_buy:
             # Calculate how much energy we need to buy after using our own generation
             energy_deficit = quantity - current_generation

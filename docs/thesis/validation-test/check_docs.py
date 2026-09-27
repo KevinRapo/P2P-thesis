@@ -175,9 +175,19 @@ def plan_steps() -> list[str]:
     return re.findall(r"^### ([A-D]\d+)\. ", read(PLAN), re.M)
 
 
+# A sentence ends at ". " unless the word before the dot is an abbreviation.
+SENTENCE_END = re.compile(r"(?<!\beq)(?<!\bAlg)(?<!\be\.g)(?<!\bi\.e)(?<!\bvs)\.\s")
+
+
+def first_sentence(text: str) -> str:
+    """The first sentence of a register text, without links ("eq. 20" is kept)."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text).strip()
+    m = SENTENCE_END.search(text)
+    return (text[: m.start()] if m else text).rstrip(".")
+
+
 def short(text: str, n: int = 110) -> str:
-    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
-    text = text.split(". ")[0].rstrip(".")
+    text = first_sentence(text)
     return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + " …"
 
 
@@ -429,7 +439,7 @@ def gen_step(reg: dict[int, dict], step: str) -> str:
         return "No issues.\n"
     out = ["| ID | Type | Origin | Status | Issue |", "|---|---|---|---|---|"]
     for r in rows:
-        text = short(r["text"]).replace("|", "\\|")
+        text = first_sentence(r["text"]).replace("|", "\\|")
         out.append(
             f"| {link(r['id'])} | {r['type']} | {r['origin']} | {r['status']} | "
             f"{text} |"

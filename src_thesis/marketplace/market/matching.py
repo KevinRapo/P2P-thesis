@@ -170,7 +170,7 @@ class OrderMatcher:
 
         # Initialize market state
         self.matching_history: MatchingHistory = MatchingHistory()
-        # FAULT I-55 [A5] (1/2; next marketplace/market/matching.py:316) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected …
+        # FAULT I-55 [A5] (1/2; next marketplace/market/matching.py:316) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade
         self.grid_capacity: float = config.max_quantity * self.num_agents
         self.trades: List[Trade] = []
 
@@ -313,7 +313,7 @@ class OrderMatcher:
             # Calculate potential match quantity
             proposed_quantity = min(buy_order.quantity, sell_order.quantity)
 
-            # FAULT I-55 [A5] (2/2; first marketplace/market/matching.py:173) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected …
+            # FAULT I-55 [A5] (2/2; first marketplace/market/matching.py:173) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade
             # Check grid constraints
             if abs(grid_balance) > self.grid_capacity:
                 # Grid is already at capacity, skip this match
@@ -449,7 +449,7 @@ class OrderMatcher:
 
         return matching_result
 
-    # DEVIATION I-26 [A8] (2/2; first marketplace/lem.py:454) `agent.balance = sold − bought`, not eq
+    # DEVIATION I-26 [A8] (2/2; first marketplace/lem.py:454) `agent.balance = sold − bought`, not eq. 13
     def get_agent_position(self, agent_id: str) -> float:
         """Calculate the net energy position of an agent.
 

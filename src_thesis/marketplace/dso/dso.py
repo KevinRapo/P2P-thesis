@@ -188,7 +188,7 @@ class DSOAgent:
         """
         return (self.get_feed_in_tariff(step) + self.get_utility_price(step)) / 2
 
-    # DEVIATION I-54 [A5] (1/2; next marketplace/dso/dso.py:355) DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
+    # DEVIATION I-54 [A5] (1/2; next marketplace/dso/dso.py:355) DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores direction
     def clear_unmatched_orders(self,
                                step: int,
                                unmatched_buy_orders: List[Order],
@@ -352,7 +352,7 @@ class DSOAgent:
 
         return total_fee
 
-    # DEVIATION I-54 [A5] (2/2; first marketplace/dso/dso.py:191) DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
+    # DEVIATION I-54 [A5] (2/2; first marketplace/dso/dso.py:191) DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores direction
     def validate_grid_constraints(self,
                                   buy_order: Order,
                                   sell_order: Order) -> bool:
