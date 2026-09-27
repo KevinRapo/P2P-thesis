@@ -152,19 +152,19 @@ flowchart LR
 
 Where the SimBench edition adds to the original; the [P1] Fig. 2 classes themselves are in the [paper-to-code map](../../paper/marlem-paper-to-code-map.md).
 
-| Component | Location | Status | Doc |
-|---|---|---|---|
-| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extended to 01 §5, plus the catalog records (`NetworkRef`, `NetworkInfo`, `NetworkSummary`, `TopologyView`, `ElementRecord`); `GridModel` not yet implemented | 01 §5 |
-| Settlement ledger (energy identity, battery, cash with fees) | `marketplace/settlement.py` | New | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
-| Settlement → injection builder | `marketplace/grid/injection.py` | New | 01 §7 |
-| Scripted baseline policies (no order, random, rule-based) | `marl/baselines.py` | New | 02 §3.10 |
-| pandapower grid adapter (SimBench, built-in, file) | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Catalog part done (2026-09-25): list, load, summary, topology, elements, one-hour power-flow preview for SimBench and built-in networks. Step-time `SimBenchGrid` still a stub. | 01 §1–§5 |
-| SimBench profile source | `adapters/profiles/simbench.py` | New | 01 §3 |
-| Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | [experiments/](../../../src_thesis/experiments/) | Implemented (2026-09-27); environment factory and RLlib configuration are interfaces until R1 / R4 and stage D | 02, 05 |
-| Frozen reference copy | [src_thesis_reference/](../../../src_thesis_reference/) | Snapshot 2026-09-27, never edited | D-14 |
-| Application services | [application/](../../../src_thesis/application/) | Demo services; the real `GridCatalogService` is [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | 03 |
-| CLI | `src_thesis/cli.py` | New | 04 §6 |
-| NiceGUI Studio | `studio/` (separate presentation package) | New | 04 |
+| Component | Why it is there | Location | Status | Doc |
+|---|---|---|---|---|
+| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | The only thing the market and the grid share; the grid backend can change or be mocked | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extended to 01 §5, plus the catalog records (`NetworkRef`, `NetworkInfo`, `NetworkSummary`, `TopologyView`, `ElementRecord`); `GridModel` not yet implemented | 01 §5 |
+| Settlement ledger (energy identity, battery, cash with fees) | One place decides who delivered and paid what; injections and rewards are derived from it | `marketplace/settlement.py` | New | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
+| Settlement → injection builder | Turns settled energy (kWh per step) into the power injections (kW) a power flow needs | `marketplace/grid/injection.py` | New | 01 §7 |
+| Scripted baseline policies (no order, random, rule-based) | Reference points that give learned results a scale | `marl/baselines.py` | New | 02 §3.10 |
+| pandapower grid adapter (SimBench, built-in, file) | Real power-flow physics in place of the NetworkX graph | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Catalog part done (2026-09-25): list, load, summary, topology, elements, one-hour power-flow preview for SimBench and built-in networks. Step-time `SimBenchGrid` still a stub. | 01 §1–§5 |
+| SimBench profile source | Realistic load and PV profiles for agents on any network | `adapters/profiles/simbench.py` | New | 01 §3 |
+| Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | From one experiment file to traceable runs executed outside the UI (05) | [experiments/](../../../src_thesis/experiments/) | Implemented (2026-09-27); environment factory and RLlib configuration are interfaces until R1 / R4 and stage D | 02, 05 |
+| Frozen reference copy | Fixed target for the diff and for every documentation link to the original | [src_thesis_reference/](../../../src_thesis_reference/) | Snapshot 2026-09-27, never edited | D-14 |
+| Application services | One interface for the Studio, the CLI and notebooks | [application/](../../../src_thesis/application/) | Demo services; the real `GridCatalogService` is [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | 03 |
+| CLI | Scripted and headless runs | `src_thesis/cli.py` | New | 04 §6 |
+| NiceGUI Studio | Build, run and analyse studies without writing code | `studio/` (separate presentation package) | New | 04 |
 
 [↑ Contents](#contents)
 

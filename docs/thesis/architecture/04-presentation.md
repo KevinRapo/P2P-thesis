@@ -53,6 +53,8 @@ Next steps: form fields write back to the draft file (`ConfigService.save`); typ
 
 ## 2. Shell (every page)
 
+**Why:** The same frame on every page keeps the current draft, its validation state and the running workers always in view.
+
 ```text
 ┌──────────────────────────────────────────────────────────────────────────┐
 │ Header: MARLEM Studio │ active draft: <experiment file>      │ validation │
@@ -89,6 +91,8 @@ Drafts autosave to the library (as experiment files), not to the browser, so a r
 
 ## 3. Page map and flow
 
+**Why:** The order follows how a study is built. Validate is the only way to Runs, so a broken file can never start a run.
+
 ```mermaid
 flowchart LR
   Home --> Library
@@ -112,6 +116,8 @@ The **BUILD** pages edit the world sections of one draft experiment file (`time`
 
 ### 4.1 Home (`/`)
 
+**Why:** The starting point: pick up recent work, or start from one of the paper's cases.
+
 | Region | Content | Services |
 |---|---|---|
 | Status | Repository and environment health (git dirty, deps, validation-plan progress) | `ResultService`, `ConfigService` |
@@ -120,7 +126,7 @@ The **BUILD** pages edit the world sections of one draft experiment file (`time`
 
 ### 4.2 Grid (`/build/grid`)
 
-The purpose of this page is to choose the network and to understand it before placing agents.
+**Why:** choose the network and understand it (size, loads, PV, where the voltage is weak) before placing agents; every later choice depends on it.
 
 | Region | Content | Services |
 |---|---|---|
@@ -133,7 +139,7 @@ The purpose of this page is to choose the network and to understand it before pl
 
 ### 4.3 Participants (`/build/participants`)
 
-The purpose of this page is to define the agents and tie them to buses and profiles (01 §3). This is the richest page.
+**Why:** define the agents and tie them to buses and profiles (01 §3). Most study-specific decisions happen here, so it has the richest tools.
 
 | Region | Content | Services |
 |---|---|---|
@@ -147,6 +153,8 @@ The purpose of this page is to define the agents and tie them to buses and profi
 
 ### 4.4 Market & DSO (`/build/market`)
 
+**Why:** The economic side of the world: market rules, DSO tariffs and fees, and what agents observe and are rewarded for.
+
 | Region | Content |
 |---|---|
 | Market | Clearing mechanism, price and quantity bounds, partner preference (RL or rule-based), ledger difficulty |
@@ -156,6 +164,8 @@ The purpose of this page is to define the agents and tie them to buses and profi
 
 ### 4.5 Summary (`/build/summary`)
 
+**Why:** Check the whole world in one place and save it before designing the learning part.
+
 A read-only summary of the draft:
 - the counts: agents, batteries, energy balance per day;
 - the JSON view and diff against its preset;
@@ -164,6 +174,8 @@ A read-only summary of the draft:
 Services: `ConfigService.save`, `export_bundle`.
 
 ### 4.6 Design (`/experiment/design`)
+
+**Why:** The learning plan: which algorithms, paradigms, seeds and sweeps, and what that costs in runs and time before anything starts.
 
 | Region | Content |
 |---|---|
@@ -182,6 +194,8 @@ Services: `ConfigService.save`, `ConfigService.expand`, `ExperimentService.estim
 
 ### 4.7 Validate (`/experiment/validate`)
 
+**Why:** The only gate to running. Each finding links back to the field that needs fixing.
+
 | Region | Content |
 |---|---|
 | Report | Findings grouped by severity and area (schema, data, grid mapping, time, protocol, resources); each finding links to the page and field to fix |
@@ -192,6 +206,8 @@ Services: `ValidationService.validate`, `ExperimentService.create_runs`, `start`
 
 ### 4.8 Runs (`/runs`)
 
+**Why:** Watch and control running work. The page only reads and requests; the worker keeps running whatever the browser does.
+
 | Region | Content |
 |---|---|
 | Queue table | Runs grouped by experiment: cell, seed, state, progress, elapsed and ETA |
@@ -201,6 +217,8 @@ Services: `ValidationService.validate`, `ExperimentService.create_runs`, `start`
 Services: `ExperimentService.list_runs`, `snapshot`, `cancel` (polled every 1–2 s).
 
 ### 4.9 Results (`/results/{run_id}`)
+
+**Why:** One run in depth: the outcomes, the learning curve, and a step-by-step replay that shows why a policy behaves the way it does.
 
 | Tab | Content | Services |
 |---|---|---|
@@ -213,6 +231,8 @@ Services: `ExperimentService.list_runs`, `snapshot`, `cancel` (polled every 1–
 
 ### 4.10 Compare (`/compare`)
 
+**Why:** The thesis questions are comparisons: algorithm × paradigm, feeder against feeder, and this edition against the papers.
+
 - **Matrix view** for an experiment: algorithm × paradigm heat table for any metric (mean ± std over seeds). This is the 3 × 3 result table.
 - **Run overlay**: pick runs and overlay a metric (for example two feeders, or reward v1 vs v2). Runs with different reward versions are flagged as non-comparable.
 - **Paper overlay**: values reported in the papers for the same case (reference data, 03 §4), drawn as reference lines. Nothing from the original is re-run.
@@ -221,12 +241,16 @@ Services: `ResultService.matrix`, `compare`.
 
 ### 4.11 Library (`/library`)
 
+**Why:** Find and reuse experiment files. The provenance chain shows where every result came from.
+
 - Experiment files and presets: open, clone, delete (drafts only), import and export bundles.
 - Shows the provenance chain: preset → experiment file → runs.
 
 [↑ Contents](#contents)
 
 ## 5. Build order (R8)
+
+**Why:** Each step proves one boundary (store, grid, file editing, mapping, launch) before the next one builds on it.
 
 1. **Shell + Runs + Results (Overview and Learning).** Read-only; proves the store and the service boundary.
 2. **Grid page.** Proves the catalog and the power-flow preview without RL.
@@ -240,6 +264,8 @@ Each step ends with a CLI-equivalence check: the experiment file saved by the St
 [↑ Contents](#contents)
 
 ## 6. CLI
+
+**Why:** Scripted and headless runs (batch jobs, a server without a browser), and a check that the Studio adds nothing the experiment file cannot express.
 
 `python -m src_thesis.cli …`, exposed as `marlem …` once packaged (not built yet). Each command is a thin wrapper around one service method (03 §2):
 

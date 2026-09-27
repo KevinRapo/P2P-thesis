@@ -62,6 +62,8 @@ flowchart LR
 
 ## 1. One file, one study (D-08)
 
+**Why:** In the original, a study's settings were spread over notebooks, `marl/train.py` and hard-coded constants, so a result could not be rerun from one place. One file gives one thing to share, validate, version and rerun.
+
 ```text
 my-study.marlem.json        ← written by the user or the Studio; shared as-is
         │  validate + resolve defaults + expand sweep
@@ -76,6 +78,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 [↑ Contents](#contents)
 
 ## 2. Top-level structure
+
+**Why:** The sections separate *what is simulated* (the world) from *how agents learn and are judged* (the learning plan), so one world can be reused with different learning plans and vice versa.
 
 | Section | Content | § |
 |---|---|---|
@@ -100,6 +104,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 
 ### 3.1 `meta`
 
+**Why:** Names the study and records where it came from. `id` becomes part of every run ID, and `data_status` keeps reconstructed data from being presented as measured.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `id` | str | — | Stable identifier (file name stem); used in run IDs |
@@ -110,6 +116,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 | `data_status` | enum | `"synthetic"` | `synthetic` · `measured` · `reconstructed-unverified` (Case 6, I-51) |
 
 ### 3.2 `time`
+
+**Why:** Resolution and horizon set the step length that every energy quantity depends on. The day settings decide which days the agents see, and keep the evaluation days out of training.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -123,6 +131,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 | `days.seed` | int | 42 | Seed of the day split and sampling |
 
 ### 3.3 `grid`
+
+**Why:** Which network, how the non-participant load behaves, what counts as a violation, and whether grid results feed back into learning (01).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -147,6 +157,8 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 
 ### 3.4 `participants`
 
+**Why:** The agents themselves: where they sit, what they own, what data drives them and which battery they have. This is what differs most between the paper's cases.
+
 Either an explicit list, or a `placement_rule` that is resolved at validation.
 
 | Field | Type | Default | Description |
@@ -169,6 +181,8 @@ Either an explicit list, or a `placement_rule` that is resolved at validation.
 
 ### 3.5 `market`
 
+**Why:** The clearing rules. Case 1 compares mechanisms, so they must be settings per run instead of code.
+
 Original: [`MarketConfig`](../../../src_thesis_reference/marketplace/market/matching.py#L35-L43).
 
 | Field | Type | Original default | Description |
@@ -183,6 +197,8 @@ Original: [`MarketConfig`](../../../src_thesis_reference/marketplace/market/matc
 | `async_orders` | bool | true | Random order timestamps within the period ([P2] Table 7) |
 
 ### 3.6 `dso`
+
+**Why:** The original hard-coded every DSO constant. Exposing them turns Case 3 (DSO strategies) into a sweep, and lets fees actually be charged (I-28).
 
 Original: [`DSOAgent`](../../../src_thesis_reference/marketplace/dso/dso.py#L44-L75) (all constants were hard-coded; exposed here).
 
@@ -202,6 +218,8 @@ Original: [`DSOAgent`](../../../src_thesis_reference/marketplace/dso/dso.py#L44-
 
 ### 3.7 `environment`
 
+**Why:** What agents observe and what they are rewarded for. Both carry a version name, so results from different definitions are never compared by accident.
+
 | Field | Type | Original default | Description |
 |---|---|---|---|
 | `observation.version` | str | `"v1"` | `v1` = [P1] Table 2 (42 dims); `v2-grid` adds the grid block (01 §6) |
@@ -220,6 +238,8 @@ Original: [`DSOAgent`](../../../src_thesis_reference/marketplace/dso/dso.py#L44-
 | `reputation.decay` | enum | `"time_of_day"` | Original rule (I-38); alternative `"constant"` with a factor |
 
 ### 3.8 `learning`
+
+**Why:** Which RL algorithms and training paradigms are compared, with which hyperparameters and budget: the 3 × 3 study of [P2]. In the original these were fixed in code; here every value is visible and stored with the run.
 
 This section replaces the original `RLTrainer` arguments ([train.py](../../../src_thesis_reference/marl/train.py#L42-L54)) and the hard-coded algorithm configs ([train.py](../../../src_thesis_reference/marl/train.py#L209-L265)).
 
@@ -313,6 +333,8 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 
 ### 3.9 `evaluation`
 
+**Why:** How, how often and on which days learned policies are judged. Kept separate from training so results are not measured on the training data (I-72).
+
 | Field | Type | Original default | Description |
 |---|---|---|---|
 | `interval` | int | 1 | Evaluate every N iterations |
@@ -325,12 +347,16 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 
 ### 3.10 `baselines`
 
+**Why:** Simple reference policies that give the learned results a scale: a policy is only good if it beats doing nothing and trading at random.
+
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `baselines` | list | `["no_order", "random"]` | `no_order` · `random` (zero-intelligence, [P1] §4.2) · `rule_based` (with params) |
 | `rule_based.strategy` | enum | — | E.g. `"net_position"`: sell surplus and buy deficit at the tariff midpoint |
 
 ### 3.11 `sweep`
+
+**Why:** Studies that vary one setting (mechanism, fees, number of agents) stay one file instead of several copies that drift apart.
 
 | Field | Type | Description |
 |---|---|---|
@@ -340,6 +366,8 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 
 ### 3.12 `resources`
 
+**Why:** How much of the machine a run may use. Machine-specific, so it is kept apart from the scientific settings.
+
 | Field | Type | Original default | Description |
 |---|---|---|---|
 | `cpus_per_run` | int | all detected | Env runners (see 3.8) |
@@ -348,6 +376,8 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 | `store` | path | configurable | Experiment store location (outside OneDrive recommended) |
 
 ### 3.13 `outputs`
+
+**Why:** What is saved beyond the defaults. Per-step records and per-element grid results can be large, so they are opt-in per study.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -407,6 +437,8 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 
 ## 5. Run manifest (system-written)
 
+**Why:** The receipt of a run: exactly what it used, so it can be traced and rerun. Details and the reason for each field: [05 §3.4](05-experiment-layer.md#34-manifest-modelsmanifestpy).
+
 - the fully resolved experiment file for this run: defaults filled, placement rule resolved, sweep point applied, cell fixed;
 - the canonical hash of the user's file and of the resolved file;
 - code: git commit and a dirty-tree diff hash;
@@ -419,6 +451,8 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 
 ## 6. Sharing
 
+**Why:** Another person must be able to rerun a study from what you send them, without your machine or your copies of the data.
+
 - **Share = send the one JSON file.** SimBench and built-in networks are referenced by code or name plus the package version, so they are not copied.
 - External CSVs and pandapower files are referenced by path + sha256. `marlem export <file> --bundle` zips the JSON with exactly those files, only when they exist.
 - The canonical hash is computed on sorted-key JSON with defaults filled in. It identifies "the same study" regardless of formatting.
@@ -428,6 +462,8 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 [↑ Contents](#contents)
 
 ## 7. Presets (original experiments on SimBench)
+
+**Why:** The papers' seven cases as ready-made files, so reproducing a case is "open the preset, run it", and new studies start from a known, validated configuration.
 
 ```text
 experiments/presets/              # in the repo
@@ -454,6 +490,8 @@ experiments/presets/              # in the repo
 [↑ Contents](#contents)
 
 ## 9. Validation (preflight)
+
+**Why:** Mistakes should cost seconds, not hours of training. Many do not crash (an agent on the wrong bus, evaluation days that overlap training) and would silently produce wrong results.
 
 Run by `ValidationService` before any run (03 §2):
 

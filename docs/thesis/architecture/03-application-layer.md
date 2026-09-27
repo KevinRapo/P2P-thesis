@@ -60,13 +60,15 @@ Services return plain data only (§3); nothing from the lower layers reaches the
 
 ## 1. Status and wiring
 
-| File | Holds | State (2026-09-27) |
-|---|---|---|
-| [contracts.py](../../../src_thesis/application/contracts.py) | One `Protocol` per service, mirroring the method tables in §2 | Done |
-| [models.py](../../../src_thesis/application/models.py) | The plain data the services return (§3) | Done; experiment sections still dicts |
-| [demo.py](../../../src_thesis/application/demo.py) | Demo implementations with deterministic sample data; no MARLEM, pandapower or Ray | Done |
-| [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | The real `GridCatalogService` over the pandapower adapter | Done (R3, catalog part) |
-| [container.py](../../../src_thesis/application/container.py) | `build_services(mode, grid)` → `Services` | Done |
+**Why:** One set of services sits between every user interface and the engine, so the Studio, the CLI and notebooks do the same thing in the same way. Demo implementations let the Studio be built and tested before the engine behind it exists.
+
+| File | Why it is there | Holds | State (2026-09-27) |
+|---|---|---|---|
+| [contracts.py](../../../src_thesis/application/contracts.py) | Callers depend on the protocol, so demo and real services are interchangeable | One `Protocol` per service, mirroring the method tables in §2 | Done |
+| [models.py](../../../src_thesis/application/models.py) | The UI never holds engine objects, only these plain records | The plain data the services return (§3) | Done; experiment sections still dicts |
+| [demo.py](../../../src_thesis/application/demo.py) | The Studio can be built and tested before the engine exists | Demo implementations with deterministic sample data; no MARLEM, pandapower or Ray | Done |
+| [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | The first real service: browse real networks in the Studio today | The real `GridCatalogService` over the pandapower adapter | Done (R3, catalog part) |
+| [container.py](../../../src_thesis/application/container.py) | One switch between demo and real services, in one file | `build_services(mode, grid)` → `Services` | Done |
 
 | Service | Implementation today | Real implementation calls | Phase |
 |---|---|---|---|
@@ -93,6 +95,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 
 ### 2.1 `ConfigService`: experiment files
 
+**Why:** Everything a user does to an experiment file (start from a preset, edit, save, compare, share), without running anything.
+
 | Method | Input → output | Notes |
 |---|---|---|
 | `list(filter)` | → `[FileSummary]` | Library and presets |
@@ -109,6 +113,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 
 ### 2.2 `GridCatalogService`: networks without an environment
 
+**Why:** Choosing a network comes before building an experiment, so it must work on the grid adapter alone, without agents, an environment or RL.
+
 | Method | Input → output | Notes |
 |---|---|---|
 | `list_networks(filter)` | → `[NetworkInfo]` | SimBench codes, pandapower built-ins, files. Metadata: level, buses, loads, sgens, storage, profiles?, ratings? |
@@ -118,6 +124,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 | `preview_powerflow(source, day, step, injections?)` | → `GridAssessment` + per-bus voltages | One power flow in-process (small and fast); used by the Grid page and the CLI |
 
 ### 2.3 `ProfileService`: profiles and participant mapping
+
+**Why:** Tying agents to buses and profiles is the most error-prone part of setting up a study. Previews and suggestions show the data before anything runs.
 
 | Method | Input → output | Notes |
 |---|---|---|
@@ -129,6 +137,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 
 ### 2.4 `ValidationService`: preflight
 
+**Why:** One place for all checks (02 §9), so the Studio and the CLI accept and reject exactly the same files.
+
 | Method | Input → output | Notes |
 |---|---|---|
 | `validate(file, level)` | → `ValidationReport` | Levels: `schema` (instant, as you type) · `references` · `full` (includes the dry run) |
@@ -137,6 +147,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 `ValidationReport` = `[Finding(code, severity, path, message, fix_hint)]`. The `path` (e.g. `participants[3].owns.loads[0]`) lets the Studio jump to the field. The checks are listed in 02 §9.
 
 ### 2.5 `ExperimentService`: runs
+
+**Why:** The only way to create and control runs. It hides the store and the worker pool from every caller.
 
 | Method | Input → output | Notes |
 |---|---|---|
@@ -149,6 +161,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 | `estimate(file)` | → runs count, time estimate | From stored benchmarks per network, algorithm and paradigm |
 
 ### 2.6 `ResultService`: reading results
+
+**Why:** Turns run folders into tables and series for pages, notebooks and the thesis, and keeps research outcomes apart from RL return.
 
 | Method | Input → output | Notes |
 |---|---|---|
@@ -164,6 +178,8 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 [↑ Contents](#contents)
 
 ## 3. Returned data
+
+**Why:** A page that holds a pandapower net or a Ray object is tied to the engine and can freeze or break with it. Plain data keeps each layer replaceable and testable on its own.
 
 [models.py](../../../src_thesis/application/models.py) holds the only types that cross the boundary to the Studio, the CLI and notebooks.
 

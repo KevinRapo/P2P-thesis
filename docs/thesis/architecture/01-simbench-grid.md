@@ -62,6 +62,8 @@ flowchart TB
 
 ## 1. One grid technology, several network sources (D-02)
 
+**Why:** The original grid is an abstract NetworkX graph with capacities and a distance-based loss, but no power-flow physics (no voltages, no real losses). One pandapower implementation gives real physics, one code path to test, and results that are comparable across networks. Several sources exist because each answers a different need: SimBench gives realistic German feeders with a year of profiles, the built-ins give standard test feeders known from the literature, and files let any other network in without code.
+
 The tool has **one** grid implementation: a pandapower adapter running an AC power flow. The paper's abstract NetworkX grid lives only in the frozen reference copy (`src_thesis_reference/`). It is not maintained in the tool.
 
 | Source (`grid.source.type`) | Examples | Profiles included? | Notes |
@@ -76,24 +78,30 @@ Unbalanced networks (IEEE European LV, which needs `runpp_3ph`) are out of scope
 
 ## 2. Network loading
 
-| Function | Behaviour |
-|---|---|
-| **Catalog** | List the available networks with metadata: source, voltage level, number of buses, loads, sgens and storage; total load/PV; whether geodata, profiles and line ratings are present. This powers the Studio's Grid page and `marlem grid list`. |
-| **Load** | `simbench.get_simbench_net(code)`, `pandapower.networks.<name>()` or `pandapower.from_json(path)`, cached **once per process** as an immutable source |
-| **Working copy** | Each environment (and each RLlib env runner) gets its own deep copy; it is reset per episode. The net is never shared or serialised. |
-| **Profiles** | SimBench: `simbench.get_absolute_values(net, profiles_instead_of_study_cases=True)`, cached per process |
-| **Line ratings** | Taken from the network. If missing: a rule from the experiment file (e.g. a margin over base-case peak current) or a ratings file. If none is set, loading checks are switched off and reported as such. |
-| **Voltage limits** (D-15) | `grid.limits` in the experiment file overrides every bus when set. When unset, each bus uses the network's own `min_vm_pu` / `max_vm_pu` (SimBench: 0.9–1.1), with 0.95–1.05 pu as the fallback. |
-| **Summary / topology view** | Plain data for UI and plots: buses with coordinates, lines, transformers, elements per bus. No pandapower objects cross the adapter boundary. |
-| **Validation** | Profile tables agree in length and time. Selected bus and element IDs exist. The unmodified net converges at the selected timestep. |
+**Why:** Networks are slow to load and a power flow writes its results into the net it runs on. So each network is loaded once, kept untouched, and every environment works on its own copy. The functions below are the steps between a network name in the experiment file and a net that is safe to run power flows on.
+
+| Function | Why it is there | Behaviour |
+|---|---|---|
+| **Catalog** | Lets users compare networks before loading one into an experiment | List the available networks with metadata: source, voltage level, number of buses, loads, sgens and storage; total load/PV; whether geodata, profiles and line ratings are present. This powers the Studio's Grid page and `marlem grid list`. |
+| **Load** | Loading takes seconds, so it happens once per process; the source is never modified | `simbench.get_simbench_net(code)`, `pandapower.networks.<name>()` or `pandapower.from_json(path)`, cached **once per process** as an immutable source |
+| **Working copy** | A power flow writes results into the net, so environments running in parallel must not share one | Each environment (and each RLlib env runner) gets its own deep copy; it is reset per episode. The net is never shared or serialised. |
+| **Profiles** | SimBench ships a year of profiles per element; reading them is slow, so they are cached | SimBench: `simbench.get_absolute_values(net, profiles_instead_of_study_cases=True)`, cached per process |
+| **Line ratings** | Without ratings there is no overload check; the experiment must say what happens instead of silently skipping it | Taken from the network. If missing: a rule from the experiment file (e.g. a margin over base-case peak current) or a ratings file. If none is set, loading checks are switched off and reported as such. |
+| **Voltage limits** (D-15) | Decides what counts as a voltage violation; fixed by D-15 | `grid.limits` in the experiment file overrides every bus when set. When unset, each bus uses the network's own `min_vm_pu` / `max_vm_pu` (SimBench: 0.9–1.1), with 0.95–1.05 pu as the fallback. |
+| **Summary / topology view** | The UI and plots need the network's shape, not a pandapower object | Plain data for UI and plots: buses with coordinates, lines, transformers, elements per bus. No pandapower objects cross the adapter boundary. |
+| **Validation** | Catches broken networks and mappings before a run, not during training | Profile tables agree in length and time. Selected bus and element IDs exist. The unmodified net converges at the selected timestep. |
 
 [↑ Contents](#contents)
 
 ## 3. Profile assignment (the core flexibility)
 
+**Why:** An agent's trades only have a physical effect if the agent sits somewhere in the network, and its behaviour only makes sense with realistic generation and demand. This section decides both: where each agent sits and what data drives it.
+
 An **agent** in MARLEM is one market participant with generation, demand and an optional battery. Each agent is tied to the network through a **participant mapping**. The mapping is part of the experiment file (02) and is persisted as data, never as a live net.
 
 ### 3.1 Placement: which bus does the agent sit on?
+
+**Why:** The bus decides which voltages and lines an agent affects. Hand-designed studies pick buses themselves, scalability studies need a reproducible rule, and shared studies need an imported list.
 
 | Mode | Description | Use |
 |---|---|---|
@@ -106,6 +114,8 @@ A rule is resolved into explicit placements when the experiment is validated. Th
 
 ### 3.2 Ownership: which network elements does the agent replace?
 
+**Why:** A SimBench bus already has loads and PV with their own profiles. If an agent were simply added on top, that household would be counted twice. Owning an element replaces it with the agent's settled behaviour.
+
 The agent **owns** zero or more existing loads, sgens and storage at its bus. Owned elements are driven by the agent's settlement. Unowned elements stay as background (§3.5). If an agent has generation but owns no sgen, the adapter creates one deterministic controllable sgen at its bus.
 
 Validation rejects:
@@ -116,6 +126,8 @@ Validation rejects:
 
 ### 3.3 Profile source per agent
 
+**Why:** `native` keeps the network and its data consistent. `catalog` gives realistic profiles to networks that have none (every non-SimBench network) and allows the paper's heterogeneous roles. `csv` keeps the original MARLEM data usable, and `synthetic` is for quick tests.
+
 | Source | Generation / demand come from | Use |
 |---|---|---|
 | `native` | The owned elements' own SimBench profiles (sum of owned loads; sum of owned sgens) | Default on SimBench; fully consistent network and data |
@@ -124,6 +136,8 @@ Validation rejects:
 | `synthetic` | MARLEM's procedural generator | Quick tests |
 
 ### 3.4 Scaling, time window, resolution
+
+**Why:** Profiles come in the network's own sizes and units, while the market's quantity bounds and the battery sizes must fit the agent. The time window decides which days the agents train on and which are kept for evaluation.
 
 | Option | Choices |
 |---|---|
@@ -138,6 +152,8 @@ The **day sampler** is what makes "many more profiles" useful: training episodes
 
 ### 3.5 Background elements
 
+**Why:** In a real feeder most loads are not market participants, but they still load the lines and pull the voltage down. Leaving them out would make the grid look emptier than it is.
+
 | Mode | Behaviour | Use |
 |---|---|---|
 | `mapped_replacement` (default) | All non-owned elements run with their profiles at the current timestep. Non-SimBench networks use their static values or assigned catalogue profiles. | Realistic feeder |
@@ -147,6 +163,8 @@ The **day sampler** is what makes "many more profiles" useful: training episodes
 [↑ Contents](#contents)
 
 ## 4. Time alignment with MARLEM
+
+**Why:** MARLEM counts energy in kWh per period, SimBench stores power per 15 minutes. Without one explicit rule, the market and the power flow would be talking about different quantities (I-56).
 
 MARLEM's episode is `max_steps` periods of `time_step_hours`, with quantities in kWh per period. The adapter maps episode step `t` to a profile row range:
 
@@ -161,6 +179,8 @@ background p at step t = mean of the p values over the rows in that range
 [↑ Contents](#contents)
 
 ## 5. Grid contract (the seam)
+
+**Why:** The contract is the only thing the market and the grid share. Keeping it to small, frozen dataclasses means the market can be tested without pandapower, and the grid backend can change without touching the market.
 
 The existing stub [contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) is extended to:
 
@@ -273,6 +293,8 @@ def step(self, actions):
 
 ## 6. The step with SimBench (D-01)
 
+**Why:** This is where the grid actually changes MARLEM's behaviour: the order of operations within one step, and whether grid results are only recorded (`shadow`) or also feed back into what agents see and are rewarded for (`feedback`).
+
 ```text
 actions
  → orders                                   (DERAgent feasibility, ActionHandler)
@@ -319,6 +341,8 @@ Whether the agent's own bus voltage is private or public is an experiment option
 
 ## 7. File-by-file changes to MARLEM (D-04)
 
+**Why:** One row per file, so every change in the rebuild can be traced against the frozen original in `src_thesis_reference/`.
+
 These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names; a file may be rewritten:
 
 | File | Change | Phase |
@@ -357,6 +381,8 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 [↑ Contents](#contents)
 
 ## 9. Performance (measure in R4)
+
+**Why:** A power flow in every step of every environment can make training much slower than the original. Measuring first decides whether 15-minute resolution or many parallel env runners are affordable.
 
 Measure the following per network and resolution. Compare against the corrected original in `marlem-baseline`: about 15 ms per `env.step` for Case 6 after its speed-ups, dominated by blockchain proof-of-work.
 
