@@ -53,7 +53,7 @@ class ReputationHandler:
         if self.reliability_weight + self.fairness_weight + self.grid_weight != 1.0:
             raise ValueError(f"Weights must sum to 1.0. Current value: <reliability_weight = {self.reliability_weight}, fairness_weight = {self.fairness_weight}, grid_weight = {self.grid_weight}>.")
 
-    # DEVIATION I-07 [A9] All agents get the same initial reputation (the RNG is reseeded before each draw)
+    # DEVIATION I-07 [A9] (2/2; first marketplace/lem.py:288) All agents get the same initial reputation (the RNG is reseeded before each draw)
     def reset(self, seed: int = None) -> float:
         """Generate initial reputation score for an agent.
 
@@ -85,7 +85,7 @@ class ReputationHandler:
             Updated reputation score
         """
         new_reputation = self._calculate_reputation(agent, matching_result, dso_id)
-        # DEVIATION I-38 [A9] Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day
+        # DEVIATION I-38 [A9] (1/2; next marketplace/market/reputation.py:131) Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day
         return (time_of_day * agent.reputation) + ((1.0 - time_of_day) * new_reputation)
 
     def get_agent_ranking(self, agents: List[DERAgent]) -> List[Tuple[str, float]]:
@@ -128,7 +128,7 @@ class ReputationHandler:
         agent_unmatched = [o for o in matching_result.unmatched_orders if o.agent_id == agent.id]
 
         # Higher reliability if more orders were matched
-        # DEVIATION I-38 [A9] Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day
+        # DEVIATION I-38 [A9] (2/2; first marketplace/market/reputation.py:88) Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day
         reliability = len(agent_trades) / (len(agent_trades) + len(agent_unmatched)) if (agent_trades or agent_unmatched) else self._neutral
 
         # STEP 2. Price fairness

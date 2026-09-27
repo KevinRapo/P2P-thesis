@@ -53,7 +53,7 @@ class Location:
                                            source=self.node_id,
                                            target=other.node_id,
                                            weight='weight')
-        # DEVIATION I-53 [A0] Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults)
+        # DEVIATION I-53 [A0] (3/3; first adapters/grid/network.py:38) Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults)
         except:
             return self._euclidean_distance(other.x, other.y)
 

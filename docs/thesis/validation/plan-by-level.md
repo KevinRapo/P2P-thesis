@@ -71,7 +71,7 @@ flowchart LR
 - `# DEVIATION I-14 [A5] …` for ⚠️ issues (amber)
 - `# DECIDE I-16 [A5] …` for ❓ issues, where the paper is silent (blue)
 
-The Todo Tree extension highlights these lines, marks them on the scrollbar, and lists them all in its sidebar tree grouped by tag. When an issue is fixed or decided, delete its marker in the same commit. The doc links point to the code line *below* each marker. The markers were inserted on 2026-09-24, and every link was shifted to match.
+The Todo Tree extension highlights these lines, marks them on the scrollbar, and lists them all in its sidebar tree grouped by tag. An issue with several locations numbers its markers and points to the next one, e.g. `# FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) …`; the last points back to the first. When an issue is fixed or decided, delete its marker in the same commit. The doc links point to the code line *below* each marker. The markers were inserted on 2026-09-24, and every link was shifted to match.
 
 **Status values:** `open` → `agreed` (plan and test agreed) → `fixed` / `decided` / `wontfix`.
 
@@ -120,7 +120,7 @@ Market, DSO, grid, ledger and the episode loop, plus the two Level 1 classes tha
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
 | I-01 | Fidelity | ❌ | Only 23 of 24 periods run: termination is checked after the step increment against `max_steps − 1` | [lem.py:L459-L469](../../../src_thesis/marketplace/lem.py#L459-L469) | T1 | 2.11 | open |
-| I-02 | Fidelity | ❌ | `is_terminal` is never true, so the terminal unmet-demand penalty never applies | [lem.py:L444](../../../src_thesis/marketplace/lem.py#L444)<br>[reward.py:L207-L214](../../../src_thesis/marketplace/reward.py#L207-L214) | T2 | 2.10 | open |
+| I-02 | Fidelity | ❌ | `is_terminal` is never true, so the terminal unmet-demand penalty never applies | [lem.py:L444](../../../src_thesis/marketplace/lem.py#L444)<br>[reward.py:L216-L223](../../../src_thesis/marketplace/reward.py#L216-L223) | T2 | 2.10 | open |
 | I-03 | Code | ⚠️ | `reset(seed=None)` falls back to the config seed, so every episode is identical | [lem.py:L276-L278](../../../src_thesis/marketplace/lem.py#L276-L278) | C | 2.11 | open |
 | I-04 | Code | ⚠️ | `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute | [lem.py:L69](../../../src_thesis/marketplace/lem.py#L69)<br>[lem.py:L525-L532](../../../src_thesis/marketplace/lem.py#L525-L532) | C | 2.11 | open |
 | I-78 | Fidelity | ⚠️ | Invalid actions raise `ValueError` instead of being dropped (Alg. 1 `ValidateOrder`) | [lem.py:L349-L350](../../../src_thesis/marketplace/lem.py#L349-L350) | C | 2.2 | open |
@@ -311,16 +311,16 @@ These are drawn in Level 0 in Fig. 2 but consume Level 2 KPIs, so they come afte
 
 | ID | Origin | Type | Issue | Code | Ev. | § | Status |
 |---|---|---|---|---|---|---|---|
-| I-41 | Fidelity | ❌ | `f_coop` is not in [0, 1] (≈ 1811) | [reward.py:L170-L192](../../../src_thesis/marketplace/reward.py#L170-L192) | T9 | 2.10 | open |
-| I-42 | Paper | ❓ | The cooperation-boost form differs across [P1] eq. 4, the code and [P2] eq. 3 | [reward.py:L218-L221](../../../src_thesis/marketplace/reward.py#L218-L221) | — | 2.10 | open |
-| I-43 | Code | ❌ | `r_res ≡ −1.5` and `r_trade ≡ 0` (caused by I-12) | [reward.py:L406-L412](../../../src_thesis/marketplace/reward.py#L406-L412)<br>[reward.py:L248-L249](../../../src_thesis/marketplace/reward.py#L248-L249) | T3 | 2.10 | open |
-| I-44 | Fidelity | ❌ | `r_grid`, `γ_DSO` and the grid part of `f_contrib` are inactive (caused by I-24) | [reward.py:L202](../../../src_thesis/marketplace/reward.py#L202)<br>[reward.py:L253-L309](../../../src_thesis/marketplace/reward.py#L253-L309)<br>[reward.py:L472-L484](../../../src_thesis/marketplace/reward.py#L472-L484) | T4 | 2.10 | open |
-| I-45 | Code | ⚠️ | `_w_local` is overwritten 0.7 → 0.3, so `r_trade = 0.3ρ_local + 0.3ρ_dso` (the paper prints 0.3/0.3) | [reward.py:L79](../../../src_thesis/marketplace/reward.py#L79)<br>[reward.py:L93](../../../src_thesis/marketplace/reward.py#L93) | C | 2.10 | open |
-| I-46 | Fidelity | ⚠️ | The unmet-demand penalty uses `p_dso`, not the paper's `p_no_trades = 5` | [reward.py:L207-L214](../../../src_thesis/marketplace/reward.py#L207-L214)<br>[reward.py:L226](../../../src_thesis/marketplace/reward.py#L226) | C | 2.10 | open |
-| I-47 | Paper | ❓ | The no-trade guard returns a fixed −4.46 before any other term | [reward.py:L135-L136](../../../src_thesis/marketplace/reward.py#L135-L136) | — | 2.10 | open |
-| I-75 | Paper | ❓ | `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported | [reward.py:L170-L192](../../../src_thesis/marketplace/reward.py#L170-L192)<br>[implicit_cooperation.py:L95](../../../src_thesis/cooperation/implicit_cooperation.py#L95) | — | 3 | open |
-| I-76 | Paper | ❓ | `R_base` components have no formulas in the paper; the code is the only specification | [reward.py:L148-L166](../../../src_thesis/marketplace/reward.py#L148-L166) | — | 2.10 | open |
-| I-79 | Fidelity | ⚠️ | `f_contrib` grid term is a heuristic, not [P2]'s marginal `−∂\|B_grid\|/∂a_i` | [reward.py:L472-L484](../../../src_thesis/marketplace/reward.py#L472-L484) | C | 2.10 | open |
+| I-41 | Fidelity | ❌ | `f_coop` is not in [0, 1] (≈ 1811) | [reward.py:L176-L198](../../../src_thesis/marketplace/reward.py#L176-L198) | T9 | 2.10 | open |
+| I-42 | Paper | ❓ | The cooperation-boost form differs across [P1] eq. 4, the code and [P2] eq. 3 | [reward.py:L228-L231](../../../src_thesis/marketplace/reward.py#L228-L231) | — | 2.10 | open |
+| I-43 | Code | ❌ | `r_res ≡ −1.5` and `r_trade ≡ 0` (caused by I-12) | [reward.py:L419-L425](../../../src_thesis/marketplace/reward.py#L419-L425)<br>[reward.py:L259-L260](../../../src_thesis/marketplace/reward.py#L259-L260) | T3 | 2.10 | open |
+| I-44 | Fidelity | ❌ | `r_grid`, `γ_DSO` and the grid part of `f_contrib` are inactive (caused by I-24) | [reward.py:L209](../../../src_thesis/marketplace/reward.py#L209)<br>[reward.py:L265-L321](../../../src_thesis/marketplace/reward.py#L265-L321)<br>[reward.py:L487-L499](../../../src_thesis/marketplace/reward.py#L487-L499) | T4 | 2.10 | open |
+| I-45 | Code | ⚠️ | `_w_local` is overwritten 0.7 → 0.3, so `r_trade = 0.3ρ_local + 0.3ρ_dso` (the paper prints 0.3/0.3) | [reward.py:L80](../../../src_thesis/marketplace/reward.py#L80)<br>[reward.py:L95](../../../src_thesis/marketplace/reward.py#L95) | C | 2.10 | open |
+| I-46 | Fidelity | ⚠️ | The unmet-demand penalty uses `p_dso`, not the paper's `p_no_trades = 5` | [reward.py:L216-L223](../../../src_thesis/marketplace/reward.py#L216-L223)<br>[reward.py:L236](../../../src_thesis/marketplace/reward.py#L236) | C | 2.10 | open |
+| I-47 | Paper | ❓ | The no-trade guard returns a fixed −4.46 before any other term | [reward.py:L138-L139](../../../src_thesis/marketplace/reward.py#L138-L139) | — | 2.10 | open |
+| I-75 | Paper | ❓ | `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported | [reward.py:L176-L198](../../../src_thesis/marketplace/reward.py#L176-L198)<br>[implicit_cooperation.py:L95](../../../src_thesis/cooperation/implicit_cooperation.py#L95) | — | 3 | open |
+| I-76 | Paper | ❓ | `R_base` components have no formulas in the paper; the code is the only specification | [reward.py:L152-L170](../../../src_thesis/marketplace/reward.py#L152-L170) | — | 2.10 | open |
+| I-79 | Fidelity | ⚠️ | `f_contrib` grid term is a heuristic, not [P2]'s marginal `−∂\|B_grid\|/∂a_i` | [reward.py:L487-L499](../../../src_thesis/marketplace/reward.py#L487-L499) | C | 2.10 | open |
 
 ## 6. Stage D: Level 1, MARL Agents (learning)
 

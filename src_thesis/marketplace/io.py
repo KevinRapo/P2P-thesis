@@ -52,7 +52,7 @@ class EnvConfigHandler:
 
         # Save to JSON file
         with open(config_path, "w") as f:
-            # DEVIATION I-63 [D3] The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding)
+            # DEVIATION I-63 [D3] (1/3; next marketplace/io.py:112) The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding)
             json.dump(serializable_config, f, indent=2, default=str)
 
     @classmethod
@@ -109,7 +109,7 @@ class EnvConfigHandler:
                     serializable[key] = {"topology": value.topology.value if hasattr(value.topology, "value") else str(value.topology),
                                          "num_nodes": value.num_nodes,
                                          "capacity": value.capacity,
-                                         # DEVIATION I-63 [D3] The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding)
+                                         # DEVIATION I-63 [D3] (2/3; next marketplace/io.py:147) The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding)
                                          "seed": getattr(value, "seed", None)}
                 else:
                     serializable[key] = None
@@ -144,7 +144,7 @@ class EnvConfigHandler:
                                               "charge_efficiency": agent.battery.charge_efficiency,
                                               "discharge_efficiency": agent.battery.discharge_efficiency} if agent.battery else None,
                                               "node_id": agent.node_id,
-                                              # DEVIATION I-63 [D3] The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding)
+                                              # DEVIATION I-63 [D3] (3/3; first marketplace/io.py:55) The saved env config cannot reconstruct the scenario (seeds, profile sources, rounding)
                                               "generation_profile": [round(float(val), decimals) for val in agent.generation_profile],
                                               "demand_profile": [round(float(val), decimals) for val in agent.demand_profile]}
 

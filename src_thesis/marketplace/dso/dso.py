@@ -188,7 +188,7 @@ class DSOAgent:
         """
         return (self.get_feed_in_tariff(step) + self.get_utility_price(step)) / 2
 
-    # DEVIATION I-54 [A5] DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
+    # DEVIATION I-54 [A5] (1/2; next marketplace/dso/dso.py:355) DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
     def clear_unmatched_orders(self,
                                step: int,
                                unmatched_buy_orders: List[Order],
@@ -211,7 +211,7 @@ class DSOAgent:
         dso_buy_volume = 0.0
         dso_sell_volume = 0.0
         dso_trades = []
-        # FAULT I-12 [A5] Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
+        # FAULT I-12 [A5] (1/3; next marketplace/lem.py:436) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
 
         # DSO buys excess generation at feed-in tariff
         for sell_order in unmatched_sell_orders:
@@ -328,7 +328,7 @@ class DSOAgent:
 
         # Voltage drop calculation and fee
         # DEVIATION I-30 [A6] `F_volt` and `F_thermal` caps (0.2, 0.3) differ from or are undefined in the paper
-        # DECIDE I-70 [A7] Grid physics scope: linear unbounded losses, `V_drop = f·d`, transport flows
+        # DECIDE I-70 [A7] (2/2; first adapters/grid/network.py:337) Grid physics scope: linear unbounded losses, `V_drop = f·d`, transport flows
         voltage_drop = distance * self.voltage_factor
         if voltage_drop > self.voltage_threshold:
             voltage_fee = min(0.2, voltage_drop) * quantity * trade_price
@@ -346,13 +346,13 @@ class DSOAgent:
             imbalance_fee = abs(balance_impact) * quantity * trade_price * self.imbalance_factor
 
         # Total all fees
-        # FAULT I-28 [A6] Grid fees are computed but never charged to anyone
+        # FAULT I-28 [A6] (1/2; next marketplace/market/matching.py:339) Grid fees are computed but never charged to anyone
         total_fee = congestion_fee + transmission_fee + imbalance_fee + voltage_fee + thermal_fee + zone_bonus
         self.fees += total_fee
 
         return total_fee
 
-    # DEVIATION I-54 [A5] DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
+    # DEVIATION I-54 [A5] (2/2; first marketplace/dso/dso.py:191) DSO fallback skips grid feasibility (zero distance, loss and fee), and `validate_grid_constraints` ignores …
     def validate_grid_constraints(self,
                                   buy_order: Order,
                                   sell_order: Order) -> bool:

@@ -31,7 +31,7 @@ class MarketConfig:
     in multi-agent systems with limited information sharing.
     """
 
-    # DECIDE I-56 [A2] Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
+    # DECIDE I-56 [A2] (1/2; next marl/agents/der.py:35) Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
     min_price: float = 0.0
     max_price: float = 1000.0
     min_quantity: float = 0.0
@@ -170,7 +170,7 @@ class OrderMatcher:
 
         # Initialize market state
         self.matching_history: MatchingHistory = MatchingHistory()
-        # FAULT I-55 [A5] The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected …
+        # FAULT I-55 [A5] (1/2; next marketplace/market/matching.py:316) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected …
         self.grid_capacity: float = config.max_quantity * self.num_agents
         self.trades: List[Trade] = []
 
@@ -271,7 +271,7 @@ class OrderMatcher:
         total_volume = sum(trade.quantity for trade in preference_trades)
         total_value = sum(trade.quantity * trade.price for trade in preference_trades)
 
-        # FAULT I-24 [A6] `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
+        # FAULT I-24 [A6] (1/2; next marketplace/market/matching.py:397) `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
         # Update grid state based on preference trades
         for trade in preference_trades:
             # DSO buying (consuming excess) reduces grid balance
@@ -282,7 +282,7 @@ class OrderMatcher:
             elif trade.seller_id == self.dso.id:
                 grid_balance += trade.quantity
 
-        # FAULT I-32 [A7] Only Stage-1 trades update edge flows
+        # FAULT I-32 [A7] (1/2; next marketplace/market/matching.py:602) Only Stage-1 trades update edge flows
         # STAGE 2: Price-based matching for remaining orders
         # Separate buy and sell orders
         buy_orders = [o for o in remaining_orders if o.is_buy]
@@ -313,7 +313,7 @@ class OrderMatcher:
             # Calculate potential match quantity
             proposed_quantity = min(buy_order.quantity, sell_order.quantity)
 
-            # FAULT I-55 [A5] The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected …
+            # FAULT I-55 [A5] (2/2; first marketplace/market/matching.py:173) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected …
             # Check grid constraints
             if abs(grid_balance) > self.grid_capacity:
                 # Grid is already at capacity, skip this match
@@ -326,7 +326,7 @@ class OrderMatcher:
                 continue
 
             # Calculate trade price using selected mechanism
-            # FAULT I-13 [A4] `SELLER` pricing returns the buyer's price (positional-argument bug)
+            # FAULT I-13 [A4] (1/2; next marketplace/market/mechanism.py:69) `SELLER` pricing returns the buyer's price (positional-argument bug)
             trade_price = self.config.price_mechanism.get_instance().calculate_price(buy_order,
                                                                                      sell_order,
                                                                                      market_price)
@@ -336,7 +336,7 @@ class OrderMatcher:
             transmission_loss = self.grid_network.transmission_loss(distance, proposed_quantity)
 
             # Calculate grid-related fees
-            # FAULT I-28 [A6] Grid fees are computed but never charged to anyone
+            # FAULT I-28 [A6] (2/2; first marketplace/dso/dso.py:349) Grid fees are computed but never charged to anyone
             grid_fees = self.dso.calculate_fees(buy_order,
                                                 sell_order,
                                                 trade_price,
@@ -365,8 +365,8 @@ class OrderMatcher:
                 grid_balance += proposed_quantity
 
             # Update order quantities
-            # FAULT I-12 [A5] Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
-            # DEVIATION I-14 [A5] P2P loss is topped up from the DSO
+            # FAULT I-12 [A5] (3/3; first marketplace/dso/dso.py:214) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
+            # DEVIATION I-14 [A5] (2/2; first marketplace/lem.py:403) P2P loss is topped up from the DSO
             buy_order.quantity -= (proposed_quantity - transmission_loss)  # Buyer receives less due to losses
             sell_order.quantity -= proposed_quantity  # Seller provides the full amount
 
@@ -394,7 +394,7 @@ class OrderMatcher:
             total_value += trade.quantity * trade.price
 
         # Update DSO with local market information
-        # FAULT I-24 [A6] `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
+        # FAULT I-24 [A6] (2/2; first marketplace/market/matching.py:274) `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
         self.dso.balance = grid_balance
         self.dso.congestion_level = self.grid_network.calculate_congestion_level()
         self.dso_stats = self.calculate_market_statistics(current_step,
@@ -418,7 +418,7 @@ class OrderMatcher:
 
         # Force block creation at the end of the market step to ensure all trades in this step are validated as one block
         if self.validator.pending_trades:
-            # DEVIATION I-66 [A10] The block hash omits loss and fees, and blocks are forced every step (in-memory PoW, not consensus)
+            # DEVIATION I-66 [A10] (1/2; next marketplace/market/validation.py:25) The block hash omits loss and fees, and blocks are forced every step (in-memory PoW, not consensus)
             self.validator._create_new_block()
 
         # Visualize blockchain if enabled
@@ -449,7 +449,7 @@ class OrderMatcher:
 
         return matching_result
 
-    # DEVIATION I-26 [A8] `agent.balance = sold − bought`, not eq
+    # DEVIATION I-26 [A8] (2/2; first marketplace/lem.py:454) `agent.balance = sold − bought`, not eq
     def get_agent_position(self, agent_id: str) -> float:
         """Calculate the net energy position of an agent.
 
@@ -599,7 +599,7 @@ class OrderMatcher:
             seller_node = sell_order.location.node_id if sell_order.location else None
 
             if buyer_node and seller_node:
-                # FAULT I-32 [A7] Only Stage-1 trades update edge flows
+                # FAULT I-32 [A7] (2/2; first marketplace/market/matching.py:285) Only Stage-1 trades update edge flows
                 self.grid_network.update_flow_from_trade(buyer_node, seller_node, proposed_quantity)
 
         return trade, new_grid_balance

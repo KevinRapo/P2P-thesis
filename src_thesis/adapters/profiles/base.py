@@ -28,7 +28,7 @@ class ProfileHandler:
 
         self.decimals = decimals
 
-    # DEVIATION I-06 [A2] CSV profiles use a random column and random scale per reset
+    # DEVIATION I-06 [A2] (1/3; next adapters/profiles/der.py:119) CSV profiles use a random column and random scale per reset
     def _load_profile(self, path: Path) -> List[float]:
         """Load a single, random profile from a CSV file on-demand.
 

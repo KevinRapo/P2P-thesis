@@ -44,7 +44,7 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
         concat_act_dim = sum(space.shape[0] for space in tuple_act_space)
 
         # Centralized training: encoder and policy heads for centralized actor, and value head for centralized critic
-        # FAULT I-48 [D1] CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained
+        # FAULT I-48 [D1] (1/3; next marl/ctde.py:75) CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained
         self.pi_encoder = self._get_encoder_network(concat_obs_dim, embeddings_dim)
         self.pi = self._get_head_network(embeddings_dim, concat_act_dim * 2)
         self.vf_head = self._get_head_network(embeddings_dim, 1)
@@ -72,7 +72,7 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
         self.action_dist_cls = self._get_distribution_class()
 
     @override(TorchRLModule)
-    # FAULT I-48 [D1] CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained
+    # FAULT I-48 [D1] (2/3; next marl/ctde.py:126) CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained
     def _forward_inference(self,
                            batch: SampleBatch,
                            **kwargs) -> StateDict:
@@ -123,7 +123,7 @@ class CTDEModule(TorchRLModule, ValueFunctionAPI, TargetNetworkAPI, QNetAPI):
         concat_obs = torch.cat(batch[Columns.OBS]["grouped_agents"], dim=-1)
 
         # Get embeddings from policy encoder and action logits from policy head
-        # FAULT I-48 [D1] CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained
+        # FAULT I-48 [D1] (3/3; first marl/ctde.py:47) CTDE trains a centralized `pi` but acts with per-agent `pi_heads`, which are never trained
         central_embeddings = self.pi_encoder(concat_obs)
         central_action_logits = self.pi(central_embeddings)
 

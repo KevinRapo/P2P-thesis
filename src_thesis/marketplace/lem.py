@@ -62,10 +62,10 @@ class LocalEnergyMarket(MultiAgentEnv):
         self.dso_profile_handler: DSOProfileHandler = env_config.get("dso_profile_handler", None)
         self.enable_reset_dso_profiles: bool = env_config.get("enable_reset_dso_profiles", False)
         self.enable_asynchronous_order: bool = env_config.get("enable_asynchronous_order", True)
-        # FAULT I-39 [C1] Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true …
+        # FAULT I-39 [C1] (1/2; next marketplace/observation.py:341) Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true …
         self.max_error: float = env_config.get("max_error", 0.3)
         self.num_anchor: int = env_config.get("num_anchor", 4)
-        # DEVIATION I-04 [A1] `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute
+        # DEVIATION I-04 [A1] (1/2; next marketplace/lem.py:524) `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute
         self.seed: Optional[int] = env_config.get("seed", None)
 
         # Agents configuration
@@ -272,7 +272,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         """
         # Use provided seed or fallback to environment seed
         # DEVIATION I-03 [A1] `reset(seed=None)` falls back to the config seed, so every episode is identical
-        # DECIDE I-72 [D3] [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
+        # DECIDE I-72 [D3] (1/2; next marl/train.py:278) [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
         seed = seed if seed is not None else self.seed
         if seed is not None:
             np.random.seed(seed)
@@ -285,7 +285,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         # Reset agents
         for agent in self._agents.values():
             # Reset agent's reputation
-            # DEVIATION I-07 [A9] All agents get the same initial reputation (the RNG is reseeded before each draw)
+            # DEVIATION I-07 [A9] (1/2; next marketplace/market/reputation.py:56) All agents get the same initial reputation (the RNG is reseeded before each draw)
             reputation = self.reputation_handler.reset(seed)
 
             # Reset agent's profiles
@@ -362,13 +362,13 @@ class LocalEnergyMarket(MultiAgentEnv):
             # Constrain values to valid range
             bid_price = max(self.market_config.min_price, min(self.market_config.max_price, bid_price))
             bid_quantity = max(self.market_config.min_quantity, min(self.market_config.max_quantity, bid_quantity))
-            # FAULT I-09 [A3] `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong …
+            # FAULT I-09 [A3] (1/2; next marl/agents/der.py:201) `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong …
             is_buy = bool(is_buy > 0.5)
-            # DEVIATION I-10 [A3] β = "no preference" is reachable only at the exact upper bound
+            # DEVIATION I-10 [A3] (3/3; first marketplace/action.py:35) β = "no preference" is reachable only at the exact upper bound
             preferred_partner = self.action_handler.get_partner_id(int(preferred_partner))
 
             # Fall back to rule-based selection if disabled RL-based selection
-            # DEVIATION I-77 [A3] Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score
+            # DEVIATION I-77 [A3] (1/2; next marl/agents/der.py:139) Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score
             if not self.market_config.enable_partner_preference:
                 preferred_partner = self._agents[id].select_preferred_partner([*self._agents.values()],
                                                                               self.grid_network.graph,
@@ -400,7 +400,7 @@ class LocalEnergyMarket(MultiAgentEnv):
 
         # DECIDE I-22 [A8] No household energy-conservation identity is enforced
         # Update energy tracking and battery states based on market outcomes
-        # DEVIATION I-14 [A5] P2P loss is topped up from the DSO
+        # DEVIATION I-14 [A5] (1/2; next marketplace/market/matching.py:369) P2P loss is topped up from the DSO
         for id in self.agents_id:
             # Calculate energy bought and sold for this agent
             energy_bought = 0.0
@@ -433,14 +433,14 @@ class LocalEnergyMarket(MultiAgentEnv):
                                                   self.market.matching_history)
 
         # Calculate rewards
-        # FAULT I-12 [A5] Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
+        # FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
         rewards = {id: self.reward_handler.calculate_reward(agent,
                                                             orders[id],
                                                             matching_result,
                                                             kpis,
                                                             self.market_config.min_price,
                                                             self.market_config.max_price,
-                                                            # FAULT I-02 [A1] `is_terminal` is never true, so the terminal unmet-demand penalty never applies
+                                                            # FAULT I-02 [A1] (1/2; next marketplace/reward.py:214) `is_terminal` is never true, so the terminal unmet-demand penalty never applies
                                                             is_terminal=self.current_step >= self.max_steps - 1)
                    for id, agent in self._agents.items()}
 
@@ -451,7 +451,7 @@ class LocalEnergyMarket(MultiAgentEnv):
 
         # Agent attributes
         for id, agent in self._agents.items():
-            # DEVIATION I-26 [A8] `agent.balance = sold − bought`, not eq
+            # DEVIATION I-26 [A8] (1/2; next marketplace/market/matching.py:452) `agent.balance = sold − bought`, not eq
             agent.balance = self.market.get_agent_position(id)
             agent.reputation = self.reputation_handler.update_reputation(agent, matching_result, self.time_of_day)
 
@@ -485,7 +485,7 @@ class LocalEnergyMarket(MultiAgentEnv):
                      "time_of_day": self.time_of_day,
                      "orders": sorted([*orders.values()], key=lambda o: o.agent_id), # TODO
                      "trades": matching_result.trades,
-                     # FAULT I-23 [A8] `B_grid` (eq
+                     # FAULT I-23 [A8] (1/2; next marketplace/observation.py:286) `B_grid` (eq
                      "grid_balance": self.dso.balance,
                      "market_price": matching_result.clearing_price,
                      "market_volume": matching_result.clearing_volume,
@@ -521,7 +521,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         """Clean up environment resources."""
         pass
 
-    # DEVIATION I-04 [A1] `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute
+    # DEVIATION I-04 [A1] (2/2; first marketplace/lem.py:68) `LocalEnergyMarket.seed()` is shadowed by the `self.seed` attribute
     def seed(self, seed: Optional[int] = None) -> None:
         """Set random seed for reproducibility.
 

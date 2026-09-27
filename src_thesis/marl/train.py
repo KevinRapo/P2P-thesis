@@ -113,7 +113,7 @@ class RLTrainer:
         if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
             raise ValueError(f"The <evaluation_interval> must be a positive integer, got <evaluation_interval = {self.evaluation_interval}>.")
 
-        # DEVIATION I-62 [D1] Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+        # DEVIATION I-62 [D1] (1/4; next marl/train.py:289) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
         if not (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto") or (isinstance(self.evaluation_duration, int) and self.evaluation_duration <= 0):
             raise ValueError(f"The <evaluation_duration> must be a positive integer or 'auto', got <evaluation_duration = {self.evaluation_duration}>.")
 
@@ -178,7 +178,7 @@ class RLTrainer:
         """
         # Setup the hyperparameter mutations based on the algorithm type
         if self.algorithm == RLAlgorithm.PPO:
-            # DEVIATION I-49 [D1] The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
+            # DEVIATION I-49 [D1] (1/2; next marl/train.py:218) The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
             hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
                                     "entropy_coeff": loguniform(0.01, 10.0),
                                     "lambda_": loguniform(0.8, 0.99),
@@ -215,7 +215,7 @@ class RLTrainer:
         """
         if self.algorithm == RLAlgorithm.PPO:
             return (PPOConfig()
-                    # DEVIATION I-49 [D1] The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
+                    # DEVIATION I-49 [D1] (2/2; first marl/train.py:181) The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
                     .training(lr=1e-5,
                               gamma=0.99,
                               use_critic=True,
@@ -275,7 +275,7 @@ class RLTrainer:
             AlgorithmConfig: The algorithm configuration with the extra configuration.
         """
         if self.algorithm == RLAlgorithm.PPO:
-            # DECIDE I-72 [D3] [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
+            # DECIDE I-72 [D3] (2/2; first marketplace/lem.py:275) [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
             evaluation_config = PPOConfig.overrides(exploration=False)
         elif self.algorithm == RLAlgorithm.APPO:
             evaluation_config = APPOConfig.overrides(exploration=False)
@@ -286,7 +286,7 @@ class RLTrainer:
 
         return (config
                 .framework("torch")
-                # DEVIATION I-62 [D1] Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+                # DEVIATION I-62 [D1] (2/4; next marl/train.py:438) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
                 .env_runners(num_env_runners=self.cpus,
                              sample_timeout_s=None)
                 .learners(num_learners=1,
@@ -393,7 +393,7 @@ class RLTrainer:
 
         return CustomAlgorithm(config)
 
-    # DEVIATION I-64 [D3] No run manifests, non-learning baselines or multi-seed statistics
+    # DEVIATION I-64 [D3] (1/2; next marl/train.py:446) No run manifests, non-learning baselines or multi-seed statistics
     def _save_env_config(self, results: ResultGrid) -> None:
         """Save environment configuration to experiment directory.
 
@@ -435,7 +435,7 @@ class RLTrainer:
         tuner = Tuner(trainable=algo_config.algo_class,
                       param_space=algo_config,
                       tune_config=TuneConfig(num_samples=self.tune_samples,
-                                             # DEVIATION I-62 [D1] Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+                                             # DEVIATION I-62 [D1] (3/4; next marl/train.py:458) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
                                              scheduler=PopulationBasedTraining(time_attr=TRAINING_ITERATION,
                                                                                perturbation_interval=self.checkpoint_freq,
                                                                                hyperparam_mutations=hyperparam_mutations),
@@ -443,7 +443,7 @@ class RLTrainer:
                                              mode="max",
                                              reuse_actors=False),
                       run_config=RunConfig(storage_path=self.storage_path,
-                                           # DEVIATION I-64 [D3] No run manifests, non-learning baselines or multi-seed statistics
+                                           # DEVIATION I-64 [D3] (2/2; first marl/train.py:396) No run manifests, non-learning baselines or multi-seed statistics
                                            name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
                                            # DECIDE I-50 [D1] The budget is counted in training iterations, but the paper says "10 000 episodes"
                                            stop={TRAINING_ITERATION: self.iters if _iters is None else abs(int(_iters)),
@@ -455,7 +455,7 @@ class RLTrainer:
                                                                               num_to_keep=3)))
 
         # Run the tuner and capture the results
-        # DEVIATION I-62 [D1] Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
+        # DEVIATION I-62 [D1] (4/4; first marl/train.py:116) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no …
         results = tuner.fit()
 
         # Save environment configuration
@@ -653,7 +653,7 @@ class GroupedLEM(MultiAgentEnv):
         self.original_agents_id = env.agents_id
 
         # Grouped environment
-        # FAULT I-59 [D1] Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (1/3; next marl/train.py:692) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         self.env = env.with_agent_groups(groups={"grouped_agents": env.agents_id},
                                          obs_space=_tuple_obs_space,
                                          act_space=_tuple_act_space)
@@ -689,7 +689,7 @@ class GroupedLEM(MultiAgentEnv):
         obs, rewards, terminateds, truncateds, infos = self.env.step(action_dict)
 
         # Pack the observations into a group
-        # FAULT I-59 [D1] Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (2/3; next marl/train.py:716) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         grouped_obs = {k: tuple(v) for k, v in obs.items()}
 
         # The reward for the group is the sum of individual rewards
@@ -713,7 +713,7 @@ class GroupedLEM(MultiAgentEnv):
             A Tuple space containing the subspaces from the original Dict.
         """
         # Sort keys to ensure the order of spaces is always the same
-        # FAULT I-59 [D1] Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (3/3; first marl/train.py:656) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         sorted_keys = sorted(dict_space.keys())
 
         # Create a tuple of the subspaces in the sorted order

@@ -551,9 +551,9 @@ $$
 
 #### Which version the original code implements
 
-Upstream MARLEM, unchanged in [reward.py `calculate_reward`](../../src_thesis/marketplace/reward.py#L103). This note is about the code, not the paper.
+Upstream MARLEM, unchanged in [reward.py `calculate_reward`](../../src_thesis/marketplace/reward.py#L105). This note is about the code, not the paper.
 
-**Cooperation boost:** the code uses **neither** printed form exactly. It applies the [P1] log structure but **without the $-1$** ([reward.py:218-221](../../src_thesis/marketplace/reward.py#L218-L221)). It computes `cooperation_boost = 1 + f_coop·f_contrib`, then `log1p(max(0, cooperation_boost − 1))`, which equals $\ln(1 + f_{\text{coop}} f_{\text{contrib},i})$:
+**Cooperation boost:** the code uses **neither** printed form exactly. It applies the [P1] log structure but **without the $-1$** ([reward.py:228-231](../../src_thesis/marketplace/reward.py#L228-L231)). It computes `cooperation_boost = 1 + f_coop·f_contrib`, then `log1p(max(0, cooperation_boost − 1))`, which equals $\ln(1 + f_{\text{coop}} f_{\text{contrib},i})$:
 
 $$
 r_{\text{raw}}^{\text{code}} = R_{\text{base},i} \left( 1 + \frac{\ln\!\left(1 + f_{\text{coop}}\, f_{\text{contrib},i}\right)}{5} \right) - s \cdot \gamma_{\text{DSO},i} - \frac{s}{p_{\text{dso}}} \cdot \gamma_{\text{UD},i}, \qquad s = 0.3 \cdot \max\!\left(\lvert R_{\text{base},i}\,(1 + \ln(1 + f_{\text{coop}} f_{\text{contrib},i})/5) \rvert,\ 1\right)
@@ -561,13 +561,13 @@ $$
 
 **Penalty terms in the code:**
 
-- $s$ scales the penalties by 0.3 × the magnitude of the boosted base reward. This is the paper's "implicit scaling" ([reward.py:224-229](../../src_thesis/marketplace/reward.py#L224-L229)).
-- $\gamma_{\text{DSO},i} = \text{dso\_ratio}_i \cdot p_{\text{dso}} \cdot \lvert B_{\text{DSO}} \rvert / C_{\text{grid}}$, where $\text{dso\_ratio}_i$ is the agent's DSO volume over its total traded volume ([reward.py:201-202](../../src_thesis/marketplace/reward.py#L201-L202)).
-- $\gamma_{\text{UD},i} = p_{\text{dso}} \cdot (\text{unmet demand} / \text{total demand})^2$, **only at the terminal step** ([reward.py:207-214](../../src_thesis/marketplace/reward.py#L207-L214)). It uses $p_{\text{dso}} = 15$, which the $/p_{\text{dso}}$ scaling above cancels. The paper's $p_{\text{no\_trades}} = 5$ is not used here.
+- $s$ scales the penalties by 0.3 × the magnitude of the boosted base reward. This is the paper's "implicit scaling" ([reward.py:234-239](../../src_thesis/marketplace/reward.py#L234-L239)).
+- $\gamma_{\text{DSO},i} = \text{dso\_ratio}_i \cdot p_{\text{dso}} \cdot \lvert B_{\text{DSO}} \rvert / C_{\text{grid}}$, where $\text{dso\_ratio}_i$ is the agent's DSO volume over its total traded volume ([reward.py:207-209](../../src_thesis/marketplace/reward.py#L207-L209)).
+- $\gamma_{\text{UD},i} = p_{\text{dso}} \cdot (\text{unmet demand} / \text{total demand})^2$, **only at the terminal step** ([reward.py:216-223](../../src_thesis/marketplace/reward.py#L216-L223)). It uses $p_{\text{dso}} = 15$, which the $/p_{\text{dso}}$ scaling above cancels. The paper's $p_{\text{no\_trades}} = 5$ is not used here.
 
-**Final compression:** the same as [P1] (3) ([reward.py:232](../../src_thesis/marketplace/reward.py#L232)).
+**Final compression:** the same as [P1] (3) ([reward.py:242](../../src_thesis/marketplace/reward.py#L242)).
 
-**Extra rule not in either paper:** an agent with **no trades** in the step returns a fixed $R_i = -20 \ln(1 + 5/20) \approx -4.46$ before any other term is computed ([reward.py:135-136](../../src_thesis/marketplace/reward.py#L135-L136)). This is where $p_{\text{no\_trades}} = 5$ is used.
+**Extra rule not in either paper:** an agent with **no trades** in the step returns a fixed $R_i = -20 \ln(1 + 5/20) \approx -4.46$ before any other term is computed ([reward.py:138-139](../../src_thesis/marketplace/reward.py#L138-L139)). This is where $p_{\text{no\_trades}} = 5$ is used.
 
 **Base reward:** a weighted sum of normalized components:
 
@@ -622,20 +622,20 @@ Penalties are "implicitly scaled relative to the reward magnitude" (no formula i
 
 | Paper | Original code | Status | Issue |
 |---|---|---|---|
-| Log compression (3) | [reward.py:232](../../src_thesis/marketplace/reward.py#L232) | ✅ |  |
-| Cooperation boost (4) | No $-1$ (see the note above) [reward.py:218-221](../../src_thesis/marketplace/reward.py#L218-L221) | ❓ | [I-42](../thesis/validation/paper-vs-code.md#I-42) |
+| Log compression (3) | [reward.py:242](../../src_thesis/marketplace/reward.py#L242) | ✅ |  |
+| Cooperation boost (4) | No $-1$ (see the note above) [reward.py:228-231](../../src_thesis/marketplace/reward.py#L228-L231) | ❓ | [I-42](../thesis/validation/paper-vs-code.md#I-42) |
 | Base weights 10 / 1.5 / 5 / 2 / 3 | [reward.py:51-56](../../src_thesis/marketplace/reward.py#L51-L56) | ✅ |  |
 | $f_{\text{coop}}$ weights (paper: 3 of 10) | All 10 in code: welfare 7, liquidity 1.5, spread 1.5, volatility 3, coordination 5, imbalance 10, congestion 9, convergence 8, self-consumption 5, flexibility 6 (Σ = 56) [reward.py:59-68](../../src_thesis/marketplace/reward.py#L59-L68) | ✅ |  |
-| $f_{\text{coop}} \in [0,1]$ | Unnormalised KPIs are averaged, ≈ **1800** in practice [reward.py:170-192](../../src_thesis/marketplace/reward.py#L170-L192) | ❌ | [I-41](../thesis/validation/paper-vs-code.md#I-41), [I-75](../thesis/validation/paper-vs-code.md#I-75) |
-| $r_{\text{trade}} = 0.3\rho_{\text{local}} + 0.3\rho_{\text{dso}}$ | Matches, but only because `_w_local` 0.7 is overwritten with 0.3 [reward.py:79](../../src_thesis/marketplace/reward.py#L79), [reward.py:93](../../src_thesis/marketplace/reward.py#L93) | ⚠️ | [I-45](../thesis/validation/paper-vs-code.md#I-45) |
-| $r_{\text{res}}$, $r_{\text{trade}}$ inputs | Divide by the mutated order quantity (0), so $r_{\text{res}} \equiv -1.5$, $r_{\text{trade}} \equiv 0$ [reward.py:248-249](../../src_thesis/marketplace/reward.py#L248-L249), [reward.py:406-412](../../src_thesis/marketplace/reward.py#L406-L412) | ❌ | [I-43](../thesis/validation/paper-vs-code.md#I-43) |
-| $r_{\text{grid}}$ | [reward.py:253-309](../../src_thesis/marketplace/reward.py#L253-L309); driven by `dso.balance`, which stays 0 | ❌ | [I-44](../thesis/validation/paper-vs-code.md#I-44) |
-| $r_{\text{stab}}$ 0.3 / 0.7 | [reward.py:414-446](../../src_thesis/marketplace/reward.py#L414-L446) | ✅ |  |
-| $r_{\text{econ}}$ 0.4 / 0.6 | [reward.py:311-386](../../src_thesis/marketplace/reward.py#L311-L386) | ✅ |  |
-| $f_{\text{contrib}}$ (6) 0.5 / 0.3 / 0.2 | [reward.py:448-499](../../src_thesis/marketplace/reward.py#L448-L499); share by *count* of trades; grid part is a heuristic, not $-\partial\lvert B\rvert/\partial a$ | ⚠️ | [I-79](../thesis/validation/paper-vs-code.md#I-79) |
-| $\gamma_{\text{DSO}}$ | [reward.py:201-202](../../src_thesis/marketplace/reward.py#L201-L202); 0 while `dso.balance` is 0 | ❌ | [I-44](../thesis/validation/paper-vs-code.md#I-44) |
-| $\gamma_{\text{UD}}$ | Terminal only, and the terminal flag never arrives [reward.py:207-214](../../src_thesis/marketplace/reward.py#L207-L214) | ❌ | [I-02](../thesis/validation/paper-vs-code.md#I-02), [I-46](../thesis/validation/paper-vs-code.md#I-46) |
-| No-trade rule (not in paper) | Fixed −4.46 [reward.py:135-136](../../src_thesis/marketplace/reward.py#L135-L136) | ❓ | [I-47](../thesis/validation/paper-vs-code.md#I-47) |
+| $f_{\text{coop}} \in [0,1]$ | Unnormalised KPIs are averaged, ≈ **1800** in practice [reward.py:176-198](../../src_thesis/marketplace/reward.py#L176-L198) | ❌ | [I-41](../thesis/validation/paper-vs-code.md#I-41), [I-75](../thesis/validation/paper-vs-code.md#I-75) |
+| $r_{\text{trade}} = 0.3\rho_{\text{local}} + 0.3\rho_{\text{dso}}$ | Matches, but only because `_w_local` 0.7 is overwritten with 0.3 [reward.py:80](../../src_thesis/marketplace/reward.py#L80), [reward.py:95](../../src_thesis/marketplace/reward.py#L95) | ⚠️ | [I-45](../thesis/validation/paper-vs-code.md#I-45) |
+| $r_{\text{res}}$, $r_{\text{trade}}$ inputs | Divide by the mutated order quantity (0), so $r_{\text{res}} \equiv -1.5$, $r_{\text{trade}} \equiv 0$ [reward.py:259-260](../../src_thesis/marketplace/reward.py#L259-L260), [reward.py:419-425](../../src_thesis/marketplace/reward.py#L419-L425) | ❌ | [I-43](../thesis/validation/paper-vs-code.md#I-43) |
+| $r_{\text{grid}}$ | [reward.py:265-321](../../src_thesis/marketplace/reward.py#L265-L321); driven by `dso.balance`, which stays 0 | ❌ | [I-44](../thesis/validation/paper-vs-code.md#I-44) |
+| $r_{\text{stab}}$ 0.3 / 0.7 | [reward.py:427-459](../../src_thesis/marketplace/reward.py#L427-L459) | ✅ |  |
+| $r_{\text{econ}}$ 0.4 / 0.6 | [reward.py:323-398](../../src_thesis/marketplace/reward.py#L323-L398) | ✅ |  |
+| $f_{\text{contrib}}$ (6) 0.5 / 0.3 / 0.2 | [reward.py:461-514](../../src_thesis/marketplace/reward.py#L461-L514); share by *count* of trades; grid part is a heuristic, not $-\partial\lvert B\rvert/\partial a$ | ⚠️ | [I-79](../thesis/validation/paper-vs-code.md#I-79) |
+| $\gamma_{\text{DSO}}$ | [reward.py:207-209](../../src_thesis/marketplace/reward.py#L207-L209); 0 while `dso.balance` is 0 | ❌ | [I-44](../thesis/validation/paper-vs-code.md#I-44) |
+| $\gamma_{\text{UD}}$ | Terminal only, and the terminal flag never arrives [reward.py:216-223](../../src_thesis/marketplace/reward.py#L216-L223) | ❌ | [I-02](../thesis/validation/paper-vs-code.md#I-02), [I-46](../thesis/validation/paper-vs-code.md#I-46) |
+| No-trade rule (not in paper) | Fixed −4.46 [reward.py:138-139](../../src_thesis/marketplace/reward.py#L138-L139) | ❓ | [I-47](../thesis/validation/paper-vs-code.md#I-47) |
 
 ## 9. MARL paradigms ([P1] §3.7.1, [P2] §3.4)
 

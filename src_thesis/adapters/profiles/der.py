@@ -116,7 +116,7 @@ class DERProfileHandler(ProfileHandler):
         Returns:
             Generation profile
         """
-        # DEVIATION I-06 [A2] CSV profiles use a random column and random scale per reset
+        # DEVIATION I-06 [A2] (2/3; next adapters/profiles/der.py:173) CSV profiles use a random column and random scale per reset
         if self.generation_file_path:
             base_profile = self._load_profile(self.generation_file_path)
             scale_factor = np.random.uniform(1.0, 1.3)
@@ -170,7 +170,7 @@ class DERProfileHandler(ProfileHandler):
             else:
                 return self._apply_smoothing(self._random_demand_profile(steps, capacity), window_size=max(3, steps // 10))
 
-    # DEVIATION I-06 [A2] CSV profiles use a random column and random scale per reset
+    # DEVIATION I-06 [A2] (3/3; first adapters/profiles/base.py:31) CSV profiles use a random column and random scale per reset
     def _random_generation_profile(self,
                                    steps: int,
                                    capacity: float,

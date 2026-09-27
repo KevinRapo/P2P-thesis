@@ -76,6 +76,7 @@ class RewardHandler:
         self.p_no_trades: float = 5.0  # Penalty for no trades
 
         # Trade weights
+        # DEVIATION I-45 [C2] (1/2; next marketplace/reward.py:94) `_w_local` is overwritten 0.7 → 0.3, so `r_trade = 0.3ρ_local + 0.3ρ_dso` (the paper prints 0.3/0.3)
         self._w_local: float = 0.7  # Higher weight for local trades
         self._w_dso: float = 0.3  # Lower weight for DSO trades
 
@@ -90,6 +91,7 @@ class RewardHandler:
         # Contribution weights
         self._w_grid: float = 0.5  # Grid contribution
         self._w_price: float = 0.2  # Price contribution
+        # DEVIATION I-45 [C2] (2/2; first marketplace/reward.py:79) `_w_local` is overwritten 0.7 → 0.3, so `r_trade = 0.3ρ_local + 0.3ρ_dso` (the paper prints 0.3/0.3)
         self._w_local: float = 0.3  # Local trading contribution
 
     def _check_init(self) -> None:
@@ -132,6 +134,7 @@ class RewardHandler:
         agent_trades = [trade for trade in matching.trades if (trade.buyer_id == agent.id) or (trade.seller_id == agent.id)]
 
         # Return penalty if no trades (using same log normalization as final reward)
+        # DECIDE I-47 [C2] The no-trade guard returns a fixed −4.46 before any other term
         if not agent_trades:
             return np.sign(-self.p_no_trades) * np.log1p(np.abs(-self.p_no_trades) / 20.0) * 20.0
 
@@ -145,6 +148,7 @@ class RewardHandler:
         total_quantity = local_quantity + dso_quantity
 
         # STEP 2. Calculate base reward (individual performance)
+        # DECIDE I-76 [C2] `R_base` components have no formulas in the paper; the code is the only specification
         r_grid_balance = self._calculate_grid_balance_reward(agent, order)
         r_resource = self._calculate_resource_allocation_reward(order, agent_trades)
         r_trading = self._calculate_trading_reward(order, local_quantity, dso_quantity)
@@ -167,6 +171,8 @@ class RewardHandler:
 
         # STEP 3. Calculate cooperation factor (market-wide performance)
         # Invert metrics where lower is better (penalties become rewards)
+        # FAULT I-41 [C2] `f_coop` is not in [0, 1] (≈ 1811)
+        # DECIDE I-75 [C2] (2/2; first cooperation/implicit_cooperation.py:94) `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported
         inverted_kpis = kpis.copy()
         for metric in ["supply_demand_imbalance", "grid_congestion", "price_volatility", "avg_bid_ask_spread"]:
             if metric in inverted_kpis:
@@ -199,11 +205,14 @@ class RewardHandler:
 
         # STEP 5. Calculate DSO penalty (negative impact)
         dso_ratio = dso_quantity / total_quantity if total_quantity > 0 else 0.0
+        # FAULT I-44 [C2] (1/3; next marketplace/reward.py:264) `r_grid`, `γ_DSO` and the grid part of `f_contrib` are inactive (caused by I-24)
         dso_penalty = dso_ratio * self.p_dso * abs(self.dso.balance) / max(self.grid_network.capacity, 1.0)
 
         # STEP 6. Apply terminal penalty for unmet demand (negative impact)
         demand_response_penalty = 0.0
 
+        # FAULT I-02 [A1] (2/2; first marketplace/lem.py:443) `is_terminal` is never true, so the terminal unmet-demand penalty never applies
+        # DEVIATION I-46 [C2] The unmet-demand penalty uses `p_dso`, not the paper's `p_no_trades = 5`
         if is_terminal:
             # Calculate unmet demand at episode end
             unmet_demand = max(0.0, agent.total_demand_required - agent.cumulative_demand_satisfied)
@@ -215,6 +224,7 @@ class RewardHandler:
 
         # STEP 7. Combine all components
         # Calculate cooperation boost
+        # DECIDE I-42 [C2] The cooperation-boost form differs across [P1] eq
         cooperation_boost = (1.0 + cooperation_factor * contribution_factor)
 
         # Apply log normalization to compress large values while preserving relative ordering
@@ -245,11 +255,13 @@ class RewardHandler:
         Returns:
             Trading success reward component
         """
+        # FAULT I-43 [C2] (1/2; next marketplace/reward.py:418) `r_res ≡ −1.5` and `r_trade ≡ 0` (caused by I-12)
         local_quantity_ratio = min(local_quantity / order.quantity, 1.0) if order.quantity > 0 else 0.0
         dso_quantity_ratio = min(dso_quantity / order.quantity, 1.0) if order.quantity > 0 else 0.0
 
         return (self._w_local * local_quantity_ratio) + (self._w_dso * dso_quantity_ratio)
 
+    # FAULT I-44 [C2] (2/3; next marketplace/reward.py:485) `r_grid`, `γ_DSO` and the grid part of `f_contrib` are inactive (caused by I-24)
     def _calculate_grid_balance_reward(self,
                                        agent: DERAgent,
                                        order: Order) -> float:
@@ -403,6 +415,7 @@ class RewardHandler:
         """
         # Calculate execution efficiency
         executed_quantity = sum(trade.quantity for trade in trades if (order.is_buy and trade.buyer_id == order.agent_id) or (not order.is_buy and trade.seller_id == order.agent_id))
+        # FAULT I-43 [C2] (2/2; first marketplace/reward.py:258) `r_res ≡ −1.5` and `r_trade ≡ 0` (caused by I-12)
         execution_ratio = executed_quantity / order.quantity if order.quantity > 0 else 0
 
         # Calculate unutilized resource penalty (negative impact)
@@ -469,6 +482,8 @@ class RewardHandler:
             return NEUTRAL
 
         # STEP 1. Grid balance contribution
+        # FAULT I-44 [C2] (3/3; first marketplace/reward.py:208) `r_grid`, `γ_DSO` and the grid part of `f_contrib` are inactive (caused by I-24)
+        # DEVIATION I-79 [C2] `f_contrib` grid term is a heuristic, not [P2]'s marginal `−∂|B_grid|/∂a_i`
         grid_contribution = NEUTRAL
 
         if matching.grid_balance != 0:

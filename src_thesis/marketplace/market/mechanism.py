@@ -66,7 +66,7 @@ class BuyerPricing(BasePricing):
         return buy_order.price
 
 
-# FAULT I-13 [A4] `SELLER` pricing returns the buyer's price (positional-argument bug)
+# FAULT I-13 [A4] (2/2; first marketplace/market/matching.py:329) `SELLER` pricing returns the buyer's price (positional-argument bug)
 class SellerPricing(BasePricing):
     """Sets trade price to seller's ask price."""
 
