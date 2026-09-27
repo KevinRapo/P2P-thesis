@@ -25,7 +25,8 @@ docs/
         ├── 02-simbench-grid.md     # Networks, profile assignment, grid contract, step changes
         ├── 03-experiment-config.md # Scenario / Experiment / Run specs, presets, sharing
         ├── 04-services.md          # Services, factory, worker, store, CLI
-        └── 05-studio-ui.md         # NiceGUI shell and pages
+        ├── 05-studio-ui.md         # NiceGUI shell and pages
+        └── 06-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
 ```
 
 ## Validation (current focus)
@@ -43,6 +44,6 @@ docs/
 
 ## Architecture (SimBench edition)
 
-Start with [architecture/README.md](architecture/README.md). It holds the goal, the roadmap (R1 = rebuild and validation above → R9 = evidence runs on SimBench), the decision log (D-01…) and the order to read the numbered documents 01–05.
+Start with [architecture/README.md](architecture/README.md). It holds the goal, the roadmap (R1 = rebuild and validation above → R9 = evidence runs on SimBench), the decision log (D-01…) and the order to read the numbered documents 01–06.
 
 `guidelines.md` and `tests.md` from the upstream repository were removed. See `marlem-main/docs/` for them.

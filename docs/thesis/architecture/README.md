@@ -75,6 +75,7 @@ Read in this order:
 | 03 | [03-experiment-config.md](03-experiment-config.md) | The single experiment JSON: every section and field, including RL algorithms, training modes and hyperparameters; presets; sharing |
 | 04 | [04-services.md](04-services.md) | Application services, environment factory, worker, experiment store and CLI commands |
 | 05 | [05-studio-ui.md](05-studio-ui.md) | NiceGUI shell, every page, what it shows, which services it calls and how pages connect |
+| 06 | [06-experiment-layer.md](06-experiment-layer.md) | `experiments/` in detail: records, every function with inputs and outputs, the store, worker, pool, run lifecycle and tests |
 
 ## 4. Roadmap
 

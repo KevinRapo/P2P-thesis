@@ -1,7 +1,7 @@
 # 04. Services, worker, store and CLI
 
 > How the UI, the CLI and notebooks talk to MARLEM without knowing its internals.
-> Master: [README.md](README.md) · Experiment file: [03-experiment-config.md](03-experiment-config.md) · Decisions: D-09, D-10.
+> Master: [README.md](README.md) · Experiment file: [03-experiment-config.md](03-experiment-config.md) · Experiment layer: [06-experiment-layer.md](06-experiment-layer.md) · Decisions: D-09, D-10.
 
 ## 1. Layers and who may call whom
 
@@ -126,65 +126,17 @@ The protocols live in [application/contracts.py](../../../src_thesis/application
 
 ## 3. Environment factory
 
-`experiments/factory.py`: `build_env_config(resolved_file, cell, episode_seed) → env_config` (the dict MARLEM already takes), plus `build_env(...)`.
-
-1. Take this episode's day from the resolved train (or eval) day list.
-2. Build profiles through the selected profile sources (02 §3).
-3. Build agents (with batteries), DSO tariffs and fee settings, and `MarketConfig`.
-4. Build the pandapower grid model from `grid.source` and the participant mapping.
-5. Set the observation, reward and reputation settings and the assessment mode from `environment`.
-
-The trainer side, `experiments/training.py`, turns `learning` + cell into the RLlib `AlgorithmConfig`: algorithm parameters, paradigm module, tuning, rollouts, checkpoints and evaluation. It replaces the hard-coded blocks in [train.py](../../../src_thesis/marl/train.py#L167-L265).
-
-RLlib env runners call the factory **inside** each runner. Only the resolved file section travels in `env_config`, never a net or agents.
+`experiments/factory/environment.py` is the only place that turns an experiment file into live MARLEM objects: `build_env_config(resolved, cell, episode_seed)` gives the plain `env_config`, and `build_env(env_config)` builds the environment inside each RLlib env runner. The RLlib side is `experiments/factory/training.py`. Functions, inputs and outputs: [06 §3.7–3.8](06-experiment-layer.md#37-environment-factory-factoryenvironmentpy).
 
 ## 4. Worker
 
-Command: `python -m src_thesis.experiments.worker --run-dir <path>`
-
-The worker:
-1. verifies the manifest hash;
-2. sets status `RUNNING` atomically;
-3. builds the env through the factory;
-4. runs the baseline, training or evaluation;
-5. owns `ray.init` and `ray.shutdown` (in `finally`);
-6. appends logs, metrics and raw step records;
-7. checks for `cancel.request` at iteration boundaries;
-8. writes the artifact index and terminal status.
-
-On Windows it runs in its own process group; forced kill is a timed fallback. `max_parallel_runs` defaults to 1, because Ray runners already use the cores.
-
-Run states:
-
-```text
-READY → QUEUED → RUNNING → COMPLETED
-                         → FAILED
-                         → CANCELLING → CANCELLED
-(INVALID files never produce runs)
-```
+`python -m src_thesis.experiments.worker --run-dir <path>` runs exactly one run: it verifies the manifest hash, sets RUNNING, runs the selected runner, handles cancel and failures, shuts Ray down and writes the terminal state. Workers are started and watched by a polled `WorkerPool` in the Studio or CLI process; `max_parallel_runs` defaults to 1. Details and the state machine: [06 §3.9–3.11 and §4](06-experiment-layer.md#4-run-lifecycle).
 
 ## 5. Experiment store
 
-```text
-<store>/                                  # configurable; default outside OneDrive
-├── index.json                            # cache; rebuildable by scanning
-└── runs/<run_id>/                        # run_id = <meta.id>__<sweep-label>__<algo>-<paradigm>__s<seed>__<hash8>
-    ├── experiment.json                   # the user's file, verbatim
-    ├── resolved.json                     # resolved for this run (03 §5)
-    ├── manifest.json  validation.json  status.json  artifacts.json  cancel.request?
-    ├── logs/          worker.log, ray/
-    ├── metrics/       training.csv, evaluation.jsonl
-    ├── raw/           steps.jsonl (orders, trades, settlement, grid assessment per step)
-    │                  grid_elements.csv (per-bus/line results, if enabled)
-    ├── checkpoints/
-    └── figures/       (derived; regenerable)
-```
+One folder per run under `<store>/runs/<run_id>/` (experiment, resolved file, manifest, status, logs, metrics, step records, checkpoints, figures); `index.json` is a rebuildable cache. Small state files are replaced atomically; streams are append-only. RL learning metrics and research outcomes are stored apart, so results never present reward as a proxy for served demand, curtailment, P2P share, costs, violations or losses. Layout and every method: [06 §3.5](06-experiment-layer.md#35-store-storefilesystempy).
 
-- Small state files are written atomically (write a temp file, then rename). Logs and streams are append-only.
-- RL reward and research outcomes are stored separately:
-  - research outcomes are served and unmet demand, curtailment, P2P share, costs, violations and losses;
-  - results never present reward as a proxy for them.
-- Values reported in the papers (reference data for R9 comparisons) sit in a read-only `reference/` folder beside the store, each with its source (paper, figure or table).
+Values reported in the papers (reference data for R9 comparisons) sit in a read-only `reference/` folder beside the store, each with its source (paper, figure or table).
 
 ## 6. CLI
 
