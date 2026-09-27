@@ -85,16 +85,18 @@ class NetworkSource(BaseModel):
 
 
 class NetworkInfo(BaseModel):
+    """Catalog entry. Counts and flags are ``None`` until the network is loaded."""
+
     source: NetworkSource
     label: str
     voltage_level: str
-    buses: int
-    loads: int
-    sgens: int
-    storage: int
-    has_profiles: bool
-    has_line_ratings: bool
-    has_geodata: bool
+    buses: int | None = None
+    loads: int | None = None
+    sgens: int | None = None
+    storage: int | None = None
+    has_profiles: bool | None = None
+    has_line_ratings: bool | None = None
+    has_geodata: bool | None = None
 
 
 class NetworkSummary(BaseModel):
@@ -103,14 +105,16 @@ class NetworkSummary(BaseModel):
     total_generation_kw: float
     lines: int
     transformers: int
+    profile_year: int | None = None
 
 
 class TopologyView(BaseModel):
     """Plain topology for plotting; no solver objects."""
 
-    buses: list[dict[str, Any]]  # {"id", "x", "y", "kind"}
-    lines: list[dict[str, Any]]  # {"id", "from", "to"}
+    buses: list[dict[str, Any]]  # {"id", "x", "y", "kind", "vn_kv"}
+    lines: list[dict[str, Any]]  # {"id", "from", "to", "kind", "closed"}
     external_grid_bus: str | None = None
+    coordinates: Literal["geodata", "generated"] = "geodata"
 
 
 class ElementInfo(BaseModel):
@@ -129,6 +133,9 @@ class PowerFlowPreview(BaseModel):
     losses_kw: float | None
     bus_voltage_pu: dict[str, float]
     violations: list[str] = Field(default_factory=list)
+    max_trafo_loading_percent: float | None = None
+    external_grid_kw: float | None = None
+    notes: list[str] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- profiles

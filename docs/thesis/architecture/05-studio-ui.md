@@ -12,9 +12,10 @@ Run it with the `marlem` conda env from the repository root: `python -m src_thes
 | Service contracts | [application/contracts.py](../../../src_thesis/application/contracts.py) | Protocols for the six services in 04 §2 |
 | Returned data | [application/models.py](../../../src_thesis/application/models.py) | Pydantic models. `ExperimentFile` sections are still plain dicts. |
 | Demo services | [application/demo.py](../../../src_thesis/application/demo.py) | Deterministic sample data; no MARLEM, pandapower or Ray. Labelled "DEMO DATA" in the header. |
-| Wiring | [application/container.py](../../../src_thesis/application/container.py) | `build_services("demo")`; `"real"` is reserved for P6–P7 |
+| Real grid catalog | [application/grid_catalog.py](../../../src_thesis/application/grid_catalog.py) → [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | The Grid page shows real SimBench and pandapower built-in networks: catalog by voltage level, summary, geodata topology (a generated tree layout without geodata), elements per bus (click a bus), and a one-hour power flow from the SimBench profiles. Default in the Studio; `MARLEM_STUDIO_GRID=demo` switches back. Header: "DEMO DATA · real grid". Tests: [tests/test_grid_catalog.py](../../../tests/test_grid_catalog.py). |
+| Wiring | [application/container.py](../../../src_thesis/application/container.py) | `build_services("demo", grid="pandapower")`: real services replace demo ones one at a time; `"real"` is reserved for P6–P7 |
 | Studio | [studio/](../../../src_thesis/studio/) | Shell, theme (light and dark), navigation, all pages below with their layout and demo data. Buttons without a service behind them show "not implemented yet". |
-| Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`, or if `application/` imports MARLEM runtime, adapters, pandapower, simbench, Ray or torch |
+| Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`; if `application/` imports MARLEM runtime, pandapower, simbench, Ray or torch (it may use `adapters/` and the grid contract, 04 §1); if anything outside `adapters/` imports pandapower or simbench; or if the demo services load pandapower |
 
 Next steps: form fields write back to the draft file (`ConfigService.save`); typed section models replace the dicts; real services replace the demo ones.
 

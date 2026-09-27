@@ -1,30 +1,26 @@
-"""Architecture guard: the Studio and the application layer stay free of MARLEM internals.
+"""Architecture guard: layers only reach what 04-services.md §1 allows.
 
-See docs/thesis/architecture/01-paper-to-code-map.md §5 and 04-services.md §1.
-- studio/ may import only nicegui/plotly/stdlib and src_thesis.application.
-- application/ must not import MARLEM runtime, grid adapters, pandapower, simbench, Ray or torch
-  (real services will reach them through experiments/ later; the demo services never do).
+See docs/thesis/architecture/01-paper-to-code-map.md §5 and 04-services.md §1, §7.
+- studio/ imports only nicegui/plotly/stdlib and src_thesis.application.
+- application/ never imports MARLEM runtime, pandapower, simbench, Ray or torch.
+  Real services reach infrastructure through adapters/ (the grid catalog calls
+  adapters.grid) and the grid contract; the demo services import nothing of it.
+- Only adapters/ imports pandapower and simbench.
 """
 
 import ast
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[1] / "src_thesis"
-MARLEM_AND_HEAVY = (
-    "src_thesis.marketplace",
-    "src_thesis.marl",
-    "src_thesis.cooperation",
-    "src_thesis.adapters",
-    "pandapower",
-    "simbench",
-    "ray",
-    "torch",
-    "networkx",
-    "src.",
-)
-STUDIO_EXTRA = ("src_thesis.experiments",)
+REPO = Path(__file__).resolve().parents[1]
+ROOT = REPO / "src_thesis"
+HEAVY = ("pandapower", "simbench", "ray", "torch", "networkx", "src.")
+MARLEM_RUNTIME = ("src_thesis.marketplace", "src_thesis.marl", "src_thesis.cooperation")
+APPLICATION_ALLOWED = ("src_thesis.marketplace.grid.contract_new",)
+STUDIO_EXTRA = ("src_thesis.adapters", "src_thesis.experiments")
 
 
 def _imports(path: Path) -> list[str]:
@@ -38,21 +34,52 @@ def _imports(path: Path) -> list[str]:
     return names
 
 
-def _violations(package: str, forbidden: tuple[str, ...]) -> list[str]:
+def _violations(
+    package: str, forbidden: tuple[str, ...], allowed: tuple[str, ...] = ()
+) -> list[str]:
     out = []
     for path in (ROOT / package).rglob("*.py"):
         for name in _imports(path):
+            if name.startswith(allowed):
+                continue
             if name.startswith(forbidden) or name == "src":
                 out.append(f"{path.relative_to(ROOT)} imports {name}")
     return out
 
 
 def test_studio_imports_only_application_layer() -> None:
-    assert _violations("studio", MARLEM_AND_HEAVY + STUDIO_EXTRA) == []
+    forbidden = HEAVY + MARLEM_RUNTIME + STUDIO_EXTRA
+    assert _violations("studio", forbidden) == []
 
 
 def test_application_layer_is_free_of_marlem_runtime() -> None:
-    assert _violations("application", MARLEM_AND_HEAVY) == []
+    forbidden = HEAVY + MARLEM_RUNTIME
+    assert _violations("application", forbidden, APPLICATION_ALLOWED) == []
+
+
+def test_only_adapters_import_pandapower_and_simbench() -> None:
+    out = []
+    for path in ROOT.rglob("*.py"):
+        if path.relative_to(ROOT).parts[0] == "adapters":
+            continue
+        out += [
+            f"{path.relative_to(ROOT)} imports {name}"
+            for name in _imports(path)
+            if name.startswith(("pandapower", "simbench"))
+        ]
+    assert out == []
+
+
+def test_demo_services_do_not_load_pandapower() -> None:
+    code = (
+        "import sys; from src_thesis.application import build_services; "
+        "build_services('demo'); "
+        "print(any(m.split('.')[0] in ('pandapower', 'simbench') for m in sys.modules))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code], cwd=REPO, capture_output=True, text=True
+    )
+    assert result.stdout.strip() == "False", result.stderr
 
 
 def test_demo_services_satisfy_every_page_call() -> None:

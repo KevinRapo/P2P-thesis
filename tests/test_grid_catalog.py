@@ -1,0 +1,68 @@
+"""The real grid catalog: SimBench and pandapower built-in networks (02 §1–§2).
+
+Loads real networks, so it needs `simbench` and `pandapower` (conda env `marlem`).
+"""
+
+import pytest
+
+pytest.importorskip("pandapower")
+pytest.importorskip("simbench")
+
+from src_thesis.application import build_services  # noqa: E402
+from src_thesis.application.models import NetworkSource  # noqa: E402
+
+LV = NetworkSource(type="simbench", code="1-LV-semiurb4--0-sw")
+CASE33 = NetworkSource(type="pandapower_builtin", code="case33bw")
+
+
+@pytest.fixture(scope="module")
+def grid():
+    return build_services("demo", grid="pandapower").grid
+
+
+def test_catalog_lists_simbench_by_level(grid) -> None:
+    lv = grid.list_networks("simbench", level="LV")
+    assert lv and all(n.voltage_level == "LV" for n in lv)
+    assert LV.code in {n.source.code for n in lv}
+    assert not any("complete_data" in n.source.code for n in grid.list_networks())
+
+
+def test_summary_counts_the_loaded_network(grid) -> None:
+    s = grid.summary(LV)
+    assert (s.info.buses, s.info.loads, s.info.sgens) == (44, 41, 1)
+    assert s.info.has_profiles and s.info.has_line_ratings and s.info.has_geodata
+    assert s.profile_year == 2016
+
+
+def test_topology_is_consistent(grid) -> None:
+    t = grid.topology(LV)
+    ids = {b["id"] for b in t.buses}
+    assert len(ids) == len(t.buses) == 44
+    assert all(br["from"] in ids and br["to"] in ids for br in t.lines)
+    assert t.external_grid_bus in ids
+    assert sum(br["kind"] == "trafo" for br in t.lines) == 1
+
+
+def test_elements_filter_by_bus(grid) -> None:
+    every = grid.elements(LV)
+    assert len(every) == 42
+    bus = every[0].bus
+    assert {e.bus for e in grid.elements(LV, bus)} == {bus}
+
+
+def test_preview_uses_the_simbench_profiles(grid) -> None:
+    noon = grid.preview_powerflow(LV, "2016-06-15", 12)
+    night = grid.preview_powerflow(LV, "2016-06-15", 3)
+    assert noon.converged and night.converged
+    assert len(noon.bus_voltage_pu) == 44
+    assert noon.external_grid_kw != night.external_grid_kw
+    with pytest.raises(ValueError):
+        grid.preview_powerflow(LV, "2017-01-01", 12)
+
+
+def test_builtin_network_without_profiles_or_ratings(grid) -> None:
+    s = grid.summary(CASE33)
+    assert not s.info.has_profiles and not s.info.has_line_ratings
+    p = grid.preview_powerflow(CASE33, "2016-06-15", 12)
+    assert p.converged and p.max_line_loading_percent is None
+    assert any("static" in n for n in p.notes)

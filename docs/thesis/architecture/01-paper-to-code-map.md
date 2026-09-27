@@ -50,12 +50,12 @@ The paper's Fig. 2 shows `DSOMetricsHandler` twice. The second box is `GridMetri
 
 | Component | Location | Status | Doc |
 |---|---|---|---|
-| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Stub exists; to be extended | 02 §5 |
+| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extended to 02 §5, plus the catalog records (`NetworkRef`, `NetworkInfo`, `NetworkSummary`, `TopologyView`, `ElementRecord`); `GridModel` not yet implemented | 02 §5 |
 | Settlement → injection builder | `marketplace/grid/injection.py` | New | 02 §7 |
-| pandapower grid adapter (SimBench, built-in, file) | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Stub exists | 02 §1–§5 |
+| pandapower grid adapter (SimBench, built-in, file) | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Catalog part done (2026-09-25): list, load, summary, topology, elements, one-hour power-flow preview for SimBench and built-in networks. Step-time `SimBenchGrid` still a stub. | 02 §1–§5 |
 | SimBench profile source | `adapters/profiles/simbench.py` | New | 02 §3 |
 | Experiment file models, environment factory, store, worker | [experiments/](../../../src_thesis/experiments/) | Stubs exist | 03, 04 |
-| Application services | [application/](../../../src_thesis/application/) | Stubs exist | 04 |
+| Application services | [application/](../../../src_thesis/application/) | Demo services; the real `GridCatalogService` is [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | 04 |
 | CLI | `src_thesis/cli.py` | New | 04 §6 |
 | NiceGUI Studio | `studio/` (separate presentation package) | New | 05 |
 

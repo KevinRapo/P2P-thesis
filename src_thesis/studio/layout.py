@@ -77,9 +77,18 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                 on_click=lambda: ui.navigate.to("/runs"),
             ).props("dense color=blue-grey-8 text-color=white")
             if services().mode == "demo":
-                ui.chip("DEMO DATA", icon="science").props(
-                    "dense color=amber-8 text-color=white"
-                ).tooltip("Demo services: no MARLEM code is executed")
+                real_grid = services().grid_backend != "demo"
+                ui.chip(
+                    "DEMO DATA · real grid" if real_grid else "DEMO DATA",
+                    icon="science",
+                ).props("dense color=amber-8 text-color=white").tooltip(
+                    "Demo services: no MARLEM code is executed"
+                    + (
+                        "; the Grid page uses real SimBench / pandapower networks"
+                        if real_grid
+                        else ""
+                    )
+                )
             ui.button(icon="dark_mode", on_click=lambda: _toggle_dark(dark)).props(
                 "flat round dense color=white"
             )
@@ -89,7 +98,7 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
             "MARLEM Studio · presentation layer · all data via application services"
         )
         ui.space()
-        ui.label(f"services: {services().mode}")
+        ui.label(f"services: {services().mode} · grid: {services().grid_backend}")
 
     with ui.column().classes("mls-page w-full"):
         with ui.column().classes("gap-0"):

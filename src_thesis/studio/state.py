@@ -4,6 +4,8 @@ The Studio holds no research state of its own: services own the data, and the
 browser session only remembers which draft is open (05-studio-ui.md §2).
 """
 
+import os
+
 from nicegui import app
 
 from src_thesis.application import Services, build_services
@@ -14,9 +16,17 @@ DEFAULT_PRESET = "case6-3x3"
 
 
 def services() -> Services:
+    """The process-wide services.
+
+    The grid catalog is real (SimBench / pandapower) unless MARLEM_STUDIO_GRID=demo;
+    everything else is demo data until its roadmap phase.
+    """
     global _SERVICES
     if _SERVICES is None:
-        _SERVICES = build_services("demo")
+        grid = os.environ.get("MARLEM_STUDIO_GRID", "pandapower")
+        _SERVICES = build_services(
+            "demo", grid="demo" if grid == "demo" else "pandapower"
+        )
     return _SERVICES
 
 

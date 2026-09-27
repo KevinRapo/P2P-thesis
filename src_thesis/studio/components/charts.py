@@ -67,69 +67,128 @@ def heatmap_figure(matrix: MatrixTable, height: int = 300) -> go.Figure:
     return fig
 
 
+BUS_COLORS = {
+    "external_grid": "#0F172A",
+    "load": "#0F766E",
+    "pv": "#D97706",
+    "load+pv": "#EA580C",
+    "gen": "#B45309",
+    "storage": "#7C3AED",
+    "bus": "#94A3B8",
+}
+
+
+def _bus_color(kind: str) -> str:
+    if kind in BUS_COLORS:
+        return BUS_COLORS[kind]
+    if "storage" in kind:
+        return BUS_COLORS["storage"]
+    return BUS_COLORS["load+pv"] if "pv" in kind else BUS_COLORS["load"]
+
+
+def _branch_trace(fig: go.Figure, pos: dict, branches: list, **line) -> None:
+    xs, ys = [], []
+    for br in branches:
+        if br["from"] in pos and br["to"] in pos:
+            (x0, y0), (x1, y1) = pos[br["from"]], pos[br["to"]]
+            xs += [x0, x1, None]
+            ys += [y0, y1, None]
+    if xs:
+        fig.add_scatter(
+            x=xs, y=ys, mode="lines", line=line, hoverinfo="skip", showlegend=False
+        )
+
+
 def topology_figure(
     topology: TopologyView,
     voltages: dict[str, float] | None = None,
     highlight: set[str] | None = None,
     height: int = 420,
 ) -> go.Figure:
+    """Network plot. Buses carry their ID as ``customdata`` for click handlers."""
     pos = {b["id"]: (b["x"], b["y"]) for b in topology.buses}
-    xs, ys = [], []
-    for line in topology.lines:
-        (x0, y0), (x1, y1) = pos[line["from"]], pos[line["to"]]
-        xs += [x0, x1, None]
-        ys += [y0, y1, None]
     fig = go.Figure()
-    fig.add_scatter(
-        x=xs,
-        y=ys,
-        mode="lines",
-        line=dict(color="rgba(100,116,139,0.55)", width=1.5),
-        hoverinfo="skip",
-        showlegend=False,
+    lines = [br for br in topology.lines if br.get("kind", "line") == "line"]
+    _branch_trace(
+        fig,
+        pos,
+        [br for br in lines if br.get("closed", True)],
+        color="rgba(100,116,139,0.6)",
+        width=1.5,
     )
-    ids = [b["id"] for b in topology.buses]
-    marker: dict = dict(
-        size=[16 if b["kind"] == "external_grid" else 9 for b in topology.buses],
-        line=dict(
-            width=[3 if highlight and i in highlight else 0.5 for i in ids],
-            color="#D97706",
-        ),
+    _branch_trace(
+        fig,
+        pos,
+        [br for br in lines if not br.get("closed", True)],
+        color="rgba(100,116,139,0.45)",
+        width=1,
+        dash="dot",
     )
+    _branch_trace(
+        fig,
+        pos,
+        [br for br in topology.lines if br.get("kind") in ("trafo", "switch")],
+        color="#0F172A",
+        width=3,
+    )
+
+    def hover(b: dict) -> str:
+        text = f"{b['id']}<br>{b['kind']}"
+        if "vn_kv" in b:
+            text += f" · {b['vn_kv']} kV"
+        if voltages and b["id"] in voltages:
+            text += f"<br>{voltages[b['id']]:.3f} pu"
+        return text
+
+    def size(b: dict) -> int:
+        return 16 if b["kind"] == "external_grid" else (9 if b["kind"] != "bus" else 6)
+
+    def outline(group: list[dict]) -> dict:
+        marked = [bool(highlight) and b["id"] in highlight for b in group]
+        return dict(width=[3 if m else 0.5 for m in marked], color="#D97706")
+
     if voltages:
-        marker.update(
-            color=[voltages.get(i, 1.0) for i in ids],
-            colorscale="RdYlGn",
-            cmin=0.93,
-            cmax=1.05,
-            colorbar=dict(title="V (pu)", thickness=12),
+        group = topology.buses
+        fig.add_scatter(
+            x=[b["x"] for b in group],
+            y=[b["y"] for b in group],
+            mode="markers",
+            customdata=[b["id"] for b in group],
+            text=[hover(b) for b in group],
+            hoverinfo="text",
+            showlegend=False,
+            marker=dict(
+                size=[size(b) for b in group],
+                color=[voltages.get(b["id"], 1.0) for b in group],
+                colorscale="RdYlGn",
+                cmin=0.93,
+                cmax=1.05,
+                colorbar=dict(title="V (pu)", thickness=12),
+                line=outline(group),
+            ),
         )
     else:
-        marker.update(
-            color=[
-                (
-                    "#0F172A"
-                    if b["kind"] == "external_grid"
-                    else ("#D97706" if "pv" in b["kind"] else "#0F766E")
-                )
-                for b in topology.buses
-            ]
+        kinds = sorted(
+            {b["kind"] for b in topology.buses}, key=lambda k: k != "external_grid"
         )
-    fig.add_scatter(
-        x=[pos[i][0] for i in ids],
-        y=[pos[i][1] for i in ids],
-        mode="markers",
-        marker=marker,
-        text=[
-            f"{i} ({b['kind']})"
-            + (f"<br>{voltages[i]:.3f} pu" if voltages and i in voltages else "")
-            for i, b in zip(ids, topology.buses)
-        ],
-        hoverinfo="text",
-        showlegend=False,
-    )
+        for kind in kinds:
+            group = [b for b in topology.buses if b["kind"] == kind]
+            fig.add_scatter(
+                x=[b["x"] for b in group],
+                y=[b["y"] for b in group],
+                mode="markers",
+                name=kind.replace("_", " "),
+                customdata=[b["id"] for b in group],
+                text=[hover(b) for b in group],
+                hoverinfo="text",
+                marker=dict(
+                    size=[size(b) for b in group],
+                    color=_bus_color(kind),
+                    line=outline(group),
+                ),
+            )
     fig = _base(fig, height)
-    fig.update_layout(hovermode="closest")
+    fig.update_layout(hovermode="closest", legend=dict(orientation="h", y=-0.02))
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False, scaleanchor="x")
     return fig
