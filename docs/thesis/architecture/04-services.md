@@ -121,7 +121,7 @@ The protocols live in [application/contracts.py](../../../src_thesis/application
 | `grid_series(run_id, episode)` | → series | Voltages, loadings, losses, violations over time |
 | `matrix(experiment_id, metric)` | → table | Paradigm × algorithm (mean ± std over seeds): the 3 × 3 table |
 | `compare(run_ids, metric)` | → series | Flags different `reward.version`s as non-comparable |
-| `reference(case, metric)` | → series | Stored results of the validated release (P2), read-only |
+| `reference(case, metric)` | → series | Values reported in the papers for that case (reference data entered by hand), read-only |
 | `export(run_ids, fmt)` | → path | CSV/JSON of raw series, figures |
 
 ## 3. Environment factory
@@ -184,7 +184,7 @@ READY → QUEUED → RUNNING → COMPLETED
 - RL reward and research outcomes are stored separately:
   - research outcomes are served and unmet demand, curtailment, P2P share, costs, violations and losses;
   - results never present reward as a proxy for them.
-- The validated release's reference results (P2) sit in a read-only `reference/` folder beside the store, with their own manifests.
+- Values reported in the papers (reference data for R9 comparisons) sit in a read-only `reference/` folder beside the store, each with its source (paper, figure or table).
 
 ## 6. CLI
 
@@ -214,7 +214,7 @@ Notebooks call the same services. The case notebooks become short: load a preset
 
 - Canonical environment: conda `marlem` (`environment.yml`).
 - Already present: `pandapower` 3.5.4 and `simbench` 1.6.2 (checked 2026-09-23).
-- To add, pinned after an isolated compatibility check against the current Ray and NumPy stack: `pydantic` (v2) and `nicegui`.
+- Also installed and in use: `pydantic` 2.13 (service models) and `nicegui` 3.16 (the Studio). `environment.yml` pins `pandapower`, `simbench` and `nicegui` since 2026-09-27.
 - Only `adapters/` imports `simbench` and `pandapower`. Only `studio/` imports `nicegui`.
 
 ## 8. Tests per layer

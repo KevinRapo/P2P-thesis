@@ -72,7 +72,7 @@ runs/<run_id>/manifest.json ← written by the system: one per (sweep point × p
 | `background.mode` | enum | `"mapped_replacement"` | `mapped_replacement` · `scaled_background` · `no_background` (02 §3.5) |
 | `background.scale` | float | 1.0 | For `scaled_background` |
 | `background.profiles` | enum | `"native"` | For non-SimBench networks: `static` (element values) or `catalog` assignment by load type |
-| `limits.v_min_pu`, `v_max_pu` | float | 0.95, 1.05 | Voltage band |
+| `limits.v_min_pu`, `v_max_pu` | float \| null | null | Voltage band for every bus. `null` = each bus's own network limits, fallback 0.95 / 1.05 (D-15) |
 | `limits.line_max_percent`, `trafo_max_percent` | float | 100, 100 | Loading limits |
 | `ratings.source` | enum | `"network"` | `network` · `file` · `rule` · `none` (no loading checks) |
 | `ratings.rule` | object | — | E.g. `{"type": "base_case_margin", "factor": 1.5}` |
@@ -375,11 +375,11 @@ experiments/presets/              # in the repo
 - Case 4 on SimBench is a different study from the paper's topology/capacity comparison (real physics). This is documented in the preset's `description`.
 - The [P2] Case 6 profile mapping is unpublished (I-51), so the Case 6 preset is `reconstructed-unverified`.
 
-## 8. Relation to the validated release (P2)
+## 8. Relation to the original
 
-- The validated release keeps its own original-style configuration (`env_config` objects).
-- It publishes its reference results per case as data files with their own manifests.
-- The tool does not run it. Comparisons in P9 read those stored results next to the tool's SimBench results.
+- There is no validated NetworkX release (retired 2026-09-27, D-02). The original is kept frozen in `src_thesis_reference/` for code comparison; the tool never runs it.
+- Presets reproduce the papers' cases on SimBench and say in `meta.description` which case and which deviations (e.g. Case 4 has real physics).
+- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (04 §5).
 
 ## 9. Validation (preflight)
 

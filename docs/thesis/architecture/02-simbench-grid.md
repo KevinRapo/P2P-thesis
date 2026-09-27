@@ -1,17 +1,17 @@
 # 02. SimBench grid
 
 > Network sources, loading, assigning profiles to MARLEM agents, the grid contract, and what changes in MARLEM's step.
-> Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11, D-12.
-> Items marked *(verify)* are to be confirmed against the installed `simbench` 1.6.2 / `pandapower` 3.5.4 in phase P3.
+> Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15.
+> Checked against the installed `simbench` 1.6.2 / `pandapower` 3.5.4 on 2026-09-25 (the Studio's grid catalog uses them).
 
 ## 1. One grid technology, several network sources (D-02)
 
-The tool has **one** grid implementation: a pandapower adapter running an AC power flow. The paper's abstract NetworkX grid lives only in the separately published validated release (P2). It is not maintained in the tool.
+The tool has **one** grid implementation: a pandapower adapter running an AC power flow. The paper's abstract NetworkX grid lives only in the frozen reference copy (`src_thesis_reference/`). It is not maintained in the tool.
 
 | Source (`grid.source.type`) | Examples | Profiles included? | Notes |
 |---|---|---|---|
 | `simbench` (primary) | `1-LV-semiurb4--0-sw`, `1-MV-rural--1-sw` | **Yes**: one year at 15 min for every load, generator and storage | The main research world |
-| `pandapower_builtin` | `case33bw` (IEEE 33-bus Baran & Wu), `cigre_mv`, `cigre_lv`, `kerber_*`, `mv_oberrhein` | No: profiles are assigned from the SimBench profile catalogue or CSV (§3.3) | Standard feeders at zero cost. `case33bw` has no line ratings, so either add them (§2) or check voltage only. Checked 2026-09-23: all converge. |
+| `pandapower_builtin` | `case33bw` (IEEE 33-bus Baran & Wu), `create_cigre_network_mv`, `create_cigre_network_lv`, `create_kerber_*`, `mv_oberrhein` (the code is the `pandapower.networks` function name) | No: profiles are assigned from the SimBench profile catalogue or CSV (§3.3) | Standard feeders at zero cost. `case33bw` has no line ratings, so either add them (§2) or check voltage only. Checked 2026-09-23: all converge. |
 | `pandapower_file` | Any pandapower JSON, e.g. a one-time balanced IEEE 34 build | No (as above) | How extra networks enter without code |
 
 Unbalanced networks (IEEE European LV, which needs `runpp_3ph`) are out of scope for the first version.
@@ -23,8 +23,9 @@ Unbalanced networks (IEEE European LV, which needs `runpp_3ph`) are out of scope
 | **Catalog** | List the available networks with metadata: source, voltage level, number of buses, loads, sgens and storage; total load/PV; whether geodata, profiles and line ratings are present. This powers the Studio's Grid page and `marlem grid list`. |
 | **Load** | `simbench.get_simbench_net(code)`, `pandapower.networks.<name>()` or `pandapower.from_json(path)`, cached **once per process** as an immutable source |
 | **Working copy** | Each environment (and each RLlib env runner) gets its own deep copy; it is reset per episode. The net is never shared or serialised. |
-| **Profiles** | SimBench: `simbench.get_absolute_values(net, profiles_instead_of_study_cases=True)` *(verify)*, cached per process |
+| **Profiles** | SimBench: `simbench.get_absolute_values(net, profiles_instead_of_study_cases=True)`, cached per process |
 | **Line ratings** | Taken from the network. If missing: a rule from the experiment file (e.g. a margin over base-case peak current) or a ratings file. If none is set, loading checks are switched off and reported as such. |
+| **Voltage limits** (D-15) | `grid.limits` in the experiment file overrides every bus when set. When unset, each bus uses the network's own `min_vm_pu` / `max_vm_pu` (SimBench: 0.9–1.1), with 0.95–1.05 pu as the fallback. |
 | **Summary / topology view** | Plain data for UI and plots: buses with coordinates, lines, transformers, elements per bus. No pandapower objects cross the adapter boundary. |
 | **Validation** | Profile tables agree in length and time. Selected bus and element IDs exist. The unmodified net converges at the selected timestep. |
 
@@ -71,7 +72,7 @@ Validation rejects:
 | **Resolution** | Native 15 min (96 steps per day, `time_step_hours = 0.25`) · hourly aggregation (24 steps, energy-consistent mean of 4 rows). The rule used is recorded in the manifest. |
 | **Batteries** | A MARLEM `Battery` spec per agent (capacity, SoC limits, efficiencies, power limit) · or sized from an owned SimBench storage element |
 | **Reactive power** | Consumption keeps the load profile's q/p ratio. Generation and battery run at unity power factor. There is a fallback power factor when p = 0. |
-| **DSO tariffs** | SimBench has no prices *(verify)*, so tariffs come from the MARLEM tariff CSVs or the synthetic DSO profile handler, aligned to the same time window |
+| **DSO tariffs** | SimBench has no prices (its profile tables are load, renewables, powerplants and storage), so tariffs come from the MARLEM tariff CSVs or the synthetic DSO profile handler, aligned to the same time window |
 
 The **day sampler** is what makes "many more profiles" useful: training episodes draw different days, and evaluation uses held-out days. This directly addresses the single-seed, single-day evaluation of the original results (issues I-72 and I-03).
 
@@ -224,8 +225,8 @@ actions
 
 | Mode | Assessment used for | Phase |
 |---|---|---|
-| `shadow` | Recorded in `info` and raw artifacts only; observations and reward keep the validated definitions | P4 |
-| `feedback` | Also in observations (fixed-size grid block) and reward (violation term) | P5 |
+| `shadow` | Recorded in `info` and raw artifacts only; observations and reward keep the validated definitions | R4 |
+| `feedback` | Also in observations (fixed-size grid block) and reward (violation term) | R5 |
 
 **Violation feedback in the reward** (D-11, open):
 
@@ -250,25 +251,25 @@ Whether the agent's own bus voltage is private or public is an experiment option
 
 ## 7. File-by-file changes to MARLEM (D-04)
 
-These are applied **after** the validated release (P2), in `src_thesis/`, keeping file names:
+These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names; a file may be rewritten:
 
 | File | Change | Phase |
 |---|---|---|
-| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 (rename to `contract.py` when stable). **Done 2026-09-25**, with the catalog records for §2; `GridTopologyInfo`, `GridSignals` and `GridModel.topology_info` (§5.1) still to add. | P3 |
-| `marketplace/grid/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | P3 |
-| [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. **§2 catalog done 2026-09-25** (SimBench + built-in; files not yet); §4–§6 step-time model open. | P3 |
-| `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | P3 |
-| [adapters/grid/network.py](../../../src_thesis/adapters/grid/network.py), [marketplace/grid/base.py](../../../src_thesis/marketplace/grid/base.py), [config.py](../../../src_thesis/marketplace/grid/config.py) | **Removed from the tool** (kept in the validated release). `Location` shrinks to participant ID + bus ID. | P3 |
-| [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | P4 |
-| [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | P3 |
-| [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Holds no grid; `calculate_fees` takes `GridTopologyInfo` and `GridSignals[t−1]` (loading, external-grid exchange, electrical distance); `validate_grid_constraints` removed; tariffs and residual clearing unchanged | P3, P5 |
-| [marketplace/market/order.py](../../../src_thesis/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | P3 |
-| [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | P3 |
-| [marketplace/observation.py](../../../src_thesis/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | P5 |
-| [marketplace/reward.py](../../../src_thesis/marketplace/reward.py) | `reward_version`; violation term (D-11) | P5 |
-| [cooperation/implicit_cooperation.py](../../../src_thesis/cooperation/implicit_cooperation.py) | `grid_congestion` and imbalance from the assessment | P4 |
-| [cooperation/metrics/grid_metrics.py](../../../src_thesis/cooperation/metrics/grid_metrics.py) | Rebuilt on the assessment history | P5 |
-| [marl/train.py](../../../src_thesis/marl/train.py) | `env_config` carries the experiment file section. Each runner builds its env through the factory. | P6 |
+| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 (rename to `contract.py` when stable). **Done 2026-09-25**, with the catalog records for §2; `GridTopologyInfo`, `GridSignals` and `GridModel.topology_info` (§5.1) still to add. | R3 |
+| `marketplace/grid/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
+| [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. **§2 catalog done 2026-09-25** (SimBench + built-in; files not yet); §4–§6 step-time model open. | R3 |
+| `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | R3 |
+| [adapters/grid/network.py](../../../src_thesis/adapters/grid/network.py), [marketplace/grid/base.py](../../../src_thesis/marketplace/grid/base.py), [config.py](../../../src_thesis/marketplace/grid/config.py) | **Removed from the tool** (frozen in `src_thesis_reference/`). `Location` shrinks to participant ID + bus ID. | R3 |
+| [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |
+| [marketplace/market/matching.py](../../../src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | R3 |
+| [marketplace/dso/dso.py](../../../src_thesis/marketplace/dso/dso.py) | Holds no grid; `calculate_fees` takes `GridTopologyInfo` and `GridSignals[t−1]` (loading, external-grid exchange, electrical distance); `validate_grid_constraints` removed; tariffs and residual clearing unchanged | R3, R5 |
+| [marketplace/market/order.py](../../../src_thesis/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | R3 |
+| [marl/agents/der.py](../../../src_thesis/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | R3 |
+| [marketplace/observation.py](../../../src_thesis/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | R5 |
+| [marketplace/reward.py](../../../src_thesis/marketplace/reward.py) | `reward_version`; violation term (D-11) | R5 |
+| [cooperation/implicit_cooperation.py](../../../src_thesis/cooperation/implicit_cooperation.py) | `grid_congestion` and imbalance from the assessment | R4 |
+| [cooperation/metrics/grid_metrics.py](../../../src_thesis/cooperation/metrics/grid_metrics.py) | Rebuilt on the assessment history | R5 |
+| [marl/train.py](../../../src_thesis/marl/train.py) | `env_config` carries the experiment file section. Each runner builds its env through the factory. | R6 |
 
 ## 8. Open decisions
 
@@ -283,9 +284,9 @@ These are applied **after** the validated release (P2), in `src_thesis/`, keepin
 | Physical `B_grid` | `−external_grid_kwh` replaces the trade-based imbalance | I-23, I-68 |
 | Line ratings for `case33bw` | Check whether the "Enhanced IEEE 33-bus" paper provides them; otherwise a documented rule | — |
 
-## 9. Performance (measure in P4)
+## 9. Performance (measure in R4)
 
-Measure the following per network and resolution. Compare against the validated release: about 15 ms per `env.step` in `marlem-baseline` for Case 6 after its speed-ups, dominated by blockchain proof-of-work.
+Measure the following per network and resolution. Compare against the corrected original in `marlem-baseline`: about 15 ms per `env.step` for Case 6 after its speed-ups, dominated by blockchain proof-of-work.
 
 - cold and warm `runpp` time;
 - deep-copy time;

@@ -37,7 +37,7 @@
 | `T1` … `T13` | Evidence fact reproduced by the trace script | [issues.md §1](issues.md#1-evidence) |
 | `[P1]`, `[P2]` | The two papers. `P` with brackets means a paper, nothing else. | [methodology.md](methodology.md) |
 | `P0-01` … `P3-03` | Old fix-plan IDs. Aliases only, in the register's Old ID column. | [issues.md §6](issues.md#6-old-fix-plan-ids) |
-| `R1` … `R9` | Architecture roadmap phases (renamed from `P1`–`P9` to free `P` for the papers). **Pending**: the rename touches the architecture docs, which this trial does not edit. | [../architecture/README.md](../architecture/README.md) |
+| `R1` … `R9` | Architecture roadmap phases (renamed from `P1`–`P9` on 2026-09-27 to free `P` for the papers) | [../architecture/README.md](../architecture/README.md) |
 
 ## Legends
 
@@ -95,4 +95,4 @@ The Todo Tree extension colours these lines, marks them on the scrollbar, and li
 
 Done: this folder replaced `validation/`; `paper/marlem-faults-by-level.md` and the code-annotated `paper/marlem-methodology.md` were removed (merged here); the paper-only copy became `paper/marlem-methodology.md`; inbound links were repointed; [tests/test_validation_docs.py](../../../tests/test_validation_docs.py) runs `check_docs.py`, so a stale doc fails `pytest`.
 
-Pending: renaming the roadmap phases `P1`–`P9` → `R1`–`R9` (architecture docs), together with the open architecture questions.
+Also done 2026-09-27: roadmap phases renamed `P1`–`P9` → `R1`–`R9`; the NetworkX validated release (old P2) retired.

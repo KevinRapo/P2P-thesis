@@ -13,7 +13,7 @@ Run it with the `marlem` conda env from the repository root: `python -m src_thes
 | Returned data | [application/models.py](../../../src_thesis/application/models.py) | Pydantic models. `ExperimentFile` sections are still plain dicts. |
 | Demo services | [application/demo.py](../../../src_thesis/application/demo.py) | Deterministic sample data; no MARLEM, pandapower or Ray. Labelled "DEMO DATA" in the header. |
 | Real grid catalog | [application/grid_catalog.py](../../../src_thesis/application/grid_catalog.py) → [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | The Grid page shows real SimBench and pandapower built-in networks: catalog by voltage level, summary, geodata topology (a generated tree layout without geodata), elements per bus (click a bus), and a one-hour power flow from the SimBench profiles. Default in the Studio; `MARLEM_STUDIO_GRID=demo` switches back. Header: "DEMO DATA · real grid". Tests: [tests/test_grid_catalog.py](../../../tests/test_grid_catalog.py). |
-| Wiring | [application/container.py](../../../src_thesis/application/container.py) | `build_services("demo", grid="pandapower")`: real services replace demo ones one at a time; `"real"` is reserved for P6–P7 |
+| Wiring | [application/container.py](../../../src_thesis/application/container.py) | `build_services("demo", grid="pandapower")`: real services replace demo ones one at a time; `"real"` is reserved for R6–R7 |
 | Studio | [studio/](../../../src_thesis/studio/) | Shell, theme (light and dark), navigation, all pages below with their layout and demo data. Buttons without a service behind them show "not implemented yet". |
 | Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`; if `application/` imports MARLEM runtime, pandapower, simbench, Ray or torch (it may use `adapters/` and the grid contract, 04 §1); if anything outside `adapters/` imports pandapower or simbench; or if the demo services load pandapower |
 
@@ -88,7 +88,7 @@ The **BUILD** pages edit the world sections of one draft experiment file (`time`
 |---|---|---|
 | Status | Repository and environment health (git dirty, deps, validation-plan progress) | `ResultService`, `ConfigService` |
 | Recent | The last drafts and the last runs with their state | `ConfigService.list`, `ExperimentService.list_runs` |
-| Start | "New from preset" (Cases 1–7 on SimBench), "Open file", "Import bundle" | `ConfigService.from_preset` |
+| Start | "New from preset" (Cases 1–7 on SimBench), "Open file", "Import bundle" | `ConfigService.new_from_preset` |
 
 ### 4.2 Grid (`/build/grid`)
 
@@ -99,7 +99,7 @@ The purpose of this page is to choose the network and to understand it before pl
 | Network source | `simbench` (code picker) · `pandapower_builtin` (e.g. IEEE 33-bus, CIGRE) · `pandapower_file` (upload JSON) | `GridCatalogService.list_networks` |
 | Network picker | Filterable list of SimBench codes (voltage level, rural/semi-urban/urban, scenario 0/1/2, bus/load/PV counts) | `GridCatalogService.list_networks` |
 | Topology view | Plotly network from geodata. Buses are coloured by element type; the transformer and external grid are marked. Clicking a bus shows its elements. | `GridCatalogService.topology`, `elements` |
-| Element tables | Loads, sgens, storage: ID, bus, profile type, rated power | `GridCatalogService.summary` |
+| Element tables | Loads, sgens, storage: ID, bus, profile type, rated power | `GridCatalogService.elements` |
 | Power-flow preview | Pick a day and step → run one power flow on the unmodified feeder; show voltage colouring, max loadings and violations | `GridCatalogService.preview_powerflow` |
 | Limits and ratings | Voltage band, loading limits; ratings source when the network has none (rule or file) | writes the draft |
 
@@ -110,7 +110,7 @@ The purpose of this page is to define the agents and tie them to buses and profi
 | Region | Content | Services |
 |---|---|---|
 | Participant table | One row per agent: ID, role label, bus, owned elements, profile source (native, catalog, csv, synthetic), scaling, battery, capacity (derived) | writes the draft |
-| Assignment tools | Add manually · apply rule ("N household+PV buses", "feeder ends", seeded) · import a mapping file · load the [P2] Table 6 roles | `ProfileService.suggest_mapping`, `apply_rule`, `import_mapping` |
+| Assignment tools | Add manually · apply rule ("N household+PV buses", "feeder ends", seeded) · import a mapping file · load the [P2] Table 6 roles | `ProfileService.suggest_mapping`, `import_mapping` |
 | Map | The Grid page's topology with participant buses highlighted; click a bus to assign or unassign | `GridCatalogService.topology` |
 | Time window | Resolution (15 min / hourly), day mode (fixed date / range / sampler with held-out share), seed | writes the draft |
 | Profile preview | For the selected agent: generation, demand and net over the window; overlay of the background total | `ProfileService.preview` |
@@ -150,7 +150,7 @@ Services: `ConfigService.save`, `export_bundle`.
 | Resources | CPUs per run, parallel runs |
 | Run estimate | Number of runs and estimated time, from the stored benchmarks |
 
-Services: `ConfigService.save`, `ExperimentService.expand`.
+Services: `ConfigService.save`, `ConfigService.expand`, `ExperimentService.estimate`.
 
 ### 4.7 Validate (`/experiment/validate`)
 
@@ -187,7 +187,7 @@ Services: `ExperimentService.list_runs`, `snapshot`, `cancel` (polled every 1–
 
 - **Matrix view** for an experiment: algorithm × paradigm heat table for any metric (mean ± std over seeds). This is the 3 × 3 result table.
 - **Run overlay**: pick runs and overlay a metric (for example two feeders, or reward v1 vs v2). Runs with different reward versions are flagged as non-comparable.
-- **Reference overlay**: the validated release's stored results (P2) for the same case, drawn as a reference. They are read from data files and are not re-run.
+- **Paper overlay**: values reported in the papers for the same case (reference data, 04 §5), drawn as reference lines. Nothing from the original is re-run.
 
 Services: `ResultService.matrix`, `compare`.
 
@@ -196,7 +196,7 @@ Services: `ResultService.matrix`, `compare`.
 - Experiment files and presets: open, clone, delete (drafts only), import and export bundles.
 - Shows the provenance chain: preset → experiment file → runs.
 
-## 5. Build order (P8)
+## 5. Build order (R8)
 
 1. **Shell + Runs + Results (Overview and Learning).** Read-only; proves the store and the service boundary.
 2. **Grid page.** Proves the catalog and the power-flow preview without RL.

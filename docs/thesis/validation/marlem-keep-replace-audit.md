@@ -40,7 +40,7 @@
 
 **In numbers:** the non-RL environment is about 5 800 lines (without analytics and plots). Roughly **1 600 lines (~27 %) can be kept** with fixes; about 2 100 are rewritten from the paper using the original as a sketch; about 1 600 are replaced by SimBench, pandapower and the experiment layer. Analytics and plotting (about 4 000 lines, mostly unaudited) are dropped.
 
-**Recommendation:** build the SimBench edition as a new environment package that *imports* the kept pieces (pricing, orders, battery, tariffs, KPIs, reputation) and rewrites the orchestration (loop, matching, settlement, observation, reward). Repairing the original loop first buys little: two of its three most coupled parts (grid flows and losses in matching, the NetworkX grid) are thrown away anyway, and the third (the episode loop) needs a new settlement and grid step regardless.
+**Decided 2026-09-27 (D-04, D-14):** the rebuild happens in place in `src_thesis/`, keeping file names and class responsibilities (files may be rewritten); `src_thesis/`'s original state is frozen in `src_thesis_reference/`. *Original recommendation:* build the SimBench edition as a new environment package that *imports* the kept pieces (pricing, orders, battery, tariffs, KPIs, reputation) and rewrites the orchestration (loop, matching, settlement, observation, reward). Repairing the original loop first buys little: two of its three most coupled parts (grid flows and losses in matching, the NetworkX grid) are thrown away anyway, and the third (the episode loop) needs a new settlement and grid step regardless.
 
 ## 2. Where the original is coupled to its grid
 
@@ -198,10 +198,10 @@ Steps 1–7 need no Ray at all, so every environment bug is found and fixed befo
 ## 7. Consequences for the existing plans
 
 - **Validation plan (Stages A–D):** the steps stay as the checklist, but each is satisfied by the *new* code. "Port the fix into the original" becomes "build the component, run its issue demos".
-- **Architecture roadmap:** P1 "validate original" and P2 "validated release (NetworkX)" shrink or disappear. The thesis claim becomes a **paper-faithful reimplementation on SimBench** (already the framing in [issues.md §4](issues.md#4-impact-on-the-published-results)); comparison with the published numbers is qualitative, since the original grid is not reproduced.
+- **Architecture roadmap (decided 2026-09-27):** R1 (was P1) is now "rebuild and validate", and the NetworkX validated release (old P2) is retired. The thesis claim becomes a **paper-faithful reimplementation on SimBench** (already the framing in [issues.md §4](issues.md#4-impact-on-the-published-results)); comparison with the published numbers is qualitative, since the original grid is not reproduced.
 - **What you give up:** a like-for-like rerun of the paper's cases on the paper's grid. Given the grid defects ([I-32](issues.md#I-32), [I-33](issues.md#I-33), [I-57](issues.md#I-57)), such a rerun would not reproduce the published figures anyway.
 
-**Decisions for you:**
-1. Adopt the rebuild route and retire the NetworkX validated release (P2)?
-2. New package next to the original (e.g. `src_thesis/sbenv/`) or rewrite in place under `marketplace/`?
-3. Keep the blockchain ledger at all (optional, off by default), or drop it?
+**Decisions:**
+1. ~~Adopt the rebuild route and retire the NetworkX validated release?~~ **Yes** (2026-09-27, D-02).
+2. ~~New package or rewrite in place?~~ **In place in `src_thesis/`**, same file names; frozen original in `src_thesis_reference/` (2026-09-27, D-04, D-14).
+3. Keep the blockchain ledger at all (optional, off by default), or drop it? **Open.**

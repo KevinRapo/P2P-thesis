@@ -20,7 +20,7 @@ docs/
     │       ├── issue_demos.py / .ipynb / test_issue_demos.py  # One demonstration per issue
     │       └── trace_original_episode.py   # Reproduces trace facts T1–T13
     └── architecture/               # Next: SimBench grid and the platform
-        ├── README.md               # Master: goal, roadmap P1–P9, decision log (start here)
+        ├── README.md               # Master: goal, roadmap R1–R9, decision log (start here)
         ├── 01-paper-to-code-map.md # Fig. 2 → src_thesis, what changes
         ├── 02-simbench-grid.md     # Networks, profile assignment, grid contract, step changes
         ├── 03-experiment-config.md # Scenario / Experiment / Run specs, presets, sharing
@@ -41,8 +41,8 @@ docs/
 | [validation/marlem-keep-replace-audit.md](validation/marlem-keep-replace-audit.md) | **Rebuild or repair?** Function-by-function verdicts (keep / keep + fix / rewrite / replace / drop / later RL) for building a SimBench edition on the papers' method, where the original is coupled to its grid, and what happens to the 80 issues. |
 | [validation/evidence/trace_original_episode.py](validation/evidence/trace_original_episode.py) | Rerunnable proof of the T1–T13 facts. Run with the `marlem` conda env: `python docs/thesis/validation/evidence/trace_original_episode.py` |
 
-## Architecture (after validation)
+## Architecture (SimBench edition)
 
-Start with [architecture/README.md](architecture/README.md). It holds the goal, the roadmap (P1 = the validation above → P9 = evidence runs on SimBench), the decision log (D-01…) and the order to read the numbered documents 01–05.
+Start with [architecture/README.md](architecture/README.md). It holds the goal, the roadmap (R1 = rebuild and validation above → R9 = evidence runs on SimBench), the decision log (D-01…) and the order to read the numbered documents 01–05.
 
 `guidelines.md` and `tests.md` from the upstream repository were removed. See `marlem-main/docs/` for them.
