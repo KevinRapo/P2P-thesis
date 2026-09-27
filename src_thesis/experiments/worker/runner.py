@@ -84,7 +84,7 @@ class BaselineRunner:
 
 
 class TrainingRunner:
-    """RLlib training with evaluation; owns ``ray.init`` / ``ray.shutdown`` (04 §4)."""
+    """RLlib training with evaluation; owns ``ray.init`` / ``ray.shutdown`` (06 §3.10)."""
 
     def run(self, ctx: RunContext) -> RunOutcome:
         raise NotImplementedError("training runs are built in validation stage D")

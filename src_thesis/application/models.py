@@ -3,7 +3,7 @@
 These models are the only types that cross the boundary between the
 application layer and its callers (NiceGUI Studio, CLI, notebooks). They must
 stay free of MARLEM runtime objects, pandapower nets and Ray objects, see
-docs/thesis/architecture/04-services.md.
+docs/thesis/architecture/04-application-layer.md.
 """
 
 from datetime import datetime
@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-# The experiment file and run records belong to the experiment layer (04 §1);
+# The experiment file and run records belong to the experiment layer (architecture README §2.1);
 # they are re-exported here so callers keep importing them from one place.
 from src_thesis.experiments.models import (  # noqa: F401
     ExperimentFile,

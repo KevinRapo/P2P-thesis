@@ -99,7 +99,7 @@ def expand(file: ExperimentFile) -> list[RunCell]:
 
 
 def run_id(experiment_id: str, cell: RunCell, file_hash: str) -> str:
-    """``<meta.id>__<sweep-label>__<algo>-<paradigm>__s<seed>__<hash8>`` (04 §5)."""
+    """``<meta.id>__<sweep-label>__<algo>-<paradigm>__s<seed>__<hash8>`` (06 §3.2)."""
     learner = (
         cell.algorithm if cell.kind != "train" else f"{cell.algorithm}-{cell.paradigm}"
     )

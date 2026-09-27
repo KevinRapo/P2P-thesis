@@ -1,4 +1,4 @@
-"""GridCatalogService backed by the pandapower adapter (04-services.md §2.2).
+"""GridCatalogService backed by the pandapower adapter (04-application-layer.md §2.2).
 
 The service translates between the API models the Studio and CLI use
 (``application.models``) and the plain grid contract the adapter returns

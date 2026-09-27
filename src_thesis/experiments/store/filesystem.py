@@ -1,4 +1,4 @@
-"""The filesystem experiment store (06-experiment-layer.md §3.5, 04 §5).
+"""The filesystem experiment store (06-experiment-layer.md §3.5).
 
 One folder per run. Small state files are replaced atomically; logs, metrics
 and step records are append-only. The store is the source of truth: the index

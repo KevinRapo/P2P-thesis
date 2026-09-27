@@ -87,7 +87,7 @@ class RunState(str, Enum):
 
 TERMINAL_STATES = frozenset({RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED})
 
-# Allowed state changes (04 §4). Anything may fail; a terminal state is final.
+# Allowed state changes (06 §4). Anything may fail; a terminal state is final.
 TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     # READY -> RUNNING: a worker started directly (CLI debugging) skips the queue
     RunState.READY: frozenset({RunState.QUEUED, RunState.RUNNING, RunState.CANCELLED}),

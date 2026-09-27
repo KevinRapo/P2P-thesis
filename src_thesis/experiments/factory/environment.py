@@ -1,6 +1,6 @@
 """The only place that turns an experiment file into live MARLEM objects.
 
-06-experiment-layer.md §3.7 and 04 §3. Everyone builds environments here: the
+06-experiment-layer.md §3.7. Everyone builds environments here: the
 worker, validation dry runs, notebooks and tests. RLlib env runners call the
 factory inside each runner; only the resolved file travels in ``env_config``,
 never a network or agents.
@@ -39,7 +39,7 @@ def build_env_config(
 def build_env(env_config: dict[str, Any]) -> Any:
     """Build one ``LocalEnergyMarket`` from an ``env_config``.
 
-    Steps (04 §3):
+    Steps (06 §3.7):
     1. take this episode's day from the resolved train (or eval) day list;
     2. build profiles through the selected profile sources (02 §3);
     3. build agents (with batteries), DSO tariffs and fees, and ``MarketConfig``;

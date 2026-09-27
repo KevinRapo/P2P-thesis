@@ -1,4 +1,4 @@
-"""The worker process: runs exactly one run (06-experiment-layer.md §3.10, 04 §4).
+"""The worker process: runs exactly one run (06-experiment-layer.md §3.10).
 
     python -m src_thesis.experiments.worker --run-dir <store>/runs/<run_id>
 

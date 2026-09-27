@@ -1,6 +1,6 @@
 """Service interfaces used by the Studio, the CLI and notebooks.
 
-Each protocol mirrors a method table in docs/thesis/architecture/04-services.md.
+Each protocol mirrors a method table in docs/thesis/architecture/04-application-layer.md.
 Implementations live elsewhere: `application.demo` (sample data, no MARLEM)
 and, later, real services backed by the experiment layer and adapters.
 """

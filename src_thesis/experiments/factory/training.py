@@ -1,4 +1,4 @@
-"""From the ``learning`` section to an RLlib configuration (06 §3.8, 04 §3).
+"""From the ``learning`` section to an RLlib configuration (06 §3.8).
 
 Replaces the hard-coded blocks of ``marl/train.py`` (``RLTrainer``): algorithm
 hyperparameters, paradigm module, tuning, rollouts, checkpoints and evaluation

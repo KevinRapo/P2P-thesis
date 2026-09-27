@@ -7,7 +7,7 @@ buffers those records per episode and writes them to the store at episode end:
 - ``raw/steps.jsonl``: one line per step (only if ``outputs.record_steps`` asks
   for it, by default evaluation episodes only);
 - ``metrics/evaluation.jsonl``: one line per evaluation episode with the
-  research outcomes, kept apart from RL learning metrics (04 §5).
+  research outcomes, kept apart from RL learning metrics (06 §3.5).
 
 The fields of ``StepRecord`` stay dictionaries until the rebuilt environment
 (R1, R4) fixes their content; the record shape is what matters here.
