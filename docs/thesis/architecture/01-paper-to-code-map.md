@@ -1,7 +1,7 @@
 # 01. Paper-to-code map
 
 > Where each component of [P1] Fig. 2 lives in `src_thesis/`, which validation step covers it, and what changes when SimBench and the platform are added.
-> Master: [README.md](README.md). Validation steps: [../validation/plan-by-level.md](../validation/plan-by-level.md).
+> Master: [README.md](README.md). Validation steps: [../validation/plan.md](../validation/plan.md).
 
 `src_thesis/` holds the original MARLEM code, relocated into paper levels with the **same file names** (see [`src_thesis/README.md`](../../../src_thesis/README.md) for the full original → new path table). `src/` is kept unchanged as the historical comparison. After validation, the state of `src_thesis/` is tagged as the **validated release** (P2). From then on the tool changes it towards SimBench, and the NetworkX grid leaves the tool.
 

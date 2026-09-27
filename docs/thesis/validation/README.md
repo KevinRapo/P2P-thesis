@@ -1,6 +1,6 @@
 # Validation of the original MARLEM
 
-> **Trial layout (2026-09-24).** This folder is a restructured copy of [../validation/](../validation/) and the two validation files in [../../paper/](../../paper/). The originals are untouched so both can be compared side by side. Nothing here is committed yet.
+> Adopted 2026-09-27: this layout replaced the earlier `validation/` files (paper-vs-code, plan-by-level, validation-plan-fix) and the two validation files in `paper/`. §"Where the old content went" maps each old section to its new place.
 
 ## Files
 
@@ -11,6 +11,7 @@
 | [plan.md](plan.md) | The **work order**: steps A0 → D3 with components, decisions to take first and acceptance tests. Fault maps, root-cause propagation, decision log, progress. | A step's scope or test changes; a decision is taken |
 | [check_docs.py](check_docs.py) | Checks that the files agree with each other and with the code markers, and rebuilds the generated tables and diagrams | — |
 | [evidence/](evidence/) | [issue_demos.py](evidence/issue_demos.py): one small experiment per issue (48 so far), expected vs actual, plus a showability tier for all 80. [issue_demos.ipynb](evidence/issue_demos.ipynb) renders them one by one; [test_issue_demos.py](evidence/test_issue_demos.py) runs them as strict-xfail acceptance tests. [trace_original_episode.py](evidence/trace_original_episode.py): the older one-episode trace behind T1–T13. | A demo is added, or an issue is fixed (move its ID to `FIXED` in the test file) |
+| [marlem-keep-replace-audit.md](marlem-keep-replace-audit.md) | Rebuild or repair: function-by-function verdicts for a SimBench edition built on the papers' method, the grid coupling, and what happens to the 80 issues | The rebuild plan changes |
 | [archive/validation-plan-fix.md](archive/validation-plan-fix.md) | The earlier audit (P0-01 … P3-03). Frozen, not kept in sync. | Never |
 
 ## Rules that keep the files in sync
@@ -20,7 +21,7 @@
 3. **Generated blocks are never edited by hand.** They sit between `<!-- BEGIN generated:NAME -->` and `<!-- END generated:NAME -->`. After changing the register, run:
 
    ```text
-   python docs/thesis/validation-test/check_docs.py --write
+   python docs/thesis/validation/check_docs.py --write
    ```
 
    Without `--write` it only checks, and fails if a block is stale. Use the `marlem` conda env.
@@ -90,9 +91,8 @@ The Todo Tree extension colours these lines, marks them on the scrollbar, and li
 | `paper/marlem-methodology.md` | [methodology.md](methodology.md); the hand-counted totals are generated |
 | `validation/validation-plan-fix.md` | [archive/](archive/validation-plan-fix.md), frozen |
 
-## If this layout is adopted
+## Adoption (2026-09-27)
 
-1. Delete `validation/` and move this folder to its place (rename `validation-test` → `validation`); fix the paths in `check_docs.py`'s docstring.
-2. Delete `paper/marlem-faults-by-level.md` and `paper/marlem-methodology.md`; rename `paper/marlem-methodology copy.md` → `paper/marlem-methodology.md` and update the link in [methodology.md](methodology.md).
-3. Update [../README.md](../README.md), [../architecture/README.md](../architecture/README.md) and [../architecture/01-paper-to-code-map.md](../architecture/01-paper-to-code-map.md) links; rename roadmap phases `P1`–`P9` → `R1`–`R9`.
-4. Call `check_docs.py` from a test (e.g. `tests/test_validation_docs.py`) so a stale doc fails `pytest`.
+Done: this folder replaced `validation/`; `paper/marlem-faults-by-level.md` and the code-annotated `paper/marlem-methodology.md` were removed (merged here); the paper-only copy became `paper/marlem-methodology.md`; inbound links were repointed; [tests/test_validation_docs.py](../../../tests/test_validation_docs.py) runs `check_docs.py`, so a stale doc fails `pytest`.
+
+Pending: renaming the roadmap phases `P1`–`P9` → `R1`–`R9` (architecture docs), together with the open architecture questions.

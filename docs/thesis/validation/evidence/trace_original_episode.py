@@ -1,4 +1,4 @@
-"""Evidence for docs/thesis/validation/paper-vs-code.md.
+"""Evidence T1-T13 for docs/thesis/validation/issues.md.
 
 Runs the ORIGINAL MARLEM code (marlem-dev/src, byte-identical to marlem-main/src)
 for one episode with random actions and prints the facts the outline cites (T1-T11).

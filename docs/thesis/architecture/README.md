@@ -3,7 +3,7 @@
 > Status: target architecture, agreed direction, details open where marked **Decision**.
 > Written: 2026-09-23 · Branch: `dev`
 > Scope: everything *after* validation: the SimBench grid, experiment configuration, services, CLI and the NiceGUI Studio.
-> The validation of the original MARLEM is planned in [../validation/plan-by-level.md](../validation/plan-by-level.md) and is a prerequisite for most of this.
+> The validation of the original MARLEM is planned in [../validation/plan.md](../validation/plan.md) and is a prerequisite for most of this.
 
 ## 1. Goal
 
@@ -80,7 +80,7 @@ Each phase has an exit criterion.
 
 | Phase | Content | Exit criterion | Doc |
 |---|---|---|---|
-| **P1 Validate original** | Steps A0–D3 in the validation plan | All 80 issues `fixed` / `decided` / `wontfix`. The evidence trace passes on the corrected code. | [validation](../validation/plan-by-level.md) |
+| **P1 Validate original** | Steps A0–D3 in the validation plan | All 80 issues `fixed` / `decided` / `wontfix`. The evidence trace passes on the corrected code. | [validation](../validation/plan.md) |
 | **P2 Validated release** | Tag and archive the validated MARLEM (NetworkX grid); run and store reference results for Cases 1–7 and the 3 × 3 matrix; write its release notes | Tagged release + stored reference results + list of corrections and decisions | 03 §8 |
 | **P3 Grid seam + pandapower adapter** | Grid contracts, the settlement → injection builder, lossless market, SimBench / built-in / file network loading, profile catalogue, participant mapping, power flow → `GridAssessment`. The NetworkX grid is removed from the tool. | Adapter tests pass: mapping validation, 15-min/hourly alignment, injection signs, convergence, violations | 02 §2–§5 |
 | **P4 SimBench, shadow mode** | Assessment runs inside the step and is recorded; rewards and observations unchanged | A full episode runs on SimBench; `env.step` cost measured | 02 §6 |

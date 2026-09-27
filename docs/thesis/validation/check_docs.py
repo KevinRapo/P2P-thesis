@@ -6,8 +6,8 @@ code markers current, and rebuilds the tables and diagrams that are derived
 from it (the blocks between
 ``<!-- BEGIN generated:NAME -->`` and ``<!-- END generated:NAME -->``).
 
-    python docs/thesis/validation-test/check_docs.py          # check only
-    python docs/thesis/validation-test/check_docs.py --write  # refresh, then check
+    python docs/thesis/validation/check_docs.py          # check only
+    python docs/thesis/validation/check_docs.py --write  # refresh, then check
 
 Exit code 1 means an error (broken link, unknown ID, stale block, marker that
 disagrees with the register). Warnings do not fail the run.
@@ -27,7 +27,8 @@ ISSUES = HERE / "issues.md"
 PLAN = HERE / "plan.md"
 METHOD = HERE / "methodology.md"
 README = HERE / "README.md"
-DOCS = [README, ISSUES, PLAN, METHOD]
+AUDIT = HERE / "marlem-keep-replace-audit.md"
+DOCS = [README, ISSUES, PLAN, METHOD, AUDIT]
 
 TAG = {"❌": "FAULT", "⚠️": "DEVIATION", "❓": "DECIDE"}
 ORIGINS = {"Paper", "Fidelity", "Code"}

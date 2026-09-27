@@ -2,7 +2,7 @@
 
 > What the two MARLEM papers specify (loop, model, every equation) and, per section, how the original code implements it. This file is the **only** paper-vs-code comparison; it replaces the "component contract" of the old paper-vs-code.md.
 > Each section first states **what the papers say**. It ends with an **"Implementation in the original code"** table: one row per paper element, the code that implements it (exact lines), a status mark, and the issue it belongs to. Issue IDs link to their row in [issues.md](issues.md), which holds the issue text, evidence and status.
-> Legends: [README.md](README.md#legends). The paper-only version (no code) is [../../paper/marlem-methodology copy.md](<../../paper/marlem-methodology copy.md>).
+> Legends: [README.md](README.md#legends). The paper-only version (no code) is [../../paper/marlem-methodology.md](../../paper/marlem-methodology.md).
 > Formulas use LaTeX math (`$…$`, `$$…$$`). They render in the VS Code Markdown preview (Ctrl+Shift+V) and on GitHub.
 
 **Sources**
