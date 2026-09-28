@@ -31,7 +31,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph APP["application/ (03) · demo today, real in R7"]
+  subgraph APP["application/ (03) · ConfigService real, others R7"]
     CF["ConfigService"]
     EX["ExperimentService"]
     RE["ResultService"]
@@ -52,8 +52,8 @@ flowchart LR
   subgraph DOM["MARLEM domain + adapters"]
     ENV["LocalEnergyMarket, agents, grid"]
   end
-  CF -. "1" .-> FIL
-  CF -. "2" .-> EXPD
+  CF -->|"1"| FIL
+  CF -->|"2"| EXPD
   EX -. "3" .-> EXPD
   EX -. "4" .-> MAN
   EX -. "5" .-> STO
@@ -68,12 +68,12 @@ flowchart LR
   RE -. "14" .-> STO
 ```
 
-Solid arrows are implemented and tested; dashed arrows are the planned calls (the services are demo implementations until R7, `build_env` waits for R1 / R4, training for stage D). Each number is one call in the table below.
+Solid arrows are implemented and tested; dashed arrows are the planned calls (the services other than `ConfigService` are demo implementations until R7, `build_env` waits for R1 / R4, training for stage D). Each number is one call in the table below.
 
 | # | Business step | Call (caller → callee) | State |
 |---|---|---|---|
-| 1 | Open, edit and save an experiment file | [`ConfigService`](03-application-layer.md#21-configservice-experiment-files) → [`files.load`](../../../src_thesis/experiments/models/files.py#L41) / [`save`](../../../src_thesis/experiments/models/files.py#L65) / [`canonical_hash`](../../../src_thesis/experiments/models/files.py#L75) / [`json_schema`](../../../src_thesis/experiments/models/files.py#L80) | planned (R7) |
-| 2 | Preview what a file will run | `ConfigService.resolve` / `expand` → [`resolve.resolve`](../../../src_thesis/experiments/models/resolve.py#L122), [`expand.expand`](../../../src_thesis/experiments/models/expand.py#L67) | planned (R7) |
+| 1 | Open, edit and save an experiment file | [`ConfigService`](03-application-layer.md#21-configservice-experiment-files) → [`files.load`](../../../src_thesis/experiments/models/files.py#L41) / [`save`](../../../src_thesis/experiments/models/files.py#L65) / [`canonical_hash`](../../../src_thesis/experiments/models/files.py#L75) / [`json_schema`](../../../src_thesis/experiments/models/files.py#L80) | implemented (`FileConfigService`) |
+| 2 | Preview what a file will run | `ConfigService.resolve` / `expand` → [`resolve.resolve`](../../../src_thesis/experiments/models/resolve.py#L122), [`expand.expand`](../../../src_thesis/experiments/models/expand.py#L67) | implemented (`FileConfigService`) |
 | 3 | Turn a file into runs | [`ExperimentService.create_runs`](03-application-layer.md#25-experimentservice-runs) → [`expand`](../../../src_thesis/experiments/models/expand.py#L67), then per cell [`resolve_run`](../../../src_thesis/experiments/models/resolve.py#L138) and [`run_id`](../../../src_thesis/experiments/models/expand.py#L101) | planned (R7) |
 | 4 | Pin what each run was built from | `create_runs` → [`build_manifest`](../../../src_thesis/experiments/models/manifest.py#L24) (code, environment and data fingerprints) | planned (R7) |
 | 5 | Create the run folder (state READY) | `create_runs` → [`ExperimentStore.create_run`](../../../src_thesis/experiments/store/filesystem.py#L58) writes `resolved.json`, `manifest.json`, `status.json` | planned (R7) |

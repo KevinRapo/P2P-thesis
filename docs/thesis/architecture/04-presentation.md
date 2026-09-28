@@ -33,7 +33,7 @@ Run it with the `marlem` conda env from the repository root: `python -m src_thes
 
 | Part | Location | State |
 |---|---|---|
-| Services behind the pages | [application/](../../../src_thesis/application/) | Demo services, except the real grid catalog on the Grid page; status per service in [03 §1](03-application-layer.md#1-status-and-wiring) |
+| Services behind the pages | [application/](../../../src_thesis/application/) | Demo services, except the real grid catalog on the Grid page and real experiment files (presets and the workspace library, 03 §2.1); status per service in [03 §1](03-application-layer.md#1-status-and-wiring) |
 | Studio | [studio/](../../../src_thesis/studio/) | Shell, theme (light and dark), navigation, all pages below with their layout and demo data. Buttons without a service behind them show "not implemented yet". |
 | Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`; if `application/` imports MARLEM runtime, pandapower, simbench, Ray or torch (it may use `adapters/` and the grid contract, README §2.1); if anything outside `adapters/` imports pandapower or simbench; or if the demo services load pandapower |
 

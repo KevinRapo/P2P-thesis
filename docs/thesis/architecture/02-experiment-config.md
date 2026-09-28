@@ -466,7 +466,7 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 **Why:** The papers' seven cases as ready-made files, so reproducing a case is "open the preset, run it", and new studies start from a known, validated configuration.
 
 ```text
-experiments/presets/              # in the repo
+src_thesis/experiments/presets/   # in the repo, read-only
 ├── case1-mechanisms.marlem.json          sweep: market.mechanism (6)
 ├── case2-heterogeneity.marlem.json       sweep: participant sizes (balanced / monopoly / oligopoly)
 ├── case3-dso-strategies.marlem.json      sweep: dso.fees + tariffs (permissive / moderate / strict / dynamic)
@@ -478,6 +478,7 @@ experiments/presets/              # in the repo
 
 - Case 4 on SimBench is a different study from the paper's topology/capacity comparison (real physics). This is documented in the preset's `description`.
 - The [P2] Case 6 profile mapping is unpublished (I-51), so the Case 6 preset is `reconstructed-unverified`.
+- State (2026-09-28): the seven files exist and load, resolve and expand. Only Case 1 has its sweep yet. All use a placeholder mapping (the agents own the first eight loads of `1-LV-semiurb4--0-sw`) until the mapping tools exist (R3); each preset's `description` says so.
 
 [↑ Contents](#contents)
 

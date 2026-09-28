@@ -22,12 +22,12 @@
 
 ## 0. At a glance
 
-Every caller gets the six services from one container; each service reaches exactly the lower layers it needs (§4). Green = real implementation today, grey = demo.
+Every caller gets the six services from one container; each service reaches exactly the lower layers it needs (§4). Green = real implementation today (the grid catalog and the experiment files), grey = demo.
 
 ```mermaid
 flowchart LR
-  CALL["Studio · CLI · notebooks"] --> BS["build_services(mode, grid)"]
-  BS --> CF["ConfigService"]:::demo
+  CALL["Studio · CLI · notebooks"] --> BS["build_services(mode, grid, config)"]
+  BS --> CF["ConfigService"]:::real
   BS --> GC["GridCatalogService"]:::real
   BS --> PR["ProfileService"]:::demo
   BS --> VA["ValidationService"]:::demo
@@ -68,11 +68,13 @@ Services return plain data only (§3); nothing from the lower layers reaches the
 | [models.py](../../../src_thesis/application/models.py) | The UI never holds engine objects, only these plain records | The plain data the services return (§3) | Done; experiment sections still dicts |
 | [demo.py](../../../src_thesis/application/demo.py) | The Studio can be built and tested before the engine exists | Demo implementations with deterministic sample data; no MARLEM, pandapower or Ray | Done |
 | [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | The first real service: browse real networks in the Studio today | The real `GridCatalogService` over the pandapower adapter | Done (R3, catalog part) |
-| [container.py](../../../src_thesis/application/container.py) | One switch between demo and real services, in one file | `build_services(mode, grid)` → `Services` | Done |
+| [config_files.py](../../../src_thesis/application/config_files.py) | The real `ConfigService`: you can open, edit and save real experiment files | `FileConfigService` over presets and the workspace library | Done (R7, file part) |
+| [workspace.py](../../../src_thesis/application/workspace.py) | User data must live outside the repository and outside OneDrive (runs write many small files; sync clients lock and duplicate them) | `Workspace`: library, store and exports folders; `default_home()` | Done |
+| [container.py](../../../src_thesis/application/container.py) | One switch between demo and real services, in one file | `build_services(mode, grid, config, home)` → `Services` | Done |
 
 | Service | Implementation today | Real implementation calls | Phase |
 |---|---|---|---|
-| `ConfigService` | demo | `experiments.models` (files, expand, resolve) | R6–R7 |
+| `ConfigService` | **real** (`FileConfigService`) or demo | `experiments.models` (files, expand, resolve, manifest data paths) | R7 (done; `import_bundle` open) |
 | `GridCatalogService` | **real** (`PandapowerGridCatalogService`) or demo | `adapters/grid/simbench_new.py` | R3 (done) |
 | `ProfileService` | demo | `adapters/profiles/` (SimBench catalogue, mapping rules) | R3 |
 | `ValidationService` | demo | `experiments.models` + `experiments.factory` (dry run) | R6–R7 |
@@ -82,10 +84,12 @@ Services return plain data only (§3); nothing from the lower layers reaches the
 **Wiring.** Callers get every service through [`build_services`](../../../src_thesis/application/container.py) and depend only on the protocols:
 
 - `build_services("demo")`: demo services everywhere; never loads pandapower (a test checks this).
-- `build_services("demo", grid="pandapower")`: the real grid catalog, the rest demo. The Studio uses this unless `MARLEM_STUDIO_GRID=demo`; its header then reads "DEMO DATA · real grid".
+- `build_services("demo", grid="pandapower", config="files")`: the real grid catalog and real experiment files, the rest demo. The Studio uses this unless `MARLEM_STUDIO_GRID=demo` or `MARLEM_STUDIO_CONFIG=demo`; its header then reads "DEMO DATA · real grid, files".
 - `build_services("real")`: reserved; raises until R6–R7.
 
 Real services replace demo ones one at a time, in roadmap order, and are imported lazily inside `build_services`. Only this module changes when a real service arrives.
+
+**Workspace.** User data lives in one folder outside the repository and OneDrive: `%LOCALAPPDATA%\MARLEM` on Windows (here `C:\Users\Kevin\AppData\Local\MARLEM`), `~/.local/share/marlem` elsewhere; `MARLEM_HOME` moves it. Inside: `library/` (the user's experiment files), `store/` (run folders, 05 §3.5) and `exports/` (bundles). Presets stay in the repository, read-only.
 
 [↑ Contents](#contents)
 
@@ -97,19 +101,23 @@ One protocol per service in [contracts.py](../../../src_thesis/application/contr
 
 **Why:** Everything a user does to an experiment file (start from a preset, edit, save, compare, share), without running anything.
 
-| Method | Input → output | Notes |
-|---|---|---|
-| `list(filter)` | → `[FileSummary]` | Library and presets |
-| `load(path_or_id)` | → `ExperimentFile` | Parses, migrates old `schema_version`s |
-| `new_from_preset(name)` | → `ExperimentFile` | Presets from `experiments/presets/` (02 §7) |
-| `save(file, path)` | → path | Writes canonical, pretty JSON |
-| `clone(id, new_id)` | → `ExperimentFile` | Sets `meta.derived_from` |
-| `resolve(file)` | → `ResolvedFile` | Fills defaults, resolves placement rules and day lists |
-| `expand(file)` | → `[RunCell]` | Sweep × paradigms × algorithms × seeds (+ baselines) |
-| `hash(file)` | → str | Canonical sha256 (02 §6) |
-| `diff(a, b)` | → `[FieldChange]` | For "diff against preset" in the Studio |
-| `export_bundle(file)` / `import_bundle(zip)` | → path / `ExperimentFile` | Only external CSV/JSON files are added |
-| `json_schema()` | → dict | For editor autocomplete |
+Real implementation: [`FileConfigService`](../../../src_thesis/application/config_files.py). Presets are read-only files in [experiments/presets/](../../../src_thesis/experiments/presets/); the user's files are `<id>.marlem.json` in the workspace library (§1).
+
+| Method | Input → output | Notes | State |
+|---|---|---|---|
+| `list(kind)` | → `[FileSummary]` | Presets (`kind="preset"`) and library files (`"draft"`) | Done |
+| `load(file_id)` | → `ExperimentFile` | Library first, then presets; parses and migrates old `schema_version`s; `FileNotFoundError` if neither exists | Done |
+| `new_from_preset(preset_id)` | → `ExperimentFile` | Copies the preset into the library as `<preset>-draft` (then `-draft-2`, …) with `meta.derived_from = "preset:<id>"` | Done |
+| `save(file, path=None)` | → path | Atomic, pretty JSON; refuses preset IDs and IDs that are not path-safe or contain `__` (the run-ID separator) | Done |
+| `clone(file_id, new_id)` | → `ExperimentFile` | Sets `meta.derived_from`; refuses an existing ID | Done |
+| `resolve(file)` | → `ExperimentFile` | Fills defaults and day lists; placement rules wait for R3 | Done |
+| `expand(file)` | → `[RunCell]` | Sweep × paradigms × algorithms × seeds (+ baselines) | Done |
+| `hash(file)` | → str | Canonical sha256 (02 §6) | Done |
+| `to_json(file)` | → str | The JSON view in the Studio | Done |
+| `diff(a, b)` | → `[FieldChange]` | Changed leaves as dotted paths (`participants[2].bus`), for "diff against preset" | Done |
+| `export_bundle(file)` | → path | `exports/<id>.zip`: the file plus the external CSV/JSON files it names that exist | Done |
+| `import_bundle(zip)` | → `ExperimentFile` | Unpacks a bundle into the library | Not yet |
+| `json_schema()` | → dict | For editor autocomplete; exists in `experiments.models.files`, not yet on the service | Not yet |
 
 ### 2.2 `GridCatalogService`: networks without an environment
 
