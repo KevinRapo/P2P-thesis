@@ -1,3 +1,22 @@
-from .app import main
+"""`python -m src_thesis.studio`.
+
+NiceGUI cannot auto-reload a package started with ``python -m``, so with
+auto-reload on (the default) this runs ``app.py`` as a script instead; it makes
+the repository importable itself. MARLEM_STUDIO_RELOAD=0 runs in-process.
+"""
+
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+if os.environ.get("MARLEM_STUDIO_RELOAD", "1") == "1":
+    app_file = Path(__file__).with_name("app.py")
+    try:
+        sys.exit(subprocess.call([sys.executable, str(app_file)]))
+    except KeyboardInterrupt:
+        sys.exit(0)
+
+from .app import main  # noqa: E402
 
 main()
