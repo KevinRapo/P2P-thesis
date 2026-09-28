@@ -86,21 +86,27 @@ def environment_fingerprint() -> dict[str, object]:
 def data_fingerprint(resolved: ExperimentFile) -> dict[str, object]:
     """Network source and the sha256 of every external file the world names."""
     files = {}
-    for path in _referenced_paths(resolved.model_dump(mode="json")):
-        p = (REPO / path) if not Path(path).is_absolute() else Path(path)
+    for path in referenced_paths(resolved.model_dump(mode="json")):
+        p = data_path(path)
         files[path] = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
     return {"network": resolved.grid.get("source", {}), "files": files}
 
 
-def _referenced_paths(node: object) -> list[str]:
+def data_path(path: str) -> Path:
+    """A ``path`` from an experiment file; relative paths are repository-relative."""
+    return Path(path) if Path(path).is_absolute() else REPO / path
+
+
+def referenced_paths(node: object) -> list[str]:
+    """Every ``path`` value in a file section (CSVs, pandapower files), sorted."""
     found: list[str] = []
     if isinstance(node, dict):
         for key, value in node.items():
             if key == "path" and isinstance(value, str):
                 found.append(value)
             else:
-                found += _referenced_paths(value)
+                found += referenced_paths(value)
     elif isinstance(node, list):
         for value in node:
-            found += _referenced_paths(value)
+            found += referenced_paths(value)
     return sorted(set(found))

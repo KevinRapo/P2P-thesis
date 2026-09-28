@@ -1,0 +1,450 @@
+{
+  "schema_version": "1.0",
+  "kind": "marlem-experiment",
+  "meta": {
+    "id": "case2-heterogeneity",
+    "name": "Case 2: agent heterogeneity",
+    "description": "sweep: participant sizes. The sweep is not defined yet. Placeholder mapping: the agents own the first eight loads of the feeder until the mapping tools exist (R3).",
+    "author": "",
+    "tags": [
+      "preset",
+      "paper"
+    ],
+    "derived_from": null,
+    "data_status": "synthetic"
+  },
+  "time": {
+    "resolution": "hourly_aggregated",
+    "horizon_steps": 24,
+    "days": {
+      "mode": "sampler",
+      "start": "2016-05-01",
+      "end": "2016-08-31",
+      "filter": {
+        "day_type": "workday"
+      },
+      "eval_holdout": 0.2,
+      "seed": 42
+    }
+  },
+  "grid": {
+    "source": {
+      "type": "simbench",
+      "code": "1-LV-semiurb4--0-sw"
+    },
+    "background": {
+      "mode": "mapped_replacement"
+    },
+    "limits": {
+      "v_min_pu": 0.95,
+      "v_max_pu": 1.05,
+      "line_max_percent": 100,
+      "trafo_max_percent": 100
+    },
+    "ratings": {
+      "source": "network"
+    },
+    "assessment": {
+      "mode": "feedback",
+      "non_convergence": "truncate_episode"
+    }
+  },
+  "participants": [
+    {
+      "id": "small_industry",
+      "role": "small_industry",
+      "bus": "LV4.101 Bus 18",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 1"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "G1-A"
+        },
+        "generation": {
+          "type": "PV3"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 180,
+        "generation": 180
+      },
+      "battery": {
+        "nominal_capacity_kwh": 108.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95
+      }
+    },
+    {
+      "id": "community_hospital",
+      "role": "community_hospital",
+      "bus": "LV4.101 Bus 16",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 30"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "G3-A"
+        },
+        "generation": {
+          "type": "PV2"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 170,
+        "generation": 170
+      },
+      "battery": {
+        "nominal_capacity_kwh": 102.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95
+      }
+    },
+    {
+      "id": "university_campus",
+      "role": "university_campus",
+      "bus": "LV4.101 Bus 2",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 11"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "G2-A"
+        },
+        "generation": {
+          "type": "PV4"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 140,
+        "generation": 140
+      },
+      "battery": null
+    },
+    {
+      "id": "shopping_mall",
+      "role": "shopping_mall",
+      "bus": "LV4.101 Bus 31",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 17"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "G4-A"
+        },
+        "generation": {
+          "type": "PV1"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 130,
+        "generation": 130
+      },
+      "battery": {
+        "nominal_capacity_kwh": 78.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95
+      }
+    },
+    {
+      "id": "residential_complex",
+      "role": "residential_complex",
+      "bus": "LV4.101 Bus 29",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 18"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "H0-B"
+        },
+        "generation": {
+          "type": "PV5"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 80,
+        "generation": 80
+      },
+      "battery": {
+        "nominal_capacity_kwh": 48.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95
+      }
+    },
+    {
+      "id": "apartment_building",
+      "role": "apartment_building",
+      "bus": "LV4.101 Bus 17",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 20"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "H0-A"
+        },
+        "generation": {
+          "type": "PV6"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 75,
+        "generation": 75
+      },
+      "battery": null
+    },
+    {
+      "id": "community_solar_farm",
+      "role": "community_solar_farm",
+      "bus": "LV4.101 Bus 8",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 4"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "H0-C"
+        },
+        "generation": {
+          "type": "PV8"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 180,
+        "generation": 180
+      },
+      "battery": {
+        "nominal_capacity_kwh": 108.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95
+      }
+    },
+    {
+      "id": "parking_lot",
+      "role": "parking_lot",
+      "bus": "LV4.101 Bus 19",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 16"
+        ],
+        "sgens": []
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "G6-A"
+        },
+        "generation": {
+          "type": "PV7"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 160,
+        "generation": 160
+      },
+      "battery": {
+        "nominal_capacity_kwh": 96.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95
+      }
+    }
+  ],
+  "market": {
+    "mechanism": "average",
+    "price": {
+      "min": 20,
+      "max": 600
+    },
+    "quantity": {
+      "min": 0,
+      "max": 180
+    },
+    "partner_preference": false,
+    "ledger": {
+      "enabled": true,
+      "difficulty": 0
+    },
+    "async_orders": true
+  },
+  "dso": {
+    "tariffs": {
+      "source": "csv",
+      "mode": "normalized"
+    },
+    "fees": {
+      "charged": true,
+      "congestion_factor": 0.5,
+      "congestion_threshold": 0.8,
+      "distance_factor": 0.35,
+      "voltage_factor": 0.15,
+      "voltage_threshold": 0.05,
+      "instability_threshold": 0.2,
+      "imbalance_factor": 0.15,
+      "zone_factor": 0.15
+    }
+  },
+  "environment": {
+    "observation": {
+      "version": "v2-grid",
+      "forecast_error": 0.3,
+      "own_bus_voltage": "private"
+    },
+    "reward": {
+      "version": "corrected-v1",
+      "log_scale": 20,
+      "grid_violation": {
+        "attribution": "bus"
+      }
+    },
+    "reputation": {
+      "weights": {
+        "reliability": 0.3,
+        "fairness": 0.2,
+        "grid": 0.5
+      }
+    }
+  },
+  "learning": {
+    "paradigms": [
+      "ctce",
+      "ctde",
+      "dtde"
+    ],
+    "algorithms": [
+      "ppo",
+      "appo",
+      "sac"
+    ],
+    "seeds": [
+      1,
+      2,
+      3
+    ],
+    "budget": {
+      "unit": "env_steps",
+      "value": 2000000
+    },
+    "paradigm_options": {
+      "ctce": {
+        "reward_aggregation": "sum"
+      },
+      "ctde": {
+        "reward_aggregation": "sum"
+      },
+      "dtde": {
+        "policy_sharing": "independent"
+      }
+    },
+    "model": {
+      "embeddings_dim": 128,
+      "activation": "relu"
+    },
+    "algorithm_params": {
+      "ppo": {
+        "lr": 1e-05,
+        "gamma": 0.99,
+        "lambda_": 0.95,
+        "num_epochs": 30,
+        "minibatch_size": 128,
+        "clip_param": 0.2,
+        "entropy_coeff": 0.01,
+        "kl_coeff": 0.0,
+        "grad_clip": 0.5
+      },
+      "appo": {
+        "lr": 1e-05,
+        "gamma": 0.99,
+        "lambda_": 0.95,
+        "vtrace": true,
+        "entropy_coeff": 0.01,
+        "kl_coeff": 0.0,
+        "grad_clip": 0.5
+      },
+      "sac": {
+        "actor_lr": 1e-05,
+        "critic_lr": 1e-05,
+        "gamma": 0.99,
+        "twin_q": true,
+        "target_entropy": "auto",
+        "replay_buffer": {
+          "capacity": 1000
+        },
+        "grad_clip": 0.5
+      }
+    },
+    "tuning": {
+      "method": "none",
+      "num_samples": 1
+    },
+    "checkpoint": {
+      "every": 10,
+      "keep": 3
+    }
+  },
+  "evaluation": {
+    "interval": 10,
+    "episodes": 20,
+    "days": "holdout",
+    "explore": false
+  },
+  "baselines": [
+    "no_order",
+    "random"
+  ],
+  "sweep": {},
+  "resources": {
+    "cpus_per_run": 6,
+    "gpus_per_learner": 0,
+    "max_parallel_runs": 1
+  },
+  "outputs": {
+    "record_steps": "evaluation",
+    "grid_element_results": false
+  }
+}
