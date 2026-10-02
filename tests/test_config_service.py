@@ -129,3 +129,27 @@ def test_container_switch_and_default_home(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("MARLEM_HOME")
     assert "onedrive" not in str(default_home()).lower()
     assert PRESETS_DIR.is_dir()
+
+
+def test_update_sets_dotted_paths_and_validates(config: FileConfigService) -> None:
+    file = config.new_from_preset(PRESET)
+    updated = config.update(file, {"market.mechanism": "seller", "dso.fees.x": 1.0})
+    assert updated.market["mechanism"] == "seller"
+    assert updated.dso["fees"]["x"] == 1.0
+    assert file.market["mechanism"] == "average"  # the input is not changed
+    with pytest.raises(ValueError):
+        config.update(file, {"meta.data_status": "made-up"})
+
+
+def test_origin_and_delete(config: FileConfigService) -> None:
+    draft = config.new_from_preset(PRESET)
+    assert config.origin(draft).meta.id == PRESET
+    clone = config.clone(draft.meta.id, "my-copy")
+    assert config.origin(clone).meta.id == draft.meta.id
+    config.delete("my-copy")
+    with pytest.raises(FileNotFoundError):
+        config.load("my-copy")
+    with pytest.raises(FileNotFoundError):
+        config.delete(PRESET)  # presets are not in the library
+    clone.meta.derived_from = "preset:gone"
+    assert config.origin(clone) is None

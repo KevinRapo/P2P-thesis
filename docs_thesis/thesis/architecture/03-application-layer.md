@@ -110,6 +110,9 @@ Real implementation: [`FileConfigService`](../../../src_thesis/application/confi
 | `new_from_preset(preset_id)` | → `ExperimentFile` | Copies the preset into the library as `<preset>-draft` (then `-draft-2`, …) with `meta.derived_from = "preset:<id>"` | Done |
 | `save(file, path=None)` | → path | Atomic, pretty JSON; refuses preset IDs and IDs that are not path-safe or contain `__` (the run-ID separator) | Done |
 | `clone(file_id, new_id)` | → `ExperimentFile` | Sets `meta.derived_from`; refuses an existing ID | Done |
+| `delete(file_id)` | → None | Library files only; presets cannot be deleted | Done |
+| `update(file, changes)` | → `ExperimentFile` | A validated copy with each dotted path set (`{"market.mechanism": "seller"}`); what the Studio's "Apply to draft" uses. Does not save | Done |
+| `origin(file)` | → `ExperimentFile` or None | The preset or file named in `meta.derived_from`, for "diff against origin" | Done |
 | `resolve(file)` | → `ExperimentFile` | Fills defaults and day lists; placement rules wait for R3 | Done |
 | `expand(file)` | → `[RunCell]` | Sweep × paradigms × algorithms × seeds (+ baselines) | Done |
 | `hash(file)` | → str | Canonical sha256 (02 §6) | Done |

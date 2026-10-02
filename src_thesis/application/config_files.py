@@ -70,7 +70,28 @@ class FileConfigService:
         self.save(file)
         return file
 
+    def delete(self, file_id: str) -> None:
+        """Delete a library file; presets cannot be deleted."""
+        path = self.library_dir / f"{self._check_id(file_id)}{FILE_SUFFIX}"
+        if not path.exists():
+            raise FileNotFoundError(f"No library file {file_id!r}")
+        path.unlink()
+
     # ------------------------------------------------------------------ content
+    def update(self, file: ExperimentFile, changes: dict[str, Any]) -> ExperimentFile:
+        """A validated copy with each dotted path set (``market.mechanism``)."""
+        return expansion.apply_overrides(file, changes)
+
+    def origin(self, file: ExperimentFile) -> ExperimentFile | None:
+        """The preset or file this one was derived from, if it still exists."""
+        source = file.meta.derived_from
+        if not source:
+            return None
+        try:
+            return self.load(source.removeprefix("preset:"))
+        except (FileNotFoundError, ValueError):
+            return None
+
     def resolve(self, file: ExperimentFile) -> ExperimentFile:
         return resolution.resolve(file)
 

@@ -316,6 +316,23 @@ class DemoConfigService:
         self._drafts[new_id] = file
         return file
 
+    def delete(self, file_id: str) -> None:
+        self._drafts.pop(file_id, None)
+
+    def update(self, file: ExperimentFile, changes: dict) -> ExperimentFile:
+        data = file.model_dump(mode="json")
+        for path, value in changes.items():
+            node = data
+            *parents, leaf = path.split(".")
+            for key in parents:
+                node = node.setdefault(key, {})
+            node[leaf] = value
+        return ExperimentFile.model_validate(data)
+
+    def origin(self, file: ExperimentFile) -> ExperimentFile | None:
+        source = (file.meta.derived_from or "").removeprefix("preset:")
+        return _preset_file(source) if source in _PRESETS else None
+
     def resolve(self, file: ExperimentFile) -> ExperimentFile:
         return file
 
@@ -913,4 +930,4 @@ class DemoResultService:
         )
 
     def export(self, run_ids: list[str], fmt: str = "csv") -> str:
-        return f"exports/{len(run_ids)}-runs.{fmt}" 
+        return f"exports/{len(run_ids)}-runs.{fmt}"
