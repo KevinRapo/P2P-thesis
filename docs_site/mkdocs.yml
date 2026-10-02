@@ -30,6 +30,8 @@ watch:
 
 theme:
   name: material
+  # Site assets that are not docs: overrides/assets/ (diagram zoom, wider layout).
+  custom_dir: overrides
   features:
     - navigation.tabs
     - navigation.sections
@@ -68,15 +70,23 @@ markdown_extensions:
       generic: true
   - pymdownx.superfences:
       custom_fences:
+        # Not "mermaid": Material would draw it in a closed shadow DOM that
+        # cannot be zoomed. overrides/assets/diagrams.js renders these instead.
         - name: mermaid
-          class: mermaid
+          class: mermaid-diagram
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight
   - pymdownx.inlinehilite
   - pymdownx.tilde
 
+extra_css:
+  - assets/diagrams.css
+
 extra_javascript:
   - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+  - https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js
+  - assets/diagrams.js
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 plugins:

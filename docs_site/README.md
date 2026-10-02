@@ -10,6 +10,12 @@ needs differently happens at build time in [hooks.py](hooks.py):
 - links to code and other non-Markdown files point to the repository on GitHub
   (`extra.code_links` in [mkdocs.yml](mkdocs.yml)), keeping `#L` line anchors.
 
+Diagrams are drawn by [overrides/assets/diagrams.js](overrides/assets/diagrams.js)
+instead of Material (which renders them where they cannot be zoomed): drag to
+pan, Ctrl + mouse wheel or the +/− buttons to zoom, double-click to zoom in,
+"fit" to reset, ⛶ for full screen. [diagrams.css](overrides/assets/diagrams.css)
+also widens the page on large screens.
+
 ```text
 pip install -r docs_site/requirements.txt        # once, in the marlem env
 mkdocs serve -f docs_site/mkdocs.yml             # live preview at http://127.0.0.1:8000

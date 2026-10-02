@@ -1,0 +1,68 @@
+/* Wider content on large screens (Material's default is 61rem). */
+.md-grid {
+  max-width: 1680px;
+}
+
+/* Zoomable Mermaid diagrams (diagrams.js). */
+.diagram-box {
+  position: relative;
+  margin: 1em 0;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 6px;
+  background: var(--md-default-bg-color);
+}
+
+.diagram-stage {
+  overflow: hidden;
+  cursor: grab;
+}
+
+.diagram-stage:active {
+  cursor: grabbing;
+}
+
+.diagram-stage svg {
+  display: block;
+  max-width: none;
+}
+
+.diagram-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: flex;
+  gap: 4px;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.diagram-box:hover .diagram-tools,
+.diagram-box:fullscreen .diagram-tools {
+  opacity: 1;
+}
+
+.diagram-button {
+  min-width: 2rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 4px;
+  background: var(--md-default-bg-color);
+  color: var(--md-default-fg-color);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.diagram-button:hover {
+  border-color: var(--md-accent-fg-color);
+  color: var(--md-accent-fg-color);
+}
+
+.diagram-box:fullscreen {
+  border: none;
+  border-radius: 0;
+}
+
+.diagram-box:fullscreen .diagram-stage {
+  height: 100vh;
+}
