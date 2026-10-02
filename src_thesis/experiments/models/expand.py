@@ -21,6 +21,13 @@ DEFAULT_SEEDS = [42]
 
 @dataclass(frozen=True)
 class SweepPoint:
+    """One variant of a swept study.
+
+    Attributes:
+        label: Name of the variant, used in run IDs.
+        overrides: Dotted path → value applied to the file for this variant.
+    """
+
     label: str
     overrides: dict[str, Any] = field(default_factory=dict)  # dotted path -> value
 
@@ -65,6 +72,14 @@ def apply_overrides(file: ExperimentFile, overrides: dict[str, Any]) -> Experime
 
 
 def expand(file: ExperimentFile) -> list[RunCell]:
+    """All runs a file asks for.
+
+    Sweep points × paradigms × algorithms × seeds (kind ``train``), then sweep
+    points × baselines × seeds (kind ``baseline``).
+
+    Returns:
+        One ``RunCell`` per run, in that order.
+    """
     learning = file.learning or {}
     paradigms = learning.get("paradigms") or DEFAULT_PARADIGMS
     algorithms = learning.get("algorithms") or DEFAULT_ALGORITHMS

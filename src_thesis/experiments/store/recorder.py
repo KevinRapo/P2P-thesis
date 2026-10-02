@@ -25,6 +25,24 @@ RecordMode = Literal["none", "evaluation", "all"]
 
 @dataclass(frozen=True)
 class StepRecord:
+    """Everything that happened in one step, built once by the environment (05 §3.6).
+
+    Reward, observation, ``info`` and logging are all derived from this record, so
+    they cannot disagree.
+
+    Attributes:
+        episode: Episode number.
+        step: Step within the episode.
+        day: Simulated date.
+        orders: Orders as submitted.
+        trades: Matched trades.
+        settlement: Per agent: energy delivered and received, cash.
+        assessment: The step's grid assessment, as a dict.
+        kpis: Implicit-cooperation KPIs.
+        reward_components: Per agent, the value of each reward term.
+        rewards: Per agent, the total reward.
+    """
+
     episode: int
     step: int
     day: str
@@ -50,10 +68,19 @@ class EpisodeRecorder:
         self._evaluation = False
 
     def start_episode(self, episode: int, day: str, evaluation: bool) -> None:
+        """Begin buffering a new episode.
+
+        Args:
+            episode: Episode number.
+            day: Simulated date.
+            evaluation: True for evaluation episodes (the only ones kept in the default
+                ``"evaluation"`` mode).
+        """
         self._steps = []
         self._episode, self._day, self._evaluation = episode, day, evaluation
 
     def record(self, step: StepRecord) -> None:
+        """Buffer one step, if this episode is kept (see ``mode``)."""
         if self._episode is None:
             raise RuntimeError("record() before start_episode()")
         if self._keeps_steps():

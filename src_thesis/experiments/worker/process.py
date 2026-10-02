@@ -72,6 +72,9 @@ def _shutdown_ray() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Command-line entry (``--run-dir <folder>``); exit code 0 for COMPLETED or
+    CANCELLED, 1 otherwise.
+    """
     parser = argparse.ArgumentParser(description="Run one MARLEM experiment run.")
     parser.add_argument("--run-dir", required=True, type=Path)
     args = parser.parse_args(argv)

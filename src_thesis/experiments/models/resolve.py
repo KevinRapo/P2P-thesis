@@ -115,6 +115,13 @@ SEASONS = {
 
 @dataclass(frozen=True)
 class DaySplit:
+    """Training and evaluation dates (``YYYY-MM-DD``).
+
+    Attributes:
+        train: Dates the agents train on.
+        eval: Held-out dates for evaluation, never trained on.
+    """
+
     train: tuple[str, ...]
     eval: tuple[str, ...]
 

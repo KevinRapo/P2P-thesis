@@ -28,6 +28,15 @@ def build_manifest(
     run_id: str,
     validation_hash: str | None = None,
 ) -> Manifest:
+    """Everything a run was built from; written once, with the run folder.
+
+    Args:
+        file: The experiment file as written.
+        resolved: This run's fully resolved file (``resolve_run``).
+        cell: The run's cell.
+        run_id: The run's ID.
+        validation_hash: Hash of the validation report the file passed, if any.
+    """
     split = resolve_days(resolved.time)
     return Manifest(
         run_id=run_id,
@@ -74,6 +83,9 @@ def code_fingerprint(repo: Path = REPO) -> dict[str, str | bool | None]:
 
 
 def environment_fingerprint() -> dict[str, object]:
+    """Python and package versions (ray, torch, pandapower, …), read from metadata
+    without importing the packages.
+    """
     versions = {}
     for name in PACKAGES:
         try:

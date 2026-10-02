@@ -18,11 +18,25 @@ SCHEMA_VERSION = "1.0"
 
 
 def utc_now() -> datetime:
+    """Current time in UTC, timezone-aware; every record uses it."""
     return datetime.now(timezone.utc)
 
 
 # --------------------------------------------------------------------------- file
 class ExperimentMeta(BaseModel):
+    """The ``meta`` section: what the study is and where it came from (02 §3.1).
+
+    Attributes:
+        id: Stable identifier; the file name and the start of every run ID.
+        name: Readable name.
+        description: What the study does, and its deviations from the paper.
+        author: Who wrote it.
+        tags: Free labels, e.g. ``["paper", "case6"]``.
+        derived_from: The preset (``preset:<id>``) or file it was copied from.
+        data_status: Whether the data is synthetic, measured or reconstructed and
+            unverified.
+    """
+
     id: str
     name: str
     description: str = ""
@@ -76,6 +90,8 @@ class RunCell(BaseModel):
 
 
 class RunState(str, Enum):
+    """Lifecycle state of a run (05 §4); ``TRANSITIONS`` lists the allowed moves."""
+
     READY = "READY"
     QUEUED = "QUEUED"
     RUNNING = "RUNNING"
@@ -103,6 +119,7 @@ TRANSITIONS: dict[RunState, frozenset[RunState]] = {
 
 
 def can_transition(old: RunState, new: RunState) -> bool:
+    """Whether a run may move from ``old`` to ``new`` (05 §4)."""
     if old in TERMINAL_STATES:
         return False
     return new == RunState.FAILED or new in TRANSITIONS[old]

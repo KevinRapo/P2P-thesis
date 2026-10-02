@@ -42,6 +42,17 @@ class NetworkInfo:
 
 @dataclass(frozen=True)
 class NetworkSummary:
+    """Totals of one network.
+
+    Attributes:
+        info: The catalog entry.
+        total_load_kw: Sum of the loads' rated active power.
+        total_generation_kw: Sum of the static generators' rated active power.
+        lines: Number of lines.
+        transformers: Number of transformers.
+        profile_year: Year of the network's SimBench profiles; ``None`` without
+            profiles.
+    """
     info: NetworkInfo
     total_load_kw: float
     total_generation_kw: float
@@ -52,6 +63,15 @@ class NetworkSummary:
 
 @dataclass(frozen=True)
 class BusView:
+    """A bus in the topology view.
+
+    Attributes:
+        id: Stable bus ID (the bus name when names are unique).
+        x: Horizontal coordinate (geodata or generated layout).
+        y: Vertical coordinate.
+        kind: What is connected: external_grid, load, pv, load+pv, storage or bus.
+        vn_kv: Nominal voltage.
+    """
     id: str
     x: float
     y: float
@@ -61,6 +81,15 @@ class BusView:
 
 @dataclass(frozen=True)
 class BranchView:
+    """A line, transformer or bus-to-bus switch.
+
+    Attributes:
+        id: Branch name.
+        from_bus: Bus ID at one end (the high-voltage side for transformers).
+        to_bus: Bus ID at the other end.
+        kind: ``"line"``, ``"trafo"`` or ``"switch"``.
+        closed: False if out of service or open.
+    """
     id: str
     from_bus: str
     to_bus: str
@@ -70,6 +99,14 @@ class BranchView:
 
 @dataclass(frozen=True)
 class TopologyView:
+    """The network's shape for plotting; no pandapower objects.
+
+    Attributes:
+        buses: All buses.
+        branches: All lines, transformers and bus-to-bus switches.
+        external_grid_bus: Bus of the connection to the upstream grid.
+        coordinates: Whether x/y come from the network's geodata or a generated layout.
+    """
     buses: tuple[BusView, ...]
     branches: tuple[BranchView, ...]
     external_grid_bus: str | None
@@ -78,6 +115,15 @@ class TopologyView:
 
 @dataclass(frozen=True)
 class ElementRecord:
+    """A load, static generator or storage unit.
+
+    Attributes:
+        id: Element name.
+        element_type: ``"load"``, ``"sgen"`` or ``"storage"``.
+        bus: Bus ID it is connected to.
+        profile_type: SimBench profile name; empty if none.
+        rated_kw: Rated active power.
+    """
     id: str
     element_type: Literal["load", "sgen", "storage"]
     bus: str
@@ -99,6 +145,16 @@ class ParticipantInjection:
 
 @dataclass(frozen=True)
 class GridViolation:
+    """One limit violation found by a power flow.
+
+    Attributes:
+        code: ``V_LOW``, ``V_HIGH``, ``LINE_OVERLOAD``, ``TRAFO_OVERLOAD`` or
+            ``NOT_CONVERGED``.
+        element_type: Bus, line or transformer.
+        element_id: The element; ``None`` for the whole network.
+        observed: Value found.
+        limit: Limit exceeded.
+    """
     code: str  # "V_LOW", "V_HIGH", "LINE_OVERLOAD", "TRAFO_OVERLOAD", "NOT_CONVERGED"
     element_type: str
     element_id: str | None
@@ -128,14 +184,26 @@ class GridModel(Protocol):
 
     def reset(
         self, episode_seed: int | None = None, day: str | None = None
-    ) -> None: ...
+    ) -> None:
+        """Prepare a fresh working copy of the network for an episode on ``day``."""
+        ...
 
     def assess(
         self, step: int, injections: Sequence[ParticipantInjection]
-    ) -> GridAssessment: ...
+    ) -> GridAssessment:
+        """Run the power flow for ``step`` with the participants' injections and report
+        it.
+        """
+        ...
 
-    def electrical_distance(self, bus_a: str, bus_b: str) -> float: ...
+    def electrical_distance(self, bus_a: str, bus_b: str) -> float:
+        """Distance in km along the lines between two buses."""
+        ...
 
-    def summary(self) -> NetworkSummary: ...
+    def summary(self) -> NetworkSummary:
+        """Totals of the network."""
+        ...
 
-    def topology_view(self) -> TopologyView: ...
+    def topology_view(self) -> TopologyView:
+        """The network's shape for plots."""
+        ...

@@ -210,6 +210,13 @@ def _info(ref: NetworkRef, label: str | None = None, level: str | None = None):
 
 
 def summary(ref: NetworkRef) -> NetworkSummary:
+    """Totals and element counts of one network.
+
+    The network is loaded once per process and cached.
+
+    Args:
+        ref: The network.
+    """
     net = _load(ref)
     return NetworkSummary(
         info=_info(ref),
@@ -294,6 +301,15 @@ def _bus_kinds(net: Any) -> dict[int, str]:
 
 
 def topology_view(ref: NetworkRef) -> TopologyView:
+    """The network's shape as plain records: buses and branches.
+
+    Branches are lines, transformers and bus-to-bus switches. A branch that is out
+    of service or behind an open switch has ``closed=False``. Networks without
+    geodata get a generated radial layout (``coordinates="generated"``).
+
+    Args:
+        ref: The network.
+    """
     net = _load(ref)
     ids = _bus_ids(net)
     coords, how = _coordinates(net)
@@ -348,6 +364,12 @@ def topology_view(ref: NetworkRef) -> TopologyView:
 
 
 def elements(ref: NetworkRef, bus: str | None = None) -> list[ElementRecord]:
+    """Loads, static generators and storage units of a network.
+
+    Args:
+        ref: The network.
+        bus: Bus ID as in the topology view; ``None`` for all elements.
+    """
     net = _load(ref)
     ids = _bus_ids(net)
     out = []
@@ -506,18 +528,26 @@ class SimBenchGrid:
         raise NotImplementedError
 
     def reset(self, episode_seed: int | None = None, day: str | None = None) -> None:
+        """Prepare a fresh working copy for an episode on ``day``. Not implemented (R4).
+        """
         raise NotImplementedError
 
     def assess(
         self, step: int, injections: Sequence[ParticipantInjection]
     ) -> GridAssessment:
+        """Run one power flow with the participants' injections at ``step``. Not
+        implemented (R4).
+        """
         raise NotImplementedError
 
     def electrical_distance(self, bus_a: str, bus_b: str) -> float:
+        """Distance in km along the lines between two buses. Not implemented (R4)."""
         raise NotImplementedError
 
     def summary(self) -> NetworkSummary:
+        """Totals of the loaded network. Not implemented (R4)."""
         raise NotImplementedError
 
     def topology_view(self) -> TopologyView:
+        """Shape of the loaded network. Not implemented (R4)."""
         raise NotImplementedError

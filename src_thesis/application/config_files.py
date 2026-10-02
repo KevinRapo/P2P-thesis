@@ -26,11 +26,21 @@ SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 class FileConfigService:
+    """The real ``ConfigService``: presets from the repository, your files in the
+    workspace library.
+
+    Args:
+        workspace: Where the library is; default ``Workspace.default()``.
+    """
+
     def __init__(self, workspace: Workspace | None = None) -> None:
         self.workspace = workspace or Workspace.default()
 
     # ------------------------------------------------------------------ files
     def list(self, kind: str | None = None) -> list[FileSummary]:
+        """Presets (kind ``"preset"``) and library files (kind ``"draft"``), filtered by
+        ``kind``.
+        """
         items = [self._summary(p, "preset") for p in self._files(self.presets_dir)]
         items += [self._summary(p, "draft") for p in self._files(self.library_dir)]
         return [i for i in items if kind is None or i.kind == kind]
@@ -62,6 +72,13 @@ class FileConfigService:
         return str(files.save(file, target))
 
     def clone(self, file_id: str, new_id: str) -> ExperimentFile:
+        """Save a copy of ``file_id`` under ``new_id`` with ``meta.derived_from =
+        file_id``.
+
+        Raises:
+            FileExistsError: A library file or preset already has ``new_id``.
+            ValueError: ``new_id`` is not usable as a file name.
+        """
         new_id = self._check_id(new_id)
         if self._exists(new_id):
             raise FileExistsError(f"An experiment file {new_id!r} already exists")
@@ -93,15 +110,21 @@ class FileConfigService:
             return None
 
     def resolve(self, file: ExperimentFile) -> ExperimentFile:
+        """Every unset field filled from the defaults
+        (``experiments.models.resolve.resolve``).
+        """
         return resolution.resolve(file)
 
     def expand(self, file: ExperimentFile) -> list[RunCell]:
+        """The runs the file asks for (``experiments.models.expand.expand``)."""
         return expansion.expand(file)
 
     def hash(self, file: ExperimentFile) -> str:
+        """Canonical sha256 of the file (``files.canonical_hash``)."""
         return files.canonical_hash(file)
 
     def to_json(self, file: ExperimentFile) -> str:
+        """The file as saved: pretty JSON in field order."""
         return files.dumps(file)
 
     def diff(self, a: ExperimentFile, b: ExperimentFile) -> list[FieldChange]:
@@ -126,10 +149,12 @@ class FileConfigService:
     # ------------------------------------------------------------------ helpers
     @property
     def presets_dir(self) -> Path:
+        """Folder of the read-only presets."""
         return self.workspace.presets
 
     @property
     def library_dir(self) -> Path:
+        """Folder of your experiment files."""
         return self.workspace.library
 
     @staticmethod

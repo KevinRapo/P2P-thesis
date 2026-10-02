@@ -34,6 +34,9 @@ def settings_path() -> Path:
 
 
 def built_in_home() -> Path:
+    """The workspace folder when nothing is chosen: ``MARLEM`` in ``%LOCALAPPDATA%`` on
+    Windows.
+    """
     if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
         return Path(os.environ["LOCALAPPDATA"]) / "MARLEM"
     return Path.home() / ".local" / "share" / "marlem"
@@ -56,6 +59,9 @@ def home_source() -> str:
 
 
 def default_home() -> Path:
+    """The workspace folder in use: ``MARLEM_HOME``, else the Settings choice, else the
+    built-in default.
+    """
     if os.environ.get("MARLEM_HOME"):
         return Path(os.environ["MARLEM_HOME"]).expanduser()
     return _saved_home() or built_in_home()
@@ -97,21 +103,32 @@ def is_synced_folder(path: Path) -> bool:
 
 @dataclass(frozen=True)
 class Workspace:
+    """The workspace folder and its subfolders.
+
+    Attributes:
+        home: The workspace folder.
+        presets: Folder of the read-only presets (in the repository).
+    """
+
     home: Path
     presets: Path = PRESETS_DIR
 
     @classmethod
     def default(cls) -> Workspace:
+        """The workspace in use (``default_home()``)."""
         return cls(default_home())
 
     @property
     def library(self) -> Path:
+        """``<home>/library``: your experiment files."""
         return self.home / "library"
 
     @property
     def store(self) -> Path:
+        """``<home>/store``: run folders."""
         return self.home / "store"
 
     @property
     def exports(self) -> Path:
+        """``<home>/exports``: bundles."""
         return self.home / "exports"

@@ -50,9 +50,13 @@ class PandapowerGridCatalogService:
     def list_networks(
         self, source_type: str | None = None, level: str | None = None
     ) -> list[NetworkInfo]:
+        """SimBench codes and pandapower built-ins, filtered by source type and voltage
+        level.
+        """
         return [_info(n) for n in adapter.list_networks(source_type, level)]
 
     def summary(self, source: NetworkSource) -> NetworkSummary:
+        """Totals of one network (loads it on first use)."""
         s = adapter.summary(_ref(source))
         return NetworkSummary(
             info=_info(s.info),
@@ -64,6 +68,7 @@ class PandapowerGridCatalogService:
         )
 
     def topology(self, source: NetworkSource) -> TopologyView:
+        """Buses and branches as plain data; branches are listed under ``lines``."""
         t = adapter.topology_view(_ref(source))
         return TopologyView(
             buses=[
@@ -87,6 +92,7 @@ class PandapowerGridCatalogService:
     def elements(
         self, source: NetworkSource, bus: str | None = None
     ) -> list[ElementInfo]:
+        """Loads, static generators and storage, optionally only on one bus."""
         return [
             ElementInfo(
                 id=e.id,
@@ -101,6 +107,7 @@ class PandapowerGridCatalogService:
     def preview_powerflow(
         self, source: NetworkSource, day: str, step: int
     ) -> PowerFlowPreview:
+        """One power flow of the unmodified network at ``day`` / hour ``step``."""
         a = adapter.preview_powerflow(_ref(source), day, step)
         return PowerFlowPreview(
             converged=a.converged,

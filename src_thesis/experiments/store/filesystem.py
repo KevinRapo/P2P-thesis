@@ -39,20 +39,32 @@ SUBFOLDERS = ("logs", "metrics", "raw", "checkpoints", "figures")
 
 
 class RunExistsError(FileExistsError):
+    """A run folder with this run ID already exists."""
+
     pass
 
 
 class IllegalTransitionError(ValueError):
+    """A state change the run lifecycle does not allow (05 §4)."""
+
     pass
 
 
 class ExperimentStore:
+    """Run folders on disk: the single source of truth about runs (05 §3.5).
+
+    Args:
+        root: The store folder (``<workspace>/store``); runs live in
+            ``root/runs/<run_id>/``.
+    """
+
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
         self.runs_dir = self.root / "runs"
 
     # ------------------------------------------------------------------ runs
     def run_dir(self, run_id: str) -> Path:
+        """Folder of one run (it may not exist yet)."""
         return self.runs_dir / run_id
 
     def create_run(
@@ -78,21 +90,26 @@ class ExperimentStore:
         return folder
 
     def exists(self, run_id: str) -> bool:
+        """True once the run folder has its manifest."""
         return (self.run_dir(run_id) / "manifest.json").exists()
 
     def read_file(self, run_id: str) -> ExperimentFile:
+        """The experiment file as written (``experiment.json``)."""
         return load(self.run_dir(run_id) / "experiment.json")
 
     def read_resolved(self, run_id: str) -> ExperimentFile:
+        """The run's fully resolved file (``resolved.json``)."""
         return load(self.run_dir(run_id) / "resolved.json")
 
     def read_manifest(self, run_id: str) -> Manifest:
+        """The run's manifest (``manifest.json``)."""
         return Manifest.model_validate_json(
             (self.run_dir(run_id) / "manifest.json").read_text(encoding="utf-8")
         )
 
     # ------------------------------------------------------------------ status
     def read_status(self, run_id: str) -> StatusRecord:
+        """The run's live status (``status.json``)."""
         return StatusRecord.model_validate_json(
             (self.run_dir(run_id) / "status.json").read_text(encoding="utf-8")
         )
@@ -121,6 +138,14 @@ class ExperimentStore:
         iteration: int,
         metrics: dict[str, float] | None = None,
     ) -> StatusRecord:
+        """Record progress, iteration and latest metrics in ``status.json``.
+
+        Args:
+            run_id: The run.
+            progress: Share of the budget done; clipped to 0..1.
+            iteration: Current training iteration.
+            metrics: Latest metrics to show.
+        """
         status = self.read_status(run_id).model_copy(
             update={
                 "progress": max(0.0, min(1.0, progress)),
@@ -135,6 +160,12 @@ class ExperimentStore:
     def list_runs(
         self, experiment_id: str | None = None, state: RunState | None = None
     ) -> list[StatusRecord]:
+        """All runs, oldest first.
+
+        Args:
+            experiment_id: Only runs of this experiment.
+            state: Only runs in this state.
+        """
         out = []
         for folder in self._run_folders():
             status = self.read_status(folder.name)
@@ -158,21 +189,25 @@ class ExperimentStore:
 
     # ------------------------------------------------------------------ cancel
     def request_cancel(self, run_id: str) -> None:
+        """Ask the worker to stop: writes ``cancel.request`` into the run folder."""
         atomic_write_text(
             self.run_dir(run_id) / "cancel.request", utc_now().isoformat()
         )
 
     def cancel_requested(self, run_id: str) -> bool:
+        """True if ``cancel.request`` exists."""
         return (self.run_dir(run_id) / "cancel.request").exists()
 
     # ------------------------------------------------------------------ streams
     def append_log(self, run_id: str, line: str) -> None:
+        """Append a timestamped line to ``logs/worker.log``."""
         with open(
             self.run_dir(run_id) / "logs" / "worker.log", "a", encoding="utf-8"
         ) as f:
             f.write(f"{utc_now().isoformat()} {line.rstrip()}\n")
 
     def log_tail(self, run_id: str, lines: int = 50) -> list[str]:
+        """The last ``lines`` lines of ``logs/worker.log`` (empty without a log)."""
         path = self.run_dir(run_id) / "logs" / "worker.log"
         if not path.exists():
             return []
@@ -192,12 +227,18 @@ class ExperimentStore:
     def append_jsonl(
         self, run_id: str, relative_path: str, record: dict[str, Any]
     ) -> None:
+        """Append one JSON record to ``relative_path`` in the run folder, e.g.
+        ``raw/steps.jsonl``.
+        """
         path = self.run_dir(run_id) / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "a", encoding="utf-8", newline="\n") as f:
             f.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
 
     def read_jsonl(self, run_id: str, relative_path: str) -> Iterator[dict[str, Any]]:
+        """The records of a JSONL file in the run folder, one by one (none if it is
+        missing).
+        """
         path = self.run_dir(run_id) / relative_path
         if path.exists():
             with open(path, encoding="utf-8") as f:
@@ -206,12 +247,14 @@ class ExperimentStore:
                         yield json.loads(line)
 
     def write_artifacts(self, run_id: str, files: dict[str, str]) -> ArtifactIndex:
+        """Add output files (name → path in the run folder) to ``artifacts.json``."""
         index = self.read_artifacts(run_id)
         index = index.model_copy(update={"files": {**index.files, **files}})
         self._write_model(self.run_dir(run_id) / "artifacts.json", index)
         return index
 
     def read_artifacts(self, run_id: str) -> ArtifactIndex:
+        """The run's artifact index (empty if none)."""
         path = self.run_dir(run_id) / "artifacts.json"
         if not path.exists():
             return ArtifactIndex()

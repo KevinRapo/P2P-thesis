@@ -42,6 +42,9 @@ def spawn(run_dir: str | Path) -> subprocess.Popen:
 
 
 def pid_alive(pid: int) -> bool:
+    """Whether a process with this ID still runs. On Windows via ``OpenProcess``,
+    because ``os.kill(pid, 0)`` is not a check there.
+    """
     if os.name == "nt":
         import ctypes
 
@@ -71,6 +74,15 @@ def reconcile(store: ExperimentStore) -> list[str]:
 
 
 class WorkerPool:
+    """Starts, watches and cancels worker processes; polled by the Studio or CLI, not
+    threaded.
+
+    Args:
+        store: The experiment store.
+        max_parallel: Runs at once; default 1, because one RLlib run already uses every
+            core.
+    """
+
     def __init__(self, store: ExperimentStore, max_parallel: int = 1) -> None:
         self.store = store
         self.max_parallel = max(1, max_parallel)
@@ -78,6 +90,7 @@ class WorkerPool:
         self._running: dict[str, subprocess.Popen] = {}
 
     def enqueue(self, run_ids: list[str]) -> None:
+        """Mark runs QUEUED; ``poll`` starts them as slots become free."""
         for run_id in run_ids:
             self.store.set_state(run_id, RunState.QUEUED)
             self._queue.append(run_id)

@@ -263,10 +263,14 @@ def _preset_file(preset_id: str) -> ExperimentFile:
 
 
 class DemoConfigService:
+    """Demo ``ConfigService``: experiment files kept in memory; presets built in code.
+    Shown as DEMO DATA in the Studio.
+    """
     def __init__(self) -> None:
         self._drafts: dict[str, ExperimentFile] = {}
 
     def list(self, kind: str | None = None) -> list[FileSummary]:
+        """Sample-data version of ``ConfigService.list``."""
         items = [
             FileSummary(
                 id=pid,
@@ -295,11 +299,13 @@ class DemoConfigService:
         return [i for i in items if kind is None or i.kind == kind]
 
     def load(self, file_id: str) -> ExperimentFile:
+        """Sample-data version of ``ConfigService.load``."""
         return self._drafts.get(file_id) or _preset_file(
             file_id if file_id in _PRESETS else "case6-3x3"
         )
 
     def new_from_preset(self, preset_id: str) -> ExperimentFile:
+        """Sample-data version of ``ConfigService.new_from_preset``."""
         file = _preset_file(preset_id)
         file.meta.id = f"{preset_id}-draft"
         file.meta.tags = ["draft"]
@@ -307,19 +313,23 @@ class DemoConfigService:
         return file
 
     def save(self, file: ExperimentFile, path: Path | None = None) -> str:
+        """Sample-data version of ``ConfigService.save``."""
         self._drafts[file.meta.id] = file
         return str(path or f"experiments/user/{file.meta.id}.marlem.json")
 
     def clone(self, file_id: str, new_id: str) -> ExperimentFile:
+        """Sample-data version of ``ConfigService.clone``."""
         file = self.load(file_id).model_copy(deep=True)
         file.meta.id, file.meta.derived_from = new_id, file_id
         self._drafts[new_id] = file
         return file
 
     def delete(self, file_id: str) -> None:
+        """Sample-data version of ``ConfigService.delete``."""
         self._drafts.pop(file_id, None)
 
     def update(self, file: ExperimentFile, changes: dict) -> ExperimentFile:
+        """Sample-data version of ``ConfigService.update``."""
         data = file.model_dump(mode="json")
         for path, value in changes.items():
             node = data
@@ -330,13 +340,16 @@ class DemoConfigService:
         return ExperimentFile.model_validate(data)
 
     def origin(self, file: ExperimentFile) -> ExperimentFile | None:
+        """Sample-data version of ``ConfigService.origin``."""
         source = (file.meta.derived_from or "").removeprefix("preset:")
         return _preset_file(source) if source in _PRESETS else None
 
     def resolve(self, file: ExperimentFile) -> ExperimentFile:
+        """Sample-data version of ``ConfigService.resolve``."""
         return file
 
     def expand(self, file: ExperimentFile) -> list[RunCell]:
+        """Sample-data version of ``ConfigService.expand``."""
         learning = file.learning or _default_learning()
         points = 1
         for values in file.sweep.get("parameters", {}).values():
@@ -355,18 +368,22 @@ class DemoConfigService:
         ]
 
     def hash(self, file: ExperimentFile) -> str:
+        """Sample-data version of ``ConfigService.hash``."""
         return hashlib.sha256(self.to_json(file).encode()).hexdigest()
 
     def diff(self, a: ExperimentFile, b: ExperimentFile) -> list[FieldChange]:
+        """Sample-data version of ``ConfigService.diff``."""
         da, db = a.model_dump(), b.model_dump()
         return [
             FieldChange(path=k, before=da[k], after=db[k]) for k in da if da[k] != db[k]
         ]
 
     def export_bundle(self, file: ExperimentFile) -> str:
+        """Sample-data version of ``ConfigService.export_bundle``."""
         return f"exports/{file.meta.id}.zip"
 
     def to_json(self, file: ExperimentFile) -> str:
+        """Sample-data version of ``ConfigService.to_json``."""
         return json.dumps(
             file.model_dump(mode="json"), indent=2, sort_keys=False, ensure_ascii=False
         )
@@ -440,9 +457,13 @@ _NETWORKS = [
 
 
 class DemoGridCatalogService:
+    """Demo ``GridCatalogService``: a few sample networks with generated topology. Shown
+    as DEMO DATA in the Studio.
+    """
     def list_networks(
         self, source_type: str | None = None, level: str | None = None
     ) -> list[NetworkInfo]:
+        """Sample-data version of ``GridCatalogService.list_networks``."""
         out = []
         for (
             t,
@@ -481,6 +502,7 @@ class DemoGridCatalogService:
         )
 
     def summary(self, source: NetworkSource) -> NetworkSummary:
+        """Sample-data version of ``GridCatalogService.summary``."""
         info = self._info(source)
         return NetworkSummary(
             info=info,
@@ -515,6 +537,7 @@ class DemoGridCatalogService:
     def elements(
         self, source: NetworkSource, bus: str | None = None
     ) -> list[ElementInfo]:
+        """Sample-data version of ``GridCatalogService.elements``."""
         topo = self.topology(source)
         out = []
         for i, b in enumerate(topo.buses[1:], start=1):
@@ -542,6 +565,7 @@ class DemoGridCatalogService:
     def preview_powerflow(
         self, source: NetworkSource, day: str, step: int
     ) -> PowerFlowPreview:
+        """Sample-data version of ``GridCatalogService.preview_powerflow``."""
         topo = self.topology(source)
         load = 0.6 + 0.4 * math.sin(math.pi * step / 24)
         volts = {
@@ -561,7 +585,11 @@ class DemoGridCatalogService:
 
 
 class DemoProfileService:
+    """Demo ``ProfileService``: generated sample curves. Shown as DEMO DATA in the
+    Studio.
+    """
     def profile_types(self, source: NetworkSource | None = None) -> list[ProfileType]:
+        """Sample-data version of ``ProfileService.profile_types``."""
         return (
             [
                 ProfileType(
@@ -592,6 +620,7 @@ class DemoProfileService:
         )
 
     def preview(self, file: ExperimentFile, participant_id: str) -> Series:
+        """Sample-data version of ``ProfileService.preview``."""
         p = next(
             (x for x in file.participants if x["id"] == participant_id),
             file.participants[0] if file.participants else {},
@@ -625,9 +654,11 @@ class DemoProfileService:
         )
 
     def suggest_mapping(self, source: NetworkSource, rule: dict) -> list[dict]:
+        """Sample-data version of ``ProfileService.suggest_mapping``."""
         return _participants(int(rule.get("n", 8)))
 
     def days(self, file: ExperimentFile) -> dict[str, list[str]]:
+        """Sample-data version of ``ProfileService.days``."""
         start = datetime(2016, 5, 2)
         days = [
             (start + timedelta(days=i)).strftime("%Y-%m-%d")
@@ -638,6 +669,7 @@ class DemoProfileService:
         return {"train": days[:cut], "eval": days[cut:]}
 
     def tariffs(self, file: ExperimentFile) -> Series:
+        """Sample-data version of ``ProfileService.tariffs``."""
         fit = [
             round(40 + 25 * math.sin(math.pi * (h - 6) / 12) if 6 <= h <= 18 else 35, 1)
             for h in HOURS
@@ -654,7 +686,11 @@ class DemoProfileService:
 
 
 class DemoValidationService:
+    """Demo ``ValidationService``: fixed sample findings; nothing is checked. Shown as
+    DEMO DATA in the Studio.
+    """
     def validate(self, file: ExperimentFile, level: str = "full") -> ValidationReport:
+        """Sample-data version of ``ValidationService.validate``."""
         findings = [
             Finding(
                 code="TIME_RESOLUTION_AGGREGATED",
@@ -698,6 +734,7 @@ class DemoValidationService:
         )
 
     def dry_run(self, file: ExperimentFile) -> DryRunResult:
+        """Sample-data version of ``ValidationService.dry_run``."""
         return DryRunResult(
             ok=True,
             observation_dims={p["id"]: 50 for p in file.participants},
@@ -708,6 +745,9 @@ class DemoValidationService:
 
 
 class DemoExperimentService:
+    """Demo ``ExperimentService``: invented runs; nothing is started. Shown as DEMO DATA
+    in the Studio.
+    """
     def __init__(self) -> None:
         self._runs = self._seed_runs()
 
@@ -744,18 +784,22 @@ class DemoExperimentService:
         return runs
 
     def create_runs(self, file: ExperimentFile) -> list[str]:
+        """Sample-data version of ``ExperimentService.create_runs``."""
         return [
             f"{file.meta.id}__{c.algorithm}-{c.paradigm}__s{c.seed}"
             for c in DemoConfigService().expand(file)
         ]
 
     def start(self, run_ids: list[str]) -> None:
+        """Sample-data version of ``ExperimentService.start``."""
         return None
 
     def cancel(self, run_id: str) -> None:
+        """Sample-data version of ``ExperimentService.cancel``."""
         return None
 
     def snapshot(self, run_id: str) -> RunStatus:
+        """Sample-data version of ``ExperimentService.snapshot``."""
         run = next((r for r in self._runs if r.run_id == run_id), self._runs[0])
         it = int(run.progress * 200)
         return RunStatus(
@@ -772,6 +816,7 @@ class DemoExperimentService:
         )
 
     def list_runs(self, experiment_id: str | None = None) -> list[RunSummary]:
+        """Sample-data version of ``ExperimentService.list_runs``."""
         return [
             r
             for r in self._runs
@@ -779,6 +824,7 @@ class DemoExperimentService:
         ]
 
     def estimate(self, file: ExperimentFile) -> RunEstimate:
+        """Sample-data version of ``ExperimentService.estimate``."""
         n = len(DemoConfigService().expand(file))
         return RunEstimate(
             runs=n,
@@ -787,6 +833,7 @@ class DemoExperimentService:
         )
 
     def health(self) -> RepositoryHealth:
+        """Sample-data version of ``ExperimentService.health``."""
         return RepositoryHealth(
             git_dirty=True,
             validation_progress=0.0,
@@ -799,7 +846,11 @@ class DemoExperimentService:
 
 
 class DemoResultService:
+    """Demo ``ResultService``: generated sample results. Shown as DEMO DATA in the
+    Studio.
+    """
     def summary(self, run_id: str) -> RunResult:
+        """Sample-data version of ``ResultService.summary``."""
         rng = random.Random(run_id)
         return RunResult(
             run_id=run_id,
@@ -822,6 +873,7 @@ class DemoResultService:
         )
 
     def training_curve(self, run_id: str) -> Series:
+        """Sample-data version of ``ResultService.training_curve``."""
         rng = random.Random(run_id)
         it = list(range(0, 200, 5))
         train = [
@@ -842,6 +894,7 @@ class DemoResultService:
         )
 
     def step_records(self, run_id: str, episode: int = 0) -> list[dict]:
+        """Sample-data version of ``ResultService.step_records``."""
         rng = random.Random(f"{run_id}-{episode}")
         return [
             {
@@ -859,6 +912,7 @@ class DemoResultService:
         ]
 
     def grid_series(self, run_id: str, episode: int = 0) -> Series:
+        """Sample-data version of ``ResultService.grid_series``."""
         vmin = [
             round(
                 0.985
@@ -892,6 +946,7 @@ class DemoResultService:
         )
 
     def agent_series(self, run_id: str, episode: int = 0) -> Series:
+        """Sample-data version of ``ResultService.agent_series``."""
         return Series(
             x=HOURS,
             y={
@@ -906,6 +961,7 @@ class DemoResultService:
         )
 
     def matrix(self, experiment_id: str, metric: str) -> MatrixTable:
+        """Sample-data version of ``ResultService.matrix``."""
         rng = random.Random(f"{experiment_id}-{metric}")
         mean = [
             [round(rng.uniform(0.3, 0.9), 3) for _ in ALGORITHMS] for _ in PARADIGMS
@@ -922,6 +978,7 @@ class DemoResultService:
         )
 
     def compare(self, run_ids: list[str], metric: str) -> Series:
+        """Sample-data version of ``ResultService.compare``."""
         return Series(
             x=list(range(0, 200, 5)),
             y={r: self.training_curve(r).y["evaluation"] for r in run_ids},
@@ -930,4 +987,5 @@ class DemoResultService:
         )
 
     def export(self, run_ids: list[str], fmt: str = "csv") -> str:
+        """Sample-data version of ``ResultService.export``."""
         return f"exports/{len(run_ids)}-runs.{fmt}"

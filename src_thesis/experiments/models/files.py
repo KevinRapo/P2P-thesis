@@ -39,6 +39,7 @@ def parse(text: str) -> ExperimentFile:
 
 
 def load(path: str | Path) -> ExperimentFile:
+    """Read an experiment file from disk; migrated and validated like ``parse``."""
     return parse(Path(path).read_text(encoding="utf-8"))
 
 
@@ -63,10 +64,16 @@ def atomic_write_text(path: str | Path, text: str) -> Path:
 
 
 def save(file: ExperimentFile, path: str | Path) -> Path:
+    """Write the file atomically as pretty JSON.
+
+    Returns:
+        The path written.
+    """
     return atomic_write_text(path, dumps(file) + "\n")
 
 
 def canonical_json(data: ExperimentFile | dict[str, Any]) -> str:
+    """Sorted-key, compact JSON of the file: what ``canonical_hash`` hashes."""
     if isinstance(data, ExperimentFile):
         data = data.model_dump(mode="json")
     return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)

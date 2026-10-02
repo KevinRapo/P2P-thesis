@@ -25,6 +25,20 @@ from src_thesis.experiments.models import (  # noqa: F401
 
 
 class FileSummary(BaseModel):
+    """One row of the Library: a preset or one of your files.
+
+    Attributes:
+        id: File ID (the file name without ``.marlem.json``).
+        name: ``meta.name``.
+        kind: ``"preset"`` (read-only, in the repository) or ``"draft"`` (library).
+        path: Where the file is.
+        modified: Last change on disk.
+        tags: ``meta.tags``.
+        network: SimBench code or network name from ``grid.source``.
+        participants: Number of participants.
+        runs: Runs created from the file (0 until the real ExperimentService).
+    """
+
     id: str
     name: str
     kind: Literal["preset", "draft", "file"]
@@ -37,6 +51,14 @@ class FileSummary(BaseModel):
 
 
 class FieldChange(BaseModel):
+    """One difference found by ``ConfigService.diff``.
+
+    Attributes:
+        path: Dotted path, e.g. ``participants[2].bus``.
+        before: Value in the first file; ``None`` if unset there.
+        after: Value in the second file; ``None`` if unset there.
+    """
+
     path: str
     before: Any = None
     after: Any = None
@@ -46,6 +68,13 @@ class FieldChange(BaseModel):
 
 
 class NetworkSource(BaseModel):
+    """Which network.
+
+    Attributes:
+        type: ``"simbench"``, ``"pandapower_builtin"`` or ``"pandapower_file"``.
+        code: SimBench code, pandapower function name or file path.
+    """
+
     type: Literal["simbench", "pandapower_builtin", "pandapower_file"]
     code: str
 
@@ -66,6 +95,18 @@ class NetworkInfo(BaseModel):
 
 
 class NetworkSummary(BaseModel):
+    """Totals of one network for the Grid page.
+
+    Attributes:
+        info: The catalog entry.
+        total_load_kw: Sum of the loads' rated active power.
+        total_generation_kw: Sum of the static generators' rated active power.
+        lines: Number of lines.
+        transformers: Number of transformers.
+        profile_year: Year of the network's SimBench profiles; ``None`` without
+            profiles.
+    """
+
     info: NetworkInfo
     total_load_kw: float
     total_generation_kw: float
@@ -84,6 +125,16 @@ class TopologyView(BaseModel):
 
 
 class ElementInfo(BaseModel):
+    """A load, static generator or storage unit.
+
+    Attributes:
+        id: Element name.
+        element_type: ``"load"``, ``"sgen"`` or ``"storage"``.
+        bus: Bus ID it is connected to.
+        profile_type: SimBench profile name; empty if none.
+        rated_kw: Rated active power.
+    """
+
     id: str
     element_type: Literal["load", "sgen", "storage"]
     bus: str
@@ -92,6 +143,21 @@ class ElementInfo(BaseModel):
 
 
 class PowerFlowPreview(BaseModel):
+    """One power flow on the unmodified network (the Grid page's preview).
+
+    Attributes:
+        converged: Whether the power flow converged.
+        min_voltage_pu: Lowest bus voltage.
+        max_voltage_pu: Highest bus voltage.
+        max_line_loading_percent: Highest line loading; ``None`` without line ratings.
+        losses_kw: Total losses.
+        bus_voltage_pu: Voltage per bus ID, for colouring the topology.
+        violations: Limit violations as readable text.
+        max_trafo_loading_percent: Highest transformer loading.
+        external_grid_kw: Exchange with the upstream grid (+ import, − export).
+        notes: Which profile values were used and which checks were switched off.
+    """
+
     converged: bool
     min_voltage_pu: float | None
     max_voltage_pu: float | None
@@ -108,6 +174,14 @@ class PowerFlowPreview(BaseModel):
 
 
 class ProfileType(BaseModel):
+    """A profile that can be assigned to a participant (SimBench catalogue).
+
+    Attributes:
+        code: Profile name, e.g. ``"H0-B"`` (household) or ``"PV3"``.
+        category: What kind of load or generation it describes.
+        description: Readable explanation.
+    """
+
     code: str
     category: Literal[
         "household",
@@ -135,12 +209,25 @@ class Series(BaseModel):
 
 
 class Severity(str, Enum):
+    """How serious a validation finding is; errors block a launch."""
+
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
 
 
 class Finding(BaseModel):
+    """One validation finding.
+
+    Attributes:
+        code: Stable identifier, e.g. ``"GRID_MAPPING_DUPLICATE_OWNER"``.
+        severity: Error, warning or info.
+        area: Schema, data, grid mapping, time, protocol or resources.
+        path: Dotted path of the field, so the Studio can jump to it.
+        message: What is wrong.
+        fix_hint: How to fix it.
+    """
+
     code: str
     severity: Severity
     area: str
@@ -150,16 +237,36 @@ class Finding(BaseModel):
 
 
 class ValidationReport(BaseModel):
+    """All findings of one validation.
+
+    Attributes:
+        file_hash: Canonical hash of the validated file.
+        level: ``"schema"``, ``"references"`` or ``"full"``.
+        findings: The findings.
+    """
+
     file_hash: str
     level: Literal["schema", "references", "full"]
     findings: list[Finding] = Field(default_factory=list)
 
     @property
     def ok(self) -> bool:
+        """True when there is no error (warnings are allowed)."""
         return not any(f.severity == Severity.ERROR for f in self.findings)
 
 
 class DryRunResult(BaseModel):
+    """Outcome of building the environment and taking one step.
+
+    Attributes:
+        ok: Whether the step succeeded.
+        observation_dims: Observation size per agent.
+        power_flow_converged: Whether the first power flow converged.
+        settlement_residual_kwh: Energy-balance residual of the settlement (should be
+            ~0).
+        messages: What was checked and found.
+    """
+
     ok: bool
     observation_dims: dict[str, int] = Field(default_factory=dict)
     power_flow_converged: bool | None = None
@@ -171,6 +278,20 @@ class DryRunResult(BaseModel):
 
 
 class RunSummary(BaseModel):
+    """One run in the Runs, Results and Compare lists.
+
+    Attributes:
+        run_id: The run's ID.
+        experiment_id: The experiment file's ``meta.id``.
+        cell: Algorithm, paradigm, seed and sweep point.
+        network: Network code.
+        state: Lifecycle state.
+        progress: Share of the budget done (0..1).
+        started: Start time.
+        elapsed_s: Running time so far.
+        eta_s: Estimated time left.
+    """
+
     run_id: str
     experiment_id: str
     cell: RunCell
@@ -183,6 +304,15 @@ class RunSummary(BaseModel):
 
 
 class RunStatus(BaseModel):
+    """Live view of one run for the Runs page.
+
+    Attributes:
+        summary: The run.
+        iteration: Current training iteration.
+        last_metrics: Latest reported metrics.
+        log_tail: Last lines of the worker log.
+    """
+
     summary: RunSummary
     iteration: int = 0
     last_metrics: dict[str, float] = Field(default_factory=dict)
@@ -190,6 +320,14 @@ class RunStatus(BaseModel):
 
 
 class RunEstimate(BaseModel):
+    """Size and expected duration of an experiment before it starts.
+
+    Attributes:
+        runs: Number of runs.
+        estimated_hours: Expected total time.
+        note: How the estimate was made.
+    """
+
     runs: int
     estimated_hours: float
     note: str = ""
@@ -207,6 +345,16 @@ class RunResult(BaseModel):
 
 
 class MatrixTable(BaseModel):
+    """Paradigm × algorithm table of one metric (the 3 × 3 result).
+
+    Attributes:
+        metric: The metric shown.
+        rows: Paradigms.
+        columns: Algorithms.
+        mean: Mean over seeds; ``None`` where no run finished.
+        std: Standard deviation over seeds.
+    """
+
     metric: str
     rows: list[str]  # paradigms
     columns: list[str]  # algorithms
@@ -215,6 +363,15 @@ class MatrixTable(BaseModel):
 
 
 class RepositoryHealth(BaseModel):
+    """Repository and environment state for the Home page.
+
+    Attributes:
+        git_dirty: Whether there are uncommitted changes.
+        validation_progress: Share of the validation issues closed.
+        dependencies_ok: Whether the required packages are installed.
+        messages: Details.
+    """
+
     git_dirty: bool
     validation_progress: float  # share of validation-plan issues closed
     dependencies_ok: bool

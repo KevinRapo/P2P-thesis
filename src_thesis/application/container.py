@@ -29,6 +29,20 @@ ConfigBackend = Literal["demo", "files"]
 
 @dataclass(frozen=True)
 class Services:
+    """The six services a caller uses, and which implementation is behind them.
+
+    Attributes:
+        config: Experiment files.
+        grid: Network catalog.
+        profiles: Profiles and participant mapping.
+        validation: Preflight checks.
+        experiments: Runs.
+        results: Reading results.
+        mode: ``"demo"`` until every service is real (R7).
+        grid_backend: ``"pandapower"`` when the grid catalog is real.
+        config_backend: ``"files"`` when experiment files are real.
+    """
+
     config: ConfigService
     grid: GridCatalogService
     profiles: ProfileService
