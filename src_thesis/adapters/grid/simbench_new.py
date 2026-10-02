@@ -243,8 +243,40 @@ def _coordinates(net: Any) -> tuple[dict[int, tuple[float, float]], str]:
         for i, geo in net.bus.geo.items():
             x, y = json.loads(geo)["coordinates"][:2]
             coords[int(i)] = (float(x), float(y))
-        return coords, "geodata"
+        return _pull_upstream_buses(net, coords), "geodata"
     return _radial_layout(net), "generated"
+
+
+def _pull_upstream_buses(
+    net: Any, coords: dict[int, tuple[float, float]]
+) -> dict[int, tuple[float, float]]:
+    """Draw upstream buses (reached only through transformers) at their transformer.
+
+    In SimBench networks the bus behind the transformer, e.g. the 20 kV bus that
+    feeds an LV network and holds the external grid, keeps its real position in
+    the upstream network, often hundreds of metres from the substation. Drawn
+    there it lands among unrelated buses with a long transformer line. Such a
+    bus is placed just above the transformer's other side instead.
+    """
+    on_lines = set(net.line.from_bus) | set(net.line.to_bus)
+    partners: dict[int, list[int]] = {}
+    for _, row in net.trafo.iterrows():
+        hv, lv = int(row.hv_bus), int(row.lv_bus)
+        partners.setdefault(hv, []).append(lv)
+        partners.setdefault(lv, []).append(hv)
+    ys = [y for _, y in coords.values()]
+    offset = 0.04 * ((max(ys) - min(ys)) or 1.0)
+    out = dict(coords)
+    for bus, others in partners.items():
+        if bus in on_lines or not others:
+            continue
+        others = [o for o in others if o in coords]
+        if not others:
+            continue
+        x = sum(coords[o][0] for o in others) / len(others)
+        y = max(coords[o][1] for o in others) + offset
+        out[bus] = (x, y)
+    return out
 
 
 def _radial_layout(net: Any) -> dict[int, tuple[float, float]]:
@@ -528,8 +560,7 @@ class SimBenchGrid:
         raise NotImplementedError
 
     def reset(self, episode_seed: int | None = None, day: str | None = None) -> None:
-        """Prepare a fresh working copy for an episode on ``day``. Not implemented (R4).
-        """
+        """Prepare a fresh working copy for an episode on ``day``. Not implemented (R4)."""
         raise NotImplementedError
 
     def assess(

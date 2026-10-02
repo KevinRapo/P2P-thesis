@@ -66,3 +66,17 @@ def test_builtin_network_without_profiles_or_ratings(grid) -> None:
     p = grid.preview_powerflow(CASE33, "2016-06-15", 12)
     assert p.converged and p.max_line_loading_percent is None
     assert any("static" in n for n in p.notes)
+
+
+def test_external_grid_is_drawn_at_its_transformer(grid) -> None:
+    """The upstream bus keeps its SimBench position far away; it is drawn next to
+    the transformer's other side instead."""
+    topo = grid.topology(NetworkSource(type="simbench", code="1-LV-semiurb4--1-sw"))
+    pos = {b["id"]: (b["x"], b["y"]) for b in topo.buses}
+    trafo = next(br for br in topo.lines if br["kind"] == "trafo")
+    ext = topo.external_grid_bus
+    other = trafo["to"] if trafo["from"] == ext else trafo["from"]
+    ys = [y for _, y in pos.values()]
+    span = max(ys) - min(ys)
+    assert abs(pos[ext][0] - pos[other][0]) < 1e-9
+    assert 0 < pos[ext][1] - pos[other][1] <= 0.05 * span
