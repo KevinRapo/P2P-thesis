@@ -653,7 +653,7 @@ class GroupedLEM(MultiAgentEnv):
         self.original_agents_id = env.agents_id
 
         # Grouped environment
-        # FAULT I-59 [D1] (1/3; next marl/train.py:692) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (1/3; next marl/train.py:697) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         self.env = env.with_agent_groups(groups={"grouped_agents": env.agents_id},
                                          obs_space=_tuple_obs_space,
                                          act_space=_tuple_act_space)
@@ -685,11 +685,16 @@ class GroupedLEM(MultiAgentEnv):
         return grouped_obs, infos
 
     def step(self, action_dict: MultiAgentDict) -> Tuple[MultiAgentDict, float, bool, bool, MultiAgentDict]:
+        """Step the wrapped environment and group the result for centralised training.
+
+        Observations are packed into one tuple per group; the group reward is the sum
+        of the agents' rewards.
+        """
         # Unpack the actions from the group to individual agent actions
         obs, rewards, terminateds, truncateds, infos = self.env.step(action_dict)
 
         # Pack the observations into a group
-        # FAULT I-59 [D1] (2/3; next marl/train.py:716) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (2/3; next marl/train.py:721) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         grouped_obs = {k: tuple(v) for k, v in obs.items()}
 
         # The reward for the group is the sum of individual rewards
@@ -735,6 +740,9 @@ class SingleOptimizerCallback(RLlibCallback):
                              *,
                              algorithm: Algorithm,
                              **kwargs) -> None:
+        """Turn tensor ``betas`` into floats in the optimizer after a checkpoint is
+        loaded (single RLModule).
+        """
         def betas_tensor_to_float(learner: Learner) -> None:
             param_grp = next(iter(learner._optimizer_parameters.keys())).param_groups[0]
 
@@ -757,6 +765,9 @@ class MultiOptimizerCallback(RLlibCallback):
                              *,
                              algorithm: Algorithm,
                              **kwargs) -> None:
+        """Turn tensor ``betas`` into floats in every optimizer after a checkpoint is
+        loaded (MultiRLModule).
+        """
         def betas_tensor_to_float(learner: Learner) -> None:
             for param_grp_key in learner._optimizer_parameters.keys():
                 param_grp = param_grp_key.param_groups[0]

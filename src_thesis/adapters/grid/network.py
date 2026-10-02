@@ -133,7 +133,7 @@ class GridNetwork:
 
             # Add edges to graph
             for u, v, w in config["edges"]:
-                # FAULT I-57 [A7] (1/3; next marketplace/grid/config.py:29) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
+                # FAULT I-57 [A7] (1/3; next marketplace/grid/config.py:37) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
                 graph.add_edge(u, v, weight=w)
 
             # Store node positions and zone information as graph attributes

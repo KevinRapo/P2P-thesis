@@ -8,6 +8,14 @@ from .base import GridTopology
 
 
 def get_predefined_config(topology: GridTopology) -> Dict[str, Any]:
+    """Node positions and zones of a predefined NetworkX test topology.
+
+    Args:
+        topology: Which predefined topology (e.g. IEEE 34).
+
+    Returns:
+        The topology's configuration (node positions, zones and related settings).
+    """
     config = {
         GridTopology.IEEE34: {"positions": {"800": (0, 0), "802": (1, 0), "806": (2, 0), "808": (3, 0),
                                             "810": (3, -1), "812": (4, 0), "814": (5, 0), "850": (6, 0),
@@ -26,7 +34,7 @@ def get_predefined_config(topology: GridTopology) -> Dict[str, Any]:
                                         "lateral2": ["864", "862", "838"],
                                         "transformer": ["888", "890"]},
 
-                              # FAULT I-57 [A7] (2/3; next marketplace/grid/config.py:44) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
+                              # FAULT I-57 [A7] (2/3; next marketplace/grid/config.py:52) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
                               "edges": [("800", "802", 0.486), ("802", "806", 0.527), ("806", "808", 0.932),
                                         ("808", "810", 0.256), ("808", "812", 0.732), ("812", "814", 0.853),
                                         ("814", "850", 0.126), ("816", "818", 0.524), ("816", "824", 3.112),
