@@ -22,6 +22,7 @@ FILES = [
     "thesis/architecture/03-application-layer.md",
     "thesis/architecture/04-presentation.md",
     "thesis/architecture/05-experiment-layer.md",
+    "thesis/architecture/implementation-status.md",
     "thesis/validation/README.md",
     "thesis/validation/issues.md",
     "thesis/validation/methodology.md",

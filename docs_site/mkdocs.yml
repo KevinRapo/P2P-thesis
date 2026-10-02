@@ -137,6 +137,7 @@ nav:
       - 03 Application layer: thesis/architecture/03-application-layer.md
       - 04 Presentation: thesis/architecture/04-presentation.md
       - 05 Experiment layer: thesis/architecture/05-experiment-layer.md
+      - Implementation status: thesis/architecture/implementation-status.md
   # Filled in by hooks.py: one section per layer, one page per module.
   - API Reference: api/index.md
   - Index of docs: thesis/README.md

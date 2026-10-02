@@ -178,6 +178,7 @@ Read the [paper-to-code map](../../paper/marlem-paper-to-code-map.md) first (it 
 | 02 | [02-experiment-config.md](02-experiment-config.md) | The single experiment JSON: every section and field, including RL algorithms, training modes and hyperparameters; presets; sharing |
 | 03 | [03-application-layer.md](03-application-layer.md) | Application layer: status and wiring, every service method, the returned data, and what each real service calls |
 | 04 | [04-presentation.md](04-presentation.md) | Presentation: the NiceGUI Studio (shell, every page, the services it calls, how pages connect) and the CLI |
+| — | [implementation-status.md](implementation-status.md) | **What exists in code today**, per phase, layer and Studio page; which fields each page writes; how to check it yourself |
 | 05 | [05-experiment-layer.md](05-experiment-layer.md) | `experiments/` in detail: records, every function with inputs and outputs, the store, worker, pool, run lifecycle and tests |
 
 [↑ Contents](#contents)
