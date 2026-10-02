@@ -88,6 +88,12 @@ plugins:
             docstring_style: google
             show_if_no_docstring: true
             filters: ["!^_"]
+            summary: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
 
 not_in_nav: |
   /thesis/validation/archive/
@@ -114,7 +120,6 @@ nav:
       - 03 Application layer: thesis/architecture/03-application-layer.md
       - 04 Presentation: thesis/architecture/04-presentation.md
       - 05 Experiment layer: thesis/architecture/05-experiment-layer.md
-  - API:
-      - Experiment layer: api/experiments.md
-      - Application layer: api/application.md
+  # Filled in by hooks.py: one section per layer, one page per module.
+  - API Reference: api/index.md
   - Index of docs: thesis/README.md

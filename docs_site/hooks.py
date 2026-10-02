@@ -1,7 +1,8 @@
 """Build-time changes that turn docs_thesis/ into a website, without touching it.
 
-- Generated pages that only exist on the site: the home page, the API reference
-  (mkdocstrings) and the MathJax configuration.
+- Generated pages that only exist on the site: the home page, the MathJax
+  configuration and the API reference: one page per module, grouped into
+  sections and packages (``API_SECTIONS``), built into the nav at "API Reference".
 - The generated "Contents" blocks and "↑ Contents" links are removed: the site
   shows its own table of contents on every page.
 - Links to code and other non-Markdown files become links to the repository on
@@ -11,6 +12,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 from urllib.parse import unquote
@@ -36,46 +38,11 @@ the SimBench rebuild.
 | **Papers** | [Methodology](paper/marlem-methodology.md): what the papers say. [Paper-to-code map](paper/marlem-paper-to-code-map.md): where each part lives in the original code. |
 | **Validation** | [How the validation docs work](thesis/validation/README.md), then the [issue register](thesis/validation/issues.md). |
 | **Architecture** | [Master document](thesis/architecture/README.md): goal, roadmap, decision log. |
-| **API** | Generated from the docstrings of the [experiment layer](api/experiments.md) and the [application layer](api/application.md). |
+| **API Reference** | [One page per module](api/index.md), generated from the docstrings of the new platform code. |
 
 The Markdown source is `docs_thesis/` in the repository; this site is built from
 it with `mkdocs build -f docs_site/mkdocs.yml`.
 """
-
-API = {
-    "api/experiments.md": (
-        "Experiment layer API",
-        "src_thesis/experiments",
-        [
-            "models.records",
-            "models.files",
-            "models.expand",
-            "models.resolve",
-            "models.manifest",
-            "store.filesystem",
-            "store.recorder",
-            "factory.environment",
-            "factory.training",
-            "worker.runner",
-            "worker.process",
-            "worker.pool",
-        ],
-        "thesis/architecture/05-experiment-layer.md",
-    ),
-    "api/application.md": (
-        "Application layer API",
-        "src_thesis/application",
-        [
-            "contracts",
-            "container",
-            "workspace",
-            "config_files",
-            "grid_catalog",
-            "models",
-        ],
-        "thesis/architecture/03-application-layer.md",
-    ),
-}
 
 MATHJAX = """window.MathJax = {
   tex: {inlineMath: [["\\\\(", "\\\\)"]], displayMath: [["\\\\[", "\\\\]"]],
@@ -85,25 +52,183 @@ MATHJAX = """window.MathJax = {
 document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() })
 """
 
+# The API reference: one section per layer, one page per module. A source is a
+# package (documented recursively: subpackages become subsections) or a module.
+API_NAV_TITLE = "API Reference"
+API_SECTIONS = [
+    (
+        "Experiment layer",
+        "experiments",
+        ["src_thesis.experiments"],
+        "thesis/architecture/05-experiment-layer.md",
+    ),
+    (
+        "Application layer",
+        "application",
+        ["src_thesis.application"],
+        "thesis/architecture/03-application-layer.md",
+    ),
+    (
+        "Grid",
+        "grid",
+        [
+            "src_thesis.marketplace.grid.contract_new",
+            "src_thesis.adapters.grid.simbench_new",
+        ],
+        "thesis/architecture/01-simbench-grid.md",
+    ),
+]
+_API_PAGES: dict[str, str] = {}
 
-def _api_page(title: str, package: str, modules: list[str], doc: str) -> str:
-    dotted = package.replace("/", ".")
-    body = [
-        f"# {title}",
+
+def _summary(path: Path) -> str:
+    """First line of a module's docstring."""
+    try:
+        doc = ast.get_docstring(ast.parse(path.read_text(encoding="utf-8")))
+    except (OSError, SyntaxError):
+        return ""
+    return (doc or "").strip().splitlines()[0] if doc else ""
+
+
+def _source(repo: Path, dotted: str) -> Path:
+    base = repo / Path(*dotted.split("."))
+    return base / "__init__.py" if base.is_dir() else base.with_suffix(".py")
+
+
+def _module_page(dotted: str, repo: Path, links: dict) -> str:
+    rel = _source(repo, dotted).relative_to(repo).as_posix()
+    url = f"{links['repo']}/blob/{links['ref']}/{rel}"
+    return "\n".join(
+        [
+            f"# {dotted.rsplit('.', 1)[-1]}",
+            "",
+            f"`{dotted}` · [source on GitHub]({url})",
+            "",
+            f"::: {dotted}",
+            "    options:",
+            "      show_root_heading: false",
+            "      heading_level: 2",
+            "",
+        ]
+    )
+
+
+def _table(rows: list[tuple[str, str, str]]) -> list[str]:
+    lines = ["| Module | Summary |", "|---|---|"]
+    lines += [f"| [`{name}`]({link}) | {text} |" for name, link, text in rows]
+    return lines + [""]
+
+
+def _package(dotted: str, page_dir: str, repo: Path, links: dict) -> tuple:
+    """Pages and nav for a package: an index page, its modules, its subpackages."""
+    folder = repo / Path(*dotted.split("."))
+    modules = sorted(p.stem for p in folder.glob("*.py") if not p.stem.startswith("_"))
+    subpackages = sorted(
+        d.name
+        for d in folder.iterdir()
+        if d.is_dir() and (d / "__init__.py").exists() and not d.name.startswith("_")
+    )
+    pages: dict[str, str] = {}
+    nav: list = [f"{page_dir}/index.md"]
+    rows = []
+    for name in subpackages:
+        sub_pages, sub_nav = _package(
+            f"{dotted}.{name}", f"{page_dir}/{name}", repo, links
+        )
+        pages.update(sub_pages)
+        nav.append({name: sub_nav})
+        rows.append(
+            (f"{name}/", f"{name}/index.md", _summary(folder / name / "__init__.py"))
+        )
+    for name in modules:
+        path = f"{page_dir}/{name}.md"
+        pages[path] = _module_page(f"{dotted}.{name}", repo, links)
+        nav.append({name: path})
+        rows.append((name, f"{name}.md", _summary(folder / f"{name}.py")))
+    index = [
+        f"# {dotted.rsplit('.', 1)[-1]}",
         "",
-        f"Generated from the docstrings in `{package}/`. The design and the"
-        f" reasons behind each module are in [the architecture document](../{doc}).",
+        f"`{dotted}`",
         "",
+        f"::: {dotted}",
+        "    options:",
+        "      show_root_heading: false",
+        "      members: false",
+        "",
+        *_table(rows),
     ]
-    for module in modules:
-        body += [f"::: {dotted}.{module}", ""]
-    return "\n".join(body)
+    pages[f"{page_dir}/index.md"] = "\n".join(index)
+    return pages, nav
+
+
+def _design(doc: str, up: str) -> str:
+    return f"Design and reasons: [{doc.rsplit('/', 1)[-1]}]({up}{doc})."
+
+
+def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
+    pages: dict[str, str] = {}
+    nav: list = ["api/index.md"]
+    overview = [
+        "# API Reference",
+        "",
+        "Generated from the docstrings of the new platform code in `src_thesis/`,"
+        " one page per module. Why each module exists and how the parts work"
+        " together is in the architecture document linked from each section.",
+        "",
+        "| Section | Contents | Design |",
+        "|---|---|---|",
+    ]
+    for title, slug, sources, doc in API_SECTIONS:
+        root = f"api/{slug}"
+        first = repo / Path(*sources[0].split("."))
+        if len(sources) == 1 and first.is_dir():
+            # The section is one package: its index page is the section page.
+            sub_pages, section_nav = _package(sources[0], root, repo, links)
+            pages.update(sub_pages)
+            index = pages[f"{root}/index.md"].split("\n")
+            index[0] = f"# {title}"
+            index[1:1] = ["", _design(doc, "../../")]
+            pages[f"{root}/index.md"] = "\n".join(index)
+        else:
+            section_nav = [f"{root}/index.md"]
+            rows = []
+            for dotted in sources:
+                name = dotted.rsplit(".", 1)[-1]
+                if (repo / Path(*dotted.split("."))).is_dir():
+                    sub_pages, sub_nav = _package(dotted, f"{root}/{name}", repo, links)
+                    pages.update(sub_pages)
+                    section_nav.append({name: sub_nav})
+                    link = f"{name}/index.md"
+                else:
+                    pages[f"{root}/{name}.md"] = _module_page(dotted, repo, links)
+                    section_nav.append({name: f"{root}/{name}.md"})
+                    link = f"{name}.md"
+                rows.append((dotted, link, _summary(_source(repo, dotted))))
+            pages[f"{root}/index.md"] = "\n".join(
+                [f"# {title}", "", _design(doc, "../../"), ""] + _table(rows)
+            )
+        nav.append({title: section_nav})
+        names = ", ".join(f"`{d}`" for d in sources)
+        overview.append(
+            f"| [{title}]({slug}/index.md) | {names} | {_design(doc, '../')} |"
+        )
+    pages["api/index.md"] = "\n".join(overview) + "\n"
+    return pages, nav
+
+
+def on_config(config):
+    """Build the API pages and put their tree into the nav under API_NAV_TITLE."""
+    global _API_PAGES
+    repo = Path(config.config_file_path).resolve().parent.parent
+    _API_PAGES, api_nav = _api(repo, config["extra"]["code_links"])
+    for i, item in enumerate(config["nav"]):
+        if isinstance(item, dict) and API_NAV_TITLE in item:
+            config["nav"][i] = {API_NAV_TITLE: api_nav}
+    return config
 
 
 def on_files(files, config):
-    generated = {"index.md": HOME, "javascripts/mathjax.js": MATHJAX}
-    for path, (title, package, modules, doc) in API.items():
-        generated[path] = _api_page(title, package, modules, doc)
+    generated = {"index.md": HOME, "javascripts/mathjax.js": MATHJAX, **_API_PAGES}
     for path, content in generated.items():
         files.append(File.generated(config, path, content=content))
     return files
