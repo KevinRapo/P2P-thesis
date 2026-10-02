@@ -1,0 +1,120 @@
+# Website for the thesis documentation (docs_thesis/), built with MkDocs Material.
+#
+# The source stays docs_thesis/, unchanged and readable in VS Code / on GitHub.
+# Everything a website needs differently happens at build time in hooks.py.
+#
+#   mkdocs serve -f docs_site/mkdocs.yml     # live preview, http://127.0.0.1:8000
+#   mkdocs build -f docs_site/mkdocs.yml     # static site in site/
+#
+# Remove this folder (and site/) to go back to plain Markdown only.
+
+site_name: MARLEM thesis docs
+site_description: Validation and SimBench rebuild of MARLEM
+repo_url: https://github.com/KevinRapo/P2P-thesis
+edit_uri: blob/dev/docs_thesis/
+docs_dir: ../docs_thesis
+site_dir: ../site
+
+extra:
+  # Links to code outside docs_thesis/ become links to this repository and branch.
+  code_links:
+    repo: https://github.com/KevinRapo/P2P-thesis
+    ref: dev
+
+hooks:
+  - hooks.py
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - tables
+  - attr_list
+  - md_in_html
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+      # GitHub-style anchors, so in-document links work in VS Code and here.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tilde
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [..]
+          options:
+            show_source: false
+            show_root_heading: true
+            members_order: source
+            docstring_style: google
+            show_if_no_docstring: true
+            filters: ["!^_"]
+
+not_in_nav: |
+  /thesis/validation/archive/
+
+validation:
+  links:
+    anchors: warn
+
+nav:
+  - Home: index.md
+  - Papers:
+      - Methodology: paper/marlem-methodology.md
+      - Paper-to-code map: paper/marlem-paper-to-code-map.md
+  - Validation:
+      - thesis/validation/README.md
+      - Issue register: thesis/validation/issues.md
+      - Method vs code: thesis/validation/methodology.md
+      - Plan: thesis/validation/plan.md
+      - Keep / replace audit: thesis/validation/marlem-keep-replace-audit.md
+  - Architecture:
+      - thesis/architecture/README.md
+      - 01 SimBench grid: thesis/architecture/01-simbench-grid.md
+      - 02 Experiment file: thesis/architecture/02-experiment-config.md
+      - 03 Application layer: thesis/architecture/03-application-layer.md
+      - 04 Presentation: thesis/architecture/04-presentation.md
+      - 05 Experiment layer: thesis/architecture/05-experiment-layer.md
+  - API:
+      - Experiment layer: api/experiments.md
+      - Application layer: api/application.md
+  - Index of docs: thesis/README.md

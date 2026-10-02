@@ -9,6 +9,9 @@ dependencies:
       - ipykernel
       - jupyter
       - matplotlib
+      - mkdocs>=1.6,<2
+      - mkdocs-material>=9.7,<10
+      - mkdocstrings[python]>=1.0,<2
       - networkx==3.4.2
       - nicegui==3.16.0
       - numpy

@@ -85,3 +85,5 @@ tmp/*
 warehouse/
 .DS_Store
 .vscode/
+# MkDocs build output (docs_site/)
+site/

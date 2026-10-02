@@ -1,0 +1,4 @@
+# Docs website (docs_site/). MkDocs 2.0 drops plugins and themes, so stay on 1.x.
+mkdocs>=1.6,<2
+mkdocs-material>=9.7,<10
+mkdocstrings[python]>=1.0,<2
