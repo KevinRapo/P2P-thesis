@@ -146,6 +146,7 @@ flowchart LR
 | Factory / training config | Presets build an environment; each algorithm × paradigm builds an `AlgorithmConfig`; mutation domains contain initial values | after R1 / R4 and stage D |
 | Services | Temp store: create, expand, validate, start (noop worker), snapshot, cancel | with the real services (R7) |
 | Presentation | Import boundaries; demo services satisfy every page call | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) |
+| Docstrings | Every public module, class and function of the platform code (`experiments/`, `application/`, `studio/`, the grid adapter and contract) has a docstring; the API reference is built from them | [tests/test_docstrings.py](../../../tests/test_docstrings.py) |
 | Docs | Validation docs consistent with the code markers | [tests/test_validation_docs.py](../../../tests/test_validation_docs.py) |
 
 ### 2.4 New components (not in the paper)
