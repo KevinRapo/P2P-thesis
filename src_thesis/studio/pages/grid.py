@@ -34,6 +34,9 @@ def _yes_no(value: bool | None, no: str = "no") -> str:
 
 @ui.page("/build/grid")
 def grid_page() -> None:
+    """Grid (04 §4.2): choose and understand a network: catalog, topology, elements,
+    power-flow preview.
+    """
     s = services()
     draft = current_draft()
     selected = NetworkSource(**draft.grid.get("source", _DEFAULT_SOURCE))

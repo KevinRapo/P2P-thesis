@@ -17,6 +17,9 @@ from ..state import current_draft, services
 
 @ui.page("/build/participants")
 def participants_page() -> None:
+    """Participants (04 §4.3): the draft's agents, their buses, profiles and batteries.
+    Read-only for now.
+    """
     s = services()
     draft = current_draft()
     source = NetworkSource(

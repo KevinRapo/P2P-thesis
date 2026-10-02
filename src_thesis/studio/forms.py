@@ -18,6 +18,12 @@ from .state import flash, open_draft, services
 
 
 class DraftForm:
+    """Ties page controls to fields of the draft experiment file.
+
+    Args:
+        draft: The file the page shows.
+    """
+
     def __init__(self, draft: ExperimentFile) -> None:
         self.draft = draft
         self._fields: dict[str, tuple[Any, Callable[[Any], Any] | None, Any]] = {}
@@ -44,6 +50,11 @@ class DraftForm:
         return out
 
     def apply(self) -> None:
+        """Save the changed fields to the draft and reload the page.
+
+        Only controls whose value changed are sent to ``ConfigService.update``. If the
+        result is invalid, the error is shown and nothing is saved.
+        """
         changes = self.changes()
         if not changes:
             ui.notify("No changes to apply")

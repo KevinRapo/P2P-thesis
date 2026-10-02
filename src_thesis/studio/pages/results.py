@@ -30,6 +30,7 @@ _OUTCOME_LABELS = {
 
 @ui.page("/results")
 def results_index_page() -> None:
+    """Results without a run: pick a run to open."""
     s = services()
     with shell("results", "Results", "Pick a run"):
         rows = [
@@ -61,6 +62,12 @@ def results_index_page() -> None:
 
 @ui.page("/results/{run_id}")
 def results_page(run_id: str) -> None:
+    """Results (04 §4.9) of one run: outcomes, learning curves, episode replay, grid and
+    agents. Demo data until R7.
+
+    Args:
+        run_id: The run, from the URL.
+    """
     s = services()
     with shell("results", "Results", run_id):
         result = s.results.summary(run_id)

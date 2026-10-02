@@ -17,6 +17,9 @@ _METRICS = {
 
 @ui.page("/compare")
 def compare_page() -> None:
+    """Compare (04 §4.10): the algorithm × paradigm matrix and run overlays. Demo data
+    until R7.
+    """
     s = services()
     with shell("compare", "Compare", "Paradigm × algorithm matrix and run overlays"):
         with ui.row().classes("w-full gap-2 items-center"):

@@ -23,6 +23,9 @@ _AREA_ROUTES = {
 
 @ui.page("/experiment/validate")
 def validate_page() -> None:
+    """Validate (04 §4.7): preflight report, dry run and launch. Demo validation until
+    R7.
+    """
     s = services()
     draft = current_draft()
     with shell(

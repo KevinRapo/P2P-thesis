@@ -12,6 +12,9 @@ ALGORITHMS = ["ppo", "appo", "sac"]
 
 @ui.page("/experiment/design")
 def design_page() -> None:
+    """Design (04 §4.6): the draft's learning plan (matrix, seeds, budget,
+    hyperparameters, sweep). Read-only for now.
+    """
     s = services()
     draft = current_draft()
     learning = draft.learning

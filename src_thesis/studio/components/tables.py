@@ -16,6 +16,7 @@ _STATE_COLORS = {
 
 
 def state_color(state: str) -> str:
+    """Badge colour for a run state (grey for unknown states)."""
     return _STATE_COLORS.get(state, "grey")
 
 

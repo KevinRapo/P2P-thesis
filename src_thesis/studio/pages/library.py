@@ -11,6 +11,7 @@ from ..state import flash, open_draft, reset_services, services
 
 @ui.page("/library")
 def library_page() -> None:
+    """Library (04 §4.11): presets and your files; click one to open it as the draft."""
     s = services()
     with shell("library", "Library", "Experiment files and presets"):
         with ui.row().classes("w-full gap-2"):
@@ -72,6 +73,7 @@ def library_page() -> None:
 
 @ui.page("/settings")
 def settings_page() -> None:
+    """Settings: the workspace folder, which services are real, appearance."""
     s = services()
     with shell(
         "settings",

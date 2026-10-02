@@ -25,6 +25,15 @@ def section(
 def stat(
     label: str, value: str, caption: str = "", icon: str = "", tone: str = "primary"
 ) -> None:
+    """A metric tile: small label, large value, optional caption and icon.
+
+    Args:
+        label: Title, e.g. ``"Participants"``.
+        value: The number or text shown large; long values get a smaller font.
+        caption: Line under the value.
+        icon: Material icon name shown top-right.
+        tone: Colour of the icon (``"primary"``, ``"warning"``, …).
+    """
     with ui.column().classes("mls-card gap-1"):
         with ui.row().classes("items-center justify-between w-full no-wrap"):
             ui.label(label).classes("mls-stat-label")
@@ -45,6 +54,7 @@ def stat_grid() -> Generator[ui.element, None, None]:
 
 
 def key_values(items: dict) -> None:
+    """Two-column list of labels and values."""
     with ui.element("div").classes("mls-kv"):
         for key, value in items.items():
             ui.label(str(key)).classes("mls-card-caption")
@@ -52,6 +62,7 @@ def key_values(items: dict) -> None:
 
 
 def placeholder(text: str, icon: str = "construction") -> None:
+    """A muted box with an icon and text, for content that does not exist yet."""
     with ui.column().classes("mls-placeholder w-full items-center gap-1"):
         ui.icon(icon, size="22px")
         ui.label(text)

@@ -64,6 +64,7 @@ def current_draft() -> ExperimentFile:
 
 
 def open_draft(file: ExperimentFile) -> None:
+    """Save ``file`` and make it the draft this browser session edits."""
     services().config.save(file)
     app.storage.user["draft_id"] = file.meta.id
 
@@ -74,5 +75,6 @@ def flash(message: str, kind: str = "positive") -> None:
 
 
 def pop_flash() -> tuple[str, str] | None:
+    """Take the pending flash notification, if any; the page shell shows it."""
     item = app.storage.user.pop("flash", None)
     return (item[0], item[1]) if item else None

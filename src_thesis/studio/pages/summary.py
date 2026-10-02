@@ -73,6 +73,9 @@ def _diff_dialog(draft) -> None:
 
 @ui.page("/build/summary")
 def summary_page() -> None:
+    """Summary (04 §4.5): the draft as JSON; save, save as, export a bundle, diff
+    against its origin.
+    """
     s = services()
     draft = current_draft()
     with shell("summary", "Summary", f"Draft experiment file · {draft.meta.id}"):

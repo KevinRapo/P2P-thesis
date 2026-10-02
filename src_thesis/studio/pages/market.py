@@ -19,6 +19,9 @@ _MECHANISMS = [
 
 @ui.page("/build/market")
 def market_page() -> None:
+    """Market & DSO (04 §4.4): edit the market rules, DSO tariffs and fees, and the
+    observation and reward settings of the draft.
+    """
     s = services()
     draft = current_draft()
     m, d, env = draft.market, draft.dso, draft.environment

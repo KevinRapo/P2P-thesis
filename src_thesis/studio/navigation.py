@@ -5,6 +5,15 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class NavItem:
+    """One entry of the left navigation.
+
+    Attributes:
+        key: Matches ``shell(active=...)`` to highlight the current page.
+        label: Text shown.
+        icon: Material icon name.
+        route: URL path.
+    """
+
     key: str
     label: str
     icon: str

@@ -27,6 +27,14 @@ def _base(
 def line_figure(
     series: Series, height: int = 300, dashed: tuple[str, ...] = (), kind: str = "line"
 ) -> go.Figure:
+    """Plotly figure of a ``Series``: one line (or bar group) per named y list.
+
+    Args:
+        series: The data.
+        height: Height in pixels.
+        dashed: Names drawn dashed, e.g. reference lines.
+        kind: ``"line"`` or ``"bar"``.
+    """
     fig = go.Figure()
     for i, (name, values) in enumerate(series.y.items()):
         color = SERIES[i % len(SERIES)]
@@ -46,6 +54,7 @@ def line_figure(
 
 
 def heatmap_figure(matrix: MatrixTable, height: int = 300) -> go.Figure:
+    """Plotly heatmap of a ``MatrixTable`` with ``mean ± std`` written in each cell."""
     text = [
         [f"{m:.3f} ± {s:.3f}" if m is not None else "–" for m, s in zip(mr, sr)]
         for mr, sr in zip(matrix.mean, matrix.std)

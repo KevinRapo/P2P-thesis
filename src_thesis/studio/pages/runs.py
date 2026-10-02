@@ -16,6 +16,7 @@ def _fmt_seconds(seconds: float | None) -> str:
 
 @ui.page("/runs")
 def runs_page() -> None:
+    """Runs (04 §4.8): queue, live status, log tail and cancel. Demo data until R7."""
     s = services()
     with shell(
         "runs", "Runs", "All runs from the experiment store; refreshed by polling"

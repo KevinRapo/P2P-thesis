@@ -9,6 +9,7 @@ from ..state import open_draft, services
 
 @ui.page("/")
 def home_page() -> None:
+    """Home (04 §4.1): start from a preset; recent files and runs."""
     s = services()
     with shell(
         "home", "Home", "Status of the repository, recent work and quick starts"

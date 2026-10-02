@@ -36,6 +36,13 @@ SOURCE = Path(__file__).resolve().parents[1]  # src_thesis/
 def main(
     port: int | None = None, show: bool | None = None, reload: bool | None = None
 ) -> None:
+    """Start the Studio server.
+
+    Args:
+        port: Port; default ``MARLEM_STUDIO_PORT`` or 8080.
+        show: Open a browser tab; default ``MARLEM_STUDIO_SHOW`` (on).
+        reload: Restart on code changes; default ``MARLEM_STUDIO_RELOAD`` (on).
+    """
     if port is None:
         port = int(os.environ.get("MARLEM_STUDIO_PORT", "8080"))
     if show is None:
