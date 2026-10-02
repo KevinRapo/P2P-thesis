@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from nicegui import app, ui
 
 from .navigation import NAV
-from .state import current_draft, services
+from .state import current_draft, pop_flash, services
 from .theme import apply_theme
 
 
@@ -20,6 +20,9 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
     """Build the page frame; the caller fills the content inside the `with` block."""
     apply_theme()
     dark = ui.dark_mode(value=app.storage.user.get("dark", False))
+    message = pop_flash()
+    if message:
+        ui.timer(0.1, lambda: ui.notify(message[0], type=message[1]), once=True)
     draft = current_draft()
     report = services().validation.validate(draft, level="schema")
     running = sum(
