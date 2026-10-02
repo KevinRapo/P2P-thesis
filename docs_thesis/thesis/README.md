@@ -40,7 +40,7 @@ docs/
 | [validation/archive/validation-plan-fix.md](validation/archive/validation-plan-fix.md) | The earlier audit (P-IDs), frozen; its IDs map to issues in `issues.md` §6. |
 | [validation/evidence/issue_demos.ipynb](validation/evidence/issue_demos.ipynb) | One small experiment per issue, expected vs actual; also runs as strict-xfail tests. |
 | [validation/marlem-keep-replace-audit.md](validation/marlem-keep-replace-audit.md) | **Rebuild or repair?** Function-by-function verdicts (keep / keep + fix / rewrite / replace / drop / later RL) for building a SimBench edition on the papers' method, where the original is coupled to its grid, and what happens to the 80 issues. |
-| [validation/evidence/trace_original_episode.py](validation/evidence/trace_original_episode.py) | Rerunnable proof of the T1–T13 facts. Run with the `marlem` conda env: `python docs/thesis/validation/evidence/trace_original_episode.py` |
+| [validation/evidence/trace_original_episode.py](validation/evidence/trace_original_episode.py) | Rerunnable proof of the T1–T13 facts. Run with the `marlem` conda env: `python docs_thesis/thesis/validation/evidence/trace_original_episode.py` |
 
 ## Architecture (SimBench edition)
 

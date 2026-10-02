@@ -1,4 +1,4 @@
-"""Navigation structure, see docs/thesis/architecture/04-presentation.md §2–§3."""
+"""Navigation structure, see docs_thesis/thesis/architecture/04-presentation.md §2–§3."""
 
 from dataclasses import dataclass
 

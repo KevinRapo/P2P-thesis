@@ -35,7 +35,7 @@ class ExperimentMeta(BaseModel):
 
 
 class ExperimentFile(BaseModel):
-    """One study, see docs/thesis/architecture/02-experiment-config.md.
+    """One study, see docs_thesis/thesis/architecture/02-experiment-config.md.
 
     The sections are dictionaries for now; each becomes a typed model when its
     Studio page and validation rules are implemented.

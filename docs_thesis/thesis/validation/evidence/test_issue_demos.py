@@ -5,7 +5,7 @@ the test fails and is reported as XFAIL. When a fix makes it pass, strict xfail
 turns the XPASS into a failure: remove the xfail for that issue, set its status
 in issues.md and delete its code marker in the same commit.
 
-    python -m pytest docs/thesis/validation/evidence -q
+    python -m pytest docs_thesis/thesis/validation/evidence -q
 """
 
 import sys

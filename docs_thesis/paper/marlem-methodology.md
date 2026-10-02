@@ -28,7 +28,7 @@ Equation numbers are the papers' own, e.g. [P1] (4). Equations garbled in the PD
 
 ---
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [1. Architecture ([P1] §3.1, Fig. 2)](#1-architecture-p1-31-fig-2)

@@ -4,7 +4,7 @@
 > The description is of the **original** code (frozen 2026-09-23; line numbers updated 2026-09-24 when the code markers were added). The status column is live.
 > Legends and the ID scheme: [README.md](README.md#legends). Paper vs code per equation: [methodology.md](methodology.md). Work order: [plan.md](plan.md).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [1. Evidence](#1-evidence)

@@ -4,7 +4,7 @@
 > Issue text, code lines and **status** live in [issues.md](issues.md) only. The issue tables and diagrams below marked *generated* are rebuilt from it by [check_docs.py](check_docs.py) (`--write`); do not edit them by hand.
 > Legends and conventions: [README.md](README.md).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [1. How this plan is organised](#1-how-this-plan-is-organised)

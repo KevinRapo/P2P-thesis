@@ -3,7 +3,7 @@
 > How people reach the system: the NiceGUI Studio (§0–§5: shell, pages, what each page contains, which services it calls and how pages lead into each other; structure, not visual design) and the CLI (§6). Both call only the application layer.
 > Master: [README.md](README.md) · Services: [03-application-layer.md](03-application-layer.md).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [0. Implementation status (scaffold, 2026-09-23)](#0-implementation-status-scaffold-2026-09-23)

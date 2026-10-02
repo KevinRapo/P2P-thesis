@@ -4,7 +4,7 @@
 > Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15.
 > Checked against the installed `simbench` 1.6.2 / `pandapower` 3.5.4 on 2026-09-25 (the Studio's grid catalog uses them).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [0. At a glance](#0-at-a-glance)

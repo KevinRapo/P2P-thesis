@@ -4,7 +4,7 @@
 > Master: [README.md](README.md) · Decisions: D-07, D-08.
 > "Original default" = the value in the original MARLEM code (frozen in `src_thesis_reference/`, see link) or in [P2] Table 7/8. Fields marked *(new)* do not exist in the original.
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [0. At a glance](#0-at-a-glance)

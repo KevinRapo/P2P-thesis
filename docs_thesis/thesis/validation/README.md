@@ -2,7 +2,7 @@
 
 > Adopted 2026-09-27: this layout replaced the earlier `validation/` files (paper-vs-code, plan-by-level, validation-plan-fix) and the two validation files in `paper/`. §"Where the old content went" maps each old section to its new place.
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [Files](#files)
@@ -36,12 +36,12 @@
 3. **Generated blocks are never edited by hand.** They sit between `<!-- BEGIN generated:NAME -->` and `<!-- END generated:NAME -->`. After changing the register, run:
 
    ```text
-   python docs/thesis/validation/check_docs.py --write
+   python docs_thesis/thesis/validation/check_docs.py --write
    ```
 
    Without `--write` it only checks, and fails if a block is stale. Use the `marlem` conda env.
 
-   The **Contents** block at the top of each document and the `↑ Contents` links under each section are generated too. After adding or renaming a `##` / `###` heading, run `python docs/toc.py` ([tests/test_docs_toc.py](../../../tests/test_docs_toc.py) fails while they are stale).
+   The **Contents** block at the top of each document and the `↑ Contents` links under each section are generated too. After adding or renaming a `##` / `###` heading, run `python docs_thesis/toc.py` ([tests/test_docs_toc.py](../../../tests/test_docs_toc.py) fails while they are stale).
 4. **Code links point at exact lines in the frozen original** (`src_thesis_reference/`), so they never move while `src_thesis/` is rewritten (D-14). `check_docs.py` fails on a link past the end of its file. Links to new platform code (application, Studio, experiments, SimBench adapter, grid contract) still point at `src_thesis/`; update them in the same commit that edits the file.
 5. **Closing an issue deletes its code markers in the same commit.** `check_docs.py` fails if a closed issue still has a marker, or if a marker's tag or step disagrees with the register.
 

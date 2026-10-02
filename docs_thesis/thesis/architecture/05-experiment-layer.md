@@ -4,7 +4,7 @@
 > Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [03-application-layer.md](03-application-layer.md) · Decisions: D-08, D-09, D-14.
 > Written 2026-09-27. Code: [experiments/](../../../src_thesis/experiments/) · Tests: [tests/test_experiments.py](../../../tests/test_experiments.py).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [1. Place in the system and status](#1-place-in-the-system-and-status)

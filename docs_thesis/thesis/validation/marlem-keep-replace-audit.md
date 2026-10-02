@@ -5,7 +5,7 @@
 > Written: 2026-09-27 · Branch: `dev` · Code links point at the frozen original, `src_thesis_reference/` (identical to `src_thesis/` on 2026-09-27).
 > Issue IDs link to the register in [issues.md](issues.md#2-register). Target design: [architecture/01-simbench-grid.md](../architecture/01-simbench-grid.md).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [0. Verdicts](#0-verdicts)

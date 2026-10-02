@@ -1,4 +1,4 @@
-"""Technology-neutral grid contract (docs/thesis/architecture/01-simbench-grid.md §5).
+"""Technology-neutral grid contract (docs_thesis/thesis/architecture/01-simbench-grid.md §5).
 
 Plain, frozen data only: no pandapower, SimBench or NetworkX objects cross this
 seam. The pandapower adapter (``adapters/grid/simbench_new.py``) produces these

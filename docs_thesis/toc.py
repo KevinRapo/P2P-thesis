@@ -4,8 +4,8 @@ Each document gets a ``## Contents`` block (every ``##`` and ``###`` heading)
 before its first section, and every ``##`` section ends with a link back to it.
 Both are generated; edit the headings, then run:
 
-    python docs/toc.py           # rewrite the documents
-    python docs/toc.py --check   # exit 1 if a document is out of date (used by tests)
+    python docs_thesis/toc.py           # rewrite the documents
+    python docs_thesis/toc.py --check   # exit 1 if a document is out of date (used by tests)
 """
 
 import re
@@ -29,7 +29,7 @@ FILES = [
     "thesis/validation/marlem-keep-replace-audit.md",
 ]
 
-BEGIN = "<!-- BEGIN toc (python docs/toc.py) -->"
+BEGIN = "<!-- BEGIN toc (python docs_thesis/toc.py) -->"
 END = "<!-- END toc -->"
 BACK = "[↑ Contents](#contents)"
 HEADING = re.compile(r"^(#{2,3}) (.+?)\s*$")

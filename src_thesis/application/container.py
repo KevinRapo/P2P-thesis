@@ -59,7 +59,7 @@ def build_services(
     if mode != "demo":
         raise NotImplementedError(
             "Real services are implemented in roadmap phases R6-R7 "
-            "(docs/thesis/architecture/README.md §4)."
+            "(docs_thesis/thesis/architecture/README.md §4)."
         )
     from .demo import (
         DemoConfigService,

@@ -7,7 +7,7 @@
 > Code: `src_thesis/` is the live code; `src_thesis_reference/` is the frozen original for comparison (D-14).
 > Roadmap phases are called R1–R9 (they were P1–P9 until 2026-09-27; P now always means a paper).
 
-<!-- BEGIN toc (python docs/toc.py) -->
+<!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [1. Goal](#1-goal)
