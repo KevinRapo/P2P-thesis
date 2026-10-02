@@ -13,7 +13,7 @@ needs differently happens at build time in [hooks.py](hooks.py):
 Diagrams are drawn by [overrides/assets/diagrams.js](overrides/assets/diagrams.js)
 instead of Material (which renders them where they cannot be zoomed): drag to
 pan, Ctrl + mouse wheel or the +/− buttons to zoom, double-click to zoom in,
-"fit" to reset, ⛶ for full screen. [diagrams.css](overrides/assets/diagrams.css)
+"fit" to reset, ⛶ to fill the browser window (Esc closes; F11 for the whole screen). Diagrams re-fit when the window size changes. [diagrams.css](overrides/assets/diagrams.css)
 also widens the page on large screens.
 
 ```text

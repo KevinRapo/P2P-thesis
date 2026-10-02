@@ -24,9 +24,12 @@ extra:
 hooks:
   - hooks.py
 
-# `mkdocs serve` also rebuilds when code changes, so the API pages stay current.
+# `mkdocs serve` also rebuilds when these change: the code (API pages stay
+# current), the site assets and the build hooks.
 watch:
   - ../src_thesis
+  - overrides
+  - hooks.py
 
 theme:
   name: material

@@ -38,7 +38,7 @@
 }
 
 .diagram-box:hover .diagram-tools,
-.diagram-box:fullscreen .diagram-tools {
+.diagram-box.diagram-expanded .diagram-tools {
   opacity: 1;
 }
 
@@ -58,11 +58,18 @@
   color: var(--md-accent-fg-color);
 }
 
-.diagram-box:fullscreen {
+/* "Fill the window" overlay (the corner button; Esc closes it). */
+.diagram-box.diagram-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  margin: 0;
+  padding-top: calc(2rem + 16px);
   border: none;
   border-radius: 0;
 }
 
-.diagram-box:fullscreen .diagram-stage {
-  height: 100vh;
+.diagram-overlay-open,
+.diagram-overlay-open body {
+  overflow: hidden;
 }
