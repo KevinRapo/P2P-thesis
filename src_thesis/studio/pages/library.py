@@ -4,7 +4,9 @@ from nicegui import app, ui
 
 from ..components import data_table, not_implemented, section
 from ..layout import shell
-from ..state import open_draft, services
+from src_thesis.application import workspace
+
+from ..state import flash, open_draft, reset_services, services
 
 
 @ui.page("/library")
@@ -76,15 +78,15 @@ def settings_page() -> None:
         "Settings",
         "Local preferences; research state lives in the experiment store",
     ):
-        with section("Experiment store", icon="storage"):
-            ui.input("Store path", value="C:/marlem-store").classes("w-full")
-            ui.label("Keep heavy run data outside OneDrive.").classes(
-                "mls-card-caption"
-            )
+        _workspace_section()
         with section("Services", icon="lan"):
-            ui.label(f"Mode: {s.mode}").classes("text-body2")
             ui.label(
-                "Switch to real services once roadmap phases R6–R7 exist."
+                f"Experiment files: {s.config_backend} · grid catalog: "
+                f"{s.grid_backend} · everything else: {s.mode}"
+            ).classes("text-body2")
+            ui.label(
+                "Profiles, validation, runs and results are demo data until "
+                "roadmap phase R7 (see the implementation status document)."
             ).classes("mls-card-caption")
         with section("Appearance", icon="palette"):
             ui.switch(
@@ -92,3 +94,60 @@ def settings_page() -> None:
                 value=app.storage.user.get("dark", False),
                 on_change=lambda e: app.storage.user.update(dark=e.value),
             )
+
+
+def _workspace_section() -> None:
+    """The workspace folder: where experiment files, runs and exports are saved."""
+    home = workspace.default_home()
+    source = workspace.home_source()
+    with section(
+        "Workspace folder",
+        "Where your experiment files, run folders and exports are saved",
+        "storage",
+    ):
+        folder = ui.input("Folder", value=str(home)).classes("w-full mls-mono")
+        rows = [
+            ("library", "experiment files (*.marlem.json)"),
+            ("store", "run folders"),
+            ("exports", "bundles"),
+        ]
+        for name, what in rows:
+            ui.label(f"{home / name}  ·  {what}").classes("mls-card-caption mls-mono")
+        if source == "environment":
+            folder.disable()
+            ui.label(
+                "Set by the MARLEM_HOME environment variable, which takes precedence; "
+                "unset it to choose the folder here."
+            ).classes("text-warning text-caption")
+        elif source == "default":
+            ui.label("Default folder (nothing chosen yet).").classes("mls-card-caption")
+        if workspace.is_synced_folder(home):
+            ui.label(
+                "This folder is synced by OneDrive: runs write many small files, "
+                "which sync clients lock and duplicate. Choose a local folder."
+            ).classes("text-warning text-caption")
+        ui.label(
+            f"Remembered in {workspace.settings_path()}. Existing files are not "
+            "moved: copy the library folder over to keep them."
+        ).classes("mls-card-caption")
+
+        def use(path: str | None) -> None:
+            try:
+                new_home = workspace.set_home(path)
+            except OSError as error:
+                ui.notify(f"Cannot use this folder: {error}", type="negative")
+                return
+            reset_services()
+            app.storage.user.pop("draft_id", None)
+            flash(f"Workspace folder: {new_home}")
+            ui.navigate.reload()
+
+        with ui.row().classes("gap-2"):
+            ui.button(
+                "Use this folder", icon="check", on_click=lambda: use(folder.value)
+            ).props("unelevated").set_enabled(source != "environment")
+            ui.button(
+                "Reset to default",
+                icon="restart_alt",
+                on_click=lambda: use(None),
+            ).props("outline").set_enabled(source == "settings")

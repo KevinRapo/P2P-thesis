@@ -153,3 +153,33 @@ def test_origin_and_delete(config: FileConfigService) -> None:
         config.delete(PRESET)  # presets are not in the library
     clone.meta.derived_from = "preset:gone"
     assert config.origin(clone) is None
+
+
+def test_workspace_folder_choice(tmp_path: Path, monkeypatch) -> None:
+    from src_thesis.application import workspace
+
+    monkeypatch.setattr(workspace, "settings_path", lambda: tmp_path / "s.json")
+    monkeypatch.delenv("MARLEM_HOME", raising=False)
+    assert workspace.home_source() == "default"
+    assert workspace.default_home() == workspace.built_in_home()
+
+    chosen = workspace.set_home(tmp_path / "my-runs")
+    assert chosen.is_dir() and workspace.default_home() == chosen
+    assert workspace.home_source() == "settings"
+
+    monkeypatch.setenv("MARLEM_HOME", str(tmp_path / "env"))
+    assert workspace.default_home() == tmp_path / "env"  # the variable wins
+    assert workspace.home_source() == "environment"
+    monkeypatch.delenv("MARLEM_HOME")
+
+    assert workspace.set_home(None) == workspace.built_in_home()
+    assert workspace.home_source() == "default"
+    assert workspace.is_synced_folder(Path("C:/Users/x/OneDrive/Desktop"))
+
+
+def test_synced_folder_detection() -> None:
+    from src_thesis.application.workspace import is_synced_folder
+
+    assert is_synced_folder(Path("C:/Users/x/OneDrive/Desktop/runs"))
+    assert is_synced_folder(Path("C:/Users/x/OneDrive - TalTech/runs"))
+    assert not is_synced_folder(Path("C:/temp/c--Users-x-OneDrive-Desktop/runs"))

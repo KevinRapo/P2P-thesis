@@ -19,9 +19,9 @@ def services() -> Services:
     """The process-wide services.
 
     The grid catalog is real (SimBench / pandapower) unless MARLEM_STUDIO_GRID=demo,
-    and experiment files are real files in the workspace library (outside OneDrive,
-    MARLEM_HOME to move it) unless MARLEM_STUDIO_CONFIG=demo. Everything else is
-    demo data until its roadmap phase.
+    and experiment files are real files in the workspace library (its folder is
+    chosen on the Settings page) unless MARLEM_STUDIO_CONFIG=demo. Everything
+    else is demo data until its roadmap phase.
     """
     global _SERVICES
     if _SERVICES is None:
@@ -33,6 +33,12 @@ def services() -> Services:
             config="demo" if config == "demo" else "files",
         )
     return _SERVICES
+
+
+def reset_services() -> None:
+    """Rebuild the services on next use (e.g. after the workspace moved)."""
+    global _SERVICES
+    _SERVICES = None
 
 
 def current_draft() -> ExperimentFile:
