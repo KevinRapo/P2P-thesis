@@ -86,7 +86,7 @@ plugins:
         python:
           paths: [..]
           options:
-            show_source: false
+            show_source: true
             show_root_heading: true
             members_order: source
             docstring_style: google
