@@ -89,7 +89,7 @@ Services return plain data only (§3); nothing from the lower layers reaches the
 
 Real services replace demo ones one at a time, in roadmap order, and are imported lazily inside `build_services`. Only this module changes when a real service arrives.
 
-**Workspace.** User data lives in one folder outside the repository and OneDrive: `%LOCALAPPDATA%\MARLEM` on Windows (here `C:\Users\Kevin\AppData\Local\MARLEM`), `~/.local/share/marlem` elsewhere; `MARLEM_HOME` moves it. Inside: `library/` (the user's experiment files), `store/` (run folders, 05 §3.5) and `exports/` (bundles). Presets stay in the repository, read-only.
+**Workspace.** User data lives in one folder outside the repository and OneDrive. Its location is, in order: `MARLEM_HOME` if set; the folder chosen on the Studio's Settings page (kept in `%APPDATA%\MARLEM\settings.json`, [`workspace.set_home`](../../../src_thesis/application/workspace.py)); otherwise `%LOCALAPPDATA%\MARLEM` on Windows (here `C:\Users\Kevin\AppData\Local\MARLEM`), `~/.local/share/marlem` elsewhere. Inside: `library/` (the user's experiment files), `store/` (run folders, 05 §3.5) and `exports/` (bundles). Presets stay in the repository, read-only.
 
 [↑ Contents](#contents)
 

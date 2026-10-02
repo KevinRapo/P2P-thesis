@@ -27,13 +27,13 @@ The Studio's Build and Experiment pages edit one **draft experiment file**. Wher
 
 | What | Where |
 |---|---|
-| Your experiment files | `C:\Users\Kevin\AppData\Local\MARLEM\library\<id>.marlem.json` (outside OneDrive; `MARLEM_HOME` moves it) |
+| Your experiment files | `<workspace>\library\<id>.marlem.json`. The workspace folder is shown and chosen on the **Settings** page; default `C:\Users\Kevin\AppData\Local\MARLEM` |
 | Which file is the draft | The chip in the Studio header, and "File id" on the Summary page |
 | Presets (read-only) | [src_thesis/experiments/presets/](../../../src_thesis/experiments/presets/) |
 
 Three ways to see what a UI action changed:
 
-1. **Open the JSON** in VS Code (`code C:\Users\Kevin\AppData\Local\MARLEM\library\case6-3x3-draft.marlem.json`). VS Code reloads it when the Studio writes it.
+1. **Open the JSON** in VS Code (with the default folder: `code C:\Users\Kevin\AppData\Local\MARLEM\library\case6-3x3-draft.marlem.json`). VS Code reloads it when the Studio writes it.
 2. **Summary page → "Experiment file (JSON)"** shows the same file.
 3. **Summary page → "Diff against origin"** lists every field that differs from the preset the draft came from, as dotted paths (`market.price.max: 600 → 444`).
 
@@ -115,7 +115,7 @@ Which implementation the Studio uses is shown in its footer (`services: demo · 
 | Design | The draft's learning plan (real); run estimate: demo | Nothing yet | Apply learning plan, Edit sweep, Edit mutations |
 | Validate | Demo findings and dry run | Nothing ("Launch" calls the demo `ExperimentService`) | — |
 | Runs, Results, Compare | Demo | — | Export figures |
-| Settings | Store path field is a static sample (`C:/marlem-store`), not the real workspace | Dark mode only | Store path |
+| Settings | The real workspace folder and its `library/`, `store/`, `exports/` | Not the experiment file: "Use this folder" chooses the workspace folder (kept in `%APPDATA%\MARLEM\settings.json`); dark mode | — |
 
 [↑ Contents](#contents)
 
