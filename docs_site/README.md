@@ -23,6 +23,8 @@ mkdocs build -f docs_site/mkdocs.yml             # static site in site/ (git-ign
 ```
 
 New documents appear on the site once they are added to `nav` in `mkdocs.yml`.
+After editing `hooks.py` (e.g. `API_SECTIONS`), restart `mkdocs serve`; changes to
+the docs, the code and `overrides/` are picked up while it runs.
 Code links go to the `dev` branch on GitHub, so they show what is pushed there.
 
 To go back to Markdown only, delete this folder and `site/`.
