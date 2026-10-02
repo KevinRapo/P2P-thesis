@@ -38,7 +38,7 @@ the SimBench rebuild.
 | **Papers** | [Methodology](paper/marlem-methodology.md): what the papers say. [Paper-to-code map](paper/marlem-paper-to-code-map.md): where each part lives in the original code. |
 | **Validation** | [How the validation docs work](thesis/validation/README.md), then the [issue register](thesis/validation/issues.md). |
 | **Architecture** | [Master document](thesis/architecture/README.md): goal, roadmap, decision log. |
-| **API Reference** | [One page per module](api/index.md), generated from the docstrings of the new platform code. |
+| **API Reference** | [One page per module](api/index.md) of `src_thesis/`, generated from the docstrings: MARLEM by paper level, the adapters, and the platform layers. |
 
 The Markdown source is `docs_thesis/` in the repository; this site is built from
 it with `mkdocs build -f docs_site/mkdocs.yml`.
@@ -56,6 +56,32 @@ document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() }
 # package (documented recursively: subpackages become subsections) or a module.
 API_NAV_TITLE = "API Reference"
 API_SECTIONS = [
+    # MARLEM itself, by the paper's levels ([P1] Fig. 2).
+    (
+        "Level 0: marketplace",
+        "marketplace",
+        ["src_thesis.marketplace"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "Level 1: MARL",
+        "marl",
+        ["src_thesis.marl"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "Level 2: cooperation",
+        "cooperation",
+        ["src_thesis.cooperation"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "Adapters",
+        "adapters",
+        ["src_thesis.adapters"],
+        "thesis/architecture/01-simbench-grid.md",
+    ),
+    # The platform around it, bottom-up (architecture README §2.1).
     (
         "Experiment layer",
         "experiments",
@@ -69,13 +95,10 @@ API_SECTIONS = [
         "thesis/architecture/03-application-layer.md",
     ),
     (
-        "Grid",
-        "grid",
-        [
-            "src_thesis.marketplace.grid.contract_new",
-            "src_thesis.adapters.grid.simbench_new",
-        ],
-        "thesis/architecture/01-simbench-grid.md",
+        "Studio",
+        "studio",
+        ["src_thesis.studio"],
+        "thesis/architecture/04-presentation.md",
     ),
 ]
 _API_PAGES: dict[str, str] = {}
@@ -171,7 +194,7 @@ def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
     overview = [
         "# API Reference",
         "",
-        "Generated from the docstrings of the new platform code in `src_thesis/`,"
+        "Generated from the docstrings of `src_thesis/`,"
         " one page per module. Why each module exists and how the parts work"
         " together is in the architecture document linked from each section.",
         "",
