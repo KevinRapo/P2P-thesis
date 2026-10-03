@@ -130,7 +130,7 @@ for scenario_name, config in case1_scenarios.items():
 ### Use with Training Framework
 
 ```python
-from src.environment.train import RLTrainer, TrainingMode, RLAlgorithm
+from src_thesis.marl.train import RLTrainer, TrainingMode, RLAlgorithm
 from cases import get_case_study
 
 # Get Case 1 scenarios

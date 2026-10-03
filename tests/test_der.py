@@ -11,8 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_market_config
 
-from src.agent.battery import Battery
-from src.agent.der import DERAgent
+from src_thesis.marl.agents.battery import Battery
+from src_thesis.marl.agents.der import DERAgent
 
 
 def test_der() -> None:

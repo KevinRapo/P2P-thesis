@@ -9,8 +9,8 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.profile.der import DERProfileHandler
-from src.profile.dso import DSOProfileHandler
+from src_thesis.adapters.profiles.der import DERProfileHandler
+from src_thesis.adapters.profiles.dso import DSOProfileHandler
 
 
 def test_profile() -> None:

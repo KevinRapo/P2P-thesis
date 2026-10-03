@@ -1,9 +1,10 @@
 # Standalone thesis implementation
 
-`src_thesis/` is the standalone, paper-aligned refactoring of MARLEM. It does
-not import or delegate to the original `src/` package. The original package is
-kept only as a comparison baseline while this implementation is inspected,
-tested, and prepared for the SimBench/pandapower grid replacement.
+`src_thesis/` is the paper-aligned refactoring of MARLEM and the single source
+of truth of this repository. The upstream `src/` package and the frozen copy
+`src_thesis_reference/` were removed on 2026-10-03; both remain in the git tag
+`marlem-original` (`git show marlem-original:src/<path>`). The path map below
+says where each upstream module lives now.
 
 ```text
 src_thesis/
@@ -49,8 +50,7 @@ src_thesis/
 ```
 
 Each inherited script keeps its original filename even when its parent package
-has moved. Package `__init__.py` files do not provide compatibility wrappers,
-and there are no runtime imports from `src/`.
+has moved. Package `__init__.py` files do not provide compatibility wrappers.
 
 The inherited grid behavior currently lives in
 `adapters/grid/network.py`. Market code still calls concrete legacy grid

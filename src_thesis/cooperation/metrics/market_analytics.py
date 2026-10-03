@@ -120,7 +120,7 @@ class MarketMetricsHandler:
                              trading_frequency_by_agent=agent_behavior["trading_frequency_by_agent"])
 
     def get_economic_metrics(self) -> Dict[str, float]:
-        # FAULT I-65 [B2] `src/analytics` reports welfare, grid and coordination concepts without the required inputs
+        # FAULT I-65 [B2] `cooperation/metrics` reports welfare, grid and coordination concepts without the required inputs
         """Analyze economic efficiency and welfare metrics.
 
         Returns:

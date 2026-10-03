@@ -17,13 +17,13 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.analytics.grid_metrics import GridMetrics
+from src_thesis.cooperation.metrics.grid_metrics import GridMetrics
 
 # Import only what we need - metrics classes are imported within test functions
-from src.market.matching import MatchingHistory, MatchingResult
-from src.market.order import Trade
-from src.root import __main__
-from src.visualization.plotter import Plotter
+from src_thesis.marketplace.market.matching import MatchingHistory, MatchingResult
+from src_thesis.marketplace.market.order import Trade
+from src_thesis.root import __main__
+from src_thesis.cooperation.visualization.plotter import Plotter
 
 
 def test_trading_network_visualization(path: str,
@@ -342,7 +342,7 @@ def test_economic_efficiency_metrics(path: str) -> None:
     print("--- STEP 1. Creating Sample Market Metrics ---")
 
     # Import MarketMetrics
-    from src.analytics.market_analytics import MarketMetrics
+    from src_thesis.cooperation.metrics.market_analytics import MarketMetrics
 
     # Create sample market metrics
     market_metrics = MarketMetrics(
@@ -387,7 +387,7 @@ def test_resource_utilization_metrics(path: str) -> None:
     print("--- STEP 1. Creating Sample Resource Metrics ---")
 
     # Import MarketMetrics (reused for resource utilization)
-    from src.analytics.market_analytics import MarketMetrics
+    from src_thesis.cooperation.metrics.market_analytics import MarketMetrics
 
     # Create sample resource utilization metrics
     resource_metrics = MarketMetrics(
@@ -424,7 +424,7 @@ def test_dso_metrics(path: str) -> None:
     print("--- STEP 1. Creating Sample DSO Metrics ---")
 
     # Import DSOMetrics
-    from src.analytics.dso_metrics import DSOMetrics
+    from src_thesis.cooperation.metrics.dso_metrics import DSOMetrics
 
     # Create sample DSO metrics
     dso_metrics = DSOMetrics(

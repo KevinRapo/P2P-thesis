@@ -64,18 +64,16 @@ This PhD research project focuses on developing an implicit cooperation model fo
 
 ```
 .
-├── src/                    # Source code
-│   ├── agent/              # Agent implementations and policies
-│   ├── analytics/          # Metrics and performance analysis
-│   ├── coordination/       # Implicit cooperation mechanisms
-│   ├── environment/        # Market environment and training
-│   ├── grid/               # Grid network modeling
-│   ├── market/             # Market mechanisms and clearing
-│   ├── profile/            # Energy profile generation
-│   └── visualization/      # Plotting and visualization tools
-├── cases/                  # Case studies and scenarios
+├── src_thesis/             # Source code (see src_thesis/README.md)
+│   ├── marketplace/        # Level 0: environment, market, DSO, grid domain
+│   ├── marl/               # Level 1: agents, training, inference
+│   ├── cooperation/        # Level 2: implicit cooperation, metrics, plots
+│   ├── adapters/           # Grid and profile implementations
+│   ├── experiments/        # Experiment files, runs, store, workers
+│   ├── application/        # Services for the Studio, CLI and notebooks
+│   └── studio/             # NiceGUI Studio
 ├── data/                   # Input data (demand, generation, prices)
-├── docs/                   # Documentation
+├── docs_thesis/            # Documentation (docs_site/ builds the website)
 ├── tests/                  # Unit and integration tests
 └── notebooks/              # Jupyter notebooks for exploration
 ```
@@ -166,7 +164,7 @@ python -m ipykernel install --user --name marlem --display-name "marlem"
 You can verify the installation by running:
 
 ```bash
-python -c "import src; print('Installation successful!')"
+python -c "import src_thesis; print('Installation successful!')"
 ```
 
 ### Uninstall
@@ -226,7 +224,7 @@ for scenario_name, config in case1_scenarios.items():
 To train agents using reinforcement learning:
 
 ```python
-from src.environment.train import RLTrainer, TrainingMode, RLAlgorithm
+from src_thesis.marl.train import RLTrainer, TrainingMode, RLAlgorithm
 from cases import get_case_study
 
 # Get a scenario
@@ -314,14 +312,14 @@ The project includes comprehensive tools for analyzing the behavior and performa
 
 The framework provides several analytics modules for performance evaluation:
 
-- **Coordination Metrics** (`src/analytics/coordination_metrics.py`): Measures coordination effectiveness between agents
-- **DSO Metrics** (`src/analytics/dso_metrics.py`): Tracks DSO intervention and grid stability metrics
-- **Grid Metrics** (`src/analytics/grid_metrics.py`): Evaluates grid performance and constraint violations
-- **Market Analytics** (`src/analytics/market_analytics.py`): Analyzes market outcomes, prices, and trading volumes
+- **Coordination Metrics** (`src_thesis/cooperation/metrics/coordination_metrics.py`): Measures coordination effectiveness between agents
+- **DSO Metrics** (`src_thesis/cooperation/metrics/dso_metrics.py`): Tracks DSO intervention and grid stability metrics
+- **Grid Metrics** (`src_thesis/cooperation/metrics/grid_metrics.py`): Evaluates grid performance and constraint violations
+- **Market Analytics** (`src_thesis/cooperation/metrics/market_analytics.py`): Analyzes market outcomes, prices, and trading volumes
 
 ### Visualization
 
-The framework includes visualization tools in `src/visualization/` for:
+The framework includes visualization tools in `src_thesis/cooperation/visualization/` for:
 
 - Market price and volume trends
 - Agent behavior and strategy visualization

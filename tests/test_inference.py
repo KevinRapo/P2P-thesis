@@ -9,8 +9,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_simple_env_config
 
-from src.environment.inference import RLInference
-from src.root import __main__
+from src_thesis.marl.inference import RLInference
+from src_thesis.root import __main__
 
 
 def test_inference_dtde(path: str) -> bool:

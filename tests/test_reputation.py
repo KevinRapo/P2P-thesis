@@ -10,10 +10,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_agents
 
-from src.grid.base import Location
-from src.market.matching import MatchingResult
-from src.market.order import Order, Trade
-from src.market.reputation import ReputationHandler
+from src_thesis.marketplace.grid.base import Location
+from src_thesis.marketplace.market.matching import MatchingResult
+from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis.marketplace.market.reputation import ReputationHandler
 
 
 def test_reputation() -> None:

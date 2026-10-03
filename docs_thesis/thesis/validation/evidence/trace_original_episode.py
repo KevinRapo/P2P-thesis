@@ -12,16 +12,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 import numpy as np
-from src.agent.der import DERAgent
-from src.agent.battery import Battery
-from src.grid.base import GridTopology
-from src.grid.network import GridNetwork
-from src.market.matching import MarketConfig
-from src.market.mechanism import ClearingMechanism
-from src.market.mechanism import SellerPricing, BuyerPricing
-from src.market.order import Order
-from src.environment.lem import LocalEnergyMarket
-import src.environment.reward as R
+from src_thesis.marl.agents.der import DERAgent
+from src_thesis.marl.agents.battery import Battery
+from src_thesis.marketplace.grid.base import GridTopology
+from src_thesis.adapters.grid.network import GridNetwork
+from src_thesis.marketplace.market.matching import MarketConfig
+from src_thesis.marketplace.market.mechanism import ClearingMechanism
+from src_thesis.marketplace.market.mechanism import SellerPricing, BuyerPricing
+from src_thesis.marketplace.market.order import Order
+from src_thesis.marketplace.lem import LocalEnergyMarket
+import src_thesis.marketplace.reward as R
 
 # --- instrument reward to see the order quantity it receives
 seen = []
@@ -130,7 +130,7 @@ print(
 )
 
 # --- battery sign: agent sells 10 with G=D -> household must discharge, code charges?
-from src.agent.der import DERAgent as D
+from src_thesis.marl.agents.der import DERAgent as D
 
 bat = Battery(100, 0.0, 1.0, 1.0, 1.0)
 bat.energy_level = 50.0
