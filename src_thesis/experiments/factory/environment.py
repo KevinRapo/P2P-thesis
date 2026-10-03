@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..models.records import ExperimentFile, RunCell
+from src_thesis.experiments.models.records import ExperimentFile, RunCell
 
 if TYPE_CHECKING:  # heavy imports stay out of this module at runtime
     from src_thesis.marketplace.grid.contract_new import GridModel

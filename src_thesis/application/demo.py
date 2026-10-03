@@ -14,7 +14,7 @@ import random
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .models import (
+from src_thesis.application.models import (
     DryRunResult,
     ElementInfo,
     ExperimentFile,
@@ -266,6 +266,7 @@ class DemoConfigService:
     """Demo ``ConfigService``: experiment files kept in memory; presets built in code.
     Shown as DEMO DATA in the Studio.
     """
+
     def __init__(self) -> None:
         self._drafts: dict[str, ExperimentFile] = {}
 
@@ -460,6 +461,7 @@ class DemoGridCatalogService:
     """Demo ``GridCatalogService``: a few sample networks with generated topology. Shown
     as DEMO DATA in the Studio.
     """
+
     def list_networks(
         self, source_type: str | None = None, level: str | None = None
     ) -> list[NetworkInfo]:
@@ -588,6 +590,7 @@ class DemoProfileService:
     """Demo ``ProfileService``: generated sample curves. Shown as DEMO DATA in the
     Studio.
     """
+
     def profile_types(self, source: NetworkSource | None = None) -> list[ProfileType]:
         """Sample-data version of ``ProfileService.profile_types``."""
         return (
@@ -689,6 +692,7 @@ class DemoValidationService:
     """Demo ``ValidationService``: fixed sample findings; nothing is checked. Shown as
     DEMO DATA in the Studio.
     """
+
     def validate(self, file: ExperimentFile, level: str = "full") -> ValidationReport:
         """Sample-data version of ``ValidationService.validate``."""
         findings = [
@@ -748,6 +752,7 @@ class DemoExperimentService:
     """Demo ``ExperimentService``: invented runs; nothing is started. Shown as DEMO DATA
     in the Studio.
     """
+
     def __init__(self) -> None:
         self._runs = self._seed_runs()
 
@@ -849,6 +854,7 @@ class DemoResultService:
     """Demo ``ResultService``: generated sample results. Shown as DEMO DATA in the
     Studio.
     """
+
     def summary(self, run_id: str) -> RunResult:
         """Sample-data version of ``ResultService.summary``."""
         rng = random.Random(run_id)

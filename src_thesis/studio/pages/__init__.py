@@ -1,29 +1,3 @@
-"""Page modules; importing this package registers every route."""
-
-from . import (
-    compare,
-    design,
-    grid,
-    home,
-    library,
-    market,
-    participants,
-    results,
-    runs,
-    summary,
-    validate,
-)
-
-__all__ = [
-    "home",
-    "grid",
-    "participants",
-    "market",
-    "summary",
-    "design",
-    "validate",
-    "runs",
-    "results",
-    "compare",
-    "library",
-]
+"""One module per Studio page. Each defines a ``@ui.page`` function; the routes
+are registered when ``studio/app.py`` imports the page modules.
+"""

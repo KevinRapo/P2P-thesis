@@ -42,7 +42,18 @@ os.environ.setdefault("NICEGUI_STORAGE_PATH", str(default_home() / "studio-state
 
 from nicegui import ui  # noqa: E402
 
-from src_thesis.studio import pages  # noqa: F401, E402  (registers routes)
+# Importing a page module runs its @ui.page decorator, which registers the route.
+import src_thesis.studio.pages.compare  # noqa: F401, E402
+import src_thesis.studio.pages.design  # noqa: F401, E402
+import src_thesis.studio.pages.grid  # noqa: F401, E402
+import src_thesis.studio.pages.home  # noqa: F401, E402
+import src_thesis.studio.pages.library  # noqa: F401, E402
+import src_thesis.studio.pages.market  # noqa: F401, E402
+import src_thesis.studio.pages.participants  # noqa: F401, E402
+import src_thesis.studio.pages.results  # noqa: F401, E402
+import src_thesis.studio.pages.runs  # noqa: F401, E402
+import src_thesis.studio.pages.summary  # noqa: F401, E402
+import src_thesis.studio.pages.validate  # noqa: F401, E402
 
 SOURCE = Path(__file__).resolve().parents[1]  # src_thesis/
 

@@ -5,6 +5,6 @@ See ``process.main``.
 
 import sys
 
-from .process import main
+from src_thesis.experiments.worker.process import main
 
 sys.exit(main())

@@ -1,19 +1,8 @@
-"""Reusable presentation components (no service calls inside)."""
+"""Reusable presentation components (no service calls inside).
 
-from .cards import key_values, not_implemented, placeholder, section, stat, stat_grid
-from .charts import heatmap_figure, line_figure, topology_figure
-from .tables import data_table, state_color
+``cards`` (section, stat, placeholders), ``charts`` (Plotly figures),
+``tables`` (data_table, state colours).
 
-__all__ = [
-    "section",
-    "stat",
-    "stat_grid",
-    "key_values",
-    "placeholder",
-    "not_implemented",
-    "line_figure",
-    "heatmap_figure",
-    "topology_figure",
-    "data_table",
-    "state_color",
-]
+Nothing is re-exported here: import from the module that defines a name
+(e.g. ``from src_thesis.studio.components.cards import section``), so every import names its file.
+"""

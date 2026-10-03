@@ -24,8 +24,8 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Iterator
 
-from ..models.files import atomic_write_text, dumps, load
-from ..models.records import (
+from src_thesis.experiments.models.files import atomic_write_text, dumps, load
+from src_thesis.experiments.models.records import (
     ArtifactIndex,
     ExperimentFile,
     Manifest,

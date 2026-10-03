@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-from .expand import apply_overrides
-from .records import ExperimentFile, RunCell
+from src_thesis.experiments.models.expand import apply_overrides
+from src_thesis.experiments.models.records import ExperimentFile, RunCell
 
 # Defaults of 02-experiment-config.md §3 (only fields that have one).
 DEFAULTS: dict[str, Any] = {

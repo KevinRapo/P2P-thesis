@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Protocol
 
-from .models import (
+from src_thesis.application.models import (
     DryRunResult,
     ElementInfo,
     ExperimentFile,

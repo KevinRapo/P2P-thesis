@@ -8,7 +8,7 @@ import pytest
 pytest.importorskip("pandapower")
 pytest.importorskip("simbench")
 
-from src_thesis.application import build_services  # noqa: E402
+from src_thesis.application.container import build_services  # noqa: E402
 from src_thesis.application.models import NetworkSource  # noqa: E402
 
 LV = NetworkSource(type="simbench", code="1-LV-semiurb4--0-sw")

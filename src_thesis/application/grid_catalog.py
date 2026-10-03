@@ -8,7 +8,7 @@ The service translates between the API models the Studio and CLI use
 import src_thesis.marketplace.grid.contract_new as contract
 from src_thesis.adapters.grid import simbench_new as adapter
 
-from .models import (
+from src_thesis.application.models import (
     ElementInfo,
     NetworkInfo,
     NetworkSource,

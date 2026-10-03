@@ -21,6 +21,6 @@ if os.environ.get("MARLEM_STUDIO_RELOAD", "1") == "1":
     except KeyboardInterrupt:
         sys.exit(0)
 
-from .app import main  # noqa: E402
+from src_thesis.studio.app import main  # noqa: E402
 
 main()

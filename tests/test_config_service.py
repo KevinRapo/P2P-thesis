@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.application import build_services
+from src_thesis.application.container import build_services
 from src_thesis.application.config_files import FileConfigService
 from src_thesis.application.workspace import PRESETS_DIR, Workspace, default_home
 from src_thesis.experiments.models import expand, files

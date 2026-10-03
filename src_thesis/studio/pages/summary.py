@@ -2,9 +2,10 @@
 
 from nicegui import ui
 
-from ..components import data_table, section, stat, stat_grid
-from ..layout import shell
-from ..state import current_draft, flash, open_draft, services
+from src_thesis.studio.components.tables import data_table
+from src_thesis.studio.components.cards import section, stat, stat_grid
+from src_thesis.studio.layout import shell
+from src_thesis.studio.state import current_draft, flash, open_draft, services
 
 
 def _save_as_dialog(draft) -> None:

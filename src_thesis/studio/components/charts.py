@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 
 from src_thesis.application.models import MatrixTable, Series, TopologyView
 
-from ..theme import SERIES
+from src_thesis.studio.theme import SERIES
 
 
 def _base(

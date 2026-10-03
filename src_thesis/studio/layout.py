@@ -5,9 +5,9 @@ from contextlib import contextmanager
 
 from nicegui import app, ui
 
-from .navigation import NAV
-from .state import current_draft, pop_flash, services
-from .theme import apply_theme
+from src_thesis.studio.navigation import NAV
+from src_thesis.studio.state import current_draft, pop_flash, services
+from src_thesis.studio.theme import apply_theme
 
 
 def _toggle_dark(dark: ui.dark_mode) -> None:

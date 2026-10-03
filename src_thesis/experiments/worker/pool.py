@@ -14,8 +14,8 @@ import sys
 import time
 from pathlib import Path
 
-from ..models.records import RunState
-from ..store.filesystem import ExperimentStore
+from src_thesis.experiments.models.records import RunState
+from src_thesis.experiments.store.filesystem import ExperimentStore
 
 REPO = Path(__file__).resolve().parents[3]
 

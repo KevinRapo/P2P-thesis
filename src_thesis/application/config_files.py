@@ -15,12 +15,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ..experiments.models import expand as expansion
-from ..experiments.models import files
-from ..experiments.models import resolve as resolution
-from ..experiments.models.manifest import data_path, referenced_paths
-from .models import ExperimentFile, FieldChange, FileSummary, RunCell
-from .workspace import FILE_SUFFIX, Workspace
+from src_thesis.experiments.models import expand as expansion
+from src_thesis.experiments.models import files
+from src_thesis.experiments.models import resolve as resolution
+from src_thesis.experiments.models.manifest import data_path, referenced_paths
+from src_thesis.application.models import (
+    ExperimentFile,
+    FieldChange,
+    FileSummary,
+    RunCell,
+)
+from src_thesis.application.workspace import FILE_SUFFIX, Workspace
 
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 

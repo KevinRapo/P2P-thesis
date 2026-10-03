@@ -8,7 +8,7 @@ import os
 
 from nicegui import app
 
-from src_thesis.application import Services, build_services
+from src_thesis.application.container import Services, build_services
 from src_thesis.application.models import ExperimentFile
 
 _SERVICES: Services | None = None

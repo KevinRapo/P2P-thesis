@@ -2,9 +2,10 @@
 
 from nicegui import ui
 
-from ..components import data_table, section, state_color
-from ..layout import shell
-from ..state import services
+from src_thesis.studio.components.tables import data_table, state_color
+from src_thesis.studio.components.cards import section
+from src_thesis.studio.layout import shell
+from src_thesis.studio.state import services
 
 
 def _fmt_seconds(seconds: float | None) -> str:

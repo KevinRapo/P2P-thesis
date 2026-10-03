@@ -2,10 +2,11 @@
 
 from nicegui import ui
 
-from ..components import line_figure, not_implemented, section
-from ..forms import DraftForm
-from ..layout import shell
-from ..state import current_draft, services
+from src_thesis.studio.components.charts import line_figure
+from src_thesis.studio.components.cards import not_implemented, section
+from src_thesis.studio.forms import DraftForm
+from src_thesis.studio.layout import shell
+from src_thesis.studio.state import current_draft, services
 
 _MECHANISMS = [
     "average",

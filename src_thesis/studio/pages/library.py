@@ -2,11 +2,12 @@
 
 from nicegui import app, ui
 
-from ..components import data_table, not_implemented, section
-from ..layout import shell
+from src_thesis.studio.components.tables import data_table
+from src_thesis.studio.components.cards import not_implemented, section
+from src_thesis.studio.layout import shell
 from src_thesis.application import workspace
 
-from ..state import flash, open_draft, reset_services, services
+from src_thesis.studio.state import flash, open_draft, reset_services, services
 
 
 @ui.page("/library")

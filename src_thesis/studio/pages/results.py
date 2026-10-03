@@ -2,19 +2,17 @@
 
 from nicegui import ui
 
-from ..components import (
-    data_table,
+from src_thesis.studio.components.tables import data_table, state_color
+from src_thesis.studio.components.cards import (
     key_values,
-    line_figure,
     not_implemented,
     section,
     stat,
     stat_grid,
-    state_color,
-    topology_figure,
 )
-from ..layout import shell
-from ..state import services
+from src_thesis.studio.components.charts import line_figure, topology_figure
+from src_thesis.studio.layout import shell
+from src_thesis.studio.state import services
 from src_thesis.application.models import NetworkSource
 
 _OUTCOME_LABELS = {

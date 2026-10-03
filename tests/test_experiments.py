@@ -13,17 +13,16 @@ import pytest
 
 from src_thesis.experiments.models import expand, files, resolve
 from src_thesis.experiments.models.manifest import build_manifest
-from src_thesis.experiments.models import (
+from src_thesis.experiments.models.records import (
     ExperimentFile,
     ExperimentMeta,
     RunCell,
     RunState,
 )
-from src_thesis.experiments.store import (
-    EpisodeRecorder,
+from src_thesis.experiments.store.recorder import EpisodeRecorder, StepRecord
+from src_thesis.experiments.store.filesystem import (
     ExperimentStore,
     IllegalTransitionError,
-    StepRecord,
 )
 from src_thesis.experiments.worker import pool
 from src_thesis.experiments.worker import process as worker

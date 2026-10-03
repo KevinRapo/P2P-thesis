@@ -12,9 +12,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-# The experiment file and run records belong to the experiment layer (architecture README §2.1);
-# they are re-exported here so callers keep importing them from one place.
-from src_thesis.experiments.models import (  # noqa: F401
+# The experiment file and run records are defined in experiments/models/records.py.
+# They are re-exported here on purpose: the Studio may only import application/
+# (tests/test_studio_boundaries.py), so this module is its one source of data types.
+from src_thesis.experiments.models.records import (  # noqa: F401
     ExperimentFile,
     ExperimentMeta,
     RunCell,

@@ -12,7 +12,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from .records import ExperimentFile, RunCell
+from src_thesis.experiments.models.records import ExperimentFile, RunCell
 
 DEFAULT_PARADIGMS = ["dtde"]
 DEFAULT_ALGORITHMS = ["ppo"]

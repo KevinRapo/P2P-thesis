@@ -77,7 +77,7 @@ def test_only_adapters_import_pandapower_and_simbench() -> None:
 
 def test_demo_services_do_not_load_pandapower() -> None:
     code = (
-        "import sys; from src_thesis.application import build_services; "
+        "import sys; from src_thesis.application.container import build_services; "
         "build_services('demo'); "
         "print(any(m.split('.')[0] in ('pandapower', 'simbench') for m in sys.modules))"
     )
@@ -89,7 +89,7 @@ def test_demo_services_do_not_load_pandapower() -> None:
 
 def test_demo_services_satisfy_every_page_call() -> None:
     pytest.importorskip("nicegui")
-    from src_thesis.application import build_services
+    from src_thesis.application.container import build_services
 
     s = build_services("demo")
     draft = s.config.new_from_preset("case6-3x3")
@@ -98,4 +98,4 @@ def test_demo_services_satisfy_every_page_call() -> None:
     assert s.validation.validate(draft).ok
     assert s.grid.preview_powerflow(source, "2016-06-15", 18).converged
     assert s.results.matrix("case6-3x3", "p2p_share").rows == ["CTCE", "CTDE", "DTDE"]
-    import src_thesis.studio.pages  # noqa: F401  registers all routes without error
+    import src_thesis.studio.app  # noqa: F401  registers all routes without error

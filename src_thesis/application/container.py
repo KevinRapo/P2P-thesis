@@ -14,7 +14,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from .contracts import (
+from src_thesis.env import load_env
+
+load_env()  # MARLEM_HOME and the other settings from .env, for every caller
+
+from src_thesis.application.contracts import (  # noqa: E402
     ConfigService,
     ExperimentService,
     GridCatalogService,
@@ -75,7 +79,7 @@ def build_services(
             "Real services are implemented in roadmap phases R6-R7 "
             "(docs_thesis/thesis/architecture/README.md §4)."
         )
-    from .demo import (
+    from src_thesis.application.demo import (
         DemoConfigService,
         DemoExperimentService,
         DemoGridCatalogService,
@@ -85,15 +89,15 @@ def build_services(
     )
 
     if grid == "pandapower":
-        from .grid_catalog import PandapowerGridCatalogService
+        from src_thesis.application.grid_catalog import PandapowerGridCatalogService
 
         grid_service: GridCatalogService = PandapowerGridCatalogService()
     else:
         grid_service = DemoGridCatalogService()
 
     if config == "files":
-        from .config_files import FileConfigService
-        from .workspace import Workspace
+        from src_thesis.application.config_files import FileConfigService
+        from src_thesis.application.workspace import Workspace
 
         workspace = Workspace(home) if home else Workspace.default()
         config_service: ConfigService = FileConfigService(workspace)

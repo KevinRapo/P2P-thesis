@@ -2,36 +2,7 @@
 
 ``records`` (data), ``files`` (load, save, hash), ``expand`` (runs of a file),
 ``resolve`` (defaults, one run's world, day lists), ``manifest`` (fingerprints).
-The records are re-exported here: ``from src_thesis.experiments.models import
-ExperimentFile``.
+
+Nothing is re-exported here: import from the module that defines a name
+(e.g. ``from src_thesis.experiments.models.records import ExperimentFile``), so every import names its file.
 """
-
-from .records import (
-    SCHEMA_VERSION,
-    TERMINAL_STATES,
-    TRANSITIONS,
-    ArtifactIndex,
-    ExperimentFile,
-    ExperimentMeta,
-    Manifest,
-    RunCell,
-    RunState,
-    StatusRecord,
-    can_transition,
-    utc_now,
-)
-
-__all__ = [
-    "SCHEMA_VERSION",
-    "TERMINAL_STATES",
-    "TRANSITIONS",
-    "ArtifactIndex",
-    "ExperimentFile",
-    "ExperimentMeta",
-    "Manifest",
-    "RunCell",
-    "RunState",
-    "StatusRecord",
-    "can_transition",
-    "utc_now",
-]

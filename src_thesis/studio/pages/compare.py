@@ -2,9 +2,10 @@
 
 from nicegui import ui
 
-from ..components import heatmap_figure, line_figure, section
-from ..layout import shell
-from ..state import services
+from src_thesis.studio.components.charts import heatmap_figure, line_figure
+from src_thesis.studio.components.cards import section
+from src_thesis.studio.layout import shell
+from src_thesis.studio.state import services
 
 _METRICS = {
     "p2p_share": "P2P share",

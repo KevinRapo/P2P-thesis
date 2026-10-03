@@ -14,7 +14,7 @@ from nicegui import ui
 
 from src_thesis.application.models import ExperimentFile
 
-from .state import flash, open_draft, services
+from src_thesis.studio.state import flash, open_draft, services
 
 
 class DraftForm:

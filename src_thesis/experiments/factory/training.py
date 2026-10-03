@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..models.records import ExperimentFile, RunCell
+from src_thesis.experiments.models.records import ExperimentFile, RunCell
 
 
 def build_algorithm_config(resolved: ExperimentFile, cell: RunCell) -> Any:

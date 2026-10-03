@@ -1,12 +1,6 @@
-"""Run folders on disk (``filesystem``) and per-episode step records (``recorder``)."""
+"""Run folders on disk (``filesystem``) and per-episode step records
+(``recorder``).
 
-from .filesystem import ExperimentStore, IllegalTransitionError, RunExistsError
-from .recorder import EpisodeRecorder, StepRecord
-
-__all__ = [
-    "EpisodeRecorder",
-    "ExperimentStore",
-    "IllegalTransitionError",
-    "RunExistsError",
-    "StepRecord",
-]
+Nothing is re-exported here: import from the module that defines a name
+(e.g. ``from src_thesis.experiments.store.filesystem import ExperimentStore``), so every import names its file.
+"""

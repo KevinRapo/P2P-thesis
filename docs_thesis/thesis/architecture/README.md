@@ -129,6 +129,7 @@ flowchart LR
 - Only the **factory** turns an experiment file into live MARLEM objects. Everyone uses it: the worker, validation dry runs, notebooks and tests.
 - Services run **in-process** with the UI or CLI (no REST layer). Anything long-running (training, multi-episode simulation) runs in the **worker subprocess** (D-09).
 - `experiments/` never imports `application/` or `studio/`; `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces these rules.
+- **Imports name their file** (for now, while the platform is being built): `from src_thesis.application.container import build_services`, not `from src_thesis.application import build_services`. Package `__init__.py` files hold only a docstring and re-export nothing; the one deliberate exception is `application/models.py`, the Studio's single source of data types. Short package-level imports can be reintroduced once the structure is settled.
 
 ### 2.2 Dependencies (D-10)
 

@@ -4,15 +4,11 @@ from nicegui import ui
 
 from src_thesis.application.models import NetworkSource
 
-from ..components import (
-    data_table,
-    line_figure,
-    not_implemented,
-    section,
-    topology_figure,
-)
-from ..layout import shell
-from ..state import current_draft, services
+from src_thesis.studio.components.tables import data_table
+from src_thesis.studio.components.charts import line_figure, topology_figure
+from src_thesis.studio.components.cards import not_implemented, section
+from src_thesis.studio.layout import shell
+from src_thesis.studio.state import current_draft, services
 
 
 @ui.page("/build/participants")
