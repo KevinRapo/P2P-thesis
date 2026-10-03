@@ -110,12 +110,12 @@ Which implementation the Studio uses is shown in its footer (`services: demo · 
 | Home | Library and presets: real. Runs and health: demo | "New from preset" creates `<preset>-draft` in the library | — |
 | Library | Real file list | Click a preset → new draft file; click a file → opens it | Open file, Import bundle |
 | Grid | Real networks, topology, elements, power-flow preview | **Nothing yet**: choosing a network only browses | Apply limits, Upload network |
-| Participants | The draft's participants (real); map: real topology; profile previews: demo | Nothing yet | Add participant, Import mapping, Load Table 6 roles, Add battery, Apply rule |
+| Participants | The draft's participants (real); map: real topology, but the outlined buses are every fifth bus, not the participants' buses; profile previews and day counts: demo | Nothing yet | Add participant, Import mapping, Load Table 6 roles, Add battery, Apply rule |
 | Market & DSO | The draft's values (real); tariff chart: demo | "Apply to draft": `market.*` (mechanism, price/quantity bounds, partner preference, async orders, ledger), `dso.tariffs.source/mode`, `dso.fees.*`, `environment.observation.version/forecast_error`, `environment.reward.version`, `environment.reward.grid_violation.attribution`, `grid.assessment.mode` | Edit weights |
 | Summary | The draft (real) | Save: `meta.name`, `meta.description`. Save as: a new file with a new id. Export bundle: `exports/<id>.zip` | — |
 | Design | The draft's learning plan (real); run estimate: demo | Nothing yet | Apply learning plan, Edit sweep, Edit mutations |
 | Validate | Demo findings and dry run | Nothing ("Launch" calls the demo `ExperimentService`) | — |
-| Runs, Results, Compare | Demo | — | Export figures |
+| Runs, Results, Compare | Demo. The Results replay draws the default network's preview power flow, not the run's grid; the Runs experiment filter and the Compare experiment list and paper-reference switch do nothing yet | — | Export figures |
 | Settings | The real workspace folder and its `library/`, `store/`, `exports/` | Not the experiment file: "Use this folder" chooses the workspace folder (kept in `%APPDATA%\MARLEM\settings.json`); dark mode | — |
 
 [↑ Contents](#contents)
