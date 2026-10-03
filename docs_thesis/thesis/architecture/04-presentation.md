@@ -29,7 +29,7 @@
 
 ## 0. Implementation status (scaffold, 2026-09-23)
 
-Run it with the `marlem` conda env from the repository root: `python -m src_thesis.studio`, then open http://localhost:8080. The port can be changed with `MARLEM_STUDIO_PORT`. Auto-reload is on: saving a `.py` file under `src_thesis/` restarts the server and the open tab reconnects with the new code (`MARLEM_STUDIO_RELOAD=0` switches it off). Because NiceGUI cannot reload a package started with `python -m`, that command runs `app.py` as a script.
+Run it with the `marlem` conda env from the repository root: `python -m src_thesis.studio`, then open http://localhost:8080. Settings (port, auto-reload, real or demo services, workspace folder, …) are environment variables that can all be kept in the repository's `.env` file; [.env.example](../../../.env.example) lists every one with its default. A variable set in the terminal or a launch configuration overrides `.env` for that run. Auto-reload is on: saving a `.py` file under `src_thesis/` restarts the server and the open tab reconnects with the new code (`MARLEM_STUDIO_RELOAD=0` switches it off). Because NiceGUI cannot reload a package started with `python -m`, that command runs `app.py` as a script.
 
 | Part | Location | State |
 |---|---|---|

@@ -10,6 +10,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+from src_thesis.env import load_env
+
+load_env()  # .env may switch auto-reload off
+
 if os.environ.get("MARLEM_STUDIO_RELOAD", "1") == "1":
     app_file = Path(__file__).with_name("app.py")
     try:
