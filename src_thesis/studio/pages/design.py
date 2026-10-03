@@ -23,6 +23,9 @@ def design_page() -> None:
         "Design",
         "Paradigms × algorithms, hyperparameters, tuning, budget, evaluation",
     ):
+        # Placeholder page: every control shows the draft's learning plan, but nothing
+        # is saved yet ("Apply to draft" is not wired). The run count and time estimate
+        # come from the demo ExperimentService.
         estimate = s.experiments.estimate(draft)
         with stat_grid():
             stat(
@@ -82,6 +85,8 @@ def design_page() -> None:
                 "tune",
                 classes="grow basis-0",
             ):
+                # One tab per algorithm, one control per hyperparameter, chosen by the
+                # value's type.
                 params = learning.get("algorithm_params", {})
                 with ui.tabs().classes("w-full") as tabs:
                     for a in ALGORITHMS:

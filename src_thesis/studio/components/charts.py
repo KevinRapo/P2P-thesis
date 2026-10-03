@@ -10,6 +10,9 @@ from ..theme import SERIES
 def _base(
     fig: go.Figure, height: int, y_title: str = "", x_title: str = ""
 ) -> go.Figure:
+    """Shared look of every chart: transparent background, font, grid lines, legend
+    below.
+    """
     fig.update_layout(
         height=height,
         margin=dict(l=48, r=16, t=12, b=40),
@@ -88,6 +91,7 @@ BUS_COLORS = {
 
 
 def _bus_color(kind: str) -> str:
+    """Marker colour for a bus kind; combined kinds fall back to their main element."""
     if kind in BUS_COLORS:
         return BUS_COLORS[kind]
     if "storage" in kind:
@@ -96,6 +100,7 @@ def _bus_color(kind: str) -> str:
 
 
 def _branch_trace(fig: go.Figure, pos: dict, branches: list, **line) -> None:
+    """Draw branches as one line trace (``None`` breaks the line between segments)."""
     xs, ys = [], []
     for br in branches:
         if br["from"] in pos and br["to"] in pos:
@@ -118,6 +123,7 @@ def topology_figure(
     pos = {b["id"]: (b["x"], b["y"]) for b in topology.buses}
     fig = go.Figure()
     lines = [br for br in topology.lines if br.get("kind", "line") == "line"]
+    # Lines first (dotted when open), then transformers and switches drawn thick.
     _branch_trace(
         fig,
         pos,
@@ -142,6 +148,7 @@ def topology_figure(
     )
 
     def hover(b: dict) -> str:
+        """Hover text: bus ID, kind, voltage level and, after a preview, the voltage."""
         text = f"{b['id']}<br>{b['kind']}"
         if "vn_kv" in b:
             text += f" · {b['vn_kv']} kV"
@@ -150,12 +157,18 @@ def topology_figure(
         return text
 
     def size(b: dict) -> int:
+        """Marker size: external grid large, buses with elements medium, empty buses
+        small.
+        """
         return 16 if b["kind"] == "external_grid" else (9 if b["kind"] != "bus" else 6)
 
     def outline(group: list[dict]) -> dict:
+        """Amber outline for highlighted buses (selected bus, participants)."""
         marked = [bool(highlight) and b["id"] in highlight for b in group]
         return dict(width=[3 if m else 0.5 for m in marked], color="#D97706")
 
+    # After a preview: one trace coloured by voltage. Otherwise one trace per bus kind,
+    # so the legend explains the colours.
     if voltages:
         group = topology.buses
         fig.add_scatter(

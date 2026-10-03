@@ -50,6 +50,8 @@ def data_table(
         .classes("w-full")
         .props("flat dense")
     )
+    # Badge columns show the value as a coloured chip; the colour comes from another
+    # field of the same row (e.g. "state_color").
     for field, color_field in (badge_columns or {}).items():
         table.add_slot(
             f"body-cell-{field}",

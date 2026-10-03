@@ -11,6 +11,7 @@ _ICONS = {
     "warning": ("warning", "warning"),
     "info": ("info", "info"),
 }
+# Page that fixes a finding of each area; clicking a finding opens it.
 _AREA_ROUTES = {
     "grid": "/build/grid",
     "participants": "/build/participants",
@@ -33,6 +34,7 @@ def validate_page() -> None:
         "Validate",
         "Preflight of the draft experiment file; launch is enabled only without errors",
     ):
+        # Demo ValidationService: the findings are fixed samples until R7.
         report = s.validation.validate(draft, level="full")
         counts = {
             k: sum(f.severity.value == k for f in report.findings)
@@ -89,6 +91,9 @@ def validate_page() -> None:
                 dry_box = ui.column().classes("w-full gap-1")
 
                 def dry_run() -> None:
+                    """Run the dry run and show what it checked (demo result until
+                    R7).
+                    """
                     result = s.validation.dry_run(draft)
                     dry_box.clear()
                     with dry_box:
@@ -111,11 +116,16 @@ def validate_page() -> None:
         with ui.row().classes("justify-end w-full gap-2"):
 
             def launch() -> None:
+                """Create and start one run per cell, then open Runs. Demo: nothing
+                actually starts.
+                """
                 run_ids = s.experiments.create_runs(draft)
                 s.experiments.start(run_ids)
                 ui.notify(f"{len(run_ids)} runs created (demo).", type="positive")
                 ui.navigate.to("/runs")
 
+            # Disabled while the report has errors: Validate is the only way to Runs (04
+            # §3).
             ui.button("Launch runs", icon="rocket_launch", on_click=launch).props(
                 "unelevated" + ("" if report.ok else " disable")
             )

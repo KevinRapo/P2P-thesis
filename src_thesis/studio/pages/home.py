@@ -14,6 +14,7 @@ def home_page() -> None:
     with shell(
         "home", "Home", "Status of the repository, recent work and quick starts"
     ):
+        # Health and runs come from the demo ExperimentService; the file count is real.
         health = s.experiments.health()
         runs = s.experiments.list_runs()
         with stat_grid():
@@ -50,6 +51,8 @@ def home_page() -> None:
                 "rocket_launch",
                 classes="grow basis-0",
             ):
+                # "New draft" copies the preset into the library and opens the Grid
+                # page.
                 presets = s.config.list(kind="preset")
                 for p in presets:
                     with ui.row().classes(

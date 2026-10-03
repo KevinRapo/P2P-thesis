@@ -22,6 +22,7 @@ def participants_page() -> None:
     """
     s = services()
     draft = current_draft()
+    # The network the draft uses; the map below is drawn from it.
     source = NetworkSource(
         **draft.grid.get("source", {"type": "simbench", "code": "1-LV-semiurb4--0-sw"})
     )
@@ -53,6 +54,7 @@ def participants_page() -> None:
                     on_click=lambda: not_implemented("Load Table 6 roles"),
                 ).props("outline")
 
+        # One table row per participant of the draft, flattened for display.
         rows = []
         for p in draft.participants:
             battery = p.get("battery")
@@ -73,6 +75,7 @@ def participants_page() -> None:
                     ),
                 }
             )
+        # Participant whose profile and battery are shown; the first one by default.
         selected = {"id": rows[0]["id"] if rows else None}
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
@@ -102,6 +105,8 @@ def participants_page() -> None:
                 classes="basis-2/5 min-w-0",
             ):
                 topo = s.grid.topology(source)
+                # Placeholder: outlines every fifth bus, not yet the participants' own
+                # buses (needs the participant-to-bus mapping of R3).
                 highlight = {b["id"] for i, b in enumerate(topo.buses) if i % 5 == 1}
                 ui.plotly(
                     topology_figure(topo, highlight=highlight, height=360)
@@ -121,6 +126,7 @@ def participants_page() -> None:
                 "event",
                 classes="basis-1/4 min-w-0",
             ):
+                # Placeholder: shows the draft's time window; changes are not saved yet.
                 t = draft.time
                 ui.toggle(
                     {"hourly_aggregated": "Hourly", "native_15min": "15 min"},
@@ -143,6 +149,7 @@ def participants_page() -> None:
                     value=t.get("days", {}).get("eval_holdout", 0.2),
                     step=0.05,
                 ).classes("w-full")
+                # Day counts come from the demo ProfileService.
                 days = s.profiles.days(draft)
                 ui.label(
                     f"{len(days['train'])} training days · {len(days['eval'])} evaluation days"
@@ -156,6 +163,11 @@ def participants_page() -> None:
                 battery_box = ui.column().classes("w-full gap-1")
 
         def show(participant_id: str | None) -> None:
+            """Show the profile preview and battery fields of one participant.
+
+            The profile curve comes from the demo ProfileService; the battery fields
+            show the draft's values and are not saved yet.
+            """
             if participant_id is None:
                 return
             chart_box.clear()
@@ -202,9 +214,11 @@ def participants_page() -> None:
                     "w-full"
                 )
 
+        # Clicking a row shows that participant's profile and battery.
         table.on("rowClick", lambda e: show(e.args[1]["id"]))
         show(selected["id"])
 
+        # Dialog behind "Apply placement rule"; applying a rule is not implemented (R3).
         with ui.dialog() as rule_dialog, ui.card().classes("mls-card").style(
             "min-width: 380px"
         ):

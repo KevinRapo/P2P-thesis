@@ -11,6 +11,7 @@ from .theme import apply_theme
 
 
 def _toggle_dark(dark: ui.dark_mode) -> None:
+    """Switch dark mode and remember the choice for this browser."""
     dark.toggle()
     app.storage.user["dark"] = bool(dark.value)
 
@@ -20,15 +21,18 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
     """Build the page frame; the caller fills the content inside the `with` block."""
     apply_theme()
     dark = ui.dark_mode(value=app.storage.user.get("dark", False))
+    # A notification left by the previous page load, e.g. "Applied 3 changes".
     message = pop_flash()
     if message:
         ui.timer(0.1, lambda: ui.notify(message[0], type=message[1]), once=True)
     draft = current_draft()
+    # Data for the header chips: validation state and number of running runs.
     report = services().validation.validate(draft, level="schema")
     running = sum(
         1 for r in services().experiments.list_runs() if r.state.value == "RUNNING"
     )
 
+    # Left navigation (NAV in navigation.py); the current page is highlighted.
     with ui.left_drawer(value=True, bordered=True).props("width=232").classes(
         "mls-drawer q-pt-sm"
     ) as drawer:
@@ -47,6 +51,8 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                     with ui.item_section():
                         ui.item_label(item.label)
 
+    # Header: draft chip (opens Summary), validation chip (Validate), worker chip
+    # (Runs), demo badge naming the real services, dark-mode toggle.
     with ui.header(elevated=False).classes("mls-header items-center q-px-md gap-3"):
         ui.button(icon="menu", on_click=drawer.toggle).props(
             "flat round dense color=white"
@@ -105,6 +111,7 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                 "flat round dense color=white"
             )
 
+    # Footer: which service implementations are active.
     with ui.footer(elevated=False).classes("mls-footer items-center q-px-md"):
         ui.label(
             "MARLEM Studio · presentation layer · all data via application services"
@@ -115,6 +122,8 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
             f" · files: {services().config_backend}"
         )
 
+    # Page heading. The page's own content follows where the caller's `with shell(...)`
+    # block continues (the yield).
     with ui.column().classes("mls-page w-full"):
         with ui.column().classes("gap-0"):
             ui.label(title).classes("mls-title")

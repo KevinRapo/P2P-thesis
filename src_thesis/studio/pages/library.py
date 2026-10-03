@@ -54,6 +54,9 @@ def library_page() -> None:
             )
 
             def open_file(file_id: str, kind: str) -> None:
+                """Open a row as the draft: a preset becomes a new draft, a file
+                opens as it is.
+                """
                 file = (
                     s.config.new_from_preset(file_id)
                     if kind == "preset"
@@ -134,6 +137,9 @@ def _workspace_section() -> None:
         ).classes("mls-card-caption")
 
         def use(path: str | None) -> None:
+            """Remember ``path`` as the workspace folder (``None`` = default),
+            rebuild the services and reload.
+            """
             try:
                 new_home = workspace.set_home(path)
             except OSError as error:

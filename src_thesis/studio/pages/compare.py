@@ -23,6 +23,8 @@ def compare_page() -> None:
     s = services()
     with shell("compare", "Compare", "Paradigm × algorithm matrix and run overlays"):
         with ui.row().classes("w-full gap-2 items-center"):
+            # Placeholder: the experiment list is fixed and the paper-reference switch
+            # does nothing yet.
             experiment = ui.select(
                 ["case6-3x3"], value="case6-3x3", label="Experiment"
             ).classes("w-56")
@@ -42,6 +44,7 @@ def compare_page() -> None:
                 "stacked_line_chart",
                 classes="grow basis-0",
             ):
+                # Overlay of the first three runs (demo data).
                 runs = [r.run_id for r in s.experiments.list_runs()][:3]
                 ui.plotly(
                     line_figure(s.results.compare(runs, metric.value), height=320)
@@ -51,6 +54,7 @@ def compare_page() -> None:
                 ).classes("mls-card-caption")
 
         def render() -> None:
+            """Redraw the matrix for the chosen experiment and metric."""
             matrix_box.clear()
             with matrix_box:
                 ui.plotly(
@@ -59,5 +63,6 @@ def compare_page() -> None:
                     )
                 ).classes("w-full")
 
+        # Changing the metric redraws the matrix; the overlay keeps the first metric.
         metric.on_value_change(lambda: render())
         render()

@@ -8,6 +8,7 @@ from ..state import current_draft, flash, open_draft, services
 
 
 def _save_as_dialog(draft) -> None:
+    """Dialog that saves the draft under a new file ID and name."""
     config = services().config
     with ui.dialog() as dialog, ui.card().classes("min-w-[28rem]"):
         ui.label("Save as a new experiment file").classes("text-h6")
@@ -19,6 +20,7 @@ def _save_as_dialog(draft) -> None:
         ).classes("mls-card-caption")
 
         def save() -> None:
+            """Clone the draft under the new ID, set its name, open it and reload."""
             try:
                 clone = config.clone(draft.meta.id, new_id.value.strip())
                 clone = config.update(clone, {"meta.name": name.value.strip()})
@@ -37,6 +39,9 @@ def _save_as_dialog(draft) -> None:
 
 
 def _diff_dialog(draft) -> None:
+    """Dialog listing every field that differs from the draft's origin (preset or
+    file).
+    """
     config = services().config
     origin = config.origin(draft)
     with ui.dialog() as dialog, ui.card().classes("min-w-[48rem] max-w-[90vw]"):
@@ -128,6 +133,7 @@ def summary_page() -> None:
                 ).classes("w-full")
 
                 def save() -> None:
+                    """Write name and description into the draft file and reload."""
                     try:
                         updated = s.config.update(
                             draft,

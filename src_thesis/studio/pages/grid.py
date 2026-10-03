@@ -29,6 +29,7 @@ _ELEMENT_COLUMNS = [
 
 
 def _yes_no(value: bool | None, no: str = "no") -> str:
+    """``yes`` / ``no`` (or the given text) for a flag; ``—`` when unknown."""
     return "—" if value is None else ("yes" if value else no)
 
 
@@ -40,6 +41,9 @@ def grid_page() -> None:
     s = services()
     draft = current_draft()
     selected = NetworkSource(**draft.grid.get("source", _DEFAULT_SOURCE))
+    # Page state shared by the handlers below: the network shown, the bus selected in
+    # the topology, the voltages of the last preview (to colour the buses) and the
+    # catalog entries of the chosen source. "topology" is added once it is loaded.
     state: dict = {"source": selected, "bus": None, "voltages": None, "networks": []}
 
     with shell(
@@ -48,6 +52,9 @@ def grid_page() -> None:
         f"Network source, topology, elements and a single power-flow preview "
         f"({s.grid_backend} backend)",
     ):
+        # Row 1: network picker | topology. Row 2: elements | power-flow preview |
+        # limits. The empty boxes (summary_box, plot_box, elements_box, pf_box) are
+        # filled by the handlers further down.
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Network",
@@ -64,6 +71,7 @@ def grid_page() -> None:
                     .classes("w-full")
                     .props("options-dense")
                 )
+                # Only shown for the "File" source; uploading is not implemented yet.
                 upload = ui.upload(
                     label="pandapower JSON",
                     auto_upload=True,
@@ -122,6 +130,8 @@ def grid_page() -> None:
                 "tune",
                 classes="basis-1/4 min-w-0",
             ):
+                # Placeholder: these controls show the draft's values but are not saved
+                # yet ("Apply to draft" is not wired; implementation status §4).
                 limits = draft.grid.get("limits", {})
                 ui.number(
                     "V min (pu)", value=limits.get("v_min_pu", 0.95), step=0.01
@@ -145,17 +155,20 @@ def grid_page() -> None:
 
         # ------------------------------------------------------------ helpers
         def busy(box: ui.column, text: str) -> None:
+            """Replace a box's content with a spinner while a slow call runs."""
             box.clear()
             with box, ui.row().classes("items-center gap-2"):
                 ui.spinner(size="md")
                 ui.label(text).classes("mls-card-caption")
 
         def failed(box: ui.column, error: Exception) -> None:
+            """Show an error in place of a box's content."""
             box.clear()
             with box:
                 ui.label(f"Failed: {error}").classes("text-negative text-body2")
 
         def show_summary(summary) -> None:
+            """Fill the left card with the network's counts and data flags."""
             info = summary.info
             rows = [
                 ("Voltage level", info.voltage_level),
@@ -189,6 +202,11 @@ def grid_page() -> None:
                         ui.label(str(value)).classes("text-body2")
 
         def show_topology(topology) -> None:
+            """Redraw the topology plot.
+
+            Buses are coloured by voltage after a preview, the selected bus is
+            outlined, and a click on a bus calls ``on_bus_click``.
+            """
             plot_box.clear()
             with plot_box:
                 figure = topology_figure(
@@ -206,6 +224,7 @@ def grid_page() -> None:
                     ).classes("mls-card-caption")
 
         def show_elements(rows) -> None:
+            """Fill the elements table (all elements, or those of the selected bus)."""
             elements_box.clear()
             with elements_box:
                 if not rows:
@@ -219,6 +238,11 @@ def grid_page() -> None:
 
         # ------------------------------------------------------------ actions
         async def load_network() -> None:
+            """Load summary, topology and elements of ``state["source"]`` and show them.
+
+            The calls run in a worker thread; the result is dropped if the user
+            picked another network in the meantime.
+            """
             source = state["source"]
             busy(summary_box, "Loading network …")
             busy(plot_box, "Building topology …")
@@ -239,6 +263,9 @@ def grid_page() -> None:
             show_elements(rows)
 
         async def select_bus(bus: str | None) -> None:
+            """Show only one bus's elements (``None`` = all) and outline it in the
+            plot.
+            """
             state["bus"] = bus
             bus_label.set_text(f"Bus {bus}" if bus else "All buses")
             clear_bus.set_visibility(bus is not None)
@@ -248,11 +275,15 @@ def grid_page() -> None:
                 show_topology(state["topology"])
 
         async def on_bus_click(e) -> None:
+            """Plotly click on a bus marker; the bus ID is in ``customdata``."""
             points = (e.args or {}).get("points") or []
             if points and points[0].get("customdata"):
                 await select_bus(points[0]["customdata"])
 
         async def run_preview() -> None:
+            """Run one power flow for the chosen day and hour, show it, colour the
+            buses by voltage.
+            """
             preview_button.disable()
             busy(pf_box, "Running power flow …")
             try:
@@ -305,6 +336,9 @@ def grid_page() -> None:
                 show_topology(state["topology"])
 
         def fill_networks() -> None:
+            """Fill the network dropdown with the catalog entries of the chosen
+            voltage level.
+            """
             level = level_select.value
             options = {
                 n.source.code: n.label
@@ -318,6 +352,9 @@ def grid_page() -> None:
             )
 
         async def on_source(_=None) -> None:
+            """Source changed (or page opened): read its catalog, fill voltage levels
+            and networks.
+            """
             source_type = source_toggle.value
             upload.set_visibility(source_type == "pandapower_file")
             busy(summary_box, "Reading catalog …")
@@ -340,6 +377,7 @@ def grid_page() -> None:
                     )
 
         async def on_network(e) -> None:
+            """A network was picked: forget bus, voltages and preview, then load it."""
             if not e.value:
                 return
             state["source"] = NetworkSource(type=source_toggle.value, code=e.value)
@@ -350,6 +388,8 @@ def grid_page() -> None:
             pf_box.clear()
             await load_network()
 
+        # Wire the controls to the handlers. The timer runs on_source once after the
+        # page is built: it fills the dropdowns and loads the draft's network.
         source_toggle.on_value_change(on_source)
         level_select.on_value_change(lambda: fill_networks())
         network_select.on_value_change(on_network)
@@ -357,8 +397,10 @@ def grid_page() -> None:
 
 
 def _percent(value: float | None) -> str:
+    """A loading in percent, or ``not checked`` without line ratings."""
     return "not checked" if value is None else f"{value:.1f} %"
 
 
 def _kw(value: float | None) -> str:
+    """A power in kW, or ``—`` when unknown."""
     return "—" if value is None else f"{value:,.1f} kW"

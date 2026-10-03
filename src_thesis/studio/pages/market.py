@@ -25,6 +25,8 @@ def market_page() -> None:
     s = services()
     draft = current_draft()
     m, d, env = draft.market, draft.dso, draft.environment
+    # Every control passed to bind() below is saved by "Apply to draft" (only those the
+    # user changed).
     form = DraftForm(draft)
     bind = form.bind
     with shell(
@@ -217,6 +219,7 @@ def market_page() -> None:
             "Feed-in tariff and utility price",
             "show_chart",
         ):
+            # Tariff curves from the demo ProfileService.
             ui.plotly(line_figure(s.profiles.tariffs(draft), height=260)).classes(
                 "w-full"
             )

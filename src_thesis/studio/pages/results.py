@@ -71,6 +71,8 @@ def results_page(run_id: str) -> None:
     s = services()
     with shell("results", "Results", run_id):
         result = s.results.summary(run_id)
+        # One tab per view of the run. All data comes from the demo ResultService until
+        # R7.
         with ui.tabs().classes("w-full").props("align=left no-caps") as tabs:
             for name, label, icon in [
                 ("overview", "Overview", "dashboard"),
@@ -121,6 +123,7 @@ def results_page(run_id: str) -> None:
                         )
                     ).classes("w-full")
             with ui.tab_panel("replay"):
+                # Episode replay: a slider over the steps of one evaluation episode.
                 records = s.results.step_records(run_id)
                 with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
                     with section("Step", icon="slideshow", classes="basis-1/3 min-w-0"):
@@ -134,6 +137,12 @@ def results_page(run_id: str) -> None:
                         grid_box = ui.column().classes("w-full")
 
                 def show_step() -> None:
+                    """Show the record of the selected step and the grid at that hour.
+
+                    Placeholder: the grid view is a preview power flow of the default
+                    network at that hour, not the run's own grid assessment (needs
+                    stored step records, R7).
+                    """
                     record = records[int(step.value)]
                     step_box.clear()
                     with step_box:

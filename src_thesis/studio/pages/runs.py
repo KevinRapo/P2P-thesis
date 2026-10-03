@@ -8,6 +8,7 @@ from ..state import services
 
 
 def _fmt_seconds(seconds: float | None) -> str:
+    """A duration as ``Hh MMm``; ``—`` when unknown or zero."""
     if not seconds:
         return "—"
     hours, rest = divmod(int(seconds), 3600)
@@ -27,6 +28,7 @@ def runs_page() -> None:
                 value="all",
                 label="State",
             ).classes("w-48")
+            # Placeholder: the experiment filter is not applied yet.
             ui.select(["all", "case6-3x3"], value="all", label="Experiment").classes(
                 "w-56"
             )
@@ -37,6 +39,7 @@ def runs_page() -> None:
             table_box = ui.column().classes("w-full")
 
         def rows() -> list[dict]:
+            """Table rows for the runs that pass the state filter."""
             out = []
             for r in s.experiments.list_runs():
                 if state_filter.value != "all" and r.state.value != state_filter.value:
@@ -58,6 +61,7 @@ def runs_page() -> None:
             return out
 
         def render() -> None:
+            """Rebuild the queue table; called on filter changes and every 2 s."""
             table_box.clear()
             with table_box:
                 table = data_table(
@@ -83,6 +87,9 @@ def runs_page() -> None:
             detail = ui.column().classes("w-full gap-2")
 
         def open_run(run_id: str) -> None:
+            """Open the run drawer: progress, last metrics, log tail, results and
+            cancel.
+            """
             status = s.experiments.snapshot(run_id)
             detail.clear()
             with detail:
@@ -114,6 +121,8 @@ def runs_page() -> None:
                     ).props("outline")
             dialog.open()
 
+        # Refresh on filter changes and poll every 2 s: runs execute in worker
+        # processes, so the page has to ask for their state.
         state_filter.on_value_change(lambda: render())
         render()
         ui.timer(2.0, render)
