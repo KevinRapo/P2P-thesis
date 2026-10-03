@@ -32,6 +32,14 @@ from src_thesis.env import load_env  # noqa: E402
 
 load_env()  # before anything reads MARLEM_* or NICEGUI_* settings
 
+from src_thesis.application.workspace import default_home  # noqa: E402
+
+# NiceGUI fixes its storage folder when it is imported: by default ".nicegui" in
+# whatever directory Python was started from, so each start location got its own
+# copy of the per-browser state. Keep it in the workspace instead, outside the
+# repository and OneDrive. A value from .env or the environment still wins.
+os.environ.setdefault("NICEGUI_STORAGE_PATH", str(default_home() / "studio-state"))
+
 from nicegui import ui  # noqa: E402
 
 from src_thesis.studio import pages  # noqa: F401, E402  (registers routes)
