@@ -46,7 +46,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | Phase | Status | What exists | What is missing |
 |---|---|---|---|
 | R1 Rebuild and validate | ⬜ | The issue register (80 issues), the plan, 48 issue demos as strict-xfail tests ([validation/](../validation/README.md)) | Every fix: 0 of 80 issues closed |
-| ~~R2 Validated release~~ | retired | Retired on 2026-09-27 (D-02): no NetworkX release and no NetworkX reference results. The frozen original is `src_thesis_reference/` | — |
+| ~~R2 Validated release~~ | retired | Retired on 2026-09-27 (D-02): no NetworkX release and no NetworkX reference results. The original code is git tag `marlem-original` | — |
 | R3 Grid seam + pandapower adapter | 🟡 | Grid contract records; network catalog, topology, elements and a one-hour power-flow preview for SimBench and pandapower built-ins | `GridModel.assess` (step-time power flow), `GridTopologyInfo` / `GridSignals`, settlement ledger, injection builder, SimBench profile source, participant mapping, pandapower files |
 | R4 SimBench, shadow mode | ⬜ | — | Needs R1 and R3 |
 | R5 SimBench in the loop | ⬜ | — | Needs R4 |
@@ -63,7 +63,7 @@ Only fields you change are written. A field you never touched stays absent from 
 
 | Part | Status | Notes |
 |---|---|---|
-| `src_thesis/marketplace`, `marl`, `cooperation` | ⬜ (original code) | Still the original MARLEM, unchanged apart from the issue markers. Rewriting it is R1. Frozen copy: `src_thesis_reference/` |
+| `src_thesis/marketplace`, `marl`, `cooperation` | ⬜ (original code) | Still the original MARLEM, unchanged apart from the issue markers. Rewriting it is R1. The original before any rewrite: git tag `marlem-original` |
 | Grid contract ([contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py)) | 🟡 | Catalog and assessment records exist; `GridTopologyInfo`, `GridSignals` (D-13) not yet |
 | `marketplace/settlement.py`, `marketplace/grid/injection.py`, `marl/baselines.py` | ⬜ | Planned new modules (README §2.4) |
 

@@ -6,7 +6,7 @@ docs/
 │   ├── marlem.pdf                  # [P1] MARLEM, Applied Energy 2026
 │   ├── marlem-results.pdf          # [P2] Implicit-cooperation results (preprint)
 │   ├── marlem-methodology.md       # Both papers' methodology and equations (paper only, no code)
-│   └── marlem-paper-to-code-map.md # Fig. 2 → the original code (src_thesis_reference), what changes
+│   └── marlem-paper-to-code-map.md # Fig. 2 → src_thesis, what changes
 └── thesis/
     ├── README.md                   # This index
     ├── validation/                 # Active work: validating MARLEM against the papers

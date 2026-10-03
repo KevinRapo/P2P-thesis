@@ -42,7 +42,7 @@
    Without `--write` it only checks, and fails if a block is stale. Use the `marlem` conda env.
 
    The **Contents** block at the top of each document and the `↑ Contents` links under each section are generated too. After adding or renaming a `##` / `###` heading, run `python docs_thesis/toc.py` ([tests/test_docs_toc.py](../../../tests/test_docs_toc.py) fails while they are stale).
-4. **Code links point at exact lines in the frozen original** (`src_thesis_reference/`), so they never move while `src_thesis/` is rewritten (D-14). `check_docs.py` fails on a link past the end of its file. Links to new platform code (application, Studio, experiments, SimBench adapter, grid contract) still point at `src_thesis/`; update them in the same commit that edits the file.
+4. **Code links point at exact lines in `src_thesis/`**, the single source of truth (D-14). When a commit changes a file, it updates the links into that file. `check_docs.py` fails on a link past the end of its file. The original code before any rewrite is git tag `marlem-original` (`git show marlem-original:src_thesis_reference/<path>`).
 5. **Closing an issue deletes its code markers in the same commit.** `check_docs.py` fails if a closed issue still has a marker, or if a marker's tag or step disagrees with the register.
 
 [↑ Contents](#contents)
@@ -96,7 +96,7 @@ Each issue location in `src_thesis/` has a one-line comment directly above it, e
 buy_order.quantity -= (proposed_quantity - transmission_loss)
 ```
 
-The Todo Tree extension colours these lines, marks them on the scrollbar, and lists them grouped by tag. Register code links point at the line below the marker in `src_thesis_reference/`, where the markers stay; in `src_thesis/` a marker is deleted when its issue is closed. An issue with several locations numbers its markers and points to the next one, e.g. `# FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) …`; the last points back to the first. `check_docs.py --write` keeps the numbering and the next-location line numbers current after code edits; without `--write` it fails when they are stale.
+The Todo Tree extension colours these lines, marks them on the scrollbar, and lists them grouped by tag. Register code links point at the line below the marker in `src_thesis/`; a marker is deleted when its issue is closed (the original markers stay in git tag `marlem-original`). An issue with several locations numbers its markers and points to the next one, e.g. `# FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:368) …`; the last points back to the first. `check_docs.py --write` keeps the numbering and the next-location line numbers current after code edits; without `--write` it fails when they are stale.
 
 [↑ Contents](#contents)
 

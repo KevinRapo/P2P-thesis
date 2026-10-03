@@ -501,7 +501,7 @@ The KPIs computed from Stage A's outcomes. They can only be validated once A is 
 <!-- BEGIN generated:step-B2 -->
 | ID | Type | Origin | Status | Issue |
 |---|---|---|---|---|
-| [I-65](issues.md#I-65) | ❌ | Code | open | `src/analytics` reports welfare, grid and coordination concepts without the required inputs |
+| [I-65](issues.md#I-65) | ❌ | Code | open | `cooperation/metrics` reports welfare, grid and coordination concepts without the required inputs |
 <!-- END generated:step-B2 -->
 
 [↑ Contents](#contents)
