@@ -1,4 +1,9 @@
-"""From one experiment file to its runs (05-experiment-layer.md §3.2).
+"""From one experiment file to its runs.
+
+Why: one file describes many runs (e.g. 3 paradigms × 3 algorithms × 3 seeds, possibly
+times a sweep of six market mechanisms). This module turns that description into the
+explicit list, so the count is visible before anything starts and every run can be
+named.
 
 An experiment expands to sweep points × paradigms × algorithms × seeds, plus
 one run per sweep point, baseline and seed (02 §1, §3.10, §3.11).

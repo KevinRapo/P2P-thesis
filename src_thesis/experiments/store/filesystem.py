@@ -1,4 +1,10 @@
-"""The filesystem experiment store (05-experiment-layer.md §3.5).
+"""The filesystem experiment store.
+
+Why: runs outlive the process that started them, so their state has to live somewhere
+durable. Plain folders were chosen over a database: you can open, copy, zip and share a
+run folder, a crashed worker leaves readable files, and nothing needs to be installed.
+Everyone (services, worker, pool) goes through this one class, so the folder layout is
+defined in exactly one place.
 
 One folder per run. Small state files are replaced atomically; logs, metrics
 and step records are append-only. The store is the source of truth: the index

@@ -1,4 +1,9 @@
-"""From the ``learning`` section to an RLlib configuration (05 §3.8).
+"""From the ``learning`` section to an RLlib configuration.
+
+Why: the original hard-coded the PPO, APPO and SAC settings in ``marl/train.py`` and
+always switched PBT on (I-62). Building the RLlib configuration from the file's
+``learning`` section makes every hyperparameter visible, editable, stored in
+``resolved.json`` and equal across cells when it should be (I-49, I-50).
 
 Replaces the hard-coded blocks of ``marl/train.py`` (``RLTrainer``): algorithm
 hyperparameters, paradigm module, tuning, rollouts, checkpoints and evaluation

@@ -1,6 +1,12 @@
 """The only place that turns an experiment file into live MARLEM objects.
 
-05-experiment-layer.md §3.7. Everyone builds environments here: the
+Why: in the original, the environment was assembled inside ``marl/train.py`` and the
+notebooks, each with its own hard-coded values. Here there is exactly one function that
+builds an environment from a file, used by the worker, the dry run, notebooks, tests and
+every RLlib env runner. So whatever runs is exactly what the file says, and the same
+file always gives the same environment.
+
+Everyone builds environments here: the
 worker, validation dry runs, notebooks and tests. RLlib env runners call the
 factory inside each runner; only the resolved file travels in ``env_config``,
 never a network or agents.

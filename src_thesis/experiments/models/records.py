@@ -1,4 +1,10 @@
-"""Records of the experiment layer (05-experiment-layer.md §2).
+"""Records of the experiment layer.
+
+Why: every other module passes these around, so they are defined once, as Pydantic
+models that validate themselves. The split matters: what the user writes
+(``ExperimentFile``), what the system fixes once per run (``Manifest``) and what keeps
+changing while it runs (``StatusRecord``) are separate records, so the fixed parts can
+never be overwritten by a running worker.
 
 The experiment file (02) and everything the system writes about a run: the cell
 it runs, its manifest, its status and its artifact index. Plain Pydantic models

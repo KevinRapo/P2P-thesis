@@ -1,4 +1,9 @@
-"""The worker process: runs exactly one run (05-experiment-layer.md §3.10).
+"""The worker process: runs exactly one run.
+
+Why: training runs for hours and Ray/torch can crash or leak memory. In its own process
+a run cannot freeze or kill the Studio, keeps running when the browser or Studio closes
+(D-09), and a crash only fails that one run. The worker only needs the run folder, so
+the same command works from the Studio, the CLI or by hand.
 
     python -m src_thesis.experiments.worker --run-dir <store>/runs/<run_id>
 

@@ -1,4 +1,10 @@
-"""Starting, watching and cancelling worker processes (05-experiment-layer.md §3.11).
+"""Starting, watching and cancelling worker processes.
+
+Why: something has to start the worker processes, keep only as many running as the
+machine can take (one RLlib run already uses every core), notice processes that died,
+and pass on cancel requests. It lives in the process that owns ``ExperimentService``
+(Studio or CLI) and is polled by the Studio's timer instead of running its own thread,
+which keeps it free of thread-safety issues. Closing the Studio never stops a worker.
 
 Lives in the process that owns ``ExperimentService`` (the Studio or the CLI).
 The pool is polled, not threaded: each ``poll()`` reaps finished workers and

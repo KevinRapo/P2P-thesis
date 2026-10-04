@@ -1,4 +1,9 @@
-"""Reading, writing and hashing experiment files (05-experiment-layer.md §3.1).
+"""Reading, writing and hashing experiment files.
+
+Why: the experiment file is the product people share, so reading and writing it must
+never corrupt it, old files must stay loadable, and "is this the same study?" needs a
+precise answer. That answer is the canonical hash, which the run ID and the manifest are
+built on.
 
 The canonical hash identifies "the same study" regardless of formatting or key
 order (02 §6): it is computed on sorted-key, compact JSON of the model.

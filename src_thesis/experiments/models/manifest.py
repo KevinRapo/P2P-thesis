@@ -1,4 +1,12 @@
-"""The run manifest: what exactly a run used (05-experiment-layer.md §3.4, 02 §5).
+"""The run manifest: what exactly a run used.
+
+Why: a result is only useful if you can say what produced it. Months later, "PPO under
+CTDE scored X" raises questions the experiment file alone cannot answer: which version
+of the code ran, was it committed, which Ray and torch versions (RLlib defaults change
+between versions), were the tariff CSVs the same, which days were actually drawn? The
+manifest answers those once, when the run is created, and is never edited. It is what
+lets you (a) rerun a run exactly, (b) refuse to compare two runs that differ in
+something you did not intend, and (c) state in the thesis what the numbers came from.
 
 Fingerprints are collected without importing heavy packages: versions come
 from package metadata, the code state from git.

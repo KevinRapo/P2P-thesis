@@ -1,4 +1,9 @@
-"""Filling defaults and fixing one run's world (05-experiment-layer.md §3.3).
+"""Filling defaults and fixing one run's world.
+
+Why: users write short files and leave most values at their defaults. A run must not
+depend on what the defaults happen to be later, so each run stores a fully filled-in
+copy (``resolved.json``). If a default changes in the code, old runs still say exactly
+what they used.
 
 ``resolve`` fills every unset field with its default from 02, so the manifest
 records the values a run actually used. ``resolve_run`` additionally applies

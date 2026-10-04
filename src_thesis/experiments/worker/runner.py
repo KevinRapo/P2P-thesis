@@ -1,4 +1,10 @@
-"""What a worker actually runs (05-experiment-layer.md §3.9).
+"""What a worker actually runs.
+
+Why: the worker process (``process.py``) is the same for every run; only the work
+differs.
+Runners hold that work, one per kind of run. They get a ``RunContext`` instead of the
+store, so they can report progress, log and check for cancel, but never set the run's
+final state; the worker decides that, in one place.
 
 A runner executes one run inside the worker process. It never touches the
 status file itself: it reports progress through its ``RunContext`` and returns
