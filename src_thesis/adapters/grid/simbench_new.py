@@ -448,11 +448,19 @@ PROFILE_USERS = {
 RESOLUTION_ROWS = {"15min": 1, "hourly": ROWS_PER_HOUR, "daily": 24 * ROWS_PER_HOUR}
 
 
-def _profile_columns(net: Any) -> dict[tuple[str, str], dict[str, str]]:
-    """(table, profile name) -> {quantity: column} for every profile of ``net``."""
+def _profile_columns(source: Any) -> dict[tuple[str, str], dict[str, str]]:
+    """(table, profile name) -> {quantity: column} for every profile.
+
+    ``source`` is a network (its ``profiles``) or a profiles dict (the catalogue).
+    """
+    # A pandapower network is itself a dict, so only a plain dict is the catalogue.
+    if type(source) is dict:
+        profiles = source
+    else:
+        profiles = getattr(source, "profiles", None)
     out: dict[tuple[str, str], dict[str, str]] = {}
     for table in PROFILE_TABLES:
-        df = (getattr(net, "profiles", None) or {}).get(table)
+        df = (profiles or {}).get(table)
         if df is None:
             continue
         for column in df.columns:
@@ -608,6 +616,63 @@ def profile_power(
         else:
             kw = _aggregate(frame[ids].sum(axis=1) * 1000, first, last, step)
             values[f"{name} ({len(ids)})"] = [round(v, 3) for v in kw]
+    count = len(next(iter(values.values()), []))
+    return _labels(d, count, step, resolution), values
+
+
+@lru_cache(maxsize=3)
+def _catalogue(scenario: int) -> dict[str, Any]:
+    """All SimBench profiles of a scenario, independent of any network (cached)."""
+    import simbench as sb
+
+    return sb.get_all_simbench_profiles(scenario)
+
+
+def catalogue_profiles(scenario: int = 0) -> list[ProfileRecord]:
+    """Every profile SimBench ships, not only those one network uses.
+
+    Args:
+        scenario: SimBench scenario (0 = today, 1 and 2 = future scenarios).
+
+    Returns:
+        One record per profile; ``elements`` is 0, as no network is involved.
+    """
+    profiles = _catalogue(scenario)
+    out = []
+    for (table, name), columns in _profile_columns(profiles).items():
+        values = profiles[table][columns.get("p", next(iter(columns.values())))]
+        if values.empty:
+            continue
+        out.append(
+            ProfileRecord(
+                name=name,
+                table=table,
+                quantities=tuple(q for q in ("p", "q") if q in columns),
+                elements=0,
+                mean=round(float(values.mean()), 4),
+                peak=round(float(values.max()), 4),
+            )
+        )
+    return sorted(out, key=lambda r: (PROFILE_TABLES.index(r.table), r.name))
+
+
+def catalogue_series(
+    names: Sequence[str],
+    start: str,
+    days: int,
+    resolution: str = "hourly",
+    quantity: str = "p",
+    scenario: int = 0,
+) -> tuple[list[str], dict[str, list[float]]]:
+    """Like ``profile_series``, for profiles of the complete catalogue."""
+    d, first, last, step = _window(start, days, resolution)
+    profiles = _catalogue(scenario)
+    columns = _profile_columns(profiles)
+    values: dict[str, list[float]] = {}
+    for table, name in columns:
+        if name in names and quantity in columns[(table, name)]:
+            column = profiles[table][columns[(table, name)][quantity]]
+            values[name] = [round(v, 4) for v in _aggregate(column, first, last, step)]
     count = len(next(iter(values.values()), []))
     return _labels(d, count, step, resolution), values
 

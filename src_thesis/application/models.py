@@ -197,6 +197,8 @@ class ProfileType(BaseModel):
         "wind",
         "biomass",
         "storage",
+        "hydro",
+        "power_plant",
         "other",
     ]
     description: str = ""

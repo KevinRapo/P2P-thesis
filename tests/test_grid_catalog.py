@@ -99,6 +99,23 @@ def test_simbench_profiles_can_be_inspected() -> None:
     assert profiles.profile_types(CASE33) == []
 
 
+def test_complete_simbench_profile_catalogue() -> None:
+    profiles = build_services().profiles
+    types = {t.code: t for t in profiles.catalogue_types()}
+    assert len(types) > 400  # far more than any single network uses
+    assert types["H0-A"].category == "household"
+    assert types["WP4"].category == "wind"
+    assert types["Hydro1"].category == "hydro"
+    pp = [t for t in types.values() if t.table == "powerplants"]
+    assert pp and all(t.category == "power_plant" for t in pp)
+    assert all(t.elements == 0 for t in types.values())
+    day = profiles.catalogue_series(["H0-A", "WP4"], "2016-06-15", 1, "hourly")
+    assert len(day.x) == 24 and set(day.y) == {"H0-A", "WP4"}
+    # A network's profile is the catalogue profile of the same name.
+    own = profiles.profile_series(LV, ["H0-A"], "2016-06-15", 1, "hourly")
+    assert own.y["H0-A"] == day.y["H0-A"]
+
+
 def test_profiles_scaled_by_rated_power() -> None:
     profiles = build_services().profiles
     factor = profiles.profile_series(LV, ["H0-A"], "2016-06-15", 1, "hourly")

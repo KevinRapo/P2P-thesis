@@ -1,8 +1,8 @@
 """Inspect (05 §6): get to know networks in depth and compare two of them.
 
-Read-only: nothing here changes the experiment file. Two tabs, each built by its
-own function: "Network" (one network in depth) and "Compare" (two networks side
-by side). Built from the network blocks in ``components/network.py``, shared with
+Read-only: nothing here changes the experiment file. Three tabs, each built by
+its own function: "Network" (one network in depth), "Compare" (two networks side
+by side) and "Profiles" (SimBench's complete profile catalogue). Built from the network blocks in ``components/network.py``, shared with
 the Grid page.
 """
 
@@ -44,13 +44,15 @@ CATEGORIES = [
 @ui.page("/build/inspect")
 def inspect_page() -> None:
     """Inspect (05 §6): the "Network" tab shows one network in depth, the
-    "Compare" tab two networks side by side.
+    "Compare" tab two networks side by side, the "Profiles" tab SimBench's complete
+    profile catalogue.
     """
     s = services()
     with shell(
         "inspect",
         "Inspect",
-        "Explore networks and their data in depth; compare two networks. "
+        "Explore networks and their data in depth; compare two networks; browse "
+        "all SimBench profiles. "
         "Nothing here changes the experiment file.",
     ):
         # ui.tabs is the tab bar; ui.tab_panels holds one panel per tab and shows
@@ -58,6 +60,7 @@ def inspect_page() -> None:
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             network_tab = ui.tab("Network", icon="travel_explore")
             compare_tab = ui.tab("Compare", icon="compare_arrows")
+            profiles_tab = ui.tab("Profiles", icon="show_chart")
         # keep_alive=False: a hidden panel is removed from the browser and drawn
         # again when its tab is opened, so its Plotly charts are never resized
         # while invisible. The Python side (state, handlers) stays as it is.
@@ -68,6 +71,16 @@ def inspect_page() -> None:
                 _network_tab(s)
             with ui.tab_panel(compare_tab).classes("p-0 gap-4"):
                 _compare_tab(s)
+            with ui.tab_panel(profiles_tab).classes("p-0 gap-4"):
+                catalogue = _profiles_tab(s)
+        # The catalogue (about 460 profiles) is read only when its tab is opened.
+        tabs.on_value_change(
+            lambda e: (
+                catalogue.show()
+                if e.value == "Profiles" and not catalogue.loaded
+                else None
+            )
+        )
 
 
 def _network_tab(s: Services) -> None:
@@ -243,6 +256,29 @@ def _compare_tab(s: Services) -> None:
                 row_key="code",
                 pagination=10,
             )
+
+
+def _profiles_tab(s: Services) -> ProfileInspector:
+    """SimBench's complete profile catalogue, independent of any network.
+
+    Returns:
+        The inspector; the page calls its ``show`` when the tab is first opened.
+    """
+    with section(
+        "All SimBench profiles",
+        "Every profile SimBench ships (scenario 0, year 2016), as factors of rated "
+        "power; a network ships only the ones its elements use",
+        "show_chart",
+    ):
+        ui.label(
+            "Naming: H0-… households · G0 … G6 commercial (Gewerbe) · L0 … L2 "
+            "agricultural (Landwirtschaft) · PV · WP wind (Windpark) · BM biomass "
+            "· Hydro · pp_… individual power plants. Other names (APLS…, Air_…, "
+            "BL-H, grid-level profiles such as lv_rural1) are further SimBench "
+            "profiles, described in the SimBench documentation. Search filters "
+            "every column."
+        ).classes("mls-card-caption")
+        return ProfileInspector(s, catalogue=True)
 
 
 def _mix(types) -> list[int]:

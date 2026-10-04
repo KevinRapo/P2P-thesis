@@ -8,6 +8,7 @@ sample data; each docstring says what the final version will do (R3, 01 §3).
 from __future__ import annotations
 
 import math
+import re
 from datetime import datetime, timedelta
 import src_thesis.marketplace.grid.contract_new as contract
 from src_thesis.adapters.grid import simbench_new as adapter
@@ -71,23 +72,31 @@ _DESCRIPTIONS = {
     "wind": "Wind",
     "biomass": "Biomass",
     "storage": "Storage",
+    "hydro": "Hydro power",
+    "power_plant": "Power plant",
     "other": "",
 }
 
 
+_CATEGORY_PATTERNS = (
+    (r"H0-", "household"),  # H0-A … H0-L: household load profiles
+    (r"G\d", "commercial"),  # G0 … G6: commercial ("Gewerbe")
+    (r"L\d", "agricultural"),  # L0 … L2: agricultural ("Landwirtschaft")
+    (r"PV\d", "pv"),
+    (r"WP\d", "wind"),  # "Windpark"
+    (r"BM\d", "biomass"),
+    (r"Hydro\d", "hydro"),
+)
+
+
 def _category(name: str, table: str) -> str:
-    """Category of a SimBench profile from its name (H0 household, G commercial…)."""
+    """Category of a SimBench profile from its table and name prefix."""
     if table == "storage":
         return "storage"
-    for prefix, category in (
-        ("H", "household"),
-        ("G", "commercial"),
-        ("L", "agricultural"),
-        ("PV", "pv"),
-        ("WP", "wind"),
-        ("BM", "biomass"),
-    ):
-        if name.upper().startswith(prefix):
+    if table == "powerplants":
+        return "power_plant"
+    for pattern, category in _CATEGORY_PATTERNS:
+        if re.match(pattern, name):
             return category
     return "other"
 
@@ -189,6 +198,54 @@ class ProfileService:
         )
         unit = "kW" if quantity == "p" else "kvar"
         return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")
+
+    def catalogue_types(self, scenario: int = 0) -> list[ProfileType]:
+        """Every profile SimBench ships, independent of any network.
+
+        Built: read from SimBench's complete data set. ``elements`` is 0, as no
+        network is involved.
+
+        Args:
+            scenario: SimBench scenario (0 = today, 1 and 2 = future scenarios).
+        """
+        return [
+            ProfileType(
+                code=r.name,
+                category=_category(r.name, r.table),
+                description=_DESCRIPTIONS.get(_category(r.name, r.table), ""),
+                table=r.table,
+                quantities=list(r.quantities),
+                elements=0,
+                mean=r.mean,
+                peak=r.peak,
+            )
+            for r in adapter.catalogue_profiles(scenario)
+        ]
+
+    def catalogue_series(
+        self,
+        codes: list[str],
+        start: str,
+        days: int = 7,
+        resolution: str = "hourly",
+        quantity: str = "p",
+        scenario: int = 0,
+    ) -> Series:
+        """Values of catalogue profiles over a time window, as factors of rated
+        power.
+
+        Built: read from SimBench's complete data set. Arguments as in
+        ``profile_series``, without a network.
+        """
+        x, y = adapter.catalogue_series(
+            codes, start, days, resolution, quantity, scenario
+        )
+        return Series(
+            x=x,
+            y=y,
+            x_label="time",
+            y_label=f"{quantity} (factor of rated power)",
+        )
 
     def preview(self, file: ExperimentFile, participant_id: str) -> Series:
         """Generation, demand and net profile of one participant over time.

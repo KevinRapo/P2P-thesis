@@ -274,14 +274,20 @@ class ProfileInspector:
     rated power of the network's elements that use them, in kW: the power they
     draw or feed in on the unmodified network.
 
+    With ``catalogue=True`` it shows SimBench's complete profile catalogue instead
+    of one network's profiles, without the scaled plot (there are no elements).
+
     Args:
         services: The services (``profiles.profile_types`` / ``profile_series``).
+        catalogue: Show the complete catalogue instead of one network's profiles.
     """
 
-    def __init__(self, services: Services) -> None:
+    def __init__(self, services: Services, catalogue: bool = False) -> None:
         self.services = services
+        self.catalogue = catalogue
         self.source: NetworkSource | None = None
         self.selected: list[str] = []
+        self.loaded = False
         with ui.row().classes("w-full gap-4 items-start no-wrap"):
             self.table_box = ui.column().classes("basis-1/2 min-w-0")
             with ui.column().classes("grow basis-0 min-w-0 gap-2"):
@@ -315,7 +321,7 @@ class ProfileInspector:
                     )
                 self.hint = ui.label().classes("mls-card-caption")
                 self.plot_box = ui.column().classes("w-full")
-        with ui.row().classes("items-center gap-3 w-full q-mt-sm"):
+        with ui.row().classes("items-center gap-3 w-full q-mt-sm") as self.power_header:
             with ui.column().classes("gap-0"):
                 ui.label("Scaled to the network's elements").classes(
                     "text-body2 text-weight-medium"
@@ -329,6 +335,8 @@ class ProfileInspector:
             ).props("no-caps dense")
         self.scale_hint = ui.label().classes("mls-card-caption")
         self.power_box = ui.column().classes("w-full")
+        for element in (self.power_header, self.scale_hint, self.power_box):
+            element.set_visibility(not catalogue)
         self._explain()
         for control in (
             self.day,
@@ -353,18 +361,22 @@ class ProfileInspector:
         )
         self.scale_hint.set_text(SCALE_HINTS[bool(self.per_element.value)])
 
-    async def show(self, source: NetworkSource) -> None:
-        """Load the profile list of ``source``; plot the first two profiles."""
+    async def show(self, source: NetworkSource | None = None) -> None:
+        """Load the profiles (of ``source``, or the catalogue); plot the first two."""
         self.source = source
         busy(self.table_box, "Reading profiles …")
         self.plot_box.clear()
         try:
-            types = await run.io_bound(self.services.profiles.profile_types, source)
+            if self.catalogue:
+                types = await run.io_bound(self.services.profiles.catalogue_types)
+            else:
+                types = await run.io_bound(self.services.profiles.profile_types, source)
         except Exception as e:  # noqa: BLE001
             failed(self.table_box, e)
             return
         if self.source != source:  # another network was picked meanwhile
             return
+        self.loaded = True
         self.table_box.clear()
         with self.table_box:
             if not types:
@@ -375,6 +387,14 @@ class ProfileInspector:
                 self.selected = []
                 return
             rows = profile_rows(types)
+            if self.catalogue:  # no network, so no element counts
+                for row in rows:
+                    row.pop("elements")
+            search = (
+                ui.input(placeholder="Search, e.g. H0, PV, wind, power_plant")
+                .props("dense clearable")
+                .classes("w-full")
+            )
             table = (
                 ui.table(
                     columns=[
@@ -395,6 +415,7 @@ class ProfileInspector:
                 .classes("w-full")
                 .props("flat dense")
             )
+            search.bind_value(table, "filter")
             table.selected = rows[:2]
             table.on_select(lambda e: self.plot([r["code"] for r in e.selection]))
         await self.plot([r["code"] for r in rows[:2]])
@@ -403,7 +424,7 @@ class ProfileInspector:
         """Plot the selected profiles over the chosen window and resolution."""
         if codes is not None:
             self.selected = codes
-        if self.source is None:
+        if not self.loaded:
             return
         if not self.selected:
             for box in (self.plot_box, self.power_box):
@@ -414,13 +435,18 @@ class ProfileInspector:
                     )
             return
         window = (
-            self.source,
             self.selected,
             self.day.value,
             int(self.span.value),
             self.resolution.value,
             self.quantity.value,
         )
+        if self.catalogue:
+            await self._draw(
+                self.plot_box, self.services.profiles.catalogue_series, window
+            )
+            return
+        window = (self.source, *window)
         await self._draw(self.plot_box, self.services.profiles.profile_series, window)
         await self._draw(
             self.power_box,
