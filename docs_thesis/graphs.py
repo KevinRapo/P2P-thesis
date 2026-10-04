@@ -117,14 +117,16 @@ def build(key: str) -> str:
     prefix = spec["roots"][0] + "/" if single else ""
 
     def label(name: str) -> str:
-        return name[len(prefix) :] if prefix and name.startswith(prefix) else name
+        """Path shown in a box: relative to the folder; ``.py`` for files."""
+        text = name[len(prefix) :] if prefix and name.startswith(prefix) else name
+        if name.endswith("/*") or (SRC / f"{name}.py").is_file():
+            text += ".py"
+        return text
 
     groups: dict[str, list[str]] = {}
     for name in sorted(nodes):
         rel = label(name)
-        group = rel.split("/")[0] if "/" in rel and not rel.endswith("*") else ""
-        if rel.endswith("/*"):
-            group = ""
+        group = rel.split("/")[0] if "/" in rel and not rel.endswith("*.py") else ""
         groups.setdefault(group, []).append(name)
 
     lines = ["```mermaid", "flowchart LR"]
@@ -143,7 +145,7 @@ def build(key: str) -> str:
             lines.append("  end")
     if uses:
         lines.append('  subgraph USES["uses"]')
-        lines += [f'    {node_id(u)}["{u}"]:::ext' for u in sorted(uses)]
+        lines += [f'    {node_id(u)}["{label(u)}"]:::ext' for u in sorted(uses)]
         lines.append("  end")
     for src, dst, fade in sorted(edges):
         arrow = "-.->" if fade else "-->"

@@ -48,25 +48,25 @@ flowchart LR
     n_application__users_["application/"]:::ext
   end
   subgraph g_factory["factory/"]
-    n_experiments_factory_environment["factory/environment"]
-    n_experiments_factory_training["factory/training"]
+    n_experiments_factory_environment["factory/environment.py"]
+    n_experiments_factory_training["factory/training.py"]
   end
   subgraph g_models["models/"]
-    n_experiments_models_expand["models/expand"]
-    n_experiments_models_files["models/files"]
-    n_experiments_models_manifest["models/manifest"]
-    n_experiments_models_records["models/records"]
-    n_experiments_models_resolve["models/resolve"]
+    n_experiments_models_expand["models/expand.py"]
+    n_experiments_models_files["models/files.py"]
+    n_experiments_models_manifest["models/manifest.py"]
+    n_experiments_models_records["models/records.py"]
+    n_experiments_models_resolve["models/resolve.py"]
   end
   subgraph g_store["store/"]
-    n_experiments_store_filesystem["store/filesystem"]
-    n_experiments_store_recorder["store/recorder"]
+    n_experiments_store_filesystem["store/filesystem.py"]
+    n_experiments_store_recorder["store/recorder.py"]
   end
   subgraph g_worker["worker/"]
-    n_experiments_worker___main__["worker/__main__"]
-    n_experiments_worker_pool["worker/pool"]
-    n_experiments_worker_process["worker/process"]
-    n_experiments_worker_runner["worker/runner"]
+    n_experiments_worker___main__["worker/__main__.py"]
+    n_experiments_worker_pool["worker/pool.py"]
+    n_experiments_worker_process["worker/process.py"]
+    n_experiments_worker_runner["worker/runner.py"]
   end
   subgraph USES["uses"]
     n_marketplace_grid["marketplace/grid"]:::ext
@@ -103,14 +103,14 @@ flowchart LR
 ```
 <!-- END generated:graph -->
 
-Arrows are imports: who uses whom. Dashed arrows go to `models/records`, the record types nearly every file uses. Generated from the code by `docs_thesis/graphs.py`.
+Arrows are imports: who uses whom. Dashed arrows go to `models/records.py`, the record types nearly every file uses. Generated from the code by `docs_thesis/graphs.py`.
 
 | Part | Files | What it is for |
 |---|---|---|
-| `models/` | `records`, `files`, `expand`, `resolve`, `manifest` | The data (experiment file, run cell, run state, manifest) and pure functions over it: load and save, expand into runs, fill defaults, fingerprint a run |
-| `store/` | `filesystem`, `recorder` | The run folders on disk and the per-step records written into them |
-| `factory/` | `environment`, `training` | The only place that turns a file into a live environment and an RLlib configuration |
-| `worker/` | `pool`, `process`, `runner`, `__main__` | Starting runs as processes (pool), executing one run (process), and the work per kind of run (runner) |
+| `models/` | `records.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | The data (experiment file, run cell, run state, manifest) and pure functions over it: load and save, expand into runs, fill defaults, fingerprint a run |
+| `store/` | `filesystem.py`, `recorder.py` | The run folders on disk and the per-step records written into them |
+| `factory/` | `environment.py`, `training.py` | The only place that turns a file into a live environment and an RLlib configuration |
+| `worker/` | `pool.py`, `process.py`, `runner.py`, `__main__.py` | Starting runs as processes (pool), executing one run (process), and the work per kind of run (runner) |
 
 What each function does, and why each module exists, is in the module docstrings, shown in the API Reference.
 

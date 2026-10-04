@@ -63,18 +63,18 @@ flowchart LR
   subgraph USERS["used by"]
     n_studio__users_["studio/"]:::ext
   end
-  n_application_config_service["config_service"]
-  n_application_container["container"]
-  n_application_experiment_service["experiment_service"]
-  n_application_grid_catalog_service["grid_catalog_service"]
-  n_application_models["models"]
-  n_application_profile_service["profile_service"]
-  n_application_result_service["result_service"]
-  n_application_validation_service["validation_service"]
-  n_application_workspace["workspace"]
+  n_application_config_service["config_service.py"]
+  n_application_container["container.py"]
+  n_application_experiment_service["experiment_service.py"]
+  n_application_grid_catalog_service["grid_catalog_service.py"]
+  n_application_models["models.py"]
+  n_application_profile_service["profile_service.py"]
+  n_application_result_service["result_service.py"]
+  n_application_validation_service["validation_service.py"]
+  n_application_workspace["workspace.py"]
   subgraph USES["uses"]
     n_adapters_grid["adapters/grid"]:::ext
-    n_env["env"]:::ext
+    n_env["env.py"]:::ext
     n_experiments_models["experiments/models"]:::ext
     n_marketplace_grid["marketplace/grid"]:::ext
   end
@@ -110,26 +110,26 @@ flowchart LR
 ```
 <!-- END generated:graph -->
 
-Arrows are imports. Dashed arrows go to `models`, the data types every service returns. `result_service` reuses the sample constants of `experiment_service`. Generated from the code by `docs_thesis/graphs.py`.
+Arrows are imports. Dashed arrows go to `models.py`, the data types every service returns. `result_service.py` reuses the sample constants of `experiment_service.py`. Generated from the code by `docs_thesis/graphs.py`.
 
 | File | Class | State |
 |---|---|---|
-| `config_service` | `ConfigService`: presets from the repository, files in the workspace library | built |
-| `grid_catalog_service` | `GridCatalogService`: networks via the pandapower adapter | built |
-| `profile_service` | `ProfileService`: `profile_types` and `profile_series` read the network's SimBench profiles | partly built; the rest sample data until R3 |
-| `validation_service` | `ValidationService` | sample data until R6–R7 |
-| `experiment_service` | `ExperimentService` | sample data until R7 |
-| `result_service` | `ResultService` | sample data until R7 |
-| `models` | The plain data the services return; the only types that cross into the Studio (it also re-exports the experiment records) | |
-| `container` | `build_services`: the one place that decides which implementation each caller gets | |
-| `workspace` | Where user data lives: library, run store and exports, outside the repository and OneDrive | |
+| `config_service.py` | `ConfigService`: presets from the repository, files in the workspace library | built |
+| `grid_catalog_service.py` | `GridCatalogService`: networks via the pandapower adapter | built |
+| `profile_service.py` | `ProfileService`: `profile_types` and `profile_series` read the network's SimBench profiles | partly built; the rest sample data until R3 |
+| `validation_service.py` | `ValidationService` | sample data until R6–R7 |
+| `experiment_service.py` | `ExperimentService` | sample data until R7 |
+| `result_service.py` | `ResultService` | sample data until R7 |
+| `models.py` | The plain data the services return; the only types that cross into the Studio (it also re-exports the experiment records) | |
+| `container.py` | `build_services`: the one place that decides which implementation each caller gets | |
+| `workspace.py` | Where user data lives: library, run store and exports, outside the repository and OneDrive | |
 
 [↑ Contents](#contents)
 
 ## 4. Rules
 
 - **Plain data only.** Services return Pydantic models, dicts, lists and chart-ready `Series`, never NiceGUI elements, Ray objects, pandapower nets or MARLEM objects. A page that held an engine object would be tied to it and could freeze or break with it.
-- **Translation happens in the service.** A real service converts lower-layer records into `models` (e.g. the grid contract's `TopologyView` into the API model of the same name).
+- **Translation happens in the service.** A real service converts lower-layer records into `models.py` (e.g. the grid contract's `TopologyView` into the API model of the same name).
 - **One class per service, completed in place.** A method that is not built yet returns sample data and says in its docstring what the final version will do; `SAMPLE_DATA` on the class is true until none is left, and the Studio's header lists those services. Building the services loads no pandapower (tested).
 - **In-process, no REST layer (D-09).** Services run in the caller's process; anything long-running goes to the experiment layer's worker process.
 - **Boundaries (tested):** `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; it reaches them through `adapters/`, the grid contract and `experiments/`.

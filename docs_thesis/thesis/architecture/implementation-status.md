@@ -78,12 +78,12 @@ Only fields you change are written. A field you never touched stays absent from 
 
 | Module | Status | Tests |
 |---|---|---|
-| `models/records`, `files`, `expand`, `resolve`, `manifest` | ✅ (placement rules wait for R3) | [test_experiments.py](../../../tests/test_experiments.py) |
-| `store/filesystem`, `store/recorder` | ✅ | test_experiments.py |
-| `factory/environment` | 🟡 `build_env_config` only; `build_env`, `build_grid` raise | — |
-| `factory/training` | ⬜ interface only (stage D) | — |
-| `worker/runner` | 🟡 no-op runner only; baseline and training runners raise | test_experiments.py |
-| `worker/process`, `worker/pool` | ✅ | test_experiments.py (real subprocesses) |
+| `models/records.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | ✅ (placement rules wait for R3) | [test_experiments.py](../../../tests/test_experiments.py) |
+| `store/filesystem.py`, `store/recorder.py` | ✅ | test_experiments.py |
+| `factory/environment.py` | 🟡 `build_env_config` only; `build_env`, `build_grid` raise | — |
+| `factory/training.py` | ⬜ interface only (stage D) | — |
+| `worker/runner.py` | 🟡 no-op runner only; baseline and training runners raise | test_experiments.py |
+| `worker/process.py`, `worker/pool.py` | ✅ | test_experiments.py (real subprocesses) |
 | Presets (`experiments/presets/`) | 🟡 all 7 load, resolve and expand; placeholder mapping; sweeps for Case 1 only | [test_config_service.py](../../../tests/test_config_service.py) |
 
 ### 3.4 Application layer (`src_thesis/application/`, 04)

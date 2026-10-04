@@ -71,10 +71,10 @@ flowchart LR
     n_experiments__users_["experiments/"]:::ext
   end
   subgraph g_adapters["adapters/"]
-    n_adapters_grid_simbench_new["adapters/grid/simbench_new"]
+    n_adapters_grid_simbench_new["adapters/grid/simbench_new.py"]
   end
   subgraph g_marketplace["marketplace/"]
-    n_marketplace_grid_contract_new["marketplace/grid/contract_new"]
+    n_marketplace_grid_contract_new["marketplace/grid/contract_new.py"]
   end
   n_adapters_grid_simbench_new --> n_marketplace_grid_contract_new
   n_application__users_ --> n_adapters_grid_simbench_new

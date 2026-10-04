@@ -49,25 +49,25 @@ The pages follow how a study is built. The BUILD pages (Grid → Summary) edit t
 <!-- BEGIN generated:graph studio -->
 ```mermaid
 flowchart LR
-  n_studio___main__["__main__"]
-  n_studio_app["app"]
-  n_studio_forms["forms"]
-  n_studio_layout["layout"]
-  n_studio_navigation["navigation"]
-  n_studio_pages__["pages/*"]
-  n_studio_state["state"]
-  n_studio_theme["theme"]
+  n_studio___main__["__main__.py"]
+  n_studio_app["app.py"]
+  n_studio_forms["forms.py"]
+  n_studio_layout["layout.py"]
+  n_studio_navigation["navigation.py"]
+  n_studio_pages__["pages/*.py"]
+  n_studio_state["state.py"]
+  n_studio_theme["theme.py"]
   subgraph g_components["components/"]
-    n_studio_components_cards["components/cards"]
-    n_studio_components_charts["components/charts"]
-    n_studio_components_network["components/network"]
-    n_studio_components_tables["components/tables"]
+    n_studio_components_cards["components/cards.py"]
+    n_studio_components_charts["components/charts.py"]
+    n_studio_components_network["components/network.py"]
+    n_studio_components_tables["components/tables.py"]
   end
   subgraph USES["uses"]
-    n_application_container["application/container"]:::ext
-    n_application_models["application/models"]:::ext
-    n_application_workspace["application/workspace"]:::ext
-    n_env["env"]:::ext
+    n_application_container["application/container.py"]:::ext
+    n_application_models["application/models.py"]:::ext
+    n_application_workspace["application/workspace.py"]:::ext
+    n_env["env.py"]:::ext
   end
   n_studio___main__ --> n_env
   n_studio___main__ --> n_studio_app
@@ -102,16 +102,16 @@ flowchart LR
 ```
 <!-- END generated:graph -->
 
-Arrows are imports; the eleven page modules are drawn as one node (`pages/*`). Generated from the code by `docs_thesis/graphs.py`.
+Arrows are imports; the eleven page modules are drawn as one node (`pages/*.py`). Generated from the code by `docs_thesis/graphs.py`.
 
 | File | What it is for |
 |---|---|
-| `__main__`, `app` | Start the server (`python -m src_thesis.studio`); `app` imports every page module, which registers its URL, and calls `ui.run` |
-| `state` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
-| `layout` | `shell()`: header, navigation, footer and title around every page; `navigation` lists the menu, `theme` the colours |
-| `forms` | `DraftForm`: ties page controls to fields of the draft and saves only what changed |
-| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, and `network` (picker, facts, topology, elements, profile inspector), the only component that calls services; shared by Grid and Inspect |
-| `pages/*` | One module per page (§6), each an `@ui.page` function |
+| `__main__.py`, `app.py` | Start the server (`python -m src_thesis.studio`); `app.py` imports every page module, which registers its URL, and calls `ui.run` |
+| `state.py` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
+| `layout.py` | `shell()`: header, navigation, footer and title around every page; `navigation.py` lists the menu, `theme.py` the colours |
+| `forms.py` | `DraftForm`: ties page controls to fields of the draft and saves only what changed |
+| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, and `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services; shared by Grid and Inspect |
+| `pages/*.py` | One module per page (§6), each an `@ui.page` function |
 
 Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
 
