@@ -57,7 +57,12 @@ def participants_page() -> None:
     source = NetworkSource(**draft.grid.get("source", DEFAULT_SOURCE))
     # Network data for the map, the checks and the editor; loaded after the page
     # is shown, because loading a network takes seconds.
-    net: dict[str, Any] = {"topology": None, "elements": [], "buses": []}
+    net: dict[str, Any] = {
+        "topology": None,
+        "elements": [],
+        "buses": [],
+        "candidates": [],  # buses that pass the placement rule
+    }
     selected: dict[str, str | None] = {
         "id": draft.participants[0]["id"] if draft.participants else None
     }
@@ -82,9 +87,6 @@ def participants_page() -> None:
                     "Add participant", icon="person_add", on_click=lambda: add()
                 ).props("unelevated")
                 ui.button(
-                    "Apply placement rule", icon="rule", on_click=lambda: rule_dialog()
-                ).props("outline")
-                ui.button(
                     "Import mapping",
                     icon="upload_file",
                     on_click=lambda: import_dialog(),
@@ -105,6 +107,46 @@ def participants_page() -> None:
                         lambda: save([]),
                     ),
                 ).props("flat color=negative")
+
+        with section(
+            "Placement rule",
+            "Combine filters to choose which buses become agents; the buses that "
+            "pass are marked on the map",
+            "rule",
+        ):
+            with ui.row().classes("w-full gap-3 items-start no-wrap"):
+                rule_loads = (
+                    ui.select({}, value=[], label="Load types", multiple=True)
+                    .classes("grow basis-0 min-w-0")
+                    .props("use-chips clearable")
+                )
+                rule_generation = ui.select({}, value=None, label="Generation").classes(
+                    "w-44"
+                )
+                rule_storage = ui.select({}, value=None, label="Storage").classes(
+                    "w-40"
+                )
+                rule_position = ui.select({}, value=None, label="Where").classes("w-48")
+                rule_owns = ui.select({}, value=None, label="Agent owns").classes(
+                    "w-52"
+                )
+                rule_n = ui.number("Agents", value=8, min=1, step=1).classes("w-24")
+                rule_seed = ui.number("Seed", value=1, step=1).classes("w-20")
+            with ui.row().classes("w-full gap-3 items-center no-wrap"):
+                rule_hint = ui.label("Loading the network …").classes(
+                    "mls-card-caption grow"
+                )
+                rule_replace = (
+                    ui.toggle(
+                        {True: "Replace all participants", False: "Add to them"},
+                        value=True,
+                    )
+                    .props("no-caps dense no-wrap")
+                    .classes("shrink-0")
+                )
+                rule_apply = ui.button(
+                    "Place agents", icon="rule", on_click=lambda: place()
+                ).props("unelevated")
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
@@ -147,7 +189,8 @@ def participants_page() -> None:
                     selected_label = ui.label().classes("mls-card-caption self-center")
             with section(
                 "Map",
-                "Participant buses outlined; the selected one in colour",
+                "Agents' buses ringed, the selected agent filled; squares pass "
+                "the placement rule",
                 "map",
                 classes="basis-2/5 min-w-0",
             ):
@@ -252,55 +295,67 @@ def participants_page() -> None:
             lambda: save([x for x in draft.participants if x["id"] != p["id"]]),
         )
 
-    def rule_dialog() -> None:
-        rules = s.profiles.placement_rules()
-        with ui.dialog() as dialog, ui.card().classes("mls-card w-[34rem]"):
-            ui.label("Placement rule").classes("mls-card-title")
-            rule = ui.select(
-                {k: k.replace("_", " ") for k in rules},
-                value="by_elements",
-                label="Rule",
-            ).classes("w-full")
-            hint = ui.label(rules["by_elements"]).classes("mls-card-caption")
-            rule.on_value_change(lambda e: hint.set_text(rules[e.value]))
-            with ui.row().classes("w-full no-wrap gap-2"):
-                n = ui.number("Number of agents", value=8, min=1, step=1).classes(
-                    "grow"
-                )
-                seed = ui.number("Seed", value=1, step=1).classes("grow")
-            replace = ui.toggle(
-                {True: "Replace all participants", False: "Add to them"}, value=True
-            ).props("no-caps dense")
-            ui.label(
-                "Each agent owns one load and the free generators at its bus, with "
-                "their own SimBench profiles (native) and no scaling or battery; "
-                "edit them afterwards. The same seed gives the same placement."
-            ).classes("mls-card-caption")
-            message = ui.label().classes("text-negative text-body2")
+    def rule() -> dict[str, Any]:
+        """The placement rule as the controls describe it."""
+        return {
+            "loads": list(rule_loads.value or []),
+            "generation": rule_generation.value,
+            "storage": rule_storage.value,
+            "position": rule_position.value,
+            "owns": rule_owns.value,
+            "n": int(rule_n.value or 1),
+            "seed": int(rule_seed.value or 0),
+        }
 
-            async def apply() -> None:
-                try:
-                    placed = await run.io_bound(
-                        s.profiles.suggest_mapping,
-                        source,
-                        {
-                            "type": rule.value,
-                            "n": int(n.value),
-                            "seed": int(seed.value),
-                        },
-                    )
-                except Exception as e:  # noqa: BLE001  shown in the dialog
-                    message.set_text(str(e))
-                    return
-                if not replace.value:
-                    placed = _merge(draft.participants, placed)
-                dialog.close()
-                save(placed)
+    async def explain_rule() -> None:
+        """Count the buses that pass the filters, explain them, mark them."""
+        if net["topology"] is None:
+            return
+        try:
+            found = await run.io_bound(s.profiles.placement_candidates, source, rule())
+        except ValueError as e:
+            rule_hint.set_text(str(e))
+            return
+        net["candidates"] = found
+        kinds = ", ".join(
+            rule_loads.options[k].split(" (")[0].lower() for k in rule_loads.value
+        )
+        owns = (
+            "every load, generator and storage at its bus"
+            if rule_owns.value == "bus"
+            else "the matching loads and the generators and storage at its bus"
+        )
+        enough = len(found) >= int(rule_n.value or 1)
+        rule_hint.set_text(
+            f"{len(found)} buses pass the filters"
+            + (f" (load types: {kinds})" if kinds else " (any load)")
+            + (
+                f". {int(rule_n.value or 1)} of them become agents, each owning "
+                f"{owns}, with their own SimBench profiles and no scaling or "
+                "battery. The same seed gives the same placement."
+                if enough
+                else f": fewer than the {int(rule_n.value or 1)} agents asked for. "
+                "Widen the filters or ask for fewer agents."
+            )
+        )
+        rule_hint.classes(
+            replace=(
+                "mls-card-caption grow" if enough else "text-negative text-body2 grow"
+            )
+        )
+        rule_apply.set_enabled(enough)
+        draw_map()
 
-            with ui.row().classes("justify-end w-full"):
-                ui.button("Cancel", on_click=dialog.close).props("flat")
-                ui.button("Apply", on_click=apply).props("unelevated")
-        dialog.open()
+    async def place() -> None:
+        """Place agents by the rule and save them."""
+        try:
+            placed = await run.io_bound(s.profiles.suggest_mapping, source, rule())
+        except Exception as e:  # noqa: BLE001  shown under the controls
+            rule_hint.set_text(str(e))
+            return
+        if not rule_replace.value:
+            placed = _merge(draft.participants, placed)
+        save(placed)
 
     def import_dialog() -> None:
         with ui.dialog() as dialog, ui.card().classes("mls-card w-[38rem]"):
@@ -367,6 +422,24 @@ def participants_page() -> None:
             p = by_id(selected["id"])
             figure = topology_figure(net["topology"], height=380)
             position = {b["id"]: (b["x"], b["y"]) for b in net["topology"].buses}
+            free = [
+                position[bus]
+                for bus in net.get("candidates", [])
+                if bus in position and bus not in buses
+            ]
+            figure.add_scatter(
+                x=[x for x, _ in free],
+                y=[y for _, y in free],
+                mode="markers",
+                marker={
+                    "size": 13,
+                    "symbol": "square-open",
+                    "color": "#2563EB",
+                    "line": {"width": 1.5},
+                },
+                name="passes the placement rule",
+                hoverinfo="skip",
+            )
             at = [position[bus] for bus in buses if bus in position]
             figure.add_scatter(
                 x=[x for x, _ in at],
@@ -387,7 +460,7 @@ def participants_page() -> None:
                     y=[y],
                     mode="markers",
                     marker={"size": 15, "color": "#DB2777"},
-                    name=p["id"],
+                    name=f"selected: {p['id']}",
                     hoverinfo="name",
                 )
             ui.plotly(figure).classes("w-full")
@@ -448,6 +521,25 @@ def participants_page() -> None:
             **s.profiles.data_files("data/demand"),
             **s.profiles.data_files("data/generation"),
         }
+        options = await run.io_bound(s.profiles.placement_options, source)
+        rule_loads.set_options(options["loads"])
+        for control, key in (
+            (rule_generation, "generation"),
+            (rule_storage, "storage"),
+            (rule_position, "position"),
+            (rule_owns, "owns"),
+        ):
+            control.set_options(options[key], value=options["default"][key])
+        for control in (
+            rule_loads,
+            rule_generation,
+            rule_storage,
+            rule_position,
+            rule_owns,
+            rule_n,
+        ):
+            control.on_value_change(explain_rule)
+        await explain_rule()
         show_selected()
         await preview()
 

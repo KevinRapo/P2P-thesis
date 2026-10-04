@@ -143,7 +143,7 @@ An **agent** in MARLEM is one market participant with generation, demand and an 
 |---|---|---|
 | `manual` | The user picks a bus per agent (table or map in the Studio) | Hand-designed studies |
 | `by_elements` | The agent adopts the bus of the load or sgen it owns | Default |
-| `rule` | Seeded selection by rule, e.g. "N buses with a household load and PV", "feeder ends only", or "spread across feeders" | Scalability (Case 7), sensitivity studies |
+| `rule` | Seeded selection of N buses by combined filters: load types (any SimBench class: households, commercial, farms, heat pumps, EV charging, …), generation (PV, any generator, none), storage, position (anywhere, spread over the feeders, feeder ends). Each agent owns its whole bus, or only the matching loads | Scalability (Case 7), sensitivity studies |
 | `file` | Import a mapping CSV/JSON | Sharing, reproducing a published mapping |
 
 A rule is resolved into explicit placements when the experiment is validated. The resolved list is stored in the run manifest.

@@ -6,109 +6,202 @@ rules are needed twice, by the Studio (to propose and preview participants) and
 later by the environment factory (to build the agents), so they live here once,
 as plain functions over the contract records. No pandapower inside.
 
-Placement (01 §3.1) turns a rule such as "8 households with PV" into explicit
-participant entries of the experiment file. Scaling (01 §3.4) turns a profile
-into the agent's own power.
+Placement (01 §3.1) turns a rule such as "8 buses with a farm or household load
+and PV" into explicit participant entries of the experiment file. Scaling
+(01 §3.4) turns a profile into the agent's own power.
 """
 
 from __future__ import annotations
 
 import random
-import re
 from collections import defaultdict, deque
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 from src_thesis.marketplace.grid.contract_new import ElementRecord, TopologyView
 
-# Placement rules: type -> what it selects (shown in the Studio).
-RULES = {
-    "by_elements": "One agent per load, each owning that load and the "
-    "generators at its bus",
-    "household_with_pv": "Buses that have a household load (H0) and a PV "
-    "generator; the agent owns both",
-    "feeder_ends": "Buses at the end of a feeder (one connection only) that "
-    "have a load",
-    "spread": "Loads spread evenly over the feeders below the substation",
+# A placement rule is a set of filters on the network's buses (01 §3.1):
+#   loads       load classes a bus must have at least one of (empty: any load)
+#   generation  "any" (no condition), "pv", "generator" (any sgen) or "none"
+#   storage     "any", "with" or "without"
+#   position    "anywhere", "spread" (evenly over the feeders) or "feeder_ends"
+#   owns        "bus" (every load, generator and storage at the bus) or
+#               "matching" (only the matching loads, plus the generators and
+#               storage); the rest of the bus stays background
+#   n, seed     how many agents, and the seed of the draw
+GENERATION = {
+    "any": "No condition",
+    "pv": "With PV",
+    "generator": "With any generator",
+    "none": "Without generator",
+}
+STORAGE = {"any": "No condition", "with": "With storage", "without": "Without storage"}
+POSITIONS = {
+    "anywhere": "Anywhere",
+    "spread": "Spread over the feeders",
+    "feeder_ends": "Feeder ends only",
+}
+OWNS = {"bus": "Everything at the bus", "matching": "Only the matching loads"}
+DEFAULT_RULE: dict[str, Any] = {
+    "loads": [],
+    "generation": "any",
+    "storage": "any",
+    "position": "anywhere",
+    "owns": "bus",
+    "n": 8,
+    "seed": 1,
 }
 SCALING_MODES = ("none", "peak_kw", "energy_kwh")
 
+# Classifies a load profile, e.g. "H0-A" -> "household" (ProfileService's classes).
+Classify = Callable[[str], str]
 
-def place(
-    elements: Sequence[ElementRecord], topology: TopologyView, rule: dict[str, Any]
-) -> list[dict[str, Any]]:
-    """Participants placed on a network by a seeded rule (01 §3.1).
 
-    Every agent owns one load and, unless another agent already owns them, the
-    generators at its bus; its profiles are the owned elements' own (``native``).
+def candidates(
+    elements: Sequence[ElementRecord],
+    topology: TopologyView,
+    rule: dict[str, Any],
+    classify: Classify,
+) -> list[str]:
+    """The buses that pass a rule's filters, in network order (01 §3.1).
 
     Args:
         elements: The network's loads, generators and storage.
         topology: The network's buses and branches.
-        rule: ``{"type": <one of RULES>, "n": <agents>, "seed": <int>}``.
-
-    Returns:
-        Participant entries for the experiment file, in network order.
+        rule: The filters (see ``DEFAULT_RULE``); missing keys take the default.
+        classify: Load profile name -> load class.
 
     Raises:
-        ValueError: Unknown rule, or the network has fewer candidates than ``n``.
+        ValueError: An unknown filter value.
     """
-    kind = rule.get("type", "by_elements")
-    n = int(rule.get("n", 8))
-    rng = random.Random(int(rule.get("seed", 1)))
-    loads = [e for e in elements if e.element_type == "load"]
-    if kind == "by_elements":
-        chosen = _sample(loads, n, rng, "loads")
-    elif kind == "household_with_pv":
-        pv_buses = {
-            e.bus
-            for e in elements
-            if e.element_type == "sgen" and e.profile_type.startswith("PV")
-        }
-        candidates = _first_per_bus(
-            [e for e in loads if e.profile_type.startswith("H0-") and e.bus in pv_buses]
-        )
-        chosen = _sample(candidates, n, rng, "buses with a household load and PV")
-    elif kind == "feeder_ends":
-        degree = _degrees(topology)
+    rule = {**DEFAULT_RULE, **rule}
+    _check(rule)
+    wanted = set(rule["loads"] or [])
+    at = _by_bus(elements)
+    ends = None
+    if rule["position"] == "feeder_ends":
         ends = {
             bus
-            for bus, d in degree.items()
+            for bus, d in _degrees(topology).items()
             if d == 1 and bus != topology.external_grid_bus
         }
-        candidates = _first_per_bus([e for e in loads if e.bus in ends])
-        chosen = _sample(candidates, n, rng, "feeder ends with a load")
-    elif kind == "spread":
-        chosen = _spread(loads, topology, n, rng)
-    else:
-        raise ValueError(f"Unknown placement rule {kind!r}; use one of {list(RULES)}")
-    order = {e.id: i for i, e in enumerate(elements)}
-    chosen.sort(key=lambda e: order[e.id])
-    return _participants(chosen, elements)
+    out = []
+    for bus, items in at.items():
+        loads = [e for e in items if e.element_type == "load"]
+        sgens = [e for e in items if e.element_type == "sgen"]
+        storage = [e for e in items if e.element_type == "storage"]
+        if not any(not wanted or classify(e.profile_type) in wanted for e in loads):
+            continue
+        if not _generation_ok(rule["generation"], sgens):
+            continue
+        if rule["storage"] == "with" and not storage:
+            continue
+        if rule["storage"] == "without" and storage:
+            continue
+        if ends is not None and bus not in ends:
+            continue
+        out.append(bus)
+    return out
 
 
-def _sample(
-    candidates: list[ElementRecord], n: int, rng: random.Random, what: str
-) -> list[ElementRecord]:
-    """``n`` candidates drawn without replacement, reproducibly."""
+def place(
+    elements: Sequence[ElementRecord],
+    topology: TopologyView,
+    rule: dict[str, Any],
+    classify: Classify,
+) -> list[dict[str, Any]]:
+    """Participants placed by a rule: one agent per chosen bus (01 §3.1).
+
+    ``n`` buses are drawn from the ``candidates`` (seeded; ``spread`` takes them
+    feeder by feeder in turn). Each agent owns what ``owns`` says, with the owned
+    elements' own SimBench profiles (``native``) and no scaling or battery.
+
+    Raises:
+        ValueError: An unknown filter value, or fewer candidates than ``n``.
+    """
+    rule = {**DEFAULT_RULE, **rule}
+    n = int(rule["n"])
     if n < 1:
         raise ValueError("The number of agents must be at least 1")
-    if len(candidates) < n:
+    buses = candidates(elements, topology, rule, classify)
+    if len(buses) < n:
         raise ValueError(
-            f"The network has {len(candidates)} {what}, fewer than the {n} agents "
-            "asked for"
+            f"{len(buses)} buses pass the filters, fewer than the {n} agents asked "
+            "for: widen the filters or ask for fewer agents"
         )
-    return rng.sample(candidates, n)
-
-
-def _first_per_bus(loads: list[ElementRecord]) -> list[ElementRecord]:
-    """One load per bus (the first), so two agents never share a bus."""
-    seen: set[str] = set()
+    rng = random.Random(int(rule["seed"]))
+    if rule["position"] == "spread":
+        chosen = _spread(buses, topology, n, rng)
+    else:
+        chosen = rng.sample(buses, n)
+    order = {bus: i for i, bus in enumerate(buses)}
+    chosen.sort(key=order.__getitem__)
+    at = _by_bus(elements)
+    wanted = set(rule["loads"] or [])
     out = []
-    for e in loads:
-        if e.bus not in seen:
-            seen.add(e.bus)
-            out.append(e)
+    for i, bus in enumerate(chosen, start=1):
+        items = at[bus]
+        loads = [
+            e.id
+            for e in items
+            if e.element_type == "load"
+            and (
+                rule["owns"] == "bus"
+                or not wanted
+                or classify(e.profile_type) in wanted
+            )
+        ]
+        owns = {
+            "loads": loads,
+            "sgens": [e.id for e in items if e.element_type == "sgen"],
+        }
+        storage = [e.id for e in items if e.element_type == "storage"]
+        if storage:
+            owns["storage"] = storage
+        first = next(e for e in items if e.id == loads[0])
+        out.append(
+            {
+                "id": f"agent_{i:02d}",
+                "role": classify(first.profile_type)
+                + ("_prosumer" if owns["sgens"] else ""),
+                "bus": bus,
+                "owns": owns,
+                "profile": {"source": "native"},
+                "scaling": {"mode": "none"},
+                "battery": None,
+            }
+        )
     return out
+
+
+def _check(rule: dict[str, Any]) -> None:
+    """Reject unknown filter values with a clear message."""
+    for key, allowed in (
+        ("generation", GENERATION),
+        ("storage", STORAGE),
+        ("position", POSITIONS),
+        ("owns", OWNS),
+    ):
+        if rule[key] not in allowed:
+            raise ValueError(f"Unknown {key} {rule[key]!r}; use one of {list(allowed)}")
+
+
+def _generation_ok(condition: str, sgens: list[ElementRecord]) -> bool:
+    """Whether a bus's generators meet the generation condition."""
+    if condition == "pv":
+        return any(e.profile_type.startswith("PV") for e in sgens)
+    if condition == "generator":
+        return bool(sgens)
+    if condition == "none":
+        return not sgens
+    return True
+
+
+def _by_bus(elements: Sequence[ElementRecord]) -> dict[str, list[ElementRecord]]:
+    """Bus -> its elements, buses in the order they first appear."""
+    at: dict[str, list[ElementRecord]] = {}
+    for e in elements:
+        at.setdefault(e.bus, []).append(e)
+    return at
 
 
 def _adjacency(topology: TopologyView) -> dict[str, set[str]]:
@@ -156,62 +249,24 @@ def _feeders(topology: TopologyView) -> list[set[str]]:
 
 
 def _spread(
-    loads: list[ElementRecord], topology: TopologyView, n: int, rng: random.Random
-) -> list[ElementRecord]:
-    """Loads drawn feeder by feeder in turn, so every feeder gets agents."""
+    buses: list[str], topology: TopologyView, n: int, rng: random.Random
+) -> list[str]:
+    """Buses drawn feeder by feeder in turn, so every feeder gets agents."""
+    candidates_ = set(buses)
     pools = []
-    for buses in _feeders(topology):
-        pool = _first_per_bus([e for e in loads if e.bus in buses])
+    for feeder in _feeders(topology):
+        pool = sorted(feeder & candidates_)
         rng.shuffle(pool)
         if pool:
             pools.append(pool)
-    if sum(len(p) for p in pools) < n:
-        return _sample(_first_per_bus(loads), n, rng, "buses with a load")
-    chosen: list[ElementRecord] = []
+    if sum(len(p) for p in pools) < n:  # candidates outside any feeder
+        return rng.sample(buses, n)
+    chosen: list[str] = []
     while len(chosen) < n:
         for pool in pools:
             if pool and len(chosen) < n:
                 chosen.append(pool.pop())
     return chosen
-
-
-def _participants(
-    chosen: list[ElementRecord], elements: Sequence[ElementRecord]
-) -> list[dict[str, Any]]:
-    """Participant entries: each owns its load and the free generators at its bus."""
-    taken: set[str] = set()
-    out = []
-    for i, load in enumerate(chosen, start=1):
-        sgens = [
-            e.id
-            for e in elements
-            if e.element_type == "sgen" and e.bus == load.bus and e.id not in taken
-        ]
-        taken.update(sgens)
-        out.append(
-            {
-                "id": f"agent_{i:02d}",
-                "role": _role(load.profile_type),
-                "bus": load.bus,
-                "owns": {"loads": [load.id], "sgens": sgens},
-                "profile": {"source": "native"},
-                "scaling": {"mode": "none"},
-                "battery": None,
-            }
-        )
-    return out
-
-
-def _role(profile: str) -> str:
-    """A readable role from the load's profile, e.g. ``household`` for H0-A."""
-    for pattern, role in (
-        (r"H0-", "household"),
-        (r"G\d-", "commercial"),
-        (r"L\d-", "agricultural"),
-    ):
-        if re.match(pattern, profile):
-            return role
-    return "consumer"
 
 
 def scale(

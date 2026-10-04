@@ -182,7 +182,7 @@ Either an explicit list, or a `placement_rule` that is resolved at validation.
 | `battery.charge_efficiency`, `discharge_efficiency` | float | 1.0, 1.0 | Original defaults ([P1] Case 5 uses 0.95) |
 | `battery.max_power_kw` | float \| null | null | *(new)* power limit (I-71) |
 | `battery.initial_soc` | float \| `"random"` | `"random"` | Original: uniform in [min, max] at reset |
-| `placement_rule` | object | — | `{"type": "household_with_pv", "n": 8, "seed": 1}`, `"feeder_ends"`, `"spread"`, or `{"file": …}` (01 §3.1) |
+| `placement_rule` | object | — | Filters and draw (01 §3.1): `{"loads": ["household", "agricultural"], "generation": "pv", "storage": "any", "position": "spread", "owns": "bus", "n": 8, "seed": 1}`; empty `loads` = any load. Or `{"file": …}` |
 
 ### 3.5 `market`
 

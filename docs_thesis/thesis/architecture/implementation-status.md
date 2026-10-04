@@ -73,7 +73,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | Part | Status | Tests | Notes |
 |---|---|---|---|
 | pandapower grid adapter ([simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py)) | 🟡 | [test_grid_catalog.py](../../../tests/test_grid_catalog.py) | Catalog part done. `SimBenchGrid` (the step-time model) is a stub that raises |
-| Participant mapping ([participants.py](../../../src_thesis/adapters/grid/participants.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement rules (by elements, households with PV, feeder ends, spread) and profile scaling (none, peak kW, annual energy) |
+| Participant mapping ([participants.py](../../../src_thesis/adapters/grid/participants.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement by combined filters (load types, generation, storage, position; agent owns its whole bus or only the matching loads) and profile scaling (none, peak kW, annual energy) |
 | SimBench profile source (`adapters/profiles/simbench.py`) | ⬜ | — | The existing `adapters/profiles/` is the original CSV / synthetic code |
 
 ### 3.3 Experiment layer (`src_thesis/experiments/`, 03)

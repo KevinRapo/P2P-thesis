@@ -32,30 +32,67 @@ def draft(tmp_path: Path):
     return ConfigService(Workspace(tmp_path / "home")).new_from_preset("case6-3x3")
 
 
-@pytest.mark.parametrize("rule", ["by_elements", "spread"])
-def test_placement_is_reproducible_and_consistent(profiles, rule) -> None:
-    placed = profiles.suggest_mapping(LV, {"type": rule, "n": 6, "seed": 3})
-    again = profiles.suggest_mapping(LV, {"type": rule, "n": 6, "seed": 3})
-    assert placed == again and len(placed) == 6
-    elements = {e.id: e for e in profiles_elements()}
+RURAL = NetworkSource(type="simbench", code="1-LV-rural1--2-no_sw")
+
+
+@pytest.mark.parametrize("position", ["anywhere", "spread"])
+def test_placement_is_reproducible_and_consistent(profiles, position) -> None:
+    rule = {"position": position, "n": 6, "seed": 3}
+    placed = profiles.suggest_mapping(LV, rule)
+    assert placed == profiles.suggest_mapping(LV, rule) and len(placed) == 6
+    elements = {e.id: e for e in profiles_elements(LV)}
     owned = [e for p in placed for side in p["owns"].values() for e in side]
     assert len(owned) == len(set(owned))  # nothing owned twice
+    assert len({p["bus"] for p in placed}) == 6  # one agent per bus
     for p in placed:
         assert p["profile"] == {"source": "native"}
-        assert all(elements[e].bus == p["bus"] for e in p["owns"]["loads"])
+        assert all(elements[e].bus == p["bus"] for e in owned if e in p_owned(p))
 
 
-def profiles_elements():
+def p_owned(p: dict) -> list[str]:
+    return [e for side in p["owns"].values() for e in side]
+
+
+def profiles_elements(source):
     from src_thesis.application.container import build_services
 
-    return build_services().grid.elements(LV)
+    return build_services().grid.elements(source)
+
+
+def test_filters_combine_any_load_type(profiles) -> None:
+    # 1-LV-rural1--2-no_sw: 8 buses with PV, only 3 of them with a household load.
+    households = {"loads": ["household"], "generation": "pv"}
+    assert len(profiles.placement_candidates(RURAL, households)) == 3
+    prosumers = profiles.placement_candidates(RURAL, {"generation": "pv"})
+    assert len(prosumers) == 8
+    farms = profiles.placement_candidates(
+        RURAL, {"loads": ["agricultural"], "generation": "pv"}
+    )
+    assert len(farms) == 5
+    options = profiles.placement_options(RURAL)
+    assert {"household", "agricultural", "ev", "heat_pump"} <= set(options["loads"])
+
+
+def test_agents_own_their_whole_bus_or_only_matching_loads(profiles) -> None:
+    rule = {"loads": ["household"], "generation": "pv", "n": 3, "seed": 1}
+    whole = profiles.suggest_mapping(RURAL, rule)
+    matching = profiles.suggest_mapping(RURAL, {**rule, "owns": "matching"})
+    elements = {e.id: e for e in profiles_elements(RURAL)}
+    for p in whole:  # every element at the bus, EV chargers and heat pumps too
+        at_bus = {e.id for e in elements.values() if e.bus == p["bus"]}
+        assert set(p_owned(p)) == at_bus
+    for p in matching:
+        assert all(
+            elements[e].profile_type.startswith("H0-") for e in p["owns"]["loads"]
+        )
+        assert p["owns"]["sgens"]
 
 
 def test_placement_rejects_too_many_agents(profiles) -> None:
     with pytest.raises(ValueError, match="fewer than"):
-        profiles.suggest_mapping(LV, {"type": "feeder_ends", "n": 500})
-    with pytest.raises(ValueError, match="Unknown placement rule"):
-        profiles.suggest_mapping(LV, {"type": "nope"})
+        profiles.suggest_mapping(LV, {"position": "feeder_ends", "n": 500})
+    with pytest.raises(ValueError, match="Unknown generation"):
+        profiles.suggest_mapping(LV, {"generation": "nope"})
 
 
 def test_scaling_to_peak_and_energy() -> None:
@@ -80,7 +117,7 @@ def test_preview_scales_catalogue_profiles(profiles, draft) -> None:
 
 
 def test_preview_of_native_participants(profiles, draft, tmp_path) -> None:
-    placed = profiles.suggest_mapping(LV, {"type": "by_elements", "n": 2, "seed": 1})
+    placed = profiles.suggest_mapping(LV, {"n": 2, "seed": 1})
     file = ConfigService(Workspace(tmp_path / "x")).update(
         draft, {"participants": placed}
     )
