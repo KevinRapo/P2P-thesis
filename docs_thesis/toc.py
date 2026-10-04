@@ -15,6 +15,7 @@ from pathlib import Path
 DOCS = Path(__file__).resolve().parent
 FILES = [
     "guide/studio-workflow.md",
+    "guide/networks.md",
     "paper/marlem-methodology.md",
     "paper/marlem-paper-to-code-map.md",
     "thesis/architecture/README.md",

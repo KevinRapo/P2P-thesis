@@ -35,7 +35,7 @@ the SimBench rebuild.
 
 | Section | Start with |
 |---|---|
-| **Guide** | [Studio workflow](guide/studio-workflow.md): how to use the Studio, from the first launch to comparing runs. |
+| **Guide** | [Studio workflow](guide/studio-workflow.md): how to use the Studio, from the first launch to comparing runs. [Network catalogue](guide/networks.md): every network's size, load, PV penetration and load mix, to pick networks of interest. |
 | **Papers** | [Methodology](paper/marlem-methodology.md): what the papers say. [Paper-to-code map](paper/marlem-paper-to-code-map.md): where each part lives in the original code. |
 | **Validation** | [How the validation docs work](thesis/validation/README.md), then the [issue register](thesis/validation/issues.md). |
 | **Architecture** | [Master document](thesis/architecture/README.md): goal, roadmap, decision log. |
