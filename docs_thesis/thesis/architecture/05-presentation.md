@@ -28,6 +28,7 @@ The Studio lets a researcher build a study, run it and analyse it without writin
 flowchart LR
   Home --> Library
   Library -->|open / clone / preset| Grid
+  Inspect -.->|explore networks| Grid
   Grid --> Participants --> Market[Market & DSO] --> Summary
   Summary --> Design --> Validate
   Validate -->|pass| Runs
@@ -59,6 +60,7 @@ flowchart LR
   subgraph g_components["components/"]
     n_studio_components_cards["components/cards"]
     n_studio_components_charts["components/charts"]
+    n_studio_components_network["components/network"]
     n_studio_components_tables["components/tables"]
   end
   subgraph USES["uses"]
@@ -74,6 +76,11 @@ flowchart LR
   n_studio_app --> n_studio_pages__
   n_studio_components_charts --> n_application_models
   n_studio_components_charts --> n_studio_theme
+  n_studio_components_network --> n_application_container
+  n_studio_components_network --> n_application_models
+  n_studio_components_network --> n_studio_components_cards
+  n_studio_components_network --> n_studio_components_charts
+  n_studio_components_network --> n_studio_components_tables
   n_studio_forms --> n_application_models
   n_studio_forms --> n_studio_state
   n_studio_layout --> n_studio_navigation
@@ -83,6 +90,7 @@ flowchart LR
   n_studio_pages__ --> n_application_workspace
   n_studio_pages__ --> n_studio_components_cards
   n_studio_pages__ --> n_studio_components_charts
+  n_studio_pages__ --> n_studio_components_network
   n_studio_pages__ --> n_studio_components_tables
   n_studio_pages__ --> n_studio_forms
   n_studio_pages__ --> n_studio_layout
@@ -150,7 +158,8 @@ The shell around every page shows the draft (opens Summary), its validation stat
 | Page | Route | For | Contents | Services |
 |---|---|---|---|---|
 | Home | `/` | Pick up recent work or start from a paper case | Health, recent drafts and runs, "new from preset" (Cases 1–7) | Config, Experiment |
-| Grid | `/build/grid` | Choose and understand the network before placing agents | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings, an inspector of the network's SimBench profiles | GridCatalog, Profile; writes `grid.*` |
+| Inspect | `/build/inspect` | Get to know networks and their data; compare two networks. Read-only | Network facts, topology (click a bus for its elements), elements with their profiles, SimBench profile inspector (select profiles, window, resolution, P/Q); comparison with a second network: facts side by side, elements per profile category, both topologies, profiles in A and B | GridCatalog, Profile |
+| Grid | `/build/grid` | Choose the network for the experiment and check it | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings | GridCatalog; writes `grid.*` |
 | Participants | `/build/participants` | Define the agents and tie them to buses and profiles (01 §3) | Participant table, assignment tools (manual, rule, mapping file, [P2] Table 6 roles), map, time window, profile preview, battery editor, inline checks | Profile, GridCatalog, Validation; writes `participants`, `time` |
 | Market & DSO | `/build/market` | The economic side: market rules, tariffs and fees, observation and reward | Mechanism and bounds, partner preference, ledger; tariff source and fee factors; observation and reward versions, assessment mode; tariff preview | Profile; writes `market`, `dso`, `environment`, `grid.assessment` |
 | Summary | `/build/summary` | Check and save the whole world before the learning plan | Counts, JSON view, save, save as, export bundle, diff against the origin preset | Config |

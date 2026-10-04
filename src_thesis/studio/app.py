@@ -47,6 +47,7 @@ import src_thesis.studio.pages.compare  # noqa: F401, E402
 import src_thesis.studio.pages.design  # noqa: F401, E402
 import src_thesis.studio.pages.grid  # noqa: F401, E402
 import src_thesis.studio.pages.home  # noqa: F401, E402
+import src_thesis.studio.pages.inspect  # noqa: F401, E402
 import src_thesis.studio.pages.library  # noqa: F401, E402
 import src_thesis.studio.pages.market  # noqa: F401, E402
 import src_thesis.studio.pages.participants  # noqa: F401, E402

@@ -109,7 +109,8 @@ Each service is one class in `application/<name>_service.py`; a method that is n
 |---|---|---|---|
 | Home | Library and presets: real. Runs and health: sample data | "New from preset" creates `<preset>-draft` in the library | — |
 | Library | Real file list | Click a preset → new draft file; click a file → opens it | Open file, Import bundle |
-| Grid | Real networks, topology, elements, power-flow preview, and an inspector of the network's SimBench profiles (select profiles, window, resolution, P/Q) | **Nothing yet**: choosing a network only browses | Apply limits, Upload network |
+| Inspect | All real: any network's facts, topology, elements, SimBench profile inspector, and a comparison with a second network | Nothing (read-only by design) | — |
+| Grid | Real networks, topology, elements, power-flow preview | **Nothing yet**: choosing a network only browses | Apply limits, Upload network |
 | Participants | The draft's participants (real); map: real topology, but the outlined buses are every fifth bus, not the participants' buses; profile previews and day counts: sample data | Nothing yet | Add participant, Import mapping, Load Table 6 roles, Add battery, Apply rule |
 | Market & DSO | The draft's values (real); tariff chart: sample data | "Apply to draft": `market.*` (mechanism, price/quantity bounds, partner preference, async orders, ledger), `dso.tariffs.source/mode`, `dso.fees.*`, `environment.observation.version/forecast_error`, `environment.reward.version`, `environment.reward.grid_violation.attribution`, `grid.assessment.mode` | Edit weights |
 | Summary | The draft (real) | Save: `meta.name`, `meta.description`. Save as: a new file with a new id. Export bundle: `exports/<id>.zip` | — |
