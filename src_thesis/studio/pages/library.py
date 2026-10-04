@@ -1,4 +1,4 @@
-"""Library (04 §4.11) and Settings."""
+"""Library (05 §6) and Settings."""
 
 from nicegui import app, ui
 
@@ -12,7 +12,7 @@ from src_thesis.studio.state import flash, open_draft, reset_services, services
 
 @ui.page("/library")
 def library_page() -> None:
-    """Library (04 §4.11): presets and your files; click one to open it as the draft."""
+    """Library (05 §6): presets and your files; click one to open it as the draft."""
     s = services()
     with shell("library", "Library", "Experiment files and presets"):
         with ui.row().classes("w-full gap-2"):

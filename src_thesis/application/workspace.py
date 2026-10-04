@@ -11,7 +11,7 @@ them). Its folder is, in this order:
 3. ``%LOCALAPPDATA%\\MARLEM`` on Windows, ``~/.local/share/marlem`` elsewhere.
 
     <home>/library/   experiment files the user saves (*.marlem.json)
-    <home>/store/     run folders (experiment layer store, 05 §3.5)
+    <home>/store/     run folders (experiment layer store, 03 §6)
     <home>/exports/   bundles (experiment file + referenced data files)
 """
 

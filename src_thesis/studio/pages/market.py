@@ -1,4 +1,4 @@
-"""Market & DSO (04 §4.4): market rules, DSO tariffs and fees, environment settings."""
+"""Market & DSO (05 §6): market rules, DSO tariffs and fees, environment settings."""
 
 from nicegui import ui
 
@@ -20,7 +20,7 @@ _MECHANISMS = [
 
 @ui.page("/build/market")
 def market_page() -> None:
-    """Market & DSO (04 §4.4): edit the market rules, DSO tariffs and fees, and the
+    """Market & DSO (05 §6): edit the market rules, DSO tariffs and fees, and the
     observation and reward settings of the draft.
     """
     s = services()

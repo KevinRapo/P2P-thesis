@@ -51,13 +51,13 @@ class RunExistsError(FileExistsError):
 
 
 class IllegalTransitionError(ValueError):
-    """A state change the run lifecycle does not allow (05 §4)."""
+    """A state change the run lifecycle does not allow (03 §5)."""
 
     pass
 
 
 class ExperimentStore:
-    """Run folders on disk: the single source of truth about runs (05 §3.5).
+    """Run folders on disk: the single source of truth about runs (03 §6).
 
     Args:
         root: The store folder (``<workspace>/store``); runs live in

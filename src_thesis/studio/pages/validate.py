@@ -1,4 +1,4 @@
-"""Validate (04 §4.7): preflight report, dry run, and the only launch point."""
+"""Validate (05 §6): preflight report, dry run, and the only launch point."""
 
 from nicegui import ui
 
@@ -24,7 +24,7 @@ _AREA_ROUTES = {
 
 @ui.page("/experiment/validate")
 def validate_page() -> None:
-    """Validate (04 §4.7): preflight report, dry run and launch. Demo validation until
+    """Validate (05 §6): preflight report, dry run and launch. Demo validation until
     R7.
     """
     s = services()
@@ -124,7 +124,7 @@ def validate_page() -> None:
                 ui.notify(f"{len(run_ids)} runs created (demo).", type="positive")
                 ui.navigate.to("/runs")
 
-            # Disabled while the report has errors: Validate is the only way to Runs (04
+            # Disabled while the report has errors: Validate is the only way to Runs (05
             # §3).
             ui.button("Launch runs", icon="rocket_launch", on_click=launch).props(
                 "unelevated" + ("" if report.ok else " disable")

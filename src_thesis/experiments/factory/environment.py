@@ -45,7 +45,7 @@ def build_env_config(
 def build_env(env_config: dict[str, Any]) -> Any:
     """Build one ``LocalEnergyMarket`` from an ``env_config``.
 
-    Steps (05 §3.7):
+    Steps (03 §4):
     1. take this episode's day from the resolved train (or eval) day list;
     2. build profiles through the selected profile sources (01 §3);
     3. build agents (with batteries), DSO tariffs and fees, and ``MarketConfig``;

@@ -96,7 +96,7 @@ class RunCell(BaseModel):
 
 
 class RunState(str, Enum):
-    """Lifecycle state of a run (05 §4); ``TRANSITIONS`` lists the allowed moves."""
+    """Lifecycle state of a run (03 §5); ``TRANSITIONS`` lists the allowed moves."""
 
     READY = "READY"
     QUEUED = "QUEUED"
@@ -109,7 +109,7 @@ class RunState(str, Enum):
 
 TERMINAL_STATES = frozenset({RunState.COMPLETED, RunState.FAILED, RunState.CANCELLED})
 
-# Allowed state changes (05 §4). Anything may fail; a terminal state is final.
+# Allowed state changes (03 §5). Anything may fail; a terminal state is final.
 TRANSITIONS: dict[RunState, frozenset[RunState]] = {
     # READY -> RUNNING: a worker started directly (CLI debugging) skips the queue
     RunState.READY: frozenset({RunState.QUEUED, RunState.RUNNING, RunState.CANCELLED}),
@@ -125,7 +125,7 @@ TRANSITIONS: dict[RunState, frozenset[RunState]] = {
 
 
 def can_transition(old: RunState, new: RunState) -> bool:
-    """Whether a run may move from ``old`` to ``new`` (05 §4)."""
+    """Whether a run may move from ``old`` to ``new`` (03 §5)."""
     if old in TERMINAL_STATES:
         return False
     return new == RunState.FAILED or new in TRANSITIONS[old]

@@ -1,4 +1,4 @@
-"""The real ConfigService: experiment files on disk (03 §2.1).
+"""The real ConfigService: experiment files on disk (04 §5).
 
 Presets are read-only files in the repository (``experiments/presets/``); the
 user's files live in the workspace library, outside OneDrive (``workspace.py``).

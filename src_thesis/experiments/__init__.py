@@ -1,6 +1,6 @@
 """The experiment layer: experiment files, runs, the store and worker processes.
 
-See docs_thesis/thesis/architecture/05-experiment-layer.md. Four parts, as in the
+See docs_thesis/thesis/architecture/03-experiment-layer.md. Four parts, as in the
 layer diagram (architecture README §2.1):
 
 - ``models``: the experiment file and run records, plus reading, hashing,

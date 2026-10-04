@@ -1,4 +1,4 @@
-"""Design (04 §4.6): the learning plan, i.e. the `learning` section of the file."""
+"""Design (05 §6): the learning plan, i.e. the `learning` section of the file."""
 
 from nicegui import ui
 
@@ -12,7 +12,7 @@ ALGORITHMS = ["ppo", "appo", "sac"]
 
 @ui.page("/experiment/design")
 def design_page() -> None:
-    """Design (04 §4.6): the draft's learning plan (matrix, seeds, budget,
+    """Design (05 §6): the draft's learning plan (matrix, seeds, budget,
     hyperparameters, sweep). Read-only for now.
     """
     s = services()

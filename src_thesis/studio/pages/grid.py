@@ -1,4 +1,4 @@
-"""Grid (04 §4.2): choose and understand the network before placing agents.
+"""Grid (05 §6): choose and understand the network before placing agents.
 
 All data comes from ``GridCatalogService``. With the pandapower backend, loading
 a network or running a power flow takes seconds, so those calls run in a worker
@@ -37,7 +37,7 @@ def _yes_no(value: bool | None, no: str = "no") -> str:
 
 @ui.page("/build/grid")
 def grid_page() -> None:
-    """Grid (04 §4.2): choose and understand a network: catalog, topology, elements,
+    """Grid (05 §6): choose and understand a network: catalog, topology, elements,
     power-flow preview.
     """
     s = services()

@@ -1,6 +1,6 @@
 """Service interfaces used by the Studio, the CLI and notebooks.
 
-Each protocol mirrors a method table in docs_thesis/thesis/architecture/03-application-layer.md.
+Each protocol mirrors a method table in docs_thesis/thesis/architecture/04-application-layer.md.
 Implementations live elsewhere: `application.demo` (sample data, no MARLEM)
 and the real services (`config_files`, `grid_catalog`, later the ones backed by
 the experiment layer). `container.build_services` decides which one a caller gets.
@@ -233,7 +233,7 @@ class ValidationService(Protocol):
 
 
 class ExperimentService(Protocol):
-    """Creating, starting, watching and cancelling runs (the experiment layer, 05)."""
+    """Creating, starting, watching and cancelling runs (the experiment layer, 03)."""
 
     def create_runs(self, file: ExperimentFile) -> list[str]:
         """Validate, expand and write one run folder per run, in state READY.

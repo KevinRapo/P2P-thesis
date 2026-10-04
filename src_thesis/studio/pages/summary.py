@@ -1,4 +1,4 @@
-"""Summary (04 §4.5): the draft experiment file, saving, sharing and its diff."""
+"""Summary (05 §6): the draft experiment file, saving, sharing and its diff."""
 
 from nicegui import ui
 
@@ -79,7 +79,7 @@ def _diff_dialog(draft) -> None:
 
 @ui.page("/build/summary")
 def summary_page() -> None:
-    """Summary (04 §4.5): the draft as JSON; save, save as, export a bundle, diff
+    """Summary (05 §6): the draft as JSON; save, save as, export a bundle, diff
     against its origin.
     """
     s = services()

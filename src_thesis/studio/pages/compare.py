@@ -1,4 +1,4 @@
-"""Compare (04 §4.10): the 3 × 3 matrix view and run overlays."""
+"""Compare (05 §6): the 3 × 3 matrix view and run overlays."""
 
 from nicegui import ui
 
@@ -18,7 +18,7 @@ _METRICS = {
 
 @ui.page("/compare")
 def compare_page() -> None:
-    """Compare (04 §4.10): the algorithm × paradigm matrix and run overlays. Demo data
+    """Compare (05 §6): the algorithm × paradigm matrix and run overlays. Demo data
     until R7.
     """
     s = services()

@@ -1,4 +1,4 @@
-"""Results (04 §4.9): one run; research outcomes kept apart from RL return."""
+"""Results (05 §6): one run; research outcomes kept apart from RL return."""
 
 from nicegui import ui
 
@@ -60,7 +60,7 @@ def results_index_page() -> None:
 
 @ui.page("/results/{run_id}")
 def results_page(run_id: str) -> None:
-    """Results (04 §4.9) of one run: outcomes, learning curves, episode replay, grid and
+    """Results (05 §6) of one run: outcomes, learning curves, episode replay, grid and
     agents. Demo data until R7.
 
     Args:

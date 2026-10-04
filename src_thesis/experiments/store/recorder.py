@@ -32,7 +32,7 @@ RecordMode = Literal["none", "evaluation", "all"]
 
 @dataclass(frozen=True)
 class StepRecord:
-    """Everything that happened in one step, built once by the environment (05 §3.6).
+    """Everything that happened in one step, built once by the environment (03 §6).
 
     Reward, observation, ``info`` and logging are all derived from this record, so
     they cannot disagree.

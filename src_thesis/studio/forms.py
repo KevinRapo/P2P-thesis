@@ -3,7 +3,7 @@
 A page binds each control to a dotted path in the file (``market.mechanism``).
 "Apply" sends only the controls the user changed to ``ConfigService.update``,
 so fields left at their defaults stay unset in the file, and saves the result
-to the library (drafts autosave, 04 §2).
+to the library (drafts autosave, 05 §5).
 """
 
 from __future__ import annotations

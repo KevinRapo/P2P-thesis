@@ -1,4 +1,4 @@
-"""Participants (04 §4.3): agents, placement, profiles, batteries, time window."""
+"""Participants (05 §6): agents, placement, profiles, batteries, time window."""
 
 from nicegui import ui
 
@@ -13,7 +13,7 @@ from src_thesis.studio.state import current_draft, services
 
 @ui.page("/build/participants")
 def participants_page() -> None:
-    """Participants (04 §4.3): the draft's agents, their buses, profiles and batteries.
+    """Participants (05 §6): the draft's agents, their buses, profiles and batteries.
     Read-only for now.
     """
     s = services()
