@@ -582,7 +582,8 @@ def profile_power(
         per_element: One series per element instead of one sum per profile.
 
     Returns:
-        Time labels and, per profile (or per element), its power in kW or kvar.
+        Time labels and, per profile ("H0-A (6)") or per element
+        ("LV4.101 Load 30 · H0-A"), its power in kW or kvar.
     """
     d, first, last, step = _window(start, days, resolution)
     net = _load(ref)
@@ -603,7 +604,7 @@ def profile_power(
         if per_element:
             for i in ids:
                 kw = _aggregate(frame[i] * 1000, first, last, step)
-                values[str(users.at[i, "name"])] = [round(v, 3) for v in kw]
+                values[f"{users.at[i, 'name']} · {name}"] = [round(v, 3) for v in kw]
         else:
             kw = _aggregate(frame[ids].sum(axis=1) * 1000, first, last, step)
             values[f"{name} ({len(ids)})"] = [round(v, 3) for v in kw]

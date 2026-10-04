@@ -39,6 +39,29 @@ ELEMENT_COLUMNS = [
 ]
 
 
+# Short explanations shown under the profile controls; they follow the selection,
+# so the page explains itself instead of relying on the documentation.
+RESOLUTION_HINTS = {
+    "15min": "15 min: SimBench's own values, one per quarter hour (96 per day).",
+    "hourly": "Hourly: the mean of the four quarter-hour values of each hour "
+    "(MARLEM's default step, 24 per day).",
+    "daily": "Daily: the mean of all 96 quarter-hour values of each day; shows "
+    "seasons, hides the daily shape.",
+}
+QUANTITY_HINTS = {
+    "p": "P: active power, the energy actually used or produced.",
+    "q": "Q: reactive power, which loads also draw; generator profiles have none.",
+}
+SCALE_HINTS = {
+    False: "Sum per profile: one line per profile, adding up all elements that "
+    'use it. "H0-A (6)" is the total of the six loads that follow H0-A: the '
+    "share of the network's demand that comes from that profile.",
+    True: "Per element: one line per load or generator. Elements that follow the "
+    "same profile have the same shape and differ only in height, because each "
+    "is scaled by its own rated power.",
+}
+
+
 def busy(box: ui.element, text: str) -> None:
     """Replace a box's content with a spinner while a slow call runs."""
     box.clear()
@@ -290,6 +313,7 @@ class ProfileInspector:
                         .props("no-caps dense")
                         .tooltip("Active or reactive power; only loads have Q")
                     )
+                self.hint = ui.label().classes("mls-card-caption")
                 self.plot_box = ui.column().classes("w-full")
         with ui.row().classes("items-center gap-3 w-full q-mt-sm"):
             with ui.column().classes("gap-0"):
@@ -303,7 +327,9 @@ class ProfileInspector:
             self.per_element = ui.toggle(
                 {False: "Sum per profile", True: "Per element"}, value=False
             ).props("no-caps dense")
+        self.scale_hint = ui.label().classes("mls-card-caption")
         self.power_box = ui.column().classes("w-full")
+        self._explain()
         for control in (
             self.day,
             self.span,
@@ -311,7 +337,21 @@ class ProfileInspector:
             self.quantity,
             self.per_element,
         ):
-            control.on_value_change(lambda: self.plot())
+            control.on_value_change(self._changed)
+
+    async def _changed(self) -> None:
+        """A control changed: update the explanations, then redraw."""
+        self._explain()
+        await self.plot()
+
+    def _explain(self) -> None:
+        """Update the explanations under the controls to the current selection."""
+        self.hint.set_text(
+            RESOLUTION_HINTS[self.resolution.value]
+            + " "
+            + QUANTITY_HINTS[self.quantity.value]
+        )
+        self.scale_hint.set_text(SCALE_HINTS[bool(self.per_element.value)])
 
     async def show(self, source: NetworkSource) -> None:
         """Load the profile list of ``source``; plot the first two profiles."""
