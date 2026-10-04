@@ -1,13 +1,11 @@
 """ValidationService: preflight checks before any run (04 §5, 02 §9).
 
-Final implementation: ``PreflightValidationService``, not built yet (R6-R7). Demo:
-``DemoValidationService`` (fixed sample findings; nothing is checked).
+Every method still returns a fixed sample report; each docstring says what the
+final version will check (R6-R7).
 """
 
 from __future__ import annotations
 
-from typing import Protocol
-from src_thesis.application.config_service import DemoConfigService
 from src_thesis.application.models import (
     DryRunResult,
     ExperimentFile,
@@ -15,59 +13,30 @@ from src_thesis.application.models import (
     Severity,
     ValidationReport,
 )
+from src_thesis.experiments.models.files import canonical_hash
 
 
-# ---------------------------------------------------------------------- protocol
-class ValidationService(Protocol):
-    """Preflight checks before any run (02 §9)."""
+class ValidationService:
+    """Preflight checks before any run (02 §9).
+
+    Every method returns sample data until it is built; its docstring says what the
+    final version will do.
+    """
+
+    SAMPLE_DATA = True  # shown in the Studio's header until the service is built
 
     def validate(self, file: ExperimentFile, level: str = "full") -> ValidationReport:
         """Check a file and report findings with the field they concern.
+
+        Sample data for now. The final version will check schema (Pydantic), references,
+        time, units, grid mapping, RL settings, protocol and resources, each finding
+        with its field path.
 
         Args:
             file: The file to check.
             level: ``"schema"`` (instant), ``"references"`` (buses, files exist) or
                 ``"full"`` (everything, including the dry run).
         """
-        ...
-
-    def dry_run(self, file: ExperimentFile) -> DryRunResult:
-        """Build the environment and take one step, to catch errors early."""
-        ...
-
-
-# ---------------------------------------------------------------------- final implementation (skeleton)
-_NOT_BUILT = (
-    "Not built yet: the final implementation of this service waits for its "
-    "roadmap phase; the Studio uses the demo implementation until then."
-)
-
-
-class PreflightValidationService:
-    """The final ``ValidationService``: the preflight checks of 02 §9 (R6-R7).
-
-    Not implemented yet; every method raises.
-    """
-
-    def validate(self, file: ExperimentFile, level: str = "full") -> ValidationReport:
-        """Will check schema (Pydantic), references, time, units, grid mapping, RL
-        settings, protocol and resources, each finding with its field path."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def dry_run(self, file: ExperimentFile) -> DryRunResult:
-        """Will build one environment with ``experiments.factory.environment.build_env``
-        and take one step with the no-order policy."""
-        raise NotImplementedError(_NOT_BUILT)
-
-
-# ---------------------------------------------------------------------- demo implementation
-class DemoValidationService:
-    """Demo ``ValidationService``: fixed sample findings; nothing is checked. Shown as
-    DEMO DATA in the Studio.
-    """
-
-    def validate(self, file: ExperimentFile, level: str = "full") -> ValidationReport:
-        """Sample-data version of ``ValidationService.validate``."""
         findings = [
             Finding(
                 code="TIME_RESOLUTION_AGGREGATED",
@@ -105,17 +74,22 @@ class DemoValidationService:
                 )
             )
         return ValidationReport(
-            file_hash=DemoConfigService().hash(file)[:12],
+            file_hash=canonical_hash(file)[:12],
             level=level,
             findings=findings,
         )
 
     def dry_run(self, file: ExperimentFile) -> DryRunResult:
-        """Sample-data version of ``ValidationService.dry_run``."""
+        """Build the environment and take one step, to catch errors early.
+
+        Sample data for now. The final version will build one environment with
+        ``experiments.factory.environment.build_env`` and take one step with the no-
+        order policy.
+        """
         return DryRunResult(
             ok=True,
             observation_dims={p["id"]: 50 for p in file.participants},
             power_flow_converged=True,
             settlement_residual_kwh=0.0,
-            messages=["Demo dry run: no environment was built."],
+            messages=["Sample dry run: no environment was built."],
         )

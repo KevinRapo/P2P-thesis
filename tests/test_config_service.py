@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from src_thesis.application.container import build_services
-from src_thesis.application.config_service import FileConfigService
+from src_thesis.application.config_service import ConfigService
 from src_thesis.application.workspace import PRESETS_DIR, Workspace, default_home
 from src_thesis.experiments.models import expand, files
 
@@ -15,11 +15,11 @@ PRESET = "case6-3x3"
 
 
 @pytest.fixture()
-def config(tmp_path: Path) -> FileConfigService:
-    return FileConfigService(Workspace(tmp_path / "home"))
+def config(tmp_path: Path) -> ConfigService:
+    return ConfigService(Workspace(tmp_path / "home"))
 
 
-def test_presets_are_listed_and_valid(config: FileConfigService) -> None:
+def test_presets_are_listed_and_valid(config: ConfigService) -> None:
     presets = config.list(kind="preset")
     assert {p.id for p in presets} == {
         "case1-mechanisms",
@@ -39,7 +39,7 @@ def test_presets_are_listed_and_valid(config: FileConfigService) -> None:
             assert p["bus"] and p["owns"]["loads"]
 
 
-def test_new_from_preset_writes_a_library_file(config: FileConfigService) -> None:
+def test_new_from_preset_writes_a_library_file(config: ConfigService) -> None:
     first = config.new_from_preset(PRESET)
     second = config.new_from_preset(PRESET)
     assert (first.meta.id, second.meta.id) == (f"{PRESET}-draft", f"{PRESET}-draft-2")
@@ -49,7 +49,7 @@ def test_new_from_preset_writes_a_library_file(config: FileConfigService) -> Non
     assert {d.id for d in config.list(kind="draft")} == {first.meta.id, second.meta.id}
 
 
-def test_save_and_load_round_trip(config: FileConfigService) -> None:
+def test_save_and_load_round_trip(config: ConfigService) -> None:
     file = config.new_from_preset(PRESET)
     file.market["mechanism"] = "buyer"
     path = config.save(file)
@@ -61,21 +61,21 @@ def test_save_and_load_round_trip(config: FileConfigService) -> None:
     )
 
 
-def test_presets_cannot_be_overwritten(config: FileConfigService) -> None:
+def test_presets_cannot_be_overwritten(config: ConfigService) -> None:
     preset = config.load(PRESET)
     with pytest.raises(ValueError, match="preset ID"):
         config.save(preset)
 
 
 @pytest.mark.parametrize("bad", ["../escape", "a b", "a__b", "", "-x"])
-def test_ids_must_be_path_safe(config: FileConfigService, bad: str) -> None:
+def test_ids_must_be_path_safe(config: ConfigService, bad: str) -> None:
     file = config.new_from_preset(PRESET)
     file.meta.id = bad
     with pytest.raises(ValueError, match="Invalid experiment ID"):
         config.save(file)
 
 
-def test_clone(config: FileConfigService) -> None:
+def test_clone(config: ConfigService) -> None:
     clone = config.clone(PRESET, "my-study")
     assert clone.meta.derived_from == PRESET
     assert config.load("my-study").meta.id == "my-study"
@@ -85,7 +85,7 @@ def test_clone(config: FileConfigService) -> None:
         config.load("missing")
 
 
-def test_diff_reports_dotted_paths(config: FileConfigService) -> None:
+def test_diff_reports_dotted_paths(config: ConfigService) -> None:
     a = config.load(PRESET)
     b = a.model_copy(deep=True)
     b.market["mechanism"] = "seller"
@@ -98,13 +98,13 @@ def test_diff_reports_dotted_paths(config: FileConfigService) -> None:
     assert config.diff(a, a) == []
 
 
-def test_expand_matches_the_experiment_layer(config: FileConfigService) -> None:
+def test_expand_matches_the_experiment_layer(config: ConfigService) -> None:
     file = config.load("case1-mechanisms")
     assert config.expand(file) == expand.expand(file)
 
 
 def test_export_bundle_contains_the_file_and_its_data(
-    config: FileConfigService, tmp_path: Path
+    config: ConfigService, tmp_path: Path
 ) -> None:
     csv = tmp_path / "tariff.csv"
     csv.write_text("hour,price\n0,0.2\n", encoding="utf-8")
@@ -118,12 +118,16 @@ def test_export_bundle_contains_the_file_and_its_data(
     assert not any(n.endswith("missing.csv") for n in names)
 
 
-def test_container_switch_and_default_home(tmp_path: Path, monkeypatch) -> None:
-    services = build_services("demo", config="files", home=tmp_path)
-    assert services.config_backend == "files"
-    assert isinstance(services.config, FileConfigService)
+def test_container_and_default_home(tmp_path: Path, monkeypatch) -> None:
+    services = build_services(home=tmp_path)
+    assert isinstance(services.config, ConfigService)
     assert services.config.workspace.library == tmp_path / "library"
-    assert build_services("demo").config_backend == "demo"
+    assert services.sample_data() == [
+        "profiles",
+        "validation",
+        "experiments",
+        "results",
+    ]
     monkeypatch.setenv("MARLEM_HOME", str(tmp_path / "elsewhere"))
     assert default_home() == tmp_path / "elsewhere"
     monkeypatch.delenv("MARLEM_HOME")
@@ -131,7 +135,7 @@ def test_container_switch_and_default_home(tmp_path: Path, monkeypatch) -> None:
     assert PRESETS_DIR.is_dir()
 
 
-def test_update_sets_dotted_paths_and_validates(config: FileConfigService) -> None:
+def test_update_sets_dotted_paths_and_validates(config: ConfigService) -> None:
     file = config.new_from_preset(PRESET)
     updated = config.update(file, {"market.mechanism": "seller", "dso.fees.x": 1.0})
     assert updated.market["mechanism"] == "seller"
@@ -141,7 +145,7 @@ def test_update_sets_dotted_paths_and_validates(config: FileConfigService) -> No
         config.update(file, {"meta.data_status": "made-up"})
 
 
-def test_origin_and_delete(config: FileConfigService) -> None:
+def test_origin_and_delete(config: ConfigService) -> None:
     draft = config.new_from_preset(PRESET)
     assert config.origin(draft).meta.id == PRESET
     clone = config.clone(draft.meta.id, "my-copy")

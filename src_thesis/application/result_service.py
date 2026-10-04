@@ -1,122 +1,33 @@
 """ResultService: reading finished runs (04 §5).
 
-Final implementation: ``StoreResultService``, not built yet (R7). Demo:
-``DemoResultService`` (generated sample results).
+Every method still returns generated sample results; each docstring says what
+the final version will read from the run folders (R7).
 """
 
 from __future__ import annotations
 
 import math
 import random
-from typing import Protocol
-from src_thesis.application.config_service import ALGORITHMS, PARADIGMS
 from src_thesis.application.profile_service import HOURS
-from src_thesis.application.models import (
-    MatrixTable,
-    RunResult,
-    Series,
-)
+from src_thesis.application.models import MatrixTable, RunResult, Series
+from src_thesis.application.experiment_service import ALGORITHMS, PARADIGMS
 
 
-# ---------------------------------------------------------------------- protocol
-class ResultService(Protocol):
-    """Reading finished runs: outcomes, learning curves, replays, comparisons."""
+class ResultService:
+    """Reading finished runs: outcomes, learning curves, replays, comparisons.
+
+    Every method returns sample data until it is built; its docstring says what the
+    final version will do.
+    """
+
+    SAMPLE_DATA = True  # shown in the Studio's header until the service is built
 
     def summary(self, run_id: str) -> RunResult:
-        """Research outcomes, RL return and manifest of one run."""
-        ...
+        """Research outcomes, RL return and manifest of one run.
 
-    def training_curve(self, run_id: str) -> Series:
-        """Training and evaluation return per iteration."""
-        ...
-
-    def step_records(self, run_id: str, episode: int = 0) -> list[dict]:
-        """Orders, trades, settlement and grid assessment per step of one episode."""
-        ...
-
-    def grid_series(self, run_id: str, episode: int = 0) -> Series:
-        """Voltages, loadings, losses and violations over one episode."""
-        ...
-
-    def agent_series(self, run_id: str, episode: int = 0) -> Series:
-        """Per-agent state of charge, net injection and profit over one episode."""
-        ...
-
-    def matrix(self, experiment_id: str, metric: str) -> MatrixTable:
-        """Paradigm × algorithm table of ``metric`` (mean ± std over seeds)."""
-        ...
-
-    def compare(self, run_ids: list[str], metric: str) -> Series:
-        """One metric of several runs, for overlaying."""
-        ...
-
-    def export(self, run_ids: list[str], fmt: str = "csv") -> str:
-        """Write the runs' raw series to a file.
-
-        Args:
-            run_ids: Runs to export.
-            fmt: ``"csv"`` or ``"json"``.
-
-        Returns:
-            The path written.
+        Sample data for now. The final version will read ``manifest.json`` and
+        ``metrics/evaluation.jsonl``.
         """
-        ...
-
-
-# ---------------------------------------------------------------------- final implementation (skeleton)
-_NOT_BUILT = (
-    "Not built yet: the final implementation of this service waits for its "
-    "roadmap phase; the Studio uses the demo implementation until then."
-)
-
-
-class StoreResultService:
-    """The final ``ResultService``: reads run folders from the experiment store (R7).
-
-    Not implemented yet; every method raises.
-    """
-
-    def summary(self, run_id: str) -> RunResult:
-        """Will read ``manifest.json`` and ``metrics/evaluation.jsonl``."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def training_curve(self, run_id: str) -> Series:
-        """Will read ``metrics/training.csv``."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def step_records(self, run_id: str, episode: int = 0) -> list[dict]:
-        """Will read ``raw/steps.jsonl`` with ``ExperimentStore.read_jsonl``."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def grid_series(self, run_id: str, episode: int = 0) -> Series:
-        """Will build voltage, loading and violation series from the step records."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def agent_series(self, run_id: str, episode: int = 0) -> Series:
-        """Will build per-agent series from the step records."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def matrix(self, experiment_id: str, metric: str) -> MatrixTable:
-        """Will aggregate ``metric`` over seeds per paradigm × algorithm."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def compare(self, run_ids: list[str], metric: str) -> Series:
-        """Will overlay ``metric`` of several runs; flags different reward versions."""
-        raise NotImplementedError(_NOT_BUILT)
-
-    def export(self, run_ids: list[str], fmt: str = "csv") -> str:
-        """Will write the runs' raw series to ``<workspace>/exports``."""
-        raise NotImplementedError(_NOT_BUILT)
-
-
-# ---------------------------------------------------------------------- demo implementation
-class DemoResultService:
-    """Demo ``ResultService``: generated sample results. Shown as DEMO DATA in the
-    Studio.
-    """
-
-    def summary(self, run_id: str) -> RunResult:
-        """Sample-data version of ``ResultService.summary``."""
         rng = random.Random(run_id)
         return RunResult(
             run_id=run_id,
@@ -134,12 +45,15 @@ class DemoResultService:
                 "network": "1-LV-semiurb4--0-sw",
                 "reward.version": "corrected-v1",
                 "data_status": "reconstructed-unverified",
-                "commit": "demo",
+                "commit": "sample",
             },
         )
 
     def training_curve(self, run_id: str) -> Series:
-        """Sample-data version of ``ResultService.training_curve``."""
+        """Training and evaluation return per iteration.
+
+        Sample data for now. The final version will read ``metrics/training.csv``.
+        """
         rng = random.Random(run_id)
         it = list(range(0, 200, 5))
         train = [
@@ -160,7 +74,11 @@ class DemoResultService:
         )
 
     def step_records(self, run_id: str, episode: int = 0) -> list[dict]:
-        """Sample-data version of ``ResultService.step_records``."""
+        """Orders, trades, settlement and grid assessment per step of one episode.
+
+        Sample data for now. The final version will read ``raw/steps.jsonl`` with
+        ``ExperimentStore.read_jsonl``.
+        """
         rng = random.Random(f"{run_id}-{episode}")
         return [
             {
@@ -178,7 +96,11 @@ class DemoResultService:
         ]
 
     def grid_series(self, run_id: str, episode: int = 0) -> Series:
-        """Sample-data version of ``ResultService.grid_series``."""
+        """Voltages, loadings, losses and violations over one episode.
+
+        Sample data for now. The final version will build voltage, loading and violation
+        series from the step records.
+        """
         vmin = [
             round(
                 0.985
@@ -212,7 +134,11 @@ class DemoResultService:
         )
 
     def agent_series(self, run_id: str, episode: int = 0) -> Series:
-        """Sample-data version of ``ResultService.agent_series``."""
+        """Per-agent state of charge, net injection and profit over one episode.
+
+        Sample data for now. The final version will build per-agent series from the step
+        records.
+        """
         return Series(
             x=HOURS,
             y={
@@ -227,7 +153,11 @@ class DemoResultService:
         )
 
     def matrix(self, experiment_id: str, metric: str) -> MatrixTable:
-        """Sample-data version of ``ResultService.matrix``."""
+        """Paradigm × algorithm table of ``metric`` (mean ± std over seeds).
+
+        Sample data for now. The final version will aggregate ``metric`` over seeds per
+        paradigm × algorithm.
+        """
         rng = random.Random(f"{experiment_id}-{metric}")
         mean = [
             [round(rng.uniform(0.3, 0.9), 3) for _ in ALGORITHMS] for _ in PARADIGMS
@@ -244,7 +174,11 @@ class DemoResultService:
         )
 
     def compare(self, run_ids: list[str], metric: str) -> Series:
-        """Sample-data version of ``ResultService.compare``."""
+        """One metric of several runs, for overlaying.
+
+        Sample data for now. The final version will overlay ``metric`` of several runs;
+        flags different reward versions.
+        """
         return Series(
             x=list(range(0, 200, 5)),
             y={r: self.training_curve(r).y["evaluation"] for r in run_ids},
@@ -253,5 +187,16 @@ class DemoResultService:
         )
 
     def export(self, run_ids: list[str], fmt: str = "csv") -> str:
-        """Sample-data version of ``ResultService.export``."""
+        """Write the runs' raw series to a file.
+
+        Sample data for now. The final version will write the runs' raw series to
+        ``<workspace>/exports``.
+
+        Args:
+            run_ids: Runs to export.
+            fmt: ``"csv"`` or ``"json"``.
+
+        Returns:
+            The path written.
+        """
         return f"exports/{len(run_ids)}-runs.{fmt}"

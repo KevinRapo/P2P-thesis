@@ -18,7 +18,7 @@ _METRICS = {
 
 @ui.page("/compare")
 def compare_page() -> None:
-    """Compare (05 §6): the algorithm × paradigm matrix and run overlays. Demo data
+    """Compare (05 §6): the algorithm × paradigm matrix and run overlays. Sample data
     until R7.
     """
     s = services()
@@ -45,7 +45,7 @@ def compare_page() -> None:
                 "stacked_line_chart",
                 classes="grow basis-0",
             ):
-                # Overlay of the first three runs (demo data).
+                # Overlay of the first three runs (sample data).
                 runs = [r.run_id for r in s.experiments.list_runs()][:3]
                 ui.plotly(
                     line_figure(s.results.compare(runs, metric.value), height=320)

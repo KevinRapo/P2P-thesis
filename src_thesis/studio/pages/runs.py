@@ -18,7 +18,7 @@ def _fmt_seconds(seconds: float | None) -> str:
 
 @ui.page("/runs")
 def runs_page() -> None:
-    """Runs (05 §6): queue, live status, log tail and cancel. Demo data until R7."""
+    """Runs (05 §6): queue, live status, log tail and cancel. Sample data until R7."""
     s = services()
     with shell(
         "runs", "Runs", "All runs from the experiment store; refreshed by polling"
@@ -117,7 +117,7 @@ def runs_page() -> None:
                         color="negative",
                         on_click=lambda: (
                             s.experiments.cancel(run_id),
-                            ui.notify("Cancellation requested (demo)."),
+                            ui.notify("Cancellation requested (sample data)."),
                         ),
                     ).props("outline")
             dialog.open()

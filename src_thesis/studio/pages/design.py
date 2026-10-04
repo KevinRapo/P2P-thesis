@@ -25,7 +25,7 @@ def design_page() -> None:
     ):
         # Placeholder page: every control shows the draft's learning plan, but nothing
         # is saved yet ("Apply to draft" is not wired). The run count and time estimate
-        # come from the demo ExperimentService.
+        # are sample data from ExperimentService.
         estimate = s.experiments.estimate(draft)
         with stat_grid():
             stat(

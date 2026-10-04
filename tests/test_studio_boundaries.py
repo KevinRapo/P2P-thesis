@@ -4,7 +4,7 @@ See docs_thesis/thesis/architecture/README.md §2.1–§2.2.
 - studio/ imports only nicegui/plotly/stdlib and src_thesis.application.
 - application/ never imports MARLEM runtime, pandapower, simbench, Ray or torch.
   Real services reach infrastructure through adapters/ (the grid catalog calls
-  adapters.grid) and the grid contract; the demo services import nothing of it.
+  adapters.grid) and the grid contract; building the services loads none of it.
 - Only adapters/ imports pandapower and simbench.
 """
 
@@ -75,10 +75,10 @@ def test_only_adapters_import_pandapower_and_simbench() -> None:
     assert out == []
 
 
-def test_demo_services_do_not_load_pandapower() -> None:
+def test_building_the_services_loads_no_pandapower() -> None:
     code = (
         "import sys; from src_thesis.application.container import build_services; "
-        "build_services('demo'); "
+        "build_services(); "
         "print(any(m.split('.')[0] in ('pandapower', 'simbench') for m in sys.modules))"
     )
     result = subprocess.run(
@@ -87,14 +87,15 @@ def test_demo_services_do_not_load_pandapower() -> None:
     assert result.stdout.strip() == "False", result.stderr
 
 
-def test_demo_services_satisfy_every_page_call() -> None:
+def test_services_satisfy_every_page_call(tmp_path) -> None:
     pytest.importorskip("nicegui")
+    pytest.importorskip("pandapower")
     from src_thesis.application.container import build_services
 
-    s = build_services("demo")
+    s = build_services(home=tmp_path)
     draft = s.config.new_from_preset("case6-3x3")
     source = s.grid.list_networks()[0].source
-    assert len(s.config.expand(draft)) == 27
+    assert len(s.config.expand(draft)) == 33  # 27 learning runs + 6 baseline runs
     assert s.validation.validate(draft).ok
     assert s.grid.preview_powerflow(source, "2016-06-15", 18).converged
     assert s.results.matrix("case6-3x3", "p2p_share").rows == ["CTCE", "CTDE", "DTDE"]

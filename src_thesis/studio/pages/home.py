@@ -15,7 +15,7 @@ def home_page() -> None:
     with shell(
         "home", "Home", "Status of the repository, recent work and quick starts"
     ):
-        # Health and runs come from the demo ExperimentService; the file count is real.
+        # Health and runs are sample data from ExperimentService; the file count is real.
         health = s.experiments.health()
         runs = s.experiments.list_runs()
         with stat_grid():

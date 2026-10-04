@@ -51,8 +51,7 @@ def grid_page() -> None:
     with shell(
         "grid",
         "Grid",
-        f"Network source, topology, elements and a single power-flow preview "
-        f"({s.grid_backend} backend)",
+        "Network source, topology, elements and a single power-flow preview",
     ):
         # Row 1: network picker | topology. Row 2: elements | power-flow preview |
         # limits. The empty boxes (summary_box, plot_box, elements_box, pf_box) are

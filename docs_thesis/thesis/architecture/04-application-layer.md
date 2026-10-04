@@ -17,7 +17,7 @@
 
 ## 1. Purpose
 
-Every user interface needs the same operations: open and edit an experiment file, browse networks, check a file, start runs, read results. This layer offers them once, as six services, so the Studio, the CLI and notebooks behave identically and none of them depends on MARLEM, pandapower or Ray. Each service has a **protocol** (what it promises) and one or more **implementations**: demo services with sample data let the user interface be built before the engine exists, and real ones replace them one at a time.
+Every user interface needs the same operations: open and edit an experiment file, browse networks, check a file, start runs, read results. This layer offers them once, as six services, so the Studio, the CLI and notebooks behave identically and none of them depends on MARLEM, pandapower or Ray. Each service is **one class**. Services that are not built yet already have every method, returning sample data, so the user interface could be built before the engine; they are completed method by method in the same class.
 
 [↑ Contents](#contents)
 
@@ -89,19 +89,18 @@ flowchart LR
   n_application_container --> n_application_validation_service
   n_application_container --> n_application_workspace
   n_application_container --> n_env
-  n_application_experiment_service --> n_application_config_service
   n_application_experiment_service -.-> n_application_models
+  n_application_experiment_service --> n_experiments_models
   n_application_grid_catalog_service --> n_adapters_grid
   n_application_grid_catalog_service -.-> n_application_models
   n_application_grid_catalog_service --> n_marketplace_grid
   n_application_models --> n_experiments_models
-  n_application_profile_service --> n_application_config_service
   n_application_profile_service -.-> n_application_models
-  n_application_result_service --> n_application_config_service
+  n_application_result_service --> n_application_experiment_service
   n_application_result_service -.-> n_application_models
   n_application_result_service --> n_application_profile_service
-  n_application_validation_service --> n_application_config_service
   n_application_validation_service -.-> n_application_models
+  n_application_validation_service --> n_experiments_models
   n_studio__users_ --> n_application_container
   n_studio__users_ --> n_application_models
   n_studio__users_ --> n_application_workspace
@@ -109,18 +108,16 @@ flowchart LR
 ```
 <!-- END generated:graph -->
 
-Arrows are imports. Dashed arrows go to `models`, the data types every service returns. The demo services share sample data from `config_service`. Generated from the code by `docs_thesis/graphs.py`.
+Arrows are imports. Dashed arrows go to `models`, the data types every service returns. `result_service` reuses the sample constants of `experiment_service`. Generated from the code by `docs_thesis/graphs.py`.
 
-Every service has one module that holds three things, so what is still missing is visible in one place: the **protocol** (what callers may rely on), the **final implementation** (or its skeleton, whose methods raise "not built yet" and say in their docstrings what they will call), and the **demo implementation** the Studio uses until the final one exists.
-
-| File | Final implementation | Demo |
+| File | Class | State |
 |---|---|---|
-| `config_service` | `FileConfigService`: presets from the repository, files in the workspace library | `DemoConfigService` (also holds the sample data the other demos share) |
-| `grid_catalog_service` | `PandapowerGridCatalogService`: networks via the pandapower adapter | `DemoGridCatalogService` |
-| `profile_service` | `SimBenchProfileService`: skeleton (R3) | `DemoProfileService` |
-| `validation_service` | `PreflightValidationService`: skeleton (R6–R7) | `DemoValidationService` |
-| `experiment_service` | `StoreExperimentService`: skeleton (R7) | `DemoExperimentService` |
-| `result_service` | `StoreResultService`: skeleton (R7) | `DemoResultService` |
+| `config_service` | `ConfigService`: presets from the repository, files in the workspace library | built |
+| `grid_catalog_service` | `GridCatalogService`: networks via the pandapower adapter | built |
+| `profile_service` | `ProfileService` | sample data until R3 |
+| `validation_service` | `ValidationService` | sample data until R6–R7 |
+| `experiment_service` | `ExperimentService` | sample data until R7 |
+| `result_service` | `ResultService` | sample data until R7 |
 | `models` | The plain data the services return; the only types that cross into the Studio (it also re-exports the experiment records) | |
 | `container` | `build_services`: the one place that decides which implementation each caller gets | |
 | `workspace` | Where user data lives: library, run store and exports, outside the repository and OneDrive | |
@@ -131,7 +128,7 @@ Every service has one module that holds three things, so what is still missing i
 
 - **Plain data only.** Services return Pydantic models, dicts, lists and chart-ready `Series`, never NiceGUI elements, Ray objects, pandapower nets or MARLEM objects. A page that held an engine object would be tied to it and could freeze or break with it.
 - **Translation happens in the service.** A real service converts lower-layer records into `models` (e.g. the grid contract's `TopologyView` into the API model of the same name).
-- **Callers depend on protocols, not implementations,** so demo and real services are interchangeable, and only `container.py` changes when a real one arrives. Real services are imported lazily, so the demo setup never loads pandapower (tested).
+- **One class per service, completed in place.** A method that is not built yet returns sample data and says in its docstring what the final version will do; `SAMPLE_DATA` on the class is true until none is left, and the Studio's header lists those services. Building the services loads no pandapower (tested).
 - **In-process, no REST layer (D-09).** Services run in the caller's process; anything long-running goes to the experiment layer's worker process.
 - **Boundaries (tested):** `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; it reaches them through `adapters/`, the grid contract and `experiments/`.
 
@@ -148,13 +145,13 @@ Every service has one module that holds three things, so what is still missing i
 | `ExperimentService` | The only way to create and control runs | `experiments.models`, `.store`, `.worker.pool` | `create_runs`: validate → expand → per run resolve, manifest, folder; `start` / `cancel` / `snapshot` via the pool (03 §5) |
 | `ResultService` | Turning run folders into tables and series; outcomes kept apart from RL return | `experiments.store`, paper reference data | `summary`, curves, step replay, the 3 × 3 `matrix`; `reference` returns values reported in the papers, entered by hand with their source |
 
-Every method, its arguments and errors are in the protocol docstrings of each `*_service.py`; the returned types in `models.py`.
+Every method, its arguments and errors are in the docstrings of each `*_service.py`; the returned types in `models.py`.
 
 [↑ Contents](#contents)
 
 ## 6. Wiring and the workspace
 
-**Wiring.** `build_services(mode, grid=..., config=..., home=...)` returns all six services. Each real implementation has its own switch, so they can be enabled one at a time; the Studio's header names the real ones and the environment variables `MARLEM_STUDIO_GRID` / `MARLEM_STUDIO_CONFIG` switch them back to demo. `mode="real"` (everything real) is reserved for when all services exist.
+**Wiring.** `build_services(home=None)` returns all six services on the given workspace; `Services.sample_data()` names those that still return sample data.
 
 **Workspace.** User data lives in one folder outside the repository and OneDrive, because runs write many small files that sync clients lock and duplicate. Its location is, in order: `MARLEM_HOME`; the folder chosen on the Studio's Settings page (kept in `%APPDATA%\MARLEM\settings.json`); otherwise `%LOCALAPPDATA%\MARLEM`. Inside: `library/` (experiment files), `store/` (run folders, 03 §6) and `exports/` (bundles). Presets stay in the repository, read-only.
 

@@ -17,7 +17,7 @@ CASE33 = NetworkSource(type="pandapower_builtin", code="case33bw")
 
 @pytest.fixture(scope="module")
 def grid():
-    return build_services("demo", grid="pandapower").grid
+    return build_services().grid
 
 
 def test_catalog_lists_simbench_by_level(grid) -> None:

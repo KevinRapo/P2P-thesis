@@ -24,7 +24,7 @@ _AREA_ROUTES = {
 
 @ui.page("/experiment/validate")
 def validate_page() -> None:
-    """Validate (05 §6): preflight report, dry run and launch. Demo validation until
+    """Validate (05 §6): preflight report, dry run and launch. Sample validation until
     R7.
     """
     s = services()
@@ -34,7 +34,7 @@ def validate_page() -> None:
         "Validate",
         "Preflight of the draft experiment file; launch is enabled only without errors",
     ):
-        # Demo ValidationService: the findings are fixed samples until R7.
+        # ValidationService returns sample data: the findings are fixed samples until R7.
         report = s.validation.validate(draft, level="full")
         counts = {
             k: sum(f.severity.value == k for f in report.findings)
@@ -91,7 +91,7 @@ def validate_page() -> None:
                 dry_box = ui.column().classes("w-full gap-1")
 
                 def dry_run() -> None:
-                    """Run the dry run and show what it checked (demo result until
+                    """Run the dry run and show what it checked (sample result until
                     R7).
                     """
                     result = s.validation.dry_run(draft)
@@ -116,12 +116,14 @@ def validate_page() -> None:
         with ui.row().classes("justify-end w-full gap-2"):
 
             def launch() -> None:
-                """Create and start one run per cell, then open Runs. Demo: nothing
+                """Create and start one run per cell, then open Runs. Sample data: nothing
                 actually starts.
                 """
                 run_ids = s.experiments.create_runs(draft)
                 s.experiments.start(run_ids)
-                ui.notify(f"{len(run_ids)} runs created (demo).", type="positive")
+                ui.notify(
+                    f"{len(run_ids)} runs created (sample data).", type="positive"
+                )
                 ui.navigate.to("/runs")
 
             # Disabled while the report has errors: Validate is the only way to Runs (05

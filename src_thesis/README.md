@@ -32,7 +32,7 @@ src_thesis/
 |   |-- grid/network.py
 |   `-- profiles/
 |-- application/                 # UI/CLI-facing services (no MARLEM runtime imports)
-|   |-- *_service.py             # per service: protocol, final and demo implementation
+|   |-- *_service.py             # one class per service (sample data until built)
 |   |-- models.py                # returned data (Pydantic)
 |   |-- workspace.py             # where user data lives (outside OneDrive)
 |   `-- container.py             # build_services(): which implementation each caller gets

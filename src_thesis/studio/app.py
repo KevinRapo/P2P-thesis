@@ -8,8 +8,8 @@ or by running this file directly (e.g. the "Run Python File" button in VS Code).
 Settings come from environment variables, which can all be kept in the
 repository's ``.env`` file (see ``.env.example``): MARLEM_STUDIO_PORT (default
 8080), MARLEM_STUDIO_SHOW ("0" to not open a browser tab), MARLEM_STUDIO_RELOAD
-("0" to switch off auto-reload), MARLEM_STUDIO_SECRET, MARLEM_STUDIO_GRID,
-MARLEM_STUDIO_CONFIG, MARLEM_HOME, NICEGUI_STORAGE_PATH.
+("0" to switch off auto-reload), MARLEM_STUDIO_SECRET,
+MARLEM_HOME, NICEGUI_STORAGE_PATH.
 
 Auto-reload is on by default: saving a .py file under src_thesis/ restarts the
 server process and the open browser tab reconnects with the new code. Services

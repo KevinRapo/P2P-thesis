@@ -86,13 +86,13 @@ def settings_page() -> None:
     ):
         _workspace_section()
         with section("Services", icon="lan"):
+            sample = s.sample_data()
             ui.label(
-                f"Experiment files: {s.config_backend} · grid catalog: "
-                f"{s.grid_backend} · everything else: {s.mode}"
+                "Still sample data: " + (", ".join(sample) if sample else "nothing")
             ).classes("text-body2")
             ui.label(
-                "Profiles, validation, runs and results are demo data until "
-                "roadmap phase R7 (see the implementation status document)."
+                "A service returns sample data until its methods are built "
+                "(see the implementation status document)."
             ).classes("mls-card-caption")
         with section("Appearance", icon="palette"):
             ui.switch(

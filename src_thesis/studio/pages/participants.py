@@ -145,7 +145,7 @@ def participants_page() -> None:
                     value=t.get("days", {}).get("eval_holdout", 0.2),
                     step=0.05,
                 ).classes("w-full")
-                # Day counts come from the demo ProfileService.
+                # Day counts: sample data from ProfileService.
                 days = s.profiles.days(draft)
                 ui.label(
                     f"{len(days['train'])} training days · {len(days['eval'])} evaluation days"
@@ -161,7 +161,7 @@ def participants_page() -> None:
         def show(participant_id: str | None) -> None:
             """Show the profile preview and battery fields of one participant.
 
-            The profile curve comes from the demo ProfileService; the battery fields
+            The profile curve is sample data from ProfileService; the battery fields
             show the draft's values and are not saved yet.
             """
             if participant_id is None:

@@ -220,7 +220,7 @@ def market_page() -> None:
             "Feed-in tariff and utility price",
             "show_chart",
         ):
-            # Tariff curves from the demo ProfileService.
+            # Tariff curves: sample data from ProfileService.
             ui.plotly(line_figure(s.profiles.tariffs(draft), height=260)).classes(
                 "w-full"
             )

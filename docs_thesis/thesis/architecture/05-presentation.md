@@ -104,7 +104,7 @@ Arrows are imports; the eleven page modules are drawn as one node (`pages/*`). G
 | `components/` | Reusable building blocks without service calls: cards and stat tiles, tables, Plotly figures |
 | `pages/*` | One module per page (§6), each an `@ui.page` function |
 
-Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, real or demo services, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
+Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
 
 [↑ Contents](#contents)
 

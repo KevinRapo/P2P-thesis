@@ -52,7 +52,7 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                         ui.item_label(item.label)
 
     # Header: draft chip (opens Summary), validation chip (Validate), worker chip
-    # (Runs), demo badge naming the real services, dark-mode toggle.
+    # (Runs), sample-data badge naming the services not built yet, dark-mode toggle.
     with ui.header(elevated=False).classes("mls-header items-center q-px-md gap-3"):
         ui.button(icon="menu", on_click=drawer.toggle).props(
             "flat round dense color=white"
@@ -85,42 +85,25 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                 icon="memory",
                 on_click=lambda: ui.navigate.to("/runs"),
             ).props("dense color=blue-grey-8 text-color=white")
-            if services().mode == "demo":
-                real = []
-                if services().grid_backend != "demo":
-                    real.append("grid")
-                if services().config_backend != "demo":
-                    real.append("files")
-                ui.chip(
-                    "DEMO DATA" + (f" · real {', '.join(real)}" if real else ""),
-                    icon="science",
-                ).props("dense color=amber-8 text-color=white").tooltip(
-                    "Demo services: no MARLEM code is executed"
-                    + (
-                        "; the Grid page uses real SimBench / pandapower networks"
-                        if "grid" in real
-                        else ""
-                    )
-                    + (
-                        "; experiment files are real files in the workspace library"
-                        if "files" in real
-                        else ""
-                    )
+            sample = services().sample_data()
+            if sample:
+                ui.chip("SAMPLE DATA", icon="science").props(
+                    "dense color=amber-8 text-color=white"
+                ).tooltip(
+                    "Not built yet, these services return sample data: "
+                    + ", ".join(sample)
                 )
             ui.button(icon="dark_mode", on_click=lambda: _toggle_dark(dark)).props(
                 "flat round dense color=white"
             )
 
-    # Footer: which service implementations are active.
+    # Footer: which services still return sample data.
     with ui.footer(elevated=False).classes("mls-footer items-center q-px-md"):
         ui.label(
             "MARLEM Studio · presentation layer · all data via application services"
         )
         ui.space()
-        ui.label(
-            f"services: {services().mode} · grid: {services().grid_backend}"
-            f" · files: {services().config_backend}"
-        )
+        ui.label("sample data: " + (", ".join(services().sample_data()) or "none"))
 
     # Page heading. The page's own content follows where the caller's `with shell(...)`
     # block continues (the yield).

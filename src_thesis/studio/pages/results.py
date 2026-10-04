@@ -61,7 +61,7 @@ def results_index_page() -> None:
 @ui.page("/results/{run_id}")
 def results_page(run_id: str) -> None:
     """Results (05 §6) of one run: outcomes, learning curves, episode replay, grid and
-    agents. Demo data until R7.
+    agents. Sample data until R7.
 
     Args:
         run_id: The run, from the URL.
@@ -69,7 +69,7 @@ def results_page(run_id: str) -> None:
     s = services()
     with shell("results", "Results", run_id):
         result = s.results.summary(run_id)
-        # One tab per view of the run. All data comes from the demo ResultService until
+        # One tab per view of the run. All data is sample data from ResultService until
         # R7.
         with ui.tabs().classes("w-full").props("align=left no-caps") as tabs:
             for name, label, icon in [

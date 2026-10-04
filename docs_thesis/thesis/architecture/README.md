@@ -148,7 +148,7 @@ What guards each layer; which tests exist today is in the [implementation status
 | Experiment layer | Round trip, hash stability, expansion, resolution, store, recorder, worker and pool | [tests/test_experiments.py](../../../tests/test_experiments.py) |
 | Factory and training configuration | Presets build an environment; each algorithm × paradigm builds an `AlgorithmConfig`; mutation domains contain initial values | planned |
 | Services | Experiment files on disk; later create, validate, start, snapshot and cancel against a temporary store | [tests/test_config_service.py](../../../tests/test_config_service.py) |
-| Presentation | Import boundaries between the layers; the demo services satisfy every page call | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) |
+| Presentation | Import boundaries between the layers; the services satisfy every page call | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) |
 | Docstrings | Every public module, class and function of the platform code has a docstring; the API Reference is built from them | [tests/test_docstrings.py](../../../tests/test_docstrings.py) |
 | Docs | Validation docs consistent with the code markers; generated Contents and file graphs up to date | [tests/test_validation_docs.py](../../../tests/test_validation_docs.py), [test_docs_toc.py](../../../tests/test_docs_toc.py), [test_docs_graphs.py](../../../tests/test_docs_graphs.py) |
 
