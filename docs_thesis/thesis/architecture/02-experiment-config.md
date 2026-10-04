@@ -398,41 +398,188 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 {
   "schema_version": "1.0",
   "kind": "marlem-experiment",
-  "meta": {"id": "case6-3x3-semiurb4", "name": "Case 6 implicit cooperation, 3x3, SimBench semi-urban",
-           "derived_from": "preset:case6", "data_status": "reconstructed-unverified"},
-  "time": {"resolution": "hourly_aggregated", "horizon_steps": 24,
-           "days": {"mode": "sampler", "start": "2016-05-01", "end": "2016-08-31",
-                    "filter": {"day_type": "workday"}, "eval_holdout": 0.2, "seed": 42}},
-  "grid": {"source": {"type": "simbench", "code": "1-LV-semiurb4--0-sw"},
-           "background": {"mode": "mapped_replacement"},
-           "limits": {"v_min_pu": 0.95, "v_max_pu": 1.05, "line_max_percent": 100, "trafo_max_percent": 100},
-           "assessment": {"mode": "feedback", "non_convergence": "truncate_episode", "non_convergence_penalty": -50}},
+  "meta": {
+    "id": "case6-3x3-semiurb4",
+    "name": "Case 6 implicit cooperation, 3x3, SimBench semi-urban",
+    "derived_from": "preset:case6",
+    "data_status": "reconstructed-unverified"
+  },
+  "time": {
+    "resolution": "hourly_aggregated",
+    "horizon_steps": 24,
+    "days": {
+      "mode": "sampler",
+      "start": "2016-05-01",
+      "end": "2016-08-31",
+      "filter": {
+        "day_type": "workday"
+      },
+      "eval_holdout": 0.2,
+      "seed": 42
+    }
+  },
+  "grid": {
+    "source": {
+      "type": "simbench",
+      "code": "1-LV-semiurb4--0-sw"
+    },
+    "background": {
+      "mode": "mapped_replacement"
+    },
+    "limits": {
+      "v_min_pu": 0.95,
+      "v_max_pu": 1.05,
+      "line_max_percent": 100,
+      "trafo_max_percent": 100
+    },
+    "assessment": {
+      "mode": "feedback",
+      "non_convergence": "truncate_episode",
+      "non_convergence_penalty": -50
+    }
+  },
   "participants": [
-    {"id": "small_industry", "role": "small_industry", "bus": "LV4.101 Bus 17",
-     "owns": {"loads": ["LV4.101 Load 12"]},
-     "profile": {"source": "catalog", "demand": {"type": "G1-A"}, "generation": {"type": "PV3"}},
-     "scaling": {"mode": "peak_kw", "demand": 180, "generation": 180},
-     "battery": {"nominal_capacity_kwh": 108, "min_soc": 0.1, "max_soc": 0.9,
-                 "charge_efficiency": 0.95, "discharge_efficiency": 0.95, "max_power_kw": 54}}
+    {
+      "id": "small_industry",
+      "role": "small_industry",
+      "bus": "LV4.101 Bus 17",
+      "owns": {
+        "loads": [
+          "LV4.101 Load 12"
+        ]
+      },
+      "profile": {
+        "source": "catalog",
+        "demand": {
+          "type": "G1-A"
+        },
+        "generation": {
+          "type": "PV3"
+        }
+      },
+      "scaling": {
+        "mode": "peak_kw",
+        "demand": 180,
+        "generation": 180
+      },
+      "battery": {
+        "nominal_capacity_kwh": 108,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "max_power_kw": 54
+      }
+    }
   ],
-  "market": {"mechanism": "average", "price": {"min": 20, "max": 600}, "quantity": {"min": 0, "max": 180},
-             "partner_preference": false, "ledger": {"enabled": true, "difficulty": 0}, "async_orders": true},
-  "dso": {"tariffs": {"source": "csv", "mode": "normalized",
-                      "feed_in": {"path": "data/prices/fit_60min.csv", "sha256": "…"},
-                      "utility": {"path": "data/prices/utility_60min.csv", "sha256": "…"}},
-          "fees": {"charged": true}},
-  "environment": {"observation": {"version": "v2-grid", "forecast_error": 0.3},
-                  "reward": {"version": "corrected-v1", "grid_violation": {"attribution": "bus"}}},
-  "learning": {"paradigms": ["ctce", "ctde", "dtde"], "algorithms": ["ppo", "appo", "sac"], "seeds": [1, 2, 3],
-               "budget": {"unit": "env_steps", "value": 2000000},
-               "algorithm_params": {"ppo": {"lr": 1e-5, "entropy_coeff": 0.01, "clip_param": 0.2, "minibatch_size": 128},
-                                    "appo": {"lr": 1e-5, "vtrace": true},
-                                    "sac": {"actor_lr": 1e-5, "critic_lr": 1e-5, "replay_buffer": {"capacity": 1000}}},
-               "tuning": {"method": "none"},
-               "checkpoint": {"every": 10, "keep": 3}},
-  "evaluation": {"interval": 10, "episodes": 20, "days": "holdout", "explore": false},
-  "baselines": ["no_order", "random"],
-  "resources": {"cpus_per_run": 6, "gpus_per_learner": 0, "max_parallel_runs": 1}
+  "market": {
+    "mechanism": "average",
+    "price": {
+      "min": 20,
+      "max": 600
+    },
+    "quantity": {
+      "min": 0,
+      "max": 180
+    },
+    "partner_preference": false,
+    "ledger": {
+      "enabled": true,
+      "difficulty": 0
+    },
+    "async_orders": true
+  },
+  "dso": {
+    "tariffs": {
+      "source": "csv",
+      "mode": "normalized",
+      "feed_in": {
+        "path": "data/prices/fit_60min.csv",
+        "sha256": "…"
+      },
+      "utility": {
+        "path": "data/prices/utility_60min.csv",
+        "sha256": "…"
+      }
+    },
+    "fees": {
+      "charged": true
+    }
+  },
+  "environment": {
+    "observation": {
+      "version": "v2-grid",
+      "forecast_error": 0.3
+    },
+    "reward": {
+      "version": "corrected-v1",
+      "grid_violation": {
+        "attribution": "bus"
+      }
+    }
+  },
+  "learning": {
+    "paradigms": [
+      "ctce",
+      "ctde",
+      "dtde"
+    ],
+    "algorithms": [
+      "ppo",
+      "appo",
+      "sac"
+    ],
+    "seeds": [
+      1,
+      2,
+      3
+    ],
+    "budget": {
+      "unit": "env_steps",
+      "value": 2000000
+    },
+    "algorithm_params": {
+      "ppo": {
+        "lr": 1e-05,
+        "entropy_coeff": 0.01,
+        "clip_param": 0.2,
+        "minibatch_size": 128
+      },
+      "appo": {
+        "lr": 1e-05,
+        "vtrace": true
+      },
+      "sac": {
+        "actor_lr": 1e-05,
+        "critic_lr": 1e-05,
+        "replay_buffer": {
+          "capacity": 1000
+        }
+      }
+    },
+    "tuning": {
+      "method": "none"
+    },
+    "checkpoint": {
+      "every": 10,
+      "keep": 3
+    }
+  },
+  "evaluation": {
+    "interval": 10,
+    "episodes": 20,
+    "days": "holdout",
+    "explore": false
+  },
+  "baselines": [
+    "no_order",
+    "random"
+  ],
+  "resources": {
+    "cpus_per_run": 6,
+    "gpus_per_learner": 0,
+    "max_parallel_runs": 1
+  }
 }
 ```
 
