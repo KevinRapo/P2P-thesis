@@ -620,6 +620,49 @@ def profile_power(
     return _labels(d, count, step, resolution), values
 
 
+def element_power(
+    ref: NetworkRef,
+    ids: Sequence[str],
+    start: str,
+    days: int,
+    resolution: str = "hourly",
+) -> tuple[list[str], dict[str, list[float]]]:
+    """Active power of individual elements over a time window, in kW.
+
+    SimBench elements follow their profile scaled by their rated power; elements
+    without a profile (pandapower built-ins) keep their static value.
+
+    Args:
+        ref: The network.
+        ids: Element names, as in ``elements``.
+        start: First day, ``YYYY-MM-DD`` in the profile year.
+        days: Number of days; clipped at the end of the year.
+        resolution: ``"15min"`` (raw), ``"hourly"`` or ``"daily"`` (means).
+
+    Returns:
+        Time labels and, per element found, its power in kW.
+    """
+    d, first, last, step = _window(start, days, resolution)
+    net = _load(ref)
+    absolute = _absolute_profiles(ref) if _has_profiles(net) else {}
+    count = math.ceil((last - first) / step)
+    wanted = set(ids)
+    values: dict[str, list[float]] = {}
+    for table in ("load", "sgen", "storage"):
+        frame = absolute.get((table, "p_mw"))
+        for i, row in net[table].iterrows():
+            name = row.get("name")
+            element_id = str(name) if isinstance(name, str) else f"{table} {i}"
+            if element_id not in wanted:
+                continue
+            if frame is not None and i in frame.columns:
+                kw = _aggregate(frame[i] * 1000, first, last, step)
+            else:
+                kw = [float(row.p_mw) * 1000] * count
+            values[element_id] = [round(v, 3) for v in kw]
+    return _labels(d, count, step, resolution), values
+
+
 @lru_cache(maxsize=3)
 def _catalogue(scenario: int) -> dict[str, Any]:
     """All SimBench profiles of a scenario, independent of any network (cached)."""

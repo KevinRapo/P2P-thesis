@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import math
 import random
-from src_thesis.application.profile_service import HOURS
 from src_thesis.application.models import MatrixTable, RunResult, Series
 from src_thesis.application.experiment_service import ALGORITHMS, PARADIGMS
+
+HOURS = list(range(24))  # sample replays cover one day
 
 
 class ResultService:

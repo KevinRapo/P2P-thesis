@@ -118,12 +118,31 @@ def test_export_bundle_contains_the_file_and_its_data(
     assert not any(n.endswith("missing.csv") for n in names)
 
 
+def test_import_file_and_bundle_round_trip(
+    config: ConfigService, tmp_path: Path
+) -> None:
+    csv = tmp_path / "tariff.csv"
+    csv.write_text("hour,price\n0,0.2\n", encoding="utf-8")
+    file = config.new_from_preset(PRESET)
+    file.dso["tariffs"]["feed_in"] = {"path": str(csv), "column": "price"}
+    bundle = Path(config.export_bundle(file)).read_bytes()
+    imported = config.import_bundle(bundle)
+    assert imported.meta.id == f"{file.meta.id}-2"  # the original ID is taken
+    path = Path(imported.dso["tariffs"]["feed_in"]["path"])
+    assert path.read_text(encoding="utf-8").startswith("hour,price")
+    assert "imports" in path.parts
+    again = config.import_file(files.dumps(file).encode())
+    assert again.meta.id == f"{file.meta.id}-3"
+    assert config.load(again.meta.id).market == file.market
+    with pytest.raises(ValueError):
+        config.import_file(b'{"kind": "something-else"}')
+
+
 def test_container_and_default_home(tmp_path: Path, monkeypatch) -> None:
     services = build_services(home=tmp_path)
     assert isinstance(services.config, ConfigService)
     assert services.config.workspace.library == tmp_path / "library"
     assert services.sample_data() == [
-        "profiles",
         "validation",
         "experiments",
         "results",

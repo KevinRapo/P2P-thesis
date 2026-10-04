@@ -9,6 +9,7 @@ they are named.
 
 from __future__ import annotations
 
+import io
 import re
 import zipfile
 from datetime import datetime, timezone
@@ -39,6 +40,19 @@ def _diff(a: Any, b: Any, path: str, out: list[FieldChange]) -> None:
             _diff(x, y, f"{path}[{i}]", out)
     elif a != b:
         out.append(FieldChange(path=path, before=a, after=b))
+
+
+def _repoint(node: Any, moved: dict[str, str]) -> None:
+    """Point every ``path`` value found in ``moved`` (bundle name -> new path)."""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "path" and isinstance(value, str):
+                node[key] = moved.get(Path(value).as_posix().lstrip("/"), value)
+            else:
+                _repoint(value, moved)
+    elif isinstance(node, list):
+        for value in node:
+            _repoint(value, moved)
 
 
 class ConfigService:
@@ -121,6 +135,53 @@ class ConfigService:
             raise FileExistsError(f"An experiment file {new_id!r} already exists")
         file = self.load(file_id).model_copy(deep=True)
         file.meta.id, file.meta.derived_from = new_id, file_id
+        self.save(file)
+        return file
+
+    def import_file(self, content: bytes) -> ExperimentFile:
+        """Add an experiment file from outside the library (e.g. an upload).
+
+        The file keeps its ID unless that is taken, then it gets a free one
+        (``<id>-2``, …).
+
+        Raises:
+            ValueError: The content is not a valid experiment file.
+        """
+        file = files.parse(content.decode("utf-8-sig"))
+        file.meta.id = self._free_id(self._check_id(file.meta.id))
+        self.save(file)
+        return file
+
+    def import_bundle(self, content: bytes) -> ExperimentFile:
+        """Add a bundle made by ``export_bundle``: the file and its data files.
+
+        The data files are unpacked into ``<workspace>/imports/<file id>/`` and the
+        file's ``path`` values are pointed there.
+
+        Raises:
+            ValueError: The zip holds no experiment file, or an invalid one.
+        """
+        with zipfile.ZipFile(io.BytesIO(content)) as bundle:
+            names = [n for n in bundle.namelist() if n.endswith(FILE_SUFFIX)]
+            if len(names) != 1:
+                raise ValueError("The bundle must hold exactly one experiment file")
+            file = files.parse(bundle.read(names[0]).decode("utf-8-sig"))
+            file.meta.id = self._free_id(self._check_id(file.meta.id))
+            target = self.workspace.home / "imports" / file.meta.id
+            moved: dict[str, str] = {}
+            for name in bundle.namelist():
+                if name.startswith("data/") and not name.endswith("/"):
+                    original = name.removeprefix("data/")
+                    # Absolute paths were zipped with their drive ("C:/…").
+                    destination = (target / original.replace(":", "")).resolve()
+                    if target.resolve() not in destination.parents:
+                        raise ValueError(f"Unsafe path in the bundle: {name}")
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(bundle.read(name))
+                    moved[original] = str(destination)
+        data = file.model_dump(mode="json")
+        _repoint(data, moved)
+        file = ExperimentFile.model_validate(data)
         self.save(file)
         return file
 

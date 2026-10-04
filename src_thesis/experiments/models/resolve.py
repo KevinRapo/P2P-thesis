@@ -82,8 +82,43 @@ DEFAULTS: dict[str, Any] = {
             "forecast_anchors": 4,
             "own_bus_voltage": "private",
         },
-        "reward": {"version": "corrected-v1", "log_scale": 20},
-        "reputation": {"decay": "time_of_day"},
+        "reward": {
+            "version": "corrected-v1",
+            "log_scale": 20,
+            # Eq. 4-6 and the penalty factors of the original reward.py.
+            "base_weights": {
+                "grid": 10.0,
+                "resource": 1.5,
+                "trading": 5.0,
+                "stability": 2.0,
+                "economic": 3.0,
+            },
+            "cooperation_weights": {
+                "welfare": 7.0,
+                "liquidity": 1.5,
+                "spread": 1.5,
+                "volatility": 3.0,
+                "coordination": 5.0,
+                "imbalance": 10.0,
+                "congestion": 9.0,
+                "convergence": 8.0,
+                "self_consumption": 5.0,
+                "flexibility": 6.0,
+            },
+            "penalties": {
+                "dso": 15.0,
+                "grid_imbalance": 10.0,
+                "price_deviation": 2.0,
+                "unutilized": 1.5,
+                "volatility": 2.0,
+                "no_trades": 5.0,
+            },
+            "contribution_weights": {"grid": 0.5, "price": 0.2, "local": 0.3},
+        },
+        "reputation": {
+            "weights": {"reliability": 0.3, "fairness": 0.2, "grid": 0.5},  # eq. 12
+            "decay": "time_of_day",
+        },
     },
     "learning": {
         "paradigms": ["dtde"],
