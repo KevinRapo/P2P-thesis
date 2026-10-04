@@ -92,7 +92,7 @@ Only fields you change are written. A field you never touched stays absent from 
 |---|---|---|---|
 | `ConfigService` | ✅ | test_config_service.py | Presets, library, save, clone, delete, update, origin, diff, export bundle. Not yet: `import_bundle`, `json_schema` |
 | `GridCatalogService` | ✅ | test_grid_catalog.py | Networks, topology, elements, power-flow preview |
-| `ProfileService` | 🎭 | — | Profile previews, tariffs and day lists are generated sample curves |
+| `ProfileService` | 🟡 | test_grid_catalog.py | Built: `profile_types` and `profile_series` read a network's real SimBench profiles (Grid page inspector). Sample data: `preview`, `suggest_mapping`, `days`, `tariffs` |
 | `ValidationService` | 🎭 | — | Findings and the dry run are fixed samples; no real check runs |
 | `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
 | `ResultService` | 🎭 | — | All results, curves, matrices and replays are sample data |
@@ -109,7 +109,7 @@ Each service is one class in `application/<name>_service.py`; a method that is n
 |---|---|---|---|
 | Home | Library and presets: real. Runs and health: sample data | "New from preset" creates `<preset>-draft` in the library | — |
 | Library | Real file list | Click a preset → new draft file; click a file → opens it | Open file, Import bundle |
-| Grid | Real networks, topology, elements, power-flow preview | **Nothing yet**: choosing a network only browses | Apply limits, Upload network |
+| Grid | Real networks, topology, elements, power-flow preview, and an inspector of the network's SimBench profiles (select profiles, window, resolution, P/Q) | **Nothing yet**: choosing a network only browses | Apply limits, Upload network |
 | Participants | The draft's participants (real); map: real topology, but the outlined buses are every fifth bus, not the participants' buses; profile previews and day counts: sample data | Nothing yet | Add participant, Import mapping, Load Table 6 roles, Add battery, Apply rule |
 | Market & DSO | The draft's values (real); tariff chart: sample data | "Apply to draft": `market.*` (mechanism, price/quantity bounds, partner preference, async orders, ledger), `dso.tariffs.source/mode`, `dso.fees.*`, `environment.observation.version/forecast_error`, `environment.reward.version`, `environment.reward.grid_violation.attribution`, `grid.assessment.mode` | Edit weights |
 | Summary | The draft (real) | Save: `meta.name`, `meta.description`. Save as: a new file with a new id. Export bundle: `exports/<id>.zip` | — |

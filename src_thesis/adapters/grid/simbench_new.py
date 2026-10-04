@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import math
-from datetime import date
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -30,6 +30,7 @@ from src_thesis.marketplace.grid.contract_new import (
     NetworkRef,
     NetworkSummary,
     ParticipantInjection,
+    ProfileRecord,
     TopologyView,
 )
 
@@ -433,6 +434,116 @@ def _absolute_profiles(ref: NetworkRef) -> dict[tuple[str, str], Any]:
     import simbench as sb
 
     return sb.get_absolute_values(_load(ref), profiles_instead_of_study_cases=True)
+
+
+# --------------------------------------------------------------------- profiles
+PROFILE_TABLES = ("load", "renewables", "powerplants", "storage")
+# Which element table uses the profiles of each SimBench profile table.
+PROFILE_USERS = {
+    "load": "load",
+    "renewables": "sgen",
+    "powerplants": "sgen",
+    "storage": "storage",
+}
+RESOLUTION_ROWS = {"15min": 1, "hourly": ROWS_PER_HOUR, "daily": 24 * ROWS_PER_HOUR}
+
+
+def _profile_columns(net: Any) -> dict[tuple[str, str], dict[str, str]]:
+    """(table, profile name) -> {quantity: column} for every profile of ``net``."""
+    out: dict[tuple[str, str], dict[str, str]] = {}
+    for table in PROFILE_TABLES:
+        df = (getattr(net, "profiles", None) or {}).get(table)
+        if df is None:
+            continue
+        for column in df.columns:
+            if column == "time":
+                continue
+            name, quantity = column, "p"
+            for suffix, q in (("_pload", "p"), ("_qload", "q"), ("_pgen", "p")):
+                if column.endswith(suffix):
+                    name, quantity = column[: -len(suffix)], q
+            out.setdefault((table, name), {})[quantity] = column
+    return out
+
+
+def profile_catalog(ref: NetworkRef) -> list[ProfileRecord]:
+    """Every profile the network ships, with how many elements use it.
+
+    Networks without profiles (pandapower built-ins, most files) return ``[]``.
+    """
+    net = _load(ref)
+    out = []
+    for (table, name), columns in _profile_columns(net).items():
+        values = net.profiles[table][columns.get("p", next(iter(columns.values())))]
+        users = getattr(net, PROFILE_USERS[table])
+        count = int((users["profile"] == name).sum()) if "profile" in users else 0
+        out.append(
+            ProfileRecord(
+                name=name,
+                table=table,
+                quantities=tuple(q for q in ("p", "q") if q in columns),
+                elements=count,
+                mean=round(float(values.mean()), 4),
+                peak=round(float(values.max()), 4),
+            )
+        )
+    return sorted(out, key=lambda r: (PROFILE_TABLES.index(r.table), r.name))
+
+
+def profile_series(
+    ref: NetworkRef,
+    names: Sequence[str],
+    start: str,
+    days: int,
+    resolution: str = "hourly",
+    quantity: str = "p",
+) -> tuple[list[str], dict[str, list[float]]]:
+    """Values of the given profiles over a time window.
+
+    Args:
+        ref: The network.
+        names: Profile names (as in ``profile_catalog``).
+        start: First day, ``YYYY-MM-DD`` in the profile year.
+        days: Number of days; clipped at the end of the year.
+        resolution: ``"15min"`` (raw), ``"hourly"`` or ``"daily"`` (means).
+        quantity: ``"p"`` or ``"q"`` (only loads have ``q``).
+
+    Returns:
+        Time labels (standard time, counted in 15-minute rows from 1 January, as
+        everywhere in this adapter) and, per profile name, its values (factors of
+        rated power).
+    """
+    d = date.fromisoformat(start)
+    if d.year != SIMBENCH_YEAR:
+        raise ValueError(f"SimBench profiles cover {SIMBENCH_YEAR}; got {start}")
+    if resolution not in RESOLUTION_ROWS:
+        raise ValueError(f"resolution must be one of {list(RESOLUTION_ROWS)}")
+    net = _load(ref)
+    columns = _profile_columns(net)
+    first = (d - date(SIMBENCH_YEAR, 1, 1)).days * 24 * ROWS_PER_HOUR
+    step = RESOLUTION_ROWS[resolution]
+    labels: list[str] = []
+    values: dict[str, list[float]] = {}
+    for table, name in columns:
+        if name not in names or quantity not in columns[(table, name)]:
+            continue
+        df = net.profiles[table]
+        last = min(first + days * 24 * ROWS_PER_HOUR, len(df))
+        block = df.iloc[first:last]
+        groups = [i // step for i in range(len(block))]
+        series = block[columns[(table, name)][quantity]].groupby(groups).mean()
+        values[name] = [round(float(v), 4) for v in series]
+        if not labels:
+            # Counted from the row (15 min each), like profile_rows; SimBench's own
+            # time column is local time and jumps an hour at the daylight-saving
+            # switch, which would shift the labels against the rows.
+            begin = datetime(d.year, d.month, d.day)
+            fmt = "%Y-%m-%d" if resolution == "daily" else "%Y-%m-%d %H:%M"
+            labels = [
+                (begin + timedelta(minutes=15 * step * i)).strftime(fmt)
+                for i in range(len(series))
+            ]
+    return labels, values
 
 
 def profile_rows(day: str, hour: int) -> range:

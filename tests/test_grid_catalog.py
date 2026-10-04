@@ -80,3 +80,20 @@ def test_external_grid_is_drawn_at_its_transformer(grid) -> None:
     span = max(ys) - min(ys)
     assert abs(pos[ext][0] - pos[other][0]) < 1e-9
     assert 0 < pos[ext][1] - pos[other][1] <= 0.05 * span
+
+
+def test_simbench_profiles_can_be_inspected() -> None:
+    profiles = build_services().profiles
+    types = profiles.profile_types(LV)
+    codes = {t.code for t in types}
+    assert {"H0-A", "PV5"} <= codes
+    h0a = next(t for t in types if t.code == "H0-A")
+    assert h0a.category == "household" and h0a.quantities == ["p", "q"]
+    assert h0a.elements > 0 and 0 < h0a.mean < h0a.peak <= 1.0
+    day = profiles.profile_series(LV, ["H0-A", "PV5"], "2016-06-15", 1, "15min")
+    assert len(day.x) == 96 and day.x[0] == "2016-06-15 00:00"
+    assert max(day.y["PV5"]) > 0 and day.y["PV5"][0] == 0  # sun at noon, not at night
+    year = profiles.profile_series(LV, ["H0-A"], "2016-01-01", 366, "daily")
+    assert len(year.x) == 366
+    assert profiles.profile_series(LV, ["PV5"], "2016-06-15", 1, "hourly", "q").y == {}
+    assert profiles.profile_types(CASE33) == []

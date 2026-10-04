@@ -150,7 +150,7 @@ The shell around every page shows the draft (opens Summary), its validation stat
 | Page | Route | For | Contents | Services |
 |---|---|---|---|---|
 | Home | `/` | Pick up recent work or start from a paper case | Health, recent drafts and runs, "new from preset" (Cases 1–7) | Config, Experiment |
-| Grid | `/build/grid` | Choose and understand the network before placing agents | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings | GridCatalog; writes `grid.*` |
+| Grid | `/build/grid` | Choose and understand the network before placing agents | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings, an inspector of the network's SimBench profiles | GridCatalog, Profile; writes `grid.*` |
 | Participants | `/build/participants` | Define the agents and tie them to buses and profiles (01 §3) | Participant table, assignment tools (manual, rule, mapping file, [P2] Table 6 roles), map, time window, profile preview, battery editor, inline checks | Profile, GridCatalog, Validation; writes `participants`, `time` |
 | Market & DSO | `/build/market` | The economic side: market rules, tariffs and fees, observation and reward | Mechanism and bounds, partner preference, ledger; tariff source and fee factors; observation and reward versions, assessment mode; tariff preview | Profile; writes `market`, `dso`, `environment`, `grid.assessment` |
 | Summary | `/build/summary` | Check and save the whole world before the learning plan | Counts, JSON view, save, save as, export bundle, diff against the origin preset | Config |

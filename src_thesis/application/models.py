@@ -181,6 +181,11 @@ class ProfileType(BaseModel):
         code: Profile name, e.g. ``"H0-B"`` (household) or ``"PV3"``.
         category: What kind of load or generation it describes.
         description: Readable explanation.
+        table: SimBench profile table it comes from (``load``, ``renewables``, …).
+        quantities: ``["p"]``, or ``["p", "q"]`` for loads.
+        elements: Number of network elements that use it.
+        mean: Mean active-power factor over the year (1.0 = rated power).
+        peak: Highest active-power factor over the year.
     """
 
     code: str
@@ -195,6 +200,11 @@ class ProfileType(BaseModel):
         "other",
     ]
     description: str = ""
+    table: str = ""
+    quantities: list[str] = Field(default_factory=lambda: ["p"])
+    elements: int = 0
+    mean: float | None = None
+    peak: float | None = None
 
 
 class Series(BaseModel):

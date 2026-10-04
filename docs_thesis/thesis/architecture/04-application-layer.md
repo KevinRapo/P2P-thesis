@@ -95,7 +95,9 @@ flowchart LR
   n_application_grid_catalog_service -.-> n_application_models
   n_application_grid_catalog_service --> n_marketplace_grid
   n_application_models --> n_experiments_models
+  n_application_profile_service --> n_adapters_grid
   n_application_profile_service -.-> n_application_models
+  n_application_profile_service --> n_marketplace_grid
   n_application_result_service --> n_application_experiment_service
   n_application_result_service -.-> n_application_models
   n_application_result_service --> n_application_profile_service
@@ -114,7 +116,7 @@ Arrows are imports. Dashed arrows go to `models`, the data types every service r
 |---|---|---|
 | `config_service` | `ConfigService`: presets from the repository, files in the workspace library | built |
 | `grid_catalog_service` | `GridCatalogService`: networks via the pandapower adapter | built |
-| `profile_service` | `ProfileService` | sample data until R3 |
+| `profile_service` | `ProfileService`: `profile_types` and `profile_series` read the network's SimBench profiles | partly built; the rest sample data until R3 |
 | `validation_service` | `ValidationService` | sample data until R6–R7 |
 | `experiment_service` | `ExperimentService` | sample data until R7 |
 | `result_service` | `ResultService` | sample data until R7 |

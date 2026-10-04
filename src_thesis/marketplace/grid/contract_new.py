@@ -53,6 +53,7 @@ class NetworkSummary:
         profile_year: Year of the network's SimBench profiles; ``None`` without
             profiles.
     """
+
     info: NetworkInfo
     total_load_kw: float
     total_generation_kw: float
@@ -72,6 +73,7 @@ class BusView:
         kind: What is connected: external_grid, load, pv, load+pv, storage or bus.
         vn_kv: Nominal voltage.
     """
+
     id: str
     x: float
     y: float
@@ -90,6 +92,7 @@ class BranchView:
         kind: ``"line"``, ``"trafo"`` or ``"switch"``.
         closed: False if out of service or open.
     """
+
     id: str
     from_bus: str
     to_bus: str
@@ -107,6 +110,7 @@ class TopologyView:
         external_grid_bus: Bus of the connection to the upstream grid.
         coordinates: Whether x/y come from the network's geodata or a generated layout.
     """
+
     buses: tuple[BusView, ...]
     branches: tuple[BranchView, ...]
     external_grid_bus: str | None
@@ -124,11 +128,37 @@ class ElementRecord:
         profile_type: SimBench profile name; empty if none.
         rated_kw: Rated active power.
     """
+
     id: str
     element_type: Literal["load", "sgen", "storage"]
     bus: str
     profile_type: str = ""
     rated_kw: float = 0.0
+
+
+@dataclass(frozen=True)
+class ProfileRecord:
+    """One SimBench profile of a network: a normalised yearly time series.
+
+    Values are factors of an element's rated power (1.0 = rated power), one row per
+    15 minutes of the profile year.
+
+    Attributes:
+        name: Profile name, e.g. ``"H0-A"`` (household) or ``"PV5"``.
+        table: SimBench profile table: ``"load"``, ``"renewables"``,
+            ``"powerplants"`` or ``"storage"``.
+        quantities: ``("p",)``, or ``("p", "q")`` for loads (active and reactive).
+        elements: Number of network elements that use this profile.
+        mean: Mean active-power factor over the year.
+        peak: Highest active-power factor over the year.
+    """
+
+    name: str
+    table: str
+    quantities: tuple[str, ...]
+    elements: int
+    mean: float
+    peak: float
 
 
 # --------------------------------------------------------------------- step contract
@@ -155,6 +185,7 @@ class GridViolation:
         observed: Value found.
         limit: Limit exceeded.
     """
+
     code: str  # "V_LOW", "V_HIGH", "LINE_OVERLOAD", "TRAFO_OVERLOAD", "NOT_CONVERGED"
     element_type: str
     element_id: str | None
@@ -182,9 +213,7 @@ class GridAssessment:
 class GridModel(Protocol):
     """Step-time grid used by the environment (phase R4)."""
 
-    def reset(
-        self, episode_seed: int | None = None, day: str | None = None
-    ) -> None:
+    def reset(self, episode_seed: int | None = None, day: str | None = None) -> None:
         """Prepare a fresh working copy of the network for an episode on ``day``."""
         ...
 

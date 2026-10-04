@@ -1,13 +1,16 @@
 """ProfileService: profiles and participant mapping (04 §5).
 
-Every method still returns generated sample data; each docstring says what the
-final version will do. It builds on the SimBench profile source of 01 §3 (R3).
+``profile_types`` and ``profile_series`` read the network's real SimBench profiles
+(the Grid page's profile inspector). The other methods still return generated
+sample data; each docstring says what the final version will do (R3, 01 §3).
 """
 
 from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta
+import src_thesis.marketplace.grid.contract_new as contract
+from src_thesis.adapters.grid import simbench_new as adapter
 from src_thesis.application.models import (
     ExperimentFile,
     NetworkSource,
@@ -60,6 +63,35 @@ def _participants(n: int = 8) -> list[dict]:
 HOURS = list(range(24))
 
 
+_DESCRIPTIONS = {
+    "household": "Household",
+    "commercial": "Commercial",
+    "agricultural": "Agricultural",
+    "pv": "Photovoltaic",
+    "wind": "Wind",
+    "biomass": "Biomass",
+    "storage": "Storage",
+    "other": "",
+}
+
+
+def _category(name: str, table: str) -> str:
+    """Category of a SimBench profile from its name (H0 household, G commercial…)."""
+    if table == "storage":
+        return "storage"
+    for prefix, category in (
+        ("H", "household"),
+        ("G", "commercial"),
+        ("L", "agricultural"),
+        ("PV", "pv"),
+        ("WP", "wind"),
+        ("BM", "biomass"),
+    ):
+        if name.upper().startswith(prefix):
+            return category
+    return "other"
+
+
 class ProfileService:
     """Generation and demand profiles and how participants map onto a network (R3).
 
@@ -69,39 +101,58 @@ class ProfileService:
 
     SAMPLE_DATA = True  # shown in the Studio's header until the service is built
 
-    def profile_types(self, source: NetworkSource | None = None) -> list[ProfileType]:
-        """Profile types that can be assigned (SimBench catalogue).
+    def profile_types(self, source: NetworkSource) -> list[ProfileType]:
+        """The SimBench profiles a network ships, with how many elements use each.
 
-        Sample data for now. The final version will list the SimBench profile catalogue
-        (all profiles, or one network's).
+        Built: read from the network through the pandapower adapter. Networks
+        without profiles (pandapower built-ins) return an empty list.
         """
-        return (
-            [
-                ProfileType(
-                    code=f"H0-{c}", category="household", description="Household"
-                )
-                for c in "ABCDEFGHIJKL"
-            ]
-            + [
-                ProfileType(
-                    code=f"G{i}-A", category="commercial", description="Commercial"
-                )
-                for i in range(7)
-            ]
-            + [
-                ProfileType(
-                    code=f"L{i}-A", category="agricultural", description="Agricultural"
-                )
-                for i in range(3)
-            ]
-            + [
-                ProfileType(code=f"PV{i}", category="pv", description="Photovoltaic")
-                for i in range(1, 9)
-            ]
-            + [
-                ProfileType(code="WP4", category="wind", description="Wind"),
-                ProfileType(code="BM1", category="biomass", description="Biomass"),
-            ]
+        ref = contract.NetworkRef(source.type, source.code)
+        return [
+            ProfileType(
+                code=r.name,
+                category=_category(r.name, r.table),
+                description=_DESCRIPTIONS.get(_category(r.name, r.table), ""),
+                table=r.table,
+                quantities=list(r.quantities),
+                elements=r.elements,
+                mean=r.mean,
+                peak=r.peak,
+            )
+            for r in adapter.profile_catalog(ref)
+        ]
+
+    def profile_series(
+        self,
+        source: NetworkSource,
+        codes: list[str],
+        start: str,
+        days: int = 7,
+        resolution: str = "hourly",
+        quantity: str = "p",
+    ) -> Series:
+        """Values of SimBench profiles over a time window, for inspection.
+
+        Built: read from the network through the pandapower adapter.
+
+        Args:
+            source: The network whose profiles are read.
+            codes: Profile names, as returned by ``profile_types``.
+            start: First day (``YYYY-MM-DD``, in the profile year 2016).
+            days: Length of the window in days.
+            resolution: ``"15min"`` (raw), ``"hourly"`` or ``"daily"`` (means).
+            quantity: ``"p"`` (active) or ``"q"`` (reactive; loads only).
+
+        Returns:
+            One y series per profile, as factors of the element's rated power.
+        """
+        ref = contract.NetworkRef(source.type, source.code)
+        x, y = adapter.profile_series(ref, codes, start, days, resolution, quantity)
+        return Series(
+            x=x,
+            y=y,
+            x_label="time",
+            y_label=f"{quantity} (factor of rated power)",
         )
 
     def preview(self, file: ExperimentFile, participant_id: str) -> Series:
