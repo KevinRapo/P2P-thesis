@@ -1,7 +1,7 @@
 # Implementation status
 
 > What of the architecture plan exists in code today, how it is tested, and how to check it yourself. Update this file in the same commit that changes the status of a part.
-> Plan: [README.md](README.md) (roadmap R1–R9) · Updated: 2026-10-02.
+> Plan: [README.md](README.md) (roadmap R1–R9) · Updated: 2026-10-04.
 
 **Legend:** ✅ done and tested · 🟡 partly done (what is missing is named) · 🎭 sample data (the method exists but returns sample data) · ⬜ not started.
 
@@ -16,8 +16,9 @@
   - [3.3 Experiment layer (`src_thesis/experiments/`, 03)](#33-experiment-layer-src_thesisexperiments-03)
   - [3.4 Application layer (`src_thesis/application/`, 04)](#34-application-layer-src_thesisapplication-04)
 - [4. Studio, page by page (`src_thesis/studio/`, 05)](#4-studio-page-by-page-src_thesisstudio-05)
-- [5. How to verify each working part](#5-how-to-verify-each-working-part)
-- [6. Next steps (in the order proposed)](#6-next-steps-in-the-order-proposed)
+- [5. Walking the workflow guide](#5-walking-the-workflow-guide)
+- [6. How to verify each working part](#6-how-to-verify-each-working-part)
+- [7. Next steps (in the order proposed)](#7-next-steps-in-the-order-proposed)
 
 <!-- END toc -->
 
@@ -121,7 +122,30 @@ Each service is one class in `application/<name>_service.py`; a method that is n
 
 [↑ Contents](#contents)
 
-## 5. How to verify each working part
+## 5. Walking the workflow guide
+
+Snapshot of 2026-10-04: the [Studio workflow guide](../../guide/studio-workflow.md), step by step, against what the code does today. The guide describes the intended workflow; this table says where a user following it hits a gap and what closes it.
+
+| Guide step | Works today | Gap | Closed by |
+|---|---|---|---|
+| 0 Launch, Settings | ✅ Launch, workspace folder, draft chip | The *valid* and *running* chips read sample services | Steps 4 and 5 of §7 |
+| 1 Inspect | ✅ All three tabs on real data | — | — |
+| 2 Start a file | ✅ New draft from a preset; Library lists files and opens one as the draft | Library: delete, clone, open from disk and import bundle not wired (`ConfigService` has clone and delete). Presets: placeholder participant mapping; sweeps for Case 1 only | §7 step 7 |
+| 3 Grid | 🟡 Browse networks, topology, elements, power-flow preview; the picker starts at the draft's network | **First break in the walk:** choosing a network and "Apply limits" do not write `grid.*`, so the draft keeps the preset's network | §7 step 1 (page only: `ConfigService.update` exists) |
+| 3 Participants | 🟡 Table of the draft's participants | Nothing is written. The map outlines every fifth bus, not the participants' buses. Profile preview and day counts are sample data. Add participant, Apply rule, Import mapping, Table 6 roles, Add battery are placeholders | §7 step 2 (R3 participant mapping, 01 §3) |
+| 3 Market & DSO | ✅ "Apply to draft" writes `market`, `dso`, `environment`, `grid.assessment` | Tariff chart is sample data; Edit weights | `ProfileService.tariffs` |
+| 3 Summary | ✅ Save, Save as, diff, export bundle | — | — |
+| 4 Design | 🟡 Shows the draft's learning plan | Nothing is written; run estimate is sample data | §7 step 3 |
+| 5 Validate | 🎭 | Findings and dry run are fixed samples; "Launch" starts nothing | §7 step 4 (schema and network checks); the dry run needs `build_env` (track B) |
+| 6 Runs | 🎭 | Runs are invented | §7 step 5 (store, worker and pool are ready) |
+| 7 Results | 🎭 | Everything is sample data | §7 step 6 for the run's record; real outcomes need real runs (track B) |
+| 8 Compare | 🎭 | Everything is sample data | §7 step 6; meaningful only with real runs (track B) |
+
+**The wall.** Steps 0–6 can all become real without touching MARLEM: the experiment file, store, worker and pool exist, and a run can use the no-op runner. Real runs need `build_env` (`factory/environment.py` raises), which needs the rewritten MARLEM (R1, 0 of 80 issues closed) and the SimBench grid model (R4). So Results and Compare can show a run's record (manifest, state, log) early, but research outcomes only after track B.
+
+[↑ Contents](#contents)
+
+## 6. How to verify each working part
 
 | Part | Check |
 |---|---|
@@ -133,12 +157,20 @@ Each service is one class in `application/<name>_service.py`; a method that is n
 
 [↑ Contents](#contents)
 
-## 6. Next steps (in the order proposed)
+## 7. Next steps (in the order proposed)
 
-1. Grid page writes `grid.source`, `grid.limits`, `grid.ratings`.
-2. Design page writes the learning plan (paradigms × algorithms, seeds, budget, hyperparameters, sweep).
-3. Library: delete, clone, open file, import bundle.
-4. Real `ExperimentService` with no-op runs (store, worker and pool are ready), then `ResultService` over the store.
-5. Real `ValidationService` at schema level.
+Two tracks. **Track A** makes the workflow guide walkable end to end on real files and real (no-op) runs; it needs only the Studio, the services and the experiment layer. **Track B** makes the runs real; it is the long one.
+
+Track A, in the order of the guide (§5):
+
+1. **Grid writes the draft** (next step): choosing a network writes `grid.source`, "Apply" writes `grid.limits` and `grid.ratings`. Changing the network invalidates the participants' buses, so the page warns before writing.
+2. **Participants on real buses**: the map outlines the participants' buses; add and remove a participant; a placement rule (`suggest_mapping`) that proposes participants from the network's own loads and generators and their SimBench profiles; the profile preview reads the real profiles; writes `participants` and `time`.
+3. **Design writes the learning plan** (matrix, seeds, budget, hyperparameters, sweep); the run estimate counts the runs from `ConfigService.expand`.
+4. **`ValidationService` at schema level**, plus checks against the network: every bus, element and profile exists, the time window lies in the profile year.
+5. **`ExperimentService` with the no-op runner**: "Launch" creates the runs in the store and starts them in the pool; Runs shows their real state, log and cancel.
+6. **`ResultService` over the store**: a run's manifest, state, log and progress; curves and outcomes once a runner records them.
+7. Library: delete, clone, open file, import bundle.
+
+Track B: R1 (rewrite MARLEM against the issue register), then `build_env`, the baseline and training runners, and R4 (SimBench grid in shadow mode). Baseline runners (`no_order`, `random`) come first: they need `build_env` but no training.
 
 [↑ Contents](#contents)
