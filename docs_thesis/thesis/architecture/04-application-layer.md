@@ -63,12 +63,14 @@ flowchart LR
   subgraph USERS["used by"]
     n_studio__users_["studio/"]:::ext
   end
-  n_application_config_files["config_files"]
+  n_application_config_service["config_service"]
   n_application_container["container"]
-  n_application_contracts["contracts"]
-  n_application_demo["demo"]
-  n_application_grid_catalog["grid_catalog"]
+  n_application_experiment_service["experiment_service"]
+  n_application_grid_catalog_service["grid_catalog_service"]
   n_application_models["models"]
+  n_application_profile_service["profile_service"]
+  n_application_result_service["result_service"]
+  n_application_validation_service["validation_service"]
   n_application_workspace["workspace"]
   subgraph USES["uses"]
     n_adapters_grid["adapters/grid"]:::ext
@@ -76,21 +78,30 @@ flowchart LR
     n_experiments_models["experiments/models"]:::ext
     n_marketplace_grid["marketplace/grid"]:::ext
   end
-  n_application_config_files -.-> n_application_models
-  n_application_config_files --> n_application_workspace
-  n_application_config_files --> n_experiments_models
-  n_application_container --> n_application_config_files
-  n_application_container --> n_application_contracts
-  n_application_container --> n_application_demo
-  n_application_container --> n_application_grid_catalog
+  n_application_config_service -.-> n_application_models
+  n_application_config_service --> n_application_workspace
+  n_application_config_service --> n_experiments_models
+  n_application_container --> n_application_config_service
+  n_application_container --> n_application_experiment_service
+  n_application_container --> n_application_grid_catalog_service
+  n_application_container --> n_application_profile_service
+  n_application_container --> n_application_result_service
+  n_application_container --> n_application_validation_service
   n_application_container --> n_application_workspace
   n_application_container --> n_env
-  n_application_contracts -.-> n_application_models
-  n_application_demo -.-> n_application_models
-  n_application_grid_catalog --> n_adapters_grid
-  n_application_grid_catalog -.-> n_application_models
-  n_application_grid_catalog --> n_marketplace_grid
+  n_application_experiment_service --> n_application_config_service
+  n_application_experiment_service -.-> n_application_models
+  n_application_grid_catalog_service --> n_adapters_grid
+  n_application_grid_catalog_service -.-> n_application_models
+  n_application_grid_catalog_service --> n_marketplace_grid
   n_application_models --> n_experiments_models
+  n_application_profile_service --> n_application_config_service
+  n_application_profile_service -.-> n_application_models
+  n_application_result_service --> n_application_config_service
+  n_application_result_service -.-> n_application_models
+  n_application_result_service --> n_application_profile_service
+  n_application_validation_service --> n_application_config_service
+  n_application_validation_service -.-> n_application_models
   n_studio__users_ --> n_application_container
   n_studio__users_ --> n_application_models
   n_studio__users_ --> n_application_workspace
@@ -98,16 +109,21 @@ flowchart LR
 ```
 <!-- END generated:graph -->
 
-Arrows are imports. Dashed arrows go to `models`, the data types every service returns. Generated from the code by `docs_thesis/graphs.py`.
+Arrows are imports. Dashed arrows go to `models`, the data types every service returns. The demo services share sample data from `config_service`. Generated from the code by `docs_thesis/graphs.py`.
 
-| File | What it is for |
-|---|---|
-| `contracts` | One `Protocol` per service: what callers may rely on, whichever implementation is behind it |
-| `models` | The plain data the services return; the only types that cross into the Studio (it also re-exports the experiment records) |
-| `container` | `build_services`: the one place that decides which implementation each caller gets |
-| `config_files`, `grid_catalog` | Real implementations: experiment files on disk; networks via the pandapower adapter |
-| `demo` | Demo implementations of all six services with deterministic sample data |
-| `workspace` | Where user data lives: library, run store and exports, outside the repository and OneDrive |
+Every service has one module that holds three things, so what is still missing is visible in one place: the **protocol** (what callers may rely on), the **final implementation** (or its skeleton, whose methods raise "not built yet" and say in their docstrings what they will call), and the **demo implementation** the Studio uses until the final one exists.
+
+| File | Final implementation | Demo |
+|---|---|---|
+| `config_service` | `FileConfigService`: presets from the repository, files in the workspace library | `DemoConfigService` (also holds the sample data the other demos share) |
+| `grid_catalog_service` | `PandapowerGridCatalogService`: networks via the pandapower adapter | `DemoGridCatalogService` |
+| `profile_service` | `SimBenchProfileService`: skeleton (R3) | `DemoProfileService` |
+| `validation_service` | `PreflightValidationService`: skeleton (R6–R7) | `DemoValidationService` |
+| `experiment_service` | `StoreExperimentService`: skeleton (R7) | `DemoExperimentService` |
+| `result_service` | `StoreResultService`: skeleton (R7) | `DemoResultService` |
+| `models` | The plain data the services return; the only types that cross into the Studio (it also re-exports the experiment records) | |
+| `container` | `build_services`: the one place that decides which implementation each caller gets | |
+| `workspace` | Where user data lives: library, run store and exports, outside the repository and OneDrive | |
 
 [↑ Contents](#contents)
 
@@ -132,7 +148,7 @@ Arrows are imports. Dashed arrows go to `models`, the data types every service r
 | `ExperimentService` | The only way to create and control runs | `experiments.models`, `.store`, `.worker.pool` | `create_runs`: validate → expand → per run resolve, manifest, folder; `start` / `cancel` / `snapshot` via the pool (03 §5) |
 | `ResultService` | Turning run folders into tables and series; outcomes kept apart from RL return | `experiments.store`, paper reference data | `summary`, curves, step replay, the 3 × 3 `matrix`; `reference` returns values reported in the papers, entered by hand with their source |
 
-Every method, its arguments and errors are in the docstrings of `contracts.py`; the returned types in `models.py`.
+Every method, its arguments and errors are in the protocol docstrings of each `*_service.py`; the returned types in `models.py`.
 
 [↑ Contents](#contents)
 

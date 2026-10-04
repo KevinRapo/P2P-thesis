@@ -1,13 +1,19 @@
 """Wiring of service implementations.
 
 Callers (Studio, CLI, notebooks) obtain every service through `build_services`
-and depend only on the protocols in `contracts.py`. Switching from the demo to
-the real implementations later changes this module only.
+and depend only on the service protocols. Each service has one module holding its
+protocol, its final implementation and its demo implementation:
 
-Real implementations replace demo ones one service at a time, in roadmap order,
-each behind its own switch: the grid catalog (phase R3) and the experiment-file
-service (R7) so far. Real services are imported lazily, so
-`build_services("demo")` never loads pandapower.
+    config_service        FileConfigService (final)           DemoConfigService
+    grid_catalog_service  PandapowerGridCatalogService (final) DemoGridCatalogService
+    profile_service       SimBenchProfileService (not built)   DemoProfileService
+    validation_service    PreflightValidationService (not built) DemoValidationService
+    experiment_service    StoreExperimentService (not built)   DemoExperimentService
+    result_service        StoreResultService (not built)       DemoResultService
+
+Final implementations replace demo ones one service at a time, each behind its
+own switch: the grid catalog and the experiment files so far. None of these
+modules loads pandapower when imported (the adapter imports it inside functions).
 """
 
 from dataclasses import dataclass
@@ -18,14 +24,33 @@ from src_thesis.env import load_env
 
 load_env()  # MARLEM_HOME and the other settings from .env, for every caller
 
-from src_thesis.application.contracts import (  # noqa: E402
+from src_thesis.application.config_service import (  # noqa: E402
     ConfigService,
+    DemoConfigService,
+    FileConfigService,
+)
+from src_thesis.application.experiment_service import (  # noqa: E402
+    DemoExperimentService,
     ExperimentService,
+)
+from src_thesis.application.grid_catalog_service import (  # noqa: E402
+    DemoGridCatalogService,
     GridCatalogService,
+    PandapowerGridCatalogService,
+)
+from src_thesis.application.profile_service import (  # noqa: E402
+    DemoProfileService,
     ProfileService,
+)
+from src_thesis.application.result_service import (  # noqa: E402
+    DemoResultService,
     ResultService,
+)
+from src_thesis.application.validation_service import (  # noqa: E402
+    DemoValidationService,
     ValidationService,
 )
+from src_thesis.application.workspace import Workspace  # noqa: E402
 
 GridBackend = Literal["demo", "pandapower"]
 ConfigBackend = Literal["demo", "files"]
@@ -79,26 +104,12 @@ def build_services(
             "Real services are implemented in roadmap phases R6-R7 "
             "(docs_thesis/thesis/architecture/README.md §4)."
         )
-    from src_thesis.application.demo import (
-        DemoConfigService,
-        DemoExperimentService,
-        DemoGridCatalogService,
-        DemoProfileService,
-        DemoResultService,
-        DemoValidationService,
-    )
-
     if grid == "pandapower":
-        from src_thesis.application.grid_catalog import PandapowerGridCatalogService
-
         grid_service: GridCatalogService = PandapowerGridCatalogService()
     else:
         grid_service = DemoGridCatalogService()
 
     if config == "files":
-        from src_thesis.application.config_files import FileConfigService
-        from src_thesis.application.workspace import Workspace
-
         workspace = Workspace(home) if home else Workspace.default()
         config_service: ConfigService = FileConfigService(workspace)
     else:

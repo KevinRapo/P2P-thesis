@@ -92,12 +92,12 @@ Only fields you change are written. A field you never touched stays absent from 
 |---|---|---|---|
 | `ConfigService` | ✅ real (`FileConfigService`) | test_config_service.py | Presets, library, save, clone, delete, update, origin, diff, export bundle. Not yet: `import_bundle`, `json_schema` |
 | `GridCatalogService` | ✅ real (`PandapowerGridCatalogService`) | test_grid_catalog.py | Networks, topology, elements, power-flow preview |
-| `ProfileService` | 🎭 | — | Profile previews, tariffs and day lists are generated sample curves |
-| `ValidationService` | 🎭 | — | Findings and the dry run are fixed samples; no real check runs |
-| `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
-| `ResultService` | 🎭 | — | All results, curves, matrices and replays are sample data |
+| `ProfileService` | 🎭 demo; final `SimBenchProfileService` is a skeleton in `profile_service.py` | — | Profile previews, tariffs and day lists are generated sample curves |
+| `ValidationService` | 🎭 demo; final `PreflightValidationService` is a skeleton in `validation_service.py` | — | Findings and the dry run are fixed samples; no real check runs |
+| `ExperimentService` | 🎭 demo; final `StoreExperimentService` is a skeleton in `experiment_service.py` | — | Runs listed in the Studio are invented; "Launch" starts nothing |
+| `ResultService` | 🎭 demo; final `StoreResultService` is a skeleton in `result_service.py` | — | All results, curves, matrices and replays are sample data |
 
-Which implementation the Studio uses is shown in its footer (`services: demo · grid: pandapower · files: files`).
+Each service's module holds its protocol, final implementation (or skeleton, whose methods raise "not built yet" and say what they will call) and demo. Which implementation the Studio uses is shown in its footer (`services: demo · grid: pandapower · files: files`).
 
 [↑ Contents](#contents)
 

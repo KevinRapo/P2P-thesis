@@ -32,10 +32,10 @@ src_thesis/
 |   |-- grid/network.py
 |   `-- profiles/
 |-- application/                 # UI/CLI-facing services (no MARLEM runtime imports)
-|   |-- contracts.py             # service protocols
+|   |-- *_service.py             # per service: protocol, final and demo implementation
 |   |-- models.py                # returned data (Pydantic)
-|   |-- demo.py                  # demo services with sample data
-|   `-- container.py             # build_services("demo")
+|   |-- workspace.py             # where user data lives (outside OneDrive)
+|   `-- container.py             # build_services(): which implementation each caller gets
 |-- studio/                      # NiceGUI Studio; imports only application/
 |   |-- app.py, __main__.py
 |   |-- layout.py, navigation.py, theme.py, state.py
