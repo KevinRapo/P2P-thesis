@@ -1,13 +1,14 @@
 # 01. SimBench grid
 
 > Network sources, loading, assigning profiles to MARLEM agents, the grid contract, and what changes in MARLEM's step.
-> Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15.
+> Master: [README.md](README.md) · Decisions: D-01 to D-07, D-11 to D-13, D-15 · State: [implementation-status.md](implementation-status.md).
 > Checked against the installed `simbench` 1.6.2 / `pandapower` 3.5.4 on 2026-09-25 (the Studio's grid catalog uses them).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [0. At a glance](#0-at-a-glance)
+  - [0.1 Structure in code](#01-structure-in-code)
 - [1. One grid technology, several network sources (D-02)](#1-one-grid-technology-several-network-sources-d-02)
 - [2. Network loading](#2-network-loading)
 - [3. Profile assignment (the core flexibility)](#3-profile-assignment-the-core-flexibility)
@@ -57,6 +58,38 @@ flowchart TB
   PREP --> STEP
   PREP -.-> STUDIO
 ```
+
+### 0.1 Structure in code
+
+The new grid code is two files; the original NetworkX grid (`adapters/grid/network.py`, `marketplace/grid/base.py`, `config.py`) leaves the tool (§7).
+
+<!-- BEGIN generated:graph grid -->
+```mermaid
+flowchart LR
+  subgraph USERS["used by"]
+    n_application__users_["application/"]:::ext
+    n_experiments__users_["experiments/"]:::ext
+  end
+  subgraph g_adapters["adapters/"]
+    n_adapters_grid_simbench_new["adapters/grid/simbench_new"]
+  end
+  subgraph g_marketplace["marketplace/"]
+    n_marketplace_grid_contract_new["marketplace/grid/contract_new"]
+  end
+  n_adapters_grid_simbench_new --> n_marketplace_grid_contract_new
+  n_application__users_ --> n_adapters_grid_simbench_new
+  n_application__users_ --> n_marketplace_grid_contract_new
+  n_experiments__users_ --> n_marketplace_grid_contract_new
+  classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
+```
+<!-- END generated:graph -->
+
+| File | What it is for |
+|---|---|
+| `marketplace/grid/contract_new.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
+| `adapters/grid/simbench_new.py` | The pandapower adapter: catalog, loading, topology, preview power flow and, from R4, the step-time `SimBenchGrid` |
+
+Generated from the imports by `docs_thesis/graphs.py`; functions are documented in the docstrings (API Reference).
 
 [↑ Contents](#contents)
 
@@ -347,9 +380,9 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 
 | File | Change | Phase |
 |---|---|---|
-| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 (rename to `contract.py` when stable). **Done 2026-09-25**, with the catalog records for §2; `GridTopologyInfo`, `GridSignals` and `GridModel.topology_info` (§5.1) still to add. | R3 |
+| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 and §5.1 (rename to `contract.py` when stable); also holds the catalog records of §2. | R3 |
 | `marketplace/grid/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
-| [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. **§2 catalog done 2026-09-25** (SimBench + built-in; files not yet); §4–§6 step-time model open. | R3 |
+| [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. | R3 |
 | `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | R3 |
 | [adapters/grid/network.py](../../../src_thesis/adapters/grid/network.py), [marketplace/grid/base.py](../../../src_thesis/marketplace/grid/base.py), [config.py](../../../src_thesis/marketplace/grid/config.py) | **Removed from the tool** (the original stays in git tag `marlem-original`). `Location` shrinks to participant ID + bus ID. | R3 |
 | [marketplace/lem.py](../../../src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |

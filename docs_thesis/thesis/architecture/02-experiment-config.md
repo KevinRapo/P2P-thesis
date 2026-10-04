@@ -1,13 +1,14 @@
 # 02. Experiment file
 
 > One JSON file describes a complete study: the simulated world, the reinforcement-learning plan, evaluation and the sweep. It is used identically by CLI, notebooks and Studio.
-> Master: [README.md](README.md) · Decisions: D-07, D-08.
+> Master: [README.md](README.md) · Decisions: D-07, D-08 · State: [implementation-status.md](implementation-status.md).
 > "Original default" = the value in the original MARLEM code (`src_thesis/` before its rewrite, git tag `marlem-original`; see link) or in [P2] Table 7/8. Fields marked *(new)* do not exist in the original.
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
 - [0. At a glance](#0-at-a-glance)
+  - [0.1 Where the file lives in code](#01-where-the-file-lives-in-code)
 - [1. One file, one study (D-08)](#1-one-file-one-study-d-08)
 - [2. Top-level structure](#2-top-level-structure)
 - [3. Field reference](#3-field-reference)
@@ -54,9 +55,13 @@ flowchart LR
   FILE -->|"preflight (§9)"| OK{"valid?"}
   OK -->|"expand: sweep × paradigms × algorithms × seeds, + baselines"| CELLS["run cells"]
   CELLS -->|"resolve defaults · build manifest (§5)"| RUNS["runs/&lt;run_id&gt;/ resolved.json + manifest.json"]
-  WORLD -. "build_env (05 §3.7)" .-> ENV["environment"]
-  PLAN -. "build_algorithm_config (05 §3.8)" .-> RL["RLlib configuration"]
+  WORLD -. "build_env (03 §4)" .-> ENV["environment"]
+  PLAN -. "build_algorithm_config (03 §3)" .-> RL["RLlib configuration"]
 ```
+
+### 0.1 Where the file lives in code
+
+The file format is the `ExperimentFile` model in [experiments/models/records.py](../../../src_thesis/experiments/models/records.py); the defaults of §3 are `DEFAULTS` in [resolve.py](../../../src_thesis/experiments/models/resolve.py). The experiment layer (03) reads, expands and resolves it; `ConfigService` (04) is how the Studio and the CLI open, edit and save it; presets are files in [experiments/presets/](../../../src_thesis/experiments/presets/). The sections are plain dictionaries until each gets a typed model; this document is their reference until then.
 
 [↑ Contents](#contents)
 
@@ -437,7 +442,7 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 
 ## 5. Run manifest (system-written)
 
-**Why:** The receipt of a run: exactly what it used, so it can be traced and rerun. Details and the reason for each field: [05 §3.4](05-experiment-layer.md#34-manifest-modelsmanifestpy).
+**Why:** The receipt of a run: exactly what it used, so it can be traced and rerun. Details and the reason for each field: [03 §7](03-experiment-layer.md#7-what-makes-a-run-reproducible).
 
 - the fully resolved experiment file for this run: defaults filled, placement rule resolved, sweep point applied, cell fixed;
 - the canonical hash of the user's file and of the resolved file;
@@ -478,7 +483,6 @@ src_thesis/experiments/presets/   # in the repo, read-only
 
 - Case 4 on SimBench is a different study from the paper's topology/capacity comparison (real physics). This is documented in the preset's `description`.
 - The [P2] Case 6 profile mapping is unpublished (I-51), so the Case 6 preset is `reconstructed-unverified`.
-- State (2026-09-28): the seven files exist and load, resolve and expand. Only Case 1 has its sweep yet. All use a placeholder mapping (the agents own the first eight loads of `1-LV-semiurb4--0-sw`) until the mapping tools exist (R3); each preset's `description` says so.
 
 [↑ Contents](#contents)
 
@@ -486,7 +490,7 @@ src_thesis/experiments/presets/   # in the repo, read-only
 
 - There is no validated NetworkX release (retired 2026-09-27, D-02). The original code is kept as git tag `marlem-original` for comparison; the tool never runs it.
 - Presets reproduce the papers' cases on SimBench and say in `meta.description` which case and which deviations (e.g. Case 4 has real physics).
-- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (03 §4, `ResultService.reference`).
+- R9 compares results with the figures published in [P1] and [P2], qualitatively. Values read off the papers can be stored as reference data (04 §5, `ResultService.reference`).
 
 [↑ Contents](#contents)
 
@@ -494,7 +498,7 @@ src_thesis/experiments/presets/   # in the repo, read-only
 
 **Why:** Mistakes should cost seconds, not hours of training. Many do not crash (an agent on the wrong bus, evaluation days that overlap training) and would silently produce wrong results.
 
-Run by `ValidationService` before any run (03 §2):
+Run by `ValidationService` before any run (04 §5):
 
 - schema;
 - references (buses, elements, CSVs, hashes);

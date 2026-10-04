@@ -24,9 +24,9 @@ docs/
         ├── README.md               # Master: goal, roadmap R1–R9, decision log (start here)
         ├── 01-simbench-grid.md     # Networks, profile assignment, grid contract, step changes
         ├── 02-experiment-config.md # Scenario / Experiment / Run specs, presets, sharing
-        ├── 03-application-layer.md # Services: status, wiring, methods, returned data
-        ├── 04-presentation.md      # NiceGUI Studio pages and the CLI
-        ├── 05-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
+        ├── 04-application-layer.md # Services: status, wiring, methods, returned data
+        ├── 05-presentation.md      # NiceGUI Studio pages and the CLI
+        ├── 03-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
         └── implementation-status.md # what exists in code today and how to check it
 ```
 

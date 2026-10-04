@@ -37,14 +37,14 @@
 ```mermaid
 flowchart TB
   subgraph Presentation
-    Studio["NiceGUI Studio<br/>04-presentation"]
-    CLI["CLI<br/>04-presentation"]
+    Studio["NiceGUI Studio<br/>05-presentation"]
+    CLI["CLI<br/>05-presentation"]
     NB["Case notebooks"]
   end
-  subgraph Application["Application services, 03-application-layer"]
+  subgraph Application["Application services, 04-application-layer"]
     SVC["Config · Grid catalog · Profiles · Validation · Experiment · Result"]
   end
-  subgraph Experiments["Experiment layer, 02-experiment-config / 05-experiment-layer"]
+  subgraph Experiments["Experiment layer, 02-experiment-config / 03-experiment-layer"]
     SPEC["Experiment file (one JSON)"]
     FACT["Environment factory"]
     WORK["Worker process"]
@@ -86,12 +86,12 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-  subgraph P[Presentation, 04]
+  subgraph P[Presentation, 05]
     UI[studio/ NiceGUI]
     CLI[cli.py]
     NB[notebooks]
   end
-  subgraph A[application/, 03]
+  subgraph A[application/, 04]
     CF[ConfigService]
     GC[GridCatalogService]
     PR[ProfileService]
@@ -99,7 +99,7 @@ flowchart LR
     EX[ExperimentService]
     RE[ResultService]
   end
-  subgraph E[experiments/, 05]
+  subgraph E[experiments/, 03]
     MOD[models: experiment file, manifest, status]
     FAC[factory: file → env_config]
     STO[store: filesystem]
@@ -125,7 +125,7 @@ flowchart LR
 ```
 
 - Presentation calls **only** `application/`.
-- Services return typed, plain data: Pydantic models, dicts, lists and chart-ready series. They never return NiceGUI elements, Ray objects or pandapower nets (03 §3).
+- Services return typed, plain data: Pydantic models, dicts, lists and chart-ready series. They never return NiceGUI elements, Ray objects or pandapower nets (04 §4).
 - Only the **factory** turns an experiment file into live MARLEM objects. Everyone uses it: the worker, validation dry runs, notebooks and tests.
 - Services run **in-process** with the UI or CLI (no REST layer). Anything long-running (training, multi-episode simulation) runs in the **worker subprocess** (D-09).
 - `experiments/` never imports `application/` or `studio/`; `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces these rules.
@@ -139,34 +139,36 @@ flowchart LR
 
 ### 2.3 Tests per layer
 
-| Layer | Tests | State |
+What guards each layer; which tests exist today is in the [implementation status](implementation-status.md).
+
+| Layer | What the tests guarantee | Tests |
 |---|---|---|
-| Domain | Validation acceptance tests: the issue demos ([../validation/evidence/](../validation/evidence/)) | 48 demos, strict xfail |
-| Adapters | Grid catalog on SimBench and built-in networks; later mapping validation, alignment, injection identity, power flow per step | [tests/test_grid_catalog.py](../../../tests/test_grid_catalog.py) |
-| Experiment layer | Round trip, hash stability, expansion, resolution, store, recorder, worker and pool with a noop runner | [tests/test_experiments.py](../../../tests/test_experiments.py) |
-| Factory / training config | Presets build an environment; each algorithm × paradigm builds an `AlgorithmConfig`; mutation domains contain initial values | after R1 / R4 and stage D |
-| Services | Temp store: create, expand, validate, start (noop worker), snapshot, cancel | with the real services (R7) |
-| Presentation | Import boundaries; demo services satisfy every page call | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) |
-| Docstrings | Every public module, class and function of the platform code (`experiments/`, `application/`, `studio/`, the grid adapter and contract) has a docstring; the API reference is built from them | [tests/test_docstrings.py](../../../tests/test_docstrings.py) |
-| Docs | Validation docs consistent with the code markers | [tests/test_validation_docs.py](../../../tests/test_validation_docs.py) |
+| Domain | The validation acceptance tests: one demonstration per issue, passing once the issue is fixed | [../validation/evidence/](../validation/evidence/) |
+| Adapters | Grid catalog on SimBench and built-in networks; mapping validation, time alignment, injection identity, power flow per step | [tests/test_grid_catalog.py](../../../tests/test_grid_catalog.py) |
+| Experiment layer | Round trip, hash stability, expansion, resolution, store, recorder, worker and pool | [tests/test_experiments.py](../../../tests/test_experiments.py) |
+| Factory and training configuration | Presets build an environment; each algorithm × paradigm builds an `AlgorithmConfig`; mutation domains contain initial values | planned |
+| Services | Experiment files on disk; later create, validate, start, snapshot and cancel against a temporary store | [tests/test_config_service.py](../../../tests/test_config_service.py) |
+| Presentation | Import boundaries between the layers; the demo services satisfy every page call | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) |
+| Docstrings | Every public module, class and function of the platform code has a docstring; the API Reference is built from them | [tests/test_docstrings.py](../../../tests/test_docstrings.py) |
+| Docs | Validation docs consistent with the code markers; generated Contents and file graphs up to date | [tests/test_validation_docs.py](../../../tests/test_validation_docs.py), [test_docs_toc.py](../../../tests/test_docs_toc.py), [test_docs_graphs.py](../../../tests/test_docs_graphs.py) |
 
 ### 2.4 New components (not in the paper)
 
 Where the SimBench edition adds to the original; the [P1] Fig. 2 classes themselves are in the [paper-to-code map](../../paper/marlem-paper-to-code-map.md).
 
-| Component | Why it is there | Location | Status | Doc |
-|---|---|---|---|---|
-| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | The only thing the market and the grid share; the grid backend can change or be mocked | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extended to 01 §5, plus the catalog records (`NetworkRef`, `NetworkInfo`, `NetworkSummary`, `TopologyView`, `ElementRecord`); `GridModel` not yet implemented | 01 §5 |
-| Settlement ledger (energy identity, battery, cash with fees) | One place decides who delivered and paid what; injections and rewards are derived from it | `marketplace/settlement.py` | New | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
-| Settlement → injection builder | Turns settled energy (kWh per step) into the power injections (kW) a power flow needs | `marketplace/grid/injection.py` | New | 01 §7 |
-| Scripted baseline policies (no order, random, rule-based) | Reference points that give learned results a scale | `marl/baselines.py` | New | 02 §3.10 |
-| pandapower grid adapter (SimBench, built-in, file) | Real power-flow physics in place of the NetworkX graph | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Catalog part done (2026-09-25): list, load, summary, topology, elements, one-hour power-flow preview for SimBench and built-in networks. Step-time `SimBenchGrid` still a stub. | 01 §1–§5 |
-| SimBench profile source | Realistic load and PV profiles for agents on any network | `adapters/profiles/simbench.py` | New | 01 §3 |
-| Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | From one experiment file to traceable runs executed outside the UI (05) | [experiments/](../../../src_thesis/experiments/) | Implemented (2026-09-27); environment factory and RLlib configuration are interfaces until R1 / R4 and stage D | 02, 05 |
-| Original code (git tag `marlem-original`) | Compare a rewritten file with the original | `git show marlem-original:src_thesis_reference/<path>` | Tagged 2026-10-03; `src/` and `src_thesis_reference/` were removed from the tree | D-14 |
-| Application services | One interface for the Studio, the CLI and notebooks | [application/](../../../src_thesis/application/) | Demo services; the real `GridCatalogService` is [grid_catalog.py](../../../src_thesis/application/grid_catalog.py) | 03 |
-| CLI | Scripted and headless runs | `src_thesis/cli.py` | New | 04 §6 |
-| NiceGUI Studio | Build, run and analyse studies without writing code | `studio/` (separate presentation package) | New | 04 |
+| Component | Why it is there | Location | Doc |
+|---|---|---|---|
+| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | The only thing the market and the grid share; the grid backend can change or be mocked | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | 01 §5 |
+| Settlement ledger (energy identity, battery, cash with fees) | One place decides who delivered and paid what; injections and rewards are derived from it | `marketplace/settlement.py` | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
+| Settlement → injection builder | Turns settled energy (kWh per step) into the power injections (kW) a power flow needs | `marketplace/grid/injection.py` | 01 §7 |
+| Scripted baseline policies (no order, random, rule-based) | Reference points that give learned results a scale | `marl/baselines.py` | 02 §3.10 |
+| pandapower grid adapter (SimBench, built-in, file) | Real power-flow physics in place of the NetworkX graph | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | 01 §1–§5 |
+| SimBench profile source | Realistic load and PV profiles for agents on any network | `adapters/profiles/simbench.py` | 01 §3 |
+| Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | From one experiment file to traceable runs executed outside the UI (03) | [experiments/](../../../src_thesis/experiments/) | 02, 03 |
+| Original code (git tag `marlem-original`) | Compare a rewritten file with the original | `git show marlem-original:src_thesis_reference/<path>` | D-14 |
+| Application services | One interface for the Studio, the CLI and notebooks | [application/](../../../src_thesis/application/) | 04 |
+| CLI | Scripted and headless runs | `src_thesis/cli.py` | 05 §7 |
+| NiceGUI Studio | Build, run and analyse studies without writing code | `studio/` (separate presentation package) | 05 |
 
 [↑ Contents](#contents)
 
@@ -176,12 +178,14 @@ Read the [paper-to-code map](../../paper/marlem-paper-to-code-map.md) first (it 
 
 | # | Document | Answers |
 |---|---|---|
-| 01 | [01-simbench-grid.md](01-simbench-grid.md) | Network sources, loading, assigning profiles to agents, the grid contract, and the file-by-file changes to MARLEM's step |
-| 02 | [02-experiment-config.md](02-experiment-config.md) | The single experiment JSON: every section and field, including RL algorithms, training modes and hyperparameters; presets; sharing |
-| 03 | [03-application-layer.md](03-application-layer.md) | Application layer: status and wiring, every service method, the returned data, and what each real service calls |
-| 04 | [04-presentation.md](04-presentation.md) | Presentation: the NiceGUI Studio (shell, every page, the services it calls, how pages connect) and the CLI |
-| — | [implementation-status.md](implementation-status.md) | **What exists in code today**, per phase, layer and Studio page; which fields each page writes; how to check it yourself |
-| 05 | [05-experiment-layer.md](05-experiment-layer.md) | `experiments/` in detail: records, every function with inputs and outputs, the store, worker, pool, run lifecycle and tests |
+| 01 | [01-simbench-grid.md](01-simbench-grid.md) | The grid: network sources, assigning profiles to agents, the grid contract, the step with a power flow, and which MARLEM files change |
+| 02 | [02-experiment-config.md](02-experiment-config.md) | The experiment file: every section and field, with the original defaults; presets; sharing; preflight checks |
+| 03 | [03-experiment-layer.md](03-experiment-layer.md) | From a file to runs: run folders, worker processes, run lifecycle, reproducibility |
+| 04 | [04-application-layer.md](04-application-layer.md) | The six services every user interface calls, their rules, wiring and the workspace |
+| 05 | [05-presentation.md](05-presentation.md) | The NiceGUI Studio (page map, structure, how a page edits the draft, every page) and the CLI |
+| — | [implementation-status.md](implementation-status.md) | **What exists in code today**, per phase, layer and Studio page; how to check it yourself |
+
+The numbered documents go bottom-up through the layers. 03–05 share one outline: **Purpose** (what the part is for) → **At a glance** (business diagram) → **Structure in code** (a file graph generated from the imports, one line per file) → **Rules** → the topic itself. 01 and 02 keep their own outline because their subject is a design and a file format; they place the code structure under §0. What each function does is not repeated here: it is in the docstrings, shown in the API Reference of the docs site. Status is only in the implementation-status document.
 
 [↑ Contents](#contents)
 
@@ -197,8 +201,8 @@ Each phase has an exit criterion.
 | **R4 SimBench, shadow mode** | Assessment runs inside the step and is recorded; rewards and observations unchanged | A full episode runs on SimBench; `env.step` cost measured | 01 §6 |
 | **R5 SimBench in the loop** | Versioned observation and reward consume the assessment (violation feedback); KPIs re-sourced from power-flow results | Short training runs reduce violations versus no-order and random baselines | 01 §6–§7 |
 | **R6 Experiment file** (can start with R3) | JSON schema, environment factory, presets for Cases 1–7 and the 3 × 3 matrix | Each preset validates and runs 1 episode from its JSON | 02 |
-| **R7 Services, CLI, worker** | Application services, filesystem store, worker process, CLI | `marlem run <file>` executes a 3 × 3 smoke matrix end to end | 03 |
-| **R8 Studio** | Read-only (Runs, Results, Grid) → editors → launch | An experiment built in the Studio produces a run identical to its CLI equivalent | 04 |
+| **R7 Services, CLI, worker** | Application services, filesystem store, worker process, CLI | `marlem run <file>` executes a 3 × 3 smoke matrix end to end | 03, 04 |
+| **R8 Studio** | Read-only (Runs, Results, Grid) → editors → launch | An experiment built in the Studio produces a run identical to its CLI equivalent | 05 |
 | **R9 Evidence runs** | Original experiments on SimBench; qualitative comparison with the papers' published figures; thesis figures | Results reproducible from the stored manifests | 02 §7 |
 
 [↑ Contents](#contents)
@@ -215,7 +219,7 @@ Each phase has an exit criterion.
 | D-06 | Profile assignment defaults to `mapped_replacement`: agents replace the SimBench elements they own, and all other elements run as background with their own profiles. | Proposed | 01 §3 |
 | D-07 | Paper-parity presets use **hourly aggregation** (24 steps), energy-consistent. Native 15-min (96 steps) is an extension. | Proposed | 01 §4, 02 §7 |
 | D-08 | **One JSON file per experiment**. It contains the world (time, grid, participants, market, DSO, environment), the learning plan (algorithms, paradigms, hyperparameters, tuning, budget, seeds), evaluation, baselines and the sweep. Runs get a system-written manifest. | **Agreed** (2026-09-23) | 02 |
-| D-09 | Services run in-process for UI and CLI. Ray runs only in a worker subprocess. The filesystem experiment store is the source of truth. | Proposed | 03 |
+| D-09 | Services run in-process for UI and CLI. Ray runs only in a worker subprocess. The filesystem experiment store is the source of truth. | Proposed | 04 |
 | D-10 | The canonical environment is the conda `marlem` env (`environment.yml`), with pandapower, simbench, pydantic and nicegui pinned. | Proposed | §2.2 |
 | D-11 | Violation feedback reward: shared vs bus-attributed vs marginal credit assignment | **Open** | 01 §6 |
 | D-12 | Non-convergent power flow during training: truncate with a fixed penalty vs fail the run | **Open** | 01 §6 |

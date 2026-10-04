@@ -134,9 +134,9 @@ nav:
       - thesis/architecture/README.md
       - 01 SimBench grid: thesis/architecture/01-simbench-grid.md
       - 02 Experiment file: thesis/architecture/02-experiment-config.md
-      - 03 Application layer: thesis/architecture/03-application-layer.md
-      - 04 Presentation: thesis/architecture/04-presentation.md
-      - 05 Experiment layer: thesis/architecture/05-experiment-layer.md
+      - 03 Experiment layer: thesis/architecture/03-experiment-layer.md
+      - 04 Application layer: thesis/architecture/04-application-layer.md
+      - 05 Presentation: thesis/architecture/05-presentation.md
       - Implementation status: thesis/architecture/implementation-status.md
   # Filled in by hooks.py: one section per layer, one page per module.
   - API Reference: api/index.md

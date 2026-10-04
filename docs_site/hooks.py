@@ -86,19 +86,19 @@ API_SECTIONS = [
         "Experiment layer",
         "experiments",
         ["src_thesis.experiments"],
-        "thesis/architecture/05-experiment-layer.md",
+        "thesis/architecture/03-experiment-layer.md",
     ),
     (
         "Application layer",
         "application",
         ["src_thesis.application"],
-        "thesis/architecture/03-application-layer.md",
+        "thesis/architecture/04-application-layer.md",
     ),
     (
         "Studio",
         "studio",
         ["src_thesis.studio"],
-        "thesis/architecture/04-presentation.md",
+        "thesis/architecture/05-presentation.md",
     ),
 ]
 _API_PAGES: dict[str, str] = {}

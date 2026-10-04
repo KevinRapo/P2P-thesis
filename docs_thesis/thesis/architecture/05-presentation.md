@@ -1,97 +1,28 @@
-# 04. Presentation: Studio and CLI
+# 05. Presentation: Studio and CLI
 
-> How people reach the system: the NiceGUI Studio (§0–§5: shell, pages, what each page contains, which services it calls and how pages lead into each other; structure, not visual design) and the CLI (§6). Both call only the application layer.
-> Master: [README.md](README.md) · Services: [03-application-layer.md](03-application-layer.md).
+> `src_thesis/studio/` and the planned `src_thesis/cli.py`: how people reach the system. Both call only the application layer (04).
+> Master: [README.md](README.md) · Services: [04-application-layer.md](04-application-layer.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Functions: docstrings in [the code](../../../src_thesis/studio/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
 
-- [0. Implementation status (scaffold, 2026-09-23)](#0-implementation-status-scaffold-2026-09-23)
-- [1. Principles](#1-principles)
-- [2. Shell (every page)](#2-shell-every-page)
-- [3. Page map and flow](#3-page-map-and-flow)
-- [4. Pages](#4-pages)
-  - [4.1 Home (`/`)](#41-home-)
-  - [4.2 Grid (`/build/grid`)](#42-grid-buildgrid)
-  - [4.3 Participants (`/build/participants`)](#43-participants-buildparticipants)
-  - [4.4 Market & DSO (`/build/market`)](#44-market--dso-buildmarket)
-  - [4.5 Summary (`/build/summary`)](#45-summary-buildsummary)
-  - [4.6 Design (`/experiment/design`)](#46-design-experimentdesign)
-  - [4.7 Validate (`/experiment/validate`)](#47-validate-experimentvalidate)
-  - [4.8 Runs (`/runs`)](#48-runs-runs)
-  - [4.9 Results (`/results/{run_id}`)](#49-results-resultsrun_id)
-  - [4.10 Compare (`/compare`)](#410-compare-compare)
-  - [4.11 Library (`/library`)](#411-library-library)
-- [5. Build order (R8)](#5-build-order-r8)
-- [6. CLI](#6-cli)
+- [1. Purpose](#1-purpose)
+- [2. At a glance](#2-at-a-glance)
+- [3. Structure in code](#3-structure-in-code)
+- [4. Rules](#4-rules)
+- [5. How a page edits the draft](#5-how-a-page-edits-the-draft)
+- [6. Pages](#6-pages)
+- [7. CLI](#7-cli)
 
 <!-- END toc -->
 
-## 0. Implementation status (scaffold, 2026-09-23)
+## 1. Purpose
 
-Run it with the `marlem` conda env from the repository root: `python -m src_thesis.studio`, then open http://localhost:8080. Settings (port, auto-reload, real or demo services, workspace folder, …) are environment variables that can all be kept in the repository's `.env` file; [.env.example](../../../.env.example) lists every one with its default. A variable set in the terminal or a launch configuration overrides `.env` for that run. Auto-reload is on: saving a `.py` file under `src_thesis/` restarts the server and the open tab reconnects with the new code (`MARLEM_STUDIO_RELOAD=0` switches it off). Because NiceGUI cannot reload a package started with `python -m`, that command runs `app.py` as a script.
-
-| Part | Location | State |
-|---|---|---|
-| Services behind the pages | [application/](../../../src_thesis/application/) | Demo services, except the real grid catalog on the Grid page and real experiment files (presets and the workspace library, 03 §2.1); status per service in [03 §1](03-application-layer.md#1-status-and-wiring) |
-| Studio | [studio/](../../../src_thesis/studio/) | Shell, theme (light and dark), navigation, all pages below with their layout and demo data. Buttons without a service behind them show "not implemented yet". |
-| Guard | [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) | Fails if `studio/` imports anything but `application/`; if `application/` imports MARLEM runtime, pandapower, simbench, Ray or torch (it may use `adapters/` and the grid contract, README §2.1); if anything outside `adapters/` imports pandapower or simbench; or if the demo services load pandapower |
-
-Next steps: form fields write back to the draft file (`ConfigService.save`); typed section models replace the dicts; real services replace the demo ones.
+The Studio lets a researcher build a study, run it and analyse it without writing code; the CLI does the same from scripts and on machines without a browser. Both produce and consume the same experiment file (02), so anything built in the Studio can be run identically from the CLI. The Studio is presentation only: it holds no research state of its own, and every action is a call to an application service.
 
 [↑ Contents](#contents)
 
-## 1. Principles
-
-- Pages call **services only** (03 §2). They never build environments, nets or Ray jobs.
-- The Studio edits **one experiment file** (02). Its output is always a JSON that the CLI could run identically.
-- Long work runs in the **worker**. Closing the browser never affects a run.
-- Unvalidated options are shown **disabled with a reason**, never silently available.
-- Research outcomes are always shown next to, and separately from, RL reward.
-
-[↑ Contents](#contents)
-
-## 2. Shell (every page)
-
-**Why:** The same frame on every page keeps the current draft, its validation state and the running workers always in view.
-
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│ Header: MARLEM Studio │ active draft: <experiment file>      │ validation │
-│         badge (✓ / ⚠ / ✗) │ worker status (idle / running n) │ settings    │
-├──────────────┬───────────────────────────────────────────────────────────┤
-│ Navigation   │ Page content                                              │
-│  Home        │                                                           │
-│  BUILD       │                                                           │
-│   Grid       │                                                           │
-│   Participants│                                                          │
-│   Market & DSO│                                                          │
-│   Summary    │                                                           │
-│  EXPERIMENT  │                                                           │
-│   Design     │                                                           │
-│   Validate   │                                                           │
-│  RUN         │                                                           │
-│   Runs       │                                                           │
-│  ANALYSE     │                                                           │
-│   Results    │                                                           │
-│   Compare    │                                                           │
-│  Library     │                                                           │
-├──────────────┴───────────────────────────────────────────────────────────┤
-│ Footer: notifications / last error with run ID and log link               │
-└──────────────────────────────────────────────────────────────────────────┘
-```
-
-**Session state:**
-- the current **draft experiment file** (typed). The BUILD pages edit its world sections; the EXPERIMENT pages edit its `learning`, `evaluation`, `baselines` and `sweep` sections;
-- the selected run IDs.
-
-Drafts autosave to the library (as experiment files), not to the browser, so a refresh loses nothing.
-
-[↑ Contents](#contents)
-
-## 3. Page map and flow
-
-**Why:** The order follows how a study is built. Validate is the only way to Runs, so a broken file can never start a run.
+## 2. At a glance
 
 ```mermaid
 flowchart LR
@@ -108,166 +39,133 @@ flowchart LR
   Compare -->|open run| Results
 ```
 
-The **BUILD** pages edit the world sections of one draft experiment file (`time`, `grid`, `participants`, `market`, `dso`, `environment`). They can be visited in any order, but they are laid out left to right as a guided sequence. **Validate** is the only gate to **Runs**.
+The pages follow how a study is built. The BUILD pages (Grid → Summary) edit the world sections of one draft experiment file, the EXPERIMENT pages (Design, Validate) its learning plan. **Validate is the only way to Runs**, so a broken file can never start a run.
 
 [↑ Contents](#contents)
 
-## 4. Pages
+## 3. Structure in code
 
-### 4.1 Home (`/`)
+<!-- BEGIN generated:graph studio -->
+```mermaid
+flowchart LR
+  n_studio___main__["__main__"]
+  n_studio_app["app"]
+  n_studio_forms["forms"]
+  n_studio_layout["layout"]
+  n_studio_navigation["navigation"]
+  n_studio_pages__["pages/*"]
+  n_studio_state["state"]
+  n_studio_theme["theme"]
+  subgraph g_components["components/"]
+    n_studio_components_cards["components/cards"]
+    n_studio_components_charts["components/charts"]
+    n_studio_components_tables["components/tables"]
+  end
+  subgraph USES["uses"]
+    n_application_container["application/container"]:::ext
+    n_application_models["application/models"]:::ext
+    n_application_workspace["application/workspace"]:::ext
+    n_env["env"]:::ext
+  end
+  n_studio___main__ --> n_env
+  n_studio___main__ --> n_studio_app
+  n_studio_app --> n_application_workspace
+  n_studio_app --> n_env
+  n_studio_app --> n_studio_pages__
+  n_studio_components_charts --> n_application_models
+  n_studio_components_charts --> n_studio_theme
+  n_studio_forms --> n_application_models
+  n_studio_forms --> n_studio_state
+  n_studio_layout --> n_studio_navigation
+  n_studio_layout --> n_studio_state
+  n_studio_layout --> n_studio_theme
+  n_studio_pages__ --> n_application_models
+  n_studio_pages__ --> n_application_workspace
+  n_studio_pages__ --> n_studio_components_cards
+  n_studio_pages__ --> n_studio_components_charts
+  n_studio_pages__ --> n_studio_components_tables
+  n_studio_pages__ --> n_studio_forms
+  n_studio_pages__ --> n_studio_layout
+  n_studio_pages__ --> n_studio_state
+  n_studio_state --> n_application_container
+  n_studio_state --> n_application_models
+  classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
+```
+<!-- END generated:graph -->
 
-**Why:** The starting point: pick up recent work, or start from one of the paper's cases.
+Arrows are imports; the eleven page modules are drawn as one node (`pages/*`). Generated from the code by `docs_thesis/graphs.py`.
 
-| Region | Content | Services |
-|---|---|---|
-| Status | Repository and environment health (git dirty, deps, validation-plan progress) | `ResultService`, `ConfigService` |
-| Recent | The last drafts and the last runs with their state | `ConfigService.list`, `ExperimentService.list_runs` |
-| Start | "New from preset" (Cases 1–7 on SimBench), "Open file", "Import bundle" | `ConfigService.new_from_preset` |
-
-### 4.2 Grid (`/build/grid`)
-
-**Why:** choose the network and understand it (size, loads, PV, where the voltage is weak) before placing agents; every later choice depends on it.
-
-| Region | Content | Services |
-|---|---|---|
-| Network source | `simbench` (code picker) · `pandapower_builtin` (e.g. IEEE 33-bus, CIGRE) · `pandapower_file` (upload JSON) | `GridCatalogService.list_networks` |
-| Network picker | Filterable list of SimBench codes (voltage level, rural/semi-urban/urban, scenario 0/1/2, bus/load/PV counts) | `GridCatalogService.list_networks` |
-| Topology view | Plotly network from geodata. Buses are coloured by element type; the transformer and external grid are marked. Clicking a bus shows its elements. | `GridCatalogService.topology`, `elements` |
-| Element tables | Loads, sgens, storage: ID, bus, profile type, rated power | `GridCatalogService.elements` |
-| Power-flow preview | Pick a day and step → run one power flow on the unmodified feeder; show voltage colouring, max loadings and violations | `GridCatalogService.preview_powerflow` |
-| Limits and ratings | Voltage band, loading limits; ratings source when the network has none (rule or file) | writes the draft |
-
-### 4.3 Participants (`/build/participants`)
-
-**Why:** define the agents and tie them to buses and profiles (01 §3). Most study-specific decisions happen here, so it has the richest tools.
-
-| Region | Content | Services |
-|---|---|---|
-| Participant table | One row per agent: ID, role label, bus, owned elements, profile source (native, catalog, csv, synthetic), scaling, battery, capacity (derived) | writes the draft |
-| Assignment tools | Add manually · apply rule ("N household+PV buses", "feeder ends", seeded) · import a mapping file · load the [P2] Table 6 roles | `ProfileService.suggest_mapping`, `import_mapping` |
-| Map | The Grid page's topology with participant buses highlighted; click a bus to assign or unassign | `GridCatalogService.topology` |
-| Time window | Resolution (15 min / hourly), day mode (fixed date / range / sampler with held-out share), seed | writes the draft |
-| Profile preview | For the selected agent: generation, demand and net over the window; overlay of the background total | `ProfileService.preview` |
-| Battery editor | Capacity, SoC limits, efficiencies, power limit, or "from owned storage" | writes the draft |
-| Inline checks | Duplicate owner, bus mismatch, profile above `q_max`, shown as they happen | `ValidationService.validate` (partial) |
-
-### 4.4 Market & DSO (`/build/market`)
-
-**Why:** The economic side of the world: market rules, DSO tariffs and fees, and what agents observe and are rewarded for.
-
-| Region | Content |
+| File | What it is for |
 |---|---|
-| Market | Clearing mechanism, price and quantity bounds, partner preference (RL or rule-based), ledger difficulty |
-| DSO | Tariff source (CSV / synthetic, normalised), fee factors and thresholds (congestion fees active only in feedback mode) |
-| Environment | Observation and reward version with their weights, reputation weights, assessment mode (`shadow` / `feedback`), forecast error, async orders |
-| Preview | Tariff curves over the time window, drawn beside the participants' net profile |
+| `__main__`, `app` | Start the server (`python -m src_thesis.studio`); `app` imports every page module, which registers its URL, and calls `ui.run` |
+| `state` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
+| `layout` | `shell()`: header, navigation, footer and title around every page; `navigation` lists the menu, `theme` the colours |
+| `forms` | `DraftForm`: ties page controls to fields of the draft and saves only what changed |
+| `components/` | Reusable building blocks without service calls: cards and stat tiles, tables, Plotly figures |
+| `pages/*` | One module per page (§6), each an `@ui.page` function |
 
-### 4.5 Summary (`/build/summary`)
-
-**Why:** Check the whole world in one place and save it before designing the learning part.
-
-A read-only summary of the draft:
-- the counts: agents, batteries, energy balance per day;
-- the JSON view and diff against its preset;
-- **Save** / **Save as**, export as a bundle.
-
-Services: `ConfigService.save`, `export_bundle`.
-
-### 4.6 Design (`/experiment/design`)
-
-**Why:** The learning plan: which algorithms, paradigms, seeds and sweeps, and what that costs in runs and time before anything starts.
-
-| Region | Content |
-|---|---|
-| Sweep | Parameters to vary across runs (e.g. `market.mechanism`), grid or zip mode (02 §3.11) |
-| Matrix | Algorithm × paradigm grid of checkboxes (default 3 × 3). Cells that aren't validated yet are disabled with a reason. |
-| Algorithm parameters | One tab per selected algorithm (PPO, APPO, SAC) with its hyperparameters, pre-filled with the original defaults (02 §3.8) |
-| Paradigm options | Reward aggregation (sum/mean), network model (`embeddings_dim`) |
-| Tuning | None or PBT: population size, perturbation interval, mutation domains (checked to contain the initial values) |
-| Seeds and budget | Seed list; budget in environment steps (the same for all cells) |
-| Evaluation | Frequency, episodes, held-out days |
-| Baselines | No-order, random, rule-based |
-| Resources | CPUs per run, parallel runs |
-| Run estimate | Number of runs and estimated time, from the stored benchmarks |
-
-Services: `ConfigService.save`, `ConfigService.expand`, `ExperimentService.estimate`.
-
-### 4.7 Validate (`/experiment/validate`)
-
-**Why:** The only gate to running. Each finding links back to the field that needs fixing.
-
-| Region | Content |
-|---|---|
-| Report | Findings grouped by severity and area (schema, data, grid mapping, time, protocol, resources); each finding links to the page and field to fix |
-| Dry run | Result of one simulated step through the factory: shapes, the first power flow, and settlement identities |
-| Launch | Enabled only when there are no errors. Creates the runs and starts the worker, then goes to Runs. |
-
-Services: `ValidationService.validate`, `ExperimentService.create_runs`, `start`.
-
-### 4.8 Runs (`/runs`)
-
-**Why:** Watch and control running work. The page only reads and requests; the worker keeps running whatever the browser does.
-
-| Region | Content |
-|---|---|
-| Queue table | Runs grouped by experiment: cell, seed, state, progress, elapsed and ETA |
-| Run drawer | Live log tail, current iteration, latest evaluation, resource use; **Cancel** |
-| Filters | By experiment, state, network |
-
-Services: `ExperimentService.list_runs`, `snapshot`, `cancel` (polled every 1–2 s).
-
-### 4.9 Results (`/results/{run_id}`)
-
-**Why:** One run in depth: the outcomes, the learning curve, and a step-by-step replay that shows why a policy behaves the way it does.
-
-| Tab | Content | Services |
-|---|---|---|
-| Overview | Research outcomes (served/unmet demand, curtailment, P2P share, costs, violations, losses) beside RL return. Manifest and data status. | `ResultService.summary` |
-| Learning | Training and evaluation curves; the baselines drawn as reference lines | `training_curve` |
-| Episode replay | A step slider: orders → trades → settlement → grid assessment for one evaluation episode. Market view and grid view (voltage-coloured topology) side by side. | `step_records`, `grid_series` |
-| Grid | Voltage band over time, loadings, violations per element, external-grid exchange | `grid_series` |
-| Agents | Per-agent SoC, net injection, profit, reputation | `step_records` |
-| Export | CSV/JSON of the raw series; publication figures | `export` |
-
-### 4.10 Compare (`/compare`)
-
-**Why:** The thesis questions are comparisons: algorithm × paradigm, feeder against feeder, and this edition against the papers.
-
-- **Matrix view** for an experiment: algorithm × paradigm heat table for any metric (mean ± std over seeds). This is the 3 × 3 result table.
-- **Run overlay**: pick runs and overlay a metric (for example two feeders, or reward v1 vs v2). Runs with different reward versions are flagged as non-comparable.
-- **Paper overlay**: values reported in the papers for the same case (reference data, 03 §4), drawn as reference lines. Nothing from the original is re-run.
-
-Services: `ResultService.matrix`, `compare`.
-
-### 4.11 Library (`/library`)
-
-**Why:** Find and reuse experiment files. The provenance chain shows where every result came from.
-
-- Experiment files and presets: open, clone, delete (drafts only), import and export bundles.
-- Shows the provenance chain: preset → experiment file → runs.
+Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, real or demo services, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
 
 [↑ Contents](#contents)
 
-## 5. Build order (R8)
+## 4. Rules
 
-**Why:** Each step proves one boundary (store, grid, file editing, mapping, launch) before the next one builds on it.
-
-1. **Shell + Runs + Results (Overview and Learning).** Read-only; proves the store and the service boundary.
-2. **Grid page.** Proves the catalog and the power-flow preview without RL.
-3. **Library + Summary + Market & DSO.** Load, edit and save presets.
-4. **Participants.** Mapping and profile tools.
-5. **Design + Validate + launch.**
-6. **Results replay and Grid tabs, then Compare.**
-
-Each step ends with a CLI-equivalence check: the experiment file saved by the Studio, run via the CLI, gives the same manifest hash.
+- **Pages call services only** (04). They never build environments, nets or Ray jobs; importing anything but `application/` from `studio/` fails a test.
+- **One experiment file.** The Studio edits one draft file, saved in the workspace library after every applied change, so a reload or another browser loses nothing. Its output is always a JSON the CLI could run identically.
+- **Long work runs in the worker.** Closing the browser never affects a run; the Runs page only reads and requests.
+- **Unvalidated options are disabled with a reason,** never silently available.
+- **Research outcomes are shown next to, and separate from, RL reward.**
 
 [↑ Contents](#contents)
 
-## 6. CLI
+## 5. How a page edits the draft
 
-**Why:** Scripted and headless runs (batch jobs, a server without a browser), and a check that the Studio adds nothing the experiment file cannot express.
+Every page is built when it is opened, from the draft file; edits go through the service and the page is rebuilt from the saved file.
 
-`python -m src_thesis.cli …`, exposed as `marlem …` once packaged (not built yet). Each command is a thin wrapper around one service method (03 §2):
+```mermaid
+sequenceDiagram
+  participant B as Browser
+  participant P as page function
+  participant F as DraftForm
+  participant C as ConfigService
+  participant W as library file
+  B->>P: open /build/market
+  P->>C: current_draft() → load
+  C->>W: read <id>.marlem.json
+  P->>F: bind(path, control) for each editable control (remembers start values)
+  B->>F: click "Apply to draft"
+  F->>F: changes(): controls whose value differs from the start
+  F->>C: update(draft, changes) → validated copy
+  F->>C: save(copy)
+  C->>W: write atomically
+  F->>B: reload → page rebuilt from the file, notification shown
+```
+
+The shell around every page shows the draft (opens Summary), its validation state (opens Validate), the running workers (opens Runs) and which services are real.
+
+[↑ Contents](#contents)
+
+## 6. Pages
+
+| Page | Route | For | Contents | Services |
+|---|---|---|---|---|
+| Home | `/` | Pick up recent work or start from a paper case | Health, recent drafts and runs, "new from preset" (Cases 1–7) | Config, Experiment |
+| Grid | `/build/grid` | Choose and understand the network before placing agents | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings | GridCatalog; writes `grid.*` |
+| Participants | `/build/participants` | Define the agents and tie them to buses and profiles (01 §3) | Participant table, assignment tools (manual, rule, mapping file, [P2] Table 6 roles), map, time window, profile preview, battery editor, inline checks | Profile, GridCatalog, Validation; writes `participants`, `time` |
+| Market & DSO | `/build/market` | The economic side: market rules, tariffs and fees, observation and reward | Mechanism and bounds, partner preference, ledger; tariff source and fee factors; observation and reward versions, assessment mode; tariff preview | Profile; writes `market`, `dso`, `environment`, `grid.assessment` |
+| Summary | `/build/summary` | Check and save the whole world before the learning plan | Counts, JSON view, save, save as, export bundle, diff against the origin preset | Config |
+| Design | `/experiment/design` | The learning plan and what it costs | Sweep, algorithm × paradigm matrix, hyperparameters per algorithm, paradigm options, tuning (PBT), seeds and budget, evaluation, baselines, resources, run estimate | Config, Experiment; writes `learning`, `evaluation`, `baselines`, `sweep`, `resources` |
+| Validate | `/experiment/validate` | The only gate to running | Findings by severity and area, each linking to its page and field; dry run; launch (disabled while there are errors) | Validation, Experiment |
+| Runs | `/runs` | Watch and control running work | Queue table, run drawer with log tail and cancel, filters; polled every 2 s | Experiment |
+| Results | `/results/{run_id}` | One run in depth | Outcomes beside RL return, learning curves with baselines, step-by-step episode replay (market and grid side by side), grid series, per-agent series, export | Result |
+| Compare | `/compare` | The thesis comparisons | Algorithm × paradigm matrix (mean ± std over seeds), run overlays (different reward versions flagged), paper reference values | Result |
+| Library | `/library` · `/settings` | Find and reuse files; choose the workspace folder | Presets and files (open, clone, delete, import, export), provenance preset → file → runs; Settings | Config |
+
+[↑ Contents](#contents)
+
+## 7. CLI
+
+Not built yet. `python -m src_thesis.cli …` (later `marlem …`), each command a thin wrapper around one service method:
 
 ```text
 marlem new <preset> -o my.marlem.json          ConfigService.new_from_preset + save
@@ -287,8 +185,6 @@ marlem export <run_id>... --fmt csv            ResultService.export
 marlem bundle <file>                           ConfigService.export_bundle
 ```
 
-`marlem run` keeps polling the worker pool until its runs finish (`WorkerPool.wait_all`, 05 §3.11); the Studio polls with a timer instead.
-
-Notebooks call the same services. The case notebooks become short: load a preset → `ExperimentService` → plot from `ResultService`.
+`marlem run` waits for its runs by polling the worker pool; the Studio polls with a timer instead. Notebooks call the same services.
 
 [↑ Contents](#contents)

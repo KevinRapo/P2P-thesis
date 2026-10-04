@@ -13,9 +13,9 @@
 - [3. Code, by layer](#3-code-by-layer)
   - [3.1 MARLEM (domain)](#31-marlem-domain)
   - [3.2 Adapters](#32-adapters)
-  - [3.3 Experiment layer (`src_thesis/experiments/`, 05)](#33-experiment-layer-src_thesisexperiments-05)
-  - [3.4 Application layer (`src_thesis/application/`, 03)](#34-application-layer-src_thesisapplication-03)
-- [4. Studio, page by page (`src_thesis/studio/`, 04)](#4-studio-page-by-page-src_thesisstudio-04)
+  - [3.3 Experiment layer (`src_thesis/experiments/`, 03)](#33-experiment-layer-src_thesisexperiments-03)
+  - [3.4 Application layer (`src_thesis/application/`, 04)](#34-application-layer-src_thesisapplication-04)
+- [4. Studio, page by page (`src_thesis/studio/`, 05)](#4-studio-page-by-page-src_thesisstudio-05)
 - [5. How to verify each working part](#5-how-to-verify-each-working-part)
 - [6. Next steps (in the order proposed)](#6-next-steps-in-the-order-proposed)
 
@@ -74,7 +74,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | pandapower grid adapter ([simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py)) | 🟡 | [test_grid_catalog.py](../../../tests/test_grid_catalog.py) | Catalog part done. `SimBenchGrid` (the step-time model) is a stub that raises |
 | SimBench profile source (`adapters/profiles/simbench.py`) | ⬜ | — | The existing `adapters/profiles/` is the original CSV / synthetic code |
 
-### 3.3 Experiment layer (`src_thesis/experiments/`, 05)
+### 3.3 Experiment layer (`src_thesis/experiments/`, 03)
 
 | Module | Status | Tests |
 |---|---|---|
@@ -86,7 +86,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | `worker/process`, `worker/pool` | ✅ | test_experiments.py (real subprocesses) |
 | Presets (`experiments/presets/`) | 🟡 all 7 load, resolve and expand; placeholder mapping; sweeps for Case 1 only | [test_config_service.py](../../../tests/test_config_service.py) |
 
-### 3.4 Application layer (`src_thesis/application/`, 03)
+### 3.4 Application layer (`src_thesis/application/`, 04)
 
 | Service | Status | Tests | What the real one does / what the demo fakes |
 |---|---|---|---|
@@ -101,7 +101,7 @@ Which implementation the Studio uses is shown in its footer (`services: demo · 
 
 [↑ Contents](#contents)
 
-## 4. Studio, page by page (`src_thesis/studio/`, 04)
+## 4. Studio, page by page (`src_thesis/studio/`, 05)
 
 "Writes" lists the experiment-file fields a page saves; everything else on the page is read-only or a placeholder ("not implemented yet").
 
