@@ -86,6 +86,7 @@ flowchart LR
   n_studio_layout --> n_studio_navigation
   n_studio_layout --> n_studio_state
   n_studio_layout --> n_studio_theme
+  n_studio_pages__ --> n_application_container
   n_studio_pages__ --> n_application_models
   n_studio_pages__ --> n_application_workspace
   n_studio_pages__ --> n_studio_components_cards
@@ -109,7 +110,7 @@ Arrows are imports; the eleven page modules are drawn as one node (`pages/*`). G
 | `state` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
 | `layout` | `shell()`: header, navigation, footer and title around every page; `navigation` lists the menu, `theme` the colours |
 | `forms` | `DraftForm`: ties page controls to fields of the draft and saves only what changed |
-| `components/` | Reusable building blocks without service calls: cards and stat tiles, tables, Plotly figures |
+| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, and `network` (picker, facts, topology, elements, profile inspector), the only component that calls services; shared by Grid and Inspect |
 | `pages/*` | One module per page (§6), each an `@ui.page` function |
 
 Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
