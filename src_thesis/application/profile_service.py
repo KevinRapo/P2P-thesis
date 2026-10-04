@@ -155,6 +155,41 @@ class ProfileService:
             y_label=f"{quantity} (factor of rated power)",
         )
 
+    def profile_power(
+        self,
+        source: NetworkSource,
+        codes: list[str],
+        start: str,
+        days: int = 7,
+        resolution: str = "hourly",
+        quantity: str = "p",
+        per_element: bool = False,
+    ) -> Series:
+        """SimBench profiles scaled by the rated power of the elements using them.
+
+        Built: each element's power is its profile factor times its rated power
+        (SimBench's absolute values), summed per profile or shown per element.
+
+        Args:
+            source: The network.
+            codes: Profile names, as returned by ``profile_types``.
+            start: First day (``YYYY-MM-DD``, in the profile year 2016).
+            days: Length of the window in days.
+            resolution: ``"15min"`` (raw), ``"hourly"`` or ``"daily"`` (means).
+            quantity: ``"p"`` (kW) or ``"q"`` (kvar; loads only).
+            per_element: One series per element instead of one sum per profile.
+
+        Returns:
+            One y series per profile (e.g. "H0-A (6)": its six elements summed) or
+            per element, in kW or kvar.
+        """
+        ref = contract.NetworkRef(source.type, source.code)
+        x, y = adapter.profile_power(
+            ref, codes, start, days, resolution, quantity, per_element
+        )
+        unit = "kW" if quantity == "p" else "kvar"
+        return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")
+
     def preview(self, file: ExperimentFile, participant_id: str) -> Series:
         """Generation, demand and net profile of one participant over time.
 

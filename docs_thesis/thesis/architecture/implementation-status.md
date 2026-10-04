@@ -92,7 +92,7 @@ Only fields you change are written. A field you never touched stays absent from 
 |---|---|---|---|
 | `ConfigService` | ✅ | test_config_service.py | Presets, library, save, clone, delete, update, origin, diff, export bundle. Not yet: `import_bundle`, `json_schema` |
 | `GridCatalogService` | ✅ | test_grid_catalog.py | Networks, topology, elements, power-flow preview |
-| `ProfileService` | 🟡 | test_grid_catalog.py | Built: `profile_types` and `profile_series` read a network's real SimBench profiles (Grid page inspector). Sample data: `preview`, `suggest_mapping`, `days`, `tariffs` |
+| `ProfileService` | 🟡 | test_grid_catalog.py | Built: `profile_types`, `profile_series` and `profile_power` read a network's real SimBench profiles, as factors and scaled to the elements' rated power in kW (Inspect page). Sample data: `preview`, `suggest_mapping`, `days`, `tariffs` |
 | `ValidationService` | 🎭 | — | Findings and the dry run are fixed samples; no real check runs |
 | `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
 | `ResultService` | 🎭 | — | All results, curves, matrices and replays are sample data |

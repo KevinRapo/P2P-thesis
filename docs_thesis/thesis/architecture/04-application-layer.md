@@ -116,7 +116,7 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 |---|---|---|
 | `config_service.py` | `ConfigService`: presets from the repository, files in the workspace library | built |
 | `grid_catalog_service.py` | `GridCatalogService`: networks via the pandapower adapter | built |
-| `profile_service.py` | `ProfileService`: `profile_types` and `profile_series` read the network's SimBench profiles | partly built; the rest sample data until R3 |
+| `profile_service.py` | `ProfileService`: `profile_types`, `profile_series` and `profile_power` read the network's SimBench profiles | partly built; the rest sample data until R3 |
 | `validation_service.py` | `ValidationService` | sample data until R6–R7 |
 | `experiment_service.py` | `ExperimentService` | sample data until R7 |
 | `result_service.py` | `ResultService` | sample data until R7 |

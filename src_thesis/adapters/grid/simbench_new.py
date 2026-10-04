@@ -490,6 +490,39 @@ def profile_catalog(ref: NetworkRef) -> list[ProfileRecord]:
     return sorted(out, key=lambda r: (PROFILE_TABLES.index(r.table), r.name))
 
 
+def _window(start: str, days: int, resolution: str) -> tuple[date, int, int, int]:
+    """(first day, first row, last row, rows per output value) of a time window."""
+    d = date.fromisoformat(start)
+    if d.year != SIMBENCH_YEAR:
+        raise ValueError(f"SimBench profiles cover {SIMBENCH_YEAR}; got {start}")
+    if resolution not in RESOLUTION_ROWS:
+        raise ValueError(f"resolution must be one of {list(RESOLUTION_ROWS)}")
+    year_days = (date(SIMBENCH_YEAR + 1, 1, 1) - date(SIMBENCH_YEAR, 1, 1)).days
+    first = (d - date(SIMBENCH_YEAR, 1, 1)).days * 24 * ROWS_PER_HOUR
+    last = min(first + days * 24 * ROWS_PER_HOUR, year_days * 24 * ROWS_PER_HOUR)
+    return d, first, last, RESOLUTION_ROWS[resolution]
+
+
+def _labels(d: date, count: int, step: int, resolution: str) -> list[str]:
+    """Time labels counted from the row (15 min each), like ``profile_rows``.
+
+    SimBench's own time column is local time and jumps an hour at the
+    daylight-saving switch, which would shift the labels against the rows.
+    """
+    begin = datetime(d.year, d.month, d.day)
+    fmt = "%Y-%m-%d" if resolution == "daily" else "%Y-%m-%d %H:%M"
+    return [
+        (begin + timedelta(minutes=15 * step * i)).strftime(fmt) for i in range(count)
+    ]
+
+
+def _aggregate(values: Any, first: int, last: int, step: int) -> list[float]:
+    """Mean of every ``step`` rows of a column between ``first`` and ``last``."""
+    block = values.iloc[first:last]
+    means = block.groupby([i // step for i in range(len(block))]).mean()
+    return [float(v) for v in means]
+
+
 def profile_series(
     ref: NetworkRef,
     names: Sequence[str],
@@ -498,7 +531,7 @@ def profile_series(
     resolution: str = "hourly",
     quantity: str = "p",
 ) -> tuple[list[str], dict[str, list[float]]]:
-    """Values of the given profiles over a time window.
+    """Values of the given profiles over a time window, as factors of rated power.
 
     Args:
         ref: The network.
@@ -509,41 +542,73 @@ def profile_series(
         quantity: ``"p"`` or ``"q"`` (only loads have ``q``).
 
     Returns:
-        Time labels (standard time, counted in 15-minute rows from 1 January, as
-        everywhere in this adapter) and, per profile name, its values (factors of
-        rated power).
+        Time labels (standard time, counted in 15-minute rows from 1 January) and,
+        per profile name, its values (factors of rated power).
     """
-    d = date.fromisoformat(start)
-    if d.year != SIMBENCH_YEAR:
-        raise ValueError(f"SimBench profiles cover {SIMBENCH_YEAR}; got {start}")
-    if resolution not in RESOLUTION_ROWS:
-        raise ValueError(f"resolution must be one of {list(RESOLUTION_ROWS)}")
+    d, first, last, step = _window(start, days, resolution)
     net = _load(ref)
     columns = _profile_columns(net)
-    first = (d - date(SIMBENCH_YEAR, 1, 1)).days * 24 * ROWS_PER_HOUR
-    step = RESOLUTION_ROWS[resolution]
-    labels: list[str] = []
     values: dict[str, list[float]] = {}
     for table, name in columns:
-        if name not in names or quantity not in columns[(table, name)]:
+        if name in names and quantity in columns[(table, name)]:
+            column = net.profiles[table][columns[(table, name)][quantity]]
+            values[name] = [round(v, 4) for v in _aggregate(column, first, last, step)]
+    count = len(next(iter(values.values()), []))
+    return _labels(d, count, step, resolution), values
+
+
+def profile_power(
+    ref: NetworkRef,
+    names: Sequence[str],
+    start: str,
+    days: int,
+    resolution: str = "hourly",
+    quantity: str = "p",
+    per_element: bool = False,
+) -> tuple[list[str], dict[str, list[float]]]:
+    """The profiles scaled by the rated power of the elements that use them, in kW.
+
+    Each element's time series is its profile factor times its own rated power
+    (SimBench's absolute values, ``simbench.get_absolute_values``): the power it
+    draws or feeds in on the unmodified network.
+
+    Args:
+        ref: The network.
+        names: Profile names (as in ``profile_catalog``).
+        start: First day, ``YYYY-MM-DD`` in the profile year.
+        days: Number of days; clipped at the end of the year.
+        resolution: ``"15min"`` (raw), ``"hourly"`` or ``"daily"`` (means).
+        quantity: ``"p"`` (kW) or ``"q"`` (kvar; loads only).
+        per_element: One series per element instead of one sum per profile.
+
+    Returns:
+        Time labels and, per profile (or per element), its power in kW or kvar.
+    """
+    d, first, last, step = _window(start, days, resolution)
+    net = _load(ref)
+    absolute = _absolute_profiles(ref)
+    column = {"p": "p_mw", "q": "q_mvar"}[quantity]
+    values: dict[str, list[float]] = {}
+    for table, name in _profile_columns(net):
+        if name not in names:
             continue
-        df = net.profiles[table]
-        last = min(first + days * 24 * ROWS_PER_HOUR, len(df))
-        block = df.iloc[first:last]
-        groups = [i // step for i in range(len(block))]
-        series = block[columns[(table, name)][quantity]].groupby(groups).mean()
-        values[name] = [round(float(v), 4) for v in series]
-        if not labels:
-            # Counted from the row (15 min each), like profile_rows; SimBench's own
-            # time column is local time and jumps an hour at the daylight-saving
-            # switch, which would shift the labels against the rows.
-            begin = datetime(d.year, d.month, d.day)
-            fmt = "%Y-%m-%d" if resolution == "daily" else "%Y-%m-%d %H:%M"
-            labels = [
-                (begin + timedelta(minutes=15 * step * i)).strftime(fmt)
-                for i in range(len(series))
-            ]
-    return labels, values
+        element_table = PROFILE_USERS[table]
+        frame = absolute.get((element_table, column))
+        users = getattr(net, element_table)
+        if frame is None or "profile" not in users:
+            continue
+        ids = [i for i in users.index[users["profile"] == name] if i in frame.columns]
+        if not ids:
+            continue
+        if per_element:
+            for i in ids:
+                kw = _aggregate(frame[i] * 1000, first, last, step)
+                values[str(users.at[i, "name"])] = [round(v, 3) for v in kw]
+        else:
+            kw = _aggregate(frame[ids].sum(axis=1) * 1000, first, last, step)
+            values[f"{name} ({len(ids)})"] = [round(v, 3) for v in kw]
+    count = len(next(iter(values.values()), []))
+    return _labels(d, count, step, resolution), values
 
 
 def profile_rows(day: str, hour: int) -> range:

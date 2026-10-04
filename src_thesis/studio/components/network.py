@@ -244,9 +244,12 @@ class ElementsTable:
 
 
 class ProfileInspector:
-    """The network's SimBench profiles: a selectable table and a plot.
+    """The network's SimBench profiles: a selectable table and two plots.
 
-    Values are factors of an element's rated power (1.0 = rated power).
+    The first plot shows the profiles as SimBench stores them, factors of an
+    element's rated power (1.0 = rated power). The second shows them scaled by the
+    rated power of the network's elements that use them, in kW: the power they
+    draw or feed in on the unmodified network.
 
     Args:
         services: The services (``profiles.profile_types`` / ``profile_series``).
@@ -288,7 +291,26 @@ class ProfileInspector:
                         .tooltip("Active or reactive power; only loads have Q")
                     )
                 self.plot_box = ui.column().classes("w-full")
-        for control in (self.day, self.span, self.resolution, self.quantity):
+        with ui.row().classes("items-center gap-3 w-full q-mt-sm"):
+            with ui.column().classes("gap-0"):
+                ui.label("Scaled to the network's elements").classes(
+                    "text-body2 text-weight-medium"
+                )
+                ui.label(
+                    "Profile factor × the rated power of each element that uses it"
+                ).classes("mls-card-caption")
+            ui.space()
+            self.per_element = ui.toggle(
+                {False: "Sum per profile", True: "Per element"}, value=False
+            ).props("no-caps dense")
+        self.power_box = ui.column().classes("w-full")
+        for control in (
+            self.day,
+            self.span,
+            self.resolution,
+            self.quantity,
+            self.per_element,
+        ):
             control.on_value_change(lambda: self.plot())
 
     async def show(self, source: NetworkSource) -> None:
@@ -344,26 +366,39 @@ class ProfileInspector:
         if self.source is None:
             return
         if not self.selected:
-            self.plot_box.clear()
-            with self.plot_box:
-                ui.label("Select profiles in the table.").classes("mls-card-caption")
+            for box in (self.plot_box, self.power_box):
+                box.clear()
+                with box:
+                    ui.label("Select profiles in the table.").classes(
+                        "mls-card-caption"
+                    )
             return
-        busy(self.plot_box, "Reading profiles …")
+        window = (
+            self.source,
+            self.selected,
+            self.day.value,
+            int(self.span.value),
+            self.resolution.value,
+            self.quantity.value,
+        )
+        await self._draw(self.plot_box, self.services.profiles.profile_series, window)
+        await self._draw(
+            self.power_box,
+            self.services.profiles.profile_power,
+            (*window, bool(self.per_element.value)),
+        )
+
+    @staticmethod
+    async def _draw(box: ui.element, read, args: tuple) -> None:
+        """Read one series in a worker thread and plot it into ``box``."""
+        busy(box, "Reading profiles …")
         try:
-            series = await run.io_bound(
-                self.services.profiles.profile_series,
-                self.source,
-                self.selected,
-                self.day.value,
-                int(self.span.value),
-                self.resolution.value,
-                self.quantity.value,
-            )
+            series = await run.io_bound(read, *args)
         except Exception as e:  # noqa: BLE001
-            failed(self.plot_box, e)
+            failed(box, e)
             return
-        self.plot_box.clear()
-        with self.plot_box:
+        box.clear()
+        with box:
             if not series.y:
                 ui.label(
                     "No values: reactive power (Q) exists only for load profiles."

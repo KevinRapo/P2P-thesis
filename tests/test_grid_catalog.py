@@ -97,3 +97,21 @@ def test_simbench_profiles_can_be_inspected() -> None:
     assert len(year.x) == 366
     assert profiles.profile_series(LV, ["PV5"], "2016-06-15", 1, "hourly", "q").y == {}
     assert profiles.profile_types(CASE33) == []
+
+
+def test_profiles_scaled_by_rated_power() -> None:
+    profiles = build_services().profiles
+    factor = profiles.profile_series(LV, ["H0-A"], "2016-06-15", 1, "hourly")
+    summed = profiles.profile_power(LV, ["H0-A"], "2016-06-15", 1, "hourly")
+    per_element = profiles.profile_power(
+        LV, ["H0-A"], "2016-06-15", 1, "hourly", per_element=True
+    )
+    h0a = next(t for t in profiles.profile_types(LV) if t.code == "H0-A")
+    assert summed.x == factor.x and summed.y_label == "p (kW)"
+    assert list(summed.y) == [f"H0-A ({h0a.elements})"]
+    assert len(per_element.y) == h0a.elements
+    # The sum over the elements equals the per-element series added up.
+    total = [sum(v) for v in zip(*per_element.y.values())]
+    assert all(
+        abs(a - b) < 1e-2 for a, b in zip(summed.y[f"H0-A ({h0a.elements})"], total)
+    )
