@@ -22,6 +22,7 @@ from src_thesis.application.models import (
 )
 from src_thesis.studio.components.cards import not_implemented
 from src_thesis.studio.components.charts import line_figure, topology_figure
+from src_thesis.studio.components.profiles import ProfileOverview
 from src_thesis.studio.components.tables import data_table
 
 SOURCE_LABELS = {
@@ -275,7 +276,8 @@ class ProfileInspector:
     draw or feed in on the unmodified network.
 
     With ``catalogue=True`` it shows SimBench's complete profile catalogue instead
-    of one network's profiles, without the scaled plot (there are no elements).
+    of one network's profiles, without the scaled plot (there are no elements),
+    and above the table an overview of the profile classes that filters it.
 
     Args:
         services: The services (``profiles.profile_types`` / ``profile_series``).
@@ -288,6 +290,13 @@ class ProfileInspector:
         self.source: NetworkSource | None = None
         self.selected: list[str] = []
         self.loaded = False
+        self.rows: list[dict] = []
+        self.table: ui.table | None = None
+        self.overview = (
+            ProfileOverview(services.profiles.profile_classes(), self.only)
+            if catalogue
+            else None
+        )
         with ui.row().classes("w-full gap-4 items-start no-wrap"):
             self.table_box = ui.column().classes("basis-1/2 min-w-0")
             with ui.column().classes("grow basis-0 min-w-0 gap-2"):
@@ -377,6 +386,8 @@ class ProfileInspector:
         if self.source != source:  # another network was picked meanwhile
             return
         self.loaded = True
+        if self.overview:
+            self.overview.show(types)
         self.table_box.clear()
         with self.table_box:
             if not types:
@@ -416,8 +427,19 @@ class ProfileInspector:
                 .props("flat dense")
             )
             search.bind_value(table, "filter")
+            self.rows, self.table = rows, table
             table.selected = rows[:2]
             table.on_select(lambda e: self.plot([r["code"] for r in e.selection]))
+        await self.plot([r["code"] for r in rows[:2]])
+
+    async def only(self, category: str | None) -> None:
+        """List only the profiles of one class (``None``: all); plot the first two."""
+        if self.table is None:
+            return
+        rows = [r for r in self.rows if category in (None, r["category"])]
+        self.table.rows = rows
+        self.table.selected = rows[:2]
+        self.table.update()
         await self.plot([r["code"] for r in rows[:2]])
 
     async def plot(self, codes: list[str] | None = None) -> None:

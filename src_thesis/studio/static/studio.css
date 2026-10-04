@@ -53,3 +53,15 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--mls-bg); c
 .mls-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; width: 100%; }
 .mls-kv { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; }
 .mls-draft-chip { background: rgba(255,255,255,0.10); border-radius: 16px; padding: 2px 12px 2px 8px; cursor: pointer; }
+
+/* Profile class overview (components/profiles.py), after SimBench's Figure 1 */
+.mls-pgroup { background: var(--mls-bg); border: 1px solid var(--mls-border); border-radius: 10px; padding: 8px 10px; }
+.mls-pgroup-title { font-weight: 600; font-size: 0.9rem; }
+.mls-psub-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--mls-muted); cursor: help; }
+.mls-ptile { min-width: 64px; padding: 4px 10px; border-radius: 8px; cursor: pointer; background: var(--mls-surface);
+  border: 1.5px solid var(--mls-border); border-left: 5px solid var(--c); align-items: flex-start; transition: box-shadow 0.15s; }
+.mls-ptile:hover { box-shadow: 0 1px 6px rgba(15, 23, 42, 0.15); }
+.mls-ptile-active { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--mls-surface)); }
+.mls-ptile-empty { opacity: 0.45; cursor: default; border-style: dashed; }
+.mls-ptile-label { font-weight: 600; font-size: 0.85rem; white-space: nowrap; }
+.mls-ptile-count { font-size: 1.1rem; font-weight: 700; color: var(--c); line-height: 1.2; }

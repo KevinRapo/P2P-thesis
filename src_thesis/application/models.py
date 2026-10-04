@@ -174,12 +174,53 @@ class PowerFlowPreview(BaseModel):
 # --------------------------------------------------------------------------- profiles
 
 
+ProfileCategory = Literal[
+    "household",
+    "commercial",
+    "agricultural",
+    "special_slp",
+    "heat_pump",
+    "ev",
+    "pv",
+    "wind",
+    "biomass",
+    "hydro",
+    "power_plant",
+    "storage",
+    "hv_grid",
+    "grid",
+    "exchange",
+    "other",
+]
+
+
+class ProfileClass(BaseModel):
+    """One class of SimBench profiles, grouped as in SimBench's own overview of its
+    time series (Meinecke et al., 2020, Figure 1).
+
+    Attributes:
+        key: The category, as in ``ProfileType.category``.
+        group: ``"Load"``, ``"Generation"``, ``"Storage"`` or ``"Aggregated grids"``.
+        subgroup: ``"Accumulated"`` or ``"Individual"`` for loads, else ``""``.
+        label: Short label as in SimBench's figure, e.g. ``"H"`` or ``"PV"``.
+        name: Readable name, e.g. ``"Households"``.
+        description: What the profiles describe and how they are named.
+    """
+
+    key: ProfileCategory
+    group: str
+    subgroup: str = ""
+    label: str
+    name: str
+    description: str
+
+
 class ProfileType(BaseModel):
     """A profile that can be assigned to a participant (SimBench catalogue).
 
     Attributes:
         code: Profile name, e.g. ``"H0-B"`` (household) or ``"PV3"``.
-        category: What kind of load or generation it describes.
+        category: Its class (see ``ProfileClass``).
         description: Readable explanation.
         table: SimBench profile table it comes from (``load``, ``renewables``, …).
         quantities: ``["p"]``, or ``["p", "q"]`` for loads.
@@ -189,18 +230,7 @@ class ProfileType(BaseModel):
     """
 
     code: str
-    category: Literal[
-        "household",
-        "commercial",
-        "agricultural",
-        "pv",
-        "wind",
-        "biomass",
-        "storage",
-        "hydro",
-        "power_plant",
-        "other",
-    ]
+    category: ProfileCategory
     description: str = ""
     table: str = ""
     quantities: list[str] = Field(default_factory=lambda: ["p"])

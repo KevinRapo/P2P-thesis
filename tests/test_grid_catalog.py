@@ -106,8 +106,16 @@ def test_complete_simbench_profile_catalogue() -> None:
     assert types["H0-A"].category == "household"
     assert types["WP4"].category == "wind"
     assert types["Hydro1"].category == "hydro"
-    pp = [t for t in types.values() if t.table == "powerplants"]
+    assert types["Air_Parallel_1"].category == "heat_pump"
+    assert types["HLS_A_11.0"].category == "ev"
+    assert types["HS0"].category == "hv_grid"
+    assert types["lv_rural1"].category == "grid"
+    assert types["imp0"].category == "exchange"
+    pp = [t for t in types.values() if t.code.startswith("pp_")]
     assert pp and all(t.category == "power_plant" for t in pp)
+    # Every profile falls into one of SimBench's classes.
+    keys = {c.key for c in profiles.profile_classes()}
+    assert {t.category for t in types.values()} <= keys
     assert all(t.elements == 0 for t in types.values())
     day = profiles.catalogue_series(["H0-A", "WP4"], "2016-06-15", 1, "hourly")
     assert len(day.x) == 24 and set(day.y) == {"H0-A", "WP4"}

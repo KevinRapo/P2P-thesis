@@ -9,7 +9,12 @@ the Grid page.
 from nicegui import run, ui
 
 from src_thesis.application.container import Services
-from src_thesis.application.models import NetworkSource, Series
+from src_thesis.application.models import (
+    NetworkSource,
+    ProfileClass,
+    ProfileType,
+    Series,
+)
 from src_thesis.studio.components.cards import section
 from src_thesis.studio.components.charts import line_figure
 from src_thesis.studio.components.network import (
@@ -29,16 +34,6 @@ from src_thesis.studio.layout import shell
 from src_thesis.studio.state import services
 
 COMPARE_DEFAULT = {"type": "simbench", "code": "1-LV-rural1--0-sw"}
-CATEGORIES = [
-    "household",
-    "commercial",
-    "agricultural",
-    "pv",
-    "wind",
-    "biomass",
-    "storage",
-    "other",
-]
 
 
 @ui.page("/build/inspect")
@@ -156,6 +151,7 @@ def _compare_tab(s: Services) -> None:
     # Per side ("a", "b"): the network with its summary, topology and profile list,
     # so the comparison can be redrawn when either side changes.
     state: dict = {"a": {}, "b": {}}
+    all_classes = s.profiles.profile_classes()
 
     with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
         for side, label, initial in (
@@ -210,14 +206,23 @@ def _compare_tab(s: Services) -> None:
                 row_key="fact",
                 pagination=0,
             )
+            # Only the classes either network uses, so the bars stay readable.
+            classes = [
+                c
+                for c in all_classes
+                if any(t.category == c.key for t in a["types"] + b["types"])
+            ]
             ui.label("Elements per profile category").classes(
                 "text-body2 text-weight-medium"
             )
             ui.plotly(
                 line_figure(
                     Series(
-                        x=CATEGORIES,
-                        y={"A": _mix(a["types"]), "B": _mix(b["types"])},
+                        x=[c.label for c in classes],
+                        y={
+                            "A": _mix(a["types"], classes),
+                            "B": _mix(b["types"], classes),
+                        },
                         y_label="elements",
                     ),
                     height=260,
@@ -270,20 +275,12 @@ def _profiles_tab(s: Services) -> ProfileInspector:
         "power; a network ships only the ones its elements use",
         "show_chart",
     ):
-        ui.label(
-            "Naming: H0-… households · G0 … G6 commercial (Gewerbe) · L0 … L2 "
-            "agricultural (Landwirtschaft) · PV · WP wind (Windpark) · BM biomass "
-            "· Hydro · pp_… individual power plants. Other names (APLS…, Air_…, "
-            "BL-H, grid-level profiles such as lv_rural1) are further SimBench "
-            "profiles, described in the SimBench documentation. Search filters "
-            "every column."
-        ).classes("mls-card-caption")
         return ProfileInspector(s, catalogue=True)
 
 
-def _mix(types) -> list[int]:
-    """Number of elements per profile category, in ``CATEGORIES`` order."""
-    counts = dict.fromkeys(CATEGORIES, 0)
+def _mix(types: list[ProfileType], classes: list[ProfileClass]) -> list[int]:
+    """Number of elements per profile class, in the order of ``classes``."""
+    counts: dict[str, int] = {}
     for t in types:
         counts[t.category] = counts.get(t.category, 0) + t.elements
-    return [counts[c] for c in CATEGORIES]
+    return [counts.get(c.key, 0) for c in classes]

@@ -61,6 +61,7 @@ flowchart LR
     n_studio_components_cards["components/cards.py"]
     n_studio_components_charts["components/charts.py"]
     n_studio_components_network["components/network.py"]
+    n_studio_components_profiles["components/profiles.py"]
     n_studio_components_tables["components/tables.py"]
   end
   subgraph USES["uses"]
@@ -80,7 +81,9 @@ flowchart LR
   n_studio_components_network --> n_application_models
   n_studio_components_network --> n_studio_components_cards
   n_studio_components_network --> n_studio_components_charts
+  n_studio_components_network --> n_studio_components_profiles
   n_studio_components_network --> n_studio_components_tables
+  n_studio_components_profiles --> n_application_models
   n_studio_forms --> n_application_models
   n_studio_forms --> n_studio_state
   n_studio_layout --> n_studio_navigation
@@ -110,7 +113,7 @@ Arrows are imports; the eleven page modules are drawn as one node (`pages/*.py`)
 | `state.py` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
 | `layout.py` | `shell()`: header, navigation, footer and title around every page; `navigation.py` lists the menu, `theme.py` the colours |
 | `forms.py` | `DraftForm`: ties page controls to fields of the draft and saves only what changed |
-| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, and `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services; shared by Grid and Inspect |
+| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services, shared by Grid and Inspect, and `profiles.py` (the overview of SimBench's profile classes) |
 | `pages/*.py` | One module per page (§6), each an `@ui.page` function |
 
 Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
@@ -159,7 +162,7 @@ The shell around every page shows the draft (opens Summary), its validation stat
 | Page | Route | For | Contents | Services |
 |---|---|---|---|---|
 | Home | `/` | Pick up recent work or start from a paper case | Health, recent drafts and runs, "new from preset" (Cases 1–7) | Config, Experiment |
-| Inspect | `/build/inspect` | Get to know networks and their data; compare two networks; browse all SimBench profiles. Read-only | Three tabs. **Network:** facts, topology (click a bus for its elements), elements with their profiles, SimBench profile inspector (select profiles, window, resolution, P/Q) with a second plot of the profiles scaled by the rated power of the elements that use them, in kW (summed per profile or per element). **Compare:** two network pickers; facts side by side, elements per profile category, both topologies, profiles in A and B. **Profiles:** SimBench's complete profile catalogue (458 profiles, not tied to a network), searchable, with the same factor plot | GridCatalog, Profile |
+| Inspect | `/build/inspect` | Get to know networks and their data; compare two networks; browse all SimBench profiles. Read-only | Three tabs. **Network:** facts, topology (click a bus for its elements), elements with their profiles, SimBench profile inspector (select profiles, window, resolution, P/Q) with a second plot of the profiles scaled by the rated power of the elements that use them, in kW (summed per profile or per element). **Compare:** two network pickers; facts side by side, elements per profile category, both topologies, profiles in A and B. **Profiles:** SimBench's complete profile catalogue (458 profiles, not tied to a network). Above the table an overview of the profile classes, grouped as in SimBench's own figure (load: accumulated and individual; generation; storage; aggregated grids) with a count per class; clicking a class lists only its profiles and explains it. Searchable, with the same factor plot | GridCatalog, Profile |
 | Grid | `/build/grid` | Choose the network for the experiment and check it | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings | GridCatalog; writes `grid.*` |
 | Participants | `/build/participants` | Define the agents and tie them to buses and profiles (01 §3) | Participant table, assignment tools (manual, rule, mapping file, [P2] Table 6 roles), map, time window, profile preview, battery editor, inline checks | Profile, GridCatalog, Validation; writes `participants`, `time` |
 | Market & DSO | `/build/market` | The economic side: market rules, tariffs and fees, observation and reward | Mechanism and bounds, partner preference, ledger; tariff source and fee factors; observation and reward versions, assessment mode; tariff preview | Profile; writes `market`, `dso`, `environment`, `grid.assessment` |
