@@ -77,7 +77,7 @@ flowchart TB
 
 1. **One way in.** UI, CLI and notebooks all go through the application services and one environment factory. Nothing builds a `LocalEnergyMarket` on its own.
 2. **Files, not objects.** Only the versioned experiment JSON is persisted or shared. Live pandapower nets, agents and environments are built inside the process that uses them.
-3. **The grid assesses; the market does not ask the grid.** The market clears economically. After settlement, one power flow per timestep assesses the resulting injections. Violations are fed back to the agents as observations and reward.
+3. **Clearing is economic; the grid assesses afterwards.** Order matching and the DSO fees never query the grid while trades are being cleared; they use only last step's grid signals (point 4). After settlement, one power flow per timestep assesses the resulting injections, and violations are fed back to the agents as observations and reward.
 4. **One owner of the grid (D-13).** `LocalEnergyMarket` stays the central orchestrator and is the only holder of the grid model. Market components receive plain grid data as arguments (`GridTopologyInfo`, and `GridSignals` from step t−1) and never read or write the grid themselves (01 §5.1).
 5. **One grid technology.** Every network (SimBench, pandapower built-in such as IEEE 33-bus or CIGRE, or a pandapower JSON file) goes through the same pandapower adapter.
 6. **Heavy work runs in a worker process.** Ray/RLlib never runs inside the UI process.
