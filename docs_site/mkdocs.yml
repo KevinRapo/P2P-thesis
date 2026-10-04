@@ -121,6 +121,8 @@ validation:
 
 nav:
   - Home: index.md
+  - Guide:
+      - Studio workflow: guide/studio-workflow.md
   - Papers:
       - Methodology: paper/marlem-methodology.md
       - Paper-to-code map: paper/marlem-paper-to-code-map.md

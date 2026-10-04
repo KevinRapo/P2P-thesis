@@ -2,6 +2,8 @@
 
 ```text
 docs/
+├── guide/
+│   └── studio-workflow.md          # How to use the Studio: launch → inspect → build → validate → run → compare
 ├── paper/                          # Source papers (the reference)
 │   ├── marlem.pdf                  # [P1] MARLEM, Applied Energy 2026
 │   ├── marlem-results.pdf          # [P2] Implicit-cooperation results (preprint)
@@ -29,6 +31,10 @@ docs/
         ├── 03-experiment-layer.md  # experiments/: functions, store, worker, pool, run lifecycle
         └── implementation-status.md # what exists in code today and how to check it
 ```
+
+## Using the Studio
+
+[../guide/studio-workflow.md](../guide/studio-workflow.md) walks through a whole study in the Studio, from the first launch to comparing runs, from a user's point of view.
 
 ## Validation (current focus)
 
