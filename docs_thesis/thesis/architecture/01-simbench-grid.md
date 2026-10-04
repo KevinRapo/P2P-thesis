@@ -61,12 +61,13 @@ flowchart TB
 
 ### 0.1 Structure in code
 
-The new grid code is two files; the original NetworkX grid (`adapters/grid/network.py`, `marketplace/grid/base.py`, `config.py`) leaves the tool (§7).
+The new grid code is three files; the original NetworkX grid (`adapters/grid/network.py`, `marketplace/grid/base.py`, `config.py`) leaves the tool (§7).
 
 <!-- BEGIN generated:graph grid -->
 ```mermaid
 flowchart LR
   subgraph USERS["used by"]
+    n_adapters__users_["adapters/"]:::ext
     n_application__users_["application/"]:::ext
     n_experiments__users_["experiments/"]:::ext
   end
@@ -76,6 +77,7 @@ flowchart LR
   subgraph g_marketplace["marketplace/"]
     n_marketplace_grid_contract_new["marketplace/grid/contract_new.py"]
   end
+  n_adapters__users_ --> n_marketplace_grid_contract_new
   n_adapters_grid_simbench_new --> n_marketplace_grid_contract_new
   n_application__users_ --> n_adapters_grid_simbench_new
   n_application__users_ --> n_marketplace_grid_contract_new
@@ -87,7 +89,8 @@ flowchart LR
 | File | What it is for |
 |---|---|
 | `marketplace/grid/contract_new.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
-| `adapters/grid/simbench_new.py` | The pandapower adapter: catalog, loading, topology, preview power flow and, from R4, the step-time `SimBenchGrid` |
+| `adapters/grid/simbench_new.py` | The pandapower adapter: catalog, loading, topology, profiles, preview power flow and, from R4, the step-time `SimBenchGrid` |
+| `adapters/grid/participants.py` | Participant mapping: the placement rules (§3.1) and profile scaling (§3.4), as plain functions over the contract records |
 
 Generated from the imports by `docs_thesis/graphs.py`; functions are documented in the docstrings (API Reference).
 

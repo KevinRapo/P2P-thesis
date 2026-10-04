@@ -17,17 +17,17 @@
   - [Network: one grid in depth](#network-one-grid-in-depth)
   - [Compare: two grids side by side](#compare-two-grids-side-by-side)
 - [5. Step 2: start an experiment file (Home, Library)](#5-step-2-start-an-experiment-file-home-library)
-- [6. Step 3: build the world (Grid → Participants → Market & DSO → Summary)](#6-step-3-build-the-world-grid--participants--market--dso--summary)
+- [6. Step 3: build the world (Grid → Participants → Market & DSO)](#6-step-3-build-the-world-grid--participants--market--dso)
   - [Grid: choose and check the network](#grid-choose-and-check-the-network)
   - [Participants: who trades, where, with which profiles](#participants-who-trades-where-with-which-profiles)
   - [Market & DSO: the rules of the game](#market--dso-the-rules-of-the-game)
-  - [Summary: check and save](#summary-check-and-save)
-- [7. Step 4: plan the learning (Design)](#7-step-4-plan-the-learning-design)
-- [8. Step 5: validate (Validate)](#8-step-5-validate-validate)
-- [9. Step 6: run and watch (Runs)](#9-step-6-run-and-watch-runs)
-- [10. Step 7: look at one run (Results)](#10-step-7-look-at-one-run-results)
-- [11. Step 8: compare runs (Compare)](#11-step-8-compare-runs-compare)
-- [12. Checklist and common mistakes](#12-checklist-and-common-mistakes)
+- [7. Step 4: plan the learning (RL)](#7-step-4-plan-the-learning-rl)
+- [8. Step 5: check and save (Summary)](#8-step-5-check-and-save-summary)
+- [9. Step 6: validate (Validate)](#9-step-6-validate-validate)
+- [10. Step 7: run and watch (Runs)](#10-step-7-run-and-watch-runs)
+- [11. Step 8: look at one run (Results)](#11-step-8-look-at-one-run-results)
+- [12. Step 9: compare runs (Compare)](#12-step-9-compare-runs-compare)
+- [13. Checklist and common mistakes](#13-checklist-and-common-mistakes)
 
 <!-- END toc -->
 
@@ -43,17 +43,18 @@ Everything you set up in the Studio ends up in one **experiment file**: the grid
 flowchart LR
   L["0 Launch<br/>workspace folder"] --> I["1 Inspect<br/>profiles, networks"]
   I --> S["2 Start a file<br/>Home / Library"]
-  S --> B["3 Build the world<br/>Grid → Participants →<br/>Market & DSO → Summary"]
-  B --> D["4 Design<br/>learning plan"]
-  D --> V{"5 Validate"}
+  S --> B["3 Build the world<br/>Grid → Participants →<br/>Market & DSO"]
+  B --> D["4 RL<br/>learning plan"]
+  D --> Sum["5 Summary<br/>check and save"]
+  Sum --> V{"6 Validate"}
   V -->|errors| B
-  V -->|valid| R["6 Runs<br/>watch, cancel"]
-  R --> Res["7 Results<br/>one run"]
-  Res --> C["8 Compare<br/>runs side by side"]
+  V -->|valid| R["7 Runs<br/>watch, cancel"]
+  R --> Res["8 Results<br/>one run"]
+  Res --> C["9 Compare<br/>runs side by side"]
   C -.->|"new question:<br/>Save as, change, rerun"| B
 ```
 
-The left navigation follows the same order: **Build** (Inspect, Grid, Participants, Market & DSO, Summary), **Experiment** (Design, Validate), **Run** (Runs) and **Analyse** (Results, Compare). Library and Settings sit at the bottom because you need them now and then, not in every study.
+The left navigation follows the same order: **Build** (Inspect, Grid, Participants, Market & DSO, RL, Summary), **Experiment** (Validate), **Run** (Runs) and **Analyse** (Results, Compare). Library and Settings sit at the bottom because you need them now and then, not in every study.
 
 | Step | Page | The question you answer | Saved to the experiment file |
 |---|---|---|---|
@@ -63,12 +64,12 @@ The left navigation follows the same order: **Build** (Inspect, Grid, Participan
 | 3 | Grid | On which network does the market run? | `grid` |
 | 3 | Participants | Who trades, on which bus, with which demand, generation and battery? | `participants`, `time` |
 | 3 | Market & DSO | How is the market cleared, what do the tariffs and fees look like, what do agents observe and how are they rewarded? | `market`, `dso`, `environment` |
-| 3 | Summary | Is the world what I meant? | Name, description; Save as |
-| 4 | Design | Which algorithms and paradigms, how many seeds, how much training? | `learning`, `evaluation`, `baselines`, `sweep`, `resources` |
-| 5 | Validate | Can this file run, and does it make sense? | Nothing: a check |
-| 6 | Runs | Is it running, is it healthy? | — (runs are stored next to the file) |
-| 7 | Results | What happened in one run? | — |
-| 8 | Compare | Which setting did better, and is the difference real? | — |
+| 4 | RL | Which algorithms and paradigms, how many seeds, how much training? | `learning`, `evaluation`, `baselines`, `sweep`, `resources`, `outputs` |
+| 5 | Summary | Is the file what I meant? | `meta`; Save as |
+| 6 | Validate | Can this file run, and does it make sense? | Nothing: a check |
+| 7 | Runs | Is it running, is it healthy? | — (runs are stored next to the file) |
+| 8 | Results | What happened in one run? | — |
+| 9 | Compare | Which setting did better, and is the difference real? | — |
 
 [↑ Contents](#contents)
 
@@ -139,17 +140,24 @@ Work on one question per file. When you want a variant (another network, another
 
 [↑ Contents](#contents)
 
-## 6. Step 3: build the world (Grid → Participants → Market & DSO → Summary)
+## 6. Step 3: build the world (Grid → Participants → Market & DSO)
 
-The Build pages describe the world the agents live in. Go through them in order, since each depends on the one before: participants sit on the grid's buses, and the market rules apply to those participants.
+These Build pages describe the world the agents live in. Go through them in order, since each depends on the one before: participants sit on the grid's buses, and the market rules apply to those participants.
 
 ### Grid: choose and check the network
 
-Choose the source (SimBench, a pandapower built-in or a file) and the network. Check its topology and elements, then run the **power-flow preview**: one solve of the unmodified network at the chosen day and hour, colouring buses by voltage. If the preview already shows violations without any trading, keep in mind that the grid is stressed before the agents do anything. *Limits and ratings* set the voltage band and loading limits the DSO enforces.
+Choose the source (SimBench, a pandapower built-in or a file) and the network. Check its topology and elements, then run the **power-flow preview**: one solve of the unmodified network at the chosen day and hour, colouring buses by voltage. If the preview already shows violations without any trading, keep in mind that the grid is stressed before the agents do anything. A picked network is only used once you *Apply to draft*; the page says whether the draft uses it. Changing the network of a draft that has participants asks whether to keep them (to fix on the Participants page) or remove them.
+
+*Grid rules for the experiment* set what the network does around the agents: how the elements no agent owns behave (*background*), the voltage band and loading limits, where line ratings come from, reactive power, the power-flow solver, and what happens when the power flow fails.
 
 ### Participants: who trades, where, with which profiles
 
-Each participant is one agent: a bus, the loads and generators it owns, a demand profile, a generation profile, how they are scaled, and optionally a battery. The map highlights their buses; *Profile preview* shows the selected agent over the time window. *Time window* sets the days the episodes cover.
+Each participant is one agent: a bus, the loads and generators it owns, a demand profile, a generation profile, how they are scaled, and optionally a battery.
+
+- **Placing many at once:** *Apply placement rule* proposes agents from the network's own loads (one per load, households with PV, feeder ends, or spread over the feeders), each owning its load and the generators at its bus, with their own SimBench profiles. *Import mapping* reads a JSON or CSV list. *Apply [P2] Table 6 roles* turns the first eight into the paper's agents.
+- **One at a time:** *Add participant*, or select a row and edit, duplicate, move or remove it. The dialog offers only the elements at the chosen bus and refuses an element that another agent already owns.
+- **Checking:** the *Check* column flags buses or elements that are not in the network (e.g. after changing it); the map rings the participants' buses; *Profile preview* shows the selected agent's demand, generation and net power in kW, scaled, for a week from the start of the time window.
+- **Time window:** resolution, steps per episode and which days (one day, a range, or a sampler with filters). It counts the training and evaluation days while you change it.
 
 Check before moving on: every agent has a bus and a demand profile; generation is scaled sensibly against demand (an agent that produces ten times its demand dominates the market); battery capacities are in proportion to the agent's size.
 
@@ -158,28 +166,34 @@ Check before moving on: every agent has a bus and a demand profile; generation i
 - **Market:** the clearing mechanism, price and quantity bounds, whether agents prefer some partners, whether orders arrive asynchronously, and the ledger.
 - **DSO:** where tariffs come from and the fee factors for using the grid.
 - **Environment:** what agents observe (observation version, forecast error) and how they are rewarded (reward version, how grid violations are attributed).
+- **Weights:** every weight of the reward (eq. 4–6, penalties) and of the reputation (eq. 12), pre-filled with the original values.
+- **Tariffs:** the tariff CSVs the DSO starts from, drawn as you choose them.
 
 *Apply to draft* writes your changes into the file. Change only what your study varies; for everything else the preset's values are the paper's.
 
-### Summary: check and save
-
-Summary shows the whole world: counts, the complete file as JSON ("exactly what the CLI would run"), and *Diff* against the file it came from. Give the file a name and a description that say what the study asks; you will need them when comparing results weeks later. *Save as* creates a variant; *Export bundle* packs the file for someone else.
-
 [↑ Contents](#contents)
 
-## 7. Step 4: plan the learning (Design)
+## 7. Step 4: plan the learning (RL)
 
-Design says how the agents learn and how much computing it costs.
+RL, the Build page after Market & DSO, says how the agents learn and how much computing it costs. The run count at the top follows your changes before you apply them.
 
 - **Matrix:** which algorithms (PPO, APPO, SAC) under which paradigms (CTCE centralised, DTDE decentralised, CTDE centralised training with decentralised execution). The default is the papers' 3 × 3.
 - **Algorithm parameters:** pre-filled with the original MARLEM defaults; leave them unless the study is about them.
 - **Seeds and budget:** how many repetitions per cell and how long each trains. One seed shows nothing about reliability; use at least three when you intend to compare.
 - **Evaluation and baselines:** how runs are scored after training, and which simple strategies they are compared with (the presets use *no_order*, agents that never trade, and *random*).
-- **Run estimate:** the number of runs and the expected time. If it is too long, reduce the matrix or the seeds first, not the training budget: under-trained agents make every comparison meaningless.
+- **Sweep:** variants of one setting in one file, e.g. all six market mechanisms; every variant runs the whole matrix.
+- **Resources and outputs:** CPUs per run, runs at once, and what is recorded.
+- **Run count:** if it is too high, reduce the matrix, the sweep or the seeds first, not the training budget: under-trained agents make every comparison meaningless.
 
 [↑ Contents](#contents)
 
-## 8. Step 5: validate (Validate)
+## 8. Step 5: check and save (Summary)
+
+Summary shows the whole file: how many values each section sets (click one to edit it), counts, the complete file as JSON ("exactly what the CLI would run"), and *Diff* against the file it came from. Give the file a name and a description that say what the study asks; you will need them when comparing results weeks later. *Save as* creates a variant; *Export bundle* packs the file for someone else. Data status says whether the data is synthetic, measured or reconstructed; keep it honest, because it travels with every result.
+
+[↑ Contents](#contents)
+
+## 9. Step 6: validate (Validate)
 
 Validate is the only way to start runs, and it refuses while the file has errors. Findings are sorted by severity and area; click one to jump to the page and field it concerns. Warnings do not block, but read them: they flag settings that are allowed but probably not intended.
 
@@ -187,7 +201,7 @@ Validate is the only way to start runs, and it refuses while the file has errors
 
 [↑ Contents](#contents)
 
-## 9. Step 6: run and watch (Runs)
+## 10. Step 7: run and watch (Runs)
 
 Runs lists every run with its state (queued, running, finished, failed), refreshed every two seconds. Open a run to see its log; cancel a run that is clearly wrong instead of waiting for it to finish. Runs continue when you close the browser tab, but not when you stop the Studio.
 
@@ -195,7 +209,7 @@ A failed run keeps its log: read the last lines first. If many runs fail the sam
 
 [↑ Contents](#contents)
 
-## 10. Step 7: look at one run (Results)
+## 11. Step 8: look at one run (Results)
 
 Results shows one run in depth.
 
@@ -206,7 +220,7 @@ Results shows one run in depth.
 
 [↑ Contents](#contents)
 
-## 11. Step 8: compare runs (Compare)
+## 12. Step 9: compare runs (Compare)
 
 Compare answers the study's question. The **matrix** shows each algorithm × paradigm cell as mean ± standard deviation over the seeds; the **overlay** draws the evaluation curves of selected runs together.
 
@@ -218,7 +232,7 @@ A new question usually means a new variant: go back to Summary, *Save as*, chang
 
 [↑ Contents](#contents)
 
-## 12. Checklist and common mistakes
+## 13. Checklist and common mistakes
 
 | Before … | Check |
 |---|---|

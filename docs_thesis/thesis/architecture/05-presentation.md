@@ -29,8 +29,8 @@ flowchart LR
   Home --> Library
   Library -->|open / clone / preset| Grid
   Inspect -.->|explore networks| Grid
-  Grid --> Participants --> Market[Market & DSO] --> Summary
-  Summary --> Design --> Validate
+  Grid --> Participants --> Market[Market & DSO] --> RL --> Summary
+  Summary --> Validate
   Validate -->|pass| Runs
   Validate -->|findings link back| Grid
   Validate -->|findings link back| Participants
@@ -40,7 +40,7 @@ flowchart LR
   Compare -->|open run| Results
 ```
 
-The pages follow how a study is built. The BUILD pages (Grid → Summary) edit the world sections of one draft experiment file, the EXPERIMENT pages (Design, Validate) its learning plan. **Validate is the only way to Runs**, so a broken file can never start a run.
+The pages follow how a study is built. The BUILD pages (Grid → RL → Summary) edit every section of one draft experiment file: the world (grid, participants, time, market, DSO, environment) and the learning plan (RL). Summary shows the whole file; the EXPERIMENT page Validate checks it. **Validate is the only way to Runs**, so a broken file can never start a run.
 
 [↑ Contents](#contents)
 
@@ -61,6 +61,7 @@ flowchart LR
     n_studio_components_cards["components/cards.py"]
     n_studio_components_charts["components/charts.py"]
     n_studio_components_network["components/network.py"]
+    n_studio_components_participant_editor["components/participant_editor.py"]
     n_studio_components_profiles["components/profiles.py"]
     n_studio_components_tables["components/tables.py"]
   end
@@ -83,6 +84,7 @@ flowchart LR
   n_studio_components_network --> n_studio_components_charts
   n_studio_components_network --> n_studio_components_profiles
   n_studio_components_network --> n_studio_components_tables
+  n_studio_components_participant_editor --> n_application_models
   n_studio_components_profiles --> n_application_models
   n_studio_forms --> n_application_models
   n_studio_forms --> n_studio_state
@@ -95,6 +97,7 @@ flowchart LR
   n_studio_pages__ --> n_studio_components_cards
   n_studio_pages__ --> n_studio_components_charts
   n_studio_pages__ --> n_studio_components_network
+  n_studio_pages__ --> n_studio_components_participant_editor
   n_studio_pages__ --> n_studio_components_tables
   n_studio_pages__ --> n_studio_forms
   n_studio_pages__ --> n_studio_layout
@@ -105,15 +108,15 @@ flowchart LR
 ```
 <!-- END generated:graph -->
 
-Arrows are imports; the eleven page modules are drawn as one node (`pages/*.py`). Generated from the code by `docs_thesis/graphs.py`.
+Arrows are imports; the twelve page modules are drawn as one node (`pages/*.py`). Generated from the code by `docs_thesis/graphs.py`.
 
 | File | What it is for |
 |---|---|
 | `__main__.py`, `app.py` | Start the server (`python -m src_thesis.studio`); `app.py` imports every page module, which registers its URL, and calls `ui.run` |
 | `state.py` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
 | `layout.py` | `shell()`: header, navigation, footer and title around every page; `navigation.py` lists the menu, `theme.py` the colours |
-| `forms.py` | `DraftForm`: ties page controls to fields of the draft and saves only what changed |
-| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services, shared by Grid and Inspect, and `profiles.py` (the overview of SimBench's profile classes) |
+| `forms.py` | `DraftForm`: ties page controls (or any value, `track`) to fields of the draft and saves only what changed; `save_changes` for whole-list edits; `date_input` |
+| `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services, shared by Grid and Inspect, `profiles.py` (the overview of SimBench's profile classes) and `participant_editor.py` (the dialog that adds or edits one participant) |
 | `pages/*.py` | One module per page (§6), each an `@ui.page` function |
 
 Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
@@ -163,16 +166,16 @@ The shell around every page shows the draft (opens Summary), its validation stat
 |---|---|---|---|---|
 | Home | `/` | Pick up recent work or start from a paper case | Health, recent drafts and runs, "new from preset" (Cases 1–7) | Config, Experiment |
 | Inspect | `/build/inspect` | Get to know networks and their data; compare two networks; browse all SimBench profiles. Read-only | Three tabs. **Network:** facts, topology (click a bus for its elements), elements with their profiles, SimBench profile inspector (select profiles, window, resolution, P/Q) with a second plot of the profiles scaled by the rated power of the elements that use them, in kW (summed per profile or per element). **Compare:** two network pickers; facts side by side, elements per profile category, both topologies, profiles in A and B. **Profiles:** SimBench's complete profile catalogue (458 profiles, not tied to a network). Above the table an overview of the profile classes, grouped as in SimBench's own figure (load: accumulated and individual; generation; storage; aggregated grids) with a count per class; clicking a class lists only its profiles and explains it. Searchable, with the same factor plot | GridCatalog, Profile |
-| Grid | `/build/grid` | Choose the network for the experiment and check it | Source and network picker, topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring, limits and ratings | GridCatalog; writes `grid.*` |
-| Participants | `/build/participants` | Define the agents and tie them to buses and profiles (01 §3) | Participant table, assignment tools (manual, rule, mapping file, [P2] Table 6 roles), map, time window, profile preview, battery editor, inline checks | Profile, GridCatalog, Validation; writes `participants`, `time` |
-| Market & DSO | `/build/market` | The economic side: market rules, tariffs and fees, observation and reward | Mechanism and bounds, partner preference, ledger; tariff source and fee factors; observation and reward versions, assessment mode; tariff preview | Profile; writes `market`, `dso`, `environment`, `grid.assessment` |
-| Summary | `/build/summary` | Check and save the whole world before the learning plan | Counts, JSON view, save, save as, export bundle, diff against the origin preset | Config |
-| Design | `/experiment/design` | The learning plan and what it costs | Sweep, algorithm × paradigm matrix, hyperparameters per algorithm, paradigm options, tuning (PBT), seeds and budget, evaluation, baselines, resources, run estimate | Config, Experiment; writes `learning`, `evaluation`, `baselines`, `sweep`, `resources` |
+| Grid | `/build/grid` | Choose the network for the experiment, check it and set its rules | Source and network picker (says whether the draft uses the picked network), topology (click a bus for its elements), element table, one-hour power-flow preview with voltage colouring; grid rules: background elements and factor, voltage band and loading limits, ratings (network, rule, file, none), reactive power, power-flow algorithm and settings, what happens when the power flow fails. Changing the network asks whether to keep or remove the participants | GridCatalog, Config; writes `grid.*` |
+| Participants | `/build/participants` | Define the agents and tie them to buses and profiles (01 §3) | Participant table with a check column (bus or elements not in the network); add, edit (dialog: ID, role, bus, owned elements at that bus, profile source native/catalogue/CSV, scaling, battery), duplicate, reorder, remove; placement rule (by elements, households with PV, feeder ends, spread; replace or add), mapping import (JSON or CSV), [P2] Table 6 roles; map with the participants' buses; profile preview of the selected agent (scaled, a week from the window start); time window with a live count of training and evaluation days | Profile, GridCatalog, Config; writes `participants`, `time` |
+| Market & DSO | `/build/market` | The economic side: market rules, tariffs and fees, observation, reward and reputation | Mechanism, price and quantity bounds, match threshold, partner preference, async orders, ledger; tariff source, CSV files and columns, mapping, reset per episode, fees and fee factors; observation version, forecast error and anchors, grid observation, partner reputation; reward version, log scale, grid-violation attribution and weights, assessment mode, reputation decay; all reward and reputation weights; the tariff CSVs as a chart, following unsaved changes | Profile, Config; writes `market`, `dso`, `environment`, `grid.assessment` |
+| Summary | `/build/summary` | Check and save the whole file | Counts, values set per section (each links to its page), JSON view, name, description, author, tags, data status, save as, export bundle, diff against the origin preset | Config; writes `meta` |
+| RL | `/build/rl` | The learning plan and what it amounts to | Paradigms and algorithms (with the resulting matrix), seeds, budget; hyperparameters per algorithm (empty = RLlib default); paradigm options and network model; tuning (PBT, mutation domains), checkpoints, rollouts; evaluation (interval, episodes, days, seeds, metrics) and baselines; sweep (JSON parameters, mode, labels); resources and outputs; run count following unsaved changes | Config; writes `learning`, `evaluation`, `baselines`, `sweep`, `resources`, `outputs` |
 | Validate | `/experiment/validate` | The only gate to running | Findings by severity and area, each linking to its page and field; dry run; launch (disabled while there are errors) | Validation, Experiment |
 | Runs | `/runs` | Watch and control running work | Queue table, run drawer with log tail and cancel, filters; polled every 2 s | Experiment |
 | Results | `/results/{run_id}` | One run in depth | Outcomes beside RL return, learning curves with baselines, step-by-step episode replay (market and grid side by side), grid series, per-agent series, export | Result |
 | Compare | `/compare` | The thesis comparisons | Algorithm × paradigm matrix (mean ± std over seeds), run overlays (different reward versions flagged), paper reference values | Result |
-| Library | `/library` · `/settings` | Find and reuse files; choose the workspace folder | Presets and files (open, clone, delete, import, export), provenance preset → file → runs; Settings | Config |
+| Library | `/library` · `/settings` | Find and reuse files; choose the workspace folder | Presets and files: open (click), clone, delete, open a file from disk, import a bundle; provenance preset → file → runs; Settings | Config |
 
 [↑ Contents](#contents)
 

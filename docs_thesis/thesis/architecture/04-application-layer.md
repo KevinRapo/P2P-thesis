@@ -97,10 +97,10 @@ flowchart LR
   n_application_models --> n_experiments_models
   n_application_profile_service --> n_adapters_grid
   n_application_profile_service -.-> n_application_models
+  n_application_profile_service --> n_experiments_models
   n_application_profile_service --> n_marketplace_grid
   n_application_result_service --> n_application_experiment_service
   n_application_result_service -.-> n_application_models
-  n_application_result_service --> n_application_profile_service
   n_application_validation_service -.-> n_application_models
   n_application_validation_service --> n_experiments_models
   n_studio__users_ --> n_application_container
@@ -114,9 +114,9 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 
 | File | Class | State |
 |---|---|---|
-| `config_service.py` | `ConfigService`: presets from the repository, files in the workspace library | built |
+| `config_service.py` | `ConfigService`: presets from the repository, files in the workspace library; import of files and bundles | built |
 | `grid_catalog_service.py` | `GridCatalogService`: networks via the pandapower adapter | built |
-| `profile_service.py` | `ProfileService`: `profile_types`, `profile_series` and `profile_power` read the network's SimBench profiles; `catalogue_types` and `catalogue_series` read SimBench's complete catalogue; `profile_classes` lists SimBench's profile classes, which every profile's category refers to | partly built; the rest sample data until R3 |
+| `profile_service.py` | `ProfileService`: profiles of a network and of SimBench's complete catalogue, profile classes, placement rules, mapping import, [P2] Table 6 roles, participant previews, the day split and the tariff CSVs | built |
 | `validation_service.py` | `ValidationService` | sample data until R6–R7 |
 | `experiment_service.py` | `ExperimentService` | sample data until R7 |
 | `result_service.py` | `ResultService` | sample data until R7 |
