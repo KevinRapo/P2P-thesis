@@ -17,7 +17,7 @@ _AREA_ROUTES = {
     "participants": "/build/participants",
     "market": "/build/market",
     "dso": "/build/market",
-    "learning": "/experiment/design",
+    "learning": "/build/rl",
     "time": "/build/participants",
 }
 

@@ -44,7 +44,6 @@ from nicegui import ui  # noqa: E402
 
 # Importing a page module runs its @ui.page decorator, which registers the route.
 import src_thesis.studio.pages.compare  # noqa: F401, E402
-import src_thesis.studio.pages.design  # noqa: F401, E402
 import src_thesis.studio.pages.grid  # noqa: F401, E402
 import src_thesis.studio.pages.home  # noqa: F401, E402
 import src_thesis.studio.pages.inspect  # noqa: F401, E402
@@ -52,6 +51,7 @@ import src_thesis.studio.pages.library  # noqa: F401, E402
 import src_thesis.studio.pages.market  # noqa: F401, E402
 import src_thesis.studio.pages.participants  # noqa: F401, E402
 import src_thesis.studio.pages.results  # noqa: F401, E402
+import src_thesis.studio.pages.rl  # noqa: F401, E402
 import src_thesis.studio.pages.runs  # noqa: F401, E402
 import src_thesis.studio.pages.summary  # noqa: F401, E402
 import src_thesis.studio.pages.validate  # noqa: F401, E402

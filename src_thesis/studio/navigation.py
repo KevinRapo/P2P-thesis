@@ -29,13 +29,13 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
             NavItem("grid", "Grid", "hub", "/build/grid"),
             NavItem("participants", "Participants", "groups", "/build/participants"),
             NavItem("market", "Market & DSO", "storefront", "/build/market"),
+            NavItem("rl", "RL", "smart_toy", "/build/rl"),
             NavItem("summary", "Summary", "fact_check", "/build/summary"),
         ],
     ),
     (
         "Experiment",
         [
-            NavItem("design", "Design", "science", "/experiment/design"),
             NavItem("validate", "Validate", "rule", "/experiment/validate"),
         ],
     ),

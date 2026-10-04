@@ -4,8 +4,34 @@ from nicegui import ui
 
 from src_thesis.studio.components.tables import data_table
 from src_thesis.studio.components.cards import section, stat, stat_grid
+from src_thesis.studio.forms import DraftForm
 from src_thesis.studio.layout import shell
 from src_thesis.studio.state import current_draft, flash, open_draft, services
+
+# Top-level sections of the file and the page that edits them.
+SECTION_PAGES = [
+    ("time", "/build/participants"),
+    ("grid", "/build/grid"),
+    ("participants", "/build/participants"),
+    ("market", "/build/market"),
+    ("dso", "/build/market"),
+    ("environment", "/build/market"),
+    ("learning", "/build/rl"),
+    ("evaluation", "/build/rl"),
+    ("baselines", "/build/rl"),
+    ("sweep", "/build/rl"),
+    ("resources", "/build/rl"),
+    ("outputs", "/build/rl"),
+]
+
+
+def _count(node) -> int:
+    """Number of values set in a section (leaves of its dicts; list items)."""
+    if isinstance(node, dict):
+        return sum(_count(v) for v in node.values())
+    if isinstance(node, list):
+        return len(node)
+    return 0 if node is None else 1
 
 
 def _save_as_dialog(draft) -> None:
@@ -114,6 +140,19 @@ def summary_page() -> None:
             )
             stat("Data status", draft.meta.data_status, "", "verified")
 
+        with section(
+            "Sections",
+            "Values set in the file; everything else takes its default. Click to edit.",
+            "list_alt",
+        ):
+            with ui.row().classes("w-full gap-2"):
+                for name, route in SECTION_PAGES:
+                    n = _count(getattr(draft, name))
+                    ui.button(
+                        f"{name} · {n}",
+                        on_click=lambda route=route: ui.navigate.to(route),
+                    ).props("outline no-caps dense")
+
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Experiment file (JSON)",
@@ -128,29 +167,45 @@ def summary_page() -> None:
                 ui.input("File id", value=draft.meta.id).props("readonly").classes(
                     "w-full"
                 ).tooltip("Use Save as to store the file under another id")
-                name = ui.input("Name", value=draft.meta.name).classes("w-full")
-                description = ui.textarea(
-                    "Description", value=draft.meta.description
-                ).classes("w-full")
-
-                def save() -> None:
-                    """Write name and description into the draft file and reload."""
-                    try:
-                        updated = s.config.update(
-                            draft,
-                            {
-                                "meta.name": name.value.strip(),
-                                "meta.description": description.value.strip(),
-                            },
-                        )
-                        path = s.config.save(updated)
-                    except (ValueError, OSError) as error:
-                        ui.notify(str(error), type="negative", multi_line=True)
-                        return
-                    flash(f"Saved to {path}")
-                    ui.navigate.reload()
-
-                ui.button("Save", icon="save", on_click=save).props(
+                form = DraftForm(draft)
+                form.bind(
+                    "meta.name",
+                    ui.input("Name", value=draft.meta.name).classes("w-full"),
+                )
+                form.bind(
+                    "meta.description",
+                    ui.textarea("Description", value=draft.meta.description)
+                    .classes("w-full")
+                    .props("autogrow"),
+                )
+                form.bind(
+                    "meta.author",
+                    ui.input("Author", value=draft.meta.author).classes("w-full"),
+                )
+                tags = ui.input("Tags", value=", ".join(draft.meta.tags)).classes(
+                    "w-full"
+                )
+                form.track(
+                    "meta.tags",
+                    lambda: [x.strip() for x in tags.value.split(",") if x.strip()],
+                )
+                form.bind(
+                    "meta.data_status",
+                    ui.select(
+                        {
+                            "synthetic": "Synthetic",
+                            "measured": "Measured",
+                            "reconstructed-unverified": "Reconstructed, unverified",
+                        },
+                        value=draft.meta.data_status,
+                        label="Data status",
+                    ).classes("w-full"),
+                )
+                ui.label(
+                    "Data status keeps reconstructed data (e.g. the Case 6 mapping, "
+                    "I-51) from being presented as measured."
+                ).classes("mls-card-caption")
+                ui.button("Save", icon="save", on_click=form.apply).props(
                     "unelevated"
                 ).classes("w-full")
                 ui.button(
