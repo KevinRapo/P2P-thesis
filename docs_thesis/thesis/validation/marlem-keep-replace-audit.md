@@ -178,10 +178,10 @@ The coupling is wide (13 places in 8 files) but shallow: almost every point read
 
 | Code | Verdict | Why |
 |---|---|---|
-| [RLTrainer](../../../src_thesis/marl/train.py#L39-L630), [GroupedLEM](../../../src_thesis/marl/train.py#L633-L727), callbacks | Later (RL) | Useful RLlib plumbing (algorithm configs match [P2] Table 8, PBT, checkpoints). Fix when the environment is validated; hard-coded blocks move to the experiment file (02 §4). Known: [I-49](issues.md#I-49), [I-50](issues.md#I-50), [I-59](issues.md#I-59), [I-60](issues.md#I-60), [I-62](issues.md#I-62), [I-64](issues.md#I-64), [I-72](issues.md#I-72), [I-73](issues.md#I-73). |
+| [RLTrainer](../../../src_thesis/marl/train.py#L56-L671), [GroupedLEM](../../../src_thesis/marl/train.py#L674-L774), callbacks | Later (RL) | Useful RLlib plumbing (algorithm configs match [P2] Table 8, PBT, checkpoints). Fix when the environment is validated; hard-coded blocks move to the experiment file (02 §4). Known: [I-49](issues.md#I-49), [I-50](issues.md#I-50), [I-59](issues.md#I-59), [I-60](issues.md#I-60), [I-62](issues.md#I-62), [I-64](issues.md#I-64), [I-72](issues.md#I-72), [I-73](issues.md#I-73). |
 | [CTCEModule](../../../src_thesis/marl/ctce.py#L22-L375) | Later (RL) | Matches the paper's CTCE |
 | [CTDEModule](../../../src_thesis/marl/ctde.py#L22-L386) | Later (RL), then fix | The acting actor is never trained ([I-48](issues.md#I-48)) |
-| [RLInference](../../../src_thesis/marl/inference.py#L22-L321) | Later (RL) | Should use RLlib's action path ([I-61](issues.md#I-61)) |
+| [RLInference](../../../src_thesis/marl/inference.py#L21-L332) | Later (RL) | Should use RLlib's action path ([I-61](issues.md#I-61)) |
 | [RLProtection, RLAlgorithm, TrainingMode](../../../src_thesis/marl/base.py#L13-L58) | Keep | Small enums and a clip helper |
 
 The environment only has to honour RLlib's `MultiAgentEnv` interface (reset / step / spaces). As long as the rebuilt environment keeps that interface and the Table 2 observation and the ⟨p, q, α, β⟩ action, the parked trainer plugs in unchanged.

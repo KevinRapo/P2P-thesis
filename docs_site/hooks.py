@@ -77,6 +77,12 @@ API_SECTIONS = [
         "paper/marlem-paper-to-code-map.md",
     ),
     (
+        "RL testbench",
+        "rl_testbench",
+        ["src_thesis.rl_testbench"],
+        "thesis/validation/rl-testbench.md",
+    ),
+    (
         "Adapters",
         "adapters",
         ["src_thesis.adapters"],

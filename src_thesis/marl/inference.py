@@ -15,18 +15,22 @@ from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.utils.numpy import convert_to_numpy
 
-from src_thesis.marketplace.lem import LocalEnergyMarket
-from .train import GroupedLEM
+from .train import GroupedLEM, market_env_cls
 
 
 class RLInference:
-    """Manages training using Ray RLlib with support for multiple algorithms."""
+    """Manages training using Ray RLlib with support for multiple algorithms.
+
+    The environment is an argument, as for ``RLTrainer``: the local energy market
+    by default, or any RLlib multi-agent environment.
+    """
 
     def __init__(self,
                  env_config: Dict[str, Any],
                  exploration: bool = False,
                  checkpoint_path: Optional[str] = None,
-                 storage_path: Optional[str] = None):
+                 storage_path: Optional[str] = None,
+                 env_cls: Optional[type[MultiAgentEnv]] = None):
         """Initialize the RL trainer.
 
         Args:
@@ -34,8 +38,12 @@ class RLInference:
             exploration: Whether to use stochastic actions
             checkpoint_path: Path to trained experiment checkpoint
             storage_path: Path to store training results
+            env_cls: The multi-agent environment class; ``None`` for the local
+                energy market
         """
         self.env_config = env_config
+        self.env_cls = env_cls or market_env_cls()
+        self.is_market = env_cls is None
         self.exploration = exploration
         self.checkpoint_path = checkpoint_path
         self.storage_path = storage_path
@@ -47,7 +55,7 @@ class RLInference:
         self.rl_module: RLModule | MultiRLModule = self._restore_from_checkpoint(checkpoint_path)
 
         # Initialize environment
-        self.env: MultiAgentEnv = LocalEnergyMarket(env_config) if isinstance(self.rl_module, MultiRLModule) else GroupedLEM(env_config)
+        self.env: MultiAgentEnv = self.env_cls(env_config) if isinstance(self.rl_module, MultiRLModule) else GroupedLEM({**env_config, "env_class": self.env_cls})
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
@@ -69,6 +77,9 @@ class RLInference:
         # Validate environment configuration
         if not isinstance(self.env_config, dict):
             raise ValueError(f"The <env_config> must be a dictionary, got <env_config = {self.env_config}>.")
+
+        if not self.is_market:  # the remaining checks are about the market's configuration
+            return
 
         # Check required environment configuration keys
         for key in ["max_steps", "market_config", "agents"]:
@@ -143,13 +154,13 @@ class RLInference:
 
                 # DTDE: Each agent has its own RL module
                 if isinstance(self.rl_module, MultiRLModule):
-                    # FAULT I-61 [D2] (1/2; next marl/inference.py:236) Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly
+                    # FAULT I-61 [D2] (1/2; next marl/inference.py:247) Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly
                     for agent_id, agent_obs in obs.items():
                         # Convert to torch tensor and add batch dimension
                         obs_batch = {Columns.OBS: torch.from_numpy(agent_obs).unsqueeze(0)}
 
                         # Forward pass for this agent using the individual agent RLModule
-                        model_outputs = self.rl_module[agent_id].forward_inference(obs_batch)
+                        model_outputs = self.rl_module[str(agent_id)].forward_inference(obs_batch)
 
                         # For continuous actions the action_dist_inputs contains distribution parameters
                         action_dist_params = convert_to_numpy(model_outputs[Columns.ACTION_DIST_INPUTS][0])
@@ -233,7 +244,7 @@ class RLInference:
                     grid_balance_history.append(info.get("grid_balance", 0.0))
 
                     if "dso_stats" in info:
-                        # FAULT I-61 [D2] (2/2; first marl/inference.py:146) Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly
+                        # FAULT I-61 [D2] (2/2; first marl/inference.py:157) Standalone inference samples and clips actions itself instead of using RLlib's action path, and reads `info` wrongly
                         dso_stats_history.append(info["dso_stats"])
 
                 # STEP 8. Check termination
@@ -244,7 +255,7 @@ class RLInference:
                     done = terminateds or truncateds
 
                 # STEP 9. Check termination
-                done = done or episode_step >= self.env_config["max_steps"]
+                done = done or episode_step >= self.env_config.get("max_steps", float("inf"))
 
                 if done:
                     print(f"Episode {episode + 1} | Done: {done} | Reward = {episode_rewards}")

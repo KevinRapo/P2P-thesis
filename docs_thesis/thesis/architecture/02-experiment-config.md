@@ -56,7 +56,7 @@ flowchart LR
   OK -->|"expand: sweep × paradigms × algorithms × seeds, + baselines"| CELLS["run cells"]
   CELLS -->|"resolve defaults · build manifest (§5)"| RUNS["runs/&lt;run_id&gt;/ resolved.json + manifest.json"]
   WORLD -. "build_env (03 §4)" .-> ENV["environment"]
-  PLAN -. "build_algorithm_config (03 §3)" .-> RL["RLlib configuration"]
+  PLAN -. "trainer_arguments → RLTrainer (03 §3)" .-> RL["RLlib configuration"]
 ```
 
 ### 0.1 Where the file lives in code
@@ -246,7 +246,7 @@ Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L75) (all 
 
 **Why:** Which RL algorithms and training paradigms are compared, with which hyperparameters and budget: the 3 × 3 study of [P2]. In the original these were fixed in code; here every value is visible and stored with the run.
 
-This section replaces the original `RLTrainer` arguments ([train.py](../../../src_thesis/marl/train.py#L42-L54)) and the hard-coded algorithm configs ([train.py](../../../src_thesis/marl/train.py#L209-L265)).
+This section replaces the original `RLTrainer` arguments ([train.py](../../../src_thesis/marl/train.py#L63-L76)) and the hard-coded algorithm configs ([train.py](../../../src_thesis/marl/train.py#L243-L299)).
 
 **General**
 
@@ -314,7 +314,7 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 | | `grad_clip` | 0.5 | 0.5 |
 | | `batch_mode` | `"complete_episodes"` | |
 
-**Tuning** (`learning.tuning`). Original: PBT always on ([train.py](../../../src_thesis/marl/train.py#L179-L197), [L439](../../../src_thesis/marl/train.py#L439)).
+**Tuning** (`learning.tuning`). Original: PBT always on ([train.py](../../../src_thesis/marl/train.py#L213-L231), [L480](../../../src_thesis/marl/train.py#L480)).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|

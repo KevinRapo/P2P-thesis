@@ -749,11 +749,11 @@ The paper's claim is that injecting the KPIs into $o_i$ makes the DTDE environme
 
 | Paper | Original code | Status | Issue |
 |---|---|---|---|
-| DTDE: independent policy per agent | [train.py:337-354](../../../src_thesis/marl/train.py#L337-L354) | ✅ |  |
-| CTCE: one policy on concatenated observations | [train.py:314-323](../../../src_thesis/marl/train.py#L314-L323), module [ctce.py:29-65](../../../src_thesis/marl/ctce.py#L29-L65) | ✅ |  |
-| Global return = Σ of agent rewards (17) | [train.py:698](../../../src_thesis/marl/train.py#L703) | ✅ | [I-60](issues.md#I-60), [I-73](issues.md#I-73) (not an upper bound; scale grows with N) |
+| DTDE: independent policy per agent | [train.py:337-354](../../../src_thesis/marl/train.py#L371-L388) | ✅ |  |
+| CTCE: one policy on concatenated observations | [train.py:314-323](../../../src_thesis/marl/train.py#L348-L357), module [ctce.py:29-65](../../../src_thesis/marl/ctce.py#L29-L65) | ✅ |  |
+| Global return = Σ of agent rewards (17) | [train.py:698](../../../src_thesis/marl/train.py#L750) | ✅ | [I-60](issues.md#I-60), [I-73](issues.md#I-73) (not an upper bound; scale grows with N) |
 | CTDE: centralized critic, local actors | Trains a centralized `pi` on all observations [ctde.py:127-128](../../../src_thesis/marl/ctde.py#L127-L128) but acts with per-agent `pi_heads` [ctde.py:76-89](../../../src_thesis/marl/ctde.py#L76-L89) that are **never trained** | ❌ | [I-48](issues.md#I-48) |
-| Agent ordering in grouped modes | Grouping uses insertion order, spaces use sorted keys [train.py:657](../../../src_thesis/marl/train.py#L657), [train.py:717](../../../src_thesis/marl/train.py#L722) | ⚠️ | [I-59](issues.md#I-59) |
+| Agent ordering in grouped modes | Grouping uses insertion order, spaces use sorted keys [train.py:657](../../../src_thesis/marl/train.py#L704), [train.py:717](../../../src_thesis/marl/train.py#L769) | ⚠️ | [I-59](issues.md#I-59) |
 
 [↑ Contents](#contents)
 
@@ -791,9 +791,9 @@ $$
 
 | Paper | Original code | Status | Issue |
 |---|---|---|---|
-| PPO (11)–(12), GAE | RLlib PPO; clip 0.2, λ 0.95 [train.py:216-230](../../../src_thesis/marl/train.py#L216-L230) | ✅ |  |
-| APPO, V-trace (13)–(14) | RLlib APPO, `vtrace=True` [train.py:231-239](../../../src_thesis/marl/train.py#L231-L239) | ✅ |  |
-| SAC (15), twin Q, target entropy rule | RLlib SAC; target entropy −Σdim for CTCE/CTDE, −dim for DTDE [train.py:240-265](../../../src_thesis/marl/train.py#L240-L265) | ✅ |  |
+| PPO (11)–(12), GAE | RLlib PPO; clip 0.2, λ 0.95 [train.py:216-230](../../../src_thesis/marl/train.py#L250-L264) | ✅ |  |
+| APPO, V-trace (13)–(14) | RLlib APPO, `vtrace=True` [train.py:231-239](../../../src_thesis/marl/train.py#L265-L273) | ✅ |  |
+| SAC (15), twin Q, target entropy rule | RLlib SAC; target entropy −Σdim for CTCE/CTDE, −dim for DTDE [train.py:240-265](../../../src_thesis/marl/train.py#L274-L299) | ✅ |  |
 
 [↑ Contents](#contents)
 
@@ -888,11 +888,11 @@ DSO tariffs: time-varying feed-in tariff and utility price ([P2] Fig. 3).
 | [P2] Case 6 environment: IEEE-34, 1800 kW, seed 42, price 20–600, 30 % forecast error | As stated, but $q_{\min} = 0.1$ (paper 0) and the forecast error is unused [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) | ⚠️ | [I-39](issues.md#I-39) |
 | [P2] Table 6 agents (8 roles, 75–180 kW, fixed IEEE-34 nodes) | **Different agents** in [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb): commercial/shopping/industrial/flexible, 150–400 kW, battery ratios 0.5–1.0; no `node_id`, so nodes are random [network.py:266-277](../../../src_thesis/adapters/grid/network.py#L266-L277); profiles from a random CSV column [base.py:32-44](../../../src_thesis/adapters/profiles/base.py#L32-L44) | ❌ | [I-51](issues.md#I-51) |
 | Mechanism and partner preference in Case 6 | Proportional surplus, partner preference **on**, PoW difficulty 2 in [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) (the paper does not state these) | ❓ |  |
-| Table 8 hyperparameters | [train.py:209-265](../../../src_thesis/marl/train.py#L209-L265) | ✅ |  |
-| PBT, 10 samples per configuration | [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) uses `TUNE_SAMPLES = 100`; mutation lr domain $[10^{-4}, 10^{-2}]$ excludes the initial $10^{-5}$ [train.py:182-197](../../../src_thesis/marl/train.py#L182-L197) | ⚠️ | [I-49](issues.md#I-49) |
-| 10 000 episodes | `TRAINING_EPISODES = 10000` in [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) is passed as `iters`, the RLlib **iteration** stop criterion [train.py:449](../../../src_thesis/marl/train.py#L449) | ⚠️ | [I-50](issues.md#I-50) |
+| Table 8 hyperparameters | [train.py:209-265](../../../src_thesis/marl/train.py#L243-L299) | ✅ |  |
+| PBT, 10 samples per configuration | [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) uses `TUNE_SAMPLES = 100`; mutation lr domain $[10^{-4}, 10^{-2}]$ excludes the initial $10^{-5}$ [train.py:182-197](../../../src_thesis/marl/train.py#L216-L231) | ⚠️ | [I-49](issues.md#I-49) |
+| 10 000 episodes | `TRAINING_EPISODES = 10000` in [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) is passed as `iters`, the RLlib **iteration** stop criterion [train.py:449](../../../src_thesis/marl/train.py#L490) | ⚠️ | [I-50](issues.md#I-50) |
 | 3 × 3 matrix | [case6_implicit_cooperation.ipynb](../../../notebooks/case6_implicit_cooperation.ipynb) trains one `ALGO`/`MODE` pair per run; no 3 × 3 loop | ⚠️ |  |
-| Evaluation every iteration, checkpoint every 10 | [train.py:290-299](../../../src_thesis/marl/train.py#L290-L299); deterministic evaluation, same scenario as training | ✅ | [I-72](issues.md#I-72) |
+| Evaluation every iteration, checkpoint every 10 | [train.py:290-299](../../../src_thesis/marl/train.py#L324-L333); deterministic evaluation, same scenario as training | ✅ | [I-72](issues.md#I-72) |
 | Agent responsiveness | [coordination_metrics.py:416](../../../src_thesis/cooperation/metrics/coordination_metrics.py#L416) | ✅ | [I-65](issues.md#I-65) (unaudited) |
 | Grid balance index $B_{\text{index}}$ | Not implemented anywhere in the code (and not defined in the paper) | ❓ | [I-80](issues.md#I-80) |
 | Units and time step ([P1] \$/MWh, [P2] up to 600) | Mixed W / kW / kWh / Wh and \$/Wh vs \$/kWh in defaults and docstrings; $\Delta t$ is implicit [der.py:36](../../../src_thesis/marl/agents/der.py#L36), [matching.py:35-38](../../../src_thesis/marketplace/market/matching.py#L35-L38) | ❓ | [I-56](issues.md#I-56) |

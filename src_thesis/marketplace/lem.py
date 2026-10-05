@@ -272,7 +272,7 @@ class LocalEnergyMarket(MultiAgentEnv):
         """
         # Use provided seed or fallback to environment seed
         # DEVIATION I-03 [A1] `reset(seed=None)` falls back to the config seed, so every episode is identical
-        # DECIDE I-72 [D3] (1/2; next marl/train.py:278) [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
+        # DECIDE I-72 [D3] (1/2; next marl/train.py:312) [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
         seed = seed if seed is not None else self.seed
         if seed is not None:
             np.random.seed(seed)

@@ -46,6 +46,7 @@ The run folder is the source of truth: the Studio only reads it and asks for cha
 flowchart LR
   subgraph USERS["used by"]
     n_application__users_["application/"]:::ext
+    n_rl_testbench__users_["rl_testbench/"]:::ext
   end
   subgraph g_factory["factory/"]
     n_experiments_factory_environment["factory/environment.py"]
@@ -99,6 +100,8 @@ flowchart LR
   n_experiments_worker_runner -.-> n_experiments_models_records
   n_experiments_worker_runner --> n_experiments_store_filesystem
   n_experiments_worker_runner --> n_experiments_store_recorder
+  n_rl_testbench__users_ --> n_experiments_models_files
+  n_rl_testbench__users_ --> n_experiments_models_manifest
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
@@ -109,7 +112,7 @@ Arrows are imports: who uses whom. Dashed arrows go to `models/records.py`, the 
 |---|---|---|
 | `models/` | `records.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | The data (experiment file, run cell, run state, manifest) and pure functions over it: load and save, expand into runs, fill defaults, fingerprint a run |
 | `store/` | `filesystem.py`, `recorder.py` | The run folders on disk and the per-step records written into them |
-| `factory/` | `environment.py`, `training.py` | The only place that turns a file into a live environment and an RLlib configuration |
+| `factory/` | `environment.py`, `training.py` | The only place that turns a file into a live environment and the trainer's arguments; `training.py` turns the file into the arguments of MARLEM's `RLTrainer` (`marl/train.py`), which builds the RLlib configuration (D-16) |
 | `worker/` | `pool.py`, `process.py`, `runner.py`, `__main__.py` | Starting runs as processes (pool), executing one run (process), and the work per kind of run (runner) |
 
 What each function does, and why each module exists, is in the module docstrings, shown in the API Reference.

@@ -6,6 +6,9 @@ See docs_thesis/thesis/architecture/README.md §2.1–§2.2.
   Real services reach infrastructure through adapters/ (the grid catalog calls
   adapters.grid) and the grid contract; building the services loads none of it.
 - Only adapters/ imports pandapower and simbench.
+- MARLEM's trainer (marl/train.py, inference.py) loads the market only when it is
+  the chosen environment, and the RL testbench reaches MARLEM only through the
+  trainer (D-16).
 """
 
 import ast
@@ -60,6 +63,35 @@ def test_application_layer_is_free_of_marlem_runtime() -> None:
 def test_experiment_layer_never_imports_application_or_studio() -> None:
     forbidden = ("src_thesis.application", "src_thesis.studio")
     assert _violations("experiments", forbidden) == []
+
+
+def _top_level_imports(path: Path) -> list[str]:
+    """Imports at module level (not inside functions)."""
+    names = []
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Import):
+            names += [a.name for a in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.append(node.module)
+    return names
+
+
+def test_marl_trainer_does_not_load_the_market() -> None:
+    # The market is RLTrainer's default environment, imported only when used.
+    for name in ("train.py", "inference.py"):
+        names = _top_level_imports(ROOT / "marl" / name)
+        assert [n for n in names if n.startswith("src_thesis.marketplace")] == []
+
+
+def test_rl_testbench_reaches_marlem_only_through_the_trainer() -> None:
+    allowed = (
+        "src_thesis.rl_testbench",
+        "src_thesis.marl.train",
+        "src_thesis.marl.base",
+        "src_thesis.experiments.models",
+    )
+    forbidden = ("src_thesis.", "pandapower", "simbench", "networkx")
+    assert _violations("rl_testbench", forbidden, allowed) == []
 
 
 def test_only_adapters_import_pandapower_and_simbench() -> None:

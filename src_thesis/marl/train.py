@@ -2,6 +2,7 @@
 Multi-agent reinforcement learning training implementation using Ray RLlib.
 """
 
+import json
 from datetime import datetime
 from os import cpu_count
 from pathlib import Path
@@ -32,12 +33,32 @@ from torch.cuda import device_count, is_available
 from .base import RLAlgorithm, TrainingMode
 from .ctce import CTCEModule
 from .ctde import CTDEModule
-from src_thesis.marketplace.lem import LocalEnergyMarket
-from src_thesis.marketplace.io import EnvConfigHandler
+
+
+def market_env_cls() -> type[MultiAgentEnv]:
+    """The local energy market, the default environment (imported on demand, so
+    this module does not depend on the market)."""
+    from src_thesis.marketplace.lem import LocalEnergyMarket
+
+    return LocalEnergyMarket
+
+
+def agent_ids(env: MultiAgentEnv) -> list:
+    """The agents of a multi-agent environment, in the environment's order.
+
+    The market lists them in ``agents_id``; other RLlib environments in
+    ``possible_agents``.
+    """
+    ids = getattr(env, "agents_id", None)
+    return list(ids) if ids is not None else list(env.possible_agents)
 
 
 class RLTrainer:
-    """Manages training using Ray RLlib with support for multiple algorithms."""
+    """Manages training using Ray RLlib with support for multiple algorithms.
+
+    The environment is an argument: the local energy market by default, or any
+    RLlib multi-agent environment (the RL testbench's reference tasks).
+    """
 
     def __init__(self,
                  env_config: Dict[str, Any],
@@ -50,7 +71,8 @@ class RLTrainer:
                  evaluation_duration: int | Literal["auto"] = "auto",
                  cpus: Optional[int] = None,
                  gpus: Optional[int] = None,
-                 storage_path: Optional[str] = None):
+                 storage_path: Optional[str] = None,
+                 env_cls: Optional[type[MultiAgentEnv]] = None):
         """Initialize the RL trainer.
 
         Args:
@@ -65,8 +87,12 @@ class RLTrainer:
             cpus: Number of CPUs for parallel sampling
             gpus: Number of GPUs per learner
             storage_path: Path to store training results
+            env_cls: The multi-agent environment class; ``None`` for the local
+                energy market
         """
         self.env_config = env_config
+        self.env_cls = env_cls or market_env_cls()
+        self.is_market = env_cls is None
         self.algorithm = algorithm
         self.training = training
         self.iters = iters
@@ -82,7 +108,12 @@ class RLTrainer:
         self._check_init()
 
         # Initialize environment
-        self.env: MultiAgentEnv = LocalEnergyMarket(env_config) if self.training == TrainingMode.DTDE else GroupedLEM(env_config)
+        self.env: MultiAgentEnv = self.env_cls(env_config) if self.training == TrainingMode.DTDE else GroupedLEM(self._grouped_env_config())
+
+    def _grouped_env_config(self) -> Dict[str, Any]:
+        """The environment configuration for ``GroupedLEM``, which builds the
+        wrapped environment from the class in ``env_class``."""
+        return {**self.env_config, "env_class": self.env_cls}
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
@@ -113,7 +144,7 @@ class RLTrainer:
         if not isinstance(self.evaluation_interval, int) or self.evaluation_interval <= 0:
             raise ValueError(f"The <evaluation_interval> must be a positive integer, got <evaluation_interval = {self.evaluation_interval}>.")
 
-        # DEVIATION I-62 [D1] (1/4; next marl/train.py:289) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
+        # DEVIATION I-62 [D1] (1/4; next marl/train.py:323) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
         if not (isinstance(self.evaluation_duration, str) and self.evaluation_duration == "auto") or (isinstance(self.evaluation_duration, int) and self.evaluation_duration <= 0):
             raise ValueError(f"The <evaluation_duration> must be a positive integer or 'auto', got <evaluation_duration = {self.evaluation_duration}>.")
 
@@ -130,6 +161,9 @@ class RLTrainer:
         # Validate environment configuration
         if not isinstance(self.env_config, dict):
             raise ValueError(f"The <env_config> must be a dictionary, got <env_config = {self.env_config}>.")
+
+        if not self.is_market:  # the remaining checks are about the market's configuration
+            return
 
         # Check required environment configuration keys
         for key in ["max_steps", "market_config", "agents"]:
@@ -178,7 +212,7 @@ class RLTrainer:
         """
         # Setup the hyperparameter mutations based on the algorithm type
         if self.algorithm == RLAlgorithm.PPO:
-            # DEVIATION I-49 [D1] (1/2; next marl/train.py:218) The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
+            # DEVIATION I-49 [D1] (1/2; next marl/train.py:252) The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
             hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
                                     "entropy_coeff": loguniform(0.01, 10.0),
                                     "lambda_": loguniform(0.8, 0.99),
@@ -215,7 +249,7 @@ class RLTrainer:
         """
         if self.algorithm == RLAlgorithm.PPO:
             return (PPOConfig()
-                    # DEVIATION I-49 [D1] (2/2; first marl/train.py:181) The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
+                    # DEVIATION I-49 [D1] (2/2; first marl/train.py:215) The PBT lr domain [1e-4, 1e-2] excludes the initial 1e-5, and the entropy domain reaches 10
                     .training(lr=1e-5,
                               gamma=0.99,
                               use_critic=True,
@@ -244,7 +278,7 @@ class RLTrainer:
                 replay_buffer_type = "EpisodeReplayBuffer"
             else:
                 # For decentralized mode: each agent has individual action space
-                target_entropy = -self.env.action_spaces[self.env.agents_id[0]].shape[0]
+                target_entropy = -self.env.action_spaces[agent_ids(self.env)[0]].shape[0]
                 replay_buffer_type = "MultiAgentEpisodeReplayBuffer"
 
             return (SACConfig()
@@ -286,7 +320,7 @@ class RLTrainer:
 
         return (config
                 .framework("torch")
-                # DEVIATION I-62 [D1] (2/4; next marl/train.py:438) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
+                # DEVIATION I-62 [D1] (2/4; next marl/train.py:479) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
                 .env_runners(num_env_runners=self.cpus,
                              sample_timeout_s=None)
                 .learners(num_learners=1,
@@ -314,7 +348,7 @@ class RLTrainer:
         if self.training == TrainingMode.CTCE:
             return (config
                     .environment(GroupedLEM,
-                                 env_config=self.env_config)
+                                 env_config=self._grouped_env_config())
                     .rl_module(rl_module_spec=RLModuleSpec(module_class=CTCEModule,
                                                            observation_space=self.env.observation_space,
                                                            action_space=self.env.action_space,
@@ -325,7 +359,7 @@ class RLTrainer:
         elif self.training == TrainingMode.CTDE:
             return (config
                     .environment(GroupedLEM,
-                                 env_config=self.env_config)
+                                 env_config=self._grouped_env_config())
                     .rl_module(rl_module_spec=RLModuleSpec(module_class=CTDEModule,
                                                            observation_space=self.env.observation_space,
                                                            action_space=self.env.action_space,
@@ -335,22 +369,22 @@ class RLTrainer:
                     .callbacks(MultiOptimizerCallback))
 
         elif self.training == TrainingMode.DTDE:
-            # Setup the policy of each agent
-            agents_policy = {agent_id: PolicySpec(observation_space=self.env.observation_spaces[agent_id],
+            # Setup the policy of each agent; policy IDs must be strings (RLlib)
+            agents_policy = {str(agent_id): PolicySpec(observation_space=self.env.observation_spaces[agent_id],
                                                   action_space=self.env.action_spaces[agent_id])
-                             for agent_id in self.env.agents_id}
+                             for agent_id in agent_ids(self.env)}
 
             # Setup the RL module of each agent
-            agents_rl_module = {agent_id: RLModuleSpec(module_class=self.algorithm.get_module_class(),
-                                                       observation_space=agents_policy[agent_id].observation_space,
-                                                       action_space=agents_policy[agent_id].action_space)
-                                for agent_id in self.env.agents_id}
+            agents_rl_module = {str(agent_id): RLModuleSpec(module_class=self.algorithm.get_module_class(),
+                                                            observation_space=agents_policy[str(agent_id)].observation_space,
+                                                            action_space=agents_policy[str(agent_id)].action_space)
+                                for agent_id in agent_ids(self.env)}
 
             return (config
-                    .environment(LocalEnergyMarket,
+                    .environment(self.env_cls,
                                  env_config=self.env_config)
                     .multi_agent(policies=agents_policy,
-                                 policy_mapping_fn=lambda agent_id, *args, **kwargs: agent_id)
+                                 policy_mapping_fn=lambda agent_id, *args, **kwargs: str(agent_id))
                     .rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=agents_rl_module))
                     .callbacks(SingleOptimizerCallback))
 
@@ -393,16 +427,23 @@ class RLTrainer:
 
         return CustomAlgorithm(config)
 
-    # DEVIATION I-64 [D3] (1/2; next marl/train.py:446) No run manifests, non-learning baselines or multi-seed statistics
+    # DEVIATION I-64 [D3] (1/2; next marl/train.py:487) No run manifests, non-learning baselines or multi-seed statistics
     def _save_env_config(self, results: ResultGrid) -> None:
         """Save environment configuration to experiment directory.
 
         Args:
             results: The results of the training and evaluation.
         """
-        EnvConfigHandler.save(self.env_config,
-                              storage_path=str(Path(results.get_best_result().path).parent),
-                              name="env_config")
+        storage_path = Path(results.get_best_result().path).parent
+        if self.is_market:
+            from src_thesis.marketplace.io import EnvConfigHandler
+
+            EnvConfigHandler.save(self.env_config,
+                                  storage_path=str(storage_path),
+                                  name="env_config")
+        else:
+            (storage_path / "env_config.json").write_text(
+                json.dumps(self.env_config, indent=1, default=str), encoding="utf-8")
 
     def train(self,
               embeddings_dim: int = 128,
@@ -435,7 +476,7 @@ class RLTrainer:
         tuner = Tuner(trainable=algo_config.algo_class,
                       param_space=algo_config,
                       tune_config=TuneConfig(num_samples=self.tune_samples,
-                                             # DEVIATION I-62 [D1] (3/4; next marl/train.py:458) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
+                                             # DEVIATION I-62 [D1] (3/4; next marl/train.py:499) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
                                              scheduler=PopulationBasedTraining(time_attr=TRAINING_ITERATION,
                                                                                perturbation_interval=self.checkpoint_freq,
                                                                                hyperparam_mutations=hyperparam_mutations),
@@ -443,7 +484,7 @@ class RLTrainer:
                                              mode="max",
                                              reuse_actors=False),
                       run_config=RunConfig(storage_path=self.storage_path,
-                                           # DEVIATION I-64 [D3] (2/2; first marl/train.py:396) No run manifests, non-learning baselines or multi-seed statistics
+                                           # DEVIATION I-64 [D3] (2/2; first marl/train.py:430) No run manifests, non-learning baselines or multi-seed statistics
                                            name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
                                            # DECIDE I-50 [D1] The budget is counted in training iterations, but the paper says "10 000 episodes"
                                            stop={TRAINING_ITERATION: self.iters if _iters is None else abs(int(_iters)),
@@ -455,7 +496,7 @@ class RLTrainer:
                                                                               num_to_keep=3)))
 
         # Run the tuner and capture the results
-        # DEVIATION I-62 [D1] (4/4; first marl/train.py:116) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
+        # DEVIATION I-62 [D1] (4/4; first marl/train.py:147) Training config defects: positive `evaluation_duration` rejected, CPUs double-allocated, PBT always on, no `finally` around `ray.shutdown`
         results = tuner.fit()
 
         # Save environment configuration
@@ -632,29 +673,35 @@ class RLTrainer:
 
 class GroupedLEM(MultiAgentEnv):
     """
-    Grouped environment for the local energy market.
+    Grouped environment for centralised training (CTCE, CTDE).
+
+    Wraps the multi-agent environment named in ``env_config["env_class"]``
+    (the local energy market when absent) and groups all its agents into one.
+    The name is kept from the original, where it wrapped only the market.
     """
 
     def __init__(self, env_config: Dict[str, Any]) -> None:
         """Initialize the grouped environment.
 
         Args:
-            env_config: Environment configuration dictionary
+            env_config: Environment configuration dictionary; ``env_class`` is the
+                environment to wrap, the rest is passed to it
         """
         super().__init__()
 
         # Multi-agent environment
-        env = LocalEnergyMarket(env_config)
+        env_cls = env_config.get("env_class") or market_env_cls()
+        env = env_cls({k: v for k, v in env_config.items() if k != "env_class"})
 
         _tuple_obs_space = self._dict_to_tuple_space(env.observation_spaces)
         _tuple_act_space = self._dict_to_tuple_space(env.action_spaces)
 
         # Original `agents_id`
-        self.original_agents_id = env.agents_id
+        self.original_agents_id = agent_ids(env)
 
         # Grouped environment
-        # FAULT I-59 [D1] (1/3; next marl/train.py:697) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
-        self.env = env.with_agent_groups(groups={"grouped_agents": env.agents_id},
+        # FAULT I-59 [D1] (1/3; next marl/train.py:744) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        self.env = env.with_agent_groups(groups={"grouped_agents": agent_ids(env)},
                                          obs_space=_tuple_obs_space,
                                          act_space=_tuple_act_space)
         self.agents_id = ["grouped_agents"]
@@ -694,7 +741,7 @@ class GroupedLEM(MultiAgentEnv):
         obs, rewards, terminateds, truncateds, infos = self.env.step(action_dict)
 
         # Pack the observations into a group
-        # FAULT I-59 [D1] (2/3; next marl/train.py:721) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (2/3; next marl/train.py:768) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         grouped_obs = {k: tuple(v) for k, v in obs.items()}
 
         # The reward for the group is the sum of individual rewards
@@ -718,7 +765,7 @@ class GroupedLEM(MultiAgentEnv):
             A Tuple space containing the subspaces from the original Dict.
         """
         # Sort keys to ensure the order of spaces is always the same
-        # FAULT I-59 [D1] (3/3; first marl/train.py:656) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
+        # FAULT I-59 [D1] (3/3; first marl/train.py:703) Grouped obs/action tuples may be assigned to the wrong agents: insertion order vs sorted keys
         sorted_keys = sorted(dict_space.keys())
 
         # Create a tuple of the subspaces in the sorted order
