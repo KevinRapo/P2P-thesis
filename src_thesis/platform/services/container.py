@@ -8,9 +8,9 @@ Each service is one class in its own module:
     profile_service       ProfileService       SimBench profiles (built)
     participant_service   ParticipantService   placement, previews (built)
     tariff_service        TariffService        DSO tariff CSVs (built)
-    validation_service    ValidationService    sample data until R6-R7
-    experiment_service    ExperimentService    sample data until R7
-    result_service        ResultService        sample data until R7
+    validation_service    ValidationService    file checks, dry run, scenarios (built)
+    experiment_service    ExperimentService    runs, worker pool (built)
+    result_service        ResultService        simulation runs built; curves, matrix, compare are samples
 
 A service is built by replacing its sample method bodies with the real ones, in
 the same class; ``SAMPLE_DATA`` on the class says whether any are left. None of
@@ -26,7 +26,9 @@ from src_thesis.platform.env import load_env
 load_env()  # MARLEM_HOME and the other settings from .env, for every caller
 
 from src_thesis.platform.services.config_service import ConfigService  # noqa: E402
-from src_thesis.platform.services.experiment_service import ExperimentService  # noqa: E402
+from src_thesis.platform.services.experiment_service import (
+    ExperimentService,
+)  # noqa: E402
 from src_thesis.platform.services.grid_catalog_service import (  # noqa: E402
     GridCatalogService,
 )
@@ -87,6 +89,6 @@ def build_services(home: Path | None = None) -> Services:
         participants=ParticipantService(),
         tariffs=TariffService(),
         validation=ValidationService(),
-        experiments=ExperimentService(),
-        results=ResultService(),
+        experiments=ExperimentService(workspace),
+        results=ResultService(workspace),
     )

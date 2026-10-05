@@ -61,6 +61,7 @@ flowchart LR
     n_platform_experiments_models_sections["models/sections.py"]
   end
   subgraph g_runners["runners/"]
+    n_platform_experiments_runners_probe["runners/probe.py"]
     n_platform_experiments_runners_simulate["runners/simulate.py"]
   end
   subgraph g_store["store/"]
@@ -86,6 +87,9 @@ flowchart LR
   n_platform__users_ --> n_platform_experiments_models_records
   n_platform__users_ --> n_platform_experiments_models_resolve
   n_platform__users_ --> n_platform_experiments_models_sections
+  n_platform__users_ --> n_platform_experiments_runners_probe
+  n_platform__users_ --> n_platform_experiments_store_filesystem
+  n_platform__users_ --> n_platform_experiments_worker_pool
   n_platform_experiments_factory_environment --> n_marlem_core
   n_platform_experiments_factory_environment --> n_marlem_environment
   n_platform_experiments_factory_environment --> n_marlem_grid
@@ -105,6 +109,11 @@ flowchart LR
   n_platform_experiments_models_resolve --> n_platform_experiments_models_expand
   n_platform_experiments_models_resolve -.-> n_platform_experiments_models_records
   n_platform_experiments_models_resolve --> n_platform_experiments_models_sections
+  n_platform_experiments_runners_probe --> n_marlem_environment
+  n_platform_experiments_runners_probe --> n_marlem_policies
+  n_platform_experiments_runners_probe --> n_platform_experiments_factory_environment
+  n_platform_experiments_runners_probe -.-> n_platform_experiments_models_records
+  n_platform_experiments_runners_probe --> n_platform_experiments_models_resolve
   n_platform_experiments_runners_simulate --> n_marlem_environment
   n_platform_experiments_runners_simulate --> n_marlem_policies
   n_platform_experiments_runners_simulate --> n_platform_experiments_factory_environment

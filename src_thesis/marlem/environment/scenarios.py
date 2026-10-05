@@ -18,6 +18,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Optional
 
 from src_thesis.marlem.core.engine import AgentSpec, EngineSpec, MarketEngine
+from src_thesis.marlem.core.scenarios import INFO
 from src_thesis.marlem.environment.simulation import SimulationResult, run_simulation
 from src_thesis.marlem.grid.contract import GridModel, ParticipantInjection
 from src_thesis.marlem.policies.registry import get_policy
@@ -111,6 +112,7 @@ class ScenarioResult:
         expectations: Each statement and whether it held.
         passed: All statements held.
         result: The scenario's day, for replay.
+        baseline: The same world with every participant idle.
     """
 
     scenario: str
@@ -119,6 +121,7 @@ class ScenarioResult:
     expectations: list[Expectation] = field(default_factory=list)
     passed: bool = False
     result: Optional[SimulationResult] = None
+    baseline: Optional[SimulationResult] = None
 
 
 def _fixture_world(
@@ -176,6 +179,7 @@ def run_scenario(scenario: Scenario, base: EngineSpec, build: Build) -> Scenario
         expectations,
         all(e.passed for e in expectations),
         test,
+        baseline,
     )
 
 
@@ -235,9 +239,7 @@ SCENARIOS: dict[str, Scenario] = {
     for s in (
         Scenario(
             "idle_market",
-            "Own load only, nobody orders",
-            "The market stays silent and the grid sees only what the participants "
-            "themselves consume.",
+            *INFO["idle_market"],
             "no_order",
             lambda e, active, idle: (0.0, 0.0 if idle else e),
             range(0, 24),
@@ -245,9 +247,7 @@ SCENARIOS: dict[str, Scenario] = {
         ),
         Scenario(
             "export_at_noon",
-            "Everyone exports at noon",
-            "Voltage rises at the participants' buses around noon, and rises most "
-            "at the far end of the feeder.",
+            *INFO["export_at_noon"],
             "net_position",
             lambda e, active, idle: (e if active and not idle else 0.0, 0.0),
             range(11, 14),
@@ -255,9 +255,7 @@ SCENARIOS: dict[str, Scenario] = {
         ),
         Scenario(
             "import_in_the_evening",
-            "Everyone imports in the evening",
-            "Voltage falls at the participants' buses in the evening, and falls "
-            "most at the far end of the feeder.",
+            *INFO["import_in_the_evening"],
             "net_position",
             lambda e, active, idle: (0.0, e if active and not idle else 0.0),
             range(18, 21),

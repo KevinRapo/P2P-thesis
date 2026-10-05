@@ -1,60 +1,247 @@
-"""ResultService: reading finished runs (04 §5).
+"""ResultService: reading runs (04 §5).
 
-Every method still returns generated sample results; each docstring says what
-the final version will read from the run folders (R7).
+Simulation runs are read from their folders: ``raw/steps.jsonl`` (also while the
+run is still going: a half-written last line is ignored), ``metrics/*.jsonl`` and
+``grid_topology.json``. Training curves, the paradigm × algorithm matrix and run
+comparison still return generated sample data.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import random
-from src_thesis.platform.services.models import MatrixTable, RunResult, Series
-from src_thesis.platform.services.experiment_service import ALGORITHMS, PARADIGMS
+from pathlib import Path
+from typing import Any
 
-HOURS = list(range(24))  # sample replays cover one day
+from src_thesis.marlem.core.checks import CATALOG as CHECKS
+from src_thesis.platform.experiments.store.filesystem import ExperimentStore
+from src_thesis.platform.services.experiment_service import ALGORITHMS, PARADIGMS
+from src_thesis.platform.services.models import (
+    CheckResult,
+    MatrixTable,
+    ReplayTopology,
+    RunResult,
+    Series,
+    TopologyView,
+)
+from src_thesis.platform.services.workspace import Workspace
+
+HOURS = list(range(24))  # sample curves cover one day
 
 
 class ResultService:
-    """Reading finished runs: outcomes, learning curves, replays, comparisons.
+    """Reading runs: outcomes, replays, checks, comparisons.
 
-    Every method returns sample data until it is built; its docstring says what the
-    final version will do.
+    Args:
+        workspace: Where the store lives; the default workspace when ``None``.
     """
 
-    SAMPLE_DATA = True  # shown in the Studio's header until the service is built
+    SAMPLE_DATA = True  # training curves, the matrix and comparison are samples
+
+    def __init__(self, workspace: Workspace | None = None) -> None:
+        self.workspace = workspace or Workspace.default()
+        self.store = ExperimentStore(self.workspace.store)
+
+    # ------------------------------------------------------------------ simulation
+    def replay(self, run_id: str) -> list[dict[str, Any]]:
+        """Every recorded step of a run, in order (all days).
+
+        Each record has ``day``, ``step``, ``orders``, ``trades``, ``settlement``
+        (per agent), ``assessment`` (the power flow), ``kpis`` (prices) and
+        ``checks`` (findings). A run that is still going returns what it has so
+        far.
+        """
+        path = self.store.run_dir(run_id) / "raw" / "steps.jsonl"
+        out: list[dict[str, Any]] = []
+        if not path.exists():
+            return out
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    out.append(json.loads(line))
+                except ValueError:  # the line being written right now
+                    break
+        return out
+
+    def topology(self, run_id: str) -> ReplayTopology | None:
+        """The run's network and where its participants sit; ``None`` until the
+        run has started."""
+        path = self.store.run_dir(run_id) / "grid_topology.json"
+        if not path.exists():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+        shape = data["topology"]
+        return ReplayTopology(
+            topology=TopologyView(
+                buses=shape["buses"],
+                lines=[
+                    {
+                        "id": b["id"],
+                        "from": b["from_bus"],
+                        "to": b["to_bus"],
+                        "kind": b["kind"],
+                        "closed": b["closed"],
+                    }
+                    for b in shape["branches"]
+                ],
+                external_grid_bus=shape["external_grid_bus"],
+                coordinates=shape["coordinates"],
+            ),
+            participants={p["id"]: p["bus"] for p in data["participants"]},
+            step_hours=data["step_hours"],
+        )
+
+    def checks(self, run_id: str) -> list[CheckResult]:
+        """Every check with its failures over the run, in catalogue order.
+
+        Computed from the recorded steps, so it is right while the run is going.
+        """
+        failures = {c: 0 for c in CHECKS}
+        first: dict[str, tuple[str, int | None]] = {}
+        for record in self.replay(run_id):
+            for finding in record.get("checks", []):
+                check = finding["check"]
+                failures[check] += 1
+                first.setdefault(check, (record["day"], record["step"]))
+        for line in self.store.read_jsonl(run_id, "metrics/checks.jsonl"):
+            for finding in line["findings"]:
+                if finding["step"] is None:  # day-level findings are not in the steps
+                    failures[finding["check"]] += 1
+                    first.setdefault(finding["check"], (line["day"], None))
+        return [
+            CheckResult(
+                id=info.id,
+                title=info.title,
+                severity=info.severity,
+                issue=info.issue,
+                explanation=info.explanation,
+                failures=failures[info.id],
+                first_step=first[info.id][1] if info.id in first else None,
+                first_day=first[info.id][0] if info.id in first else None,
+            )
+            for info in CHECKS.values()
+        ]
 
     def summary(self, run_id: str) -> RunResult:
-        """Research outcomes, RL return and manifest of one run.
+        """Outcomes and manifest of one run.
 
-        Sample data for now. The final version will read ``manifest.json`` and
-        ``metrics/evaluation.jsonl``.
+        For simulation runs the outcomes are the totals over all days: energy
+        traded with other participants and with the DSO, voltage extremes, grid
+        violations and failed checks.
         """
-        rng = random.Random(run_id)
+        manifest = self.store.read_manifest(run_id)
+        rows = list(self.store.read_jsonl(run_id, "metrics/summary.jsonl"))
+        outcomes: dict[str, float] = {}
+        if rows:
+            low = [r["min_voltage_pu"] for r in rows if r["min_voltage_pu"] is not None]
+            high = [
+                r["max_voltage_pu"] for r in rows if r["max_voltage_pu"] is not None
+            ]
+            outcomes = {
+                "steps_played": float(sum(r["steps_played"] for r in rows)),
+                "trades": float(sum(r["trades"] for r in rows)),
+                "p2p_kwh": round(sum(r["p2p_kwh"] for r in rows), 3),
+                "dso_kwh": round(sum(r["dso_kwh"] for r in rows), 3),
+                "grid_violations": float(sum(r["grid_violations"] for r in rows)),
+                "not_converged": float(sum(r["not_converged"] for r in rows)),
+                "failed_invariants": float(sum(r["failed_invariants"] for r in rows)),
+            }
+            if low:
+                outcomes["min_voltage_pu"] = min(low)
+            if high:
+                outcomes["max_voltage_pu"] = max(high)
+        resolved = self.store.read_resolved(run_id)
+        source = resolved.grid.source
         return RunResult(
             run_id=run_id,
-            rl_return=round(rng.uniform(5, 25), 2),
-            outcomes={
-                "served_demand_share": round(rng.uniform(0.9, 1.0), 3),
-                "unmet_demand_kwh": round(rng.uniform(0, 40), 1),
-                "curtailment_kwh": round(rng.uniform(0, 25), 1),
-                "p2p_share": round(rng.uniform(0.2, 0.6), 3),
-                "total_cost": round(rng.uniform(800, 1500), 0),
-                "voltage_violations": rng.randint(0, 12),
-                "losses_kwh": round(rng.uniform(10, 30), 1),
-            },
+            rl_return=None,
+            outcomes=outcomes,
             manifest={
-                "network": "1-LV-semiurb4--0-sw",
-                "reward.version": "corrected-v1",
-                "data_status": "reconstructed-unverified",
-                "commit": "sample",
+                "network": source.code if source else "",
+                "controller": manifest.cell.algorithm,
+                "kind": manifest.cell.kind,
+                "days": manifest.days,
+                "data_status": resolved.meta.data_status or "",
+                "commit": manifest.code.get("commit", "") if manifest.code else "",
             },
         )
 
-    def training_curve(self, run_id: str) -> Series:
-        """Training and evaluation return per iteration.
+    def step_records(self, run_id: str, episode: int = 0) -> list[dict]:
+        """One summary row per step of one day (``episode`` = day index).
 
-        Sample data for now. The final version will read ``metrics/training.csv``.
+        Rows: ``step``, ``orders``, ``p2p_trades``, ``dso_trades``,
+        ``clearing_price``, ``p2p_kwh``, ``import_kwh`` (+ from upstream),
+        ``min_v_pu`` and ``violations``.
         """
+        days = sorted({r["day"] for r in self.replay(run_id)})
+        if episode >= len(days):
+            return []
+        rows = []
+        for r in self.replay(run_id):
+            if r["day"] != days[episode]:
+                continue
+            trades = r["trades"]
+            dso = [t for t in trades if "DSO" in (t["buyer_id"], t["seller_id"])]
+            assessment = r.get("assessment") or {}
+            rows.append(
+                {
+                    "step": r["step"],
+                    "orders": len(r["orders"]),
+                    "p2p_trades": len(trades) - len(dso),
+                    "dso_trades": len(dso),
+                    "clearing_price": r["kpis"].get("clearing", 0.0),
+                    "p2p_kwh": round(
+                        sum(t["quantity_kwh"] for t in trades if t not in dso), 3
+                    ),
+                    "import_kwh": assessment.get("external_grid_kwh"),
+                    "min_v_pu": assessment.get("min_voltage_pu"),
+                    "violations": len(assessment.get("violations", [])),
+                }
+            )
+        return rows
+
+    def grid_series(self, run_id: str, episode: int = 0) -> Series:
+        """Voltages, loading and losses over one day of a simulation run."""
+        rows = [
+            r for r in self.replay(run_id) if r["day"] == self._day(run_id, episode)
+        ]
+        a = [r.get("assessment") or {} for r in rows]
+        return Series(
+            x=[r["step"] for r in rows],
+            y={
+                "min voltage (pu)": [x.get("min_voltage_pu") or math.nan for x in a],
+                "max voltage (pu)": [x.get("max_voltage_pu") or math.nan for x in a],
+                "max line loading (%)": [
+                    x.get("max_line_loading_percent") or 0.0 for x in a
+                ],
+            },
+            x_label="step",
+            y_label="",
+        )
+
+    def agent_series(self, run_id: str, episode: int = 0) -> Series:
+        """Battery energy and net physical injection of each agent over one day."""
+        rows = [
+            r for r in self.replay(run_id) if r["day"] == self._day(run_id, episode)
+        ]
+        y: dict[str, list[float]] = {}
+        for r in rows:
+            for agent, s in r["settlement"].items():
+                if s.get("soc_kwh") is not None:
+                    y.setdefault(f"{agent} battery (kWh)", []).append(s["soc_kwh"])
+                y.setdefault(f"{agent} net (kWh)", []).append(
+                    s["production_kwh"] - s["consumption_kwh"]
+                )
+        return Series(x=[r["step"] for r in rows], y=y, x_label="step", y_label="kWh")
+
+    def _day(self, run_id: str, episode: int) -> str | None:
+        days = sorted({r["day"] for r in self.replay(run_id)})
+        return days[episode] if episode < len(days) else None
+
+    # ------------------------------------------------------------------ samples
+    def training_curve(self, run_id: str) -> Series:
+        """Training and evaluation return per iteration (sample data for now)."""
         rng = random.Random(run_id)
         it = list(range(0, 200, 5))
         train = [
@@ -74,91 +261,8 @@ class ResultService:
             y_label="episode return",
         )
 
-    def step_records(self, run_id: str, episode: int = 0) -> list[dict]:
-        """Orders, trades, settlement and grid assessment per step of one episode.
-
-        Sample data for now. The final version will read ``raw/steps.jsonl`` with
-        ``ExperimentStore.read_jsonl``.
-        """
-        rng = random.Random(f"{run_id}-{episode}")
-        return [
-            {
-                "step": t,
-                "orders": 8,
-                "p2p_trades": rng.randint(0, 6),
-                "dso_trades": rng.randint(1, 8),
-                "clearing_price": round(rng.uniform(80, 220), 1),
-                "p2p_kwh": round(rng.uniform(0, 90), 1),
-                "import_kwh": round(rng.uniform(-60, 120), 1),
-                "min_v_pu": round(rng.uniform(0.93, 1.0), 3),
-                "violations": rng.randint(0, 2),
-            }
-            for t in HOURS
-        ]
-
-    def grid_series(self, run_id: str, episode: int = 0) -> Series:
-        """Voltages, loadings, losses and violations over one episode.
-
-        Sample data for now. The final version will build voltage, loading and violation
-        series from the step records.
-        """
-        vmin = [
-            round(
-                0.985
-                - 0.04 * math.exp(-(((h - 19) / 2.5) ** 2))
-                + 0.015 * math.exp(-(((h - 13) / 3) ** 2)),
-                4,
-            )
-            for h in HOURS
-        ]
-        vmax = [
-            round(1.01 + 0.035 * math.exp(-(((h - 13) / 3) ** 2)), 4) for h in HOURS
-        ]
-        load = [
-            round(
-                45
-                + 35 * math.exp(-(((h - 19) / 3) ** 2))
-                + 25 * math.exp(-(((h - 13) / 3) ** 2)),
-                1,
-            )
-            for h in HOURS
-        ]
-        return Series(
-            x=HOURS,
-            y={
-                "min voltage (pu)": vmin,
-                "max voltage (pu)": vmax,
-                "max line loading (%)": load,
-            },
-            x_label="hour",
-            y_label="",
-        )
-
-    def agent_series(self, run_id: str, episode: int = 0) -> Series:
-        """Per-agent state of charge, net injection and profit over one episode.
-
-        Sample data for now. The final version will build per-agent series from the step
-        records.
-        """
-        return Series(
-            x=HOURS,
-            y={
-                f"agent {i} SoC": [
-                    round(0.5 + 0.35 * math.sin((h + 3 * i) / 24 * 2 * math.pi), 3)
-                    for h in HOURS
-                ]
-                for i in range(4)
-            },
-            x_label="hour",
-            y_label="state of charge",
-        )
-
     def matrix(self, experiment_id: str, metric: str) -> MatrixTable:
-        """Paradigm × algorithm table of ``metric`` (mean ± std over seeds).
-
-        Sample data for now. The final version will aggregate ``metric`` over seeds per
-        paradigm × algorithm.
-        """
+        """Paradigm × algorithm table of ``metric`` (sample data for now)."""
         rng = random.Random(f"{experiment_id}-{metric}")
         mean = [
             [round(rng.uniform(0.3, 0.9), 3) for _ in ALGORITHMS] for _ in PARADIGMS
@@ -175,11 +279,7 @@ class ResultService:
         )
 
     def compare(self, run_ids: list[str], metric: str) -> Series:
-        """One metric of several runs, for overlaying.
-
-        Sample data for now. The final version will overlay ``metric`` of several runs;
-        flags different reward versions.
-        """
+        """One metric of several runs, for overlaying (sample data for now)."""
         return Series(
             x=list(range(0, 200, 5)),
             y={r: self.training_curve(r).y["evaluation"] for r in run_ids},
@@ -188,10 +288,7 @@ class ResultService:
         )
 
     def export(self, run_ids: list[str], fmt: str = "csv") -> str:
-        """Write the runs' raw series to a file.
-
-        Sample data for now. The final version will write the runs' raw series to
-        ``<workspace>/exports``.
+        """Write the runs' step summaries to ``<workspace>/exports``.
 
         Args:
             run_ids: Runs to export.
@@ -200,4 +297,17 @@ class ResultService:
         Returns:
             The path written.
         """
-        return f"exports/{len(run_ids)}-runs.{fmt}"
+        folder = self.workspace.exports
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"{len(run_ids)}-runs.{fmt}"
+        rows = [{"run_id": r, **row} for r in run_ids for row in self.step_records(r)]
+        if fmt == "json":
+            path.write_text(json.dumps(rows, indent=1), encoding="utf-8")
+        else:
+            import csv
+
+            with open(path, "w", encoding="utf-8", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=list(rows[0]) if rows else [])
+                writer.writeheader()
+                writer.writerows(rows)
+        return str(Path(path))

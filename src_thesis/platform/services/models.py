@@ -380,7 +380,7 @@ class RunResult(BaseModel):
     """Research outcomes are kept apart from RL return on purpose."""
 
     run_id: str
-    rl_return: float
+    rl_return: float | None = None  # None for runs without training
     outcomes: dict[
         str, float
     ]  # served/unmet demand, curtailment, P2P share, violations, losses …
@@ -419,3 +419,119 @@ class RepositoryHealth(BaseModel):
     validation_progress: float  # share of validation-plan issues closed
     dependencies_ok: bool
     messages: list[str] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- simulation
+
+
+class ControllerParam(BaseModel):
+    """One parameter of a scripted controller.
+
+    Attributes:
+        name: Parameter name.
+        label: Name shown in the UI.
+        default: Value used when none is given.
+        low: Smallest allowed value.
+        high: Largest allowed value.
+        help: One sentence explaining it.
+    """
+
+    name: str
+    label: str
+    default: float
+    low: float
+    high: float
+    help: str = ""
+
+
+class ControllerInfo(BaseModel):
+    """A scripted controller the Simulate page offers.
+
+    Attributes:
+        name: Registry name (``RunCell.algorithm`` of a simulate run).
+        title: Short title.
+        description: What it does.
+        params: Its parameters.
+    """
+
+    name: str
+    title: str
+    description: str
+    params: list[ControllerParam] = Field(default_factory=list)
+
+
+class CheckResult(BaseModel):
+    """One check of a simulated run and how often it failed.
+
+    Attributes:
+        id: Check ID.
+        title: Short title.
+        severity: ``invariant`` (must hold), ``engine_fault`` (known defect of the
+            original market) or ``physical`` (a network limit observed).
+        issue: Issue register ID of the known defect, if any.
+        explanation: What it checks and what a failure means.
+        failures: Failed evaluations over the whole run.
+        first_step: First failing step (of the first failing day); ``None`` if none.
+        first_day: Day of that step.
+    """
+
+    id: str
+    title: str
+    severity: Literal["invariant", "engine_fault", "physical"]
+    issue: str | None = None
+    explanation: str = ""
+    failures: int = 0
+    first_step: int | None = None
+    first_day: str | None = None
+
+
+class Expectation(BaseModel):
+    """One statement of a sanity scenario and whether it held."""
+
+    statement: str
+    passed: bool
+    detail: str = ""
+
+
+class ScenarioInfo(BaseModel):
+    """A sanity scenario: what it does and what must happen."""
+
+    id: str
+    title: str
+    expected: str
+
+
+class ScenarioOutcome(BaseModel):
+    """The result of running a sanity scenario.
+
+    Attributes:
+        scenario: Scenario ID.
+        title: Its title.
+        expected: What it expected, in words.
+        passed: Whether every statement held.
+        expectations: Each statement with the numbers behind it.
+        series: Voltage per hour with and without the scenario, for a chart.
+        error: Set instead of the rest when the scenario could not run.
+    """
+
+    scenario: str
+    title: str = ""
+    expected: str = ""
+    passed: bool = False
+    expectations: list[Expectation] = Field(default_factory=list)
+    series: Series | None = None
+    error: str = ""
+
+
+class ReplayTopology(BaseModel):
+    """What the replay needs to draw a run's network.
+
+    Attributes:
+        topology: Buses and branches.
+        participants: Participant ID to bus ID.
+        step_hours: Hours per step.
+    """
+
+    topology: TopologyView
+    participants: dict[str, str] = Field(default_factory=dict)
+    step_hours: float = 1.0

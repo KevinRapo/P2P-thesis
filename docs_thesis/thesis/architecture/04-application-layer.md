@@ -79,7 +79,9 @@ flowchart LR
   n_platform_services_validation_service["validation_service.py"]
   n_platform_services_workspace["workspace.py"]
   subgraph USES["uses"]
+    n_marlem_core["marlem/core"]:::ext
     n_marlem_grid["marlem/grid"]:::ext
+    n_marlem_policies["marlem/policies"]:::ext
     n_platform_env["platform/env.py"]:::ext
     n_platform_experiments["platform/experiments"]:::ext
   end
@@ -100,8 +102,10 @@ flowchart LR
   n_platform_services_container --> n_platform_services_validation_service
   n_platform_services_container --> n_platform_services_workspace
   n_platform_services_data_files --> n_platform_experiments
+  n_platform_services_experiment_service --> n_marlem_policies
   n_platform_services_experiment_service --> n_platform_experiments
   n_platform_services_experiment_service -.-> n_platform_services_models
+  n_platform_services_experiment_service --> n_platform_services_workspace
   n_platform_services_grid_catalog_service --> n_marlem_grid
   n_platform_services_grid_catalog_service -.-> n_platform_services_models
   n_platform_services_models --> n_platform_experiments
@@ -113,11 +117,16 @@ flowchart LR
   n_platform_services_profile_service --> n_platform_services_data_files
   n_platform_services_profile_service -.-> n_platform_services_models
   n_platform_services_profile_service --> n_platform_services_profile_classes
+  n_platform_services_result_service --> n_marlem_core
+  n_platform_services_result_service --> n_platform_experiments
   n_platform_services_result_service --> n_platform_services_experiment_service
   n_platform_services_result_service -.-> n_platform_services_models
+  n_platform_services_result_service --> n_platform_services_workspace
   n_platform_services_tariff_service --> n_platform_experiments
   n_platform_services_tariff_service --> n_platform_services_data_files
   n_platform_services_tariff_service -.-> n_platform_services_models
+  n_platform_services_validation_service --> n_marlem_core
+  n_platform_services_validation_service --> n_marlem_grid
   n_platform_services_validation_service --> n_platform_experiments
   n_platform_services_validation_service -.-> n_platform_services_models
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111

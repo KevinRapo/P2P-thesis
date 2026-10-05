@@ -149,11 +149,7 @@ def test_container_and_default_home(tmp_path: Path, monkeypatch) -> None:
     services = build_services(home=tmp_path)
     assert isinstance(services.config, ConfigService)
     assert services.config.workspace.library == tmp_path / "library"
-    assert services.sample_data() == [
-        "validation",
-        "experiments",
-        "results",
-    ]
+    assert services.sample_data() == ["results"]  # curves, matrix and compare
     monkeypatch.setenv("MARLEM_HOME", str(tmp_path / "elsewhere"))
     assert default_home() == tmp_path / "elsewhere"
     monkeypatch.delenv("MARLEM_HOME")
