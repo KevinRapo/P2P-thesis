@@ -38,18 +38,18 @@ from src_thesis.cooperation.implicit_cooperation import (
     ImplicitCooperation,
 )  # noqa: E402
 from src_thesis.marketplace.dso.dso import DSOAgent  # noqa: E402
-from src_thesis.marketplace.grid.base import GridTopology  # noqa: E402
-from src_thesis.marketplace.lem import LocalEnergyMarket  # noqa: E402
+from src_thesis.core.location import GridTopology  # noqa: E402
+from src_thesis.environment.lem import LocalEnergyMarket  # noqa: E402
 from src_thesis.marketplace.market.matching import (
     MarketConfig,
     OrderMatcher,
 )  # noqa: E402
 from src_thesis.marketplace.market.mechanism import ClearingMechanism  # noqa: E402
-from src_thesis.marketplace.market.order import Order, Trade  # noqa: E402
+from src_thesis.core.orders import Order, Trade  # noqa: E402
 from src_thesis.marketplace.market.validation import Validator  # noqa: E402
-from src_thesis.marketplace.reward import RewardHandler  # noqa: E402
-from src_thesis.marl.agents.battery import Battery  # noqa: E402
-from src_thesis.marl.agents.der import DERAgent  # noqa: E402
+from src_thesis.environment.reward import RewardHandler  # noqa: E402
+from src_thesis.agents.battery import Battery  # noqa: E402
+from src_thesis.agents.der import DERAgent  # noqa: E402
 
 
 # --------------------------------------------------------------------------- registry

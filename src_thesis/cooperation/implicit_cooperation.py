@@ -9,9 +9,9 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.market.matching import MatchingHistory
-from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis.core.interfaces import Participant
+from src_thesis.core.results import MatchingHistory
+from src_thesis.core.orders import Order, Trade
 
 
 class ImplicitCooperation:
@@ -48,7 +48,7 @@ class ImplicitCooperation:
     def get_kpis(self,
                  current_step: int,
                  dso_id: str,
-                 agents: List[DERAgent],
+                 agents: List[Participant],
                  orders: List[Order],
                  trades: List[Trade],
                  grid_congestion: float,
@@ -91,7 +91,7 @@ class ImplicitCooperation:
         """
         # Social welfare (total economic value created)
         # DECIDE I-36 [B1] Social welfare is turnover `Σ p·q`, not surplus
-        # DECIDE I-75 [C2] (1/2; next marketplace/reward.py:175) `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported
+        # DECIDE I-75 [C2] (1/2; next environment/reward.py:174) `f_coop` has no normalisation ranges for its unbounded KPIs, so the [0, 1] claim is unsupported
         social_welfare = sum(t.price * abs(t.quantity) for t in trades)
 
         # Market liquidity (total trading volume)
@@ -161,7 +161,7 @@ class ImplicitCooperation:
 
     def _get_resource_coordination_metrics(self,
                                            current_step: int,
-                                           agents: List[DERAgent],
+                                           agents: List[Participant],
                                            trades: List[Trade],
                                            dso_trades: Optional[List[Trade]] = None) -> Dict[str, float]:
         """

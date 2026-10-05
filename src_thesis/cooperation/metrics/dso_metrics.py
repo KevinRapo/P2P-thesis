@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from src_thesis.marketplace.market.matching import MatchingHistory, MatchingResult
+from src_thesis.core.results import MatchingHistory, MatchingResult
 
 
 @dataclass

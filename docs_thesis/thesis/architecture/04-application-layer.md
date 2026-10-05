@@ -74,9 +74,9 @@ flowchart LR
   n_application_workspace["workspace.py"]
   subgraph USES["uses"]
     n_adapters_grid["adapters/grid"]:::ext
+    n_core_grid_contract["core/grid_contract.py"]:::ext
     n_env["env.py"]:::ext
     n_experiments_models["experiments/models"]:::ext
-    n_marketplace_grid["marketplace/grid"]:::ext
   end
   n_application_config_service -.-> n_application_models
   n_application_config_service --> n_application_workspace
@@ -93,12 +93,12 @@ flowchart LR
   n_application_experiment_service --> n_experiments_models
   n_application_grid_catalog_service --> n_adapters_grid
   n_application_grid_catalog_service -.-> n_application_models
-  n_application_grid_catalog_service --> n_marketplace_grid
+  n_application_grid_catalog_service --> n_core_grid_contract
   n_application_models --> n_experiments_models
   n_application_profile_service --> n_adapters_grid
   n_application_profile_service -.-> n_application_models
+  n_application_profile_service --> n_core_grid_contract
   n_application_profile_service --> n_experiments_models
-  n_application_profile_service --> n_marketplace_grid
   n_application_result_service --> n_application_experiment_service
   n_application_result_service -.-> n_application_models
   n_application_validation_service -.-> n_application_models

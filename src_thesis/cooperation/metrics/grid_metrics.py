@@ -8,8 +8,8 @@ from typing import List
 import numpy as np
 from scipy.stats import linregress
 
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.market.matching import MatchingHistory
+from src_thesis.core.interfaces import GridView
+from src_thesis.core.results import MatchingHistory
 
 
 @dataclass
@@ -50,7 +50,7 @@ class GridMetricsHandler:
     """Handler for grid performance metrics in the Local Energy Market."""
 
     def __init__(self,
-                 grid_network: GridNetwork,
+                 grid_network: GridView,
                  matching_history: MatchingHistory,
                  _window: int = 2) -> None:
         """Initialize the grid metrics handler.

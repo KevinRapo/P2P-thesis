@@ -26,11 +26,35 @@ ARCH = DOCS / "thesis" / "architecture"
 
 GRAPHS: dict[str, dict] = {
     "grid": {
-        "roots": ["adapters/grid/simbench_new.py", "marketplace/grid/contract_new.py"],
+        "roots": ["adapters/grid/simbench_new.py", "core/grid_contract.py"],
     },
     "experiments": {"roots": ["experiments"], "faded": ["experiments/models/records"]},
     "application": {"roots": ["application"], "faded": ["application/models"]},
     "studio": {"roots": ["studio"], "collapse": {"studio/pages/": "studio/pages/*"}},
+    # MARLEM itself, one box per package (src_thesis/README.md).
+    "marlem": {
+        "roots": [
+            "core",
+            "agents",
+            "marketplace",
+            "cooperation",
+            "adapters",
+            "environment",
+            "marl",
+        ],
+        "collapse": {
+            f"{p}/": f"{p}/*"
+            for p in (
+                "core",
+                "agents",
+                "marketplace",
+                "cooperation",
+                "adapters",
+                "environment",
+                "marl",
+            )
+        },
+    },
 }
 BLOCK = re.compile(
     r"(<!-- BEGIN generated:graph (\w+) -->\n).*?(<!-- END generated:graph -->)",

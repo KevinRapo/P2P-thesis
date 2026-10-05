@@ -7,7 +7,7 @@ from typing import List, Optional
 from gymnasium.spaces import Box, Dict
 from numpy import array, float32, ndarray
 
-from src_thesis.marl.agents.der import DERAgent
+from src_thesis.core.interfaces import Participant
 from src_thesis.marketplace.dso.dso import DSOAgent
 from src_thesis.marketplace.market.matching import MarketConfig
 
@@ -16,7 +16,7 @@ class ActionHandler:
     """Handler class for managing action space."""
 
     def __init__(self,
-                 agents: List[DERAgent],
+                 agents: List[Participant],
                  dso: DSOAgent,
                  market_config: MarketConfig) -> None:
         """Initialize action handler.
@@ -32,7 +32,7 @@ class ActionHandler:
         self._check_init()
 
         # Define action spaces based on configuration
-        # DEVIATION I-10 [A3] (1/3; next marketplace/action.py:69) β = "no preference" is reachable only at the exact upper bound
+        # DEVIATION I-10 [A3] (1/3; next environment/action.py:69) β = "no preference" is reachable only at the exact upper bound
         self.action_space = Dict({agent.id: Box(low=array([market_config.min_price,  # bid_price
                                                            market_config.min_quantity,  # bid_quantity
                                                            0.0,  # is_buy
@@ -66,7 +66,7 @@ class ActionHandler:
         """
         return self.action_space[agent_id].contains(action)
 
-    # DEVIATION I-10 [A3] (2/3; next marketplace/lem.py:367) β = "no preference" is reachable only at the exact upper bound
+    # DEVIATION I-10 [A3] (2/3; next environment/lem.py:367) β = "no preference" is reachable only at the exact upper bound
     def get_partner_id(self, index: int) -> Optional[str]:
         """Get the partner ID from the action.
 

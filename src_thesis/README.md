@@ -8,54 +8,45 @@ says where each upstream module lives now.
 
 ```text
 src_thesis/
-|-- marketplace/                 # Level 0: marketplace and environment
-|   |-- lem.py                   # LocalEnergyMarket orchestration
-|   |-- action.py
-|   |-- observation.py
-|   |-- reward.py
-|   |-- io.py
-|   |-- market/                  # Original market script names
-|   |-- dso/                     # DSO market role
-|   `-- grid/                    # Grid-domain models and legacy configuration
-|-- marl/                        # Level 1: agents and RL integration
-|   |-- agents/
-|   |-- train.py
-|   |-- inference.py
-|   |-- base.py
-|   |-- ctce.py
-|   `-- ctde.py
-|-- cooperation/                 # Level 2: cooperation and analysis
-|   |-- implicit_cooperation.py
-|   |-- metrics/
-|   `-- visualization/
-|-- adapters/                    # Replaceable infrastructure implementations
-|   |-- grid/network.py
-|   `-- profiles/
-|-- application/                 # UI/CLI-facing services (no MARLEM runtime imports)
-|   |-- *_service.py             # one class per service (sample data until built)
-|   |-- models.py                # returned data (Pydantic)
-|   |-- workspace.py             # where user data lives (outside OneDrive)
-|   `-- container.py             # build_services(): which implementation each caller gets
-|-- studio/                      # NiceGUI Studio; imports only application/
-|   |-- app.py, __main__.py
-|   |-- layout.py, navigation.py, theme.py, state.py
-|   |-- components/
-|   `-- pages/
+|-- core/                        # Shared records and protocols; imports nothing else
+|   |-- orders.py                # Order, Trade
+|   |-- results.py               # MatchingResult, MatchingHistory
+|   |-- location.py              # GridTopology, Location
+|   |-- interfaces.py            # Participant, BatteryView, GridView, MarketBounds
+|   |-- numerics.py              # RLProtection (clipping to safe ranges)
+|   `-- grid_contract.py         # records shared with the SimBench grid adapter
+|-- agents/                      # Level 1 participants: DERAgent, Battery      -> core
+|-- marketplace/                 # Level 0 market: matching, mechanisms,
+|   |-- market/                  #   validation, reputation                      -> core
+|   `-- dso/                     #   DSO agent                                   -> core
+|-- cooperation/                 # Level 2: implicit cooperation, metrics, plots -> core
+|-- adapters/                    # Infrastructure                                -> core
+|   |-- grid/                    #   NetworkX GridNetwork + GridConfig, SimBench adapter,
+|   |                            #   participant placement
+|   `-- profiles/                #   CSV and synthetic profile handlers
+|-- environment/                 # LocalEnergyMarket and its action, observation, reward
+|                                #   and config handlers: the one place that wires
+|                                #   concrete agents, grid, DSO and profiles together
+|-- marl/                        # RLlib trainer, CTCE/CTDE modules, inference; reaches
+|                                #   the environment only when it is the chosen one
+|-- rl_testbench/                # reference tasks trained through marl/
 |-- experiments/                 # Experiment files, runs, store and workers (docs 03)
-|   |-- models/                  # records, files, expand, resolve, manifest
-|   |-- factory/                 # environment and RLlib configuration
-|   |-- store/                   # run folders, step recorder
-|   `-- worker/                  # runners, worker process, pool
+|-- application/                 # UI/CLI-facing services (docs 04)
+|-- studio/                      # NiceGUI Studio; imports only application/ (docs 05)
 `-- root.py
 ```
 
-Each inherited script keeps its original filename even when its parent package
-has moved. Package `__init__.py` files do not provide compatibility wrappers.
+Dependencies point one way. `core/` imports nothing else from `src_thesis`;
+`agents/`, `marketplace/`, `cooperation/` and `adapters/` import only `core/`
+(and themselves); only `environment/` combines them. Components see each other
+through the protocols in `core/interfaces.py` (a participant, a grid, the market
+bounds), so each can be tested with small stand-ins instead of a whole
+environment. `tests/test_studio_boundaries.py` enforces these rules.
 
-The inherited grid behavior currently lives in
-`adapters/grid/network.py`. Market code still calls concrete legacy grid
-operations, so the next architectural step is to define a grid contract and
-redirect those consumers before introducing SimBench.
+The restructure (2026-10-05) moved code without changing behaviour:
+`tests/test_golden_episode.py` replays fixed-seed episodes recorded before it.
+The original code with the validation markers, at the lines the validation
+documents cite, is git tag `marlem-annotated`.
 
 The Studio and CLI call `application/`; only the worker process
 (`experiments/worker/`) runs long simulations or Ray. The future UI belongs in a
@@ -68,13 +59,15 @@ identifies the corresponding original module.
 
 | Original location | Thesis location |
 |---|---|
-| `src/environment/lem.py` | `src_thesis/marketplace/lem.py` |
-| `src/environment/{action,observation,reward,io}.py` | `src_thesis/marketplace/` with the same filename |
-| `src/environment/{base,ctce,ctde,train,inference}.py` | `src_thesis/marl/` with the same filename |
-| `src/agent/*.py` | `src_thesis/marl/agents/` with the same filename |
-| `src/market/{order,mechanism,matching,reputation,validation}.py` | `src_thesis/marketplace/market/` with the same filename |
+| `src/environment/lem.py` | `src_thesis/environment/lem.py` |
+| `src/environment/{action,observation,reward,io}.py` | `src_thesis/environment/` with the same filename |
+| `src/environment/{base,ctce,ctde,train,inference}.py` | `src_thesis/marl/` with the same filename (`RLProtection` from `base.py`: `core/numerics.py`) |
+| `src/agent/*.py` | `src_thesis/agents/` with the same filename |
+| `src/market/order.py` | `src_thesis/core/orders.py` |
+| `src/market/{mechanism,matching,reputation,validation}.py` | `src_thesis/marketplace/market/` with the same filename (`MatchingResult`, `MatchingHistory` from `matching.py`: `core/results.py`) |
 | `src/market/dso.py` | `src_thesis/marketplace/dso/dso.py` |
-| `src/grid/{base,config}.py` | `src_thesis/marketplace/grid/` with the same filename |
+| `src/grid/base.py` | `src_thesis/core/location.py` |
+| `src/grid/config.py` | `src_thesis/adapters/grid/config.py` |
 | `src/grid/network.py` | `src_thesis/adapters/grid/network.py` |
 | `src/coordination/implicit_cooperation.py` | `src_thesis/cooperation/implicit_cooperation.py` |
 | `src/analytics/*.py` | `src_thesis/cooperation/metrics/` with the same filename |

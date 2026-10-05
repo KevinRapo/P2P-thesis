@@ -12,9 +12,9 @@ import networkx as nx
 import numpy as np
 from matplotlib.patches import Patch
 
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.grid.config import get_predefined_config
-from src_thesis.marketplace.grid.base import GridTopology, Location
+from src_thesis.core.interfaces import Participant
+from src_thesis.adapters.grid.config import get_predefined_config
+from src_thesis.core.location import GridTopology, Location
 
 
 class GridNetwork:
@@ -94,7 +94,7 @@ class GridNetwork:
             ValueError: If topology is invalid
             ValueError: If num_nodes is invalid for procedural topologies
         """
-        # DEVIATION I-53 [A0] (2/3; next marketplace/grid/base.py:56) Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults)
+        # DEVIATION I-53 [A0] (2/3; next core/location.py:56) Defensive checks hide bad state (dead capacity check, bare `except`, float-only validators, mutable defaults)
         if self.capacity < 0:
             raise ValueError(f"Grid capacity must be non-negative, got {self.capacity}")
 
@@ -133,7 +133,7 @@ class GridNetwork:
 
             # Add edges to graph
             for u, v, w in config["edges"]:
-                # FAULT I-57 [A7] (1/3; next marketplace/grid/config.py:37) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
+                # FAULT I-57 [A7] (3/3; first adapters/grid/config.py:37) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
                 graph.add_edge(u, v, weight=w)
 
             # Store node positions and zone information as graph attributes
@@ -225,12 +225,12 @@ class GridNetwork:
 
         return graph
 
-    def assign_agents_to_graph(self, agents: List[DERAgent]) -> None:
+    def assign_agents_to_graph(self, agents: List[Participant]) -> None:
         """
         Assign agents to grid network locations, optionally specifying locations for specific agents.
 
         Args:
-            agents: List of DERAgent objects to be assigned locations
+            agents: List of Participant objects to be assigned locations
         """
         # Extract agent IDs and node IDs from agents
         agent_ids = [a.id for a in agents]
@@ -462,13 +462,13 @@ class GridNetwork:
         return "default"
 
     def visualize(self,
-                  agents: Optional[List[DERAgent]] = None,
+                  agents: Optional[List[Participant]] = None,
                   save_path: Optional[str] = None) -> None:
         """
         Visualize the grid network with agent positions and zones.
 
         Args:
-            agents: Optional list of DERAgent objects
+            agents: Optional list of Participant objects
             save_path: If provided, saves the figure to this path
         """
         plt.figure(figsize=(12, 10))

@@ -11,9 +11,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import create_agents, create_dso_agent, create_grid_network, create_market_config
 
 from src_thesis.cooperation.implicit_cooperation import ImplicitCooperation
-from src_thesis.marketplace.observation import ObservationHandler
-from src_thesis.marketplace.market.matching import MatchingHistory, MatchingResult
-from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis.environment.observation import ObservationHandler
+from src_thesis.core.results import MatchingHistory, MatchingResult
+from src_thesis.core.orders import Order, Trade
 
 
 def test_observation() -> None:

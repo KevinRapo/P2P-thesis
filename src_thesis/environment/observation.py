@@ -11,13 +11,13 @@ from typing import Dict, List
 import numpy as np
 from gymnasium import spaces
 
-from src_thesis.marl.agents.der import DERAgent
+from src_thesis.core.interfaces import GridView, Participant
 from src_thesis.cooperation.implicit_cooperation import ImplicitCooperation
-from src_thesis.adapters.grid.network import GridNetwork
 from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.matching import MarketConfig, MatchingHistory
-from src_thesis.marketplace.market.order import Order
-from src_thesis.marl.base import RLProtection
+from src_thesis.marketplace.market.matching import MarketConfig
+from src_thesis.core.results import MatchingHistory
+from src_thesis.core.orders import Order
+from src_thesis.core.numerics import RLProtection
 
 
 class ObservationHandler:
@@ -31,10 +31,10 @@ class ObservationHandler:
 
     def __init__(self,
                  max_steps: int,
-                 agents: List[DERAgent],
+                 agents: List[Participant],
                  dso: DSOAgent,
                  market_config: MarketConfig,
-                 grid_network: GridNetwork) -> None:
+                 grid_network: GridView) -> None:
         """Initialize the observation handler.
 
         Args:
@@ -283,7 +283,7 @@ class ObservationHandler:
             time_of_day,
             matching.clearing_price,
             matching.clearing_volume,
-            # FAULT I-23 [A8] (2/2; first marketplace/lem.py:488) `B_grid` (eq. 20) is never computed
+            # FAULT I-23 [A8] (2/2; first environment/lem.py:488) `B_grid` (eq. 20) is never computed
             matching.grid_balance,
             matching.dso_buy_volume,
             matching.dso_sell_volume,
@@ -338,12 +338,12 @@ class ObservationHandler:
                 agent.get_demand(current_step),
                 agent.cumulative_demand_satisfied,
                 agent.cumulative_demand_deferred,
-                # FAULT I-39 [C1] (2/2; first marketplace/lem.py:65) Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true future
+                # FAULT I-39 [C1] (2/2; first environment/lem.py:65) Forecast error (`max_error`) is never applied, so the "remaining demand/supply" observations reveal the true future
                 agent.get_remaining_demand(current_step),
                 agent.cumulative_supply_satisfied,
                 agent.cumulative_supply_deferred,
                 agent.get_remaining_supply(current_step),
-                # FAULT I-27 [A8] (1/3; next marl/agents/der.py:62) Agent profit (eq. 14) is never updated
+                # FAULT I-27 [A8] (3/3; first agents/der.py:61) Agent profit (eq. 14) is never updated
                 agent.profit,
                 agent.reputation,
                 battery_status["energy_level"],

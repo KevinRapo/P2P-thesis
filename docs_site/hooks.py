@@ -59,9 +59,27 @@ API_NAV_TITLE = "API Reference"
 API_SECTIONS = [
     # MARLEM itself, by the paper's levels ([P1] Fig. 2).
     (
+        "Core: records and interfaces",
+        "core",
+        ["src_thesis.core"],
+        "thesis/architecture/README.md",
+    ),
+    (
         "Level 0: marketplace",
         "marketplace",
         ["src_thesis.marketplace"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "Level 0: environment",
+        "environment",
+        ["src_thesis.environment"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "Level 1: agents",
+        "agents",
+        ["src_thesis.agents"],
         "paper/marlem-paper-to-code-map.md",
     ),
     (

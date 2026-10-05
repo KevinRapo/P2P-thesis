@@ -20,8 +20,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src_thesis.cooperation.metrics.grid_metrics import GridMetrics
 
 # Import only what we need - metrics classes are imported within test functions
-from src_thesis.marketplace.market.matching import MatchingHistory, MatchingResult
-from src_thesis.marketplace.market.order import Trade
+from src_thesis.core.results import MatchingHistory, MatchingResult
+from src_thesis.core.orders import Trade
 from src_thesis.root import __main__
 from src_thesis.cooperation.visualization.plotter import Plotter
 

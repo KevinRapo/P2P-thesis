@@ -1,6 +1,6 @@
 """Architecture guard: layers only reach what the architecture README §2.1 allows.
 
-See docs_thesis/thesis/architecture/README.md §2.1–§2.2.
+See docs_thesis/thesis/architecture/README.md §2.1–§2.3.
 - studio/ imports only nicegui/plotly/stdlib and src_thesis.application.
 - application/ never imports MARLEM runtime, pandapower, simbench, Ray or torch.
   Real services reach infrastructure through adapters/ (the grid catalog calls
@@ -21,8 +21,14 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 ROOT = REPO / "src_thesis"
 HEAVY = ("pandapower", "simbench", "ray", "torch", "networkx", "src.")
-MARLEM_RUNTIME = ("src_thesis.marketplace", "src_thesis.marl", "src_thesis.cooperation")
-APPLICATION_ALLOWED = ("src_thesis.marketplace.grid.contract_new",)
+MARLEM_RUNTIME = (
+    "src_thesis.marketplace",
+    "src_thesis.marl",
+    "src_thesis.cooperation",
+    "src_thesis.environment",
+    "src_thesis.agents",
+)
+APPLICATION_ALLOWED = ("src_thesis.core.grid_contract",)
 STUDIO_EXTRA = ("src_thesis.adapters", "src_thesis.experiments")
 
 
@@ -80,7 +86,8 @@ def test_marl_trainer_does_not_load_the_market() -> None:
     # The market is RLTrainer's default environment, imported only when used.
     for name in ("train.py", "inference.py"):
         names = _top_level_imports(ROOT / "marl" / name)
-        assert [n for n in names if n.startswith("src_thesis.marketplace")] == []
+        market = ("src_thesis.marketplace", "src_thesis.environment")
+        assert [n for n in names if n.startswith(market)] == []
 
 
 def test_rl_testbench_reaches_marlem_only_through_the_trainer() -> None:

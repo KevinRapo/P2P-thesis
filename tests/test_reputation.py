@@ -10,9 +10,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_agents
 
-from src_thesis.marketplace.grid.base import Location
-from src_thesis.marketplace.market.matching import MatchingResult
-from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis.core.location import Location
+from src_thesis.core.results import MatchingResult
+from src_thesis.core.orders import Order, Trade
 from src_thesis.marketplace.market.reputation import ReputationHandler
 
 

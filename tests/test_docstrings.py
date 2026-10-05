@@ -13,7 +13,7 @@ CHECKED = [
     "application",
     "studio",
     "adapters/grid/simbench_new.py",
-    "marketplace/grid/contract_new.py",
+    "core/grid_contract.py",
 ]
 
 

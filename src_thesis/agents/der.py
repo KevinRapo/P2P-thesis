@@ -6,16 +6,15 @@ Local Energy Market. Agents can have generation and demand profiles, battery sto
 and the ability to participate in market trading with demand response capabilities.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 import numpy as np
 from networkx import Graph
 
-from src_thesis.marketplace.grid.base import Location
+from src_thesis.core.interfaces import MarketBounds
+from src_thesis.core.location import Location
 from .battery import Battery
 
-if TYPE_CHECKING:
-    from src_thesis.marketplace.market.matching import MarketConfig
 
 
 class DERAgent:
@@ -32,7 +31,7 @@ class DERAgent:
 
         Args:
             id: Unique identifier for the agent
-            # DECIDE I-56 [A2] (2/2; first marketplace/market/matching.py:34) Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
+            # DECIDE I-56 [A2] (1/2; next marketplace/market/matching.py:35) Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
             capacity: Maximum capacity of the DER (W)
             battery: Optional battery object
             node_id: Optional node ID in the grid network
@@ -59,7 +58,7 @@ class DERAgent:
 
         # Attributes from the environment
         self.balance: float = 0.0
-        # FAULT I-27 [A8] (2/3; next marl/agents/der.py:111) Agent profit (eq. 14) is never updated
+        # FAULT I-27 [A8] (1/3; next agents/der.py:110) Agent profit (eq. 14) is never updated
         self.profit: float = 0.0
         self.reputation: float = 0.5
 
@@ -108,7 +107,7 @@ class DERAgent:
 
         # Reset attributes from the environment
         self.balance = np.random.uniform(-self.capacity, self.capacity)
-        # FAULT I-27 [A8] (3/3; first marketplace/observation.py:346) Agent profit (eq. 14) is never updated
+        # FAULT I-27 [A8] (2/3; next environment/observation.py:346) Agent profit (eq. 14) is never updated
         self.profit = 0.0
 
         # Reset market state tracking
@@ -136,7 +135,7 @@ class DERAgent:
         """
         self.location = location
 
-    # DEVIATION I-77 [A3] (2/2; first marketplace/lem.py:371) Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score
+    # DEVIATION I-77 [A3] (1/2; next environment/lem.py:371) Rule-based partner selection is a lexicographic sort plus a random top-half pick, not a weighted score
     def select_preferred_partner(self,
                                  candidates: List['DERAgent'],
                                  graph: Graph,
@@ -165,7 +164,7 @@ class DERAgent:
     def adjust_action_for_battery(self,
                                   step: int,
                                   action: np.array,
-                                  market_config: "MarketConfig") -> np.array:
+                                  market_config: MarketBounds) -> np.array:
         """Adjust action to respect battery constraints.
 
         This method enforces physical constraints on the agent's actions based on:
@@ -198,7 +197,7 @@ class DERAgent:
         current_demand = self.demand_profile[step]
 
         # FAULT I-08 [A3] Feasibility clipping does not implement eq. 15: it treats the requested `q` as the need
-        # FAULT I-09 [A3] (2/2; first marketplace/lem.py:365) `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong direction
+        # FAULT I-09 [A3] (1/2; next environment/lem.py:365) `is_buy` is truthy in `adjust_action_for_battery` but `> 0.5` in `step`, so the order is sized for the wrong direction
         if is_buy:
             # Calculate how much energy we need to buy after using our own generation
             energy_deficit = quantity - current_generation

@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_agents, create_grid_network
 
-from src_thesis.marketplace.grid.base import GridTopology
+from src_thesis.core.location import GridTopology
 from src_thesis.adapters.grid.network import GridNetwork
 
 

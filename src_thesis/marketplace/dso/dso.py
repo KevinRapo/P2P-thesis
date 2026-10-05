@@ -10,8 +10,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.market.order import Order, Trade
+from src_thesis.core.interfaces import GridView
+from src_thesis.core.orders import Order, Trade
 
 
 class DSOAgent:
@@ -31,7 +31,7 @@ class DSOAgent:
                  id: str = "DSO",
                  feed_in_tariff: List[float] = [],
                  utility_price: List[float] = [],
-                 grid_network: Optional[GridNetwork] = None) -> None:
+                 grid_network: Optional[GridView] = None) -> None:
         """
         Initialize the DSO agent.
 
@@ -211,7 +211,7 @@ class DSOAgent:
         dso_buy_volume = 0.0
         dso_sell_volume = 0.0
         dso_trades = []
-        # FAULT I-12 [A5] (1/3; next marketplace/lem.py:436) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
+        # FAULT I-12 [A5] (2/3; next marketplace/market/matching.py:309) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
 
         # DSO buys excess generation at feed-in tariff
         for sell_order in unmatched_sell_orders:
@@ -286,7 +286,7 @@ class DSOAgent:
             sell_order: Sell order (for single trade fee calculation)
             trade_price: Base price of the trade ($/kWh) (for single trade fee calculation)
             quantity: Quantity of energy being traded (kWh) (for single trade fee calculation)
-            grid_network: GridNetwork object containing grid state information
+            grid_network: GridView object containing grid state information
 
         Returns:
             Total fees for the trade
@@ -346,7 +346,7 @@ class DSOAgent:
             imbalance_fee = abs(balance_impact) * quantity * trade_price * self.imbalance_factor
 
         # Total all fees
-        # FAULT I-28 [A6] (1/2; next marketplace/market/matching.py:339) Grid fees are computed but never charged to anyone
+        # FAULT I-28 [A6] (1/2; next marketplace/market/matching.py:280) Grid fees are computed but never charged to anyone
         total_fee = congestion_fee + transmission_fee + imbalance_fee + voltage_fee + thermal_fee + zone_bonus
         self.fees += total_fee
 
@@ -361,7 +361,7 @@ class DSOAgent:
         Args:
             buy_order: Buy order
             sell_order: Sell order
-            grid_network: GridNetwork object containing grid state information
+            grid_network: GridView object containing grid state information
 
         Returns:
             Boolean indicating if the trade is valid from a grid perspective

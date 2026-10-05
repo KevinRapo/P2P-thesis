@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import create_agents, create_dso_agent, create_grid_network, create_market_config
 
 from src_thesis.marketplace.market.matching import OrderMatcher
-from src_thesis.marketplace.market.order import Order
+from src_thesis.core.orders import Order
 
 
 def test_matching() -> None:

@@ -12,7 +12,7 @@ from typing import Dict, List
 import numpy as np
 from scipy import stats
 
-from src_thesis.marketplace.market.matching import MatchingHistory
+from src_thesis.core.results import MatchingHistory
 
 
 @dataclass

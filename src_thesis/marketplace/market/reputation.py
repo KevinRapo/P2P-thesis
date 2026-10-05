@@ -8,9 +8,9 @@ from typing import List, Tuple
 
 import numpy as np
 
-from src_thesis.marl.agents.der import DERAgent
-from .matching import MatchingResult
-from .order import Trade
+from src_thesis.core.interfaces import Participant
+from src_thesis.core.results import MatchingResult
+from src_thesis.core.orders import Trade
 
 
 class ReputationHandler:
@@ -53,7 +53,7 @@ class ReputationHandler:
         if self.reliability_weight + self.fairness_weight + self.grid_weight != 1.0:
             raise ValueError(f"Weights must sum to 1.0. Current value: <reliability_weight = {self.reliability_weight}, fairness_weight = {self.fairness_weight}, grid_weight = {self.grid_weight}>.")
 
-    # DEVIATION I-07 [A9] (2/2; first marketplace/lem.py:288) All agents get the same initial reputation (the RNG is reseeded before each draw)
+    # DEVIATION I-07 [A9] (2/2; first environment/lem.py:288) All agents get the same initial reputation (the RNG is reseeded before each draw)
     def reset(self, seed: int = None) -> float:
         """Generate initial reputation score for an agent.
 
@@ -69,14 +69,14 @@ class ReputationHandler:
         return np.random.uniform(0.0, 1.0)
 
     def update_reputation(self,
-                          agent: DERAgent,
+                          agent: Participant,
                           matching_result: MatchingResult,
                           time_of_day: float,
                           dso_id: str = "DSO") -> float:
         """Update reputation metrics for an agent based on matching results.
 
         Args:
-            agent: DERAgent object
+            agent: Participant object
             matching_result: Result of the order matching process
             time_of_day: Current time of day (0-1)
             dso_id: ID of the DSO agent for identifying DSO trades
@@ -88,11 +88,11 @@ class ReputationHandler:
         # DEVIATION I-38 [A9] (1/2; next marketplace/market/reputation.py:131) Reputation: reliability ≡ 1, the grid term is neutral, and decay is weighted by time of day
         return (time_of_day * agent.reputation) + ((1.0 - time_of_day) * new_reputation)
 
-    def get_agent_ranking(self, agents: List[DERAgent]) -> List[Tuple[str, float]]:
+    def get_agent_ranking(self, agents: List[Participant]) -> List[Tuple[str, float]]:
         """Get ranked list of agents by overall reputation.
 
         Args:
-            agents: List of DERAgent objects to rank
+            agents: List of Participant objects to rank
 
         Returns:
             List of (agent_id, score) tuples, sorted by score (highest first)
@@ -101,7 +101,7 @@ class ReputationHandler:
         return sorted(rankings, key=lambda x: x[1], reverse=True)
 
     def _calculate_reputation(self,
-                              agent: DERAgent,
+                              agent: Participant,
                               matching_result: MatchingResult,
                               dso_id: str) -> float:
         """Calculate reputation metrics for an agent based on matching results.
@@ -112,7 +112,7 @@ class ReputationHandler:
         3. Grid contribution - Did the agent's trades help balance the grid?
 
         Args:
-            agent: DERAgent object
+            agent: Participant object
             matching_result: Result of the order matching process
             dso_id: ID of the DSO agent for identifying DSO trades
 
@@ -174,7 +174,7 @@ class ReputationHandler:
         - Negative impact: Agent worsens grid imbalance (buys during shortage, sells during excess)
 
         Args:
-            agent_id: ID of the DERAgent whose reputation is being calculated
+            agent_id: ID of the Participant whose reputation is being calculated
             trade: Completed trade
             grid_balance: Current grid balance (positive = excess supply, negative = shortage)
             dso_id: ID of the DSO agent for identifying DSO trades

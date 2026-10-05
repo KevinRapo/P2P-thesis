@@ -38,7 +38,7 @@ from .ctde import CTDEModule
 def market_env_cls() -> type[MultiAgentEnv]:
     """The local energy market, the default environment (imported on demand, so
     this module does not depend on the market)."""
-    from src_thesis.marketplace.lem import LocalEnergyMarket
+    from src_thesis.environment.lem import LocalEnergyMarket
 
     return LocalEnergyMarket
 
@@ -309,7 +309,7 @@ class RLTrainer:
             AlgorithmConfig: The algorithm configuration with the extra configuration.
         """
         if self.algorithm == RLAlgorithm.PPO:
-            # DECIDE I-72 [D3] (2/2; first marketplace/lem.py:275) [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
+            # DECIDE I-72 [D3] (2/2; first environment/lem.py:275) [P2] protocol: one fixed seed, evaluation on the training scenario, ranking by shaped reward
             evaluation_config = PPOConfig.overrides(exploration=False)
         elif self.algorithm == RLAlgorithm.APPO:
             evaluation_config = APPOConfig.overrides(exploration=False)
@@ -436,7 +436,7 @@ class RLTrainer:
         """
         storage_path = Path(results.get_best_result().path).parent
         if self.is_market:
-            from src_thesis.marketplace.io import EnvConfigHandler
+            from src_thesis.environment.io import EnvConfigHandler
 
             EnvConfigHandler.save(self.env_config,
                                   storage_path=str(storage_path),

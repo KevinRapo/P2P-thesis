@@ -2,7 +2,7 @@
 
 This module and the profile adapter are the only places that import
 ``pandapower`` and ``simbench``. Everything it returns is plain contract data
-from ``marketplace/grid/contract_new.py``; no pandapower object leaves it.
+from ``core/grid_contract.py``; no pandapower object leaves it.
 
 Implemented (phase R3, catalog part): list networks, load them once per process,
 summarise them, build a topology view, list their elements, and run one power
@@ -25,7 +25,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from src_thesis.marketplace.grid.contract_new import (
+from src_thesis.core.grid_contract import (
     BranchView,
     BusView,
     ElementRecord,

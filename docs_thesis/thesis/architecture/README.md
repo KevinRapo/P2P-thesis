@@ -13,9 +13,10 @@
 - [1. Goal](#1-goal)
 - [2. System at a glance](#2-system-at-a-glance)
   - [2.1 Layers and who may call whom](#21-layers-and-who-may-call-whom)
-  - [2.2 Dependencies (D-10)](#22-dependencies-d-10)
-  - [2.3 Tests per layer](#23-tests-per-layer)
-  - [2.4 New components (not in the paper)](#24-new-components-not-in-the-paper)
+  - [2.2 MARLEM's packages](#22-marlems-packages)
+  - [2.3 Dependencies (D-10)](#23-dependencies-d-10)
+  - [2.4 Tests per layer](#24-tests-per-layer)
+  - [2.5 New components (not in the paper)](#25-new-components-not-in-the-paper)
 - [3. Documents](#3-documents)
 - [4. Roadmap](#4-roadmap)
 - [5. Decision log](#5-decision-log)
@@ -106,7 +107,7 @@ flowchart LR
     WRK[worker: pool + subprocess]
   end
   subgraph D[MARLEM domain + adapters, code map and 01]
-    ENV[marketplace / marl / cooperation]
+    ENV[environment / marl, built on core, agents, marketplace, cooperation]
     ADP[adapters: pandapower grid, profiles]
   end
   UI --> A
@@ -132,19 +133,67 @@ flowchart LR
 - `experiments/` never imports `application/` or `studio/`; `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; `marl/train.py` and `inference.py` load the market only when it is the chosen environment, and `rl_testbench/` reaches MARLEM only through the trainer. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces these rules.
 - **Imports name their file** (for now, while the platform is being built): `from src_thesis.application.container import build_services`, not `from src_thesis.application import build_services`. Package `__init__.py` files hold only a docstring and re-export nothing; the one deliberate exception is `application/models.py`, the Studio's single source of data types. Short package-level imports can be reintroduced once the structure is settled.
 
-### 2.2 Dependencies (D-10)
+### 2.2 MARLEM's packages
+
+MARLEM itself is split into packages that depend one way (restructured 2026-10-05, behaviour unchanged):
+
+<!-- BEGIN generated:graph marlem -->
+```mermaid
+flowchart LR
+  subgraph USERS["used by"]
+    n_application__users_["application/"]:::ext
+    n_experiments__users_["experiments/"]:::ext
+    n_rl_testbench__users_["rl_testbench/"]:::ext
+  end
+  n_adapters__["adapters/*.py"]
+  n_agents__["agents/*.py"]
+  n_cooperation__["cooperation/*.py"]
+  n_core__["core/*.py"]
+  n_environment__["environment/*.py"]
+  n_marketplace__["marketplace/*.py"]
+  n_marl__["marl/*.py"]
+  subgraph USES["uses"]
+    n_root["root.py"]:::ext
+  end
+  n_adapters__ --> n_core__
+  n_agents__ --> n_core__
+  n_application__users_ --> n_adapters__
+  n_application__users_ --> n_core__
+  n_cooperation__ --> n_core__
+  n_environment__ --> n_adapters__
+  n_environment__ --> n_agents__
+  n_environment__ --> n_cooperation__
+  n_environment__ --> n_core__
+  n_environment__ --> n_marketplace__
+  n_environment__ --> n_root
+  n_experiments__users_ --> n_core__
+  n_marketplace__ --> n_core__
+  n_marl__ --> n_environment__
+  n_rl_testbench__users_ --> n_marl__
+  classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
+```
+<!-- END generated:graph -->
+
+- **`core/`** holds the shared records (`Order`, `Trade`, `MatchingResult`, `Location`, the grid contract) and the protocols components see each other through (`Participant`, `BatteryView`, `GridView`, `MarketBounds`). It imports nothing else from `src_thesis`.
+- **`agents/`, `marketplace/`, `cooperation/` and `adapters/`** import only `core/`. The market, the DSO, reputation and the metrics accept anything shaped like a participant or a grid, so each can be tested with small stand-ins.
+- **`environment/`** (`LocalEnergyMarket` and its action, observation, reward and configuration handlers) is the only package that builds concrete agents, grids, DSOs and profile handlers and wires them together.
+- **`marl/`** reaches the environment only when it is the chosen one (D-16).
+
+[tests/test_package_boundaries.py](../../../tests/test_package_boundaries.py) enforces these rules; [tests/test_golden_episode.py](../../../tests/test_golden_episode.py) replays fixed-seed episodes recorded before the restructure and requires them to be identical. The original layout with the validation markers is git tag `marlem-annotated`.
+
+### 2.3 Dependencies (D-10)
 
 - Canonical environment: conda `marlem` ([environment.yml](../../../environment.yml)).
 - Grid: `pandapower` 3.5.4 and `simbench` 1.6.2. Studio: `nicegui` 3.16. Models: `pydantic` 2.13. All pinned in `environment.yml` since 2026-09-27.
 - Only `adapters/` imports `simbench` and `pandapower`. Only `studio/` imports `nicegui`.
 
-### 2.3 Tests per layer
+### 2.4 Tests per layer
 
 What guards each layer; which tests exist today is in the [implementation status](implementation-status.md).
 
 | Layer | What the tests guarantee | Tests |
 |---|---|---|
-| Domain | The validation acceptance tests: one demonstration per issue, passing once the issue is fixed | [../validation/evidence/](../validation/evidence/) |
+| Domain | The validation acceptance tests: one demonstration per issue, passing once the issue is fixed. Package boundaries; fixed-seed golden episodes that a restructure must reproduce exactly | [../validation/evidence/](../validation/evidence/), [tests/test_package_boundaries.py](../../../tests/test_package_boundaries.py), [tests/test_golden_episode.py](../../../tests/test_golden_episode.py) |
 | Adapters | Grid catalog on SimBench and built-in networks; mapping validation, time alignment, injection identity, power flow per step | [tests/test_grid_catalog.py](../../../tests/test_grid_catalog.py) |
 | Experiment layer | Round trip, hash stability, expansion, resolution, store, recorder, worker and pool | [tests/test_experiments.py](../../../tests/test_experiments.py) |
 | Factory and training configuration | Presets build an environment; each algorithm × paradigm builds an `AlgorithmConfig`; mutation domains contain initial values | planned |
@@ -154,15 +203,15 @@ What guards each layer; which tests exist today is in the [implementation status
 | Docstrings | Every public module, class and function of the platform code has a docstring; the API Reference is built from them | [tests/test_docstrings.py](../../../tests/test_docstrings.py) |
 | Docs | Validation docs consistent with the code markers; generated Contents and file graphs up to date | [tests/test_validation_docs.py](../../../tests/test_validation_docs.py), [test_docs_toc.py](../../../tests/test_docs_toc.py), [test_docs_graphs.py](../../../tests/test_docs_graphs.py) |
 
-### 2.4 New components (not in the paper)
+### 2.5 New components (not in the paper)
 
 Where the SimBench edition adds to the original; the [P1] Fig. 2 classes themselves are in the [paper-to-code map](../../paper/marlem-paper-to-code-map.md).
 
 | Component | Why it is there | Location | Doc |
 |---|---|---|---|
-| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | The only thing the market and the grid share; the grid backend can change or be mocked | [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | 01 §5 |
+| Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | The only thing the market and the grid share; the grid backend can change or be mocked | [core/grid_contract.py](../../../src_thesis/core/grid_contract.py) | 01 §5 |
 | Settlement ledger (energy identity, battery, cash with fees) | One place decides who delivered and paid what; injections and rewards are derived from it | `marketplace/settlement.py` | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
-| Settlement → injection builder | Turns settled energy (kWh per step) into the power injections (kW) a power flow needs | `marketplace/grid/injection.py` | 01 §7 |
+| Settlement → injection builder | Turns settled energy (kWh per step) into the power injections (kW) a power flow needs | `environment/injection.py` | 01 §7 |
 | Scripted baseline policies (no order, random, rule-based) | Reference points that give learned results a scale | `marl/baselines.py` | 02 §3.10 |
 | RL testbench | MARLEM's trainer is first shown to learn on CartPole, MultiAgentCartPole and Simple Spread, then used on the market (D-16) | [rl_testbench/](../../../src_thesis/rl_testbench/); trainer: [marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py) | [rl-testbench.md](../validation/rl-testbench.md) |
 | pandapower grid adapter (SimBench, built-in, file) | Real power-flow physics in place of the NetworkX graph | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | 01 §1–§5 |
@@ -223,7 +272,7 @@ Each phase has an exit criterion.
 | D-07 | Paper-parity presets use **hourly aggregation** (24 steps), energy-consistent. Native 15-min (96 steps) is an extension. | Proposed | 01 §4, 02 §7 |
 | D-08 | **One JSON file per experiment**. It contains the world (time, grid, participants, market, DSO, environment), the learning plan (algorithms, paradigms, hyperparameters, tuning, budget, seeds), evaluation, baselines and the sweep. Runs get a system-written manifest. | **Agreed** (2026-09-23) | 02 |
 | D-09 | Services run in-process for UI and CLI. Ray runs only in a worker subprocess. The filesystem experiment store is the source of truth. | Proposed | 04 |
-| D-10 | The canonical environment is the conda `marlem` env (`environment.yml`), with pandapower, simbench, pydantic and nicegui pinned. | Proposed | §2.2 |
+| D-10 | The canonical environment is the conda `marlem` env (`environment.yml`), with pandapower, simbench, pydantic and nicegui pinned. | Proposed | §2.3 |
 | D-11 | Violation feedback reward: shared vs bus-attributed vs marginal credit assignment | **Open** | 01 §6 |
 | D-12 | Non-convergent power flow during training: truncate with a fixed penalty vs fail the run | **Open** | 01 §6 |
 | D-13 | **Grid ownership and data flow.** `LocalEnergyMarket` is the only holder of the `GridModel`. `OrderMatcher`, `DSOAgent` and `DERAgent` get `GridTopologyInfo` (static distances and zones) and `GridSignals` (step t−1) as arguments and never call the grid; KPIs, reward and observation use `GridAssessment[t]`. A read-only view is the accepted fallback. | **Agreed** (2026-09-27) | 01 §5.1 |

@@ -10,11 +10,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
-from src_thesis.adapters.grid.network import GridNetwork
+from src_thesis.core.interfaces import GridView
 from src_thesis.marketplace.dso.dso import DSOAgent
 
 from .validation import Validator
-from .order import Order, Trade
+from src_thesis.core.results import MatchingHistory, MatchingResult
+from src_thesis.core.orders import Order, Trade
 from .mechanism import ClearingMechanism
 
 
@@ -31,7 +32,7 @@ class MarketConfig:
     in multi-agent systems with limited information sharing.
     """
 
-    # DECIDE I-56 [A2] (1/2; next marl/agents/der.py:35) Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
+    # DECIDE I-56 [A2] (2/2; first agents/der.py:34) Units and timestep are inconsistent (W/kW/kWh/Wh, $/Wh vs $/kWh)
     min_price: float = 0.0
     max_price: float = 1000.0
     min_quantity: float = 0.0
@@ -83,80 +84,20 @@ class MarketConfig:
             )
 
 
-@dataclass
-class MatchingResult:
-    """Result of order matching process."""
-
-    trades: List[Trade]
-    unmatched_orders: List[Order]
-    clearing_price: float
-    clearing_volume: float
-    dso_buy_volume: float
-    dso_sell_volume: float
-    dso_total_volume: float
-    p2p_volume: float
-    dso_trade_ratio: float
-    dso_grid_import: float
-    dso_buy_price: float
-    dso_sell_price: float
-    price_spread: float
-    local_price_avg: float
-    local_price_advantage: float
-    grid_balance: float
-    grid_congestion: float
-
-    def __post_init__(self) -> None:
-        """Convert all numpy numeric types to standard float."""
-        for k, v in self.__annotations__.items():
-            if v is float:
-                setattr(self, k, float(getattr(self, k)))
-
-
-class MatchingHistory:
-    """History of order matching process."""
-
-    def __init__(self):
-        """Initialize the matching history."""
-        self.history: List[MatchingResult] = []
-
-    def reset(self):
-        """Reset the matching history."""
-        self.history = []
-
-    def update(self, matching_result: MatchingResult):
-        """Update the matching history.
-
-        Args:
-            matching_result: Matching result to add to the history
-        """
-        self.history.append(matching_result)
-
-    def get_matching_result(self, step: int) -> MatchingResult:
-        """Get the matching result at a specific step.
-
-        Args:
-            step: Step to get the matching result for
-
-        Returns:
-            Matching result at the specified step
-        """
-        return self.history[step]
-
-
 class OrderMatcher:
     """Matches buy and sell orders while considering grid constraints."""
 
     def __init__(self,
                  num_agents: int,
                  config: MarketConfig,
-                 grid_network: GridNetwork,
+                 grid_network: GridView,
                  dso_agent: DSOAgent) -> None:
         """Initialize the order matcher.
 
         Args:
             num_agents: Number of agents in the market
             config: Market configuration parameters
-            grid_network: GridNetwork object representing the network topology
+            grid_network: GridView object representing the network topology
             dso_agent: DSOAgent object representing the DSO agent
         """
         # Initialize configurations
@@ -170,7 +111,7 @@ class OrderMatcher:
 
         # Initialize market state
         self.matching_history: MatchingHistory = MatchingHistory()
-        # FAULT I-55 [A5] (1/2; next marketplace/market/matching.py:316) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade
+        # FAULT I-55 [A5] (1/2; next marketplace/market/matching.py:257) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade
         self.grid_capacity: float = config.max_quantity * self.num_agents
         self.trades: List[Trade] = []
 
@@ -271,7 +212,7 @@ class OrderMatcher:
         total_volume = sum(trade.quantity for trade in preference_trades)
         total_value = sum(trade.quantity * trade.price for trade in preference_trades)
 
-        # FAULT I-24 [A6] (1/2; next marketplace/market/matching.py:397) `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
+        # FAULT I-24 [A6] (1/2; next marketplace/market/matching.py:338) `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
         # Update grid state based on preference trades
         for trade in preference_trades:
             # DSO buying (consuming excess) reduces grid balance
@@ -282,7 +223,7 @@ class OrderMatcher:
             elif trade.seller_id == self.dso.id:
                 grid_balance += trade.quantity
 
-        # FAULT I-32 [A7] (1/2; next marketplace/market/matching.py:602) Only Stage-1 trades update edge flows
+        # FAULT I-32 [A7] (1/2; next marketplace/market/matching.py:543) Only Stage-1 trades update edge flows
         # STAGE 2: Price-based matching for remaining orders
         # Separate buy and sell orders
         buy_orders = [o for o in remaining_orders if o.is_buy]
@@ -313,7 +254,7 @@ class OrderMatcher:
             # Calculate potential match quantity
             proposed_quantity = min(buy_order.quantity, sell_order.quantity)
 
-            # FAULT I-55 [A5] (2/2; first marketplace/market/matching.py:173) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade
+            # FAULT I-55 [A5] (2/2; first marketplace/market/matching.py:114) The Stage-2 capacity check uses `max_quantity·N` and the current balance, not grid capacity or the projected trade
             # Check grid constraints
             if abs(grid_balance) > self.grid_capacity:
                 # Grid is already at capacity, skip this match
@@ -365,8 +306,8 @@ class OrderMatcher:
                 grid_balance += proposed_quantity
 
             # Update order quantities
-            # FAULT I-12 [A5] (3/3; first marketplace/dso/dso.py:214) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
-            # DEVIATION I-14 [A5] (2/2; first marketplace/lem.py:403) P2P loss is topped up from the DSO
+            # FAULT I-12 [A5] (3/3; first environment/lem.py:436) Orders are mutated in place, so the reward, KPIs and info see residual quantities (0), not submitted ones
+            # DEVIATION I-14 [A5] (2/2; first environment/lem.py:403) P2P loss is topped up from the DSO
             buy_order.quantity -= (proposed_quantity - transmission_loss)  # Buyer receives less due to losses
             sell_order.quantity -= proposed_quantity  # Seller provides the full amount
 
@@ -394,7 +335,7 @@ class OrderMatcher:
             total_value += trade.quantity * trade.price
 
         # Update DSO with local market information
-        # FAULT I-24 [A6] (2/2; first marketplace/market/matching.py:274) `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
+        # FAULT I-24 [A6] (2/2; first marketplace/market/matching.py:215) `dso.balance` changes only on Stage-1 DSO-preferred trades and carries across steps, so it is ≡ 0 by default
         self.dso.balance = grid_balance
         self.dso.congestion_level = self.grid_network.calculate_congestion_level()
         self.dso_stats = self.calculate_market_statistics(current_step,
@@ -449,7 +390,7 @@ class OrderMatcher:
 
         return matching_result
 
-    # DEVIATION I-26 [A8] (2/2; first marketplace/lem.py:454) `agent.balance = sold − bought`, not eq. 13
+    # DEVIATION I-26 [A8] (2/2; first environment/lem.py:454) `agent.balance = sold − bought`, not eq. 13
     def get_agent_position(self, agent_id: str) -> float:
         """Calculate the net energy position of an agent.
 
@@ -599,7 +540,7 @@ class OrderMatcher:
             seller_node = sell_order.location.node_id if sell_order.location else None
 
             if buyer_node and seller_node:
-                # FAULT I-32 [A7] (2/2; first marketplace/market/matching.py:285) Only Stage-1 trades update edge flows
+                # FAULT I-32 [A7] (2/2; first marketplace/market/matching.py:226) Only Stage-1 trades update edge flows
                 self.grid_network.update_flow_from_trade(buyer_node, seller_node, proposed_quantity)
 
         return trade, new_grid_balance

@@ -8,9 +8,9 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.marl.agents.battery import Battery
-from src_thesis.marl.agents.der import DERAgent
-from src_thesis.marketplace.grid.base import GridTopology
+from src_thesis.agents.battery import Battery
+from src_thesis.agents.der import DERAgent
+from src_thesis.core.location import GridTopology
 from src_thesis.adapters.grid.network import GridNetwork
 from src_thesis.marketplace.dso.dso import DSOAgent
 from src_thesis.marketplace.market.matching import ClearingMechanism, MarketConfig

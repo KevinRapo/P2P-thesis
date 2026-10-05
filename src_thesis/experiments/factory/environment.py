@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from src_thesis.experiments.models.records import ExperimentFile, RunCell
 
 if TYPE_CHECKING:  # heavy imports stay out of this module at runtime
-    from src_thesis.marketplace.grid.contract_new import GridModel
+    from src_thesis.core.grid_contract import GridModel
 
 ENV_CONFIG_KEY = "marlem_resolved_file"
 

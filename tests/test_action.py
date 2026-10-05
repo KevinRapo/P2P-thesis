@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_agents, create_dso_agent, create_market_config
 
-from src_thesis.marketplace.action import ActionHandler
+from src_thesis.environment.action import ActionHandler
 
 
 def test_action() -> None:

@@ -14,7 +14,7 @@ import json
 import re
 from typing import Any
 
-import src_thesis.marketplace.grid.contract_new as contract
+import src_thesis.core.grid_contract as contract
 from src_thesis.adapters.grid import participants as mapping
 from src_thesis.adapters.grid import simbench_new as adapter
 from src_thesis.application.models import (

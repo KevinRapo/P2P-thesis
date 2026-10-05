@@ -17,7 +17,7 @@ import random
 from collections import defaultdict, deque
 from typing import Any, Callable, Sequence
 
-from src_thesis.marketplace.grid.contract_new import ElementRecord, TopologyView
+from src_thesis.core.grid_contract import ElementRecord, TopologyView
 
 # A placement rule is a set of filters on the network's buses (01 §3.1):
 #   loads       load classes a bus must have at least one of (empty: any load)

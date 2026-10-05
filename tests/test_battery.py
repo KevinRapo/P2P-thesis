@@ -7,7 +7,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.marl.agents.battery import Battery
+from src_thesis.agents.battery import Battery
 
 
 def test_battery() -> None:

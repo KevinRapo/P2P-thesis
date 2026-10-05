@@ -2,7 +2,7 @@
 
 Backed by the pandapower adapter: the service translates between the API models
 the Studio and the CLI use (``application.models``) and the plain grid-contract
-records the adapter returns (``marketplace.grid.contract_new``). It never touches
+records the adapter returns (``marketplace.grid.grid_contract``). It never touches
 pandapower itself.
 """
 
@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-import src_thesis.marketplace.grid.contract_new as contract
+import src_thesis.core.grid_contract as contract
 from src_thesis.adapters.grid import simbench_new as adapter
 from src_thesis.application.models import (
     ElementInfo,

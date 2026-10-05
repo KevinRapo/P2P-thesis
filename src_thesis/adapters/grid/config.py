@@ -4,7 +4,7 @@ Configuration module for predefined grid network topologies.
 
 from typing import Any, Dict
 
-from .base import GridTopology
+from src_thesis.core.location import GridTopology
 
 
 def get_predefined_config(topology: GridTopology) -> Dict[str, Any]:
@@ -34,7 +34,7 @@ def get_predefined_config(topology: GridTopology) -> Dict[str, Any]:
                                         "lateral2": ["864", "862", "838"],
                                         "transformer": ["888", "890"]},
 
-                              # FAULT I-57 [A7] (2/3; next marketplace/grid/config.py:52) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
+                              # FAULT I-57 [A7] (1/3; next adapters/grid/config.py:52) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
                               "edges": [("800", "802", 0.486), ("802", "806", 0.527), ("806", "808", 0.932),
                                         ("808", "810", 0.256), ("808", "812", 0.732), ("812", "814", 0.853),
                                         ("814", "850", 0.126), ("816", "818", 0.524), ("816", "824", 3.112),
@@ -49,7 +49,7 @@ def get_predefined_config(topology: GridTopology) -> Dict[str, Any]:
 
                               # Line impedances (R, X in per-unit)
                               # Base values: V_base=13200V, S_base=2500000VA, Z_base=69.696Î©
-                              # FAULT I-57 [A7] (3/3; first adapters/grid/network.py:136) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
+                              # FAULT I-57 [A7] (2/3; next adapters/grid/network.py:136) IEEE-34 graph is disconnected (edge 832–888 missing), and the impedance table is unused
                               "impedances": {("800", "802"): {"R": 0.003638, "X": 0.004294},
                                              ("802", "806"): {"R": 0.002440, "X": 0.002879},
                                              ("806", "808"): {"R": 0.045457, "X": 0.053642},

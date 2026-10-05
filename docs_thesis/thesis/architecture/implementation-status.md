@@ -65,8 +65,8 @@ Only fields you change are written. A field you never touched stays absent from 
 | Part | Status | Notes |
 |---|---|---|
 | `src_thesis/marketplace`, `marl`, `cooperation` | ⬜ (original code) | Still the original MARLEM, unchanged apart from the issue markers. Rewriting it is R1. The original before any rewrite: git tag `marlem-original` |
-| Grid contract ([contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py)) | 🟡 | Catalog and assessment records exist; `GridTopologyInfo`, `GridSignals` (D-13) not yet |
-| `marketplace/settlement.py`, `marketplace/grid/injection.py`, `marl/baselines.py` | ⬜ | Planned new modules (README §2.4) |
+| Grid contract ([grid_contract.py](../../../src_thesis/core/grid_contract.py)) | 🟡 | Catalog and assessment records exist; `GridTopologyInfo`, `GridSignals` (D-13) not yet |
+| `marketplace/settlement.py`, `environment/injection.py`, `marl/baselines.py` | ⬜ | Planned new modules (README §2.5) |
 | MARLEM trainer ([train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py), [inference.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/inference.py)) | 🟡 original code, environment as an argument | `RLTrainer` and `RLInference` take `env_cls` (the market by default) and load the market only on use; DTDE policy IDs are strings so other RLlib environments work; `GroupedLEM` wraps any environment. The trainer's defects (I-48, I-59, I-61, I-62, …) are not fixed yet (D-16) |
 | RL testbench ([rl_testbench/](../../../src_thesis/rl_testbench/)) | 🟡 cases and manifests | CartPole (one agent), MultiAgentCartPole and Simple Spread as cases; `trainer()` builds MARLEM's `RLTrainer` for each, and every paradigm builds its RLlib configuration on MultiAgentCartPole; run manifests are written ([test_rl_testbench.py](../../../tests/test_rl_testbench.py)). Simple Spread needs mpe2 and pettingzoo; evaluation and the command line come with milestone 1 ([rl-testbench.md](../validation/rl-testbench.md) §5) |
 

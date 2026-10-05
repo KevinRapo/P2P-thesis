@@ -61,7 +61,7 @@ flowchart TB
 
 ### 0.1 Structure in code
 
-The new grid code is three files; the original NetworkX grid (`adapters/grid/network.py`, `marketplace/grid/base.py`, `config.py`) leaves the tool (§7).
+The new grid code is three files; the original NetworkX grid (`adapters/grid/network.py`, `core/location.py`, `config.py`) leaves the tool (§7).
 
 <!-- BEGIN generated:graph grid -->
 ```mermaid
@@ -74,21 +74,21 @@ flowchart LR
   subgraph g_adapters["adapters/"]
     n_adapters_grid_simbench_new["adapters/grid/simbench_new.py"]
   end
-  subgraph g_marketplace["marketplace/"]
-    n_marketplace_grid_contract_new["marketplace/grid/contract_new.py"]
+  subgraph g_core["core/"]
+    n_core_grid_contract["core/grid_contract.py"]
   end
-  n_adapters__users_ --> n_marketplace_grid_contract_new
-  n_adapters_grid_simbench_new --> n_marketplace_grid_contract_new
+  n_adapters__users_ --> n_core_grid_contract
+  n_adapters_grid_simbench_new --> n_core_grid_contract
   n_application__users_ --> n_adapters_grid_simbench_new
-  n_application__users_ --> n_marketplace_grid_contract_new
-  n_experiments__users_ --> n_marketplace_grid_contract_new
+  n_application__users_ --> n_core_grid_contract
+  n_experiments__users_ --> n_core_grid_contract
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
 
 | File | What it is for |
 |---|---|
-| `marketplace/grid/contract_new.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
+| `core/grid_contract.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
 | `adapters/grid/simbench_new.py` | The pandapower adapter: catalog, loading, topology, profiles, preview power flow and, from R4, the step-time `SimBenchGrid` |
 | `adapters/grid/participants.py` | Participant mapping: the placement rules (§3.1) and profile scaling (§3.4), as plain functions over the contract records |
 
@@ -218,7 +218,7 @@ background p at step t = mean of the p values over the rows in that range
 
 **Why:** The contract is the only thing the market and the grid share. Keeping it to small, frozen dataclasses means the market can be tested without pandapower, and the grid backend can change without touching the market.
 
-The existing stub [contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) is extended to:
+The existing stub [grid_contract.py](../../../src_thesis/core/grid_contract.py) is extended to:
 
 ```python
 @dataclass(frozen=True)
@@ -383,18 +383,18 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 
 | File | Change | Phase |
 |---|---|---|
-| [marketplace/grid/contract_new.py](../../../src_thesis/marketplace/grid/contract_new.py) | Extend as in §5 and §5.1 (rename to `contract.py` when stable); also holds the catalog records of §2. | R3 |
-| `marketplace/grid/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
+| [core/grid_contract.py](../../../src_thesis/core/grid_contract.py) | Extend as in §5 and §5.1 (rename to `contract.py` when stable); also holds the catalog records of §2. | R3 |
+| `environment/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
 | [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. | R3 |
 | `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | R3 |
-| [adapters/grid/network.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/adapters/grid/network.py), [marketplace/grid/base.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/grid/base.py), [config.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/grid/config.py) | **Removed from the tool** (the original stays in git tag `marlem-original`). `Location` shrinks to participant ID + bus ID. | R3 |
-| [marketplace/lem.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |
+| [adapters/grid/network.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/adapters/grid/network.py), [core/location.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/grid/base.py), [config.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/grid/config.py) | **Removed from the tool** (the original stays in git tag `marlem-original`). `Location` shrinks to participant ID + bus ID. | R3 |
+| [environment/lem.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |
 | [marketplace/market/matching.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | R3 |
 | [marketplace/dso/dso.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/dso/dso.py) | Holds no grid; `calculate_fees` takes `GridTopologyInfo` and `GridSignals[t−1]` (loading, external-grid exchange, electrical distance); `validate_grid_constraints` removed; tariffs and residual clearing unchanged | R3, R5 |
-| [marketplace/market/order.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | R3 |
-| [marl/agents/der.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | R3 |
-| [marketplace/observation.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | R5 |
-| [marketplace/reward.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py) | `reward_version`; violation term (D-11) | R5 |
+| [core/orders.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/market/order.py) | `Trade.transmission_loss` removed (always 0); `distance` = electrical distance | R3 |
+| [agents/der.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/agents/der.py) | Location = bus ID; partner distance from `GridTopologyInfo.distance_km` (passed in, no graph) | R3 |
+| [environment/observation.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/observation.py) | `observation_version`; grid block from the assessment in feedback mode | R5 |
+| [environment/reward.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py) | `reward_version`; violation term (D-11) | R5 |
 | [cooperation/implicit_cooperation.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/cooperation/implicit_cooperation.py) | `grid_congestion` and imbalance from the assessment | R4 |
 | [cooperation/metrics/grid_metrics.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/cooperation/metrics/grid_metrics.py) | Rebuilt on the assessment history | R5 |
 | [marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py) | `env_config` carries the experiment file section. Each runner builds its env through the factory. | R6 |

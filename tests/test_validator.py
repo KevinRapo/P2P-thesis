@@ -8,7 +8,7 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.marketplace.market.order import Trade
+from src_thesis.core.orders import Trade
 from src_thesis.marketplace.market.validation import Validator
 
 

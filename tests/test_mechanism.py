@@ -7,9 +7,9 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.marketplace.grid.base import Location
+from src_thesis.core.location import Location
 from src_thesis.marketplace.market.mechanism import AveragePricing, BidAskSpreadPricing, BuyerPricing, NashBargainingPricing, ProportionalSurplusPricing, SellerPricing
-from src_thesis.marketplace.market.order import Order
+from src_thesis.core.orders import Order
 
 
 def test_market_mechanism() -> None:

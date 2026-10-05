@@ -7,10 +7,10 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.marketplace.grid.base import GridTopology, Location
+from src_thesis.core.location import GridTopology, Location
 from src_thesis.adapters.grid.network import GridNetwork
 from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.order import Order
+from src_thesis.core.orders import Order
 
 
 def test_dso() -> None:

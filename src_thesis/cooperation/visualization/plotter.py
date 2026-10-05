@@ -20,7 +20,7 @@ from scipy.stats import gaussian_kde
 from src_thesis.cooperation.metrics.dso_metrics import DSOMetrics
 from src_thesis.cooperation.metrics.grid_metrics import GridMetrics
 from src_thesis.cooperation.metrics.market_analytics import MarketMetrics
-from src_thesis.marketplace.market.matching import MatchingHistory
+from src_thesis.core.results import MatchingHistory
 
 
 class Plotter:

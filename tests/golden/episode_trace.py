@@ -25,8 +25,8 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
 from src_thesis.adapters.grid.network import GridNetwork  # noqa: E402
-from src_thesis.marketplace.grid.base import GridTopology  # noqa: E402
-from src_thesis.marketplace.lem import LocalEnergyMarket  # noqa: E402
+from src_thesis.core.location import GridTopology  # noqa: E402
+from src_thesis.environment.lem import LocalEnergyMarket  # noqa: E402
 from src_thesis.marketplace.market.mechanism import ClearingMechanism  # noqa: E402
 
 FILE = Path(__file__).with_name("episodes.json")

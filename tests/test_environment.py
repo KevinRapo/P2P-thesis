@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils import create_env_config, create_market_config
 
-from src_thesis.marketplace.lem import LocalEnergyMarket
+from src_thesis.environment.lem import LocalEnergyMarket
 
 
 def test_environment() -> None:

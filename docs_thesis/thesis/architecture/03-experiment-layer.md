@@ -70,15 +70,15 @@ flowchart LR
     n_experiments_worker_runner["worker/runner.py"]
   end
   subgraph USES["uses"]
-    n_marketplace_grid["marketplace/grid"]:::ext
+    n_core_grid_contract["core/grid_contract.py"]:::ext
   end
   n_application__users_ --> n_experiments_models_expand
   n_application__users_ --> n_experiments_models_files
   n_application__users_ --> n_experiments_models_manifest
   n_application__users_ --> n_experiments_models_records
   n_application__users_ --> n_experiments_models_resolve
+  n_experiments_factory_environment --> n_core_grid_contract
   n_experiments_factory_environment -.-> n_experiments_models_records
-  n_experiments_factory_environment --> n_marketplace_grid
   n_experiments_factory_training -.-> n_experiments_models_records
   n_experiments_models_expand -.-> n_experiments_models_records
   n_experiments_models_files -.-> n_experiments_models_records
