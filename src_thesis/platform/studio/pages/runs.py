@@ -18,7 +18,7 @@ def _fmt_seconds(seconds: float | None) -> str:
 
 @ui.page("/runs")
 def runs_page() -> None:
-    """Runs (05 §6): queue, live status, log tail and cancel. Sample data until R7."""
+    """Runs (05 §6): queue, live status, log tail and cancel."""
     s = services()
     with shell(
         "runs", "Runs", "All runs from the experiment store; refreshed by polling"
@@ -29,10 +29,6 @@ def runs_page() -> None:
                 value="all",
                 label="State",
             ).classes("w-48")
-            # Placeholder: the experiment filter is not applied yet.
-            ui.select(["all", "case6-3x3"], value="all", label="Experiment").classes(
-                "w-56"
-            )
             ui.space()
             ui.label("auto-refresh every 2 s").classes("mls-card-caption")
 
@@ -49,7 +45,11 @@ def runs_page() -> None:
                     {
                         "id": r.run_id,
                         "experiment": r.experiment_id,
-                        "cell": f"{r.cell.algorithm.upper()} · {r.cell.paradigm.upper()}",
+                        "cell": (
+                            f"simulate · {r.cell.algorithm}"
+                            if r.cell.kind == "simulate"
+                            else f"{r.cell.algorithm.upper()} · {r.cell.paradigm.upper()}"
+                        ),
                         "seed": r.cell.seed,
                         "network": r.network,
                         "state": r.state.value,
@@ -99,13 +99,23 @@ def runs_page() -> None:
                     value=status.summary.progress, show_value=False
                 ).props("rounded size=8px")
                 with ui.row().classes("gap-6"):
-                    ui.label(f"iteration {status.iteration}").classes("text-body2")
+                    ui.label(
+                        f"step {status.iteration}"
+                        if status.summary.cell.kind == "simulate"
+                        else f"iteration {status.iteration}"
+                    ).classes("text-body2")
                     for k, v in status.last_metrics.items():
                         ui.label(f"{k}: {v}").classes("text-body2")
                 log = ui.log(max_lines=200).classes("w-full h-40 mls-mono")
                 for line in status.log_tail:
                     log.push(line)
                 with ui.row().classes("justify-end w-full gap-2"):
+                    if status.summary.cell.kind == "simulate":
+                        ui.button(
+                            "Replay",
+                            icon="slideshow",
+                            on_click=lambda: ui.navigate.to(f"/simulate/{run_id}"),
+                        ).props("flat")
                     ui.button(
                         "Open results",
                         icon="insights",
@@ -117,7 +127,7 @@ def runs_page() -> None:
                         color="negative",
                         on_click=lambda: (
                             s.experiments.cancel(run_id),
-                            ui.notify("Cancellation requested (sample data)."),
+                            ui.notify("Cancellation requested."),
                         ),
                     ).props("outline")
             dialog.open()

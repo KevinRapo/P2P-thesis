@@ -60,9 +60,11 @@ flowchart LR
   subgraph g_components["components/"]
     n_platform_studio_components_cards["components/cards.py"]
     n_platform_studio_components_charts["components/charts.py"]
+    n_platform_studio_components_checks_panel["components/checks_panel.py"]
     n_platform_studio_components_network["components/network.py"]
     n_platform_studio_components_participant_editor["components/participant_editor.py"]
     n_platform_studio_components_profiles["components/profiles.py"]
+    n_platform_studio_components_replay["components/replay.py"]
     n_platform_studio_components_tables["components/tables.py"]
   end
   subgraph USES["uses"]
@@ -77,6 +79,8 @@ flowchart LR
   n_platform_studio_app --> n_platform_studio_state
   n_platform_studio_components_charts --> n_platform_services
   n_platform_studio_components_charts --> n_platform_studio_theme
+  n_platform_studio_components_checks_panel --> n_platform_services
+  n_platform_studio_components_checks_panel --> n_platform_studio_components_cards
   n_platform_studio_components_network --> n_platform_services
   n_platform_studio_components_network --> n_platform_studio_components_cards
   n_platform_studio_components_network --> n_platform_studio_components_charts
@@ -84,6 +88,10 @@ flowchart LR
   n_platform_studio_components_network --> n_platform_studio_components_tables
   n_platform_studio_components_participant_editor --> n_platform_services
   n_platform_studio_components_profiles --> n_platform_services
+  n_platform_studio_components_replay --> n_platform_studio_components_cards
+  n_platform_studio_components_replay --> n_platform_studio_components_charts
+  n_platform_studio_components_replay --> n_platform_studio_components_tables
+  n_platform_studio_components_replay --> n_platform_studio_state
   n_platform_studio_forms --> n_platform_services
   n_platform_studio_forms --> n_platform_studio_state
   n_platform_studio_layout --> n_platform_studio_navigation
@@ -92,8 +100,10 @@ flowchart LR
   n_platform_studio_pages__ --> n_platform_services
   n_platform_studio_pages__ --> n_platform_studio_components_cards
   n_platform_studio_pages__ --> n_platform_studio_components_charts
+  n_platform_studio_pages__ --> n_platform_studio_components_checks_panel
   n_platform_studio_pages__ --> n_platform_studio_components_network
   n_platform_studio_pages__ --> n_platform_studio_components_participant_editor
+  n_platform_studio_pages__ --> n_platform_studio_components_replay
   n_platform_studio_pages__ --> n_platform_studio_components_tables
   n_platform_studio_pages__ --> n_platform_studio_forms
   n_platform_studio_pages__ --> n_platform_studio_layout

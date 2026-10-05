@@ -39,7 +39,13 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
             NavItem("validate", "Validate", "rule", "/experiment/validate"),
         ],
     ),
-    ("Run", [NavItem("runs", "Runs", "play_circle", "/runs")]),
+    (
+        "Run",
+        [
+            NavItem("simulate", "Simulate", "slideshow", "/simulate"),
+            NavItem("runs", "Runs", "play_circle", "/runs"),
+        ],
+    ),
     (
         "Analyse",
         [

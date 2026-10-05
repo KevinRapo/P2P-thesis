@@ -53,6 +53,7 @@ import src_thesis.platform.studio.pages.participants  # noqa: F401, E402
 import src_thesis.platform.studio.pages.results  # noqa: F401, E402
 import src_thesis.platform.studio.pages.rl  # noqa: F401, E402
 import src_thesis.platform.studio.pages.runs  # noqa: F401, E402
+import src_thesis.platform.studio.pages.simulate  # noqa: F401, E402
 import src_thesis.platform.studio.pages.summary  # noqa: F401, E402
 import src_thesis.platform.studio.pages.validate  # noqa: F401, E402
 
@@ -70,6 +71,12 @@ def _prepare_networks() -> None:
     chosen = [lvl.strip() for lvl in levels.split(",") if lvl.strip()]
     if chosen:
         services().grid.warm_cache(chosen)
+
+
+@app.on_startup
+def _poll_workers() -> None:
+    """Poll the worker pool once a second: one timer for the whole Studio."""
+    app.timer(1.0, lambda: services().experiments.tick())
 
 
 def main(

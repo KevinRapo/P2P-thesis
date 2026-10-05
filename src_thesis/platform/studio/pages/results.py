@@ -11,11 +11,22 @@ from src_thesis.platform.studio.components.cards import (
     stat_grid,
 )
 from src_thesis.platform.studio.components.charts import line_figure, topology_figure
+from src_thesis.platform.studio.components.checks_panel import checks_panel
+from src_thesis.platform.studio.components.replay import replay
 from src_thesis.platform.studio.layout import shell
 from src_thesis.platform.studio.state import services
 from src_thesis.platform.services.models import NetworkSource
 
 _OUTCOME_LABELS = {
+    "steps_played": ("Steps played", "{:.0f}"),
+    "trades": ("Trades", "{:.0f}"),
+    "p2p_kwh": ("P2P energy", "{:.1f} kWh"),
+    "dso_kwh": ("DSO energy", "{:.1f} kWh"),
+    "grid_violations": ("Grid violations", "{:.0f}"),
+    "not_converged": ("Power flows not converged", "{:.0f}"),
+    "failed_invariants": ("Invariants failed", "{:.0f}"),
+    "min_voltage_pu": ("Lowest voltage", "{:.4f} pu"),
+    "max_voltage_pu": ("Highest voltage", "{:.4f} pu"),
     "served_demand_share": ("Served demand", "{:.1%}"),
     "unmet_demand_kwh": ("Unmet demand", "{} kWh"),
     "curtailment_kwh": ("Curtailment", "{} kWh"),
@@ -35,7 +46,11 @@ def results_index_page() -> None:
             {
                 "id": r.run_id,
                 "experiment": r.experiment_id,
-                "cell": f"{r.cell.algorithm.upper()} · {r.cell.paradigm.upper()} · s{r.cell.seed}",
+                "cell": (
+                    f"simulate · {r.cell.algorithm} · s{r.cell.seed}"
+                    if r.cell.kind == "simulate"
+                    else f"{r.cell.algorithm.upper()} · {r.cell.paradigm.upper()} · s{r.cell.seed}"
+                ),
                 "state": r.state.value,
                 "state_color": state_color(r.state.value),
             }
@@ -68,6 +83,9 @@ def results_page(run_id: str) -> None:
     """
     s = services()
     with shell("results", "Results", run_id):
+        if s.experiments.snapshot(run_id).summary.cell.kind == "simulate":
+            _simulation_results(run_id)
+            return
         result = s.results.summary(run_id)
         # One tab per view of the run. All data is sample data from ResultService until
         # R7.
@@ -200,3 +218,68 @@ def results_page(run_id: str) -> None:
                             icon="image",
                             on_click=lambda: not_implemented("Export figures"),
                         ).props("outline")
+
+
+def _simulation_results(run_id: str) -> None:
+    """Results of a simulation run: outcomes, replay, checks, grid and agents."""
+    s = services()
+    result = s.results.summary(run_id)
+    with ui.tabs().classes("w-full").props("align=left no-caps") as tabs:
+        for name, label, icon in [
+            ("overview", "Overview", "dashboard"),
+            ("replay", "Replay", "slideshow"),
+            ("checks", "Checks", "rule"),
+            ("grid", "Grid", "hub"),
+            ("agents", "Agents", "groups"),
+            ("export", "Export", "download"),
+        ]:
+            ui.tab(name, label=label, icon=icon)
+    handle = {}
+    with ui.tab_panels(tabs, value="overview").classes("w-full"):
+        with ui.tab_panel("overview").classes("gap-4"):
+            with stat_grid():
+                for key, value in result.outcomes.items():
+                    label, fmt = _OUTCOME_LABELS.get(key, (key, "{}"))
+                    stat(label, fmt.format(value))
+            with section("Run manifest", "Provenance of this run", "fingerprint"):
+                key_values(result.manifest)
+            ui.button(
+                "Open in Simulate",
+                icon="slideshow",
+                on_click=lambda: ui.navigate.to(f"/simulate/{run_id}"),
+            ).props("flat")
+        with ui.tab_panel("replay"):
+            handle["replay"] = replay(run_id)
+        with ui.tab_panel("checks"):
+            checks_panel(
+                s.results.checks(run_id),
+                lambda day, step: (
+                    tabs.set_value("replay"),
+                    handle["replay"].jump(day, step),
+                ),
+            )
+        with ui.tab_panel("grid"):
+            with section("Voltage and loading over the first day", icon="hub"):
+                ui.plotly(
+                    line_figure(s.results.grid_series(run_id), height=360)
+                ).classes("w-full")
+        with ui.tab_panel("agents"):
+            with section(
+                "Battery energy and net injection", icon="battery_charging_full"
+            ):
+                ui.plotly(
+                    line_figure(s.results.agent_series(run_id), height=340)
+                ).classes("w-full")
+        with ui.tab_panel("export"):
+            with section("Export", "Step summaries of this run", "download"):
+                with ui.row().classes("gap-2"):
+                    ui.button(
+                        "CSV",
+                        icon="table_view",
+                        on_click=lambda: ui.notify(s.results.export([run_id], "csv")),
+                    ).props("outline")
+                    ui.button(
+                        "JSON",
+                        icon="data_object",
+                        on_click=lambda: ui.notify(s.results.export([run_id], "json")),
+                    ).props("outline")

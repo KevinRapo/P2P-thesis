@@ -118,8 +118,17 @@ def topology_figure(
     voltages: dict[str, float] | None = None,
     highlight: set[str] | None = None,
     height: int = 420,
+    violating: set[str] | None = None,
 ) -> go.Figure:
-    """Network plot. Buses carry their ID as ``customdata`` for click handlers."""
+    """Network plot. Buses carry their ID as ``customdata`` for click handlers.
+
+    Args:
+        topology: Buses and branches.
+        voltages: Voltage per bus; colours the buses on a fixed 0.93 to 1.05 pu scale.
+        highlight: Buses outlined in amber (selected bus, participants).
+        height: Height in pixels.
+        violating: Buses outlined in red (outside their voltage limits).
+    """
     pos = {b["id"]: (b["x"], b["y"]) for b in topology.buses}
     fig = go.Figure()
     lines = [br for br in topology.lines if br.get("kind", "line") == "line"]
@@ -163,9 +172,14 @@ def topology_figure(
         return 16 if b["kind"] == "external_grid" else (9 if b["kind"] != "bus" else 6)
 
     def outline(group: list[dict]) -> dict:
-        """Amber outline for highlighted buses (selected bus, participants)."""
+        """Amber outline for highlighted buses (selected bus, participants), red for
+        buses outside their voltage limits."""
+        bad = [bool(violating) and b["id"] in violating for b in group]
         marked = [bool(highlight) and b["id"] in highlight for b in group]
-        return dict(width=[3 if m else 0.5 for m in marked], color="#D97706")
+        return dict(
+            width=[3 if m or v else 0.5 for m, v in zip(marked, bad)],
+            color=["#DC2626" if v else "#D97706" for v in bad],
+        )
 
     # After a preview: one trace coloured by voltage. Otherwise one trace per bus kind,
     # so the legend explains the colours.
