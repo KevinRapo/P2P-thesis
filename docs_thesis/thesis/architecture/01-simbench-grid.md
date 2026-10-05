@@ -87,7 +87,7 @@ flowchart LR
 |---|---|
 | `marlem/grid/contract.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
 | `marlem/grid/simbench.py` | The pandapower adapter: catalog, loading, topology, profiles, preview power flow and, from R4, the step-time `SimBenchGrid` |
-| `marlem/grid/placement.py` | Participant mapping: the placement rules (§3.1) and profile scaling (§3.4), as plain functions over the contract records |
+| `marlem/grid/placement.py` | Participant mapping: which buses are participants (§3.1) and profile scaling (§3.4), as plain functions over the contract records |
 
 Generated from the imports by `docs_thesis/graphs.py`; functions are documented in the docstrings (API Reference).
 
@@ -140,7 +140,7 @@ An **agent** in MARLEM is one market participant with generation, demand and an 
 |---|---|---|
 | `manual` | The user picks a bus per agent (table or map in the Studio) | Hand-designed studies |
 | `by_elements` | The agent adopts the bus of the load or sgen it owns | Default |
-| `rule` | Seeded selection of N buses by combined filters: load types (any SimBench class: households, commercial, farms, heat pumps, EV charging, …), generation (PV, any generator, none), storage, position (anywhere, spread over the feeders, feeder ends). Each agent owns its whole bus, or only the matching loads | Scalability (Case 7), sensitivity studies |
+| `rule` | One rule: every bus with **flexibility**, any generator (sgen) or storage, becomes a participant owning everything at its bus. A bus with only regular load is not a participant: it stays background (§3.5) | The default for SimBench studies; the participant count follows the network |
 | `file` | Import a mapping CSV/JSON | Sharing, reproducing a published mapping |
 
 A rule is resolved into explicit placements when the experiment is validated. The resolved list is stored in the run manifest.

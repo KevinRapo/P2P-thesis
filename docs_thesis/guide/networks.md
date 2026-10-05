@@ -38,7 +38,7 @@ All values come from the networks themselves, as the Studio loads them (generate
 | Load, Generation | Sum of the rated power of all loads and static generators (SimBench's reference values; the profiles scale these over the year, factor ≤ 1) |
 | Gen / load, PV / load | Rated generation (all, or PV only) as a share of rated load: a simple measure of **penetration**. Above 100 % the network can export at times |
 | Load buses | Buses with at least one load: the most agents a one-agent-per-bus placement can have |
-| Prosumer buses | Buses with a load *and* a generator: candidates for prosumer agents (placement rule "with any generator") |
+| Prosumer buses | Buses with a load *and* a generator: candidates for prosumer agents (these become participants with the Participants page's flexible-bus placement, together with the buses that have storage) |
 | Ratings, Geodata | Whether lines have real current ratings (loading checks) and real coordinates (map layout) |
 | Loads by type | Number of loads per SimBench class (households, commercial, farms, heat pumps, EV charging, aggregated grids; see Inspect → Profiles) |
 

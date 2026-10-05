@@ -108,7 +108,6 @@ flowchart LR
   n_platform_services_participant_service --> n_marlem_grid
   n_platform_services_participant_service --> n_platform_experiments
   n_platform_services_participant_service -.-> n_platform_services_models
-  n_platform_services_participant_service --> n_platform_services_profile_classes
   n_platform_services_profile_classes -.-> n_platform_services_models
   n_platform_services_profile_service --> n_marlem_grid
   n_platform_services_profile_service --> n_platform_services_data_files
@@ -132,7 +131,7 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 | `config_service.py` | `ConfigService`: presets from the repository, files in the workspace library; import of files and bundles | built |
 | `grid_catalog_service.py` | `GridCatalogService`: networks via the pandapower adapter | built |
 | `profile_service.py` | `ProfileService`: SimBench profiles of a network and of the complete catalogue, their classes | built |
-| `participant_service.py` | `ParticipantService`: placement by combined filters, mapping import, [P2] Table 6 roles, participant previews | built |
+| `participant_service.py` | `ParticipantService`: placement on flexible buses, mapping import, [P2] Table 6 roles, participant previews | built |
 | `tariff_service.py` | `TariffService`: the DSO tariff CSVs | built |
 | `profile_classes.py`, `data_files.py` | Shared by the services: SimBench's profile classes; listing and reading the `data/` CSVs | |
 | `validation_service.py` | `ValidationService` | sample data until R6–R7 |
@@ -161,7 +160,7 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 | `ConfigService` | Everything done to an experiment file without running it: presets, library, edit, compare, share | `experiments.models` (files, expand, resolve), workspace | Studio "Apply to draft": `update` (dotted paths, validated) → `save` (atomic) |
 | `GridCatalogService` | Choosing and understanding a network before any experiment exists | `adapters.grid` | `topology` and `preview_powerflow` feed the Grid page; no agents or RL involved |
 | `ProfileService` | Understanding the available profiles before assigning any | `adapters.grid` (SimBench adapter) | `profile_types`, `catalogue_types`, series and scaled power for the Inspect page |
-| `ParticipantService` | Placing participants on buses and seeing what drives them, the most error-prone setup step | `adapters.grid` (placement rules, SimBench adapter) | `suggest_mapping` by filters, `import_mapping`, `paper_roles`, `preview` per participant |
+| `ParticipantService` | Placing participants on buses and seeing what drives them, the most error-prone setup step | `adapters.grid` (placement, SimBench adapter) | `suggest_mapping` by filters, `import_mapping`, `paper_roles`, `preview` per participant |
 | `TariffService` | Seeing the DSO's tariffs before a run | `data/prices` CSVs | `tariff_files`, `tariffs` for the Market & DSO page |
 | `ValidationService` | One set of checks (02 §9), so the Studio and the CLI accept exactly the same files | `experiments.models`, `experiments.factory` | `validate` (schema · references · full); `dry_run` builds one environment and takes one step |
 | `ExperimentService` | The only way to create and control runs | `experiments.models`, `.store`, `.worker.pool` | `create_runs`: validate → expand → per run resolve, manifest, folder; `start` / `cancel` / `snapshot` via the pool (03 §5) |

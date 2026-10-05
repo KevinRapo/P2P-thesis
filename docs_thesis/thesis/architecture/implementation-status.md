@@ -75,7 +75,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | Part | Status | Tests | Notes |
 |---|---|---|---|
 | pandapower grid adapter ([simbench_new.py](../../../src_thesis/marlem/grid/simbench.py)) | 🟡 | [test_grid_catalog.py](../../../tests/test_grid_catalog.py) | Catalog part done; `provide(ref, net)` lets any small pandapower net stand in for a reference (tests: [test_standins.py](../../../tests/test_standins.py)). `SimBenchGrid` (the step-time model) is a stub that raises |
-| Participant mapping ([participants.py](../../../src_thesis/marlem/grid/placement.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement by combined filters (load types, generation, storage, position; agent owns its whole bus or only the matching loads) and profile scaling (none, peak kW, annual energy) |
+| Participant mapping ([participants.py](../../../src_thesis/marlem/grid/placement.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement on flexible buses (a generator or storage; load-only buses stay background) and profile scaling (none, peak kW, annual energy) |
 | SimBench profile source (`marlem/profiles/simbench.py`) | ⬜ | — | The existing `marlem/profiles/` is the original CSV / synthetic code |
 
 ### 3.3 Experiment layer (`src_thesis/platform/experiments/`, 03)
@@ -97,7 +97,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | `ConfigService` | ✅ | test_config_service.py | Presets, library, save, clone, delete, update, origin, diff, export and import of bundles, import of files. Not yet: `json_schema` |
 | `GridCatalogService` | ✅ | test_grid_catalog.py | Networks, topology, elements, power-flow preview; network cache on disk (`cache_status`, `warm_cache` in a background thread, `clear_cache`) |
 | `ProfileService` | ✅ | test_grid_catalog.py | A network's SimBench profiles (factors and kW), SimBench's complete catalogue and its classes (Meinecke et al., 2020, Figure 1) |
-| `ParticipantService` | ✅ | test_participants.py | Placement by combined filters (`suggest_mapping`), mapping import, [P2] Table 6 roles; participant previews (native and catalogue profiles, scaled) |
+| `ParticipantService` | ✅ | test_participants.py | Placement on flexible buses, any generator or storage (`suggest_mapping`), mapping import, [P2] Table 6 roles; participant previews (native and catalogue profiles, scaled) |
 | `TariffService` | ✅ | test_participants.py | The DSO tariff CSVs. The day split of the time window is `ConfigService.days` |
 | `ValidationService` | 🎭 | — | Findings and the dry run are fixed samples; no real check runs |
 | `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
@@ -137,7 +137,7 @@ The [Studio workflow guide](../../guide/studio-workflow.md), step by step, again
 | 1 Inspect | ✅ All three tabs on real data | — | — |
 | 2 Start a file | ✅ New draft from a preset; Library: open, clone, delete, open from disk, import bundle | Presets: placeholder participant mapping; sweeps for Case 1 only | Preset work (R6) |
 | 3 Grid | ✅ Network and every grid rule are written to the draft | Uploading a pandapower file | Later (R3) |
-| 3 Participants | ✅ Every participant field, placement rules, mapping import, Table 6 roles, time window; checks, map, preview, day counts | — | — |
+| 3 Participants | ✅ Every participant field, flexible-bus placement, mapping import, Table 6 roles, time window; checks, map, preview, day counts | — | — |
 | 3 Market & DSO | ✅ Every field of `market`, `dso`, `environment`; real tariff CSVs | — | — |
 | 4 RL | ✅ Every field of `learning`, `evaluation`, `baselines`, `sweep`, `resources`, `outputs`; real run count | No time estimate (needs benchmark timings in `ExperimentService.estimate`) | §7 step 2 |
 | 5 Summary | ✅ `meta`, values per section, save as, diff, export | — | — |

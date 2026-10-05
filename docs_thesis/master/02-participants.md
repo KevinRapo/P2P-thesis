@@ -28,7 +28,7 @@ precise proposed replacement/background rules and units.
 
 | Function / module | Responsibility |
 |---|---|
-| [ParticipantService.suggest_mapping](../../src_thesis/platform/services/participant_service.py) | Requests elements/topology and delegates to placement rules |
+| [ParticipantService.suggest_mapping](../../src_thesis/platform/services/participant_service.py) | Requests elements/topology and delegates to the flexible-bus placement |
 | [candidates / place](../../src_thesis/marlem/grid/placement.py) | Filters candidate buses and chooses a reproducible mapping |
 | [ParticipantService.preview](../../src_thesis/platform/services/participant_service.py) | Builds participant series for the selected window |
 | [ProfileService](../../src_thesis/platform/services/profile_service.py) | Exposes profile catalogue and series operations |
@@ -50,7 +50,7 @@ supplies data for charts on the page.
 flowchart LR
   Page[Participants page] --> Service[ParticipantService]
   Service --> Adapter[Network elements and topology]
-  Service --> Rules[Placement rules]
+  Service --> Rules[Flexible-bus placement]
   Rules --> Records[Explicit participant records]
 ```
 
