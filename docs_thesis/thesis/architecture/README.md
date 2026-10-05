@@ -173,6 +173,7 @@ flowchart LR
   n_marlem_environment__ --> n_marlem_dso__
   n_marlem_environment__ --> n_marlem_grid__
   n_marlem_environment__ --> n_marlem_market__
+  n_marlem_environment__ --> n_marlem_policies__
   n_marlem_environment__ --> n_marlem_profiles__
   n_marlem_environment__ --> n_marlem_root
   n_marlem_grid__ --> n_marlem_core__

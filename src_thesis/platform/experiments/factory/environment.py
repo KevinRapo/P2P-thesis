@@ -260,3 +260,19 @@ def build_grid(resolved: ExperimentFile, spec: EngineSpec) -> "GridModel":
         g.power_flow.algorithm,
         g.power_flow.max_iteration,
     )
+
+
+def world_builder(resolved: ExperimentFile) -> Any:
+    """A function that builds the engine and the grid of any spec of this file.
+
+    The sanity scenarios use it to run fixture worlds on the file's own network.
+    """
+    from src_thesis.marlem.environment.build import build_engine
+
+    def build(spec: EngineSpec) -> tuple["MarketEngine", "GridModel"]:
+        return (
+            build_engine(spec, build_grid_view(resolved, spec)),
+            build_grid(resolved, spec),
+        )
+
+    return build
