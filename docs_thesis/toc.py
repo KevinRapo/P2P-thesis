@@ -29,6 +29,7 @@ FILES = [
     "thesis/validation/issues.md",
     "thesis/validation/methodology.md",
     "thesis/validation/plan.md",
+    "thesis/validation/rl-testbench.md",
     "thesis/validation/marlem-keep-replace-audit.md",
 ]
 

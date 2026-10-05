@@ -132,6 +132,7 @@ nav:
       - Issue register: thesis/validation/issues.md
       - Method vs code: thesis/validation/methodology.md
       - Plan: thesis/validation/plan.md
+      - RL testbench: thesis/validation/rl-testbench.md
       - Keep / replace audit: thesis/validation/marlem-keep-replace-audit.md
   - Architecture:
       - thesis/architecture/README.md

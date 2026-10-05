@@ -555,6 +555,7 @@ The learning layer, last. It needs a correct environment, observations and rewar
 
 ### D1. Training paradigms
 
+- **Independent validation ground:** [Standalone RL testbench](rl-testbench.md) proves training, paradigm semantics, evaluation and checkpoint restoration on established environments before connecting the same RL path to the MARLEM market.
 - **Components:** `RLTrainer`, `TrainingMode`, `RLAlgorithm` (plus the CTCE/CTDE modules and `GroupedLEM`, not in Fig. 2)
 - **Why here:** The MARL layer.
 - **Decisions first:** [I-50](issues.md#I-50), [I-60](issues.md#I-60), [I-73](issues.md#I-73)

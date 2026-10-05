@@ -25,6 +25,7 @@
 | [check_docs.py](check_docs.py) | Checks that the files agree with each other and with the code markers, and rebuilds the generated tables and diagrams | — |
 | [evidence/](evidence/) | [issue_demos.py](evidence/issue_demos.py): one small experiment per issue (48 so far), expected vs actual, plus a showability tier for all 80. [issue_demos.ipynb](evidence/issue_demos.ipynb) renders them one by one; [test_issue_demos.py](evidence/test_issue_demos.py) runs them as strict-xfail acceptance tests. [trace_original_episode.py](evidence/trace_original_episode.py): the older one-episode trace behind T1–T13. | A demo is added, or an issue is fixed (move its ID to `FIXED` in the test file) |
 | [marlem-keep-replace-audit.md](marlem-keep-replace-audit.md) | Rebuild or repair: function-by-function verdicts for a SimBench edition built on the papers' method, the grid coupling, and what happens to the 80 issues | The rebuild plan changes |
+| [rl-testbench.md](rl-testbench.md) | Standalone RL validation plan: reference environments, paradigm contracts, learning evidence and path back to MARLEM | The RL benchmark design or acceptance gates change |
 | [archive/validation-plan-fix.md](archive/validation-plan-fix.md) | The earlier audit (P0-01 … P3-03). Frozen, not kept in sync. | Never |
 
 [↑ Contents](#contents)
