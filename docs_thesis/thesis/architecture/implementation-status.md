@@ -93,7 +93,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | Service | Status | Tests | What it does / what is still sample data |
 |---|---|---|---|
 | `ConfigService` | ✅ | test_config_service.py | Presets, library, save, clone, delete, update, origin, diff, export and import of bundles, import of files. Not yet: `json_schema` |
-| `GridCatalogService` | ✅ | test_grid_catalog.py | Networks, topology, elements, power-flow preview |
+| `GridCatalogService` | ✅ | test_grid_catalog.py | Networks, topology, elements, power-flow preview; network cache on disk (`cache_status`, `warm_cache` in a background thread, `clear_cache`) |
 | `ProfileService` | ✅ | test_grid_catalog.py, test_participants.py | A network's SimBench profiles (factors and kW), SimBench's complete catalogue and its classes (Meinecke et al., 2020, Figure 1); placement rules (`suggest_mapping`), mapping import, [P2] Table 6 roles; participant previews (native and catalogue profiles, scaled); the day split of the time window; the DSO tariff CSVs and other data CSVs |
 | `ValidationService` | 🎭 | — | Findings and the dry run are fixed samples; no real check runs |
 | `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
@@ -119,7 +119,7 @@ Each service is one class in `application/<name>_service.py`; a method that is n
 | RL | The draft's learning plan (real); run count from `ConfigService.expand`, following unsaved changes | "Apply to draft": `learning.*` (paradigms, algorithms, seeds, budget, hyperparameters, paradigm options, model, tuning with mutations, checkpoints, rollouts), `evaluation.*`, `baselines`, `sweep`, `resources.*`, `outputs.*` | — |
 | Validate | Sample findings and dry run | Nothing ("Launch" calls the sample `ExperimentService.create_runs`) | — |
 | Runs, Results, Compare | Sample data. The Results replay draws the default network's preview power flow, not the run's grid; the Runs experiment filter and the Compare experiment list and paper-reference switch do nothing yet | — | Export figures |
-| Settings | The real workspace folder and its `library/`, `store/`, `exports/` | Not the experiment file: "Use this folder" chooses the workspace folder (kept in `%APPDATA%\MARLEM\settings.json`); dark mode | — |
+| Settings | The real workspace folder and its `library/`, `store/`, `exports/`; the network cache with its preparation progress | Not the experiment file: "Use this folder" chooses the workspace folder (kept in `%APPDATA%\MARLEM\settings.json`); dark mode | — |
 
 [↑ Contents](#contents)
 

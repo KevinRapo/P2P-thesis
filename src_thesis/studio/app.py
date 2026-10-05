@@ -40,7 +40,7 @@ from src_thesis.application.workspace import default_home  # noqa: E402
 # repository and OneDrive. A value from .env or the environment still wins.
 os.environ.setdefault("NICEGUI_STORAGE_PATH", str(default_home() / "studio-state"))
 
-from nicegui import ui  # noqa: E402
+from nicegui import app, ui  # noqa: E402
 
 # Importing a page module runs its @ui.page decorator, which registers the route.
 import src_thesis.studio.pages.compare  # noqa: F401, E402
@@ -56,7 +56,20 @@ import src_thesis.studio.pages.runs  # noqa: F401, E402
 import src_thesis.studio.pages.summary  # noqa: F401, E402
 import src_thesis.studio.pages.validate  # noqa: F401, E402
 
+from src_thesis.studio.state import services  # noqa: E402
+
 SOURCE = Path(__file__).resolve().parents[1]  # src_thesis/
+
+
+@app.on_startup
+def _prepare_networks() -> None:
+    """Prepare the networks of MARLEM_PREPARE_LEVELS (default LV and MV) in the
+    background, so the first time each is opened it reads from the cache.
+    """
+    levels = os.environ.get("MARLEM_PREPARE_LEVELS", "LV,MV")
+    chosen = [lvl.strip() for lvl in levels.split(",") if lvl.strip()]
+    if chosen:
+        services().grid.warm_cache(chosen)
 
 
 def main(

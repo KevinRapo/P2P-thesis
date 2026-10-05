@@ -16,9 +16,14 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import pickle
+import shutil
+import threading
 from datetime import date, datetime, timedelta
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from src_thesis.marketplace.grid.contract_new import (
     BranchView,
@@ -136,12 +141,115 @@ def voltage_levels(source_type: str) -> list[str]:
 
 
 # --------------------------------------------------------------------- loading
+# Networks are cached twice. In RAM, the last ``RAM_NETWORKS`` loaded networks
+# (``_load``). On disk, every SimBench and built-in network once built, as a pickle
+# in the folder given to ``use_cache``: building one from SimBench's CSV files takes
+# 3-4 s, reading the pickle back 0.03-0.08 s. The folder name holds the pandapower
+# and SimBench versions, so an upgrade starts a fresh cache.
 _LOADED: set[NetworkRef] = set()
+RAM_NETWORKS = 16
+_CACHE_DIR: Path | None = None
+_CACHE_LOCK = threading.Lock()
 
 
-@lru_cache(maxsize=8)
+def use_cache(folder: Path | None) -> None:
+    """Keep built networks as files in ``folder`` (``None``: RAM only)."""
+    global _CACHE_DIR
+    _CACHE_DIR = Path(folder) if folder else None
+
+
+def _cache_path(ref: NetworkRef) -> Path | None:
+    """The cache file of a network; ``None`` without a cache or for user files."""
+    if _CACHE_DIR is None or ref.source_type == "pandapower_file":
+        return None
+    import pandapower as pp
+    import simbench as sb
+
+    version = f"pandapower-{pp.__version__}_simbench-{sb.__version__}"
+    return _CACHE_DIR / version / ref.source_type / f"{ref.code}.pkl"
+
+
+def _read_or_build(ref: NetworkRef) -> "pp.pandapowerNet":
+    """The network from its cache file, or built and then written to the cache."""
+    path = _cache_path(ref)
+    if path is not None and path.exists():
+        try:
+            with path.open("rb") as f:
+                return pickle.load(f)
+        except Exception:  # noqa: BLE001  a damaged file is rebuilt
+            path.unlink(missing_ok=True)
+    net = _build(ref)
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")
+        with tmp.open("wb") as f:
+            pickle.dump(net, f, protocol=pickle.HIGHEST_PROTOCOL)
+        with _CACHE_LOCK:
+            os.replace(tmp, path)
+    return net
+
+
+def cache_status() -> tuple[str, int, int]:
+    """(cache folder, networks cached, bytes); ``("", 0, 0)`` without a cache."""
+    if _CACHE_DIR is None:
+        return "", 0, 0
+    files = list(_CACHE_DIR.rglob("*.pkl")) if _CACHE_DIR.exists() else []
+    return str(_CACHE_DIR), len(files), sum(f.stat().st_size for f in files)
+
+
+def is_cached(ref: NetworkRef) -> bool:
+    """Whether a network is in RAM or in the disk cache (opens at once)."""
+    path = _cache_path(ref)
+    return ref in _LOADED or (path is not None and path.exists())
+
+
+def warm_cache(
+    levels: Sequence[str], progress: Callable[[int, int], None] | None = None
+) -> int:
+    """Build the cache files of every SimBench network of ``levels`` not yet cached.
+
+    The networks are not kept in RAM. Safe to run in a background thread.
+
+    Args:
+        levels: Voltage levels, e.g. ``["LV", "MV"]``.
+        progress: Called with (done, total) after each network.
+
+    Returns:
+        The number of networks built.
+    """
+    if _CACHE_DIR is None:
+        return 0
+    refs = [
+        NetworkRef("simbench", c)
+        for c in _simbench_codes()
+        if simbench_label(c)[1] in set(levels)
+    ]
+    todo = [r for r in refs if not is_cached(r)]
+    for i, ref in enumerate(todo, start=1):
+        _read_or_build(ref)
+        if progress:
+            progress(i, len(todo))
+    return len(todo)
+
+
+def clear_cache() -> None:
+    """Delete every cache file (networks are built again when opened)."""
+    if _CACHE_DIR is not None and _CACHE_DIR.exists():
+        shutil.rmtree(_CACHE_DIR, ignore_errors=True)
+
+
+@lru_cache(maxsize=RAM_NETWORKS)
 def _load(ref: NetworkRef) -> "pp.pandapowerNet":
-    """Load a network once per process. The result is a shared, read-only source."""
+    """Load a network once per process (from the disk cache if it has it). The
+    result is a shared, read-only source.
+    """
+    net = _read_or_build(ref)
+    _LOADED.add(ref)
+    return net
+
+
+def _build(ref: NetworkRef) -> "pp.pandapowerNet":
+    """Build a network from its source (SimBench CSVs, pandapower, a file)."""
     import pandapower as pp
 
     if ref.source_type == "simbench":
@@ -158,7 +266,6 @@ def _load(ref: NetworkRef) -> "pp.pandapowerNet":
         net = pp.from_json(ref.code)
     else:
         raise ValueError(f"Unknown network source {ref.source_type!r}")
-    _LOADED.add(ref)
     return net
 
 

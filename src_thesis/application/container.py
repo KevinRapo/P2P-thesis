@@ -72,7 +72,7 @@ def build_services(home: Path | None = None) -> Services:
     workspace = Workspace(home) if home else Workspace.default()
     return Services(
         config=ConfigService(workspace),
-        grid=GridCatalogService(),
+        grid=GridCatalogService(cache=workspace.network_cache),
         profiles=ProfileService(),
         validation=ValidationService(),
         experiments=ExperimentService(),

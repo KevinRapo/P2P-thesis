@@ -201,6 +201,7 @@ def settings_page() -> None:
         "Local preferences; research state lives in the experiment store",
     ):
         _workspace_section()
+        _cache_section()
         with section("Services", icon="lan"):
             sample = s.sample_data()
             ui.label(
@@ -216,6 +217,55 @@ def settings_page() -> None:
                 value=app.storage.user.get("dark", False),
                 on_change=lambda e: app.storage.user.update(dark=e.value),
             )
+
+
+def _cache_section() -> None:
+    """The network cache: what is prepared, and buttons to prepare or clear it."""
+    grid = services().grid
+    with section(
+        "Network cache",
+        "Built networks are kept on disk, so they open in a fraction of a second "
+        "instead of 3-4 s",
+        "bolt",
+    ):
+        status = ui.label().classes("text-body2")
+        detail = ui.label().classes("mls-card-caption mls-mono")
+        ui.label(
+            "At start-up the Studio prepares the LV and MV networks in the "
+            "background (MARLEM_PREPARE_LEVELS in .env changes which). Any other "
+            "network is cached the first time you open it. HV, EHV and the combined "
+            "networks are large: up to 120 MB each."
+        ).classes("mls-card-caption")
+
+        def refresh() -> None:
+            s = grid.cache_status()
+            text = f"{s['networks']} networks cached, {s['bytes'] / 1e9:.2f} GB"
+            if s["running"]:
+                text += (
+                    f" · preparing {', '.join(s['levels'])}: {s['done']} of "
+                    f"{s['total'] or '…'}"
+                )
+            status.set_text(text)
+            detail.set_text(s["folder"])
+
+        with ui.row().classes("gap-2"):
+            for label, levels in (
+                ("Prepare LV and MV", ["LV", "MV"]),
+                ("Prepare HV and EHV", ["HV", "EHV"]),
+                ("Prepare all", ["LV", "MV", "HV", "EHV", "MVLV", "HVMV", "EHVHV"]),
+            ):
+                ui.button(
+                    label,
+                    icon="download",
+                    on_click=lambda levels=levels: (grid.warm_cache(levels), refresh()),
+                ).props("outline no-caps")
+            ui.button(
+                "Clear cache",
+                icon="delete",
+                on_click=lambda: (grid.clear_cache(), refresh()),
+            ).props("flat no-caps color=negative")
+        refresh()
+        ui.timer(2.0, refresh)
 
 
 def _workspace_section() -> None:

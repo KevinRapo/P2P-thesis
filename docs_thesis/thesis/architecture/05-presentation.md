@@ -175,7 +175,7 @@ The shell around every page shows the draft (opens Summary), its validation stat
 | Runs | `/runs` | Watch and control running work | Queue table, run drawer with log tail and cancel, filters; polled every 2 s | Experiment |
 | Results | `/results/{run_id}` | One run in depth | Outcomes beside RL return, learning curves with baselines, step-by-step episode replay (market and grid side by side), grid series, per-agent series, export | Result |
 | Compare | `/compare` | The thesis comparisons | Algorithm × paradigm matrix (mean ± std over seeds), run overlays (different reward versions flagged), paper reference values | Result |
-| Library | `/library` · `/settings` | Find and reuse files; choose the workspace folder | Presets and files: open (click), clone, delete, open a file from disk, import a bundle; provenance preset → file → runs; Settings | Config |
+| Library | `/library` · `/settings` | Find and reuse files; choose the workspace folder | Presets and files: open (click), clone, delete, open a file from disk, import a bundle; provenance preset → file → runs; Settings: workspace folder, network cache (status, prepare LV/MV, HV/EHV or all, clear) | Config, GridCatalog |
 
 [↑ Contents](#contents)
 

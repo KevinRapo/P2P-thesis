@@ -140,3 +140,23 @@ def test_profiles_scaled_by_rated_power() -> None:
     assert all(
         abs(a - b) < 1e-2 for a, b in zip(summed.y[f"H0-A ({h0a.elements})"], total)
     )
+
+
+def test_networks_are_cached_on_disk(tmp_path) -> None:
+    from src_thesis.adapters.grid import simbench_new as adapter
+
+    grid = build_services(home=tmp_path).grid
+    try:
+        adapter._load.cache_clear()
+        adapter._LOADED.clear()
+        before = grid.summary(LV)
+        status = grid.cache_status()
+        assert status["networks"] == 1 and status["bytes"] > 0
+        adapter._load.cache_clear()  # a new process: RAM empty, the file remains
+        adapter._LOADED.clear()
+        assert grid.is_cached(LV)
+        assert grid.summary(LV) == before
+        grid.clear_cache()
+        assert grid.cache_status()["networks"] == 0
+    finally:
+        adapter.use_cache(None)

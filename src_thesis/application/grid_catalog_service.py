@@ -8,6 +8,9 @@ pandapower itself.
 
 from __future__ import annotations
 
+import threading
+from pathlib import Path
+
 import src_thesis.marketplace.grid.contract_new as contract
 from src_thesis.adapters.grid import simbench_new as adapter
 from src_thesis.application.models import (
@@ -53,6 +56,51 @@ class GridCatalogService:
     """
 
     SAMPLE_DATA = False
+
+    def __init__(self, cache: Path | None = None) -> None:
+        """Args:
+        cache: Folder for built networks (``Workspace.network_cache``); ``None``
+            keeps them in RAM only.
+        """
+        adapter.use_cache(cache)
+        self.warming: dict = {"levels": [], "done": 0, "total": 0, "running": False}
+
+    # ------------------------------------------------------------------ cache
+    def cache_status(self) -> dict:
+        """The network cache: folder, networks cached, size, and the background
+        preparation (levels, done, total, running).
+        """
+        folder, count, size = adapter.cache_status()
+        return {"folder": folder, "networks": count, "bytes": size, **self.warming}
+
+    def warm_cache(self, levels: list[str]) -> None:
+        """Prepare every network of ``levels`` in a background thread, so they open
+        at once later; networks already cached are skipped.
+        """
+        if self.warming["running"]:
+            return
+        self.warming.update(levels=list(levels), done=0, total=0, running=True)
+
+        def progress(done: int, total: int) -> None:
+            self.warming.update(done=done, total=total)
+
+        def work() -> None:
+            try:
+                adapter.warm_cache(levels, progress)
+            finally:
+                self.warming["running"] = False
+
+        threading.Thread(target=work, name="network-cache", daemon=True).start()
+
+    def clear_cache(self) -> None:
+        """Delete the cached networks; they are built again when opened."""
+        adapter.clear_cache()
+
+    def is_cached(self, source: NetworkSource) -> bool:
+        """Whether a network opens at once (in RAM or in the disk cache)."""
+        return adapter.is_cached(_ref(source))
+
+    # ------------------------------------------------------------------ catalog
 
     def list_networks(
         self, source_type: str | None = None, level: str | None = None

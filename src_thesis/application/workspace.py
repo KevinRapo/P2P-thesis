@@ -132,3 +132,8 @@ class Workspace:
     def exports(self) -> Path:
         """``<home>/exports``: bundles."""
         return self.home / "exports"
+
+    @property
+    def network_cache(self) -> Path:
+        """``<home>/cache/networks``: built networks, so they open at once."""
+        return self.home / "cache" / "networks"
