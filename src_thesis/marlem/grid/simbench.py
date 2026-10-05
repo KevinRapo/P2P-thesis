@@ -30,6 +30,7 @@ from src_thesis.marlem.grid.contract import (
     BusView,
     ElementRecord,
     GridAssessment,
+    GridLimits,
     GridViolation,
     NetworkInfo,
     NetworkRef,
@@ -49,6 +50,7 @@ SIMBENCH_YEAR = 2016
 # Line ratings at or above this value are placeholders (e.g. case33bw uses 99999 kA).
 PLACEHOLDER_MAX_I_KA = 9999.0
 DEFAULT_V_LIMITS = (0.95, 1.05)
+BACKGROUNDS = ("mapped_replacement", "scaled_background", "no_background")
 
 # SimBench network families that are far larger than a local energy market needs.
 EXCLUDED_SIMBENCH_LEVELS = {"complete_data", "EHVHVMVLV"}
@@ -892,25 +894,39 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
     if not _has_line_ratings(net):
         notes.append("No line ratings: line loading is not checked.")
 
-    ids = _bus_ids(net)
     try:
         pp.runpp(net)
     except pp.LoadflowNotConverged:
-        violation = GridViolation("NOT_CONVERGED", "network", None, None, None)
-        return GridAssessment(
-            hour,
-            False,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            {},
-            (violation,),
-            tuple(notes),
-        )
+        return _not_converged(hour, notes)
+    return _assessment(net, hour, 1.0, notes)
 
+
+def _not_converged(step: int, notes: list[str]) -> GridAssessment:
+    """The assessment of a power flow that did not converge."""
+    violation = GridViolation("NOT_CONVERGED", "network", None, None, None)
+    return GridAssessment(
+        step, False, None, None, None, None, None, None, {}, (violation,), tuple(notes)
+    )
+
+
+def _assessment(
+    net: Any,
+    step: int,
+    step_hours: float,
+    notes: list[str],
+    limits: "GridLimits | None" = None,
+) -> GridAssessment:
+    """Read a solved network: voltages, loadings, losses, violations.
+
+    Args:
+        net: The network after a converged power flow.
+        step: The step the flow belongs to.
+        step_hours: Hours the step lasts (power to energy).
+        notes: Notes to carry into the result.
+        limits: Limits that replace the network's own where set.
+    """
+    limits = limits or GridLimits()
+    ids = _bus_ids(net)
     vm = net.res_bus.vm_pu
     lo = net.bus.get("min_vm_pu", None)
     hi = net.bus.get("max_vm_pu", None)
@@ -918,6 +934,8 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
     for b, v in vm.items():
         v_min = float(lo[b]) if lo is not None and not math.isnan(lo[b]) else None
         v_max = float(hi[b]) if hi is not None and not math.isnan(hi[b]) else None
+        v_min = limits.v_min_pu if limits.v_min_pu is not None else v_min
+        v_max = limits.v_max_pu if limits.v_max_pu is not None else v_max
         v_min = DEFAULT_V_LIMITS[0] if v_min is None else v_min
         v_max = DEFAULT_V_LIMITS[1] if v_max is None else v_max
         if v < v_min:
@@ -933,11 +951,13 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
     if _has_line_ratings(net) and len(net.res_line):
         loading = net.res_line.loading_percent
         max_line = round(float(loading.max()), 2)
-        limits = net.line.get("max_loading_percent")
+        line_limits = net.line.get("max_loading_percent")
         for i, value in loading.items():
-            limit = 100.0
-            if limits is not None and not math.isnan(limits[i]):
-                limit = float(limits[i])
+            limit = limits.line_max_percent
+            if limit is None:
+                limit = 100.0
+                if line_limits is not None and not math.isnan(line_limits[i]):
+                    limit = float(line_limits[i])
             if value > limit:
                 violations.append(
                     GridViolation("LINE_OVERLOAD", "line", str(i), float(value), limit)
@@ -946,10 +966,11 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
     if len(net.res_trafo):
         max_trafo = round(float(net.res_trafo.loading_percent.max()), 2)
         for i, value in net.res_trafo.loading_percent.items():
-            if value > 100.0:
+            trafo_limit = limits.trafo_max_percent or 100.0
+            if value > trafo_limit:
                 violations.append(
                     GridViolation(
-                        "TRAFO_OVERLOAD", "trafo", str(i), float(value), 100.0
+                        "TRAFO_OVERLOAD", "trafo", str(i), float(value), trafo_limit
                     )
                 )
 
@@ -957,14 +978,16 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
         float(net.res_line.pl_mw.sum()) + float(net.res_trafo.pl_mw.sum())
     )
     return GridAssessment(
-        step=hour,
+        step=step,
         converged=True,
         min_voltage_pu=round(float(vm.min()), 4),
         max_voltage_pu=round(float(vm.max()), 4),
         max_line_loading_percent=max_line,
         max_trafo_loading_percent=max_trafo,
-        losses_kwh=round(losses_kw, 3),  # one hour at constant power
-        external_grid_kwh=round(1000 * float(net.res_ext_grid.p_mw.sum()), 3),
+        losses_kwh=round(losses_kw * step_hours, 3),
+        external_grid_kwh=round(
+            1000 * float(net.res_ext_grid.p_mw.sum()) * step_hours, 3
+        ),
         bus_voltage_pu={ids[int(b)]: round(float(v), 4) for b, v in vm.items()},
         violations=tuple(violations),
         notes=tuple(notes),
@@ -973,31 +996,182 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
 
 # --------------------------------------------------------------------- step-time model
 class SimBenchGrid:
-    """Step-time ``GridModel`` for the environment (phase R4). Not implemented yet."""
+    """Step-time ``GridModel``: one power flow per market step (shadow mode, D-03).
 
-    def __init__(self, grid_spec: Any) -> None:
-        raise NotImplementedError
+    The network's own elements follow their SimBench profiles, except the ones the
+    participants own: those are taken out and the participants' physical
+    injections are applied at their buses instead. Reactive power of injections
+    is zero.
+
+    Args:
+        ref: The network.
+        owned: Element names (loads, sgens, storage) each participant owns.
+        step_hours: Hours per market step (1.0 or 0.25).
+        background: ``"mapped_replacement"`` (owned elements removed, the rest
+            follows its profiles), ``"scaled_background"`` (the same, the rest
+            multiplied by ``scale``) or ``"no_background"`` (the rest is off).
+        scale: Factor of the ``scaled_background`` mode.
+        limits: Limits that replace the network's own where set.
+        algorithm: pandapower power-flow algorithm.
+        max_iteration: Iteration limit of the power flow; pandapower's when ``None``.
+    """
+
+    def __init__(
+        self,
+        ref: NetworkRef,
+        owned: dict[str, Sequence[str]] | None = None,
+        step_hours: float = 1.0,
+        background: str = "mapped_replacement",
+        scale: float = 1.0,
+        limits: GridLimits | None = None,
+        algorithm: str = "nr",
+        max_iteration: int | None = None,
+    ) -> None:
+        if background not in BACKGROUNDS:
+            raise ValueError(f"background must be one of {BACKGROUNDS}")
+        if step_hours not in (1.0, 0.25):
+            raise ValueError("step_hours must be 1.0 or 0.25")
+        self._ref = ref
+        self._owned = {k: list(v) for k, v in (owned or {}).items()}
+        self._step_hours = step_hours
+        self._background = background
+        self._scale = scale
+        self._limits = limits or GridLimits()
+        self._algorithm = algorithm
+        self._max_iteration = max_iteration
+        self._net: Any = None
+        self._day = f"{SIMBENCH_YEAR}-01-01"
+        self._loads: dict[str, int] = {}
+        self._bus_index: dict[str, int] = {}
+        self._owned_rows: dict[str, list[int]] = {}
+        self._static: dict[tuple[str, str], Any] = {}
 
     def reset(self, episode_seed: int | None = None, day: str | None = None) -> None:
-        """Prepare a fresh working copy for an episode on ``day``. Not implemented (R4)."""
-        raise NotImplementedError
+        """Prepare a fresh working copy for an episode on ``day``."""
+        date.fromisoformat(day or self._day)
+        self._day = day or self._day
+        net = _working_copy(self._ref)
+        self._bus_index = {name: int(i) for i, name in _bus_ids(net).items()}
+        self._net = net
+        self._loads = {}
+        self._owned_rows = self._owned_indices(net)
+        self._static = {
+            (t, c): net[t][c].copy()
+            for t in ("load", "sgen", "storage")
+            for c in ("p_mw", "q_mvar")
+            if c in net[t]
+        }
+
+    def _owned_indices(self, net: Any) -> dict[str, list[int]]:
+        """Row indices of every element owned by a participant, by table."""
+        wanted = {e for ids in self._owned.values() for e in ids}
+        rows: dict[str, list[int]] = {"load": [], "sgen": [], "storage": []}
+        for table in rows:
+            for i, row in net[table].iterrows():
+                name = row.get("name")
+                element_id = str(name) if isinstance(name, str) else f"{table} {i}"
+                if element_id in wanted:
+                    rows[table].append(int(i))
+        return rows
+
+    def _apply_background(self, step: int) -> None:
+        """Set every element of the network to its value at ``step``."""
+        net = self._net
+        for (table, column), values in self._static.items():
+            net[table][column] = values.copy()
+        if _has_profiles(net):
+            absolute = _absolute_profiles(self._ref)
+            if self._step_hours == 1.0:
+                rows = list(profile_rows(self._day, step % 24))
+            else:
+                rows = [profile_rows(self._day, 0).start + step % 96]
+            for (table, column), df in absolute.items():
+                if table not in ("load", "sgen", "storage") or df.empty:
+                    continue
+                values = df.iloc[rows].mean()
+                net[table].loc[values.index, column] = values.values
+        factor = {
+            "mapped_replacement": 1.0,
+            "scaled_background": self._scale,
+            "no_background": 0.0,
+        }[self._background]
+        for table in ("load", "sgen", "storage"):
+            if not len(net[table]):
+                continue
+            columns = [c for c in ("p_mw", "q_mvar") if c in net[table]]
+            for column in columns:
+                net[table][column] = net[table][column] * factor
+                owned = self._owned_rows[table]
+                if owned:
+                    net[table].loc[owned, column] = 0.0
 
     def assess(
         self, step: int, injections: Sequence[ParticipantInjection]
     ) -> GridAssessment:
-        """Run one power flow with the participants' injections at ``step``. Not
-        implemented (R4).
+        """Run one power flow with the participants' injections at ``step``.
+
+        A converged flow gives the network's state; one that does not converge is
+        recorded as such (``converged=False``, a ``NOT_CONVERGED`` violation) and
+        the run goes on.
         """
-        raise NotImplementedError
+        import pandapower as pp
+
+        if self._net is None:
+            self.reset()
+        net = self._net
+        self._apply_background(step)
+        for inj in injections:
+            if inj.bus_id not in self._bus_index:
+                raise ValueError(f"{inj.participant_id}: no bus {inj.bus_id!r}")
+            # A load with negative power is an injection.
+            p_mw = -inj.net_injection_kw / 1000.0
+            index = self._loads.get(inj.participant_id)
+            if index is None:
+                index = int(
+                    pp.create_load(
+                        net,
+                        self._bus_index[inj.bus_id],
+                        p_mw=p_mw,
+                        q_mvar=0.0,
+                        name=f"injection {inj.participant_id}",
+                    )
+                )
+                self._loads[inj.participant_id] = index
+            net.load.loc[index, "p_mw"] = p_mw
+            net.load.loc[index, "q_mvar"] = 0.0
+        kwargs: dict[str, Any] = {"algorithm": self._algorithm}
+        if self._max_iteration is not None:
+            kwargs["max_iteration"] = self._max_iteration
+        try:
+            pp.runpp(net, **kwargs)
+        except pp.LoadflowNotConverged:
+            return _not_converged(step, [])
+        return _assessment(net, step, self._step_hours, [], self._limits)
 
     def electrical_distance(self, bus_a: str, bus_b: str) -> float:
-        """Distance in km along the lines between two buses. Not implemented (R4)."""
-        raise NotImplementedError
+        """Distance in km along the lines between two buses (transformers count 0)."""
+        import networkx as nx
+
+        if self._net is None:
+            self.reset()
+        net = self._net
+        graph = nx.Graph()
+        for _, row in net.line.iterrows():
+            graph.add_edge(
+                int(row.from_bus), int(row.to_bus), weight=float(row.length_km)
+            )
+        for _, row in net.trafo.iterrows():
+            graph.add_edge(int(row.hv_bus), int(row.lv_bus), weight=0.0)
+        return float(
+            nx.shortest_path_length(
+                graph, self._bus_index[bus_a], self._bus_index[bus_b], weight="weight"
+            )
+        )
 
     def summary(self) -> NetworkSummary:
-        """Totals of the loaded network. Not implemented (R4)."""
-        raise NotImplementedError
+        """Totals of the loaded network."""
+        return summary(self._ref)
 
     def topology_view(self) -> TopologyView:
-        """Shape of the loaded network. Not implemented (R4)."""
-        raise NotImplementedError
+        """Shape of the loaded network."""
+        return topology_view(self._ref)

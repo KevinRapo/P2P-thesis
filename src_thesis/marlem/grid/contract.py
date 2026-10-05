@@ -163,6 +163,23 @@ class ProfileRecord:
 
 # --------------------------------------------------------------------- step contract
 @dataclass(frozen=True)
+class GridLimits:
+    """Limits that replace the network's own where set (``grid.limits``).
+
+    Attributes:
+        v_min_pu: Lowest voltage; each bus's own limit when ``None`` (D-15).
+        v_max_pu: Highest voltage; each bus's own limit when ``None``.
+        line_max_percent: Line loading limit; the line's own when ``None``.
+        trafo_max_percent: Transformer loading limit; 100 when ``None``.
+    """
+
+    v_min_pu: float | None = None
+    v_max_pu: float | None = None
+    line_max_percent: float | None = None
+    trafo_max_percent: float | None = None
+
+
+@dataclass(frozen=True)
 class ParticipantInjection:
     """Built from settlement, never from trades (01 §5)."""
 

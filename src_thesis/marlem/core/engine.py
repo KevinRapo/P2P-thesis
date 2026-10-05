@@ -167,6 +167,39 @@ class StepOutcome:
     dso_kwh: float = 0.0
 
 
+@dataclass(frozen=True)
+class Settlement:
+    """What one agent did in one step, in energy (kWh).
+
+    Attributes:
+        agent_id: The agent.
+        bus: Its network bus.
+        generation_kwh: Own generation.
+        demand_kwh: Own demand.
+        sold_kwh: Energy sold in trades.
+        bought_kwh: Energy bought in trades.
+        charge_kwh: Energy the battery drew from the bus.
+        discharge_kwh: Energy the battery delivered to the bus.
+        soc_delta_kwh: Change of the battery's stored energy.
+        production_kwh: What the grid sees flowing in: generation + discharge.
+        consumption_kwh: What the grid sees flowing out: demand + charge.
+        external_kwh: Net flow no trade covers, exchanged with the upstream grid.
+    """
+
+    agent_id: str
+    bus: str
+    generation_kwh: float
+    demand_kwh: float
+    sold_kwh: float
+    bought_kwh: float
+    charge_kwh: float
+    discharge_kwh: float
+    soc_delta_kwh: float
+    production_kwh: float
+    consumption_kwh: float
+    external_kwh: float
+
+
 class MarketEngine(Protocol):
     """Runs one day of the market step by step.
 
