@@ -121,6 +121,14 @@ validation:
 
 nav:
   - Home: index.md
+  - Master:
+      - Start here: master/README.md
+      - 1 Experiment input: master/01-experiment.md
+      - 2 Participants and profiles: master/02-participants.md
+      - 3 Constructing the runtime: master/03-runtime.md
+      - 4 One market timestep: master/04-timestep.md
+      - 5 Training and evaluation: master/05-learning.md
+      - 6 Runs and results: master/06-results.md
   - Guide:
       - Studio workflow: guide/studio-workflow.md
       - Network catalogue: guide/networks.md

@@ -1,5 +1,9 @@
 # MARLEM platform architecture (master)
 
+For a step-by-step explanation of the current implementation, start with
+[Master: how MARLEM works today](../../master/README.md). This architecture
+document retains the target design, roadmap and decision log.
+
 > Status: target architecture, agreed direction, details open where marked **Decision**.
 > Written: 2026-09-23 · Branch: `dev`
 > Scope: the SimBench edition of MARLEM: the grid, experiment configuration, services, CLI and the NiceGUI Studio.

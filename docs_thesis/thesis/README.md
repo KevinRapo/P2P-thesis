@@ -1,5 +1,12 @@
 # Thesis documentation
 
+## Understanding the program
+
+[Master: how MARLEM works today](../master/README.md) follows an experiment through
+six linked chapters, showing inputs, outputs, actual callers and integration gaps.
+Use it for code comprehension; the architecture and validation sections below
+retain the design decisions, specifications and evidence.
+
 ```text
 docs/
 ├── guide/
