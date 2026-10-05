@@ -61,13 +61,13 @@ flowchart LR
 
 ### 0.1 Where the file lives in code
 
-The file format is the `ExperimentFile` model in [experiments/models/records.py](../../../src_thesis/experiments/models/records.py); the defaults of §3 are `DEFAULTS` in [resolve.py](../../../src_thesis/experiments/models/resolve.py). The experiment layer (03) reads, expands and resolves it; `ConfigService` (04) is how the Studio and the CLI open, edit and save it; presets are files in [experiments/presets/](../../../src_thesis/experiments/presets/). Every section is a typed model in [experiments/models/sections.py](../../../src_thesis/experiments/models/sections.py), with exactly the fields of §3: an unknown or misspelt key, or a value of the wrong type, is an error when the file is read or changed, not a silently ignored setting. All fields are optional, so a field that is not set stays out of the file (`ExperimentFile.to_data`) and takes its default when a run is resolved; files read and write back unchanged.
+The file format is the `ExperimentFile` model in [experiments/models/records.py](../../../src_thesis/platform/experiments/models/records.py); the defaults of §3 are `DEFAULTS` in [resolve.py](../../../src_thesis/platform/experiments/models/resolve.py). The experiment layer (03) reads, expands and resolves it; `ConfigService` (04) is how the Studio and the CLI open, edit and save it; presets are files in [experiments/presets/](../../../src_thesis/platform/experiments/presets/). Every section is a typed model in [experiments/models/sections.py](../../../src_thesis/platform/experiments/models/sections.py), with exactly the fields of §3: an unknown or misspelt key, or a value of the wrong type, is an error when the file is read or changed, not a silently ignored setting. All fields are optional, so a field that is not set stays out of the file (`ExperimentFile.to_data`) and takes its default when a run is resolved; files read and write back unchanged.
 
 [↑ Contents](#contents)
 
 ## 1. One file, one study (D-08)
 
-**Why:** In the original, a study's settings were spread over notebooks, `marl/train.py` and hard-coded constants, so a result could not be rerun from one place. One file gives one thing to share, validate, version and rerun.
+**Why:** In the original, a study's settings were spread over notebooks, `marlem/marl/train.py` and hard-coded constants, so a result could not be rerun from one place. One file gives one thing to share, validate, version and rerun.
 
 ```text
 my-study.marlem.json        ← written by the user or the Studio; shared as-is
@@ -618,7 +618,7 @@ The example lists one participant for brevity. Unlisted fields take their defaul
 **Why:** The papers' seven cases as ready-made files, so reproducing a case is "open the preset, run it", and new studies start from a known, validated configuration.
 
 ```text
-src_thesis/experiments/presets/   # in the repo, read-only
+src_thesis/platform/experiments/presets/   # in the repo, read-only
 ├── case1-mechanisms.marlem.json          sweep: market.mechanism (6)
 ├── case2-heterogeneity.marlem.json       sweep: participant sizes (balanced / monopoly / oligopoly)
 ├── case3-dso-strategies.marlem.json      sweep: dso.fees + tariffs (permissive / moderate / strict / dynamic)

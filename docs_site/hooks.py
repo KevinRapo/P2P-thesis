@@ -58,73 +58,85 @@ document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() }
 # package (documented recursively: subpackages become subsections) or a module.
 API_NAV_TITLE = "API Reference"
 API_SECTIONS = [
-    # MARLEM itself, by the paper's levels ([P1] Fig. 2).
+    # MARLEM in the order data flows through one step, then the platform
+    # (src_thesis/README.md).
     (
-        "Core: records and interfaces",
+        "MARLEM · core: records and interfaces",
         "core",
-        ["src_thesis.core"],
+        ["src_thesis.marlem.core"],
         "thesis/architecture/README.md",
     ),
     (
-        "Level 0: marketplace",
-        "marketplace",
-        ["src_thesis.marketplace"],
-        "paper/marlem-paper-to-code-map.md",
-    ),
-    (
-        "Level 0: environment",
-        "environment",
-        ["src_thesis.environment"],
-        "paper/marlem-paper-to-code-map.md",
-    ),
-    (
-        "Level 1: agents",
-        "agents",
-        ["src_thesis.agents"],
-        "paper/marlem-paper-to-code-map.md",
-    ),
-    (
-        "Level 1: MARL",
-        "marl",
-        ["src_thesis.marl"],
-        "paper/marlem-paper-to-code-map.md",
-    ),
-    (
-        "Level 2: cooperation",
-        "cooperation",
-        ["src_thesis.cooperation"],
-        "paper/marlem-paper-to-code-map.md",
-    ),
-    (
-        "RL testbench",
-        "rl_testbench",
-        ["src_thesis.rl_testbench"],
-        "thesis/validation/rl-testbench.md",
-    ),
-    (
-        "Adapters",
-        "adapters",
-        ["src_thesis.adapters"],
+        "MARLEM · grid",
+        "grid",
+        ["src_thesis.marlem.grid"],
         "thesis/architecture/01-simbench-grid.md",
     ),
-    # The platform around it, bottom-up (architecture README §2.1).
     (
-        "Experiment layer",
+        "MARLEM · profiles",
+        "profiles",
+        ["src_thesis.marlem.profiles"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "MARLEM · level 1: agents",
+        "agents",
+        ["src_thesis.marlem.agents"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "MARLEM · level 0: market",
+        "market",
+        ["src_thesis.marlem.market"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "MARLEM · level 0: DSO",
+        "dso",
+        ["src_thesis.marlem.dso"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "MARLEM · level 2: cooperation",
+        "cooperation",
+        ["src_thesis.marlem.cooperation"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "MARLEM · environment",
+        "environment",
+        ["src_thesis.marlem.environment"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "MARLEM · level 1: MARL",
+        "marl",
+        ["src_thesis.marlem.marl"],
+        "paper/marlem-paper-to-code-map.md",
+    ),
+    (
+        "Platform · experiments",
         "experiments",
-        ["src_thesis.experiments"],
+        ["src_thesis.platform.experiments"],
         "thesis/architecture/03-experiment-layer.md",
     ),
     (
-        "Application layer",
-        "application",
-        ["src_thesis.application"],
+        "Platform · services",
+        "services",
+        ["src_thesis.platform.services"],
         "thesis/architecture/04-application-layer.md",
     ),
     (
-        "Studio",
+        "Platform · Studio",
         "studio",
-        ["src_thesis.studio"],
+        ["src_thesis.platform.studio"],
         "thesis/architecture/05-presentation.md",
+    ),
+    (
+        "Platform · RL testbench",
+        "testbench",
+        ["src_thesis.platform.testbench"],
+        "thesis/validation/rl-testbench.md",
     ),
 ]
 _API_PAGES: dict[str, str] = {}

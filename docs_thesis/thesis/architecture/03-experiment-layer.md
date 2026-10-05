@@ -1,7 +1,7 @@
 # 03. Experiment layer
 
-> `src_thesis/experiments/`: from one experiment file to runs, run folders and worker processes. The application layer (04) calls it; it calls MARLEM only through the environment factory.
-> Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [04-application-layer.md](04-application-layer.md) · Decisions: D-08, D-09 · Functions: docstrings in [the code](../../../src_thesis/experiments/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
+> `src_thesis/platform/experiments/`: from one experiment file to runs, run folders and worker processes. The application layer (04) calls it; it calls MARLEM only through the environment factory.
+> Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [04-application-layer.md](04-application-layer.md) · Decisions: D-08, D-09 · Functions: docstrings in [the code](../../../src_thesis/platform/experiments/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
@@ -45,67 +45,64 @@ The run folder is the source of truth: the Studio only reads it and asks for cha
 ```mermaid
 flowchart LR
   subgraph USERS["used by"]
-    n_application__users_["application/"]:::ext
-    n_rl_testbench__users_["rl_testbench/"]:::ext
+    n_platform__users_["platform/"]:::ext
   end
   subgraph g_factory["factory/"]
-    n_experiments_factory_environment["factory/environment.py"]
-    n_experiments_factory_training["factory/training.py"]
+    n_platform_experiments_factory_environment["factory/environment.py"]
+    n_platform_experiments_factory_training["factory/training.py"]
   end
   subgraph g_models["models/"]
-    n_experiments_models_expand["models/expand.py"]
-    n_experiments_models_files["models/files.py"]
-    n_experiments_models_manifest["models/manifest.py"]
-    n_experiments_models_records["models/records.py"]
-    n_experiments_models_resolve["models/resolve.py"]
-    n_experiments_models_sections["models/sections.py"]
+    n_platform_experiments_models_expand["models/expand.py"]
+    n_platform_experiments_models_files["models/files.py"]
+    n_platform_experiments_models_manifest["models/manifest.py"]
+    n_platform_experiments_models_records["models/records.py"]
+    n_platform_experiments_models_resolve["models/resolve.py"]
+    n_platform_experiments_models_sections["models/sections.py"]
   end
   subgraph g_store["store/"]
-    n_experiments_store_filesystem["store/filesystem.py"]
-    n_experiments_store_recorder["store/recorder.py"]
+    n_platform_experiments_store_filesystem["store/filesystem.py"]
+    n_platform_experiments_store_recorder["store/recorder.py"]
   end
   subgraph g_worker["worker/"]
-    n_experiments_worker___main__["worker/__main__.py"]
-    n_experiments_worker_pool["worker/pool.py"]
-    n_experiments_worker_process["worker/process.py"]
-    n_experiments_worker_runner["worker/runner.py"]
+    n_platform_experiments_worker___main__["worker/__main__.py"]
+    n_platform_experiments_worker_pool["worker/pool.py"]
+    n_platform_experiments_worker_process["worker/process.py"]
+    n_platform_experiments_worker_runner["worker/runner.py"]
   end
   subgraph USES["uses"]
-    n_core_grid_contract["core/grid_contract.py"]:::ext
+    n_marlem_grid["marlem/grid"]:::ext
   end
-  n_application__users_ --> n_experiments_models_expand
-  n_application__users_ --> n_experiments_models_files
-  n_application__users_ --> n_experiments_models_manifest
-  n_application__users_ --> n_experiments_models_records
-  n_application__users_ --> n_experiments_models_resolve
-  n_application__users_ --> n_experiments_models_sections
-  n_experiments_factory_environment --> n_core_grid_contract
-  n_experiments_factory_environment -.-> n_experiments_models_records
-  n_experiments_factory_training -.-> n_experiments_models_records
-  n_experiments_models_expand -.-> n_experiments_models_records
-  n_experiments_models_files -.-> n_experiments_models_records
-  n_experiments_models_manifest --> n_experiments_models_files
-  n_experiments_models_manifest -.-> n_experiments_models_records
-  n_experiments_models_manifest --> n_experiments_models_resolve
-  n_experiments_models_records --> n_experiments_models_sections
-  n_experiments_models_resolve --> n_experiments_models_expand
-  n_experiments_models_resolve -.-> n_experiments_models_records
-  n_experiments_models_resolve --> n_experiments_models_sections
-  n_experiments_store_filesystem --> n_experiments_models_files
-  n_experiments_store_filesystem -.-> n_experiments_models_records
-  n_experiments_store_recorder --> n_experiments_store_filesystem
-  n_experiments_worker___main__ --> n_experiments_worker_process
-  n_experiments_worker_pool -.-> n_experiments_models_records
-  n_experiments_worker_pool --> n_experiments_store_filesystem
-  n_experiments_worker_process --> n_experiments_models_files
-  n_experiments_worker_process -.-> n_experiments_models_records
-  n_experiments_worker_process --> n_experiments_store_filesystem
-  n_experiments_worker_process --> n_experiments_worker_runner
-  n_experiments_worker_runner -.-> n_experiments_models_records
-  n_experiments_worker_runner --> n_experiments_store_filesystem
-  n_experiments_worker_runner --> n_experiments_store_recorder
-  n_rl_testbench__users_ --> n_experiments_models_files
-  n_rl_testbench__users_ --> n_experiments_models_manifest
+  n_platform__users_ --> n_platform_experiments_models_expand
+  n_platform__users_ --> n_platform_experiments_models_files
+  n_platform__users_ --> n_platform_experiments_models_manifest
+  n_platform__users_ --> n_platform_experiments_models_records
+  n_platform__users_ --> n_platform_experiments_models_resolve
+  n_platform__users_ --> n_platform_experiments_models_sections
+  n_platform_experiments_factory_environment --> n_marlem_grid
+  n_platform_experiments_factory_environment -.-> n_platform_experiments_models_records
+  n_platform_experiments_factory_training -.-> n_platform_experiments_models_records
+  n_platform_experiments_models_expand -.-> n_platform_experiments_models_records
+  n_platform_experiments_models_files -.-> n_platform_experiments_models_records
+  n_platform_experiments_models_manifest --> n_platform_experiments_models_files
+  n_platform_experiments_models_manifest -.-> n_platform_experiments_models_records
+  n_platform_experiments_models_manifest --> n_platform_experiments_models_resolve
+  n_platform_experiments_models_records --> n_platform_experiments_models_sections
+  n_platform_experiments_models_resolve --> n_platform_experiments_models_expand
+  n_platform_experiments_models_resolve -.-> n_platform_experiments_models_records
+  n_platform_experiments_models_resolve --> n_platform_experiments_models_sections
+  n_platform_experiments_store_filesystem --> n_platform_experiments_models_files
+  n_platform_experiments_store_filesystem -.-> n_platform_experiments_models_records
+  n_platform_experiments_store_recorder --> n_platform_experiments_store_filesystem
+  n_platform_experiments_worker___main__ --> n_platform_experiments_worker_process
+  n_platform_experiments_worker_pool -.-> n_platform_experiments_models_records
+  n_platform_experiments_worker_pool --> n_platform_experiments_store_filesystem
+  n_platform_experiments_worker_process --> n_platform_experiments_models_files
+  n_platform_experiments_worker_process -.-> n_platform_experiments_models_records
+  n_platform_experiments_worker_process --> n_platform_experiments_store_filesystem
+  n_platform_experiments_worker_process --> n_platform_experiments_worker_runner
+  n_platform_experiments_worker_runner -.-> n_platform_experiments_models_records
+  n_platform_experiments_worker_runner --> n_platform_experiments_store_filesystem
+  n_platform_experiments_worker_runner --> n_platform_experiments_store_recorder
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
@@ -116,7 +113,7 @@ Arrows are imports: who uses whom. Dashed arrows go to `models/records.py`, the 
 |---|---|---|
 | `models/` | `records.py`, `sections.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | The data (experiment file and its typed sections, run cell, run state, manifest) and pure functions over it: load and save, expand into runs, fill defaults, fingerprint a run |
 | `store/` | `filesystem.py`, `recorder.py` | The run folders on disk and the per-step records written into them |
-| `factory/` | `environment.py`, `training.py` | The only place that turns a file into a live environment and the trainer's arguments; `training.py` turns the file into the arguments of MARLEM's `RLTrainer` (`marl/train.py`), which builds the RLlib configuration (D-16) |
+| `factory/` | `environment.py`, `training.py` | The only place that turns a file into a live environment and the trainer's arguments; `training.py` turns the file into the arguments of MARLEM's `RLTrainer` (`marlem/marl/train.py`), which builds the RLlib configuration (D-16) |
 | `worker/` | `pool.py`, `process.py`, `runner.py`, `__main__.py` | Starting runs as processes (pool), executing one run (process), and the work per kind of run (runner) |
 
 What each function does, and why each module exists, is in the module docstrings, shown in the API Reference.
@@ -125,7 +122,7 @@ What each function does, and why each module exists, is in the module docstrings
 
 ## 4. Rules
 
-- **Callers.** Only the application layer imports `experiments/`; `experiments/` never imports `application/` or `studio/` (tested).
+- **Callers.** Only the application layer imports `platform/experiments/`; `platform/experiments/` never imports `platform/services/` or `platform/studio/` (tested).
 - **Light imports.** Importing any module loads no heavy package (Ray, torch, pandapower, NiceGUI); heavy imports happen inside the functions that need them (tested).
 - **One factory.** Only `factory/` builds live MARLEM objects. RLlib env runners call it inside each runner; a network or agents never travel in `env_config`.
 - **Fixed inputs, live status.** What a run was built from (`resolved.json`, `manifest.json`) is written once and never changed; the worker refuses a run whose resolved file no longer matches its manifest hash. Only `status.json` changes while it runs.

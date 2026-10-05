@@ -34,24 +34,24 @@ A `RunCell` chooses one algorithm/paradigm/seed or baseline from the study plan.
 
 | Function / model | What to read it for |
 |---|---|
-| [ConfigService.load](../../src_thesis/application/config_service.py) | Searches the library and presets and delegates to `files.load` |
-| [ExperimentFile](../../src_thesis/experiments/models/records.py) | The typed representation of the study |
-| [sections.py](../../src_thesis/experiments/models/sections.py) | Types for its nested sections |
-| [ConfigService.resolve / days / expand](../../src_thesis/application/config_service.py) | Separate application operations for defaults, dates and run cells |
-| [resolve / resolve_run / resolve_days](../../src_thesis/experiments/models/resolve.py) | Filling defaults, fixing one run and selecting date lists |
-| [expand](../../src_thesis/experiments/models/expand.py) | Turning the learning plan and sweeps into cells |
+| [ConfigService.load](../../src_thesis/platform/services/config_service.py) | Searches the library and presets and delegates to `files.load` |
+| [ExperimentFile](../../src_thesis/platform/experiments/models/records.py) | The typed representation of the study |
+| [sections.py](../../src_thesis/platform/experiments/models/sections.py) | Types for its nested sections |
+| [ConfigService.resolve / days / expand](../../src_thesis/platform/services/config_service.py) | Separate application operations for defaults, dates and run cells |
+| [resolve / resolve_run / resolve_days](../../src_thesis/platform/experiments/models/resolve.py) | Filling defaults, fixing one run and selecting date lists |
+| [expand](../../src_thesis/platform/experiments/models/expand.py) | Turning the learning plan and sweeps into cells |
 
 For the complete field specification, use [Experiment configuration](../thesis/architecture/02-experiment-config.md).
 
 ## Who calls it
 
 Studio pages obtain their draft through
-[`studio.state.current_draft`](../../src_thesis/studio/state.py). It asks
+[`studio.state.current_draft`](../../src_thesis/platform/studio/state.py). It asks
 `services().config.load` for the remembered draft, otherwise finds the latest
 library draft or creates one from the default preset. `open_draft` saves the file
 and remembers its ID in the browser session.
 
-The shared [`shell`](../../src_thesis/studio/layout.py) also calls
+The shared [`shell`](../../src_thesis/platform/studio/layout.py) also calls
 `ValidationService.validate(draft, level="schema")` to populate header indicators.
 That label must be interpreted in light of the service's current implementation.
 
@@ -60,7 +60,7 @@ That label must be interpreted in light of the service's current implementation.
 File loading, saving, default resolution and run expansion have implementations.
 This source review did not execute a research run to validate their integration.
 
-[`ValidationService`](../../src_thesis/application/validation_service.py) declares
+[`ValidationService`](../../src_thesis/platform/services/validation_service.py) declares
 `SAMPLE_DATA = True`. Its report combines fixed findings with a check for missing
 participants. Its `dry_run` returns a sample success without constructing an
 environment. Schema parsing and full physical/methodological validation are

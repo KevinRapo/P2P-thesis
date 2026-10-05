@@ -28,19 +28,19 @@ precise proposed replacement/background rules and units.
 
 | Function / module | Responsibility |
 |---|---|
-| [ParticipantService.suggest_mapping](../../src_thesis/application/participant_service.py) | Requests elements/topology and delegates to placement rules |
-| [candidates / place](../../src_thesis/adapters/grid/participants.py) | Filters candidate buses and chooses a reproducible mapping |
-| [ParticipantService.preview](../../src_thesis/application/participant_service.py) | Builds participant series for the selected window |
-| [ProfileService](../../src_thesis/application/profile_service.py) | Exposes profile catalogue and series operations |
-| [simbench_new.py](../../src_thesis/adapters/grid/simbench_new.py) | Loads networks, reads elements and constructs absolute profile series |
-| [core/grid_contract.py](../../src_thesis/core/grid_contract.py) | Plain records/protocols exchanged across the adapter boundary |
+| [ParticipantService.suggest_mapping](../../src_thesis/platform/services/participant_service.py) | Requests elements/topology and delegates to placement rules |
+| [candidates / place](../../src_thesis/marlem/grid/placement.py) | Filters candidate buses and chooses a reproducible mapping |
+| [ParticipantService.preview](../../src_thesis/platform/services/participant_service.py) | Builds participant series for the selected window |
+| [ProfileService](../../src_thesis/platform/services/profile_service.py) | Exposes profile catalogue and series operations |
+| [simbench_new.py](../../src_thesis/marlem/grid/simbench.py) | Loads networks, reads elements and constructs absolute profile series |
+| [core/grid_contract.py](../../src_thesis/marlem/grid/contract.py) | Plain records/protocols exchanged across the adapter boundary |
 
 The contract describes the data exchanged; it is not itself a power-flow engine.
 The adapter contains the library-specific work.
 
 ## Who calls it
 
-The [`participants` Studio page](../../src_thesis/studio/pages/participants.py)
+The [`participants` Studio page](../../src_thesis/platform/studio/pages/participants.py)
 calls `s.participants.suggest_mapping` through `run.io_bound`, so loading data does
 not block the UI event loop. The service calls `adapter.elements`,
 `adapter.topology_view` and `mapping.place`. Its preview operation similarly

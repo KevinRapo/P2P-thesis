@@ -18,7 +18,7 @@
 
 Prove that the **same** algorithm, paradigm, evaluation, checkpoint and inference code intended for MARLEM learns in established environments before attaching it to the P2P market. A plain RLlib example is an external reference that checks the library and environment; it does not validate MARLEM's trainer.
 
-Place benchmark cases in a small `src_thesis/rl_testbench/` package with no imports from `marketplace/`, `adapters/`, `application/` or `studio/`. Extract the environment-dependent construction from `RLTrainer` into a shared training interface. Both the benchmark and the future MARLEM factory call that interface. Keep benchmark configuration separate from the shareable MARLEM experiment JSON.
+Place benchmark cases in a small `src_thesis/platform/testbench/` package with no imports from `marketplace/`, `adapters/`, `application/` or `studio/`. Extract the environment-dependent construction from `RLTrainer` into a shared training interface. Both the benchmark and the future MARLEM factory call that interface. Keep benchmark configuration separate from the shareable MARLEM experiment JSON.
 
 ```mermaid
 flowchart LR
@@ -31,7 +31,7 @@ flowchart LR
   EVAL --> REPORT[Manifest and results]
 ```
 
-**Where the code lives (decision D-16).** The bench trains MARLEM's own `RLTrainer` ([marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py)); there is no second trainer. `RLTrainer` and `RLInference` take the environment class as an argument (`env_cls`, the local energy market by default) and load the market only when it is used; `GroupedLEM` wraps any multi-agent environment for CTCE and CTDE. Two callers: [experiments/factory/training.py](../../../src_thesis/experiments/factory/training.py) turns an experiment file and run cell into the trainer's arguments for the market, and the bench's [cases](../../../src_thesis/rl_testbench/cases.py) pass external environments. The bench has no experiment file, so it keeps its own run manifest, but it records provenance with the experiment layer's `code_fingerprint` and `environment_fingerprint`, exactly as market runs do. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces both rules: the trainer has no module-level import of the market, and the bench reaches MARLEM only through the trainer and `experiments.models`.
+**Where the code lives (decision D-16).** The bench trains MARLEM's own `RLTrainer` ([marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py)); there is no second trainer. `RLTrainer` and `RLInference` take the environment class as an argument (`env_cls`, the local energy market by default) and load the market only when it is used; `GroupedLEM` wraps any multi-agent environment for CTCE and CTDE. Two callers: [experiments/factory/training.py](../../../src_thesis/platform/experiments/factory/training.py) turns an experiment file and run cell into the trainer's arguments for the market, and the bench's [cases](../../../src_thesis/platform/testbench/cases.py) pass external environments. The bench has no experiment file, so it keeps its own run manifest, but it records provenance with the experiment layer's `code_fingerprint` and `environment_fingerprint`, exactly as market runs do. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces both rules: the trainer has no module-level import of the market, and the bench reaches MARLEM only through the trainer and `experiments.models`.
 
 [↑ Contents](#contents)
 
@@ -87,7 +87,7 @@ Keep fast contract checks in pytest. Mark bounded training smokes separately and
 5. Add APPO, then continuous-action SAC. Record unsupported algorithm/mode combinations explicitly rather than claiming the original 3 x 3 matrix works because configuration builds.
 6. Connect the same trainer, evaluator and checkpoint path to MARLEM through `experiments/factory/training.py` (`trainer_arguments`). Then test MARLEM's observation, action and reward interface before interpreting market learning.
 
-First reviewable milestone: shared-trainer PPO learns CartPole, beats random on held-out seeds and restores a checkpoint. Second: separate-policy PPO on MultiAgentCartPole. Third: PPO paradigm contracts and multi-seed Simple Spread results. Each milestone has a runnable command, manifest, evidence and visible failures. A proposed entry point is `python -m src_thesis.rl_testbench run --case cartpole --algorithm ppo --mode single --seed 1`; its exact flags can be fixed when the first milestone is implemented. The bench remains available for future algorithms.
+First reviewable milestone: shared-trainer PPO learns CartPole, beats random on held-out seeds and restores a checkpoint. Second: separate-policy PPO on MultiAgentCartPole. Third: PPO paradigm contracts and multi-seed Simple Spread results. Each milestone has a runnable command, manifest, evidence and visible failures. A proposed entry point is `python -m src_thesis.platform.testbench run --case cartpole --algorithm ppo --mode single --seed 1`; its exact flags can be fixed when the first milestone is implemented. The bench remains available for future algorithms.
 
 [↑ Contents](#contents)
 

@@ -27,12 +27,12 @@ offers. A higher shaped reward alone is not proof of a better physical outcome.
 
 | Entry point | Read it for |
 |---|---|
-| [RLTrainer._setup_config](../../src_thesis/marl/train.py) | Algorithm, environment/evaluation and training/model configuration |
-| [RLTrainer.train](../../src_thesis/marl/train.py) | Creates Tune/PBT configuration, calls `tuner.fit`, saves config, extracts metrics and shuts down Ray |
-| [GroupedLEM](../../src_thesis/marl/train.py) | Environment grouping used for centralised configurations |
-| [ctce.py](../../src_thesis/marl/ctce.py), [ctde.py](../../src_thesis/marl/ctde.py) | Custom RL modules; inspect them alongside the trainer's paradigm branches |
-| [RLInference._restore_from_checkpoint / inference](../../src_thesis/marl/inference.py) | Restores RL module(s), selects actions and loops over environment steps |
-| [trainer_arguments](../../src_thesis/experiments/factory/training.py) | Intended experiment-file-to-trainer translation; currently a stub |
+| [RLTrainer._setup_config](../../src_thesis/marlem/marl/train.py) | Algorithm, environment/evaluation and training/model configuration |
+| [RLTrainer.train](../../src_thesis/marlem/marl/train.py) | Creates Tune/PBT configuration, calls `tuner.fit`, saves config, extracts metrics and shuts down Ray |
+| [GroupedLEM](../../src_thesis/marlem/marl/train.py) | Environment grouping used for centralised configurations |
+| [ctce.py](../../src_thesis/marlem/marl/ctce.py), [ctde.py](../../src_thesis/marlem/marl/ctde.py) | Custom RL modules; inspect them alongside the trainer's paradigm branches |
+| [RLInference._restore_from_checkpoint / inference](../../src_thesis/marlem/marl/inference.py) | Restores RL module(s), selects actions and loops over environment steps |
+| [trainer_arguments](../../src_thesis/platform/experiments/factory/training.py) | Intended experiment-file-to-trainer translation; currently a stub |
 
 CTCE means centralised training and execution; CTDE means centralised training
 with decentralised execution; DTDE decentralises both. Those names describe the
@@ -46,7 +46,7 @@ A direct caller can instantiate `RLTrainer` and call `train`. Inside that method
 on `RLInference`; it is not the Studio's sample result screen.
 
 The planned platform handoff is `TrainingRunner` → trainer arguments → trainer.
-Both [`TrainingRunner.run`](../../src_thesis/experiments/worker/runner.py) and
+Both [`TrainingRunner.run`](../../src_thesis/platform/experiments/worker/runner.py) and
 `trainer_arguments` currently raise `NotImplementedError`. Therefore the Studio
 does not provide that working training route yet.
 
@@ -59,7 +59,7 @@ distribution outputs. These are behaviours to validate, not merely presentation 
 
 The [standalone RL testbench plan](../thesis/validation/rl-testbench.md) is intended
 to validate the shared learning path on external tasks. Its
-[`evaluate` and `random_baseline`](../../src_thesis/rl_testbench/evaluation.py)
+[`evaluate` and `random_baseline`](../../src_thesis/platform/testbench/evaluation.py)
 currently raise `NotImplementedError`. This chapter claims no successful learning
 or checkpoint-equivalence result.
 

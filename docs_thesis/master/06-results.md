@@ -30,12 +30,12 @@ that reports progress without training a policy.
 
 | Function / class | Actual responsibility |
 |---|---|
-| [ExperimentStore.create_run](../../src_thesis/experiments/store/filesystem.py) | Creates run storage and writes its initial records |
-| [process.run_one](../../src_thesis/experiments/worker/process.py) | Reads configuration/manifest, checks the hash, handles cancellation, selects a runner and records terminal state |
-| [select_runner / NoopRunner](../../src_thesis/experiments/worker/runner.py) | Chooses job implementation; the smoke runner reports synthetic progress |
-| [EpisodeRecorder](../../src_thesis/experiments/store/recorder.py) | Records supplied episode/step data according to record mode |
-| [ExperimentService](../../src_thesis/application/experiment_service.py) | Application-facing run operations; currently sample responses |
-| [ResultService](../../src_thesis/application/result_service.py) | Application-facing results; currently generated samples |
+| [ExperimentStore.create_run](../../src_thesis/platform/experiments/store/filesystem.py) | Creates run storage and writes its initial records |
+| [process.run_one](../../src_thesis/platform/experiments/worker/process.py) | Reads configuration/manifest, checks the hash, handles cancellation, selects a runner and records terminal state |
+| [select_runner / NoopRunner](../../src_thesis/platform/experiments/worker/runner.py) | Chooses job implementation; the smoke runner reports synthetic progress |
+| [EpisodeRecorder](../../src_thesis/platform/experiments/store/recorder.py) | Records supplied episode/step data according to record mode |
+| [ExperimentService](../../src_thesis/platform/services/experiment_service.py) | Application-facing run operations; currently sample responses |
+| [ResultService](../../src_thesis/platform/services/result_service.py) | Application-facing results; currently generated samples |
 
 An `EpisodeRecorder` must be fed real step records by a runner. Defining the
 recorder does not automatically connect it to `LocalEnergyMarket.step`.

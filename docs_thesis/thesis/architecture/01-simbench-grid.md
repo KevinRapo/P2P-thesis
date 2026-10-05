@@ -61,36 +61,33 @@ flowchart TB
 
 ### 0.1 Structure in code
 
-The new grid code is three files; the original NetworkX grid (`adapters/grid/network.py`, `core/location.py`, `config.py`) leaves the tool (§7).
+The new grid code is three files; the original NetworkX grid (`marlem/grid/network.py`, `marlem/core/location.py`, `config.py`) leaves the tool (§7).
 
 <!-- BEGIN generated:graph grid -->
 ```mermaid
 flowchart LR
   subgraph USERS["used by"]
-    n_adapters__users_["adapters/"]:::ext
-    n_application__users_["application/"]:::ext
-    n_experiments__users_["experiments/"]:::ext
+    n_platform__users_["platform/"]:::ext
   end
-  subgraph g_adapters["adapters/"]
-    n_adapters_grid_simbench_new["adapters/grid/simbench_new.py"]
+  subgraph g_marlem["marlem/"]
+    n_marlem_grid_contract["marlem/grid/contract.py"]
+    n_marlem_grid_placement["marlem/grid/placement.py"]
+    n_marlem_grid_simbench["marlem/grid/simbench.py"]
   end
-  subgraph g_core["core/"]
-    n_core_grid_contract["core/grid_contract.py"]
-  end
-  n_adapters__users_ --> n_core_grid_contract
-  n_adapters_grid_simbench_new --> n_core_grid_contract
-  n_application__users_ --> n_adapters_grid_simbench_new
-  n_application__users_ --> n_core_grid_contract
-  n_experiments__users_ --> n_core_grid_contract
+  n_marlem_grid_placement --> n_marlem_grid_contract
+  n_marlem_grid_simbench --> n_marlem_grid_contract
+  n_platform__users_ --> n_marlem_grid_contract
+  n_platform__users_ --> n_marlem_grid_placement
+  n_platform__users_ --> n_marlem_grid_simbench
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
 
 | File | What it is for |
 |---|---|
-| `core/grid_contract.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
-| `adapters/grid/simbench_new.py` | The pandapower adapter: catalog, loading, topology, profiles, preview power flow and, from R4, the step-time `SimBenchGrid` |
-| `adapters/grid/participants.py` | Participant mapping: the placement rules (§3.1) and profile scaling (§3.4), as plain functions over the contract records |
+| `marlem/grid/contract.py` | The contract (§5): the plain records the market, the environment and the services share with the grid; no pandapower inside |
+| `marlem/grid/simbench.py` | The pandapower adapter: catalog, loading, topology, profiles, preview power flow and, from R4, the step-time `SimBenchGrid` |
+| `marlem/grid/placement.py` | Participant mapping: the placement rules (§3.1) and profile scaling (§3.4), as plain functions over the contract records |
 
 Generated from the imports by `docs_thesis/graphs.py`; functions are documented in the docstrings (API Reference).
 
@@ -218,7 +215,7 @@ background p at step t = mean of the p values over the rows in that range
 
 **Why:** The contract is the only thing the market and the grid share. Keeping it to small, frozen dataclasses means the market can be tested without pandapower, and the grid backend can change without touching the market.
 
-The existing stub [grid_contract.py](../../../src_thesis/core/grid_contract.py) is extended to:
+The existing stub [grid_contract.py](../../../src_thesis/marlem/grid/contract.py) is extended to:
 
 ```python
 @dataclass(frozen=True)
@@ -383,10 +380,10 @@ These are made in `src_thesis/` (the live code; D-04, D-14), keeping file names;
 
 | File | Change | Phase |
 |---|---|---|
-| [core/grid_contract.py](../../../src_thesis/core/grid_contract.py) | Extend as in §5 and §5.1 (rename to `contract.py` when stable); also holds the catalog records of §2. | R3 |
-| `environment/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
-| [adapters/grid/simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. | R3 |
-| `adapters/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | R3 |
+| [core/grid_contract.py](../../../src_thesis/marlem/grid/contract.py) | Extend as in §5 and §5.1 (rename to `contract.py` when stable); also holds the catalog records of §2. | R3 |
+| `marlem/environment/injection.py` (new) | Settlement → `ParticipantInjection`, with the invariant `net_injection · h = exports − imports` | R3 |
+| [adapters/grid/simbench_new.py](../../../src_thesis/marlem/grid/simbench.py) | Becomes the pandapower adapter for all network sources (§1–§2, §4–§6); the only module importing `pandapower`, together with the profile source. | R3 |
+| `marlem/profiles/simbench.py` (new) | Catalog, ownership, scaling, windows, sampler (§3) | R3 |
 | [adapters/grid/network.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/adapters/grid/network.py), [core/location.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/grid/base.py), [config.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/grid/config.py) | **Removed from the tool** (the original stays in git tag `marlem-original`). `Location` shrinks to participant ID + bus ID. | R3 |
 | [environment/lem.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/lem.py) | Takes `grid_model` and `assessment_mode` from the factory. After settlement: build injections → `assess` → pass to KPIs, reward, observation, info. `reset` forwards the episode day. | R4 |
 | [marketplace/market/matching.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/market/matching.py) | Remove NetworkX calls (path loss, `update_flow_from_trade`, capacity check); lossless matching; holds no grid: `match_orders` takes `GridTopologyInfo` and `GridSignals` (§5.1) | R3 |

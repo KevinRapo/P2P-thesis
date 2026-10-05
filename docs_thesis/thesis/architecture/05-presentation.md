@@ -1,7 +1,7 @@
 # 05. Presentation: Studio and CLI
 
-> `src_thesis/studio/` and the planned `src_thesis/cli.py`: how people reach the system. Both call only the application layer (04).
-> Master: [README.md](README.md) · Services: [04-application-layer.md](04-application-layer.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Functions: docstrings in [the code](../../../src_thesis/studio/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
+> `src_thesis/platform/studio/` and the planned `src_thesis/cli.py`: how people reach the system. Both call only the application layer (04).
+> Master: [README.md](README.md) · Services: [04-application-layer.md](04-application-layer.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Functions: docstrings in [the code](../../../src_thesis/platform/studio/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
@@ -49,62 +49,56 @@ The pages follow how a study is built. The BUILD pages (Grid → RL → Summary)
 <!-- BEGIN generated:graph studio -->
 ```mermaid
 flowchart LR
-  n_studio___main__["__main__.py"]
-  n_studio_app["app.py"]
-  n_studio_forms["forms.py"]
-  n_studio_layout["layout.py"]
-  n_studio_navigation["navigation.py"]
-  n_studio_pages__["pages/*.py"]
-  n_studio_state["state.py"]
-  n_studio_theme["theme.py"]
+  n_platform_studio___main__["__main__.py"]
+  n_platform_studio_app["app.py"]
+  n_platform_studio_forms["forms.py"]
+  n_platform_studio_layout["layout.py"]
+  n_platform_studio_navigation["navigation.py"]
+  n_platform_studio_pages__["pages/*.py"]
+  n_platform_studio_state["state.py"]
+  n_platform_studio_theme["theme.py"]
   subgraph g_components["components/"]
-    n_studio_components_cards["components/cards.py"]
-    n_studio_components_charts["components/charts.py"]
-    n_studio_components_network["components/network.py"]
-    n_studio_components_participant_editor["components/participant_editor.py"]
-    n_studio_components_profiles["components/profiles.py"]
-    n_studio_components_tables["components/tables.py"]
+    n_platform_studio_components_cards["components/cards.py"]
+    n_platform_studio_components_charts["components/charts.py"]
+    n_platform_studio_components_network["components/network.py"]
+    n_platform_studio_components_participant_editor["components/participant_editor.py"]
+    n_platform_studio_components_profiles["components/profiles.py"]
+    n_platform_studio_components_tables["components/tables.py"]
   end
   subgraph USES["uses"]
-    n_application_container["application/container.py"]:::ext
-    n_application_models["application/models.py"]:::ext
-    n_application_workspace["application/workspace.py"]:::ext
-    n_env["env.py"]:::ext
+    n_platform_env["platform/env.py"]:::ext
+    n_platform_services["platform/services"]:::ext
   end
-  n_studio___main__ --> n_env
-  n_studio___main__ --> n_studio_app
-  n_studio_app --> n_application_workspace
-  n_studio_app --> n_env
-  n_studio_app --> n_studio_pages__
-  n_studio_app --> n_studio_state
-  n_studio_components_charts --> n_application_models
-  n_studio_components_charts --> n_studio_theme
-  n_studio_components_network --> n_application_container
-  n_studio_components_network --> n_application_models
-  n_studio_components_network --> n_studio_components_cards
-  n_studio_components_network --> n_studio_components_charts
-  n_studio_components_network --> n_studio_components_profiles
-  n_studio_components_network --> n_studio_components_tables
-  n_studio_components_participant_editor --> n_application_models
-  n_studio_components_profiles --> n_application_models
-  n_studio_forms --> n_application_models
-  n_studio_forms --> n_studio_state
-  n_studio_layout --> n_studio_navigation
-  n_studio_layout --> n_studio_state
-  n_studio_layout --> n_studio_theme
-  n_studio_pages__ --> n_application_container
-  n_studio_pages__ --> n_application_models
-  n_studio_pages__ --> n_application_workspace
-  n_studio_pages__ --> n_studio_components_cards
-  n_studio_pages__ --> n_studio_components_charts
-  n_studio_pages__ --> n_studio_components_network
-  n_studio_pages__ --> n_studio_components_participant_editor
-  n_studio_pages__ --> n_studio_components_tables
-  n_studio_pages__ --> n_studio_forms
-  n_studio_pages__ --> n_studio_layout
-  n_studio_pages__ --> n_studio_state
-  n_studio_state --> n_application_container
-  n_studio_state --> n_application_models
+  n_platform_studio___main__ --> n_platform_env
+  n_platform_studio___main__ --> n_platform_studio_app
+  n_platform_studio_app --> n_platform_env
+  n_platform_studio_app --> n_platform_services
+  n_platform_studio_app --> n_platform_studio_pages__
+  n_platform_studio_app --> n_platform_studio_state
+  n_platform_studio_components_charts --> n_platform_services
+  n_platform_studio_components_charts --> n_platform_studio_theme
+  n_platform_studio_components_network --> n_platform_services
+  n_platform_studio_components_network --> n_platform_studio_components_cards
+  n_platform_studio_components_network --> n_platform_studio_components_charts
+  n_platform_studio_components_network --> n_platform_studio_components_profiles
+  n_platform_studio_components_network --> n_platform_studio_components_tables
+  n_platform_studio_components_participant_editor --> n_platform_services
+  n_platform_studio_components_profiles --> n_platform_services
+  n_platform_studio_forms --> n_platform_services
+  n_platform_studio_forms --> n_platform_studio_state
+  n_platform_studio_layout --> n_platform_studio_navigation
+  n_platform_studio_layout --> n_platform_studio_state
+  n_platform_studio_layout --> n_platform_studio_theme
+  n_platform_studio_pages__ --> n_platform_services
+  n_platform_studio_pages__ --> n_platform_studio_components_cards
+  n_platform_studio_pages__ --> n_platform_studio_components_charts
+  n_platform_studio_pages__ --> n_platform_studio_components_network
+  n_platform_studio_pages__ --> n_platform_studio_components_participant_editor
+  n_platform_studio_pages__ --> n_platform_studio_components_tables
+  n_platform_studio_pages__ --> n_platform_studio_forms
+  n_platform_studio_pages__ --> n_platform_studio_layout
+  n_platform_studio_pages__ --> n_platform_studio_state
+  n_platform_studio_state --> n_platform_services
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
@@ -113,20 +107,20 @@ Arrows are imports; the twelve page modules are drawn as one node (`pages/*.py`)
 
 | File | What it is for |
 |---|---|
-| `__main__.py`, `app.py` | Start the server (`python -m src_thesis.studio`); `app.py` imports every page module, which registers its URL, and calls `ui.run` |
+| `__main__.py`, `app.py` | Start the server (`python -m src_thesis.platform.studio`); `app.py` imports every page module, which registers its URL, and calls `ui.run` |
 | `state.py` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
 | `layout.py` | `shell()`: header, navigation, footer and title around every page; `navigation.py` lists the menu, `theme.py` the colours |
 | `forms.py` | `DraftForm`: ties page controls (or any value, `track`) to fields of the draft and saves only what changed; `save_changes` for whole-list edits; `date_input` |
 | `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services, shared by Grid and Inspect, `profiles.py` (the overview of SimBench's profile classes) and `participant_editor.py` (the dialog that adds or edits one participant) |
 | `pages/*.py` | One module per page (§6), each an `@ui.page` function |
 
-Running it: `python -m src_thesis.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
+Running it: `python -m src_thesis.platform.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
 
 [↑ Contents](#contents)
 
 ## 4. Rules
 
-- **Pages call services only** (04). They never build environments, nets or Ray jobs; importing anything but `application/` from `studio/` fails a test.
+- **Pages call services only** (04). They never build environments, nets or Ray jobs; importing anything but `platform/services/` from `platform/studio/` fails a test.
 - **One experiment file.** The Studio edits one draft file, saved in the workspace library after every applied change, so a reload or another browser loses nothing. Its output is always a JSON the CLI could run identically.
 - **Long work runs in the worker.** Closing the browser never affects a run; the Runs page only reads and requests.
 - **Unvalidated options are disabled with a reason,** never silently available.

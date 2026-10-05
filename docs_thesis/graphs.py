@@ -1,5 +1,8 @@
 """File graphs of the code folders, generated into the architecture documents.
 
+Also fills the package table of the code map (``src_thesis/README.md``) from each
+package's ``__init__.py`` docstring.
+
 A block between ``<!-- BEGIN generated:graph KEY -->`` and
 ``<!-- END generated:graph -->`` is replaced by a Mermaid diagram of how the files
 of ``GRAPHS[KEY]`` import each other, read from the code:
@@ -24,35 +27,57 @@ DOCS = Path(__file__).resolve().parent
 SRC = DOCS.parent / "src_thesis"
 ARCH = DOCS / "thesis" / "architecture"
 
+# MARLEM's packages in the order data flows through one step; the platform's
+# packages bottom-up (src_thesis/README.md).
+MARLEM_PACKAGES = [
+    "core",
+    "grid",
+    "profiles",
+    "agents",
+    "market",
+    "dso",
+    "cooperation",
+    "environment",
+    "marl",
+]
+PLATFORM_PACKAGES = [
+    "experiments",
+    "services",
+    "studio",
+    "testbench",
+]
 GRAPHS: dict[str, dict] = {
     "grid": {
-        "roots": ["adapters/grid/simbench_new.py", "core/grid_contract.py"],
-    },
-    "experiments": {"roots": ["experiments"], "faded": ["experiments/models/records"]},
-    "application": {"roots": ["application"], "faded": ["application/models"]},
-    "studio": {"roots": ["studio"], "collapse": {"studio/pages/": "studio/pages/*"}},
-    # MARLEM itself, one box per package (src_thesis/README.md).
-    "marlem": {
         "roots": [
-            "core",
-            "agents",
-            "marketplace",
-            "cooperation",
-            "adapters",
-            "environment",
-            "marl",
+            "marlem/grid/simbench.py",
+            "marlem/grid/placement.py",
+            "marlem/grid/contract.py",
         ],
+    },
+    "experiments": {
+        "roots": ["platform/experiments"],
+        "faded": ["platform/experiments/models/records"],
+    },
+    "application": {
+        "roots": ["platform/services"],
+        "faded": ["platform/services/models"],
+    },
+    "studio": {
+        "roots": ["platform/studio"],
+        "collapse": {"platform/studio/pages/": "platform/studio/pages/*"},
+    },
+    # MARLEM itself, one box per package.
+    "marlem": {
+        "roots": [f"marlem/{p}" for p in MARLEM_PACKAGES],
+        "collapse": {f"marlem/{p}/": f"marlem/{p}/*" for p in MARLEM_PACKAGES},
+    },
+    # The whole code base, one box per package (the map in src_thesis/README.md).
+    "map": {
+        "roots": [f"marlem/{p}" for p in MARLEM_PACKAGES]
+        + [f"platform/{p}" for p in PLATFORM_PACKAGES],
         "collapse": {
-            f"{p}/": f"{p}/*"
-            for p in (
-                "core",
-                "agents",
-                "marketplace",
-                "cooperation",
-                "adapters",
-                "environment",
-                "marl",
-            )
+            **{f"marlem/{p}/": f"marlem/{p}/*" for p in MARLEM_PACKAGES},
+            **{f"platform/{p}/": f"platform/{p}/*" for p in PLATFORM_PACKAGES},
         },
     },
 }
@@ -179,14 +204,36 @@ def build(key: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+TABLE = re.compile(
+    r"(<!-- BEGIN generated:packages -->\n).*?(<!-- END generated:packages -->)", re.S
+)
+
+
+def _purpose(package: Path) -> str:
+    """First line of a package's ``__init__.py`` docstring."""
+    doc = ast.get_docstring(ast.parse((package / "__init__.py").read_text("utf-8")))
+    return (doc or "").strip().splitlines()[0] if doc else ""
+
+
+def packages_table() -> str:
+    """One row per package, in map order, with its one-line purpose."""
+    rows = ["| Package | What it is for |", "|---|---|"]
+    for half, names in (("marlem", MARLEM_PACKAGES), ("platform", PLATFORM_PACKAGES)):
+        for name in names:
+            rel = f"{half}/{name}"
+            rows.append(f"| [`{rel}/`]({rel}/) | {_purpose(SRC / rel)} |")
+    return "\n".join(rows) + "\n"
+
+
 def render(text: str) -> str:
-    return BLOCK.sub(lambda m: m.group(1) + build(m.group(2)) + m.group(3), text)
+    text = BLOCK.sub(lambda m: m.group(1) + build(m.group(2)) + m.group(3), text)
+    return TABLE.sub(lambda m: m.group(1) + packages_table() + m.group(2), text)
 
 
 def main(argv: list[str]) -> int:
     check = "--check" in argv
     stale = []
-    for path in sorted(ARCH.glob("*.md")):
+    for path in sorted(ARCH.glob("*.md")) + [SRC / "README.md"]:
         raw = path.read_bytes()
         crlf = b"\r\n" in raw
         text = raw.decode("utf-8").replace("\r\n", "\n")

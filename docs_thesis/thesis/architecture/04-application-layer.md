@@ -1,7 +1,7 @@
 # 04. Application layer
 
-> `src_thesis/application/`: the services that the Studio, the CLI and notebooks call. They hide MARLEM, the experiment layer and the adapters behind typed, plain-data methods.
-> Master: [README.md](README.md) · Experiment layer: [03-experiment-layer.md](03-experiment-layer.md) · Presentation: [05-presentation.md](05-presentation.md) · Decisions: D-09, D-13 · Functions: docstrings in [the code](../../../src_thesis/application/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
+> `src_thesis/platform/services/`: the services that the Studio, the CLI and notebooks call. They hide MARLEM, the experiment layer and the adapters behind typed, plain-data methods.
+> Master: [README.md](README.md) · Experiment layer: [03-experiment-layer.md](03-experiment-layer.md) · Presentation: [05-presentation.md](05-presentation.md) · Decisions: D-09, D-13 · Functions: docstrings in [the code](../../../src_thesis/platform/services/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
@@ -63,68 +63,64 @@ Callers get plain data back; nothing from the lower layers reaches them. Which s
 ```mermaid
 flowchart LR
   subgraph USERS["used by"]
-    n_studio__users_["studio/"]:::ext
+    n_platform__users_["platform/"]:::ext
   end
-  n_application_config_service["config_service.py"]
-  n_application_container["container.py"]
-  n_application_data_files["data_files.py"]
-  n_application_experiment_service["experiment_service.py"]
-  n_application_grid_catalog_service["grid_catalog_service.py"]
-  n_application_models["models.py"]
-  n_application_participant_service["participant_service.py"]
-  n_application_profile_classes["profile_classes.py"]
-  n_application_profile_service["profile_service.py"]
-  n_application_result_service["result_service.py"]
-  n_application_tariff_service["tariff_service.py"]
-  n_application_validation_service["validation_service.py"]
-  n_application_workspace["workspace.py"]
+  n_platform_services_config_service["config_service.py"]
+  n_platform_services_container["container.py"]
+  n_platform_services_data_files["data_files.py"]
+  n_platform_services_experiment_service["experiment_service.py"]
+  n_platform_services_grid_catalog_service["grid_catalog_service.py"]
+  n_platform_services_models["models.py"]
+  n_platform_services_participant_service["participant_service.py"]
+  n_platform_services_profile_classes["profile_classes.py"]
+  n_platform_services_profile_service["profile_service.py"]
+  n_platform_services_result_service["result_service.py"]
+  n_platform_services_tariff_service["tariff_service.py"]
+  n_platform_services_validation_service["validation_service.py"]
+  n_platform_services_workspace["workspace.py"]
   subgraph USES["uses"]
-    n_adapters_grid["adapters/grid"]:::ext
-    n_core_grid_contract["core/grid_contract.py"]:::ext
-    n_env["env.py"]:::ext
-    n_experiments_models["experiments/models"]:::ext
+    n_marlem_grid["marlem/grid"]:::ext
+    n_platform_env["platform/env.py"]:::ext
+    n_platform_experiments["platform/experiments"]:::ext
   end
-  n_application_config_service -.-> n_application_models
-  n_application_config_service --> n_application_workspace
-  n_application_config_service --> n_experiments_models
-  n_application_container --> n_application_config_service
-  n_application_container --> n_application_experiment_service
-  n_application_container --> n_application_grid_catalog_service
-  n_application_container --> n_application_participant_service
-  n_application_container --> n_application_profile_service
-  n_application_container --> n_application_result_service
-  n_application_container --> n_application_tariff_service
-  n_application_container --> n_application_validation_service
-  n_application_container --> n_application_workspace
-  n_application_container --> n_env
-  n_application_data_files --> n_experiments_models
-  n_application_experiment_service -.-> n_application_models
-  n_application_experiment_service --> n_experiments_models
-  n_application_grid_catalog_service --> n_adapters_grid
-  n_application_grid_catalog_service -.-> n_application_models
-  n_application_grid_catalog_service --> n_core_grid_contract
-  n_application_models --> n_experiments_models
-  n_application_participant_service --> n_adapters_grid
-  n_application_participant_service -.-> n_application_models
-  n_application_participant_service --> n_application_profile_classes
-  n_application_participant_service --> n_core_grid_contract
-  n_application_participant_service --> n_experiments_models
-  n_application_profile_classes -.-> n_application_models
-  n_application_profile_service --> n_adapters_grid
-  n_application_profile_service --> n_application_data_files
-  n_application_profile_service -.-> n_application_models
-  n_application_profile_service --> n_application_profile_classes
-  n_application_profile_service --> n_core_grid_contract
-  n_application_result_service --> n_application_experiment_service
-  n_application_result_service -.-> n_application_models
-  n_application_tariff_service --> n_application_data_files
-  n_application_tariff_service -.-> n_application_models
-  n_application_tariff_service --> n_experiments_models
-  n_application_validation_service -.-> n_application_models
-  n_application_validation_service --> n_experiments_models
-  n_studio__users_ --> n_application_container
-  n_studio__users_ --> n_application_models
-  n_studio__users_ --> n_application_workspace
+  n_platform__users_ --> n_platform_services_container
+  n_platform__users_ --> n_platform_services_models
+  n_platform__users_ --> n_platform_services_workspace
+  n_platform_services_config_service --> n_platform_experiments
+  n_platform_services_config_service -.-> n_platform_services_models
+  n_platform_services_config_service --> n_platform_services_workspace
+  n_platform_services_container --> n_platform_env
+  n_platform_services_container --> n_platform_services_config_service
+  n_platform_services_container --> n_platform_services_experiment_service
+  n_platform_services_container --> n_platform_services_grid_catalog_service
+  n_platform_services_container --> n_platform_services_participant_service
+  n_platform_services_container --> n_platform_services_profile_service
+  n_platform_services_container --> n_platform_services_result_service
+  n_platform_services_container --> n_platform_services_tariff_service
+  n_platform_services_container --> n_platform_services_validation_service
+  n_platform_services_container --> n_platform_services_workspace
+  n_platform_services_data_files --> n_platform_experiments
+  n_platform_services_experiment_service --> n_platform_experiments
+  n_platform_services_experiment_service -.-> n_platform_services_models
+  n_platform_services_grid_catalog_service --> n_marlem_grid
+  n_platform_services_grid_catalog_service -.-> n_platform_services_models
+  n_platform_services_models --> n_platform_experiments
+  n_platform_services_participant_service --> n_marlem_grid
+  n_platform_services_participant_service --> n_platform_experiments
+  n_platform_services_participant_service -.-> n_platform_services_models
+  n_platform_services_participant_service --> n_platform_services_profile_classes
+  n_platform_services_profile_classes -.-> n_platform_services_models
+  n_platform_services_profile_service --> n_marlem_grid
+  n_platform_services_profile_service --> n_platform_services_data_files
+  n_platform_services_profile_service -.-> n_platform_services_models
+  n_platform_services_profile_service --> n_platform_services_profile_classes
+  n_platform_services_result_service --> n_platform_services_experiment_service
+  n_platform_services_result_service -.-> n_platform_services_models
+  n_platform_services_tariff_service --> n_platform_experiments
+  n_platform_services_tariff_service --> n_platform_services_data_files
+  n_platform_services_tariff_service -.-> n_platform_services_models
+  n_platform_services_validation_service --> n_platform_experiments
+  n_platform_services_validation_service -.-> n_platform_services_models
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
@@ -154,7 +150,7 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 - **Translation happens in the service.** A real service converts lower-layer records into `models.py` (e.g. the grid contract's `TopologyView` into the API model of the same name).
 - **One class per service, completed in place.** A method that is not built yet returns sample data and says in its docstring what the final version will do; `SAMPLE_DATA` on the class is true until none is left, and the Studio's header lists those services. Building the services loads no pandapower (tested).
 - **In-process, no REST layer (D-09).** Services run in the caller's process; anything long-running goes to the experiment layer's worker process.
-- **Boundaries (tested):** `application/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; it reaches them through `adapters/`, the grid contract and `experiments/`.
+- **Boundaries (tested):** `platform/services/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; it reaches them through `marlem/grid/` (SimBench adapter, placement), the grid contract and `platform/experiments/`.
 
 [↑ Contents](#contents)
 

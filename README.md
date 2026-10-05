@@ -224,7 +224,7 @@ for scenario_name, config in case1_scenarios.items():
 To train agents using reinforcement learning:
 
 ```python
-from src_thesis.marl.train import RLTrainer, TrainingMode, RLAlgorithm
+from src_thesis.marlem.marl.train import RLTrainer, TrainingMode, RLAlgorithm
 from cases import get_case_study
 
 # Get a scenario
@@ -312,14 +312,14 @@ The project includes comprehensive tools for analyzing the behavior and performa
 
 The framework provides several analytics modules for performance evaluation:
 
-- **Coordination Metrics** (`src_thesis/cooperation/metrics/coordination_metrics.py`): Measures coordination effectiveness between agents
-- **DSO Metrics** (`src_thesis/cooperation/metrics/dso_metrics.py`): Tracks DSO intervention and grid stability metrics
-- **Grid Metrics** (`src_thesis/cooperation/metrics/grid_metrics.py`): Evaluates grid performance and constraint violations
-- **Market Analytics** (`src_thesis/cooperation/metrics/market_analytics.py`): Analyzes market outcomes, prices, and trading volumes
+- **Coordination Metrics** (`src_thesis/marlem/cooperation/metrics/coordination_metrics.py`): Measures coordination effectiveness between agents
+- **DSO Metrics** (`src_thesis/marlem/cooperation/metrics/dso_metrics.py`): Tracks DSO intervention and grid stability metrics
+- **Grid Metrics** (`src_thesis/marlem/cooperation/metrics/grid_metrics.py`): Evaluates grid performance and constraint violations
+- **Market Analytics** (`src_thesis/marlem/cooperation/metrics/market_analytics.py`): Analyzes market outcomes, prices, and trading volumes
 
 ### Visualization
 
-The framework includes visualization tools in `src_thesis/cooperation/visualization/` for:
+The framework includes visualization tools in `src_thesis/marlem/cooperation/visualization/` for:
 
 - Market price and volume trends
 - Agent behavior and strategy visualization

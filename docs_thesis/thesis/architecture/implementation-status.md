@@ -13,9 +13,9 @@
 - [3. Code, by layer](#3-code-by-layer)
   - [3.1 MARLEM (domain)](#31-marlem-domain)
   - [3.2 Adapters](#32-adapters)
-  - [3.3 Experiment layer (`src_thesis/experiments/`, 03)](#33-experiment-layer-src_thesisexperiments-03)
-  - [3.4 Application layer (`src_thesis/application/`, 04)](#34-application-layer-src_thesisapplication-04)
-- [4. Studio, page by page (`src_thesis/studio/`, 05)](#4-studio-page-by-page-src_thesisstudio-05)
+  - [3.3 Experiment layer (`src_thesis/platform/experiments/`, 03)](#33-experiment-layer-src_thesisplatformexperiments-03)
+  - [3.4 Application layer (`src_thesis/platform/services/`, 04)](#34-application-layer-src_thesisplatformservices-04)
+- [4. Studio, page by page (`src_thesis/platform/studio/`, 05)](#4-studio-page-by-page-src_thesisplatformstudio-05)
 - [5. Walking the workflow guide](#5-walking-the-workflow-guide)
 - [6. How to verify each working part](#6-how-to-verify-each-working-part)
 - [7. Next steps (in the order proposed)](#7-next-steps-in-the-order-proposed)
@@ -30,7 +30,7 @@ The Studio's Build and Experiment pages edit one **draft experiment file**. Wher
 |---|---|
 | Your experiment files | `<workspace>\library\<id>.marlem.json`. The workspace folder is shown and chosen on the **Settings** page; default `C:\Users\Kevin\AppData\Local\MARLEM` |
 | Which file is the draft | The chip in the Studio header, and "File id" on the Summary page |
-| Presets (read-only) | [src_thesis/experiments/presets/](../../../src_thesis/experiments/presets/) |
+| Presets (read-only) | [src_thesis/platform/experiments/presets/](../../../src_thesis/platform/experiments/presets/) |
 
 Three ways to see what a UI action changed:
 
@@ -65,20 +65,20 @@ Only fields you change are written. A field you never touched stays absent from 
 | Part | Status | Notes |
 |---|---|---|
 | `src_thesis/marketplace`, `marl`, `cooperation` | ⬜ (original code) | Still the original MARLEM, unchanged apart from the issue markers. Rewriting it is R1. The original before any rewrite: git tag `marlem-original` |
-| Grid contract ([grid_contract.py](../../../src_thesis/core/grid_contract.py)) | 🟡 | Catalog and assessment records exist; `GridTopologyInfo`, `GridSignals` (D-13) not yet |
-| `marketplace/settlement.py`, `environment/injection.py`, `marl/baselines.py` | ⬜ | Planned new modules (README §2.5) |
+| Grid contract ([grid_contract.py](../../../src_thesis/marlem/grid/contract.py)) | 🟡 | Catalog and assessment records exist; `GridTopologyInfo`, `GridSignals` (D-13) not yet |
+| `marlem/market/settlement.py`, `marlem/environment/injection.py`, `marlem/marl/baselines.py` | ⬜ | Planned new modules (README §2.5) |
 | MARLEM trainer ([train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py), [inference.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/inference.py)) | 🟡 original code, environment as an argument | `RLTrainer` and `RLInference` take `env_cls` (the market by default) and load the market only on use; DTDE policy IDs are strings so other RLlib environments work; `GroupedLEM` wraps any environment. The trainer's defects (I-48, I-59, I-61, I-62, …) are not fixed yet (D-16) |
-| RL testbench ([rl_testbench/](../../../src_thesis/rl_testbench/)) | 🟡 cases and manifests | CartPole (one agent), MultiAgentCartPole and Simple Spread as cases; `trainer()` builds MARLEM's `RLTrainer` for each, and every paradigm builds its RLlib configuration on MultiAgentCartPole; run manifests are written ([test_rl_testbench.py](../../../tests/test_rl_testbench.py)). Simple Spread needs mpe2 and pettingzoo; evaluation and the command line come with milestone 1 ([rl-testbench.md](../validation/rl-testbench.md) §5) |
+| RL testbench ([rl_testbench/](../../../src_thesis/platform/testbench/)) | 🟡 cases and manifests | CartPole (one agent), MultiAgentCartPole and Simple Spread as cases; `trainer()` builds MARLEM's `RLTrainer` for each, and every paradigm builds its RLlib configuration on MultiAgentCartPole; run manifests are written ([test_rl_testbench.py](../../../tests/test_rl_testbench.py)). Simple Spread needs mpe2 and pettingzoo; evaluation and the command line come with milestone 1 ([rl-testbench.md](../validation/rl-testbench.md) §5) |
 
 ### 3.2 Adapters
 
 | Part | Status | Tests | Notes |
 |---|---|---|---|
-| pandapower grid adapter ([simbench_new.py](../../../src_thesis/adapters/grid/simbench_new.py)) | 🟡 | [test_grid_catalog.py](../../../tests/test_grid_catalog.py) | Catalog part done; `provide(ref, net)` lets any small pandapower net stand in for a reference (tests: [test_standins.py](../../../tests/test_standins.py)). `SimBenchGrid` (the step-time model) is a stub that raises |
-| Participant mapping ([participants.py](../../../src_thesis/adapters/grid/participants.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement by combined filters (load types, generation, storage, position; agent owns its whole bus or only the matching loads) and profile scaling (none, peak kW, annual energy) |
-| SimBench profile source (`adapters/profiles/simbench.py`) | ⬜ | — | The existing `adapters/profiles/` is the original CSV / synthetic code |
+| pandapower grid adapter ([simbench_new.py](../../../src_thesis/marlem/grid/simbench.py)) | 🟡 | [test_grid_catalog.py](../../../tests/test_grid_catalog.py) | Catalog part done; `provide(ref, net)` lets any small pandapower net stand in for a reference (tests: [test_standins.py](../../../tests/test_standins.py)). `SimBenchGrid` (the step-time model) is a stub that raises |
+| Participant mapping ([participants.py](../../../src_thesis/marlem/grid/placement.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement by combined filters (load types, generation, storage, position; agent owns its whole bus or only the matching loads) and profile scaling (none, peak kW, annual energy) |
+| SimBench profile source (`marlem/profiles/simbench.py`) | ⬜ | — | The existing `marlem/profiles/` is the original CSV / synthetic code |
 
-### 3.3 Experiment layer (`src_thesis/experiments/`, 03)
+### 3.3 Experiment layer (`src_thesis/platform/experiments/`, 03)
 
 | Module | Status | Tests |
 |---|---|---|
@@ -88,9 +88,9 @@ Only fields you change are written. A field you never touched stays absent from 
 | `factory/training.py` | ⬜ interface only (stage D): `trainer_arguments` translates the file and a cell into `RLTrainer`'s arguments (D-16) | — |
 | `worker/runner.py` | 🟡 no-op runner only; baseline and training runners raise | test_experiments.py |
 | `worker/process.py`, `worker/pool.py` | ✅ | test_experiments.py (real subprocesses) |
-| Presets (`experiments/presets/`) | 🟡 all 7 load, resolve and expand; placeholder mapping; sweeps for Case 1 only | [test_config_service.py](../../../tests/test_config_service.py) |
+| Presets (`platform/experiments/presets/`) | 🟡 all 7 load, resolve and expand; placeholder mapping; sweeps for Case 1 only | [test_config_service.py](../../../tests/test_config_service.py) |
 
-### 3.4 Application layer (`src_thesis/application/`, 04)
+### 3.4 Application layer (`src_thesis/platform/services/`, 04)
 
 | Service | Status | Tests | What it does / what is still sample data |
 |---|---|---|---|
@@ -103,11 +103,11 @@ Only fields you change are written. A field you never touched stays absent from 
 | `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
 | `ResultService` | 🎭 | — | All results, curves, matrices and replays are sample data |
 
-Each service is one class in `application/<name>_service.py`; a method that is not built yet returns sample data and its docstring says what the final version will do. The Studio's header and footer list the services that still return sample data.
+Each service is one class in `platform/services/<name>_service.py`; a method that is not built yet returns sample data and its docstring says what the final version will do. The Studio's header and footer list the services that still return sample data.
 
 [↑ Contents](#contents)
 
-## 4. Studio, page by page (`src_thesis/studio/`, 05)
+## 4. Studio, page by page (`src_thesis/platform/studio/`, 05)
 
 "Writes" lists the experiment-file fields a page saves; everything else on the page is read-only or a placeholder ("not implemented yet").
 

@@ -33,17 +33,17 @@ does not bridge the formats.
 
 | Function / class | Responsibility and current behaviour |
 |---|---|
-| [build_env_config](../../src_thesis/experiments/factory/environment.py) | Serializes configuration and one cell |
-| [build_env / build_grid](../../src_thesis/experiments/factory/environment.py) | Intended construction; both raise `NotImplementedError` |
-| [LocalEnergyMarket.__init__](../../src_thesis/environment/lem.py) | Existing constructor: obtains agents and helpers, assigns graph locations, constructs matcher and observation/action/reward handlers |
-| [LocalEnergyMarket.reset](../../src_thesis/environment/lem.py) | Resets counters, profiles, agents, market and grid, then returns initial observations |
+| [build_env_config](../../src_thesis/platform/experiments/factory/environment.py) | Serializes configuration and one cell |
+| [build_env / build_grid](../../src_thesis/platform/experiments/factory/environment.py) | Intended construction; both raise `NotImplementedError` |
+| [LocalEnergyMarket.__init__](../../src_thesis/marlem/environment/lem.py) | Existing constructor: obtains agents and helpers, assigns graph locations, constructs matcher and observation/action/reward handlers |
+| [LocalEnergyMarket.reset](../../src_thesis/marlem/environment/lem.py) | Resets counters, profiles, agents, market and grid, then returns initial observations |
 
 ## Who calls it
 
 The factory's docstrings name workers, dry runs, notebooks and RLlib runners as
 intended callers. The Studio dry run does not currently call it.
 
-The existing [`RLTrainer`](../../src_thesis/marl/train.py) accepts an environment
+The existing [`RLTrainer`](../../src_thesis/marlem/marl/train.py) accepts an environment
 class and config, and supplies an environment choice through its RLlib setup.
 Its default class is obtained through `market_env_cls`. Grouped configurations
 use `GroupedLEM`. The concrete existing environment's constructor/reset path can
