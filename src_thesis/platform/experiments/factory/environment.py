@@ -222,6 +222,41 @@ def build_grid_view(resolved: ExperimentFile, spec: EngineSpec) -> Any:
     return SimBenchGridView(simbench.topology_view(ref), capacity, spec.seed)
 
 
-def build_grid(resolved: ExperimentFile) -> "GridModel":
-    """The step-time ``GridModel`` for ``grid.source`` (01 §5); one per env."""
-    raise NotImplementedError("SimBenchGrid is implemented in phase R4")
+def build_grid(resolved: ExperimentFile, spec: EngineSpec) -> "GridModel":
+    """The step-time ``GridModel`` for ``grid.source`` (01 §5); one per env.
+
+    Args:
+        resolved: The file with defaults filled.
+        spec: The day; its step length sets the power-flow energy per step.
+    """
+    from src_thesis.marlem.grid.simbench import SimBenchGrid
+
+    source = resolved.grid.source
+    g = resolved.grid
+    ref = contract.NetworkRef(source.type, source.code)
+    owned = {
+        p.id: [
+            *(p.owns.loads or []),
+            *(p.owns.sgens or []),
+            *(p.owns.storage or []),
+        ]
+        for p in resolved.participants
+        if p.owns is not None
+    }
+    number = lambda v: None if v is None else float(v)  # noqa: E731
+    limits = contract.GridLimits(
+        number(g.limits.v_min_pu),
+        number(g.limits.v_max_pu),
+        number(g.limits.line_max_percent),
+        number(g.limits.trafo_max_percent),
+    )
+    return SimBenchGrid(
+        ref,
+        owned,
+        spec.step_hours,
+        g.background.mode,
+        float(g.background.scale),
+        limits,
+        g.power_flow.algorithm,
+        g.power_flow.max_iteration,
+    )
