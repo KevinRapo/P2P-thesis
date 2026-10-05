@@ -60,6 +60,9 @@ flowchart LR
     n_platform_experiments_models_resolve["models/resolve.py"]
     n_platform_experiments_models_sections["models/sections.py"]
   end
+  subgraph g_runners["runners/"]
+    n_platform_experiments_runners_simulate["runners/simulate.py"]
+  end
   subgraph g_store["store/"]
     n_platform_experiments_store_filesystem["store/filesystem.py"]
     n_platform_experiments_store_recorder["store/recorder.py"]
@@ -74,6 +77,7 @@ flowchart LR
     n_marlem_core["marlem/core"]:::ext
     n_marlem_environment["marlem/environment"]:::ext
     n_marlem_grid["marlem/grid"]:::ext
+    n_marlem_policies["marlem/policies"]:::ext
   end
   n_platform__users_ --> n_platform_experiments_factory_profiles
   n_platform__users_ --> n_platform_experiments_models_expand
@@ -101,6 +105,13 @@ flowchart LR
   n_platform_experiments_models_resolve --> n_platform_experiments_models_expand
   n_platform_experiments_models_resolve -.-> n_platform_experiments_models_records
   n_platform_experiments_models_resolve --> n_platform_experiments_models_sections
+  n_platform_experiments_runners_simulate --> n_marlem_environment
+  n_platform_experiments_runners_simulate --> n_marlem_policies
+  n_platform_experiments_runners_simulate --> n_platform_experiments_factory_environment
+  n_platform_experiments_runners_simulate --> n_platform_experiments_factory_profiles
+  n_platform_experiments_runners_simulate -.-> n_platform_experiments_models_records
+  n_platform_experiments_runners_simulate --> n_platform_experiments_store_recorder
+  n_platform_experiments_runners_simulate --> n_platform_experiments_worker_runner
   n_platform_experiments_store_filesystem --> n_platform_experiments_models_files
   n_platform_experiments_store_filesystem -.-> n_platform_experiments_models_records
   n_platform_experiments_store_recorder --> n_platform_experiments_store_filesystem
@@ -112,6 +123,7 @@ flowchart LR
   n_platform_experiments_worker_process --> n_platform_experiments_store_filesystem
   n_platform_experiments_worker_process --> n_platform_experiments_worker_runner
   n_platform_experiments_worker_runner -.-> n_platform_experiments_models_records
+  n_platform_experiments_worker_runner --> n_platform_experiments_runners_simulate
   n_platform_experiments_worker_runner --> n_platform_experiments_store_filesystem
   n_platform_experiments_worker_runner --> n_platform_experiments_store_recorder
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111

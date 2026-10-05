@@ -184,6 +184,7 @@ class Settlement:
         production_kwh: What the grid sees flowing in: generation + discharge.
         consumption_kwh: What the grid sees flowing out: demand + charge.
         external_kwh: Net flow no trade covers, exchanged with the upstream grid.
+        soc_kwh: Battery energy after the step (``None``: no battery).
     """
 
     agent_id: str
@@ -198,6 +199,7 @@ class Settlement:
     production_kwh: float
     consumption_kwh: float
     external_kwh: float
+    soc_kwh: Optional[float] = None
 
 
 class MarketEngine(Protocol):

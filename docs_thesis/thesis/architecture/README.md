@@ -185,6 +185,7 @@ flowchart LR
   n_platform__users_ --> n_marlem_environment__
   n_platform__users_ --> n_marlem_grid__
   n_platform__users_ --> n_marlem_marl__
+  n_platform__users_ --> n_marlem_policies__
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->

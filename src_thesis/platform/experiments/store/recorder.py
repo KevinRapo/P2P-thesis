@@ -45,9 +45,10 @@ class StepRecord:
         trades: Matched trades.
         settlement: Per agent: energy delivered and received, cash.
         assessment: The step's grid assessment, as a dict.
-        kpis: Implicit-cooperation KPIs.
+        kpis: Implicit-cooperation KPIs; for simulation runs the step's prices.
         reward_components: Per agent, the value of each reward term.
         rewards: Per agent, the total reward.
+        checks: Findings of the step's checks (``marlem.core.checks``).
     """
 
     episode: int
@@ -60,15 +61,27 @@ class StepRecord:
     kpis: dict[str, float] = field(default_factory=dict)
     reward_components: dict[str, dict[str, float]] = field(default_factory=dict)
     rewards: dict[str, float] = field(default_factory=dict)
+    checks: list[dict[str, Any]] = field(default_factory=list)
 
 
 class EpisodeRecorder:
-    """Buffers one episode's steps and writes them when the episode ends."""
+    """Buffers one episode's steps and writes them when the episode ends.
 
-    def __init__(self, store: ExperimentStore, run_id: str, mode: RecordMode) -> None:
+    With ``flush_each_step`` every step is written as it is recorded, so a viewer
+    can follow a run that is still going (simulation runs).
+    """
+
+    def __init__(
+        self,
+        store: ExperimentStore,
+        run_id: str,
+        mode: RecordMode,
+        flush_each_step: bool = False,
+    ) -> None:
         self.store = store
         self.run_id = run_id
         self.mode = mode
+        self.flush_each_step = flush_each_step
         self._steps: list[StepRecord] = []
         self._episode: int | None = None
         self._day = ""
@@ -90,7 +103,11 @@ class EpisodeRecorder:
         """Buffer one step, if this episode is kept (see ``mode``)."""
         if self._episode is None:
             raise RuntimeError("record() before start_episode()")
-        if self._keeps_steps():
+        if not self._keeps_steps():
+            return
+        if self.flush_each_step:
+            self.store.append_jsonl(self.run_id, "raw/steps.jsonl", asdict(step))
+        else:
             self._steps.append(step)
 
     def end_episode(self, outcomes: dict[str, float]) -> None:

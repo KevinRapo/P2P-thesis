@@ -58,5 +58,6 @@ def settle(outcome: StepOutcome, spec: EngineSpec) -> dict[str, Settlement]:
             consumption_kwh=consumption,
             external_kwh=(production - consumption)
             - (sold[agent.id] - bought[agent.id]),
+            soc_kwh=after,
         )
     return out

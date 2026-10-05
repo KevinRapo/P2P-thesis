@@ -126,6 +126,7 @@ flowchart LR
   n_platform_experiments__ --> n_marlem_core__
   n_platform_experiments__ --> n_marlem_environment__
   n_platform_experiments__ --> n_marlem_grid__
+  n_platform_experiments__ --> n_marlem_policies__
   n_platform_services__ --> n_marlem_grid__
   n_platform_services__ --> n_platform_env
   n_platform_services__ --> n_platform_experiments__

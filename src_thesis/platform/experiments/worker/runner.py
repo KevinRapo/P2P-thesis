@@ -134,13 +134,22 @@ class TrainingRunner:
         raise NotImplementedError("training runs are built in validation stage D")
 
 
+def _simulate() -> Runner:
+    """The simulation runner (its imports load only when a simulate run starts)."""
+    from src_thesis.platform.experiments.runners.simulate import SimulateRunner
+
+    return SimulateRunner()
+
+
 RUNNERS: dict[str, Callable[[], Runner]] = {
     "noop": NoopRunner,
     "baseline": BaselineRunner,
     "train": TrainingRunner,
+    "simulate": _simulate,
 }
 
 
 def select_runner(cell: RunCell) -> Runner:
-    """A new runner for the cell's kind (``train``, ``baseline`` or ``noop``)."""
+    """A new runner for the cell's kind (``train``, ``baseline``, ``simulate`` or
+    ``noop``)."""
     return RUNNERS[cell.kind]()

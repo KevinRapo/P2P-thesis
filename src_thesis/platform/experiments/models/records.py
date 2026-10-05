@@ -112,16 +112,24 @@ class RunCell(BaseModel):
     """One run of an experiment: a sweep point, a learner or baseline, a seed.
 
     ``kind`` selects the runner: ``train`` (algorithm × paradigm), ``baseline``
-    (``algorithm`` holds the baseline name, ``paradigm`` is ``"-"``) or ``noop``
-    (a smoke run for tests; never produced by ``expand``).
+    (``algorithm`` holds the baseline name, ``paradigm`` is ``"-"``), ``simulate``
+    (``algorithm`` holds the scripted controller, ``paradigm`` is ``"-"``; made
+    by the Simulate page, never by ``expand``) or ``noop`` (a smoke run for tests;
+    never produced by ``expand``).
+
+    A ``simulate`` run plays ``days`` consecutive days from ``day`` (the start of
+    the file's time window when ``None``) with the controller's parameters.
     """
 
-    kind: Literal["train", "baseline", "noop"] = "train"
+    kind: Literal["train", "baseline", "simulate", "noop"] = "train"
     sweep_label: str = ""
     sweep_point: dict[str, Any] = Field(default_factory=dict)
     algorithm: str
     paradigm: str
     seed: int
+    controller_params: dict[str, float] = Field(default_factory=dict)
+    day: str | None = None
+    days: int = 1
 
 
 class RunState(str, Enum):
