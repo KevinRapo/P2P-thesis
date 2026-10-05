@@ -5,7 +5,9 @@ Each service is one class in its own module:
 
     config_service        ConfigService        experiment files (built)
     grid_catalog_service  GridCatalogService   networks via pandapower (built)
-    profile_service       ProfileService       sample data until R3
+    profile_service       ProfileService       SimBench profiles (built)
+    participant_service   ParticipantService   placement, previews (built)
+    tariff_service        TariffService        DSO tariff CSVs (built)
     validation_service    ValidationService    sample data until R6-R7
     experiment_service    ExperimentService    sample data until R7
     result_service        ResultService        sample data until R7
@@ -28,8 +30,12 @@ from src_thesis.application.experiment_service import ExperimentService  # noqa:
 from src_thesis.application.grid_catalog_service import (  # noqa: E402
     GridCatalogService,
 )
+from src_thesis.application.participant_service import (  # noqa: E402
+    ParticipantService,
+)
 from src_thesis.application.profile_service import ProfileService  # noqa: E402
 from src_thesis.application.result_service import ResultService  # noqa: E402
+from src_thesis.application.tariff_service import TariffService  # noqa: E402
 from src_thesis.application.validation_service import (  # noqa: E402
     ValidationService,
 )
@@ -38,12 +44,14 @@ from src_thesis.application.workspace import Workspace  # noqa: E402
 
 @dataclass(frozen=True)
 class Services:
-    """The six services a caller uses.
+    """The services a caller uses.
 
     Attributes:
         config: Experiment files.
         grid: Network catalog.
-        profiles: Profiles and participant mapping.
+        profiles: SimBench profiles of networks and the catalogue.
+        participants: Placing and previewing participants.
+        tariffs: DSO tariff CSVs.
         validation: Preflight checks.
         experiments: Runs.
         results: Reading results.
@@ -52,6 +60,8 @@ class Services:
     config: ConfigService
     grid: GridCatalogService
     profiles: ProfileService
+    participants: ParticipantService
+    tariffs: TariffService
     validation: ValidationService
     experiments: ExperimentService
     results: ResultService
@@ -74,6 +84,8 @@ def build_services(home: Path | None = None) -> Services:
         config=ConfigService(workspace),
         grid=GridCatalogService(cache=workspace.network_cache),
         profiles=ProfileService(),
+        participants=ParticipantService(),
+        tariffs=TariffService(),
         validation=ValidationService(),
         experiments=ExperimentService(),
         results=ResultService(),

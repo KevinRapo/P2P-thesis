@@ -195,7 +195,7 @@ marlem cancel <run_id>                         ExperimentService.cancel
 marlem grid list [--source simbench --level LV]      GridCatalogService.list_networks
 marlem grid inspect <source>                   GridCatalogService.summary / elements
 marlem grid preview <file> --day D --step t    GridCatalogService.preview_powerflow
-marlem profiles <file> --participant <id>      ProfileService.preview
+marlem profiles <file> --participant <id>      ParticipantService.preview
 marlem results <run_id>                        ResultService.summary
 marlem matrix <experiment_id> --metric <m>     ResultService.matrix
 marlem export <run_id>... --fmt csv            ResultService.export

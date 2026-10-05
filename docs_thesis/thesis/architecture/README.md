@@ -96,6 +96,8 @@ flowchart LR
     CF[ConfigService]
     GC[GridCatalogService]
     PR[ProfileService]
+    PA[ParticipantService]
+    TA[TariffService]
     VA[ValidationService]
     EX[ExperimentService]
     RE[ResultService]

@@ -52,7 +52,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | R4 SimBench, shadow mode | ⬜ | — | Needs R1 and R3 |
 | R5 SimBench in the loop | ⬜ | — | Needs R4 |
 | R6 Experiment file | 🟡 | Format, load/save, hash, expansion into runs, defaults, day split, manifest, 7 presets | `build_env` (needs R1/R4); presets have a placeholder mapping and only Case 1 has its sweep |
-| R7 Services, CLI, worker | 🟡 | Real `ConfigService`, grid catalog and `ProfileService`; experiment store, worker process and pool (tested with a no-op runner) | Real `ExperimentService`, `ResultService`, `ValidationService`; training and baseline runners; the CLI |
+| R7 Services, CLI, worker | 🟡 | Real `ConfigService`, grid catalog, `ProfileService`, `ParticipantService` and `TariffService`; experiment store, worker process and pool (tested with a no-op runner) | Real `ExperimentService`, `ResultService`, `ValidationService`; training and baseline runners; the CLI |
 | R8 Studio | 🟡 | Shell and all pages; real grid browsing; the whole experiment file is edited on the Build pages (Grid, Participants, Market & DSO, RL, Summary) and managed in the Library | Validate, Runs, Results and Compare are sample data |
 | R9 Evidence runs | ⬜ | — | Needs R1–R8 |
 
@@ -96,7 +96,9 @@ Only fields you change are written. A field you never touched stays absent from 
 |---|---|---|---|
 | `ConfigService` | ✅ | test_config_service.py | Presets, library, save, clone, delete, update, origin, diff, export and import of bundles, import of files. Not yet: `json_schema` |
 | `GridCatalogService` | ✅ | test_grid_catalog.py | Networks, topology, elements, power-flow preview; network cache on disk (`cache_status`, `warm_cache` in a background thread, `clear_cache`) |
-| `ProfileService` | ✅ | test_grid_catalog.py, test_participants.py | A network's SimBench profiles (factors and kW), SimBench's complete catalogue and its classes (Meinecke et al., 2020, Figure 1); placement rules (`suggest_mapping`), mapping import, [P2] Table 6 roles; participant previews (native and catalogue profiles, scaled); the day split of the time window; the DSO tariff CSVs and other data CSVs |
+| `ProfileService` | ✅ | test_grid_catalog.py | A network's SimBench profiles (factors and kW), SimBench's complete catalogue and its classes (Meinecke et al., 2020, Figure 1) |
+| `ParticipantService` | ✅ | test_participants.py | Placement by combined filters (`suggest_mapping`), mapping import, [P2] Table 6 roles; participant previews (native and catalogue profiles, scaled) |
+| `TariffService` | ✅ | test_participants.py | The DSO tariff CSVs. The day split of the time window is `ConfigService.days` |
 | `ValidationService` | 🎭 | — | Findings and the dry run are fixed samples; no real check runs |
 | `ExperimentService` | 🎭 | — | Runs listed in the Studio are invented; "Launch" starts nothing |
 | `ResultService` | 🎭 | — | All results, curves, matrices and replays are sample data |

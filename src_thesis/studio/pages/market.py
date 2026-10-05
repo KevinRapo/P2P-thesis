@@ -184,7 +184,7 @@ def market_page() -> None:
                     ).props("no-caps dense"),
                 )
                 source_hint = ui.label().classes("mls-card-caption")
-                files = s.profiles.tariff_files()
+                files = s.tariffs.tariff_files()
                 with ui.column().classes("w-full gap-1") as csv_box:
                     for key, label in (("feed_in", "Feed-in"), ("utility", "Utility")):
                         _tariff_csv(form, key, label, tariffs.get(key), files)
@@ -418,7 +418,7 @@ def market_page() -> None:
         tariff_box.clear()
         try:
             preview = s.config.update(draft, form.changes())
-            series = s.profiles.tariffs(preview)
+            series = s.tariffs.tariffs(preview)
         except (ValueError, OSError) as e:
             tariff_hint.set_text(f"Cannot read the tariffs: {e}")
             return

@@ -16,15 +16,24 @@ pytest.importorskip("simbench")
 from src_thesis.adapters.grid import participants as mapping  # noqa: E402
 from src_thesis.application.config_service import ConfigService  # noqa: E402
 from src_thesis.application.models import NetworkSource  # noqa: E402
+from src_thesis.application.participant_service import (  # noqa: E402
+    ParticipantService,
+)
 from src_thesis.application.profile_service import ProfileService  # noqa: E402
+from src_thesis.application.tariff_service import TariffService  # noqa: E402
 from src_thesis.application.workspace import Workspace  # noqa: E402
 
 LV = NetworkSource(type="simbench", code="1-LV-semiurb4--0-sw")
 
 
 @pytest.fixture(scope="module")
-def profiles() -> ProfileService:
-    return ProfileService()
+def participants() -> ParticipantService:
+    return ParticipantService()
+
+
+@pytest.fixture()
+def tariffs() -> TariffService:
+    return TariffService()
 
 
 @pytest.fixture()
@@ -36,10 +45,10 @@ RURAL = NetworkSource(type="simbench", code="1-LV-rural1--2-no_sw")
 
 
 @pytest.mark.parametrize("position", ["anywhere", "spread"])
-def test_placement_is_reproducible_and_consistent(profiles, position) -> None:
+def test_placement_is_reproducible_and_consistent(participants, position) -> None:
     rule = {"position": position, "n": 6, "seed": 3}
-    placed = profiles.suggest_mapping(LV, rule)
-    assert placed == profiles.suggest_mapping(LV, rule) and len(placed) == 6
+    placed = participants.suggest_mapping(LV, rule)
+    assert placed == participants.suggest_mapping(LV, rule) and len(placed) == 6
     elements = {e.id: e for e in profiles_elements(LV)}
     owned = [e for p in placed for side in p["owns"].values() for e in side]
     assert len(owned) == len(set(owned))  # nothing owned twice
@@ -59,24 +68,24 @@ def profiles_elements(source):
     return build_services().grid.elements(source)
 
 
-def test_filters_combine_any_load_type(profiles) -> None:
+def test_filters_combine_any_load_type(participants) -> None:
     # 1-LV-rural1--2-no_sw: 8 buses with PV, only 3 of them with a household load.
     households = {"loads": ["household"], "generation": "pv"}
-    assert len(profiles.placement_candidates(RURAL, households)) == 3
-    prosumers = profiles.placement_candidates(RURAL, {"generation": "pv"})
+    assert len(participants.placement_candidates(RURAL, households)) == 3
+    prosumers = participants.placement_candidates(RURAL, {"generation": "pv"})
     assert len(prosumers) == 8
-    farms = profiles.placement_candidates(
+    farms = participants.placement_candidates(
         RURAL, {"loads": ["agricultural"], "generation": "pv"}
     )
     assert len(farms) == 5
-    options = profiles.placement_options(RURAL)
+    options = participants.placement_options(RURAL)
     assert {"household", "agricultural", "ev", "heat_pump"} <= set(options["loads"])
 
 
-def test_agents_own_their_whole_bus_or_only_matching_loads(profiles) -> None:
+def test_agents_own_their_whole_bus_or_only_matching_loads(participants) -> None:
     rule = {"loads": ["household"], "generation": "pv", "n": 3, "seed": 1}
-    whole = profiles.suggest_mapping(RURAL, rule)
-    matching = profiles.suggest_mapping(RURAL, {**rule, "owns": "matching"})
+    whole = participants.suggest_mapping(RURAL, rule)
+    matching = participants.suggest_mapping(RURAL, {**rule, "owns": "matching"})
     elements = {e.id: e for e in profiles_elements(RURAL)}
     for p in whole:  # every element at the bus, EV chargers and heat pumps too
         at_bus = {e.id for e in elements.values() if e.bus == p["bus"]}
@@ -88,11 +97,11 @@ def test_agents_own_their_whole_bus_or_only_matching_loads(profiles) -> None:
         assert p["owns"]["sgens"]
 
 
-def test_placement_rejects_too_many_agents(profiles) -> None:
+def test_placement_rejects_too_many_agents(participants) -> None:
     with pytest.raises(ValueError, match="fewer than"):
-        profiles.suggest_mapping(LV, {"position": "feeder_ends", "n": 500})
+        participants.suggest_mapping(LV, {"position": "feeder_ends", "n": 500})
     with pytest.raises(ValueError, match="Unknown generation"):
-        profiles.suggest_mapping(LV, {"generation": "nope"})
+        participants.suggest_mapping(LV, {"generation": "nope"})
 
 
 def test_scaling_to_peak_and_energy() -> None:
@@ -104,9 +113,9 @@ def test_scaling_to_peak_and_energy() -> None:
         mapping.scale([1.0], year, "peak_kw", None, 1.0)
 
 
-def test_preview_scales_catalogue_profiles(profiles, draft) -> None:
+def test_preview_scales_catalogue_profiles(participants, draft) -> None:
     p = draft.participants[0]  # catalog G1-A / PV3, peak 180 kW
-    series = profiles.preview(draft, p["id"], days=2)
+    series = participants.preview(draft, p["id"], days=2)
     assert len(series.x) == 48 and series.y_label == "kW"
     assert 0 < max(series.y["demand"]) <= 180.01
     assert 0 < max(series.y["generation"]) <= 180.01
@@ -116,49 +125,49 @@ def test_preview_scales_catalogue_profiles(profiles, draft) -> None:
     )
 
 
-def test_preview_of_native_participants(profiles, draft, tmp_path) -> None:
-    placed = profiles.suggest_mapping(LV, {"n": 2, "seed": 1})
+def test_preview_of_native_participants(participants, draft, tmp_path) -> None:
+    placed = participants.suggest_mapping(LV, {"n": 2, "seed": 1})
     file = ConfigService(Workspace(tmp_path / "x")).update(
         draft, {"participants": placed}
     )
-    series = profiles.preview(file, placed[0]["id"], days=1)
+    series = participants.preview(file, placed[0]["id"], days=1)
     assert len(series.y["demand"]) == 24 and max(series.y["demand"]) > 0
 
 
-def test_days_follow_the_time_section(profiles, draft) -> None:
-    split = profiles.days(draft)
+def test_days_follow_the_time_section(draft, tmp_path) -> None:
+    split = ConfigService(Workspace(tmp_path / "c")).days(draft)
     assert split["train"] and split["eval"]
     assert not set(split["train"]) & set(split["eval"])
 
 
-def test_import_mapping_from_csv_and_json(profiles) -> None:
+def test_import_mapping_from_csv_and_json(participants) -> None:
     text = (
         "id,role,bus,loads,sgens,profile_source,demand,generation,scaling_mode,"
         "demand_target,generation_target,battery_kwh\n"
         "a1,home,LV4.101 Bus 18,LV4.101 Load 1,,catalog,H0-A,PV3,peak_kw,5,4,10\n"
     )
-    rows = profiles.import_mapping(text.encode(), "map.csv")
+    rows = participants.import_mapping(text.encode(), "map.csv")
     assert rows[0]["owns"]["loads"] == ["LV4.101 Load 1"]
     assert rows[0]["profile"]["demand"] == {"type": "H0-A"}
     assert rows[0]["scaling"] == {"mode": "peak_kw", "demand": 5.0, "generation": 4.0}
     assert rows[0]["battery"] == {"nominal_capacity_kwh": 10.0}
-    back = profiles.import_mapping(
+    back = participants.import_mapping(
         json.dumps({"participants": rows}).encode(), "m.json"
     )
     assert back == rows
     with pytest.raises(ValueError):
-        profiles.import_mapping(b'[{"id": "x"}]', "m.json")
+        participants.import_mapping(b'[{"id": "x"}]', "m.json")
 
 
-def test_paper_roles_keep_placement(profiles, draft) -> None:
-    roles = profiles.paper_roles(draft.participants)
+def test_paper_roles_keep_placement(participants, draft) -> None:
+    roles = participants.paper_roles(draft.participants)
     assert [p["id"] for p in roles][:2] == ["small_industry", "community_hospital"]
     assert roles[1]["battery"]["nominal_capacity_kwh"] == 85.0  # [P2] Table 6
     assert roles[1]["bus"] == draft.participants[1]["bus"]
 
 
-def test_tariffs_read_the_csvs(profiles, draft, tmp_path) -> None:
-    series = profiles.tariffs(draft)  # csv without files: the original defaults
+def test_tariffs_read_the_csvs(tariffs, draft, tmp_path) -> None:
+    series = tariffs.tariffs(draft)  # csv without files: the original defaults
     assert len(series.x) == 24 and series.x[0] == "00:00"
     assert any(k.startswith("feed-in") for k in series.y)
     file = ConfigService(Workspace(tmp_path / "y")).update(
@@ -170,11 +179,11 @@ def test_tariffs_read_the_csvs(profiles, draft, tmp_path) -> None:
             }
         },
     )
-    assert "utility · profile_2" in profiles.tariffs(file).y
+    assert "utility · profile_2" in tariffs.tariffs(file).y
     synthetic = ConfigService(Workspace(tmp_path / "z")).update(
         draft, {"dso.tariffs.source": "synthetic"}
     )
-    assert profiles.tariffs(synthetic).y == {}
-    assert "data/prices/fit_60min.csv" in profiles.tariff_files()
+    assert tariffs.tariffs(synthetic).y == {}
+    assert "data/prices/fit_60min.csv" in tariffs.tariff_files()
     with pytest.raises(ValueError):
-        profiles.data_files("../src_thesis")
+        ProfileService().data_files("../src_thesis")

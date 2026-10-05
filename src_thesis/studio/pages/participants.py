@@ -312,7 +312,7 @@ def participants_page() -> None:
         if net["topology"] is None:
             return
         try:
-            found = await run.io_bound(s.profiles.placement_candidates, source, rule())
+            found = await run.io_bound(s.participants.placement_candidates, source, rule())
         except ValueError as e:
             rule_hint.set_text(str(e))
             return
@@ -349,7 +349,7 @@ def participants_page() -> None:
     async def place() -> None:
         """Place agents by the rule and save them."""
         try:
-            placed = await run.io_bound(s.profiles.suggest_mapping, source, rule())
+            placed = await run.io_bound(s.participants.suggest_mapping, source, rule())
         except Exception as e:  # noqa: BLE001  shown under the controls
             rule_hint.set_text(str(e))
             return
@@ -371,7 +371,7 @@ def participants_page() -> None:
 
             async def received(e: events.UploadEventArguments) -> None:
                 try:
-                    rows = s.profiles.import_mapping(await e.file.read(), e.file.name)
+                    rows = s.participants.import_mapping(await e.file.read(), e.file.name)
                 except (ValueError, UnicodeDecodeError) as error:
                     message.set_text(str(error))
                     return
@@ -388,7 +388,7 @@ def participants_page() -> None:
     def roles_dialog() -> None:
         def apply() -> None:
             try:
-                save(s.profiles.paper_roles(draft.participants))
+                save(s.participants.paper_roles(draft.participants))
             except ValueError as e:
                 ui.notify(str(e), type="warning")
 
@@ -475,7 +475,7 @@ def participants_page() -> None:
             return
         busy(preview_box, "Reading profiles …")
         try:
-            series = await run.io_bound(s.profiles.preview, draft, selected["id"])
+            series = await run.io_bound(s.participants.preview, draft, selected["id"])
         except Exception as e:  # noqa: BLE001
             failed(preview_box, e)
             return
@@ -521,7 +521,7 @@ def participants_page() -> None:
             **s.profiles.data_files("data/demand"),
             **s.profiles.data_files("data/generation"),
         }
-        options = await run.io_bound(s.profiles.placement_options, source)
+        options = await run.io_bound(s.participants.placement_options, source)
         rule_loads.set_options(options["loads"])
         for control, key in (
             (rule_generation, "generation"),
@@ -677,7 +677,7 @@ def _time_window(draft: ExperimentFile) -> None:
         filters.set_visibility(mode.value == "sampler")
         try:
             preview_file = s.config.update(draft, form.changes())
-            split = s.profiles.days(preview_file)
+            split = s.config.days(preview_file)
         except (ValueError, KeyError) as e:
             count.set_text(f"Selects no days yet: {e}")
             count.classes(replace="text-negative text-body2")

@@ -28,7 +28,9 @@ flowchart LR
   CALL["Studio · CLI · notebooks"] --> BS["build_services(...)"]
   BS --> CF["ConfigService<br/>experiment files"]
   BS --> GC["GridCatalogService<br/>networks"]
-  BS --> PR["ProfileService<br/>profiles, mapping"]
+  BS --> PR["ProfileService<br/>SimBench profiles"]
+  BS --> PA["ParticipantService<br/>placement, previews"]
+  BS --> TA["TariffService<br/>DSO tariffs"]
   BS --> VA["ValidationService<br/>preflight"]
   BS --> EX["ExperimentService<br/>runs"]
   BS --> RE["ResultService<br/>results"]
@@ -65,11 +67,15 @@ flowchart LR
   end
   n_application_config_service["config_service.py"]
   n_application_container["container.py"]
+  n_application_data_files["data_files.py"]
   n_application_experiment_service["experiment_service.py"]
   n_application_grid_catalog_service["grid_catalog_service.py"]
   n_application_models["models.py"]
+  n_application_participant_service["participant_service.py"]
+  n_application_profile_classes["profile_classes.py"]
   n_application_profile_service["profile_service.py"]
   n_application_result_service["result_service.py"]
+  n_application_tariff_service["tariff_service.py"]
   n_application_validation_service["validation_service.py"]
   n_application_workspace["workspace.py"]
   subgraph USES["uses"]
@@ -84,23 +90,35 @@ flowchart LR
   n_application_container --> n_application_config_service
   n_application_container --> n_application_experiment_service
   n_application_container --> n_application_grid_catalog_service
+  n_application_container --> n_application_participant_service
   n_application_container --> n_application_profile_service
   n_application_container --> n_application_result_service
+  n_application_container --> n_application_tariff_service
   n_application_container --> n_application_validation_service
   n_application_container --> n_application_workspace
   n_application_container --> n_env
+  n_application_data_files --> n_experiments_models
   n_application_experiment_service -.-> n_application_models
   n_application_experiment_service --> n_experiments_models
   n_application_grid_catalog_service --> n_adapters_grid
   n_application_grid_catalog_service -.-> n_application_models
   n_application_grid_catalog_service --> n_core_grid_contract
   n_application_models --> n_experiments_models
+  n_application_participant_service --> n_adapters_grid
+  n_application_participant_service -.-> n_application_models
+  n_application_participant_service --> n_application_profile_classes
+  n_application_participant_service --> n_core_grid_contract
+  n_application_profile_classes -.-> n_application_models
   n_application_profile_service --> n_adapters_grid
+  n_application_profile_service --> n_application_data_files
   n_application_profile_service -.-> n_application_models
+  n_application_profile_service --> n_application_profile_classes
   n_application_profile_service --> n_core_grid_contract
-  n_application_profile_service --> n_experiments_models
   n_application_result_service --> n_application_experiment_service
   n_application_result_service -.-> n_application_models
+  n_application_tariff_service --> n_application_data_files
+  n_application_tariff_service -.-> n_application_models
+  n_application_tariff_service --> n_experiments_models
   n_application_validation_service -.-> n_application_models
   n_application_validation_service --> n_experiments_models
   n_studio__users_ --> n_application_container
@@ -116,7 +134,10 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 |---|---|---|
 | `config_service.py` | `ConfigService`: presets from the repository, files in the workspace library; import of files and bundles | built |
 | `grid_catalog_service.py` | `GridCatalogService`: networks via the pandapower adapter | built |
-| `profile_service.py` | `ProfileService`: profiles of a network and of SimBench's complete catalogue, profile classes, placement rules, mapping import, [P2] Table 6 roles, participant previews, the day split and the tariff CSVs | built |
+| `profile_service.py` | `ProfileService`: SimBench profiles of a network and of the complete catalogue, their classes | built |
+| `participant_service.py` | `ParticipantService`: placement by combined filters, mapping import, [P2] Table 6 roles, participant previews | built |
+| `tariff_service.py` | `TariffService`: the DSO tariff CSVs | built |
+| `profile_classes.py`, `data_files.py` | Shared by the services: SimBench's profile classes; listing and reading the `data/` CSVs | |
 | `validation_service.py` | `ValidationService` | sample data until R6–R7 |
 | `experiment_service.py` | `ExperimentService` | sample data until R7 |
 | `result_service.py` | `ResultService` | sample data until R7 |
@@ -142,7 +163,9 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 |---|---|---|---|
 | `ConfigService` | Everything done to an experiment file without running it: presets, library, edit, compare, share | `experiments.models` (files, expand, resolve), workspace | Studio "Apply to draft": `update` (dotted paths, validated) → `save` (atomic) |
 | `GridCatalogService` | Choosing and understanding a network before any experiment exists | `adapters.grid` | `topology` and `preview_powerflow` feed the Grid page; no agents or RL involved |
-| `ProfileService` | Previewing profiles and placing participants on buses, the most error-prone setup step | `adapters.profiles` (SimBench catalogue, mapping rules; R3) | `suggest_mapping` by rule, `import_mapping`, `preview` per participant |
+| `ProfileService` | Understanding the available profiles before assigning any | `adapters.grid` (SimBench adapter) | `profile_types`, `catalogue_types`, series and scaled power for the Inspect page |
+| `ParticipantService` | Placing participants on buses and seeing what drives them, the most error-prone setup step | `adapters.grid` (placement rules, SimBench adapter) | `suggest_mapping` by filters, `import_mapping`, `paper_roles`, `preview` per participant |
+| `TariffService` | Seeing the DSO's tariffs before a run | `data/prices` CSVs | `tariff_files`, `tariffs` for the Market & DSO page |
 | `ValidationService` | One set of checks (02 §9), so the Studio and the CLI accept exactly the same files | `experiments.models`, `experiments.factory` | `validate` (schema · references · full); `dry_run` builds one environment and takes one step |
 | `ExperimentService` | The only way to create and control runs | `experiments.models`, `.store`, `.worker.pool` | `create_runs`: validate → expand → per run resolve, manifest, folder; `start` / `cancel` / `snapshot` via the pool (03 §5) |
 | `ResultService` | Turning run folders into tables and series; outcomes kept apart from RL return | `experiments.store`, paper reference data | `summary`, curves, step replay, the 3 × 3 `matrix`; `reference` returns values reported in the papers, entered by hand with their source |

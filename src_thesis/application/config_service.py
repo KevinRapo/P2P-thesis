@@ -221,6 +221,20 @@ class ConfigService:
         """
         return resolution.resolve(file)
 
+    def days(self, file: ExperimentFile) -> dict[str, list[str]]:
+        """The training and evaluation dates the file's ``time`` section selects.
+
+        ``experiments.models.resolve.resolve_days`` on ``file.time``.
+
+        Raises:
+            ValueError: The time section selects no dates or is incomplete.
+        """
+        try:
+            split = resolution.resolve_days(file.time)
+        except KeyError as missing:
+            raise ValueError(f"time.days needs {missing}") from None
+        return {"train": list(split.train), "eval": list(split.eval)}
+
     def expand(self, file: ExperimentFile) -> list[RunCell]:
         """The runs the file asks for.
 
