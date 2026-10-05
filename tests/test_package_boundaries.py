@@ -31,6 +31,7 @@ ALLOWED = {
         "dso",
         "cooperation",
         "profiles",
+        "policies",
         "grid",
         "root",
     ),
