@@ -136,7 +136,7 @@ class TrainingRunner:
 
 def _simulate() -> Runner:
     """The simulation runner (its imports load only when a simulate run starts)."""
-    from src_thesis.platform.kernel.runners.simulate import SimulateRunner
+    from src_thesis.platform.kernel.simulate.runner import SimulateRunner
 
     return SimulateRunner()
 

@@ -75,19 +75,31 @@ Checked by tests, keyed on the role of a file, not its folder.
 
 Files touched before the move (traced by hand from the simulation work) and after (counted at the checkpoint of the trial).
 
-| Change | Before | After |
+| Change | Before | After (Simulate and Validate moved) |
 |---|---|---|
-| Add a controller | 2 + test (`policies/scripted.py`, `policies/registry.py`) | |
-| Add a check | 1 + test (`core/checks.py`) | |
-| Add a sanity scenario | 3 (`environment/scenarios.py`, `core/scenarios.py`, test) | |
-| Show a new field in the replay | 5–6 (`core/engine.py`, `market/settlement.py`, `environment/engine_lem.py`, `runners/simulate.py`, `result_service.py`, `replay.py`) | |
-| Add an option to the Simulate page | 4 (`pages/simulate.py`, `experiment_service.py`, `records.py`, `runners/simulate.py`) | |
+| Add a controller | 2 + test, in `policies/` | 2 + test, both in `marlem/simulation/` (`controllers.py`, `catalog.py`) |
+| Add a check | 1 + test | 1 + test (`marlem/simulation/checks.py`) |
+| Add a sanity scenario | 3 in two packages | 2 + test in one folder (`scenarios.py`, `catalog.py` text) |
+| Show a new field in the replay | 5–6 across 6 packages | 5 in three folders (`marlem/simulation/{spec,settlement,lem_engine}.py`, `kernel/simulate/runner.py`, `studio/components/replay.py`) |
+| Add an option to the Simulate page | 4 across 4 packages | 4, named for the page (`pages/simulate/page.py`, `services/simulate/service.py`, `kernel/models/records.py`, `kernel/simulate/runner.py`) |
+
+Reading the table honestly: the number of files barely drops, because data really does cross three layers (record it, serve it, show it). What drops is the hunt: every file of a page is in a folder with the page's name in each layer, the simulator side is one folder instead of five packages, and the page README lists the files and the typical changes. The scenario and controller changes, which were scattered inside MARLEM, now stay in one folder.
 
 [↑ Contents](#contents)
 
 ## 6. What was deliberately not moved
 
-Filled in step by step.
+Step 2 (`marlem/simulation/`):
+
+- MARLEM's original packages (`agents`, `market`, `dso`, `cooperation`, `environment`, `marl`, `core`, `grid`, `profiles`) are untouched: the AST comparison, golden episodes and issue links depend on them.
+- `grid/contract.py`, `grid/simbench.py` (`SimBenchGrid`) and `grid/view.py` stay in `grid/`: they are the grid's own code, used by the Grid page, the preview and the simulation.
+
+Steps 3 and 4 (kernel, Simulate, Validate):
+
+- `ExperimentService` (start, cancel, list, snapshot) and `ResultService` (replay, checks, summary) stay where they are: Simulate, Runs and Results all use them. They are grouped with the Runs and Results pages in the next step.
+- `studio/components/replay.py` and `checks_panel.py` stay shared: Simulate and Results both use them.
+- `kernel/models`, `store`, `worker`, `factory` stay as they are: the layer is their natural unit.
+- Shared data types stay in `services/models.py` (series, topology, run records, check results); only types a single page uses moved into `services/<page>/models.py`.
 
 [↑ Contents](#contents)
 

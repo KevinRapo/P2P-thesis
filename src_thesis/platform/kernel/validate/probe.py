@@ -3,8 +3,8 @@
 They need the market, the network and pandapower, which the Studio never loads, so
 they run in a subprocess:
 
-    python -m src_thesis.platform.kernel.runners.probe dry-run < file.json
-    python -m src_thesis.platform.kernel.runners.probe scenario <id> < file.json
+    python -m src_thesis.platform.kernel.validate.probe dry-run < file.json
+    python -m src_thesis.platform.kernel.validate.probe scenario <id> < file.json
 
 The file (resolved or not) comes in on stdin, one JSON result goes out on stdout.
 ``run_probe`` is the caller's side and needs only the standard library.
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[4]
-MODULE = "src_thesis.platform.kernel.runners.probe"
+MODULE = "src_thesis.platform.kernel.validate.probe"
 
 
 def run_probe(command: str, file_json: str, *args: str, timeout_s: float = 600) -> dict:

@@ -11,15 +11,14 @@ from __future__ import annotations
 from src_thesis.marlem.simulation.catalog import SCENARIOS
 from src_thesis.platform.kernel.models.files import canonical_hash
 from src_thesis.platform.kernel.models.resolve import resolve
-from src_thesis.platform.kernel.runners.probe import run_probe
-from src_thesis.platform.services.models import (
+from src_thesis.platform.kernel.validate.probe import run_probe
+from src_thesis.platform.services.models import ExperimentFile, Series
+from src_thesis.platform.services.validate.models import (
     DryRunResult,
     Expectation,
-    ExperimentFile,
     Finding,
     ScenarioInfo,
     ScenarioOutcome,
-    Series,
     Severity,
     ValidationReport,
 )

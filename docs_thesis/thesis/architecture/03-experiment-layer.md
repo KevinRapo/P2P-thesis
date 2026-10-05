@@ -60,13 +60,15 @@ flowchart LR
     n_platform_kernel_models_resolve["models/resolve.py"]
     n_platform_kernel_models_sections["models/sections.py"]
   end
-  subgraph g_runners["runners/"]
-    n_platform_kernel_runners_probe["runners/probe.py"]
-    n_platform_kernel_runners_simulate["runners/simulate.py"]
+  subgraph g_simulate["simulate/"]
+    n_platform_kernel_simulate_runner["simulate/runner.py"]
   end
   subgraph g_store["store/"]
     n_platform_kernel_store_filesystem["store/filesystem.py"]
     n_platform_kernel_store_recorder["store/recorder.py"]
+  end
+  subgraph g_validate["validate/"]
+    n_platform_kernel_validate_probe["validate/probe.py"]
   end
   subgraph g_worker["worker/"]
     n_platform_kernel_worker___main__["worker/__main__.py"]
@@ -85,8 +87,8 @@ flowchart LR
   n_platform__users_ --> n_platform_kernel_models_records
   n_platform__users_ --> n_platform_kernel_models_resolve
   n_platform__users_ --> n_platform_kernel_models_sections
-  n_platform__users_ --> n_platform_kernel_runners_probe
   n_platform__users_ --> n_platform_kernel_store_filesystem
+  n_platform__users_ --> n_platform_kernel_validate_probe
   n_platform__users_ --> n_platform_kernel_worker_pool
   n_platform_kernel_factory_environment --> n_marlem_grid
   n_platform_kernel_factory_environment --> n_marlem_simulation
@@ -106,19 +108,19 @@ flowchart LR
   n_platform_kernel_models_resolve --> n_platform_kernel_models_expand
   n_platform_kernel_models_resolve -.-> n_platform_kernel_models_records
   n_platform_kernel_models_resolve --> n_platform_kernel_models_sections
-  n_platform_kernel_runners_probe --> n_marlem_simulation
-  n_platform_kernel_runners_probe --> n_platform_kernel_factory_environment
-  n_platform_kernel_runners_probe -.-> n_platform_kernel_models_records
-  n_platform_kernel_runners_probe --> n_platform_kernel_models_resolve
-  n_platform_kernel_runners_simulate --> n_marlem_simulation
-  n_platform_kernel_runners_simulate --> n_platform_kernel_factory_environment
-  n_platform_kernel_runners_simulate --> n_platform_kernel_factory_profiles
-  n_platform_kernel_runners_simulate -.-> n_platform_kernel_models_records
-  n_platform_kernel_runners_simulate --> n_platform_kernel_store_recorder
-  n_platform_kernel_runners_simulate --> n_platform_kernel_worker_runner
+  n_platform_kernel_simulate_runner --> n_marlem_simulation
+  n_platform_kernel_simulate_runner --> n_platform_kernel_factory_environment
+  n_platform_kernel_simulate_runner --> n_platform_kernel_factory_profiles
+  n_platform_kernel_simulate_runner -.-> n_platform_kernel_models_records
+  n_platform_kernel_simulate_runner --> n_platform_kernel_store_recorder
+  n_platform_kernel_simulate_runner --> n_platform_kernel_worker_runner
   n_platform_kernel_store_filesystem --> n_platform_kernel_models_files
   n_platform_kernel_store_filesystem -.-> n_platform_kernel_models_records
   n_platform_kernel_store_recorder --> n_platform_kernel_store_filesystem
+  n_platform_kernel_validate_probe --> n_marlem_simulation
+  n_platform_kernel_validate_probe --> n_platform_kernel_factory_environment
+  n_platform_kernel_validate_probe -.-> n_platform_kernel_models_records
+  n_platform_kernel_validate_probe --> n_platform_kernel_models_resolve
   n_platform_kernel_worker___main__ --> n_platform_kernel_worker_process
   n_platform_kernel_worker_pool -.-> n_platform_kernel_models_records
   n_platform_kernel_worker_pool --> n_platform_kernel_store_filesystem
@@ -127,7 +129,7 @@ flowchart LR
   n_platform_kernel_worker_process --> n_platform_kernel_store_filesystem
   n_platform_kernel_worker_process --> n_platform_kernel_worker_runner
   n_platform_kernel_worker_runner -.-> n_platform_kernel_models_records
-  n_platform_kernel_worker_runner --> n_platform_kernel_runners_simulate
+  n_platform_kernel_worker_runner --> n_platform_kernel_simulate_runner
   n_platform_kernel_worker_runner --> n_platform_kernel_store_filesystem
   n_platform_kernel_worker_runner --> n_platform_kernel_store_recorder
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111

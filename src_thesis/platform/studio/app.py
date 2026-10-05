@@ -53,9 +53,9 @@ import src_thesis.platform.studio.pages.participants  # noqa: F401, E402
 import src_thesis.platform.studio.pages.results  # noqa: F401, E402
 import src_thesis.platform.studio.pages.rl  # noqa: F401, E402
 import src_thesis.platform.studio.pages.runs  # noqa: F401, E402
-import src_thesis.platform.studio.pages.simulate  # noqa: F401, E402
+import src_thesis.platform.studio.pages.simulate.page  # noqa: F401, E402
 import src_thesis.platform.studio.pages.summary  # noqa: F401, E402
-import src_thesis.platform.studio.pages.validate  # noqa: F401, E402
+import src_thesis.platform.studio.pages.validate.page  # noqa: F401, E402
 
 from src_thesis.platform.studio.state import services  # noqa: E402
 

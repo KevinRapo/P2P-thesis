@@ -248,75 +248,6 @@ class Series(BaseModel):
     y_label: str = ""
 
 
-# --------------------------------------------------------------------------- validation
-
-
-class Severity(str, Enum):
-    """How serious a validation finding is; errors block a launch."""
-
-    ERROR = "error"
-    WARNING = "warning"
-    INFO = "info"
-
-
-class Finding(BaseModel):
-    """One validation finding.
-
-    Attributes:
-        code: Stable identifier, e.g. ``"GRID_MAPPING_DUPLICATE_OWNER"``.
-        severity: Error, warning or info.
-        area: Schema, data, grid mapping, time, protocol or resources.
-        path: Dotted path of the field, so the Studio can jump to it.
-        message: What is wrong.
-        fix_hint: How to fix it.
-    """
-
-    code: str
-    severity: Severity
-    area: str
-    path: str
-    message: str
-    fix_hint: str = ""
-
-
-class ValidationReport(BaseModel):
-    """All findings of one validation.
-
-    Attributes:
-        file_hash: Canonical hash of the validated file.
-        level: ``"schema"``, ``"references"`` or ``"full"``.
-        findings: The findings.
-    """
-
-    file_hash: str
-    level: Literal["schema", "references", "full"]
-    findings: list[Finding] = Field(default_factory=list)
-
-    @property
-    def ok(self) -> bool:
-        """True when there is no error (warnings are allowed)."""
-        return not any(f.severity == Severity.ERROR for f in self.findings)
-
-
-class DryRunResult(BaseModel):
-    """Outcome of building the environment and taking one step.
-
-    Attributes:
-        ok: Whether the step succeeded.
-        observation_dims: Observation size per agent.
-        power_flow_converged: Whether the first power flow converged.
-        settlement_residual_kwh: Energy-balance residual of the settlement (should be
-            ~0).
-        messages: What was checked and found.
-    """
-
-    ok: bool
-    observation_dims: dict[str, int] = Field(default_factory=dict)
-    power_flow_converged: bool | None = None
-    settlement_residual_kwh: float | None = None
-    messages: list[str] = Field(default_factory=list)
-
-
 # --------------------------------------------------------------------------- runs and results
 
 
@@ -424,42 +355,6 @@ class RepositoryHealth(BaseModel):
 # --------------------------------------------------------------------------- simulation
 
 
-class ControllerParam(BaseModel):
-    """One parameter of a scripted controller.
-
-    Attributes:
-        name: Parameter name.
-        label: Name shown in the UI.
-        default: Value used when none is given.
-        low: Smallest allowed value.
-        high: Largest allowed value.
-        help: One sentence explaining it.
-    """
-
-    name: str
-    label: str
-    default: float
-    low: float
-    high: float
-    help: str = ""
-
-
-class ControllerInfo(BaseModel):
-    """A scripted controller the Simulate page offers.
-
-    Attributes:
-        name: Registry name (``RunCell.algorithm`` of a simulate run).
-        title: Short title.
-        description: What it does.
-        params: Its parameters.
-    """
-
-    name: str
-    title: str
-    description: str
-    params: list[ControllerParam] = Field(default_factory=list)
-
-
 class CheckResult(BaseModel):
     """One check of a simulated run and how often it failed.
 
@@ -483,44 +378,6 @@ class CheckResult(BaseModel):
     failures: int = 0
     first_step: int | None = None
     first_day: str | None = None
-
-
-class Expectation(BaseModel):
-    """One statement of a sanity scenario and whether it held."""
-
-    statement: str
-    passed: bool
-    detail: str = ""
-
-
-class ScenarioInfo(BaseModel):
-    """A sanity scenario: what it does and what must happen."""
-
-    id: str
-    title: str
-    expected: str
-
-
-class ScenarioOutcome(BaseModel):
-    """The result of running a sanity scenario.
-
-    Attributes:
-        scenario: Scenario ID.
-        title: Its title.
-        expected: What it expected, in words.
-        passed: Whether every statement held.
-        expectations: Each statement with the numbers behind it.
-        series: Voltage per hour with and without the scenario, for a chart.
-        error: Set instead of the rest when the scenario could not run.
-    """
-
-    scenario: str
-    title: str = ""
-    expected: str = ""
-    passed: bool = False
-    expectations: list[Expectation] = Field(default_factory=list)
-    series: Series | None = None
-    error: str = ""
 
 
 class ReplayTopology(BaseModel):

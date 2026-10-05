@@ -6,7 +6,8 @@ from pathlib import Path
 import pytest
 
 from src_thesis.platform.services.container import build_services
-from src_thesis.platform.services.models import RunState, Severity
+from src_thesis.platform.services.models import RunState
+from src_thesis.platform.services.validate.models import Severity
 
 
 @pytest.fixture(scope="module")
@@ -19,7 +20,7 @@ def world(tmp_path_factory):
 @pytest.fixture(scope="module")
 def run(world):
     s, file = world
-    run_id = s.experiments.create_simulation(
+    run_id = s.simulate.create_simulation(
         file, "net_position", {"aggressiveness": 0.5}, day="2016-06-15"
     )
     s.experiments.start([run_id])
@@ -37,7 +38,7 @@ def run(world):
 
 def test_controllers_are_listed_with_their_parameters(world) -> None:
     s, _ = world
-    controllers = {c.name: c for c in s.experiments.controllers()}
+    controllers = {c.name: c for c in s.simulate.controllers()}
     assert {"no_order", "random", "net_position"} <= set(controllers)
     assert controllers["net_position"].params[0].name == "aggressiveness"
 
@@ -45,9 +46,9 @@ def test_controllers_are_listed_with_their_parameters(world) -> None:
 def test_bad_controller_settings_are_refused(world) -> None:
     s, file = world
     with pytest.raises(ValueError):
-        s.experiments.create_simulation(file, "nope")
+        s.simulate.create_simulation(file, "nope")
     with pytest.raises(ValueError):
-        s.experiments.create_simulation(file, "net_position", {"aggressiveness": 5})
+        s.simulate.create_simulation(file, "net_position", {"aggressiveness": 5})
 
 
 def test_a_started_run_completes_through_the_pool(world, run) -> None:
@@ -60,7 +61,7 @@ def test_a_started_run_completes_through_the_pool(world, run) -> None:
 
 def test_the_same_settings_can_be_run_again(world, run) -> None:
     s, file = world
-    again = s.experiments.create_simulation(
+    again = s.simulate.create_simulation(
         file, "net_position", {"aggressiveness": 0.5}, day="2016-06-15"
     )
     assert again != run
@@ -126,6 +127,6 @@ def test_dry_run_and_a_scenario_run_in_a_subprocess(world) -> None:
 
 def test_runs_that_have_not_started_sort_with_started_ones(world, run) -> None:
     s, file = world
-    waiting = s.experiments.create_simulation(file, "no_order", day="2016-06-16")
+    waiting = s.simulate.create_simulation(file, "no_order", day="2016-06-16")
     ids = [r.run_id for r in s.experiments.list_runs()]  # READY: no start time
     assert run in ids and waiting in ids and ids.index(run) < ids.index(waiting)

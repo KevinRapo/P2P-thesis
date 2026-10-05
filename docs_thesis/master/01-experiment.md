@@ -60,7 +60,7 @@ That label must be interpreted in light of the service's current implementation.
 File loading, saving, default resolution and run expansion have implementations.
 This source review did not execute a research run to validate their integration.
 
-[`ValidationService`](../../src_thesis/platform/services/validation_service.py) declares
+[`ValidationService`](../../src_thesis/platform/services/validate/service.py) declares
 `SAMPLE_DATA = True`. Its report combines fixed findings with a check for missing
 participants. Its `dry_run` returns a sample success without constructing an
 environment. Schema parsing and full physical/methodological validation are

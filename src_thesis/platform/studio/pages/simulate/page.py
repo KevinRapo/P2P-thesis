@@ -56,7 +56,7 @@ def _render(run_id: str | None) -> None:
     ):
         report = s.validation.validate(draft, level="schema")
         errors = [f for f in report.findings if f.severity.value == "error"]
-        controllers = {c.name: c for c in s.experiments.controllers()}
+        controllers = {c.name: c for c in s.simulate.controllers()}
         values: dict[str, float] = {}
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
@@ -127,7 +127,7 @@ def _render(run_id: str | None) -> None:
                 def start() -> None:
                     try:
                         date.fromisoformat(day.value)
-                        new = s.experiments.create_simulation(
+                        new = s.simulate.create_simulation(
                             draft,
                             choice.value,
                             dict(values),

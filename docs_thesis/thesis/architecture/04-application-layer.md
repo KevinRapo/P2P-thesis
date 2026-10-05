@@ -76,8 +76,15 @@ flowchart LR
   n_platform_services_profile_service["profile_service.py"]
   n_platform_services_result_service["result_service.py"]
   n_platform_services_tariff_service["tariff_service.py"]
-  n_platform_services_validation_service["validation_service.py"]
   n_platform_services_workspace["workspace.py"]
+  subgraph g_simulate["simulate/"]
+    n_platform_services_simulate_models["simulate/models.py"]
+    n_platform_services_simulate_service["simulate/service.py"]
+  end
+  subgraph g_validate["validate/"]
+    n_platform_services_validate_models["validate/models.py"]
+    n_platform_services_validate_service["validate/service.py"]
+  end
   subgraph USES["uses"]
     n_marlem_grid["marlem/grid"]:::ext
     n_marlem_simulation["marlem/simulation"]:::ext
@@ -97,11 +104,11 @@ flowchart LR
   n_platform_services_container --> n_platform_services_participant_service
   n_platform_services_container --> n_platform_services_profile_service
   n_platform_services_container --> n_platform_services_result_service
+  n_platform_services_container --> n_platform_services_simulate_service
   n_platform_services_container --> n_platform_services_tariff_service
-  n_platform_services_container --> n_platform_services_validation_service
+  n_platform_services_container --> n_platform_services_validate_service
   n_platform_services_container --> n_platform_services_workspace
   n_platform_services_data_files --> n_platform_kernel
-  n_platform_services_experiment_service --> n_marlem_simulation
   n_platform_services_experiment_service --> n_platform_kernel
   n_platform_services_experiment_service -.-> n_platform_services_models
   n_platform_services_experiment_service --> n_platform_services_workspace
@@ -121,13 +128,20 @@ flowchart LR
   n_platform_services_result_service --> n_platform_services_experiment_service
   n_platform_services_result_service -.-> n_platform_services_models
   n_platform_services_result_service --> n_platform_services_workspace
+  n_platform_services_simulate_service --> n_marlem_simulation
+  n_platform_services_simulate_service --> n_platform_kernel
+  n_platform_services_simulate_service -.-> n_platform_services_models
+  n_platform_services_simulate_service --> n_platform_services_simulate_models
+  n_platform_services_simulate_service --> n_platform_services_workspace
   n_platform_services_tariff_service --> n_platform_kernel
   n_platform_services_tariff_service --> n_platform_services_data_files
   n_platform_services_tariff_service -.-> n_platform_services_models
-  n_platform_services_validation_service --> n_marlem_grid
-  n_platform_services_validation_service --> n_marlem_simulation
-  n_platform_services_validation_service --> n_platform_kernel
-  n_platform_services_validation_service -.-> n_platform_services_models
+  n_platform_services_validate_models -.-> n_platform_services_models
+  n_platform_services_validate_service --> n_marlem_grid
+  n_platform_services_validate_service --> n_marlem_simulation
+  n_platform_services_validate_service --> n_platform_kernel
+  n_platform_services_validate_service -.-> n_platform_services_models
+  n_platform_services_validate_service --> n_platform_services_validate_models
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->

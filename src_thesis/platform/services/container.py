@@ -8,7 +8,8 @@ Each service is one class in its own module:
     profile_service       ProfileService       SimBench profiles (built)
     participant_service   ParticipantService   placement, previews (built)
     tariff_service        TariffService        DSO tariff CSVs (built)
-    validation_service    ValidationService    file checks, dry run, scenarios (built)
+    simulate/service      SimulateService      controllers, simulation runs (built)
+    validate/service      ValidationService    file checks, dry run, scenarios (built)
     experiment_service    ExperimentService    runs, worker pool (built)
     result_service        ResultService        simulation runs built; curves, matrix, compare are samples
 
@@ -37,8 +38,11 @@ from src_thesis.platform.services.participant_service import (  # noqa: E402
 )
 from src_thesis.platform.services.profile_service import ProfileService  # noqa: E402
 from src_thesis.platform.services.result_service import ResultService  # noqa: E402
+from src_thesis.platform.services.simulate.service import (  # noqa: E402
+    SimulateService,
+)
 from src_thesis.platform.services.tariff_service import TariffService  # noqa: E402
-from src_thesis.platform.services.validation_service import (  # noqa: E402
+from src_thesis.platform.services.validate.service import (  # noqa: E402
     ValidationService,
 )
 from src_thesis.platform.services.workspace import Workspace  # noqa: E402
@@ -54,6 +58,7 @@ class Services:
         profiles: SimBench profiles of networks and the catalogue.
         participants: Placing and previewing participants.
         tariffs: DSO tariff CSVs.
+        simulate: Controllers and simulation runs.
         validation: Preflight checks.
         experiments: Runs.
         results: Reading results.
@@ -64,6 +69,7 @@ class Services:
     profiles: ProfileService
     participants: ParticipantService
     tariffs: TariffService
+    simulate: SimulateService
     validation: ValidationService
     experiments: ExperimentService
     results: ResultService
@@ -88,6 +94,7 @@ def build_services(home: Path | None = None) -> Services:
         profiles=ProfileService(),
         participants=ParticipantService(),
         tariffs=TariffService(),
+        simulate=SimulateService(workspace),
         validation=ValidationService(),
         experiments=ExperimentService(workspace),
         results=ResultService(workspace),
