@@ -20,14 +20,14 @@ import sys
 import time
 from pathlib import Path
 
-from src_thesis.platform.experiments.models.records import RunState
-from src_thesis.platform.experiments.store.filesystem import ExperimentStore
+from src_thesis.platform.kernel.models.records import RunState
+from src_thesis.platform.kernel.store.filesystem import ExperimentStore
 
 REPO = Path(__file__).resolve().parents[4]
 
 
 def spawn(run_dir: str | Path) -> subprocess.Popen:
-    """Start ``python -m src_thesis.platform.experiments.worker`` in its own process group."""
+    """Start ``python -m src_thesis.platform.kernel.worker`` in its own process group."""
     run_dir = Path(run_dir)
     flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     out = open(run_dir / "logs" / "worker.stdout", "a", encoding="utf-8")
@@ -35,7 +35,7 @@ def spawn(run_dir: str | Path) -> subprocess.Popen:
         [
             sys.executable,
             "-m",
-            "src_thesis.platform.experiments.worker",
+            "src_thesis.platform.kernel.worker",
             "--run-dir",
             str(run_dir),
         ],

@@ -43,7 +43,7 @@
    Without `--write` it only checks, and fails if a block is stale. Use the `marlem` conda env.
 
    The **Contents** block at the top of each document and the `↑ Contents` links under each section are generated too. After adding or renaming a `##` / `###` heading, run `python docs_thesis/toc.py` ([tests/test_docs_toc.py](../../../tests/test_docs_toc.py) fails while they are stale).
-4. **Code links point at exact lines of the original code, frozen in git tag `marlem-annotated`**: MARLEM as published, plus the issue markers, just before the code was split into modules (2026-10-05). The links are GitHub URLs at that tag, so they stay correct whatever later commits move or rewrite (push the tag: `git push origin marlem-annotated`). Links to the platform code (`application/`, `experiments/`, `studio/`, the SimBench adapter) stay relative and follow that code. The original before any annotation is git tag `marlem-original`.
+4. **Code links point at exact lines of the original code, frozen in git tag `marlem-annotated`**: MARLEM as published, plus the issue markers, just before the code was split into modules (2026-10-05). The links are GitHub URLs at that tag, so they stay correct whatever later commits move or rewrite (push the tag: `git push origin marlem-annotated`). Links to the platform code (`application/`, `kernel/`, `studio/`, the SimBench adapter) stay relative and follow that code. The original before any annotation is git tag `marlem-original`.
 5. **Closing an issue deletes its code markers in the same commit.** `check_docs.py` fails if a closed issue still has a marker, or if a marker's tag or step disagrees with the register.
 
 [↑ Contents](#contents)

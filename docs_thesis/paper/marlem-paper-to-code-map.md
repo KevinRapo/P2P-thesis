@@ -23,7 +23,7 @@ The [P1] Fig. 2 classes by level, where they live in `src_thesis/`, and what hap
 
 ```mermaid
 flowchart TB
-  PLAT["experiments/ · application/ · studio/"]:::new
+  PLAT["kernel/ · services/ · studio/"]:::new
   subgraph L1["Level 1: MARL Agents · marl/"]
     direction LR
     TRN["RLTrainer · GroupedLEM"]:::adapt

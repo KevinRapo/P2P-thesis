@@ -59,7 +59,7 @@ submit offers; the market determines trades; the environment updates state and
 returns rewards and observations.
 
 This is an explanatory example, not a new runnable preset. We use the existing
-[heterogeneity preset](../../src_thesis/platform/experiments/presets/case2-heterogeneity.marlem.json)
+[heterogeneity preset](../../src_thesis/platform/kernel/presets/case2-heterogeneity.marlem.json)
 to show real file fields. Its own description identifies placeholder assumptions.
 Do not treat that preset as a validated instance of Alice and Bob's story.
 
@@ -70,8 +70,8 @@ Do not treat that preset as a validated instance of Alice and Bob's story.
 | Studio page frame and navigation | [studio/layout.py](../../src_thesis/platform/studio/layout.py): `shell` |
 | Current draft and service access | [studio/state.py](../../src_thesis/platform/studio/state.py): `current_draft`, `services` |
 | Creating service objects | [application/container.py](../../src_thesis/platform/services/container.py): `build_services` |
-| Meaning of experiment fields | [experiments/models/records.py](../../src_thesis/platform/experiments/models/records.py), [sections.py](../../src_thesis/platform/experiments/models/sections.py) |
-| Turning settings into a runtime | [experiments/factory/environment.py](../../src_thesis/platform/experiments/factory/environment.py): `build_env` |
+| Meaning of experiment fields | [kernel/models/records.py](../../src_thesis/platform/kernel/models/records.py), [sections.py](../../src_thesis/platform/kernel/models/sections.py) |
+| Turning settings into a runtime | [kernel/factory/environment.py](../../src_thesis/platform/kernel/factory/environment.py): `build_env` |
 | One simulation step | [environment/lem.py](../../src_thesis/marlem/environment/lem.py): `LocalEnergyMarket.step` |
 | Training / restored-policy execution | [marl/train.py](../../src_thesis/marlem/marl/train.py), [marl/inference.py](../../src_thesis/marlem/marl/inference.py) |
 

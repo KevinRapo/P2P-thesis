@@ -25,13 +25,13 @@ from src_thesis.marlem.simulation.spec import (
     MarketSpec,
     TariffSpec,
 )
-from src_thesis.platform.experiments.factory.profiles import (
+from src_thesis.platform.kernel.factory.profiles import (
     RESOLUTIONS,
     participant_power,
     window_start,
 )
-from src_thesis.platform.experiments.models.records import ExperimentFile, RunCell
-from src_thesis.platform.experiments.models.resolve import resolve_run
+from src_thesis.platform.kernel.models.records import ExperimentFile, RunCell
+from src_thesis.platform.kernel.models.resolve import resolve_run
 
 if TYPE_CHECKING:  # heavy imports stay out of this module at runtime
     from src_thesis.marlem.simulation.spec import MarketEngine

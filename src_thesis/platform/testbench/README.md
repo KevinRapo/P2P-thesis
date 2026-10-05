@@ -13,4 +13,4 @@ argument (decision D-16); there is no second trainer.
 | `__main__.py` | Command line | milestone 1 |
 
 The package imports from MARLEM only `marl.train`, `marl.base` and
-`experiments.models`; a test enforces it.
+`kernel.models`; a test enforces it.

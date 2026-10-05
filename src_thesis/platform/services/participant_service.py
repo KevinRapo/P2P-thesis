@@ -16,8 +16,8 @@ import src_thesis.marlem.grid.contract as contract
 from src_thesis.marlem.grid import placement as mapping
 from src_thesis.marlem.grid import simbench as adapter
 from src_thesis.platform.services.models import ExperimentFile, NetworkSource, Series
-from src_thesis.platform.experiments.models.sections import Participant
-from src_thesis.platform.experiments.factory.profiles import (
+from src_thesis.platform.kernel.models.sections import Participant
+from src_thesis.platform.kernel.factory.profiles import (
     RESOLUTIONS,
     participant_power,
     window_start,

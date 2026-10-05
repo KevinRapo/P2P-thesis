@@ -17,14 +17,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
-from src_thesis.platform.experiments.models.records import (
+from src_thesis.platform.kernel.models.records import (
     ExperimentFile,
     Manifest,
     RunCell,
     RunState,
 )
-from src_thesis.platform.experiments.store.recorder import EpisodeRecorder
-from src_thesis.platform.experiments.store.filesystem import ExperimentStore
+from src_thesis.platform.kernel.store.recorder import EpisodeRecorder
+from src_thesis.platform.kernel.store.filesystem import ExperimentStore
 
 
 @dataclass
@@ -136,7 +136,7 @@ class TrainingRunner:
 
 def _simulate() -> Runner:
     """The simulation runner (its imports load only when a simulate run starts)."""
-    from src_thesis.platform.experiments.runners.simulate import SimulateRunner
+    from src_thesis.platform.kernel.runners.simulate import SimulateRunner
 
     return SimulateRunner()
 

@@ -30,8 +30,8 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Iterator
 
-from src_thesis.platform.experiments.models.files import atomic_write_text, dumps, load
-from src_thesis.platform.experiments.models.records import (
+from src_thesis.platform.kernel.models.files import atomic_write_text, dumps, load
+from src_thesis.platform.kernel.models.records import (
     ArtifactIndex,
     ExperimentFile,
     Manifest,

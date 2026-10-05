@@ -17,7 +17,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from src_thesis.platform.experiments.models.records import ExperimentFile, RunCell
+from src_thesis.platform.kernel.models.records import ExperimentFile, RunCell
 
 DEFAULT_PARADIGMS = ["dtde"]
 DEFAULT_ALGORITHMS = ["ppo"]

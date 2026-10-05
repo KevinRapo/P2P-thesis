@@ -12,10 +12,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-# The experiment file and run records are defined in experiments/models/records.py.
+# The experiment file and run records are defined in kernel/models/records.py.
 # They are re-exported here on purpose: the Studio may only import application/
 # (tests/test_studio_boundaries.py), so this module is its one source of data types.
-from src_thesis.platform.experiments.models.records import (  # noqa: F401
+from src_thesis.platform.kernel.models.records import (  # noqa: F401
     ExperimentFile,
     ExperimentMeta,
     RunCell,

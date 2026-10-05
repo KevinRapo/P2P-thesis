@@ -42,7 +42,7 @@ MARLEM_PACKAGES = [
     "marl",
 ]
 PLATFORM_PACKAGES = [
-    "experiments",
+    "kernel",
     "services",
     "studio",
     "testbench",
@@ -55,9 +55,9 @@ GRAPHS: dict[str, dict] = {
             "marlem/grid/contract.py",
         ],
     },
-    "experiments": {
-        "roots": ["platform/experiments"],
-        "faded": ["platform/experiments/models/records"],
+    "kernel": {
+        "roots": ["platform/kernel"],
+        "faded": ["platform/kernel/models/records"],
     },
     "application": {
         "roots": ["platform/services"],
@@ -126,7 +126,7 @@ def _collapse(name: str, rules: dict[str, str]) -> str:
 
 
 def _outside(name: str) -> str:
-    """Other packages are shown at two levels, e.g. ``experiments/models``."""
+    """Other packages are shown at two levels, e.g. ``kernel/models``."""
     return "/".join(name.split("/")[:2])
 
 

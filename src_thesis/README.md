@@ -65,7 +65,7 @@ change the docstring to change the line.
 | [`marlem/environment/`](marlem/environment/) | One episode: wires agents, market, DSO, grid and cooperation into reset/step. |
 | [`marlem/simulation/`](marlem/simulation/) | Play a day: engine seam, scripted controllers, settlement, checks and sanity scenarios. |
 | [`marlem/marl/`](marlem/marl/) | Level 1: multi-agent RL with RLlib: the trainer, the CTCE/CTDE modules, inference. |
-| [`platform/experiments/`](platform/experiments/) | Experiment files and runs: expand, resolve, the run store, worker processes. |
+| [`platform/kernel/`](platform/kernel/) | Experiment files and runs: expand, resolve, the run store, worker processes. |
 | [`platform/services/`](platform/services/) | The services the Studio, CLI and notebooks call: the only door to the code. |
 | [`platform/studio/`](platform/studio/) | MARLEM Studio: the NiceGUI pages; talks only to the services. |
 | [`platform/testbench/`](platform/testbench/) | RL reference tasks trained through MARLEM's trainer, independent of the market. |
@@ -79,7 +79,7 @@ change the docstring to change the line.
   loads the environment only when it is the one being trained.
 - `platform/studio/` imports only `platform/services/` (and `platform/env.py`, the
   `.env` settings); the services reach
-  `marlem/` through `platform/experiments/` and `marlem/grid/`.
+  `marlem/` through `platform/kernel/` and `marlem/grid/`.
 - Only `marlem/grid/simbench.py` imports pandapower and SimBench.
 
 Enforced by `tests/test_package_boundaries.py` and `tests/test_studio_boundaries.py`.
@@ -98,7 +98,7 @@ flowchart LR
   n_marlem_marl__["marlem/marl/*.py"]
   n_marlem_profiles__["marlem/profiles/*.py"]
   n_marlem_simulation__["marlem/simulation/*.py"]
-  n_platform_experiments__["platform/experiments/*.py"]
+  n_platform_kernel__["platform/kernel/*.py"]
   n_platform_services__["platform/services/*.py"]
   n_platform_studio__["platform/studio/*.py"]
   n_platform_testbench__["platform/testbench/*.py"]
@@ -128,16 +128,16 @@ flowchart LR
   n_marlem_simulation__ --> n_marlem_grid__
   n_marlem_simulation__ --> n_marlem_market__
   n_marlem_simulation__ --> n_marlem_profiles__
-  n_platform_experiments__ --> n_marlem_grid__
-  n_platform_experiments__ --> n_marlem_simulation__
+  n_platform_kernel__ --> n_marlem_grid__
+  n_platform_kernel__ --> n_marlem_simulation__
   n_platform_services__ --> n_marlem_grid__
   n_platform_services__ --> n_marlem_simulation__
   n_platform_services__ --> n_platform_env
-  n_platform_services__ --> n_platform_experiments__
+  n_platform_services__ --> n_platform_kernel__
   n_platform_studio__ --> n_platform_env
   n_platform_studio__ --> n_platform_services__
   n_platform_testbench__ --> n_marlem_marl__
-  n_platform_testbench__ --> n_platform_experiments__
+  n_platform_testbench__ --> n_platform_kernel__
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->

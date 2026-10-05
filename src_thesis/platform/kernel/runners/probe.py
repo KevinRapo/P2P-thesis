@@ -3,8 +3,8 @@
 They need the market, the network and pandapower, which the Studio never loads, so
 they run in a subprocess:
 
-    python -m src_thesis.platform.experiments.runners.probe dry-run < file.json
-    python -m src_thesis.platform.experiments.runners.probe scenario <id> < file.json
+    python -m src_thesis.platform.kernel.runners.probe dry-run < file.json
+    python -m src_thesis.platform.kernel.runners.probe scenario <id> < file.json
 
 The file (resolved or not) comes in on stdin, one JSON result goes out on stdout.
 ``run_probe`` is the caller's side and needs only the standard library.
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[4]
-MODULE = "src_thesis.platform.experiments.runners.probe"
+MODULE = "src_thesis.platform.kernel.runners.probe"
 
 
 def run_probe(command: str, file_json: str, *args: str, timeout_s: float = 600) -> dict:
@@ -53,8 +53,8 @@ def run_probe(command: str, file_json: str, *args: str, timeout_s: float = 600) 
 
 
 def _world(text: str) -> Any:
-    from src_thesis.platform.experiments.models.records import ExperimentFile
-    from src_thesis.platform.experiments.models.resolve import resolve
+    from src_thesis.platform.kernel.models.records import ExperimentFile
+    from src_thesis.platform.kernel.models.resolve import resolve
 
     resolved = resolve(ExperimentFile.model_validate_json(text))
     return resolved
@@ -64,7 +64,7 @@ def dry_run(text: str) -> dict:
     """Build one day, take the first step with nobody ordering, assess the grid."""
     from src_thesis.marlem.simulation.loop import run_simulation
     from src_thesis.marlem.simulation.controllers import get_policy
-    from src_thesis.platform.experiments.factory.environment import (
+    from src_thesis.platform.kernel.factory.environment import (
         build_engine_spec,
         build_grid,
         build_grid_view,
@@ -109,7 +109,7 @@ def dry_run(text: str) -> dict:
 def scenario(text: str, scenario_id: str) -> dict:
     """Run one sanity scenario on the file's network and participants."""
     from src_thesis.marlem.simulation.scenarios import SCENARIOS, run_scenario
-    from src_thesis.platform.experiments.factory.environment import (
+    from src_thesis.platform.kernel.factory.environment import (
         build_engine_spec,
         world_builder,
     )

@@ -6,16 +6,16 @@ from pathlib import Path
 import pytest
 
 from src_thesis.marlem.simulation.scenarios import SCENARIOS, describe, run_scenario
-from src_thesis.platform.experiments.factory.environment import (
+from src_thesis.platform.kernel.factory.environment import (
     build_engine_spec,
     world_builder,
 )
-from src_thesis.platform.experiments.models.records import ExperimentFile
-from src_thesis.platform.experiments.models.resolve import resolve
+from src_thesis.platform.kernel.models.records import ExperimentFile
+from src_thesis.platform.kernel.models.resolve import resolve
 
 PRESET = (
     Path(__file__).resolve().parents[1]
-    / "src_thesis/platform/experiments/presets/case6-3x3.marlem.json"
+    / "src_thesis/platform/kernel/presets/case6-3x3.marlem.json"
 )
 
 

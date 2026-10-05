@@ -13,7 +13,7 @@
 - [3. Code, by layer](#3-code-by-layer)
   - [3.1 MARLEM (domain)](#31-marlem-domain)
   - [3.2 Adapters](#32-adapters)
-  - [3.3 Experiment layer (`src_thesis/platform/experiments/`, 03)](#33-experiment-layer-src_thesisplatformexperiments-03)
+  - [3.3 Experiment layer (`src_thesis/platform/kernel/`, 03)](#33-experiment-layer-src_thesisplatformkernel-03)
   - [3.4 Application layer (`src_thesis/platform/services/`, 04)](#34-application-layer-src_thesisplatformservices-04)
 - [4. Studio, page by page (`src_thesis/platform/studio/`, 05)](#4-studio-page-by-page-src_thesisplatformstudio-05)
 - [5. Walking the workflow guide](#5-walking-the-workflow-guide)
@@ -30,7 +30,7 @@ The Studio's Build and Experiment pages edit one **draft experiment file**. Wher
 |---|---|
 | Your experiment files | `<workspace>\library\<id>.marlem.json`. The workspace folder is shown and chosen on the **Settings** page; default `C:\Users\Kevin\AppData\Local\MARLEM` |
 | Which file is the draft | The chip in the Studio header, and "File id" on the Summary page |
-| Presets (read-only) | [src_thesis/platform/experiments/presets/](../../../src_thesis/platform/experiments/presets/) |
+| Presets (read-only) | [src_thesis/platform/kernel/presets/](../../../src_thesis/platform/kernel/presets/) |
 
 Three ways to see what a UI action changed:
 
@@ -69,7 +69,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | Grid contract ([grid_contract.py](../../../src_thesis/marlem/grid/contract.py)) | 🟡 | Catalog and assessment records exist; `GridTopologyInfo`, `GridSignals` (D-13) not yet |
 | Checks and the simulation loop ([core/checks.py](../../../src_thesis/marlem/simulation/checks.py), [environment/simulation.py](../../../src_thesis/marlem/simulation/loop.py)) | 🟡 | `run_simulation`: controller → market → settlement → power flow → checks, one record per step. Checks are tagged `invariant`, `engine_fault` (known defect of the original market: I-14, I-18, I-19, I-71 fire on it) or `physical` (grid limits, convergence). Tests: [test_simulation.py](../../../tests/test_simulation.py) |
 | Sanity scenarios ([environment/scenarios.py](../../../src_thesis/marlem/simulation/scenarios.py)) | 🟡 | Three scenarios on the file's own network with fixture profiles: idle market (the grid sees only the participants' load), everyone exports at noon (voltage rises, most at the far end), everyone imports in the evening (voltage falls). Each lists its expectations with the numbers. Tests: [test_scenarios.py](../../../tests/test_scenarios.py) |
-| Simulation runs ([runners/simulate.py](../../../src_thesis/platform/experiments/runners/simulate.py)) | 🟡 | `RunCell.kind = "simulate"` (controller in `algorithm`, `controller_params`, `day`, `days`): the worker plays the days and writes `raw/steps.jsonl` per step as it goes, `metrics/checks.jsonl` and `metrics/summary.jsonl` per day and `grid_topology.json`. Same seed gives byte-identical steps. Ray is imported by the market's base class but never started. Tests: [test_simulate_runner.py](../../../tests/test_simulate_runner.py) |
+| Simulation runs ([runners/simulate.py](../../../src_thesis/platform/kernel/runners/simulate.py)) | 🟡 | `RunCell.kind = "simulate"` (controller in `algorithm`, `controller_params`, `day`, `days`): the worker plays the days and writes `raw/steps.jsonl` per step as it goes, `metrics/checks.jsonl` and `metrics/summary.jsonl` per day and `grid_topology.json`. Same seed gives byte-identical steps. Ray is imported by the market's base class but never started. Tests: [test_simulate_runner.py](../../../tests/test_simulate_runner.py) |
 | Services for simulation ([experiment_service.py](../../../src_thesis/platform/services/experiment_service.py), [result_service.py](../../../src_thesis/platform/services/result_service.py), [validation_service.py](../../../src_thesis/platform/services/validation_service.py)) | 🟡 | Real `ExperimentService` (controllers, `create_simulation`, start/cancel through the worker pool, `tick` polled by one timer, run list and snapshots) and `ValidationService` (file checks, dry run and sanity scenarios in a subprocess). `ResultService` reads simulation runs (replay, topology, checks, summary, step table, grid and agent series); training curves, the matrix and compare are still samples. Tests: [test_simulation_services.py](../../../tests/test_simulation_services.py) |
 | Settlement and injections ([market/settlement.py](../../../src_thesis/marlem/simulation/settlement.py), [grid/injection.py](../../../src_thesis/marlem/simulation/injection.py)) | 🟡 | `settle` gives each agent's generation, demand, trades, battery flows (from the energy change and efficiencies) and untraded exchange; `injections` turns them into kW at the agent's bus. Tests: [test_settlement_grid.py](../../../tests/test_settlement_grid.py) |
 | Step-time grid (`SimBenchGrid` in [simbench.py](../../../src_thesis/marlem/grid/simbench.py)) | 🟡 | One power flow per step in shadow mode: owned elements removed, the rest on its profiles (`mapped_replacement`, `scaled_background`, `no_background`), participants as injections, limits from the file; non-convergence recorded, not raised. Reactive power of injections is 0; `preview_powerflow` shares its assessment code |
@@ -85,7 +85,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | Participant mapping ([participants.py](../../../src_thesis/marlem/grid/placement.py)) | ✅ | [test_participants.py](../../../tests/test_participants.py) | Placement on flexible buses (a generator or storage; load-only buses stay background) and profile scaling (none, peak kW, annual energy) |
 | SimBench profile source (`marlem/profiles/simbench.py`) | ⬜ | — | The existing `marlem/profiles/` is the original CSV / synthetic code |
 
-### 3.3 Experiment layer (`src_thesis/platform/experiments/`, 03)
+### 3.3 Experiment layer (`src_thesis/platform/kernel/`, 03)
 
 | Module | Status | Tests |
 |---|---|---|
@@ -95,7 +95,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | `factory/training.py` | ⬜ interface only (stage D): `trainer_arguments` translates the file and a cell into `RLTrainer`'s arguments (D-16) | — |
 | `worker/runner.py` | 🟡 no-op runner only; baseline and training runners raise | test_experiments.py |
 | `worker/process.py`, `worker/pool.py` | ✅ | test_experiments.py (real subprocesses) |
-| Presets (`platform/experiments/presets/`) | 🟡 all 7 load, resolve and expand; placeholder mapping; sweeps for Case 1 only | [test_config_service.py](../../../tests/test_config_service.py) |
+| Presets (`platform/kernel/presets/`) | 🟡 all 7 load, resolve and expand; placeholder mapping; sweeps for Case 1 only | [test_config_service.py](../../../tests/test_config_service.py) |
 
 ### 3.4 Application layer (`src_thesis/platform/services/`, 04)
 

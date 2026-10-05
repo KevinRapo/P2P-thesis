@@ -5,7 +5,7 @@ a run cannot freeze or kill the Studio, keeps running when the browser or Studio
 (D-09), and a crash only fails that one run. The worker only needs the run folder, so
 the same command works from the Studio, the CLI or by hand.
 
-    python -m src_thesis.platform.experiments.worker --run-dir <store>/runs/<run_id>
+    python -m src_thesis.platform.kernel.worker --run-dir <store>/runs/<run_id>
 
 Steps: verify the manifest hash → RUNNING (with pid) → runner → terminal state.
 Any exception ends in FAILED with the traceback in ``logs/worker.log``. If Ray
@@ -20,15 +20,15 @@ import sys
 import traceback
 from pathlib import Path
 
-from src_thesis.platform.experiments.models.files import canonical_hash
-from src_thesis.platform.experiments.models.records import RunState
-from src_thesis.platform.experiments.worker.runner import (
+from src_thesis.platform.kernel.models.files import canonical_hash
+from src_thesis.platform.kernel.models.records import RunState
+from src_thesis.platform.kernel.worker.runner import (
     Runner,
     RunContext,
     RunOutcome,
     select_runner,
 )
-from src_thesis.platform.experiments.store.filesystem import ExperimentStore
+from src_thesis.platform.kernel.store.filesystem import ExperimentStore
 
 
 def run_one(run_dir: str | Path, runner: Runner | None = None) -> RunState:

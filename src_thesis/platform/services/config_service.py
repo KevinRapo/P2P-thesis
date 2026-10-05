@@ -1,9 +1,9 @@
 """ConfigService: experiment files (04 §5).
 
-Presets are read-only files in the repository (``experiments/presets/``); the
+Presets are read-only files in the repository (``kernel/presets/``); the
 user's files live in the workspace library, outside OneDrive (``workspace.py``).
 Every operation on file content is delegated to the experiment layer
-(``experiments.models``); this module only decides where files live and how
+(``kernel.models``); this module only decides where files live and how
 they are named.
 """
 
@@ -15,10 +15,10 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from src_thesis.platform.experiments.models import expand as expansion
-from src_thesis.platform.experiments.models import files
-from src_thesis.platform.experiments.models import resolve as resolution
-from src_thesis.platform.experiments.models.manifest import data_path, referenced_paths
+from src_thesis.platform.kernel.models import expand as expansion
+from src_thesis.platform.kernel.models import files
+from src_thesis.platform.kernel.models import resolve as resolution
+from src_thesis.platform.kernel.models.manifest import data_path, referenced_paths
 from src_thesis.platform.services.workspace import FILE_SUFFIX, Workspace
 from src_thesis.platform.services.models import (
     ExperimentFile,
@@ -217,14 +217,14 @@ class ConfigService:
 
     def resolve(self, file: ExperimentFile) -> ExperimentFile:
         """Every unset field filled from the defaults
-        (``experiments.models.resolve.resolve``).
+        (``kernel.models.resolve.resolve``).
         """
         return resolution.resolve(file)
 
     def days(self, file: ExperimentFile) -> dict[str, list[str]]:
         """The training and evaluation dates the file's ``time`` section selects.
 
-        ``experiments.models.resolve.resolve_days`` on ``file.time``.
+        ``kernel.models.resolve.resolve_days`` on ``file.time``.
 
         Raises:
             ValueError: The time section selects no dates or is incomplete.

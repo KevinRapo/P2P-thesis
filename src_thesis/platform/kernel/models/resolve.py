@@ -20,9 +20,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
-from src_thesis.platform.experiments.models.expand import apply_overrides
-from src_thesis.platform.experiments.models.records import ExperimentFile, RunCell
-from src_thesis.platform.experiments.models.sections import DayFilter, Days, TimeSection
+from src_thesis.platform.kernel.models.expand import apply_overrides
+from src_thesis.platform.kernel.models.records import ExperimentFile, RunCell
+from src_thesis.platform.kernel.models.sections import DayFilter, Days, TimeSection
 
 # Defaults of 02-experiment-config.md §3 (only fields that have one).
 DEFAULTS: dict[str, Any] = {

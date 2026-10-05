@@ -4,5 +4,5 @@
 ``resolve`` (defaults, one run's world, day lists), ``manifest`` (fingerprints).
 
 Nothing is re-exported here: import from the module that defines a name
-(e.g. ``from src_thesis.platform.experiments.models.records import ExperimentFile``), so every import names its file.
+(e.g. ``from src_thesis.platform.kernel.models.records import ExperimentFile``), so every import names its file.
 """

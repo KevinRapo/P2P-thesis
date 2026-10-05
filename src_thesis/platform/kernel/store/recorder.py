@@ -25,7 +25,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-from src_thesis.platform.experiments.store.filesystem import ExperimentStore
+from src_thesis.platform.kernel.store.filesystem import ExperimentStore
 
 RecordMode = Literal["none", "evaluation", "all"]
 

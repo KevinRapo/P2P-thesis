@@ -106,7 +106,7 @@ flowchart LR
     EX[ExperimentService]
     RE[ResultService]
   end
-  subgraph E[experiments/, 03]
+  subgraph E[kernel/, 03]
     MOD[models: experiment file, manifest, status]
     FAC[factory: file → env_config]
     STO[store: filesystem]
@@ -136,7 +136,7 @@ flowchart LR
 - Only the **factory** turns an experiment file into live MARLEM objects. Everyone uses it: the worker, validation dry runs, notebooks and tests.
 - Training goes through **one trainer**, `marlem/marl/train.py`'s `RLTrainer`, which takes the environment as an argument: the factory passes the market, the RL testbench external tasks (D-16).
 - Services run **in-process** with the UI or CLI (no REST layer). Anything long-running (training, multi-episode simulation) runs in the **worker subprocess** (D-09).
-- `platform/experiments/` never imports `platform/services/` or `platform/studio/`; `platform/services/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; `marlem/marl/train.py` and `inference.py` load the market only when it is the chosen environment, and `platform/testbench/` reaches MARLEM only through the trainer. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces these rules.
+- `platform/kernel/` never imports `platform/services/` or `platform/studio/`; `platform/services/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; `marlem/marl/train.py` and `inference.py` load the market only when it is the chosen environment, and `platform/testbench/` reaches MARLEM only through the trainer. [tests/test_studio_boundaries.py](../../../tests/test_studio_boundaries.py) enforces these rules.
 - **Imports name their file** (for now, while the platform is being built): `from src_thesis.platform.services.container import build_services`, not `from src_thesis.platform.services import build_services`. Package `__init__.py` files hold only a docstring and re-export nothing; the one deliberate exception is `platform/services/models.py`, the Studio's single source of data types. Short package-level imports can be reintroduced once the structure is settled.
 
 ### 2.2 MARLEM's packages
@@ -235,7 +235,7 @@ Where the SimBench edition adds to the original; the [P1] Fig. 2 classes themsel
 | RL testbench | MARLEM's trainer is first shown to learn on CartPole, MultiAgentCartPole and Simple Spread, then used on the market (D-16) | [rl_testbench/](../../../src_thesis/platform/testbench/); trainer: [marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py) | [rl-testbench.md](../validation/rl-testbench.md) |
 | pandapower grid adapter (SimBench, built-in, file) | Real power-flow physics in place of the NetworkX graph | [adapters/grid/simbench_new.py](../../../src_thesis/marlem/grid/simbench.py) | 01 §1–§5 |
 | SimBench profile source | Realistic load and PV profiles for agents on any network | `marlem/profiles/simbench.py` | 01 §3 |
-| Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | From one experiment file to traceable runs executed outside the UI (03) | [experiments/](../../../src_thesis/platform/experiments/) | 02, 03 |
+| Experiment layer: file handling, expansion, resolution, manifest, store, recorder, worker, pool | From one experiment file to traceable runs executed outside the UI (03) | [kernel/](../../../src_thesis/platform/kernel/) | 02, 03 |
 | Original code (git tag `marlem-original`) | Compare a rewritten file with the original | `git show marlem-original:src_thesis_reference/<path>` | D-14 |
 | Application services | One interface for the Studio, the CLI and notebooks | [application/](../../../src_thesis/platform/services/) | 04 |
 | CLI | Scripted and headless runs | `src_thesis/cli.py` | 05 §7 |
@@ -298,7 +298,7 @@ Each phase has an exit criterion.
 | D-13 | **Grid ownership and data flow.** `LocalEnergyMarket` is the only holder of the `GridModel`. `OrderMatcher`, `DSOAgent` and `DERAgent` get `GridTopologyInfo` (static distances and zones) and `GridSignals` (step t−1) as arguments and never call the grid; KPIs, reward and observation use `GridAssessment[t]`. A read-only view is the accepted fallback. | **Agreed** (2026-09-27) | 01 §5.1 |
 | D-14 | **Code home.** `src_thesis/` is the single source of truth (domain, adapters, services, Studio, tests). The upstream `src/` and the frozen copy `src_thesis_reference/` were removed on 2026-10-03; the original with its issue markers is git tag `marlem-original`. | **Agreed** (2026-09-27, revised 2026-10-03) | code map |
 | D-15 | **Voltage limits.** `grid.limits` in the experiment file overrides every bus when set; when unset, each bus uses the network's own `min_vm_pu` / `max_vm_pu`, with 0.95–1.05 pu as the fallback. The Studio preview follows the same rule. | **Agreed** (2026-09-27) | 01 §2, 02 §3.3 |
-| D-16 | **One RL trainer, the environment as an argument.** MARLEM's `RLTrainer` and `RLInference` ([marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py), `inference.py`) take the environment class as an argument (`env_cls`; the local energy market by default) and load the market only when it is used. Two callers: `platform/experiments/factory/training.py` translates an experiment file and run cell into `RLTrainer`'s arguments for the market, and the [RL testbench](../validation/rl-testbench.md) passes external tasks (CartPole, MultiAgentCartPole, Simple Spread). So the code that trains the market is the code that was shown to learn on established tasks; there is no second trainer. The files are changed in place (D-04). The bench keeps its own run manifest (it has no experiment file) but records provenance with the experiment layer's fingerprints. | Proposed (2026-10-05) | [rl-testbench.md](../validation/rl-testbench.md) §1, 03 §3 |
+| D-16 | **One RL trainer, the environment as an argument.** MARLEM's `RLTrainer` and `RLInference` ([marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py), `inference.py`) take the environment class as an argument (`env_cls`; the local energy market by default) and load the market only when it is used. Two callers: `platform/kernel/factory/training.py` translates an experiment file and run cell into `RLTrainer`'s arguments for the market, and the [RL testbench](../validation/rl-testbench.md) passes external tasks (CartPole, MultiAgentCartPole, Simple Spread). So the code that trains the market is the code that was shown to learn on established tasks; there is no second trainer. The files are changed in place (D-04). The bench keeps its own run manifest (it has no experiment file) but records provenance with the experiment layer's fingerprints. | Proposed (2026-10-05) | [rl-testbench.md](../validation/rl-testbench.md) §1, 03 §3 |
 
 [↑ Contents](#contents)
 

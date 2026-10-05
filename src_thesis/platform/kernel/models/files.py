@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from src_thesis.platform.experiments.models.records import SCHEMA_VERSION, ExperimentFile
+from src_thesis.platform.kernel.models.records import SCHEMA_VERSION, ExperimentFile
 
 # from_version -> function that upgrades the raw dict by one version
 MIGRATIONS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {}

@@ -7,19 +7,19 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.platform.experiments.models import expand, files, resolve
-from src_thesis.platform.experiments.models.manifest import build_manifest
-from src_thesis.platform.experiments.models.records import (
+from src_thesis.platform.kernel.models import expand, files, resolve
+from src_thesis.platform.kernel.models.manifest import build_manifest
+from src_thesis.platform.kernel.models.records import (
     ExperimentFile,
     RunCell,
     RunState,
 )
-from src_thesis.platform.experiments.store.filesystem import ExperimentStore
-from src_thesis.platform.experiments.worker import process as worker
+from src_thesis.platform.kernel.store.filesystem import ExperimentStore
+from src_thesis.platform.kernel.worker import process as worker
 
 PRESET = (
     Path(__file__).resolve().parents[1]
-    / "src_thesis/platform/experiments/presets/case6-3x3.marlem.json"
+    / "src_thesis/platform/kernel/presets/case6-3x3.marlem.json"
 )
 REPO = Path(__file__).resolve().parents[1]
 
@@ -91,7 +91,7 @@ def test_a_simulate_run_never_starts_ray(tmp_path: Path) -> None:
     store = ExperimentStore(tmp_path)
     run_id = new_run(store, cell("no_order", day="2016-06-15"))
     code = (
-        "import sys; from src_thesis.platform.experiments.worker import process; "
+        "import sys; from src_thesis.platform.kernel.worker import process; "
         f"process.run_one(r'{store.run_dir(run_id)}'); "
         "ray = sys.modules.get('ray'); print(ray is not None and ray.is_initialized())"
     )

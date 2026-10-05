@@ -32,7 +32,7 @@ offers. A higher shaped reward alone is not proof of a better physical outcome.
 | [GroupedLEM](../../src_thesis/marlem/marl/train.py) | Environment grouping used for centralised configurations |
 | [ctce.py](../../src_thesis/marlem/marl/ctce.py), [ctde.py](../../src_thesis/marlem/marl/ctde.py) | Custom RL modules; inspect them alongside the trainer's paradigm branches |
 | [RLInference._restore_from_checkpoint / inference](../../src_thesis/marlem/marl/inference.py) | Restores RL module(s), selects actions and loops over environment steps |
-| [trainer_arguments](../../src_thesis/platform/experiments/factory/training.py) | Intended experiment-file-to-trainer translation; currently a stub |
+| [trainer_arguments](../../src_thesis/platform/kernel/factory/training.py) | Intended experiment-file-to-trainer translation; currently a stub |
 
 CTCE means centralised training and execution; CTDE means centralised training
 with decentralised execution; DTDE decentralises both. Those names describe the
@@ -46,7 +46,7 @@ A direct caller can instantiate `RLTrainer` and call `train`. Inside that method
 on `RLInference`; it is not the Studio's sample result screen.
 
 The planned platform handoff is `TrainingRunner` → trainer arguments → trainer.
-Both [`TrainingRunner.run`](../../src_thesis/platform/experiments/worker/runner.py) and
+Both [`TrainingRunner.run`](../../src_thesis/platform/kernel/worker/runner.py) and
 `trainer_arguments` currently raise `NotImplementedError`. Therefore the Studio
 does not provide that working training route yet.
 

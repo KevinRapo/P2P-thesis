@@ -9,8 +9,8 @@ from __future__ import annotations
 import src_thesis.marlem.grid.contract as contract
 from src_thesis.marlem.grid import placement as mapping
 from src_thesis.marlem.grid import simbench as adapter
-from src_thesis.platform.experiments.models.records import ExperimentFile
-from src_thesis.platform.experiments.models.sections import (
+from src_thesis.platform.kernel.models.records import ExperimentFile
+from src_thesis.platform.kernel.models.sections import (
     Days,
     Owns,
     Participant,

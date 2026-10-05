@@ -11,15 +11,15 @@ import subprocess
 from datetime import datetime, timezone
 
 from src_thesis.marlem.simulation.catalog import CONTROLLERS
-from src_thesis.platform.experiments.models import expand as expansion
-from src_thesis.platform.experiments.models.files import canonical_hash
-from src_thesis.platform.experiments.models.manifest import build_manifest
-from src_thesis.platform.experiments.models.resolve import resolve_run
-from src_thesis.platform.experiments.store.filesystem import (
+from src_thesis.platform.kernel.models import expand as expansion
+from src_thesis.platform.kernel.models.files import canonical_hash
+from src_thesis.platform.kernel.models.manifest import build_manifest
+from src_thesis.platform.kernel.models.resolve import resolve_run
+from src_thesis.platform.kernel.store.filesystem import (
     ExperimentStore,
     RunExistsError,
 )
-from src_thesis.platform.experiments.worker import pool as worker_pool
+from src_thesis.platform.kernel.worker import pool as worker_pool
 from src_thesis.platform.services.models import (
     ControllerInfo,
     ControllerParam,

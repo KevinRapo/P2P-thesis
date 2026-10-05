@@ -9,7 +9,7 @@ import pytest
 from src_thesis.platform.services.container import build_services
 from src_thesis.platform.services.config_service import ConfigService
 from src_thesis.platform.services.workspace import PRESETS_DIR, Workspace, default_home
-from src_thesis.platform.experiments.models import expand, files
+from src_thesis.platform.kernel.models import expand, files
 
 PRESET = "case6-3x3"
 

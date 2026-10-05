@@ -37,6 +37,6 @@ loading the simulator (tested in `tests/test_package_boundaries.py`).
 
 ## Where it is used
 
-Platform side: `platform/experiments/runners/simulate.py` (runs a day in a worker),
+Platform side: `platform/kernel/runners/simulate.py` (runs a day in a worker),
 `runners/probe.py` (dry run, scenarios in a subprocess), `factory/environment.py`
 (experiment file to `EngineSpec`). Documentation: `docs_thesis/thesis/architecture/06-code-organisation.md`.

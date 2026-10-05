@@ -121,9 +121,9 @@ API_SECTIONS = [
         "paper/marlem-paper-to-code-map.md",
     ),
     (
-        "Platform · experiments",
-        "experiments",
-        ["src_thesis.platform.experiments"],
+        "Platform · kernel",
+        "kernel",
+        ["src_thesis.platform.kernel"],
         "thesis/architecture/03-experiment-layer.md",
     ),
     (

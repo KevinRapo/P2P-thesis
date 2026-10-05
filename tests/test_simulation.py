@@ -8,18 +8,18 @@ import pytest
 from src_thesis.marlem.simulation.checks import CATALOG
 from src_thesis.marlem.simulation.loop import run_simulation
 from src_thesis.marlem.simulation.controllers import get_policy
-from src_thesis.platform.experiments.factory.environment import (
+from src_thesis.platform.kernel.factory.environment import (
     build_engine_spec,
     build_env,
     build_env_config,
     build_grid,
 )
-from src_thesis.platform.experiments.models.records import ExperimentFile, RunCell
-from src_thesis.platform.experiments.models.resolve import resolve
+from src_thesis.platform.kernel.models.records import ExperimentFile, RunCell
+from src_thesis.platform.kernel.models.resolve import resolve
 
 PRESET = (
     Path(__file__).resolve().parents[1]
-    / "src_thesis/platform/experiments/presets/case6-3x3.marlem.json"
+    / "src_thesis/platform/kernel/presets/case6-3x3.marlem.json"
 )
 
 

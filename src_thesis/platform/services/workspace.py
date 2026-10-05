@@ -22,7 +22,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-PRESETS_DIR = Path(__file__).resolve().parents[1] / "experiments" / "presets"
+PRESETS_DIR = Path(__file__).resolve().parents[1] / "kernel" / "presets"
 FILE_SUFFIX = ".marlem.json"
 
 

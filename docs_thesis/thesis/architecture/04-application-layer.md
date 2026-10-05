@@ -35,7 +35,7 @@ flowchart LR
   BS --> EX["ExperimentService<br/>runs"]
   BS --> RE["ResultService<br/>results"]
   subgraph LOW["lower layers"]
-    EM["experiments.models"]
+    EM["kernel.models"]
     EF["experiments.factory"]
     ES["experiments.store"]
     EW["experiments.worker.pool"]
@@ -82,12 +82,12 @@ flowchart LR
     n_marlem_grid["marlem/grid"]:::ext
     n_marlem_simulation["marlem/simulation"]:::ext
     n_platform_env["platform/env.py"]:::ext
-    n_platform_experiments["platform/experiments"]:::ext
+    n_platform_kernel["platform/kernel"]:::ext
   end
   n_platform__users_ --> n_platform_services_container
   n_platform__users_ --> n_platform_services_models
   n_platform__users_ --> n_platform_services_workspace
-  n_platform_services_config_service --> n_platform_experiments
+  n_platform_services_config_service --> n_platform_kernel
   n_platform_services_config_service -.-> n_platform_services_models
   n_platform_services_config_service --> n_platform_services_workspace
   n_platform_services_container --> n_platform_env
@@ -100,16 +100,16 @@ flowchart LR
   n_platform_services_container --> n_platform_services_tariff_service
   n_platform_services_container --> n_platform_services_validation_service
   n_platform_services_container --> n_platform_services_workspace
-  n_platform_services_data_files --> n_platform_experiments
+  n_platform_services_data_files --> n_platform_kernel
   n_platform_services_experiment_service --> n_marlem_simulation
-  n_platform_services_experiment_service --> n_platform_experiments
+  n_platform_services_experiment_service --> n_platform_kernel
   n_platform_services_experiment_service -.-> n_platform_services_models
   n_platform_services_experiment_service --> n_platform_services_workspace
   n_platform_services_grid_catalog_service --> n_marlem_grid
   n_platform_services_grid_catalog_service -.-> n_platform_services_models
-  n_platform_services_models --> n_platform_experiments
+  n_platform_services_models --> n_platform_kernel
   n_platform_services_participant_service --> n_marlem_grid
-  n_platform_services_participant_service --> n_platform_experiments
+  n_platform_services_participant_service --> n_platform_kernel
   n_platform_services_participant_service -.-> n_platform_services_models
   n_platform_services_profile_classes -.-> n_platform_services_models
   n_platform_services_profile_service --> n_marlem_grid
@@ -117,16 +117,16 @@ flowchart LR
   n_platform_services_profile_service -.-> n_platform_services_models
   n_platform_services_profile_service --> n_platform_services_profile_classes
   n_platform_services_result_service --> n_marlem_simulation
-  n_platform_services_result_service --> n_platform_experiments
+  n_platform_services_result_service --> n_platform_kernel
   n_platform_services_result_service --> n_platform_services_experiment_service
   n_platform_services_result_service -.-> n_platform_services_models
   n_platform_services_result_service --> n_platform_services_workspace
-  n_platform_services_tariff_service --> n_platform_experiments
+  n_platform_services_tariff_service --> n_platform_kernel
   n_platform_services_tariff_service --> n_platform_services_data_files
   n_platform_services_tariff_service -.-> n_platform_services_models
   n_platform_services_validation_service --> n_marlem_grid
   n_platform_services_validation_service --> n_marlem_simulation
-  n_platform_services_validation_service --> n_platform_experiments
+  n_platform_services_validation_service --> n_platform_kernel
   n_platform_services_validation_service -.-> n_platform_services_models
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
@@ -157,7 +157,7 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 - **Translation happens in the service.** A real service converts lower-layer records into `models.py` (e.g. the grid contract's `TopologyView` into the API model of the same name).
 - **One class per service, completed in place.** A method that is not built yet returns sample data and says in its docstring what the final version will do; `SAMPLE_DATA` on the class is true until none is left, and the Studio's header lists those services. Building the services loads no pandapower (tested).
 - **In-process, no REST layer (D-09).** Services run in the caller's process; anything long-running goes to the experiment layer's worker process.
-- **Boundaries (tested):** `platform/services/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; it reaches them through `marlem/grid/` (SimBench adapter, placement), the grid contract and `platform/experiments/`.
+- **Boundaries (tested):** `platform/services/` never imports MARLEM runtime, pandapower, simbench, Ray or torch directly; it reaches them through `marlem/grid/` (SimBench adapter, placement), the grid contract and `platform/kernel/`.
 
 [↑ Contents](#contents)
 
@@ -165,13 +165,13 @@ Arrows are imports. Dashed arrows go to `models.py`, the data types every servic
 
 | Service | For | Uses below | Main flows |
 |---|---|---|---|
-| `ConfigService` | Everything done to an experiment file without running it: presets, library, edit, compare, share | `experiments.models` (files, expand, resolve), workspace | Studio "Apply to draft": `update` (dotted paths, validated) → `save` (atomic) |
+| `ConfigService` | Everything done to an experiment file without running it: presets, library, edit, compare, share | `kernel.models` (files, expand, resolve), workspace | Studio "Apply to draft": `update` (dotted paths, validated) → `save` (atomic) |
 | `GridCatalogService` | Choosing and understanding a network before any experiment exists | `adapters.grid` | `topology` and `preview_powerflow` feed the Grid page; no agents or RL involved |
 | `ProfileService` | Understanding the available profiles before assigning any | `adapters.grid` (SimBench adapter) | `profile_types`, `catalogue_types`, series and scaled power for the Inspect page |
 | `ParticipantService` | Placing participants on buses and seeing what drives them, the most error-prone setup step | `adapters.grid` (placement, SimBench adapter) | `suggest_mapping` by filters, `import_mapping`, `paper_roles`, `preview` per participant |
 | `TariffService` | Seeing the DSO's tariffs before a run | `data/prices` CSVs | `tariff_files`, `tariffs` for the Market & DSO page |
-| `ValidationService` | One set of checks (02 §9), so the Studio and the CLI accept exactly the same files | `experiments.models`, `experiments.factory` | `validate` (schema · references · full); `dry_run` builds one environment and takes one step |
-| `ExperimentService` | The only way to create and control runs | `experiments.models`, `.store`, `.worker.pool` | `create_runs`: validate → expand → per run resolve, manifest, folder; `start` / `cancel` / `snapshot` via the pool (03 §5) |
+| `ValidationService` | One set of checks (02 §9), so the Studio and the CLI accept exactly the same files | `kernel.models`, `experiments.factory` | `validate` (schema · references · full); `dry_run` builds one environment and takes one step |
+| `ExperimentService` | The only way to create and control runs | `kernel.models`, `.store`, `.worker.pool` | `create_runs`: validate → expand → per run resolve, manifest, folder; `start` / `cancel` / `snapshot` via the pool (03 §5) |
 | `ResultService` | Turning run folders into tables and series; outcomes kept apart from RL return | `experiments.store`, paper reference data | `summary`, curves, step replay, the 3 × 3 `matrix`; `reference` returns values reported in the papers, entered by hand with their source |
 
 Every method, its arguments and errors are in the docstrings of each `*_service.py`; the returned types in `models.py`.

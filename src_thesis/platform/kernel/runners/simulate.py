@@ -22,9 +22,9 @@ import json
 from dataclasses import asdict
 from datetime import date, timedelta
 
-from src_thesis.platform.experiments.models.records import RunState
-from src_thesis.platform.experiments.store.recorder import StepRecord
-from src_thesis.platform.experiments.worker.runner import RunContext, RunOutcome
+from src_thesis.platform.kernel.models.records import RunState
+from src_thesis.platform.kernel.store.recorder import StepRecord
+from src_thesis.platform.kernel.worker.runner import RunContext, RunOutcome
 
 
 def day_list(first: str, days: int) -> list[str]:
@@ -41,12 +41,12 @@ class SimulateRunner:
         from src_thesis.marlem.simulation.lem_engine import build_engine
         from src_thesis.marlem.simulation.loop import run_simulation
         from src_thesis.marlem.simulation.controllers import get_policy
-        from src_thesis.platform.experiments.factory.environment import (
+        from src_thesis.platform.kernel.factory.environment import (
             build_engine_spec,
             build_grid,
             build_grid_view,
         )
-        from src_thesis.platform.experiments.factory.profiles import window_start
+        from src_thesis.platform.kernel.factory.profiles import window_start
 
         cell = ctx.cell
         resolved = ctx.resolved

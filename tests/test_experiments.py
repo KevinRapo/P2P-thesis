@@ -11,22 +11,22 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.platform.experiments.models.sections import TimeSection
-from src_thesis.platform.experiments.models import expand, files, resolve
-from src_thesis.platform.experiments.models.manifest import build_manifest
-from src_thesis.platform.experiments.models.records import (
+from src_thesis.platform.kernel.models.sections import TimeSection
+from src_thesis.platform.kernel.models import expand, files, resolve
+from src_thesis.platform.kernel.models.manifest import build_manifest
+from src_thesis.platform.kernel.models.records import (
     ExperimentFile,
     ExperimentMeta,
     RunCell,
     RunState,
 )
-from src_thesis.platform.experiments.store.recorder import EpisodeRecorder, StepRecord
-from src_thesis.platform.experiments.store.filesystem import (
+from src_thesis.platform.kernel.store.recorder import EpisodeRecorder, StepRecord
+from src_thesis.platform.kernel.store.filesystem import (
     ExperimentStore,
     IllegalTransitionError,
 )
-from src_thesis.platform.experiments.worker import pool
-from src_thesis.platform.experiments.worker import process as worker
+from src_thesis.platform.kernel.worker import pool
+from src_thesis.platform.kernel.worker import process as worker
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -209,7 +209,7 @@ def test_reconcile_marks_dead_workers_failed(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- boundaries
 def test_experiment_layer_imports_nothing_heavy() -> None:
     code = (
-        "import sys, src_thesis.platform.experiments.worker.process as w, src_thesis.platform.experiments.worker.pool as p; "
+        "import sys, src_thesis.platform.kernel.worker.process as w, src_thesis.platform.kernel.worker.pool as p; "
         "heavy = {'ray', 'torch', 'pandapower', 'simbench', 'nicegui'}; "
         "print(sorted(heavy & {m.split('.')[0] for m in sys.modules}))"
     )

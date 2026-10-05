@@ -9,7 +9,7 @@ from __future__ import annotations
 import csv
 from typing import Any
 
-from src_thesis.platform.experiments.models.manifest import REPO
+from src_thesis.platform.kernel.models.manifest import REPO
 
 
 def data_files(folder: str) -> dict[str, list[str]]:

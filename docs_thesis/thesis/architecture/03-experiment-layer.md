@@ -1,7 +1,7 @@
 # 03. Experiment layer
 
-> `src_thesis/platform/experiments/`: from one experiment file to runs, run folders and worker processes. The application layer (04) calls it; it calls MARLEM only through the environment factory.
-> Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [04-application-layer.md](04-application-layer.md) · Decisions: D-08, D-09 · Functions: docstrings in [the code](../../../src_thesis/platform/experiments/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
+> `src_thesis/platform/kernel/`: from one experiment file to runs, run folders and worker processes. The application layer (04) calls it; it calls MARLEM only through the environment factory.
+> Master: [README.md](README.md) · Experiment file: [02-experiment-config.md](02-experiment-config.md) · Services: [04-application-layer.md](04-application-layer.md) · Decisions: D-08, D-09 · Functions: docstrings in [the code](../../../src_thesis/platform/kernel/), shown in the API Reference · State: [implementation-status.md](implementation-status.md).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
@@ -41,95 +41,95 @@ The run folder is the source of truth: the Studio only reads it and asks for cha
 
 ## 3. Structure in code
 
-<!-- BEGIN generated:graph experiments -->
+<!-- BEGIN generated:graph kernel -->
 ```mermaid
 flowchart LR
   subgraph USERS["used by"]
     n_platform__users_["platform/"]:::ext
   end
   subgraph g_factory["factory/"]
-    n_platform_experiments_factory_environment["factory/environment.py"]
-    n_platform_experiments_factory_profiles["factory/profiles.py"]
-    n_platform_experiments_factory_training["factory/training.py"]
+    n_platform_kernel_factory_environment["factory/environment.py"]
+    n_platform_kernel_factory_profiles["factory/profiles.py"]
+    n_platform_kernel_factory_training["factory/training.py"]
   end
   subgraph g_models["models/"]
-    n_platform_experiments_models_expand["models/expand.py"]
-    n_platform_experiments_models_files["models/files.py"]
-    n_platform_experiments_models_manifest["models/manifest.py"]
-    n_platform_experiments_models_records["models/records.py"]
-    n_platform_experiments_models_resolve["models/resolve.py"]
-    n_platform_experiments_models_sections["models/sections.py"]
+    n_platform_kernel_models_expand["models/expand.py"]
+    n_platform_kernel_models_files["models/files.py"]
+    n_platform_kernel_models_manifest["models/manifest.py"]
+    n_platform_kernel_models_records["models/records.py"]
+    n_platform_kernel_models_resolve["models/resolve.py"]
+    n_platform_kernel_models_sections["models/sections.py"]
   end
   subgraph g_runners["runners/"]
-    n_platform_experiments_runners_probe["runners/probe.py"]
-    n_platform_experiments_runners_simulate["runners/simulate.py"]
+    n_platform_kernel_runners_probe["runners/probe.py"]
+    n_platform_kernel_runners_simulate["runners/simulate.py"]
   end
   subgraph g_store["store/"]
-    n_platform_experiments_store_filesystem["store/filesystem.py"]
-    n_platform_experiments_store_recorder["store/recorder.py"]
+    n_platform_kernel_store_filesystem["store/filesystem.py"]
+    n_platform_kernel_store_recorder["store/recorder.py"]
   end
   subgraph g_worker["worker/"]
-    n_platform_experiments_worker___main__["worker/__main__.py"]
-    n_platform_experiments_worker_pool["worker/pool.py"]
-    n_platform_experiments_worker_process["worker/process.py"]
-    n_platform_experiments_worker_runner["worker/runner.py"]
+    n_platform_kernel_worker___main__["worker/__main__.py"]
+    n_platform_kernel_worker_pool["worker/pool.py"]
+    n_platform_kernel_worker_process["worker/process.py"]
+    n_platform_kernel_worker_runner["worker/runner.py"]
   end
   subgraph USES["uses"]
     n_marlem_grid["marlem/grid"]:::ext
     n_marlem_simulation["marlem/simulation"]:::ext
   end
-  n_platform__users_ --> n_platform_experiments_factory_profiles
-  n_platform__users_ --> n_platform_experiments_models_expand
-  n_platform__users_ --> n_platform_experiments_models_files
-  n_platform__users_ --> n_platform_experiments_models_manifest
-  n_platform__users_ --> n_platform_experiments_models_records
-  n_platform__users_ --> n_platform_experiments_models_resolve
-  n_platform__users_ --> n_platform_experiments_models_sections
-  n_platform__users_ --> n_platform_experiments_runners_probe
-  n_platform__users_ --> n_platform_experiments_store_filesystem
-  n_platform__users_ --> n_platform_experiments_worker_pool
-  n_platform_experiments_factory_environment --> n_marlem_grid
-  n_platform_experiments_factory_environment --> n_marlem_simulation
-  n_platform_experiments_factory_environment --> n_platform_experiments_factory_profiles
-  n_platform_experiments_factory_environment -.-> n_platform_experiments_models_records
-  n_platform_experiments_factory_environment --> n_platform_experiments_models_resolve
-  n_platform_experiments_factory_profiles --> n_marlem_grid
-  n_platform_experiments_factory_profiles -.-> n_platform_experiments_models_records
-  n_platform_experiments_factory_profiles --> n_platform_experiments_models_sections
-  n_platform_experiments_factory_training -.-> n_platform_experiments_models_records
-  n_platform_experiments_models_expand -.-> n_platform_experiments_models_records
-  n_platform_experiments_models_files -.-> n_platform_experiments_models_records
-  n_platform_experiments_models_manifest --> n_platform_experiments_models_files
-  n_platform_experiments_models_manifest -.-> n_platform_experiments_models_records
-  n_platform_experiments_models_manifest --> n_platform_experiments_models_resolve
-  n_platform_experiments_models_records --> n_platform_experiments_models_sections
-  n_platform_experiments_models_resolve --> n_platform_experiments_models_expand
-  n_platform_experiments_models_resolve -.-> n_platform_experiments_models_records
-  n_platform_experiments_models_resolve --> n_platform_experiments_models_sections
-  n_platform_experiments_runners_probe --> n_marlem_simulation
-  n_platform_experiments_runners_probe --> n_platform_experiments_factory_environment
-  n_platform_experiments_runners_probe -.-> n_platform_experiments_models_records
-  n_platform_experiments_runners_probe --> n_platform_experiments_models_resolve
-  n_platform_experiments_runners_simulate --> n_marlem_simulation
-  n_platform_experiments_runners_simulate --> n_platform_experiments_factory_environment
-  n_platform_experiments_runners_simulate --> n_platform_experiments_factory_profiles
-  n_platform_experiments_runners_simulate -.-> n_platform_experiments_models_records
-  n_platform_experiments_runners_simulate --> n_platform_experiments_store_recorder
-  n_platform_experiments_runners_simulate --> n_platform_experiments_worker_runner
-  n_platform_experiments_store_filesystem --> n_platform_experiments_models_files
-  n_platform_experiments_store_filesystem -.-> n_platform_experiments_models_records
-  n_platform_experiments_store_recorder --> n_platform_experiments_store_filesystem
-  n_platform_experiments_worker___main__ --> n_platform_experiments_worker_process
-  n_platform_experiments_worker_pool -.-> n_platform_experiments_models_records
-  n_platform_experiments_worker_pool --> n_platform_experiments_store_filesystem
-  n_platform_experiments_worker_process --> n_platform_experiments_models_files
-  n_platform_experiments_worker_process -.-> n_platform_experiments_models_records
-  n_platform_experiments_worker_process --> n_platform_experiments_store_filesystem
-  n_platform_experiments_worker_process --> n_platform_experiments_worker_runner
-  n_platform_experiments_worker_runner -.-> n_platform_experiments_models_records
-  n_platform_experiments_worker_runner --> n_platform_experiments_runners_simulate
-  n_platform_experiments_worker_runner --> n_platform_experiments_store_filesystem
-  n_platform_experiments_worker_runner --> n_platform_experiments_store_recorder
+  n_platform__users_ --> n_platform_kernel_factory_profiles
+  n_platform__users_ --> n_platform_kernel_models_expand
+  n_platform__users_ --> n_platform_kernel_models_files
+  n_platform__users_ --> n_platform_kernel_models_manifest
+  n_platform__users_ --> n_platform_kernel_models_records
+  n_platform__users_ --> n_platform_kernel_models_resolve
+  n_platform__users_ --> n_platform_kernel_models_sections
+  n_platform__users_ --> n_platform_kernel_runners_probe
+  n_platform__users_ --> n_platform_kernel_store_filesystem
+  n_platform__users_ --> n_platform_kernel_worker_pool
+  n_platform_kernel_factory_environment --> n_marlem_grid
+  n_platform_kernel_factory_environment --> n_marlem_simulation
+  n_platform_kernel_factory_environment --> n_platform_kernel_factory_profiles
+  n_platform_kernel_factory_environment -.-> n_platform_kernel_models_records
+  n_platform_kernel_factory_environment --> n_platform_kernel_models_resolve
+  n_platform_kernel_factory_profiles --> n_marlem_grid
+  n_platform_kernel_factory_profiles -.-> n_platform_kernel_models_records
+  n_platform_kernel_factory_profiles --> n_platform_kernel_models_sections
+  n_platform_kernel_factory_training -.-> n_platform_kernel_models_records
+  n_platform_kernel_models_expand -.-> n_platform_kernel_models_records
+  n_platform_kernel_models_files -.-> n_platform_kernel_models_records
+  n_platform_kernel_models_manifest --> n_platform_kernel_models_files
+  n_platform_kernel_models_manifest -.-> n_platform_kernel_models_records
+  n_platform_kernel_models_manifest --> n_platform_kernel_models_resolve
+  n_platform_kernel_models_records --> n_platform_kernel_models_sections
+  n_platform_kernel_models_resolve --> n_platform_kernel_models_expand
+  n_platform_kernel_models_resolve -.-> n_platform_kernel_models_records
+  n_platform_kernel_models_resolve --> n_platform_kernel_models_sections
+  n_platform_kernel_runners_probe --> n_marlem_simulation
+  n_platform_kernel_runners_probe --> n_platform_kernel_factory_environment
+  n_platform_kernel_runners_probe -.-> n_platform_kernel_models_records
+  n_platform_kernel_runners_probe --> n_platform_kernel_models_resolve
+  n_platform_kernel_runners_simulate --> n_marlem_simulation
+  n_platform_kernel_runners_simulate --> n_platform_kernel_factory_environment
+  n_platform_kernel_runners_simulate --> n_platform_kernel_factory_profiles
+  n_platform_kernel_runners_simulate -.-> n_platform_kernel_models_records
+  n_platform_kernel_runners_simulate --> n_platform_kernel_store_recorder
+  n_platform_kernel_runners_simulate --> n_platform_kernel_worker_runner
+  n_platform_kernel_store_filesystem --> n_platform_kernel_models_files
+  n_platform_kernel_store_filesystem -.-> n_platform_kernel_models_records
+  n_platform_kernel_store_recorder --> n_platform_kernel_store_filesystem
+  n_platform_kernel_worker___main__ --> n_platform_kernel_worker_process
+  n_platform_kernel_worker_pool -.-> n_platform_kernel_models_records
+  n_platform_kernel_worker_pool --> n_platform_kernel_store_filesystem
+  n_platform_kernel_worker_process --> n_platform_kernel_models_files
+  n_platform_kernel_worker_process -.-> n_platform_kernel_models_records
+  n_platform_kernel_worker_process --> n_platform_kernel_store_filesystem
+  n_platform_kernel_worker_process --> n_platform_kernel_worker_runner
+  n_platform_kernel_worker_runner -.-> n_platform_kernel_models_records
+  n_platform_kernel_worker_runner --> n_platform_kernel_runners_simulate
+  n_platform_kernel_worker_runner --> n_platform_kernel_store_filesystem
+  n_platform_kernel_worker_runner --> n_platform_kernel_store_recorder
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
@@ -149,7 +149,7 @@ What each function does, and why each module exists, is in the module docstrings
 
 ## 4. Rules
 
-- **Callers.** Only the application layer imports `platform/experiments/`; `platform/experiments/` never imports `platform/services/` or `platform/studio/` (tested).
+- **Callers.** Only the application layer imports `platform/kernel/`; `platform/kernel/` never imports `platform/services/` or `platform/studio/` (tested).
 - **Light imports.** Importing any module loads no heavy package (Ray, torch, pandapower, NiceGUI); heavy imports happen inside the functions that need them (tested).
 - **One factory.** Only `factory/` builds live MARLEM objects. RLlib env runners call it inside each runner; a network or agents never travel in `env_config`.
 - **Fixed inputs, live status.** What a run was built from (`resolved.json`, `manifest.json`) is written once and never changed; the worker refuses a run whose resolved file no longer matches its manifest hash. Only `status.json` changes while it runs.

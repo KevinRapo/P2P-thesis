@@ -38,7 +38,7 @@ APPLICATION_ALLOWED = (
     "src_thesis.marlem.simulation.checks",
     "src_thesis.marlem.simulation.catalog",
 )
-STUDIO_EXTRA = ("src_thesis.marlem", "src_thesis.platform.experiments")
+STUDIO_EXTRA = ("src_thesis.marlem", "src_thesis.platform.kernel")
 
 
 def _imports(path: Path) -> list[str]:
@@ -77,7 +77,7 @@ def test_application_layer_is_free_of_marlem_runtime() -> None:
 
 def test_experiment_layer_never_imports_application_or_studio() -> None:
     forbidden = ("src_thesis.platform.services", "src_thesis.platform.studio")
-    assert _violations("platform/experiments", forbidden) == []
+    assert _violations("platform/kernel", forbidden) == []
 
 
 def _top_level_imports(path: Path) -> list[str]:
@@ -104,7 +104,7 @@ def test_rl_testbench_reaches_marlem_only_through_the_trainer() -> None:
         "src_thesis.platform.testbench",
         "src_thesis.marlem.marl.train",
         "src_thesis.marlem.marl.base",
-        "src_thesis.platform.experiments.models",
+        "src_thesis.platform.kernel.models",
     )
     forbidden = ("src_thesis.", "pandapower", "simbench", "networkx")
     assert _violations("platform/testbench", forbidden, allowed) == []

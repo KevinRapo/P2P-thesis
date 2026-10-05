@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from src_thesis.platform.experiments.models.files import atomic_write_text
-from src_thesis.platform.experiments.models.manifest import (
+from src_thesis.platform.kernel.models.files import atomic_write_text
+from src_thesis.platform.kernel.models.manifest import (
     code_fingerprint,
     environment_fingerprint,
 )

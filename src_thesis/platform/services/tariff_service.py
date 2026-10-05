@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from src_thesis.platform.services.data_files import data_files, read_csv
 from src_thesis.platform.services.models import ExperimentFile, Series
-from src_thesis.platform.experiments.models.manifest import data_path
-from src_thesis.platform.experiments.models.sections import ProfileRef, Tariffs
+from src_thesis.platform.kernel.models.manifest import data_path
+from src_thesis.platform.kernel.models.sections import ProfileRef, Tariffs
 
 TARIFF_FOLDER = "data/prices"
 # The CSVs the original MARLEM notebooks use when the file names none.

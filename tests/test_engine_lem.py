@@ -16,7 +16,7 @@ from src_thesis.marlem.simulation.lem_engine import build_engine
 from src_thesis.marlem.simulation.controllers import get_policy
 
 PRESETS = (
-    Path(__file__).resolve().parents[1] / "src_thesis/platform/experiments/presets"
+    Path(__file__).resolve().parents[1] / "src_thesis/platform/kernel/presets"
 )
 
 
@@ -96,9 +96,9 @@ def test_a_second_reset_replays_the_day() -> None:
 
 
 def test_the_factory_builds_a_preset_day() -> None:
-    from src_thesis.platform.experiments.factory.environment import build_engine_spec
-    from src_thesis.platform.experiments.models.records import ExperimentFile
-    from src_thesis.platform.experiments.models.resolve import resolve
+    from src_thesis.platform.kernel.factory.environment import build_engine_spec
+    from src_thesis.platform.kernel.models.records import ExperimentFile
+    from src_thesis.platform.kernel.models.resolve import resolve
 
     data = json.loads((PRESETS / "case6-3x3.marlem.json").read_text("utf-8"))
     built = build_engine_spec(resolve(ExperimentFile.model_validate(data)))

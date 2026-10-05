@@ -35,11 +35,11 @@ A `RunCell` chooses one algorithm/paradigm/seed or baseline from the study plan.
 | Function / model | What to read it for |
 |---|---|
 | [ConfigService.load](../../src_thesis/platform/services/config_service.py) | Searches the library and presets and delegates to `files.load` |
-| [ExperimentFile](../../src_thesis/platform/experiments/models/records.py) | The typed representation of the study |
-| [sections.py](../../src_thesis/platform/experiments/models/sections.py) | Types for its nested sections |
+| [ExperimentFile](../../src_thesis/platform/kernel/models/records.py) | The typed representation of the study |
+| [sections.py](../../src_thesis/platform/kernel/models/sections.py) | Types for its nested sections |
 | [ConfigService.resolve / days / expand](../../src_thesis/platform/services/config_service.py) | Separate application operations for defaults, dates and run cells |
-| [resolve / resolve_run / resolve_days](../../src_thesis/platform/experiments/models/resolve.py) | Filling defaults, fixing one run and selecting date lists |
-| [expand](../../src_thesis/platform/experiments/models/expand.py) | Turning the learning plan and sweeps into cells |
+| [resolve / resolve_run / resolve_days](../../src_thesis/platform/kernel/models/resolve.py) | Filling defaults, fixing one run and selecting date lists |
+| [expand](../../src_thesis/platform/kernel/models/expand.py) | Turning the learning plan and sweeps into cells |
 
 For the complete field specification, use [Experiment configuration](../thesis/architecture/02-experiment-config.md).
 

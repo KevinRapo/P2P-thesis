@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src_thesis.platform.experiments.models.records import ExperimentFile, RunCell
+from src_thesis.platform.kernel.models.records import ExperimentFile, RunCell
 
 
 def trainer_arguments(resolved: ExperimentFile, cell: RunCell) -> dict[str, Any]:

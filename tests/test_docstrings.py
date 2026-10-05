@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1] / "src_thesis"
 CHECKED = [
-    "platform/experiments",
+    "platform/kernel",
     "platform/services",
     "platform/studio",
     "marlem/core/interfaces.py",

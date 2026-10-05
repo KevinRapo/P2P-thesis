@@ -21,9 +21,9 @@ import sys
 from importlib import metadata
 from pathlib import Path
 
-from src_thesis.platform.experiments.models.files import canonical_hash
-from src_thesis.platform.experiments.models.records import ExperimentFile, Manifest, RunCell
-from src_thesis.platform.experiments.models.resolve import resolve_days
+from src_thesis.platform.kernel.models.files import canonical_hash
+from src_thesis.platform.kernel.models.records import ExperimentFile, Manifest, RunCell
+from src_thesis.platform.kernel.models.resolve import resolve_days
 
 REPO = Path(__file__).resolve().parents[4]
 PACKAGES = ("ray", "torch", "pandapower", "simbench", "pydantic", "numpy", "gymnasium")

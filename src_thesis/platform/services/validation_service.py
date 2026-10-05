@@ -9,9 +9,9 @@ them.
 from __future__ import annotations
 
 from src_thesis.marlem.simulation.catalog import SCENARIOS
-from src_thesis.platform.experiments.models.files import canonical_hash
-from src_thesis.platform.experiments.models.resolve import resolve
-from src_thesis.platform.experiments.runners.probe import run_probe
+from src_thesis.platform.kernel.models.files import canonical_hash
+from src_thesis.platform.kernel.models.resolve import resolve
+from src_thesis.platform.kernel.runners.probe import run_probe
 from src_thesis.platform.services.models import (
     DryRunResult,
     Expectation,

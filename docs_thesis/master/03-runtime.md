@@ -33,8 +33,8 @@ does not bridge the formats.
 
 | Function / class | Responsibility and current behaviour |
 |---|---|
-| [build_env_config](../../src_thesis/platform/experiments/factory/environment.py) | Serializes configuration and one cell |
-| [build_env / build_grid](../../src_thesis/platform/experiments/factory/environment.py) | Intended construction; both raise `NotImplementedError` |
+| [build_env_config](../../src_thesis/platform/kernel/factory/environment.py) | Serializes configuration and one cell |
+| [build_env / build_grid](../../src_thesis/platform/kernel/factory/environment.py) | Intended construction; both raise `NotImplementedError` |
 | [LocalEnergyMarket.__init__](../../src_thesis/marlem/environment/lem.py) | Existing constructor: obtains agents and helpers, assigns graph locations, constructs matcher and observation/action/reward handlers |
 | [LocalEnergyMarket.reset](../../src_thesis/marlem/environment/lem.py) | Resets counters, profiles, agents, market and grid, then returns initial observations |
 

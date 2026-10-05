@@ -2,5 +2,5 @@
 (``recorder``).
 
 Nothing is re-exported here: import from the module that defines a name
-(e.g. ``from src_thesis.platform.experiments.store.filesystem import ExperimentStore``), so every import names its file.
+(e.g. ``from src_thesis.platform.kernel.store.filesystem import ExperimentStore``), so every import names its file.
 """

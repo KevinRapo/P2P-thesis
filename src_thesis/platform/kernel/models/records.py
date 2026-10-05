@@ -20,7 +20,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from src_thesis.platform.experiments.models.sections import (
+from src_thesis.platform.kernel.models.sections import (
     Baseline,
     DsoSection,
     EnvironmentSection,
