@@ -33,6 +33,7 @@ from src_thesis.platform.services.models import (
 )
 from src_thesis.platform.services.workspace import Workspace
 
+_NEVER = datetime.min.replace(tzinfo=timezone.utc)  # sorts runs not started yet last
 PARADIGMS = ["ctce", "ctde", "dtde"]
 ALGORITHMS = ["ppo", "appo", "sac"]
 
@@ -184,7 +185,7 @@ class ExperimentService:
     def list_runs(self, experiment_id: str | None = None) -> list[RunSummary]:
         """All runs, newest first, or only those of one experiment."""
         runs = [self._summary(s) for s in self.store.list_runs(experiment_id)]
-        return sorted(runs, key=lambda r: r.started or datetime.min, reverse=True)
+        return sorted(runs, key=lambda r: r.started or _NEVER, reverse=True)
 
     def _summary(self, status) -> RunSummary:
         manifest = self.store.read_manifest(status.run_id)

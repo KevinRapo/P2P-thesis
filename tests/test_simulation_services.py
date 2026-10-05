@@ -122,3 +122,10 @@ def test_dry_run_and_a_scenario_run_in_a_subprocess(world) -> None:
     out = s.validation.run_scenario(file, "export_at_noon")
     assert out.passed and out.series and not out.error, out.expectations
     assert [x.id for x in s.validation.scenarios()][0] == "idle_market"
+
+
+def test_runs_that_have_not_started_sort_with_started_ones(world, run) -> None:
+    s, file = world
+    waiting = s.experiments.create_simulation(file, "no_order", day="2016-06-16")
+    ids = [r.run_id for r in s.experiments.list_runs()]  # READY: no start time
+    assert run in ids and waiting in ids and ids.index(run) < ids.index(waiting)
