@@ -112,7 +112,7 @@ Before deciding anything, look at what the data offers. Inspect is read-only: no
 
 Start here. A **profile** is a year of quarter-hourly values that describes how one kind of consumer or generator behaves, as a factor of its rated power (1.0 = full power). SimBench ships 458 of them. The overview at the top groups them as SimBench does: **Load** (standard profiles for many customers such as households *H*, businesses *G* and farms *L*; individual devices such as heat pumps *HP* and electric vehicles *EV*), **Generation** (PV, wind, biomass, hydro, conventional plants), **Storage** and **Aggregated grids** (whole grids represented as one element).
 
-- Click a class to list only its profiles; the caption under the overview explains the class and its naming.
+- Click classes to list only their profiles: several can be selected at once (e.g. households and heat pumps), each stays selected until you click it again, and *Clear selection* (or *All*) starts over. The caption under the overview explains each selected class and its naming.
 - Tick profiles in the table to plot them. Use the *Start day*, *Window* and *15 min / hourly / daily* controls: a week at hourly resolution shows the daily rhythm; a year at daily resolution shows the seasons.
 - Things worth noticing: the mean (how much energy over the year) versus the peak (the highest value); PV is zero at night and peaks at noon; household profiles have morning and evening peaks; individual devices (HP, EV) are spiky, standard profiles are smooth because they average many customers.
 

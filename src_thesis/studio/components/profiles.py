@@ -4,7 +4,8 @@ SimBench groups its time series into load (accumulated standard profiles and
 individual devices), generation, storage and aggregated grids (Meinecke et al.,
 2020, Figure 1). The overview draws these groups as panels with one tile per
 class and its number of profiles, so the catalogue is clustered before it is
-listed. Clicking a tile picks the class.
+listed. Clicking a tile adds its class to the selection, clicking it again
+removes it; the table lists the profiles of all selected classes.
 """
 
 from __future__ import annotations
@@ -46,31 +47,46 @@ SUBGROUP_HINTS = {
     "Individual": "one device each",
 }
 NO_PICK = (
-    "Click a class to list only its profiles; click it again, or All, to list "
-    "every profile. Grouped as in SimBench's own overview of its time series "
-    "(Meinecke et al., 2020)."
+    "Click classes to list only their profiles; several can be selected at once. "
+    "Click a selected class again to remove it, or All / Clear selection to start "
+    "over. Grouped as in SimBench's own overview of its time series (Meinecke et "
+    "al., 2020)."
 )
 
 
 class ProfileOverview:
     """SimBench's profile classes as panels of tiles, with a count per class.
 
+    Tiles toggle: every clicked class stays selected until it is clicked again or
+    the selection is cleared.
+
     Args:
         classes: The classes, in display order (``profiles.profile_classes``).
-        on_pick: Called with the picked class key, or ``None`` for all profiles.
+        on_pick: Called with the selected class keys (empty: all profiles).
     """
 
     def __init__(
         self,
         classes: list[ProfileClass],
-        on_pick: Callable[[str | None], Awaitable[None]],
+        on_pick: Callable[[set[str]], Awaitable[None]],
     ) -> None:
         self.classes = classes
         self.on_pick = on_pick
-        self.picked: str | None = None
+        self.picked: set[str] = set()
         self.counts: Counter[str] = Counter()
         self.box = ui.column().classes("w-full gap-2")
-        self.hint = ui.label(NO_PICK).classes("mls-card-caption")
+        with ui.row().classes("w-full items-start no-wrap gap-3"):
+            self.hint = ui.column().classes("grow gap-0")
+            self.clear = (
+                ui.button(
+                    "Clear selection",
+                    icon="clear_all",
+                    on_click=lambda: self.pick(None),
+                )
+                .props("flat dense no-caps")
+                .classes("shrink-0")
+            )
+        self._explain()
 
     def show(self, types: list[ProfileType]) -> None:
         """Draw the panels with the number of ``types`` in each class."""
@@ -78,7 +94,7 @@ class ProfileOverview:
         self._draw()
 
     def _draw(self) -> None:
-        """(Re)draw all panels; the picked tile is highlighted."""
+        """(Re)draw all panels; the selected tiles are highlighted."""
         self.box.clear()
         groups: dict[str, dict[str, list[ProfileClass]]] = {}
         for c in self.classes:
@@ -89,7 +105,7 @@ class ProfileOverview:
                     "All",
                     sum(self.counts.values()),
                     None,
-                    "Every profile",
+                    "Every profile (clears the selection)",
                 )
                 for group, subgroups in groups.items():
                     self._group(group, subgroups)
@@ -120,7 +136,7 @@ class ProfileOverview:
         """One clickable class tile: short label and number of profiles."""
         colour = CLASS_COLOURS.get(key or "", "var(--mls-muted)")
         classes = "mls-ptile"
-        if key == self.picked:
+        if (key in self.picked) if key else not self.picked:
             classes += " mls-ptile-active"
         if not count:
             classes += " mls-ptile-empty"
@@ -136,16 +152,33 @@ class ProfileOverview:
             tile.on("click", lambda key=key: self.pick(key))
 
     async def pick(self, key: str | None) -> None:
-        """Pick a class (again: all profiles), explain it, tell the owner."""
-        self.picked = None if key == self.picked else key
-        self._draw()
-        picked = next((c for c in self.classes if c.key == self.picked), None)
-        if picked is None:
-            self.hint.set_text(NO_PICK)
+        """Toggle a class in the selection (``None``: clear it); explain the
+        selection and tell the owner.
+        """
+        if key is None:
+            self.picked.clear()
         else:
-            where = " · ".join(p for p in (picked.group, picked.subgroup) if p)
-            self.hint.set_text(
-                f"{picked.name} ({where}), {self.counts[picked.key]} profiles: "
-                f"{picked.description}"
-            )
-        await self.on_pick(self.picked)
+            self.picked ^= {key}
+        self._draw()
+        self._explain()
+        await self.on_pick(set(self.picked))
+
+    def _explain(self) -> None:
+        """One line per selected class: where it sits, its count, what it is."""
+        self.hint.clear()
+        self.clear.set_visibility(bool(self.picked))
+        with self.hint:
+            if not self.picked:
+                ui.label(NO_PICK).classes("mls-card-caption")
+                return
+            chosen = [c for c in self.classes if c.key in self.picked]
+            total = sum(self.counts[c.key] for c in chosen)
+            ui.label(
+                f"{total} profiles in {len(chosen)} "
+                f"class{'es' if len(chosen) > 1 else ''}:"
+            ).classes("text-body2 text-weight-medium")
+            for c in chosen:
+                where = " · ".join(p for p in (c.group, c.subgroup) if p)
+                ui.label(
+                    f"{c.name} ({where}), {self.counts[c.key]}: {c.description}"
+                ).classes("mls-card-caption")

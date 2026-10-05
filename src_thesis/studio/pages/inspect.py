@@ -1,9 +1,9 @@
 """Inspect (05 §6): get to know networks in depth and compare two of them.
 
 Read-only: nothing here changes the experiment file. Three tabs, each built by
-its own function: "Network" (one network in depth), "Compare" (two networks side
-by side) and "Profiles" (SimBench's complete profile catalogue). Built from the network blocks in ``components/network.py``, shared with
-the Grid page.
+its own function: "Network" (one network in depth), "Profiles" (SimBench's
+complete profile catalogue) and "Compare" (two networks side by side). Built
+from the network blocks in ``components/network.py``, shared with the Grid page.
 """
 
 from nicegui import run, ui
@@ -39,8 +39,8 @@ COMPARE_DEFAULT = {"type": "simbench", "code": "1-LV-rural1--0-sw"}
 @ui.page("/build/inspect")
 def inspect_page() -> None:
     """Inspect (05 §6): the "Network" tab shows one network in depth, the
-    "Compare" tab two networks side by side, the "Profiles" tab SimBench's complete
-    profile catalogue.
+    "Profiles" tab SimBench's complete profile catalogue, the "Compare" tab two
+    networks side by side.
     """
     s = services()
     with shell(
@@ -54,8 +54,8 @@ def inspect_page() -> None:
         # the selected one. Both panels are built when the page opens.
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             network_tab = ui.tab("Network", icon="travel_explore")
-            compare_tab = ui.tab("Compare", icon="compare_arrows")
             profiles_tab = ui.tab("Profiles", icon="show_chart")
+            compare_tab = ui.tab("Compare", icon="compare_arrows")
         # keep_alive=False: a hidden panel is removed from the browser and drawn
         # again when its tab is opened, so its Plotly charts are never resized
         # while invisible. The Python side (state, handlers) stays as it is.
@@ -64,10 +64,10 @@ def inspect_page() -> None:
         ):
             with ui.tab_panel(network_tab).classes("p-0 gap-4"):
                 _network_tab(s)
-            with ui.tab_panel(compare_tab).classes("p-0 gap-4"):
-                _compare_tab(s)
             with ui.tab_panel(profiles_tab).classes("p-0 gap-4"):
                 catalogue = _profiles_tab(s)
+            with ui.tab_panel(compare_tab).classes("p-0 gap-4"):
+                _compare_tab(s)
         # The catalogue (about 460 profiles) is read only when its tab is opened.
         tabs.on_value_change(
             lambda e: (

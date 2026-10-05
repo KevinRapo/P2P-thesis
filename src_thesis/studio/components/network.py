@@ -432,11 +432,13 @@ class ProfileInspector:
             table.on_select(lambda e: self.plot([r["code"] for r in e.selection]))
         await self.plot([r["code"] for r in rows[:2]])
 
-    async def only(self, category: str | None) -> None:
-        """List only the profiles of one class (``None``: all); plot the first two."""
+    async def only(self, categories: set[str]) -> None:
+        """List only the profiles of the given classes (empty: all); plot the
+        first two.
+        """
         if self.table is None:
             return
-        rows = [r for r in self.rows if category in (None, r["category"])]
+        rows = [r for r in self.rows if not categories or r["category"] in categories]
         self.table.rows = rows
         self.table.selected = rows[:2]
         self.table.update()
