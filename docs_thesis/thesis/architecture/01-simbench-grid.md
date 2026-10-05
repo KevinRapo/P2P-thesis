@@ -67,6 +67,7 @@ The new grid code is three files; the original NetworkX grid (`marlem/grid/netwo
 ```mermaid
 flowchart LR
   subgraph USERS["used by"]
+    n_marlem__users_["marlem/"]:::ext
     n_platform__users_["platform/"]:::ext
   end
   subgraph g_marlem["marlem/"]
@@ -74,6 +75,7 @@ flowchart LR
     n_marlem_grid_placement["marlem/grid/placement.py"]
     n_marlem_grid_simbench["marlem/grid/simbench.py"]
   end
+  n_marlem__users_ --> n_marlem_grid_contract
   n_marlem_grid_placement --> n_marlem_grid_contract
   n_marlem_grid_simbench --> n_marlem_grid_contract
   n_platform__users_ --> n_marlem_grid_contract

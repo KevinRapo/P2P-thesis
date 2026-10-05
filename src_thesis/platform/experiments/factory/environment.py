@@ -191,7 +191,7 @@ def build_env(env_config: dict[str, Any], grid: Any = None) -> "MarketEngine":
 
     Args:
         env_config: As made by :func:`build_env_config`.
-        grid: A grid view for matching distances and fees (see ``build_grid``).
+        grid: The market's grid view; the chosen network's when ``None``.
     """
     from src_thesis.marlem.environment.build import build_engine
 
@@ -201,7 +201,25 @@ def build_env(env_config: dict[str, Any], grid: Any = None) -> "MarketEngine":
     spec = build_engine_spec(
         resolved, env_config.get("day"), env_config["episode_seed"]
     )
+    if grid is None:
+        grid = build_grid_view(resolved, spec)
     return build_engine(spec, grid)
+
+
+def build_grid_view(resolved: ExperimentFile, spec: EngineSpec) -> Any:
+    """The market's view of the chosen network: distances, zones, congestion.
+
+    Args:
+        resolved: The file with defaults filled.
+        spec: The day; its agents' capacities give the grid's capacity.
+    """
+    from src_thesis.marlem.grid import simbench
+    from src_thesis.marlem.grid.view import SimBenchGridView
+
+    source = resolved.grid.source
+    ref = contract.NetworkRef(source.type, source.code)
+    capacity = max(1.0, sum(a.capacity_kwh for a in spec.agents))
+    return SimBenchGridView(simbench.topology_view(ref), capacity, spec.seed)
 
 
 def build_grid(resolved: ExperimentFile) -> "GridModel":
