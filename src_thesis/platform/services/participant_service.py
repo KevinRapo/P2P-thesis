@@ -24,7 +24,6 @@ from src_thesis.platform.experiments.models.sections import (
     ProfileRef,
     Scaling,
 )
-from src_thesis.platform.services.profile_classes import BY_KEY, CLASSES, load_class
 
 # time.resolution -> (adapter resolution, hours per value)
 RESOLUTIONS = {"hourly_aggregated": ("hourly", 1.0), "native_15min": ("15min", 0.25)}
@@ -65,71 +64,31 @@ class ParticipantService:
 
     SAMPLE_DATA = False
 
-    def placement_options(self, source: NetworkSource) -> dict[str, Any]:
-        """What the placement filters can choose from on a network (01 §3.1).
+    def placement_candidates(self, source: NetworkSource) -> list[str]:
+        """The buses that can be participants: those with a generator or storage.
 
-        Built: the load classes present, each with the number of buses that have
-        such a load, and the choices of the other filters.
-
-        Returns:
-            ``{"loads": {class: "Name (n buses)"}, "generation": {…},
-            "storage": {…}, "position": {…}, "owns": {…}, "default": {…}}``.
+        Built: what ``suggest_mapping`` turns into participants; every other bus
+        with load stays background.
         """
         ref = contract.NetworkRef(source.type, source.code)
-        buses: dict[str, set[str]] = {}
-        for e in adapter.elements(ref):
-            if e.element_type == "load":
-                buses.setdefault(load_class(e.profile_type), set()).add(e.bus)
-        order = [c.key for c, _ in CLASSES] + ["other"]
-        loads = {
-            key: f"{BY_KEY[key].name if key in BY_KEY else 'Other'} "
-            f"({len(buses[key])} buses)"
-            for key in sorted(buses, key=order.index)
-        }
-        return {
-            "loads": loads,
-            "generation": dict(mapping.GENERATION),
-            "storage": dict(mapping.STORAGE),
-            "position": dict(mapping.POSITIONS),
-            "owns": dict(mapping.OWNS),
-            "default": dict(mapping.DEFAULT_RULE),
-        }
+        return mapping.candidates(adapter.elements(ref))
 
-    def placement_candidates(self, source: NetworkSource, rule: dict) -> list[str]:
-        """The buses that pass a placement rule's filters, in network order.
+    def suggest_mapping(self, source: NetworkSource) -> list[dict]:
+        """One participant per flexible bus of a network (01 §3.1).
 
-        Built: what ``suggest_mapping`` draws its agents from.
-
-        Raises:
-            ValueError: An unknown filter value.
-        """
-        ref = contract.NetworkRef(source.type, source.code)
-        return mapping.candidates(
-            adapter.elements(ref), adapter.topology_view(ref), rule, load_class
-        )
-
-    def suggest_mapping(self, source: NetworkSource, rule: dict) -> list[dict]:
-        """Participants placed on a network by a seeded rule (01 §3.1).
-
-        Built: ``n`` of the buses that pass the rule's filters (load classes,
-        generation, storage, position) become agents. Each owns its bus (or only
-        the matching loads), with the elements' own SimBench profiles
-        (``native``) and no scaling or battery.
+        Built: every bus with a generator or storage becomes a participant that
+        owns everything at its bus, with the elements' own SimBench profiles
+        (``native``) and no scaling or battery. Buses with only load are not
+        participants; they stay background.
 
         Args:
             source: The network to place participants on.
-            rule: The filters, ``n`` and ``seed``; see ``placement_options``.
 
         Returns:
             Participant entries for the experiment file's ``participants`` list.
-
-        Raises:
-            ValueError: An unknown filter value, or fewer candidates than ``n``.
         """
         ref = contract.NetworkRef(source.type, source.code)
-        return mapping.place(
-            adapter.elements(ref), adapter.topology_view(ref), rule, load_class
-        )
+        return mapping.place(adapter.elements(ref))
 
     def paper_roles(self, participants: list[Participant]) -> list[dict]:
         """The first eight participants turned into the agents of [P2] Table 6.

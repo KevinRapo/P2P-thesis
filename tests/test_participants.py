@@ -44,20 +44,6 @@ def draft(tmp_path: Path):
 RURAL = NetworkSource(type="simbench", code="1-LV-rural1--2-no_sw")
 
 
-@pytest.mark.parametrize("position", ["anywhere", "spread"])
-def test_placement_is_reproducible_and_consistent(participants, position) -> None:
-    rule = {"position": position, "n": 6, "seed": 3}
-    placed = participants.suggest_mapping(LV, rule)
-    assert placed == participants.suggest_mapping(LV, rule) and len(placed) == 6
-    elements = {e.id: e for e in profiles_elements(LV)}
-    owned = [e for p in placed for side in p["owns"].values() for e in side]
-    assert len(owned) == len(set(owned))  # nothing owned twice
-    assert len({p["bus"] for p in placed}) == 6  # one agent per bus
-    for p in placed:
-        assert p["profile"] == {"source": "native"}
-        assert all(elements[e].bus == p["bus"] for e in owned if e in p_owned(p))
-
-
 def p_owned(p: dict) -> list[str]:
     return [e for side in p["owns"].values() for e in side]
 
@@ -68,40 +54,36 @@ def profiles_elements(source):
     return build_services().grid.elements(source)
 
 
-def test_filters_combine_any_load_type(participants) -> None:
-    # 1-LV-rural1--2-no_sw: 8 buses with PV, only 3 of them with a household load.
-    households = {"loads": ["household"], "generation": "pv"}
-    assert len(participants.placement_candidates(RURAL, households)) == 3
-    prosumers = participants.placement_candidates(RURAL, {"generation": "pv"})
-    assert len(prosumers) == 8
-    farms = participants.placement_candidates(
-        RURAL, {"loads": ["agricultural"], "generation": "pv"}
-    )
-    assert len(farms) == 5
-    options = participants.placement_options(RURAL)
-    assert {"household", "agricultural", "ev", "heat_pump"} <= set(options["loads"])
+def test_flexible_buses_are_the_candidates(participants) -> None:
+    for source in (LV, RURAL):
+        elements = profiles_elements(source)
+        flexible = {e.bus for e in elements if e.element_type in ("sgen", "storage")}
+        found = participants.placement_candidates(source)
+        assert set(found) == flexible and len(found) == len(flexible) > 0
+    # semiurb4 scenario 0 has a single generator: one participant, 40 background loads.
+    assert len(participants.placement_candidates(LV)) == 1
 
 
-def test_agents_own_their_whole_bus_or_only_matching_loads(participants) -> None:
-    rule = {"loads": ["household"], "generation": "pv", "n": 3, "seed": 1}
-    whole = participants.suggest_mapping(RURAL, rule)
-    matching = participants.suggest_mapping(RURAL, {**rule, "owns": "matching"})
+def test_participants_own_their_whole_bus_and_loads_only_buses_stay_out(
+    participants,
+) -> None:
+    placed = participants.suggest_mapping(RURAL)
     elements = {e.id: e for e in profiles_elements(RURAL)}
-    for p in whole:  # every element at the bus, EV chargers and heat pumps too
+    assert [p["bus"] for p in placed] == participants.placement_candidates(RURAL)
+    assert [p["id"] for p in placed] == [
+        f"agent_{i:02d}" for i in range(1, len(placed) + 1)
+    ]
+    for p in placed:  # every element at the bus: loads, generators, storage
         at_bus = {e.id for e in elements.values() if e.bus == p["bus"]}
         assert set(p_owned(p)) == at_bus
-    for p in matching:
-        assert all(
-            elements[e].profile_type.startswith("H0-") for e in p["owns"]["loads"]
-        )
-        assert p["owns"]["sgens"]
-
-
-def test_placement_rejects_too_many_agents(participants) -> None:
-    with pytest.raises(ValueError, match="fewer than"):
-        participants.suggest_mapping(LV, {"position": "feeder_ends", "n": 500})
-    with pytest.raises(ValueError, match="Unknown generation"):
-        participants.suggest_mapping(LV, {"generation": "nope"})
+        assert p["profile"] == {"source": "native"} and p["battery"] is None
+        assert p["owns"]["sgens"] or p["owns"].get("storage")
+    owned = [e for p in placed for e in p_owned(p)]
+    assert len(owned) == len(set(owned))  # nothing owned twice
+    only_load = [
+        e for e in elements.values() if e.bus not in {p["bus"] for p in placed}
+    ]
+    assert all(e.element_type == "load" for e in only_load)  # these stay background
 
 
 def test_scaling_to_peak_and_energy() -> None:
@@ -126,7 +108,7 @@ def test_preview_scales_catalogue_profiles(participants, draft) -> None:
 
 
 def test_preview_of_native_participants(participants, draft, tmp_path) -> None:
-    placed = participants.suggest_mapping(LV, {"n": 2, "seed": 1})
+    placed = participants.suggest_mapping(LV)  # the draft's own network
     file = ConfigService(Workspace(tmp_path / "x")).update(
         draft, {"participants": placed}
     )

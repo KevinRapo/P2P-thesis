@@ -66,7 +66,7 @@ def participants_page() -> None:
         "topology": None,
         "elements": [],
         "buses": [],
-        "candidates": [],  # buses that pass the placement rule
+        "candidates": [],  # flexible buses: a generator or storage
     }
     selected: dict[str, str | None] = {"id": members[0]["id"] if members else None}
 
@@ -112,29 +112,11 @@ def participants_page() -> None:
                 ).props("flat color=negative")
 
         with section(
-            "Placement rule",
-            "Combine filters to choose which buses become agents; the buses that "
-            "pass are marked on the map",
-            "rule",
+            "Flexible buses",
+            "A bus with a generator or storage can be a participant; a bus with "
+            "only regular load stays background",
+            "bolt",
         ):
-            with ui.row().classes("w-full gap-3 items-start no-wrap"):
-                rule_loads = (
-                    ui.select({}, value=[], label="Load types", multiple=True)
-                    .classes("grow basis-0 min-w-0")
-                    .props("use-chips clearable")
-                )
-                rule_generation = ui.select({}, value=None, label="Generation").classes(
-                    "w-44"
-                )
-                rule_storage = ui.select({}, value=None, label="Storage").classes(
-                    "w-40"
-                )
-                rule_position = ui.select({}, value=None, label="Where").classes("w-48")
-                rule_owns = ui.select({}, value=None, label="Agent owns").classes(
-                    "w-52"
-                )
-                rule_n = ui.number("Agents", value=8, min=1, step=1).classes("w-24")
-                rule_seed = ui.number("Seed", value=1, step=1).classes("w-20")
             with ui.row().classes("w-full gap-3 items-center no-wrap"):
                 rule_hint = ui.label("Loading the network …").classes(
                     "mls-card-caption grow"
@@ -148,8 +130,11 @@ def participants_page() -> None:
                     .classes("shrink-0")
                 )
                 rule_apply = ui.button(
-                    "Place agents", icon="rule", on_click=lambda: place()
+                    "Make flexible buses participants",
+                    icon="bolt",
+                    on_click=lambda: place(),
                 ).props("unelevated")
+            rule_apply.set_enabled(False)
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
@@ -192,8 +177,8 @@ def participants_page() -> None:
                     selected_label = ui.label().classes("mls-card-caption self-center")
             with section(
                 "Map",
-                "Agents' buses ringed, the selected agent filled; squares pass "
-                "the placement rule",
+                "Agents' buses ringed, the selected agent filled; squares are "
+                "flexible buses",
                 "map",
                 classes="basis-2/5 min-w-0",
             ):
@@ -296,65 +281,38 @@ def participants_page() -> None:
             lambda: save([x for x in members if x["id"] != p["id"]]),
         )
 
-    def rule() -> dict[str, Any]:
-        """The placement rule as the controls describe it."""
-        return {
-            "loads": list(rule_loads.value or []),
-            "generation": rule_generation.value,
-            "storage": rule_storage.value,
-            "position": rule_position.value,
-            "owns": rule_owns.value,
-            "n": int(rule_n.value or 1),
-            "seed": int(rule_seed.value or 0),
-        }
-
     async def explain_rule() -> None:
-        """Count the buses that pass the filters, explain them, mark them."""
+        """Count the flexible buses and mark them on the map."""
         if net["topology"] is None:
             return
         try:
-            found = await run.io_bound(
-                s.participants.placement_candidates, source, rule()
-            )
+            found = await run.io_bound(s.participants.placement_candidates, source)
         except ValueError as e:
             rule_hint.set_text(str(e))
             return
-        changed = found != net["candidates"]
         net["candidates"] = found
-        kinds = ", ".join(
-            rule_loads.options[k].split(" (")[0].lower() for k in rule_loads.value
-        )
-        owns = (
-            "every load, generator and storage at its bus"
-            if rule_owns.value == "bus"
-            else "the matching loads and the generators and storage at its bus"
-        )
-        enough = len(found) >= int(rule_n.value or 1)
+        flexible = set(found)
+        load_only = {
+            e.bus
+            for e in net["elements"]
+            if e.element_type == "load" and e.bus not in flexible
+        }
         rule_hint.set_text(
-            f"{len(found)} buses pass the filters"
-            + (f" (load types: {kinds})" if kinds else " (any load)")
-            + (
-                f". {int(rule_n.value or 1)} of them become agents, each owning "
-                f"{owns}, with their own SimBench profiles and no scaling or "
-                "battery. The same seed gives the same placement."
-                if enough
-                else f": fewer than the {int(rule_n.value or 1)} agents asked for. "
-                "Widen the filters or ask for fewer agents."
-            )
+            f"{len(found)} flexible buses (a generator or storage), each becoming a "
+            "participant that owns everything at its bus, with the elements' own "
+            f"SimBench profiles. The {len(load_only)} other buses with load stay "
+            "background."
+            if found
+            else "This network has no generator or storage: nothing can be a "
+            "participant yet. Add one by hand, or choose another network."
         )
-        rule_hint.classes(
-            replace=(
-                "mls-card-caption grow" if enough else "text-negative text-body2 grow"
-            )
-        )
-        rule_apply.set_enabled(enough)
-        if changed:  # redraw only when other buses qualify
-            draw_map()
+        rule_apply.set_enabled(bool(found))
+        draw_map()
 
     async def place() -> None:
-        """Place agents by the rule and save them."""
+        """Make the flexible buses participants and save them."""
         try:
-            placed = await run.io_bound(s.participants.suggest_mapping, source, rule())
+            placed = await run.io_bound(s.participants.suggest_mapping, source)
         except Exception as e:  # noqa: BLE001  shown under the controls
             rule_hint.set_text(str(e))
             return
@@ -444,7 +402,7 @@ def participants_page() -> None:
                     "color": "#2563EB",
                     "line": {"width": 1.5},
                 },
-                name="passes the placement rule",
+                name="flexible bus",
                 hoverinfo="skip",
             )
             at = [position[bus] for bus in buses if bus in position]
@@ -528,24 +486,6 @@ def participants_page() -> None:
             **s.profiles.data_files("data/demand"),
             **s.profiles.data_files("data/generation"),
         }
-        options = await run.io_bound(s.participants.placement_options, source)
-        rule_loads.set_options(options["loads"])
-        for control, key in (
-            (rule_generation, "generation"),
-            (rule_storage, "storage"),
-            (rule_position, "position"),
-            (rule_owns, "owns"),
-        ):
-            control.set_options(options[key], value=options["default"][key])
-        for control in (
-            rule_loads,
-            rule_generation,
-            rule_storage,
-            rule_position,
-            rule_owns,
-            rule_n,
-        ):
-            control.on_value_change(explain_rule)
         await explain_rule()
         show_selected()
         await preview()

@@ -11,11 +11,8 @@ import pytest
 
 from src_thesis.marlem.grid import placement as placement
 from src_thesis.marlem.grid.contract import (
-    BranchView,
-    BusView,
     ElementRecord,
     NetworkRef,
-    TopologyView,
 )
 from src_thesis.marlem.core.orders import Order
 from src_thesis.marlem.dso.dso import DSOAgent
@@ -57,46 +54,33 @@ def test_reputation_ranks_any_participant_shaped_object() -> None:
 
 
 # ------------------------------------------------------------------ placement
-def _feeder() -> tuple[list[ElementRecord], TopologyView]:
-    """Substation 0, a feeder 0-1-2-3, and a branch 1-4."""
-    buses = tuple(BusView(str(i), float(i), 0.0, "bus", 0.4) for i in range(5))
-    lines = tuple(
-        BranchView(f"l{a}{b}", str(a), str(b), "line")
-        for a, b in ((0, 1), (1, 2), (2, 3), (1, 4))
-    )
-    elements = [
+def _elements() -> list[ElementRecord]:
+    """Four buses: a house with PV, a farm with PV and a battery, a shop (load
+    only) and a lone battery.
+    """
+    return [
         ElementRecord("house 2", "load", "2", "H0-A", 4.0),
         ElementRecord("pv 2", "sgen", "2", "PV3", 6.0),
         ElementRecord("farm 3", "load", "3", "L1-A", 9.0),
         ElementRecord("pv 3", "sgen", "3", "PV5", 20.0),
+        ElementRecord("battery 3", "storage", "3", "", 5.0),
         ElementRecord("shop 4", "load", "4", "G4-A", 7.0),
+        ElementRecord("battery 5", "storage", "5", "", 8.0),
     ]
-    return elements, TopologyView(buses, lines, external_grid_bus="0")
 
 
-def _classify(profile: str) -> str:
-    return {"H": "household", "L": "agricultural", "G": "commercial"}[profile[0]]
-
-
-def test_placement_filters_on_hand_made_records() -> None:
-    elements, topology = _feeder()
-    prosumers = placement.candidates(
-        elements, topology, {"generation": "pv"}, _classify
-    )
-    assert prosumers == ["2", "3"]
-    farms = {"loads": ["agricultural"], "generation": "pv"}
-    assert placement.candidates(elements, topology, farms, _classify) == ["3"]
-    ends = placement.candidates(
-        elements, topology, {"position": "feeder_ends"}, _classify
-    )
-    assert ends == ["3", "4"]
-    agents = placement.place(
-        elements, topology, {"generation": "pv", "n": 2}, _classify
-    )
+def test_only_buses_with_flexibility_can_be_participants() -> None:
+    elements = _elements()
+    assert placement.candidates(elements) == ["2", "3", "5"]  # not the shop's bus 4
+    agents = placement.place(elements)
+    assert [a["bus"] for a in agents] == ["2", "3", "5"]
+    assert [a["role"] for a in agents] == ["generator", "generator_storage", "storage"]
     assert [a["owns"] for a in agents] == [
         {"loads": ["house 2"], "sgens": ["pv 2"]},
-        {"loads": ["farm 3"], "sgens": ["pv 3"]},
+        {"loads": ["farm 3"], "sgens": ["pv 3"], "storage": ["battery 3"]},
+        {"loads": [], "sgens": [], "storage": ["battery 5"]},
     ]
+    assert placement.place([e for e in elements if e.element_type == "load"]) == []
 
 
 # ------------------------------------------------------------------ grid adapter
