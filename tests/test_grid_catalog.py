@@ -147,12 +147,12 @@ def test_networks_are_cached_on_disk(tmp_path) -> None:
 
     grid = build_services(home=tmp_path).grid
     try:
-        adapter._load.cache_clear()
+        adapter._load_cached.cache_clear()
         adapter._LOADED.clear()
         before = grid.summary(LV)
         status = grid.cache_status()
         assert status["networks"] == 1 and status["bytes"] > 0
-        adapter._load.cache_clear()  # a new process: RAM empty, the file remains
+        adapter._load_cached.cache_clear()  # a new process: RAM empty, the file remains
         adapter._LOADED.clear()
         assert grid.is_cached(LV)
         assert grid.summary(LV) == before

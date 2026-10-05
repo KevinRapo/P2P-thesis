@@ -238,11 +238,38 @@ def clear_cache() -> None:
         shutil.rmtree(_CACHE_DIR, ignore_errors=True)
 
 
-@lru_cache(maxsize=RAM_NETWORKS)
-def _load(ref: NetworkRef) -> "pp.pandapowerNet":
-    """Load a network once per process (from the disk cache if it has it). The
-    result is a shared, read-only source.
+# Networks given directly (``provide``): used instead of loading the reference.
+_PROVIDED: dict[NetworkRef, Any] = {}
+
+
+def provide(ref: NetworkRef, net: "pp.pandapowerNet | None") -> None:
+    """Use ``net`` for ``ref`` instead of loading it (``None``: load it again).
+
+    The seam for tests and for networks built in memory: a small hand-made
+    pandapower net registered under any reference works with every function of
+    this module, and with the services above it, without SimBench.
     """
+    for cached in (_load_cached, _absolute_profiles):
+        cached.cache_clear()
+    if net is None:
+        _PROVIDED.pop(ref, None)
+        _LOADED.discard(ref)
+    else:
+        _PROVIDED[ref] = net
+        _LOADED.add(ref)
+
+
+def _load(ref: NetworkRef) -> "pp.pandapowerNet":
+    """The network of ``ref``: provided, or loaded once per process (from the disk
+    cache if it has it). The result is a shared, read-only source.
+    """
+    if ref in _PROVIDED:
+        return _PROVIDED[ref]
+    return _load_cached(ref)
+
+
+@lru_cache(maxsize=RAM_NETWORKS)
+def _load_cached(ref: NetworkRef) -> "pp.pandapowerNet":
     net = _read_or_build(ref)
     _LOADED.add(ref)
     return net
