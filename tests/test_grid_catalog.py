@@ -8,8 +8,8 @@ import pytest
 pytest.importorskip("pandapower")
 pytest.importorskip("simbench")
 
-from src_thesis.application.container import build_services  # noqa: E402
-from src_thesis.application.models import NetworkSource  # noqa: E402
+from src_thesis.platform.services.container import build_services  # noqa: E402
+from src_thesis.platform.services.models import NetworkSource  # noqa: E402
 
 LV = NetworkSource(type="simbench", code="1-LV-semiurb4--0-sw")
 CASE33 = NetworkSource(type="pandapower_builtin", code="case33bw")
@@ -143,7 +143,7 @@ def test_profiles_scaled_by_rated_power() -> None:
 
 
 def test_networks_are_cached_on_disk(tmp_path) -> None:
-    from src_thesis.adapters.grid import simbench_new as adapter
+    from src_thesis.marlem.grid import simbench as adapter
 
     grid = build_services(home=tmp_path).grid
     try:

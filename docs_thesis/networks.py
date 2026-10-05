@@ -61,7 +61,7 @@ GENERATION = {
 def collect() -> list[dict[str, Any]]:
     """Load every catalog network through the services and compute its facts."""
     sys.path.insert(0, str(ROOT))
-    from src_thesis.application.container import build_services
+    from src_thesis.platform.services.container import build_services
 
     services = build_services()
     rows = []

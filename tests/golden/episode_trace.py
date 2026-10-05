@@ -24,10 +24,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tests"))
 
-from src_thesis.adapters.grid.network import GridNetwork  # noqa: E402
-from src_thesis.core.location import GridTopology  # noqa: E402
-from src_thesis.environment.lem import LocalEnergyMarket  # noqa: E402
-from src_thesis.marketplace.market.mechanism import ClearingMechanism  # noqa: E402
+from src_thesis.marlem.grid.network import GridNetwork  # noqa: E402
+from src_thesis.marlem.core.location import GridTopology  # noqa: E402
+from src_thesis.marlem.environment.lem import LocalEnergyMarket  # noqa: E402
+from src_thesis.marlem.market.mechanism import ClearingMechanism  # noqa: E402
 
 FILE = Path(__file__).with_name("episodes.json")
 DIGITS = 9
@@ -166,7 +166,7 @@ def scenarios() -> dict[str, Any]:
         return LocalEnergyMarket(config)
 
     def grouped_ctce() -> Any:
-        from src_thesis.marl.train import GroupedLEM
+        from src_thesis.marlem.marl.train import GroupedLEM
 
         _seed(11)
         config = create_env_config(seed=11)

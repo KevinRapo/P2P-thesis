@@ -1,6 +1,6 @@
 """Settings from a .env file: read once, never overriding the real environment."""
 
-from src_thesis.env import load_env
+from src_thesis.platform.env import load_env
 
 
 def test_env_file_fills_unset_variables_only(tmp_path, monkeypatch) -> None:

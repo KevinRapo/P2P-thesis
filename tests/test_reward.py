@@ -8,15 +8,15 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.agents.battery import Battery
-from src_thesis.agents.der import DERAgent
-from src_thesis.cooperation.implicit_cooperation import ImplicitCooperation
-from src_thesis.environment.reward import RewardHandler
-from src_thesis.core.location import GridTopology, Location
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.core.results import MatchingResult
-from src_thesis.core.orders import Order, Trade
+from src_thesis.marlem.agents.battery import Battery
+from src_thesis.marlem.agents.der import DERAgent
+from src_thesis.marlem.cooperation.implicit_cooperation import ImplicitCooperation
+from src_thesis.marlem.environment.reward import RewardHandler
+from src_thesis.marlem.core.location import GridTopology, Location
+from src_thesis.marlem.grid.network import GridNetwork
+from src_thesis.marlem.dso.dso import DSOAgent
+from src_thesis.marlem.core.results import MatchingResult
+from src_thesis.marlem.core.orders import Order, Trade
 
 
 def test_reward() -> None:

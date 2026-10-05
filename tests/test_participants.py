@@ -13,15 +13,15 @@ import pytest
 pytest.importorskip("pandapower")
 pytest.importorskip("simbench")
 
-from src_thesis.adapters.grid import participants as mapping  # noqa: E402
-from src_thesis.application.config_service import ConfigService  # noqa: E402
-from src_thesis.application.models import NetworkSource  # noqa: E402
-from src_thesis.application.participant_service import (  # noqa: E402
+from src_thesis.marlem.grid import placement as mapping  # noqa: E402
+from src_thesis.platform.services.config_service import ConfigService  # noqa: E402
+from src_thesis.platform.services.models import NetworkSource  # noqa: E402
+from src_thesis.platform.services.participant_service import (  # noqa: E402
     ParticipantService,
 )
-from src_thesis.application.profile_service import ProfileService  # noqa: E402
-from src_thesis.application.tariff_service import TariffService  # noqa: E402
-from src_thesis.application.workspace import Workspace  # noqa: E402
+from src_thesis.platform.services.profile_service import ProfileService  # noqa: E402
+from src_thesis.platform.services.tariff_service import TariffService  # noqa: E402
+from src_thesis.platform.services.workspace import Workspace  # noqa: E402
 
 LV = NetworkSource(type="simbench", code="1-LV-semiurb4--0-sw")
 
@@ -63,7 +63,7 @@ def p_owned(p: dict) -> list[str]:
 
 
 def profiles_elements(source):
-    from src_thesis.application.container import build_services
+    from src_thesis.platform.services.container import build_services
 
     return build_services().grid.elements(source)
 

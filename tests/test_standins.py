@@ -9,17 +9,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from src_thesis.adapters.grid import participants as placement
-from src_thesis.core.grid_contract import (
+from src_thesis.marlem.grid import placement as placement
+from src_thesis.marlem.grid.contract import (
     BranchView,
     BusView,
     ElementRecord,
     NetworkRef,
     TopologyView,
 )
-from src_thesis.core.orders import Order
-from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.reputation import ReputationHandler
+from src_thesis.marlem.core.orders import Order
+from src_thesis.marlem.dso.dso import DSOAgent
+from src_thesis.marlem.market.reputation import ReputationHandler
 
 
 # ------------------------------------------------------------------ marketplace
@@ -104,7 +104,7 @@ def test_placement_filters_on_hand_made_records() -> None:
 def tiny():
     """A three-bus pandapower net registered under a reference (no SimBench)."""
     pp = pytest.importorskip("pandapower")
-    from src_thesis.adapters.grid import simbench_new as adapter
+    from src_thesis.marlem.grid import simbench as adapter
 
     net = pp.create_empty_network()
     b0, b1, b2 = (pp.create_bus(net, vn_kv=0.4, name=f"bus {i}") for i in range(3))

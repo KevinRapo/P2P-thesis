@@ -9,13 +9,13 @@ from typing import Dict, List, Tuple
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.cooperation.metrics.coordination_metrics import CoordinationMetricsHandler
-from src_thesis.cooperation.metrics.dso_metrics import DSOMetricsHandler
-from src_thesis.cooperation.metrics.grid_metrics import GridMetricsHandler
-from src_thesis.cooperation.metrics.market_analytics import MarketMetricsHandler
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.core.results import MatchingHistory, MatchingResult
-from src_thesis.core.orders import Trade
+from src_thesis.marlem.cooperation.metrics.coordination_metrics import CoordinationMetricsHandler
+from src_thesis.marlem.cooperation.metrics.dso_metrics import DSOMetricsHandler
+from src_thesis.marlem.cooperation.metrics.grid_metrics import GridMetricsHandler
+from src_thesis.marlem.cooperation.metrics.market_analytics import MarketMetricsHandler
+from src_thesis.marlem.grid.network import GridNetwork
+from src_thesis.marlem.core.results import MatchingHistory, MatchingResult
+from src_thesis.marlem.core.orders import Trade
 
 
 def _create_matching_history_and_rewards() -> Tuple[MatchingHistory, Dict[str, List[float]]]:

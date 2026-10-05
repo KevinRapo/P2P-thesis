@@ -33,23 +33,23 @@ REPO = Path(__file__).resolve().parents[4]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-from src_thesis.adapters.grid.network import GridNetwork  # noqa: E402
-from src_thesis.cooperation.implicit_cooperation import (
+from src_thesis.marlem.grid.network import GridNetwork  # noqa: E402
+from src_thesis.marlem.cooperation.implicit_cooperation import (
     ImplicitCooperation,
 )  # noqa: E402
-from src_thesis.marketplace.dso.dso import DSOAgent  # noqa: E402
-from src_thesis.core.location import GridTopology  # noqa: E402
-from src_thesis.environment.lem import LocalEnergyMarket  # noqa: E402
-from src_thesis.marketplace.market.matching import (
+from src_thesis.marlem.dso.dso import DSOAgent  # noqa: E402
+from src_thesis.marlem.core.location import GridTopology  # noqa: E402
+from src_thesis.marlem.environment.lem import LocalEnergyMarket  # noqa: E402
+from src_thesis.marlem.market.matching import (
     MarketConfig,
     OrderMatcher,
 )  # noqa: E402
-from src_thesis.marketplace.market.mechanism import ClearingMechanism  # noqa: E402
-from src_thesis.core.orders import Order, Trade  # noqa: E402
-from src_thesis.marketplace.market.validation import Validator  # noqa: E402
-from src_thesis.environment.reward import RewardHandler  # noqa: E402
-from src_thesis.agents.battery import Battery  # noqa: E402
-from src_thesis.agents.der import DERAgent  # noqa: E402
+from src_thesis.marlem.market.mechanism import ClearingMechanism  # noqa: E402
+from src_thesis.marlem.core.orders import Order, Trade  # noqa: E402
+from src_thesis.marlem.market.validation import Validator  # noqa: E402
+from src_thesis.marlem.environment.reward import RewardHandler  # noqa: E402
+from src_thesis.marlem.agents.battery import Battery  # noqa: E402
+from src_thesis.marlem.agents.der import DERAgent  # noqa: E402
 
 
 # --------------------------------------------------------------------------- registry
@@ -1177,7 +1177,7 @@ def _grouped_env_config():
     "the space in tuple slot 0 belongs to the agent in slot 0 ('b', q_max 30)",
 )
 def i59():
-    from src_thesis.marl.train import GroupedLEM
+    from src_thesis.marlem.marl.train import GroupedLEM
 
     g = GroupedLEM(_grouped_env_config())
     slot0_qmax = float(g.action_space["grouped_agents"][0].high[1])
@@ -1197,7 +1197,7 @@ def i59():
     "RLTrainer(..., evaluation_duration=5) is accepted",
 )
 def i62():
-    from src_thesis.marl.train import RLTrainer
+    from src_thesis.marlem.marl.train import RLTrainer
 
     try:
         RLTrainer(_grouped_env_config(), evaluation_duration=5, iters=10)

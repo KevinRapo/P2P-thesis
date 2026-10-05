@@ -8,9 +8,9 @@ import pytest
 
 pytest.importorskip("ray")
 
-from src_thesis.marl.train import GroupedLEM, RLTrainer, agent_ids  # noqa: E402
-from src_thesis.rl_testbench.cases import CASES, trainer  # noqa: E402
-from src_thesis.rl_testbench.reporting import write_manifest  # noqa: E402
+from src_thesis.marlem.marl.train import GroupedLEM, RLTrainer, agent_ids  # noqa: E402
+from src_thesis.platform.testbench.cases import CASES, trainer  # noqa: E402
+from src_thesis.platform.testbench.reporting import write_manifest  # noqa: E402
 
 
 def test_cases_declare_known_paradigms() -> None:

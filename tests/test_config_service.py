@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.application.container import build_services
-from src_thesis.application.config_service import ConfigService
-from src_thesis.application.workspace import PRESETS_DIR, Workspace, default_home
-from src_thesis.experiments.models import expand, files
+from src_thesis.platform.services.container import build_services
+from src_thesis.platform.services.config_service import ConfigService
+from src_thesis.platform.services.workspace import PRESETS_DIR, Workspace, default_home
+from src_thesis.platform.experiments.models import expand, files
 
 PRESET = "case6-3x3"
 
@@ -208,7 +208,7 @@ def test_origin_and_delete(config: ConfigService) -> None:
 
 
 def test_workspace_folder_choice(tmp_path: Path, monkeypatch) -> None:
-    from src_thesis.application import workspace
+    from src_thesis.platform.services import workspace
 
     monkeypatch.setattr(workspace, "settings_path", lambda: tmp_path / "s.json")
     monkeypatch.delenv("MARLEM_HOME", raising=False)
@@ -230,7 +230,7 @@ def test_workspace_folder_choice(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_synced_folder_detection() -> None:
-    from src_thesis.application.workspace import is_synced_folder
+    from src_thesis.platform.services.workspace import is_synced_folder
 
     assert is_synced_folder(Path("C:/Users/x/OneDrive/Desktop/runs"))
     assert is_synced_folder(Path("C:/Users/x/OneDrive - TalTech/runs"))

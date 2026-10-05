@@ -1,8 +1,9 @@
-"""MARLEM's packages depend one way, through core/ (src_thesis/README.md).
+"""MARLEM's packages depend one way, through marlem/core/ (src_thesis/README.md).
 
-core/ imports nothing else from src_thesis; agents/, marketplace/, cooperation/
-and adapters/ import only core/ and themselves; only environment/ combines them.
-Every import counts, also the ones only used for type hints.
+core/ imports nothing else from src_thesis; agents/, market/, dso/, cooperation/,
+profiles/ and grid/ import only core/; only environment/ combines them; marl/
+reaches the environment only when it is chosen. marlem/ never imports platform/.
+Every import counts, also the ones only used for type hints and inside functions.
 """
 
 import ast
@@ -11,15 +12,28 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1] / "src_thesis"
+MARLEM = ROOT / "marlem"
 
-# package -> the src_thesis packages it may import besides itself
+# package of marlem/ -> the marlem/ packages it may import besides itself
 ALLOWED = {
     "core": (),
     "agents": ("core",),
-    "marketplace": ("core",),
+    "market": ("core", "dso"),
+    "dso": ("core",),
     "cooperation": ("core",),
-    "adapters": ("core",),
-    "environment": ("core", "agents", "marketplace", "cooperation", "adapters", "root"),
+    "profiles": ("core",),
+    "grid": ("core",),
+    "environment": (
+        "core",
+        "agents",
+        "market",
+        "dso",
+        "cooperation",
+        "profiles",
+        "grid",
+        "root",
+    ),
+    "marl": ("environment",),
 }
 
 
@@ -33,18 +47,30 @@ def _src_imports(path: Path) -> list[str]:
             names = [a.name for a in node.names]
         else:
             continue
-        out += [n.split(".")[1] for n in names if n.startswith("src_thesis.")]
+        out += [
+            ".".join(n.split(".")[1:3]) for n in names if n.startswith("src_thesis.")
+        ]
     return out
 
 
 @pytest.mark.parametrize("package", list(ALLOWED))
 def test_package_imports_only_what_it_may(package: str) -> None:
-    allowed = {package, *ALLOWED[package]}
+    allowed = {f"marlem.{p}" for p in (package, *ALLOWED[package])}
     wrong = [
         f"{path.relative_to(ROOT).as_posix()} imports src_thesis.{name}"
-        for path in sorted((ROOT / package).rglob("*.py"))
+        for path in sorted((MARLEM / package).rglob("*.py"))
         for name in _src_imports(path)
         if name not in allowed
+    ]
+    assert wrong == []
+
+
+def test_marlem_never_imports_the_platform() -> None:
+    wrong = [
+        f"{path.relative_to(ROOT).as_posix()} imports src_thesis.{name}"
+        for path in sorted(MARLEM.rglob("*.py"))
+        for name in _src_imports(path)
+        if name.startswith("platform")
     ]
     assert wrong == []
 
@@ -54,7 +80,7 @@ def test_core_has_no_third_party_runtime() -> None:
     heavy = ("ray", "torch", "pandapower", "simbench", "gymnasium")
     wrong = [
         f"{path.name} imports {n}"
-        for path in ROOT.joinpath("core").rglob("*.py")
+        for path in MARLEM.joinpath("core").rglob("*.py")
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
         if isinstance(node, (ast.Import, ast.ImportFrom))
         for n in (

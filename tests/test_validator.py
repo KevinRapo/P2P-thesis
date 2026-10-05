@@ -8,8 +8,8 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.core.orders import Trade
-from src_thesis.marketplace.market.validation import Validator
+from src_thesis.marlem.core.orders import Trade
+from src_thesis.marlem.market.validation import Validator
 
 
 def test_validator() -> None:

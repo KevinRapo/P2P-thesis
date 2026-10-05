@@ -8,14 +8,14 @@ import numpy as np
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src_thesis.agents.battery import Battery
-from src_thesis.agents.der import DERAgent
-from src_thesis.core.location import GridTopology
-from src_thesis.adapters.grid.network import GridNetwork
-from src_thesis.marketplace.dso.dso import DSOAgent
-from src_thesis.marketplace.market.matching import ClearingMechanism, MarketConfig
-from src_thesis.adapters.profiles.der import DERProfileHandler
-from src_thesis.adapters.profiles.dso import DSOProfileHandler
+from src_thesis.marlem.agents.battery import Battery
+from src_thesis.marlem.agents.der import DERAgent
+from src_thesis.marlem.core.location import GridTopology
+from src_thesis.marlem.grid.network import GridNetwork
+from src_thesis.marlem.dso.dso import DSOAgent
+from src_thesis.marlem.market.matching import ClearingMechanism, MarketConfig
+from src_thesis.marlem.profiles.der import DERProfileHandler
+from src_thesis.marlem.profiles.dso import DSOProfileHandler
 
 
 def create_market_config(min_price=0.05,
