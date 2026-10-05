@@ -251,6 +251,7 @@ Read the [paper-to-code map](../../paper/marlem-paper-to-code-map.md) first (it 
 | 03 | [03-experiment-layer.md](03-experiment-layer.md) | From a file to runs: run folders, worker processes, run lifecycle, reproducibility |
 | 04 | [04-application-layer.md](04-application-layer.md) | The six services every user interface calls, their rules, wiring and the workspace |
 | 05 | [05-presentation.md](05-presentation.md) | The NiceGUI Studio (page map, structure, how a page edits the draft, every page) and the CLI |
+| 06 | [06-code-organisation.md](06-code-organisation.md) | How the code is laid out so one page lives in one place: layers on top, grouped by page inside, pragmatism and boundary rules |
 | — | [implementation-status.md](implementation-status.md) | **What exists in code today**, per phase, layer and Studio page; how to check it yourself |
 
 The numbered documents go bottom-up through the layers. 03–05 share one outline: **Purpose** (what the part is for) → **At a glance** (business diagram) → **Structure in code** (a file graph generated from the imports, one line per file) → **Rules** → the topic itself. 01 and 02 keep their own outline because their subject is a design and a file format; they place the code structure under §0. What each function does is not repeated here: it is in the docstrings, shown in the API Reference of the docs site. Status is only in the implementation-status document.

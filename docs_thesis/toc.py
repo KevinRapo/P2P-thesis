@@ -24,6 +24,7 @@ FILES = [
     "thesis/architecture/03-experiment-layer.md",
     "thesis/architecture/04-application-layer.md",
     "thesis/architecture/05-presentation.md",
+    "thesis/architecture/06-code-organisation.md",
     "thesis/architecture/implementation-status.md",
     "thesis/validation/README.md",
     "thesis/validation/issues.md",
