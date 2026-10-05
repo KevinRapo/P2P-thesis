@@ -22,6 +22,7 @@ ALLOWED = {
     "dso": ("core",),
     "cooperation": ("core",),
     "profiles": ("core",),
+    "policies": ("core",),
     "grid": ("core",),
     "environment": (
         "core",

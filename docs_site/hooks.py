@@ -85,6 +85,12 @@ API_SECTIONS = [
         "paper/marlem-paper-to-code-map.md",
     ),
     (
+        "MARLEM · policies",
+        "policies",
+        ["src_thesis.marlem.policies"],
+        "thesis/architecture/README.md",
+    ),
+    (
         "MARLEM · level 0: market",
         "market",
         ["src_thesis.marlem.market"],

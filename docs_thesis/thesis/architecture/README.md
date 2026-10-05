@@ -159,6 +159,7 @@ flowchart LR
   n_marlem_grid__["marlem/grid/*.py"]
   n_marlem_market__["marlem/market/*.py"]
   n_marlem_marl__["marlem/marl/*.py"]
+  n_marlem_policies__["marlem/policies/*.py"]
   n_marlem_profiles__["marlem/profiles/*.py"]
   subgraph USES["uses"]
     n_marlem_root["marlem/root.py"]:::ext
@@ -178,6 +179,7 @@ flowchart LR
   n_marlem_market__ --> n_marlem_core__
   n_marlem_market__ --> n_marlem_dso__
   n_marlem_marl__ --> n_marlem_environment__
+  n_marlem_policies__ --> n_marlem_core__
   n_platform__users_ --> n_marlem_grid__
   n_platform__users_ --> n_marlem_marl__
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111

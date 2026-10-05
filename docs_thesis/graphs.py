@@ -34,6 +34,7 @@ MARLEM_PACKAGES = [
     "grid",
     "profiles",
     "agents",
+    "policies",
     "market",
     "dso",
     "cooperation",
