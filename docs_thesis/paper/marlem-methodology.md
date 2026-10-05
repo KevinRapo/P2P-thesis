@@ -470,9 +470,9 @@ $$
 
 #### Which version the original code implements
 
-Upstream MARLEM, unchanged in [reward.py `calculate_reward`](../../src_thesis/marketplace/reward.py#L105). This note is about the code, not the paper.
+Upstream MARLEM, unchanged in [reward.py `calculate_reward`](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L105). This note is about the code, not the paper.
 
-**Cooperation boost:** the code uses **neither** printed form exactly. It applies the [P1] log structure but **without the $-1$** ([reward.py:228-231](../../src_thesis/marketplace/reward.py#L228-L231)). It computes `cooperation_boost = 1 + f_coop·f_contrib`, then `log1p(max(0, cooperation_boost − 1))`, which equals $\ln(1 + f_{\text{coop}} f_{\text{contrib},i})$:
+**Cooperation boost:** the code uses **neither** printed form exactly. It applies the [P1] log structure but **without the $-1$** ([reward.py:228-231](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L228-L231)). It computes `cooperation_boost = 1 + f_coop·f_contrib`, then `log1p(max(0, cooperation_boost − 1))`, which equals $\ln(1 + f_{\text{coop}} f_{\text{contrib},i})$:
 
 $$
 r_{\text{raw}}^{\text{code}} = R_{\text{base},i} \left( 1 + \frac{\ln\!\left(1 + f_{\text{coop}}\, f_{\text{contrib},i}\right)}{5} \right) - s \cdot \gamma_{\text{DSO},i} - \frac{s}{p_{\text{dso}}} \cdot \gamma_{\text{UD},i}, \qquad s = 0.3 \cdot \max\!\left(\lvert R_{\text{base},i}\,(1 + \ln(1 + f_{\text{coop}} f_{\text{contrib},i})/5) \rvert,\ 1\right)
@@ -480,13 +480,13 @@ $$
 
 **Penalty terms in the code:**
 
-- $s$ scales the penalties by 0.3 × the magnitude of the boosted base reward. This is the paper's "implicit scaling" ([reward.py:234-239](../../src_thesis/marketplace/reward.py#L234-L239)).
-- $\gamma_{\text{DSO},i} = \text{dso\_ratio}_i \cdot p_{\text{dso}} \cdot \lvert B_{\text{DSO}} \rvert / C_{\text{grid}}$, where $\text{dso\_ratio}_i$ is the agent's DSO volume over its total traded volume ([reward.py:207-209](../../src_thesis/marketplace/reward.py#L207-L209)).
-- $\gamma_{\text{UD},i} = p_{\text{dso}} \cdot (\text{unmet demand} / \text{total demand})^2$, **only at the terminal step** ([reward.py:216-223](../../src_thesis/marketplace/reward.py#L216-L223)). It uses $p_{\text{dso}} = 15$, which the $/p_{\text{dso}}$ scaling above cancels. The paper's $p_{\text{no\_trades}} = 5$ is not used here.
+- $s$ scales the penalties by 0.3 × the magnitude of the boosted base reward. This is the paper's "implicit scaling" ([reward.py:234-239](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L234-L239)).
+- $\gamma_{\text{DSO},i} = \text{dso\_ratio}_i \cdot p_{\text{dso}} \cdot \lvert B_{\text{DSO}} \rvert / C_{\text{grid}}$, where $\text{dso\_ratio}_i$ is the agent's DSO volume over its total traded volume ([reward.py:207-209](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L207-L209)).
+- $\gamma_{\text{UD},i} = p_{\text{dso}} \cdot (\text{unmet demand} / \text{total demand})^2$, **only at the terminal step** ([reward.py:216-223](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L216-L223)). It uses $p_{\text{dso}} = 15$, which the $/p_{\text{dso}}$ scaling above cancels. The paper's $p_{\text{no\_trades}} = 5$ is not used here.
 
-**Final compression:** the same as [P1] (3) ([reward.py:242](../../src_thesis/marketplace/reward.py#L242)).
+**Final compression:** the same as [P1] (3) ([reward.py:242](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L242)).
 
-**Extra rule not in either paper:** an agent with **no trades** in the step returns a fixed $R_i = -20 \ln(1 + 5/20) \approx -4.46$ before any other term is computed ([reward.py:138-139](../../src_thesis/marketplace/reward.py#L138-L139)). This is where $p_{\text{no\_trades}} = 5$ is used.
+**Extra rule not in either paper:** an agent with **no trades** in the step returns a fixed $R_i = -20 \ln(1 + 5/20) \approx -4.46$ before any other term is computed ([reward.py:138-139](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L138-L139)). This is where $p_{\text{no\_trades}} = 5$ is used.
 
 **Base reward:** a weighted sum of normalized components:
 

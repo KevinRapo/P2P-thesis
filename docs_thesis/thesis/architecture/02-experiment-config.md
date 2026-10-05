@@ -188,7 +188,7 @@ Either an explicit list, or a `placement_rule` that is resolved at validation.
 
 **Why:** The clearing rules. Case 1 compares mechanisms, so they must be settings per run instead of code.
 
-Original: [`MarketConfig`](../../../src_thesis/marketplace/market/matching.py#L35-L43).
+Original: [`MarketConfig`](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/market/matching.py#L35-L43).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
@@ -205,7 +205,7 @@ Original: [`MarketConfig`](../../../src_thesis/marketplace/market/matching.py#L3
 
 **Why:** The original hard-coded every DSO constant. Exposing them turns Case 3 (DSO strategies) into a sweep, and lets fees actually be charged (I-28).
 
-Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L75) (all constants were hard-coded; exposed here).
+Original: [`DSOAgent`](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/dso/dso.py#L44-L75) (all constants were hard-coded; exposed here).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
@@ -233,7 +233,7 @@ Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L75) (all 
 | `observation.include_partner_reputation` | bool | = `market.partner_preference` | Appends N reputations |
 | `observation.own_bus_voltage` | enum | `"private"` | `private` · `public` · `off` |
 | `reward.version` | str | `"corrected-v1"` | Different versions are never compared directly |
-| `reward.base_weights` | object | grid 10, resource 1.5, trading 5, stability 2, economic 3 | Eq. 4 `R_base` weights ([reward.py](../../../src_thesis/marketplace/reward.py#L51-L56)) |
+| `reward.base_weights` | object | grid 10, resource 1.5, trading 5, stability 2, economic 3 | Eq. 4 `R_base` weights ([reward.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marketplace/reward.py#L51-L56)) |
 | `reward.cooperation_weights` | object | welfare 7, liquidity 1.5, spread 1.5, volatility 3, coordination 5, imbalance 10, congestion 9, convergence 8, self-consumption 5, flexibility 6 | Eq. 5 (Σ = 56) |
 | `reward.penalties` | object | dso 15, grid_imbalance 10, price_deviation 2, unutilized 1.5, volatility 2, no_trades 5 | Penalty factors |
 | `reward.contribution_weights` | object | grid 0.5, price 0.2, local 0.3 | Eq. 6 |
@@ -246,7 +246,7 @@ Original: [`DSOAgent`](../../../src_thesis/marketplace/dso/dso.py#L44-L75) (all 
 
 **Why:** Which RL algorithms and training paradigms are compared, with which hyperparameters and budget: the 3 × 3 study of [P2]. In the original these were fixed in code; here every value is visible and stored with the run.
 
-This section replaces the original `RLTrainer` arguments ([train.py](../../../src_thesis/marl/train.py#L63-L76)) and the hard-coded algorithm configs ([train.py](../../../src_thesis/marl/train.py#L243-L299)).
+This section replaces the original `RLTrainer` arguments ([train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py#L63-L76)) and the hard-coded algorithm configs ([train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py#L243-L299)).
 
 **General**
 
@@ -271,7 +271,7 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
-| `model.embeddings_dim` | int | 128 | Width of the CTCE/CTDE custom module encoders ([ctde.py](../../../src_thesis/marl/ctde.py#L313-L329)): 2 × Linear + ReLU |
+| `model.embeddings_dim` | int | 128 | Width of the CTCE/CTDE custom module encoders ([ctde.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/ctde.py#L313-L329)): 2 × Linear + ReLU |
 | `model.dtde_hiddens` | list[int] | RLlib default | DTDE uses RLlib's default module per algorithm |
 | `model.activation` | enum | `"relu"` | |
 
@@ -314,7 +314,7 @@ This section replaces the original `RLTrainer` arguments ([train.py](../../../sr
 | | `grad_clip` | 0.5 | 0.5 |
 | | `batch_mode` | `"complete_episodes"` | |
 
-**Tuning** (`learning.tuning`). Original: PBT always on ([train.py](../../../src_thesis/marl/train.py#L213-L231), [L480](../../../src_thesis/marl/train.py#L480)).
+**Tuning** (`learning.tuning`). Original: PBT always on ([train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py#L213-L231), [L480](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py#L480)).
 
 | Field | Type | Original default | Description |
 |---|---|---|---|
