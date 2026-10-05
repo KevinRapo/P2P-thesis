@@ -76,6 +76,7 @@ flowchart LR
   n_studio_app --> n_application_workspace
   n_studio_app --> n_env
   n_studio_app --> n_studio_pages__
+  n_studio_app --> n_studio_state
   n_studio_components_charts --> n_application_models
   n_studio_components_charts --> n_studio_theme
   n_studio_components_network --> n_application_container
