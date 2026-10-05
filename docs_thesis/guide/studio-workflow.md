@@ -1,7 +1,7 @@
 # Using MARLEM Studio: from first launch to comparing runs
 
 > A walk through the whole process of a study in the Studio, in the order a first-time user meets it: launch the app, get to know the data, build the experiment, validate it, run it, and analyse and compare the results. It explains what to decide at each step and what to check before moving on, not how the code works.
-> How the Studio is built: [05-presentation.md](../thesis/architecture/05-presentation.md) · What the experiment file holds: [02-experiment-config.md](../thesis/architecture/02-experiment-config.md) · Which pages still show sample data: [implementation-status.md §4](../thesis/architecture/implementation-status.md#4-studio-page-by-page-src_thesisstudio-05).
+> How the Studio is built: [05-presentation.md](../thesis/architecture/05-presentation.md) · What the experiment file holds: [02-experiment-config.md](../thesis/architecture/02-experiment-config.md) · Which pages still show sample data: [implementation-status.md §4](../thesis/architecture/implementation-status.md#4-studio-page-by-page-src_thesisplatformstudio-05).
 
 <!-- BEGIN toc (python docs_thesis/toc.py) -->
 ## Contents
