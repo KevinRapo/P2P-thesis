@@ -67,7 +67,7 @@ class RunContext:
 
     def recorder(self) -> EpisodeRecorder:
         """An ``EpisodeRecorder`` in the file's ``outputs.record_steps`` mode."""
-        mode = self.resolved.outputs.get("record_steps", "evaluation")
+        mode = self.resolved.outputs.record_steps or "evaluation"
         return EpisodeRecorder(self.store, self.run_id, mode)
 
 

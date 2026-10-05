@@ -50,7 +50,7 @@ def load(path: str | Path) -> ExperimentFile:
 
 def dumps(file: ExperimentFile) -> str:
     """Pretty JSON in the model's field order, for files people read and share."""
-    return json.dumps(file.model_dump(mode="json"), indent=2, ensure_ascii=False)
+    return json.dumps(file.to_data(), indent=2, ensure_ascii=False)
 
 
 def atomic_write_text(path: str | Path, text: str) -> Path:
@@ -80,7 +80,7 @@ def save(file: ExperimentFile, path: str | Path) -> Path:
 def canonical_json(data: ExperimentFile | dict[str, Any]) -> str:
     """Sorted-key, compact JSON of the file: what ``canonical_hash`` hashes."""
     if isinstance(data, ExperimentFile):
-        data = data.model_dump(mode="json")
+        data = data.to_data()
     return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 

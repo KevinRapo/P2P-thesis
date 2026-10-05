@@ -58,6 +58,7 @@ flowchart LR
     n_experiments_models_manifest["models/manifest.py"]
     n_experiments_models_records["models/records.py"]
     n_experiments_models_resolve["models/resolve.py"]
+    n_experiments_models_sections["models/sections.py"]
   end
   subgraph g_store["store/"]
     n_experiments_store_filesystem["store/filesystem.py"]
@@ -77,6 +78,7 @@ flowchart LR
   n_application__users_ --> n_experiments_models_manifest
   n_application__users_ --> n_experiments_models_records
   n_application__users_ --> n_experiments_models_resolve
+  n_application__users_ --> n_experiments_models_sections
   n_experiments_factory_environment --> n_core_grid_contract
   n_experiments_factory_environment -.-> n_experiments_models_records
   n_experiments_factory_training -.-> n_experiments_models_records
@@ -85,8 +87,10 @@ flowchart LR
   n_experiments_models_manifest --> n_experiments_models_files
   n_experiments_models_manifest -.-> n_experiments_models_records
   n_experiments_models_manifest --> n_experiments_models_resolve
+  n_experiments_models_records --> n_experiments_models_sections
   n_experiments_models_resolve --> n_experiments_models_expand
   n_experiments_models_resolve -.-> n_experiments_models_records
+  n_experiments_models_resolve --> n_experiments_models_sections
   n_experiments_store_filesystem --> n_experiments_models_files
   n_experiments_store_filesystem -.-> n_experiments_models_records
   n_experiments_store_recorder --> n_experiments_store_filesystem
@@ -110,7 +114,7 @@ Arrows are imports: who uses whom. Dashed arrows go to `models/records.py`, the 
 
 | Part | Files | What it is for |
 |---|---|---|
-| `models/` | `records.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | The data (experiment file, run cell, run state, manifest) and pure functions over it: load and save, expand into runs, fill defaults, fingerprint a run |
+| `models/` | `records.py`, `sections.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | The data (experiment file and its typed sections, run cell, run state, manifest) and pure functions over it: load and save, expand into runs, fill defaults, fingerprint a run |
 | `store/` | `filesystem.py`, `recorder.py` | The run folders on disk and the per-step records written into them |
 | `factory/` | `environment.py`, `training.py` | The only place that turns a file into a live environment and the trainer's arguments; `training.py` turns the file into the arguments of MARLEM's `RLTrainer` (`marl/train.py`), which builds the RLlib configuration (D-16) |
 | `worker/` | `pool.py`, `process.py`, `runner.py`, `__main__.py` | Starting runs as processes (pool), executing one run (process), and the work per kind of run (runner) |

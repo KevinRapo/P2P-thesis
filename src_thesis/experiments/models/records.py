@@ -18,7 +18,22 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from src_thesis.experiments.models.sections import (
+    Baseline,
+    DsoSection,
+    EnvironmentSection,
+    EvaluationSection,
+    GridSection,
+    LearningSection,
+    MarketSection,
+    OutputsSection,
+    Participant,
+    ResourcesSection,
+    SweepSection,
+    TimeSection,
+)
 
 SCHEMA_VERSION = "1.0"
 
@@ -57,25 +72,39 @@ class ExperimentMeta(BaseModel):
 class ExperimentFile(BaseModel):
     """One study, see docs_thesis/thesis/architecture/02-experiment-config.md.
 
-    The sections are dictionaries for now; each becomes a typed model when its
-    Studio page and validation rules are implemented.
+    Every section is a typed model (``sections.py``). Write the file with
+    ``to_data``: it keeps only what is set, so defaults stay out of the file and
+    are applied when a run is resolved.
     """
 
     schema_version: str = SCHEMA_VERSION
     kind: Literal["marlem-experiment"] = "marlem-experiment"
     meta: ExperimentMeta
-    time: dict[str, Any] = Field(default_factory=dict)
-    grid: dict[str, Any] = Field(default_factory=dict)
-    participants: list[dict[str, Any]] = Field(default_factory=list)
-    market: dict[str, Any] = Field(default_factory=dict)
-    dso: dict[str, Any] = Field(default_factory=dict)
-    environment: dict[str, Any] = Field(default_factory=dict)
-    learning: dict[str, Any] = Field(default_factory=dict)
-    evaluation: dict[str, Any] = Field(default_factory=dict)
-    baselines: list[Any] = Field(default_factory=list)
-    sweep: dict[str, Any] = Field(default_factory=dict)
-    resources: dict[str, Any] = Field(default_factory=dict)
-    outputs: dict[str, Any] = Field(default_factory=dict)
+    time: TimeSection = Field(default_factory=TimeSection)
+    grid: GridSection = Field(default_factory=GridSection)
+    participants: list[Participant] = Field(default_factory=list)
+    market: MarketSection = Field(default_factory=MarketSection)
+    dso: DsoSection = Field(default_factory=DsoSection)
+    environment: EnvironmentSection = Field(default_factory=EnvironmentSection)
+    learning: LearningSection = Field(default_factory=LearningSection)
+    evaluation: EvaluationSection = Field(default_factory=EvaluationSection)
+    baselines: list[Baseline] = Field(default_factory=list)
+    sweep: SweepSection = Field(default_factory=SweepSection)
+    resources: ResourcesSection = Field(default_factory=ResourcesSection)
+    outputs: OutputsSection = Field(default_factory=OutputsSection)
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def _sections_always_written(self) -> ExperimentFile:
+        """Top-level sections and ``meta`` are written even when empty."""
+        self.__pydantic_fields_set__.update(type(self).model_fields)
+        self.meta.__pydantic_fields_set__.update(type(self.meta).model_fields)
+        return self
+
+    def to_data(self) -> dict[str, Any]:
+        """The file as JSON-ready data: every section, inside them only what is set."""
+        return self.model_dump(mode="json", exclude_unset=True)
 
 
 # --------------------------------------------------------------------------- runs

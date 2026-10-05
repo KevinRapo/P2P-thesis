@@ -27,7 +27,7 @@ from src_thesis.studio.components.network import (
 )
 from src_thesis.studio.forms import DraftForm
 from src_thesis.studio.layout import shell
-from src_thesis.studio.state import current_draft, services
+from src_thesis.studio.state import current_draft, draft_network, services
 
 BACKGROUND_HINTS = {
     "mapped_replacement": "Every element no agent owns keeps running with its own "
@@ -54,9 +54,10 @@ def grid_page() -> None:
     draft = current_draft()
     # Values shown: the draft's, else the defaults (02 §3.3). Only changed fields are
     # written, so a default stays unset in the file.
-    grid = s.config.resolve(draft).grid
+    # The form view of the resolved file: the same dotted paths the controls write.
+    grid = s.config.resolve(draft).to_data()["grid"]
     form = DraftForm(draft)
-    draft_source = NetworkSource(**draft.grid.get("source", DEFAULT_SOURCE))
+    draft_source = draft_network(draft, DEFAULT_SOURCE)
     # Page state shared by the handlers: the topology shown, the bus selected in it
     # and the voltages of the last preview (to colour the buses).
     state: dict = {"topology": None, "bus": None, "voltages": None}

@@ -5,6 +5,7 @@ from __future__ import annotations
 from src_thesis.application.data_files import data_files, read_csv
 from src_thesis.application.models import ExperimentFile, Series
 from src_thesis.experiments.models.manifest import data_path
+from src_thesis.experiments.models.sections import ProfileRef, Tariffs
 
 TARIFF_FOLDER = "data/prices"
 # The CSVs the original MARLEM notebooks use when the file names none.
@@ -32,18 +33,20 @@ class TariffService:
         market's price bounds when the environment runs. ``synthetic`` tariffs are
         generated per episode, so there is no fixed curve (empty series).
         """
-        tariffs = file.dso.get("tariffs", {})
-        if tariffs.get("source", "synthetic") != "csv":
+        tariffs = file.dso.tariffs or Tariffs()
+        if (tariffs.source or "synthetic") != "csv":
             return Series(x=[], y={}, x_label="time of day", y_label="price")
         x: list[str] = []
         y: dict[str, list[float]] = {}
         for key, label in (("feed_in", "feed-in"), ("utility", "utility")):
-            spec = tariffs.get(key) or {"path": TARIFF_DEFAULTS[key]}
-            columns = read_csv(data_path(spec["path"]))
-            chosen = [spec["column"]] if spec.get("column") else list(columns)
+            spec = getattr(tariffs, key) or ProfileRef(path=TARIFF_DEFAULTS[key])
+            if not spec.path:
+                raise ValueError(f"dso.tariffs.{key} names no CSV file (path)")
+            columns = read_csv(data_path(spec.path))
+            chosen = [spec.column] if spec.column else list(columns)
             for column in chosen:
                 if column not in columns:
-                    raise ValueError(f"{spec['path']} has no column {column!r}")
+                    raise ValueError(f"{spec.path} has no column {column!r}")
                 values = columns[column]
                 y[f"{label} · {column}"] = values
                 x = x if len(x) >= len(values) else _times_of_day(len(values))

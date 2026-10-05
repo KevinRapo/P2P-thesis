@@ -7,7 +7,7 @@ browser session only remembers which draft is open (05-presentation.md §5).
 from nicegui import app
 
 from src_thesis.application.container import Services, build_services
-from src_thesis.application.models import ExperimentFile
+from src_thesis.application.models import ExperimentFile, NetworkSource
 
 _SERVICES: Services | None = None
 DEFAULT_PRESET = "case6-3x3"
@@ -51,6 +51,14 @@ def current_draft() -> ExperimentFile:
     draft = services().config.new_from_preset(DEFAULT_PRESET)
     app.storage.user["draft_id"] = draft.meta.id
     return draft
+
+
+def draft_network(file: ExperimentFile, default: dict[str, str]) -> NetworkSource:
+    """The network the draft uses (``grid.source``), else ``default``."""
+    source = file.grid.source
+    if source and source.type and source.code:
+        return NetworkSource(type=source.type, code=source.code)
+    return NetworkSource(**default)
 
 
 def open_draft(file: ExperimentFile) -> None:

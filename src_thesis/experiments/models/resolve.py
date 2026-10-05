@@ -22,6 +22,7 @@ from typing import Any
 
 from src_thesis.experiments.models.expand import apply_overrides
 from src_thesis.experiments.models.records import ExperimentFile, RunCell
+from src_thesis.experiments.models.sections import DayFilter, Days, TimeSection
 
 # Defaults of 02-experiment-config.md §3 (only fields that have one).
 DEFAULTS: dict[str, Any] = {
@@ -168,7 +169,7 @@ class DaySplit:
 
 def resolve(file: ExperimentFile) -> ExperimentFile:
     """A copy with every unset field filled from ``DEFAULTS`` (set values win)."""
-    data = file.model_dump(mode="json")
+    data = file.to_data()
     for section, default in DEFAULTS.items():
         if isinstance(default, dict):
             data[section] = _merge(default, data.get(section) or {})
@@ -185,7 +186,7 @@ def resolve(file: ExperimentFile) -> ExperimentFile:
 def resolve_run(file: ExperimentFile, cell: RunCell) -> ExperimentFile:
     """One run's world: sweep point applied, learning fixed to the cell."""
     resolved = resolve(apply_overrides(file, cell.sweep_point))
-    data = resolved.model_dump(mode="json")
+    data = resolved.to_data()
     if cell.kind == "train":
         data["learning"].update(
             paradigms=[cell.paradigm], algorithms=[cell.algorithm], seeds=[cell.seed]
@@ -195,32 +196,36 @@ def resolve_run(file: ExperimentFile, cell: RunCell) -> ExperimentFile:
     return ExperimentFile.model_validate(data)
 
 
-def resolve_days(time_section: dict[str, Any]) -> DaySplit:
+def resolve_days(time_section: TimeSection) -> DaySplit:
     """Explicit train and evaluation dates from ``time.days`` (02 §3.2).
 
     ``fixed`` trains and evaluates on the same date, like the original. For
     ``range`` and ``sampler`` a seeded share (or list) of dates is held out for
     evaluation and never trained on.
+
+    Raises:
+        ValueError: A date the mode needs is missing, or no date is selected.
     """
-    days = time_section.get("days") or {}
-    mode = days.get("mode", "fixed")
+    days = time_section.days or Days()
+    mode = days.mode or "fixed"
     if mode == "fixed":
-        day = str(days["date"])
-        return DaySplit((day,), (day,))
-    start, end = date.fromisoformat(str(days["start"])), date.fromisoformat(
-        str(days["end"])
-    )
+        if not days.date:
+            raise ValueError("time.days needs a date for mode 'fixed'")
+        return DaySplit((days.date,), (days.date,))
+    if not days.start or not days.end:
+        raise ValueError(f"time.days needs a start and an end for mode {mode!r}")
+    start, end = date.fromisoformat(days.start), date.fromisoformat(days.end)
     if end < start:
         raise ValueError(f"time.days.end {end} is before start {start}")
     candidates = [start + timedelta(n) for n in range((end - start).days + 1)]
     if mode == "sampler":
-        candidates = [d for d in candidates if _matches(d, days.get("filter") or {})]
+        candidates = [d for d in candidates if _matches(d, days.filter or DayFilter())]
     elif mode != "range":
         raise ValueError(f"unknown time.days.mode {mode!r}")
     if not candidates:
         raise ValueError("time.days selects no dates")
     all_days = [d.isoformat() for d in candidates]
-    holdout = days.get("eval_holdout", 0.2)
+    holdout = 0.2 if days.eval_holdout is None else days.eval_holdout
     if isinstance(holdout, list):
         held = sorted(str(d) for d in holdout)
         missing = set(held) - set(all_days)
@@ -231,21 +236,20 @@ def resolve_days(time_section: dict[str, Any]) -> DaySplit:
     else:
         n_eval = min(len(all_days) - 1, math.ceil(float(holdout) * len(all_days)))
         shuffled = list(all_days)
-        random.Random(days.get("seed", 42)).shuffle(shuffled)
+        random.Random(42 if days.seed is None else days.seed).shuffle(shuffled)
         held = sorted(shuffled[: max(n_eval, 0)])
     train = tuple(d for d in all_days if d not in set(held))
     return DaySplit(train, tuple(held) or train)
 
 
-def _matches(day: date, flt: dict[str, Any]) -> bool:
-    if "season" in flt and day.month not in SEASONS[flt["season"]]:
+def _matches(day: date, flt: DayFilter) -> bool:
+    if flt.season and day.month not in SEASONS[flt.season]:
         return False
-    if "months" in flt and day.month not in set(flt["months"]):
+    if flt.months and day.month not in set(flt.months):
         return False
-    day_type = flt.get("day_type")
-    if day_type == "workday" and day.weekday() >= 5:
+    if flt.day_type == "workday" and day.weekday() >= 5:
         return False
-    if day_type == "weekend" and day.weekday() < 5:
+    if flt.day_type == "weekend" and day.weekday() < 5:
         return False
     return True
 

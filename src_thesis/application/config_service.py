@@ -179,7 +179,7 @@ class ConfigService:
                     destination.parent.mkdir(parents=True, exist_ok=True)
                     destination.write_bytes(bundle.read(name))
                     moved[original] = str(destination)
-        data = file.model_dump(mode="json")
+        data = file.to_data()
         _repoint(data, moved)
         file = ExperimentFile.model_validate(data)
         self.save(file)
@@ -253,7 +253,7 @@ class ConfigService:
     def diff(self, a: ExperimentFile, b: ExperimentFile) -> list[FieldChange]:
         """Every field that differs between ``a`` and ``b``, as dotted paths."""
         changes: list[FieldChange] = []
-        _diff(a.model_dump(mode="json"), b.model_dump(mode="json"), "", changes)
+        _diff(a.to_data(), b.to_data(), "", changes)
         return changes
 
     def export_bundle(self, file: ExperimentFile) -> str:
@@ -267,7 +267,7 @@ class ConfigService:
         target.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as bundle:
             bundle.writestr(f"{file_id}{FILE_SUFFIX}", files.dumps(file) + "\n")
-            for path in referenced_paths(file.model_dump(mode="json")):
+            for path in referenced_paths(file.to_data()):
                 source = data_path(path)
                 if source.is_file():
                     bundle.write(source, f"data/{Path(path).as_posix().lstrip('/')}")
@@ -297,7 +297,7 @@ class ConfigService:
             path=str(path),
             modified=datetime.fromtimestamp(path.stat().st_mtime, timezone.utc),
             tags=file.meta.tags,
-            network=str(file.grid.get("source", {}).get("code", "")),
+            network=(file.grid.source.code or "") if file.grid.source else "",
             participants=len(file.participants),
         )
 

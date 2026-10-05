@@ -82,7 +82,7 @@ Only fields you change are written. A field you never touched stays absent from 
 
 | Module | Status | Tests |
 |---|---|---|
-| `models/records.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | ✅ (placement rules wait for R3) | [test_experiments.py](../../../tests/test_experiments.py) |
+| `models/records.py`, `sections.py`, `files.py`, `expand.py`, `resolve.py`, `manifest.py` | ✅ every section typed; unknown keys rejected (placement rules wait for R3) | [test_experiments.py](../../../tests/test_experiments.py) |
 | `store/filesystem.py`, `store/recorder.py` | ✅ | test_experiments.py |
 | `factory/environment.py` | 🟡 `build_env_config` only; `build_env`, `build_grid` raise | — |
 | `factory/training.py` | ⬜ interface only (stage D): `trainer_arguments` translates the file and a cell into `RLTrainer`'s arguments (D-16) | — |

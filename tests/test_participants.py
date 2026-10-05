@@ -115,7 +115,7 @@ def test_scaling_to_peak_and_energy() -> None:
 
 def test_preview_scales_catalogue_profiles(participants, draft) -> None:
     p = draft.participants[0]  # catalog G1-A / PV3, peak 180 kW
-    series = participants.preview(draft, p["id"], days=2)
+    series = participants.preview(draft, p.id, days=2)
     assert len(series.x) == 48 and series.y_label == "kW"
     assert 0 < max(series.y["demand"]) <= 180.01
     assert 0 < max(series.y["generation"]) <= 180.01
@@ -163,7 +163,7 @@ def test_paper_roles_keep_placement(participants, draft) -> None:
     roles = participants.paper_roles(draft.participants)
     assert [p["id"] for p in roles][:2] == ["small_industry", "community_hospital"]
     assert roles[1]["battery"]["nominal_capacity_kwh"] == 85.0  # [P2] Table 6
-    assert roles[1]["bus"] == draft.participants[1]["bus"]
+    assert roles[1]["bus"] == draft.participants[1].bus
 
 
 def test_tariffs_read_the_csvs(tariffs, draft, tmp_path) -> None:

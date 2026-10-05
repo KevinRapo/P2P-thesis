@@ -88,7 +88,7 @@ class ValidationService:
         """
         return DryRunResult(
             ok=True,
-            observation_dims={p["id"]: 50 for p in file.participants},
+            observation_dims={p.id: 50 for p in file.participants},
             power_flow_converged=True,
             settlement_residual_kwh=0.0,
             messages=["Sample dry run: no environment was built."],

@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from src_thesis.experiments.models.sections import TimeSection
 from src_thesis.experiments.models import expand, files, resolve
 from src_thesis.experiments.models.manifest import build_manifest
 from src_thesis.experiments.models.records import (
@@ -97,17 +98,17 @@ def test_run_id_format() -> None:
 # --------------------------------------------------------------------------- resolve
 def test_resolve_fills_defaults_but_keeps_given_values() -> None:
     resolved = resolve.resolve(case6(market={"mechanism": "buyer"}))
-    assert resolved.market["mechanism"] == "buyer"
-    assert resolved.market["ledger"] == {"enabled": True, "difficulty": 2}
-    assert resolved.grid["limits"]["v_min_pu"] is None  # network limits (D-15)
+    assert resolved.market.mechanism == "buyer"
+    assert resolved.market.ledger.enabled and resolved.market.ledger.difficulty == 2
+    assert resolved.grid.limits.v_min_pu is None  # network limits (D-15)
 
 
 def test_resolve_run_fixes_the_cell() -> None:
     cell = expand.expand(case6())[5]
     learning = resolve.resolve_run(case6(), cell).learning
-    assert learning["paradigms"] == [cell.paradigm]
-    assert learning["algorithms"] == [cell.algorithm]
-    assert learning["seeds"] == [cell.seed]
+    assert learning.paradigms == [cell.paradigm]
+    assert learning.algorithms == [cell.algorithm]
+    assert learning.seeds == [cell.seed]
 
 
 def test_day_sampler_holds_out_disjoint_seeded_days() -> None:
@@ -119,8 +120,8 @@ def test_day_sampler_holds_out_disjoint_seeded_days() -> None:
         "eval_holdout": 0.2,
         "seed": 42,
     }
-    a = resolve.resolve_days({"days": days})
-    b = resolve.resolve_days({"days": days})
+    a = resolve.resolve_days(TimeSection.model_validate({"days": days}))
+    b = resolve.resolve_days(TimeSection.model_validate({"days": days}))
     assert a == b and not set(a.train) & set(a.eval)
     assert len(a.eval) == -(-(len(a.train) + len(a.eval)) * 2 // 10)  # ceil 20 %
     assert len(a.train) + len(a.eval) == 88  # workdays May-Aug 2016

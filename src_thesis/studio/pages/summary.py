@@ -111,7 +111,8 @@ def summary_page() -> None:
     s = services()
     draft = current_draft()
     with shell("summary", "Summary", f"Draft experiment file · {draft.meta.id}"):
-        batteries = sum(1 for p in draft.participants if p.get("battery"))
+        batteries = sum(1 for p in draft.participants if p.battery)
+        source = draft.grid.source
         runs = s.config.expand(draft)
         with stat_grid():
             stat(
@@ -122,14 +123,14 @@ def summary_page() -> None:
             )
             stat(
                 "Network",
-                draft.grid.get("source", {}).get("code", "—"),
-                draft.grid.get("source", {}).get("type", ""),
+                (source.code if source else None) or "—",
+                (source.type if source else None) or "",
                 "hub",
             )
             stat(
                 "Horizon",
-                f"{draft.time.get('horizon_steps', '—')} steps",
-                draft.time.get("resolution", ""),
+                f"{draft.time.horizon_steps or '—'} steps",
+                draft.time.resolution or "",
                 "schedule",
             )
             stat(
@@ -147,7 +148,7 @@ def summary_page() -> None:
         ):
             with ui.row().classes("w-full gap-2"):
                 for name, route in SECTION_PAGES:
-                    n = _count(getattr(draft, name))
+                    n = _count(draft.to_data()[name])
                     ui.button(
                         f"{name} · {n}",
                         on_click=lambda route=route: ui.navigate.to(route),

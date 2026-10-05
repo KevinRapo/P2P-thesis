@@ -56,7 +56,7 @@ def build_manifest(
         environment=environment_fingerprint(),
         data=data_fingerprint(resolved),
         days={"train": list(split.train), "eval": list(split.eval)},
-        time_alignment=str(resolved.time.get("resolution", "")),
+        time_alignment=resolved.time.resolution or "",
         validation_hash=validation_hash,
         platform={
             "system": platform.system(),
@@ -106,10 +106,12 @@ def environment_fingerprint() -> dict[str, object]:
 def data_fingerprint(resolved: ExperimentFile) -> dict[str, object]:
     """Network source and the sha256 of every external file the world names."""
     files = {}
-    for path in referenced_paths(resolved.model_dump(mode="json")):
+    for path in referenced_paths(resolved.to_data()):
         p = data_path(path)
         files[path] = hashlib.sha256(p.read_bytes()).hexdigest() if p.exists() else None
-    return {"network": resolved.grid.get("source", {}), "files": files}
+    source = resolved.grid.source
+    network = source.model_dump(mode="json", exclude_unset=True) if source else {}
+    return {"network": network, "files": files}
 
 
 def data_path(path: str) -> Path:

@@ -96,8 +96,9 @@ def rl_page() -> None:
     """
     s = services()
     draft = current_draft()
-    resolved = s.config.resolve(draft)
-    learning, evaluation = resolved.learning, resolved.evaluation
+    # The form view of the resolved file: the same dotted paths the controls write.
+    resolved = s.config.resolve(draft).to_data()
+    learning, evaluation = resolved["learning"], resolved["evaluation"]
     form = DraftForm(draft)
     bind = form.bind
     with shell(
@@ -400,7 +401,7 @@ def rl_page() -> None:
                 )
                 ui.separator()
                 ui.label("Baselines").classes("text-weight-medium")
-                _baselines(form, resolved.baselines)
+                _baselines(form, resolved["baselines"])
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
@@ -409,7 +410,7 @@ def rl_page() -> None:
                 "call_split",
                 classes="grow basis-0",
             ):
-                sweep = resolved.sweep or {}
+                sweep = resolved["sweep"] or {}
                 sweep_mode = ui.toggle(
                     {"grid": "Every combination", "zip": "Paired lists"},
                     value=sweep.get("mode", "grid"),
@@ -444,7 +445,7 @@ def rl_page() -> None:
                 "dns",
                 classes="grow basis-0",
             ):
-                res, out = resolved.resources, resolved.outputs
+                res, out = resolved["resources"], resolved["outputs"]
                 with ui.row().classes("no-wrap gap-2 w-full"):
                     for key, label in (
                         ("cpus_per_run", "CPUs per run"),

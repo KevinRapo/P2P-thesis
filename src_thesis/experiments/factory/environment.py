@@ -36,7 +36,7 @@ def build_env_config(
     every env runner can call :func:`build_env` on its own copy.
     """
     return {
-        ENV_CONFIG_KEY: resolved.model_dump(mode="json"),
+        ENV_CONFIG_KEY: resolved.to_data(),
         "cell": cell.model_dump(mode="json"),
         "episode_seed": episode_seed,
     }

@@ -108,6 +108,7 @@ flowchart LR
   n_application_participant_service -.-> n_application_models
   n_application_participant_service --> n_application_profile_classes
   n_application_participant_service --> n_core_grid_contract
+  n_application_participant_service --> n_experiments_models
   n_application_profile_classes -.-> n_application_models
   n_application_profile_service --> n_adapters_grid
   n_application_profile_service --> n_application_data_files

@@ -9,7 +9,6 @@ from typing import Any
 
 from nicegui import ui
 
-from src_thesis.application.models import ExperimentFile
 from src_thesis.studio.components.cards import section
 from src_thesis.studio.components.charts import line_figure
 from src_thesis.studio.forms import DraftForm
@@ -62,8 +61,9 @@ def market_page() -> None:
     """
     s = services()
     draft = current_draft()
-    resolved = s.config.resolve(draft)
-    m, d, env = resolved.market, resolved.dso, resolved.environment
+    # The form view of the resolved file: the same dotted paths the controls write.
+    resolved = s.config.resolve(draft).to_data()
+    m, d, env = resolved["market"], resolved["dso"], resolved["environment"]
     # Every control passed to bind() or track() is saved by "Apply to draft" (only
     # those the user changed).
     form = DraftForm(draft)
@@ -341,9 +341,9 @@ def market_page() -> None:
                     "grid.assessment.mode",
                     ui.toggle(
                         {"shadow": "Shadow", "feedback": "Feedback"},
-                        value=resolved.grid.get("assessment", {}).get(
-                            "mode", "feedback"
-                        ),
+                        value=resolved["grid"]
+                        .get("assessment", {})
+                        .get("mode", "feedback"),
                     ).props("no-caps dense"),
                 )
                 ui.label(
@@ -479,9 +479,9 @@ def _tariff_csv(
     )
 
 
-def _get(file: ExperimentFile, path: str) -> dict[str, Any]:
-    """The dict at a dotted ``path`` of the file (empty if absent)."""
-    node: Any = file.model_dump()
+def _get(data: dict[str, Any], path: str) -> dict[str, Any]:
+    """The dict at a dotted ``path`` of the file's data (empty if absent)."""
+    node: Any = data
     for key in path.split("."):
         node = (node or {}).get(key, {})
     return node or {}

@@ -14,7 +14,7 @@ from typing import Any
 
 from nicegui import events, run, ui
 
-from src_thesis.application.models import ExperimentFile, NetworkSource
+from src_thesis.application.models import ExperimentFile
 from src_thesis.studio.components.cards import section
 from src_thesis.studio.components.charts import line_figure, topology_figure
 from src_thesis.studio.components.network import DEFAULT_SOURCE, busy, failed
@@ -25,7 +25,7 @@ from src_thesis.studio.components.participant_editor import (
 )
 from src_thesis.studio.forms import DraftForm, date_input, save_changes
 from src_thesis.studio.layout import shell
-from src_thesis.studio.state import current_draft, services
+from src_thesis.studio.state import current_draft, draft_network, services
 
 DAY_MODE_HINTS = {
     "fixed": "One day, every episode (the papers' setting).",
@@ -54,7 +54,12 @@ def participants_page() -> None:
     """Participants (05 §6): edit the draft's agents and its time window."""
     s = services()
     draft = current_draft()
-    source = NetworkSource(**draft.grid.get("source", DEFAULT_SOURCE))
+    source = draft_network(draft, DEFAULT_SOURCE)
+    # The participants as editable data (what the dialog and the tools change);
+    # every save goes through the typed file, which rejects unknown fields.
+    members = [
+        p.model_dump(mode="json", exclude_unset=True) for p in draft.participants
+    ]
     # Network data for the map, the checks and the editor; loaded after the page
     # is shown, because loading a network takes seconds.
     net: dict[str, Any] = {
@@ -63,9 +68,7 @@ def participants_page() -> None:
         "buses": [],
         "candidates": [],  # buses that pass the placement rule
     }
-    selected: dict[str, str | None] = {
-        "id": draft.participants[0]["id"] if draft.participants else None
-    }
+    selected: dict[str, str | None] = {"id": members[0]["id"] if members else None}
 
     def save(participants: list[dict]) -> None:
         """Write the whole participant list to the draft and reload."""
@@ -151,7 +154,7 @@ def participants_page() -> None:
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Participants",
-                f"{len(draft.participants)} agents; their order is the agents' "
+                f"{len(members)} agents; their order is the agents' "
                 "order everywhere. Click a row to preview it.",
                 "groups",
                 classes="grow basis-0 min-w-0",
@@ -162,7 +165,7 @@ def participants_page() -> None:
                             {"name": f, "label": label, "field": f, "align": "left"}
                             for f, label in COLUMNS
                         ],
-                        rows=_rows(draft, None),
+                        rows=_rows(members, None),
                         row_key="id",
                         pagination=10,
                     )
@@ -208,13 +211,13 @@ def participants_page() -> None:
 
     # ------------------------------------------------------------ handlers
     def by_id(pid: str | None) -> dict | None:
-        return next((p for p in draft.participants if p["id"] == pid), None)
+        return next((p for p in members if p["id"] == pid), None)
 
     def context(exclude: str | None = None) -> EditorContext:
         """What the editor may offer: the network, the profiles, the owners."""
         owners = {
             e: p["id"]
-            for p in draft.participants
+            for p in members
             if p["id"] != exclude
             for side in (p.get("owns") or {}).values()
             for e in side
@@ -226,7 +229,7 @@ def participants_page() -> None:
             generation_types=catalogue["generation"],
             csv_files=catalogue["csv"],
             owners=owners,
-            ids={p["id"] for p in draft.participants},
+            ids={p["id"] for p in members},
         )
 
     def ready() -> bool:
@@ -238,9 +241,9 @@ def participants_page() -> None:
     def add() -> None:
         if ready():
             edit_participant(
-                new_participant(_free_number(draft)),
+                new_participant(_free_number(members)),
                 context(),
-                lambda p: save(draft.participants + [p]),
+                lambda p: save(members + [p]),
                 title="Add participant",
             )
 
@@ -252,9 +255,7 @@ def participants_page() -> None:
             edit_participant(
                 p,
                 context(exclude=p["id"]),
-                lambda new: save(
-                    [new if x["id"] == p["id"] else x for x in draft.participants]
-                ),
+                lambda new: save([new if x["id"] == p["id"] else x for x in members]),
             )
 
     def duplicate() -> None:
@@ -268,19 +269,19 @@ def participants_page() -> None:
             edit_participant(
                 copy_,
                 context(),
-                lambda new: save(draft.participants + [new]),
+                lambda new: save(members + [new]),
                 title="Duplicate participant (choose its own elements)",
             )
 
     def move(step: int) -> None:
-        ids = [p["id"] for p in draft.participants]
+        ids = [p["id"] for p in members]
         if selected["id"] not in ids:
             ui.notify("Select a participant first")
             return
         i = ids.index(selected["id"])
         j = i + step
         if 0 <= j < len(ids):
-            order = list(draft.participants)
+            order = list(members)
             order[i], order[j] = order[j], order[i]
             save(order)
 
@@ -292,7 +293,7 @@ def participants_page() -> None:
         confirm(
             f"Remove {p['id']}?",
             "Its owned elements go back to the background.",
-            lambda: save([x for x in draft.participants if x["id"] != p["id"]]),
+            lambda: save([x for x in members if x["id"] != p["id"]]),
         )
 
     def rule() -> dict[str, Any]:
@@ -312,10 +313,13 @@ def participants_page() -> None:
         if net["topology"] is None:
             return
         try:
-            found = await run.io_bound(s.participants.placement_candidates, source, rule())
+            found = await run.io_bound(
+                s.participants.placement_candidates, source, rule()
+            )
         except ValueError as e:
             rule_hint.set_text(str(e))
             return
+        changed = found != net["candidates"]
         net["candidates"] = found
         kinds = ", ".join(
             rule_loads.options[k].split(" (")[0].lower() for k in rule_loads.value
@@ -344,7 +348,8 @@ def participants_page() -> None:
             )
         )
         rule_apply.set_enabled(enough)
-        draw_map()
+        if changed:  # redraw only when other buses qualify
+            draw_map()
 
     async def place() -> None:
         """Place agents by the rule and save them."""
@@ -354,7 +359,7 @@ def participants_page() -> None:
             rule_hint.set_text(str(e))
             return
         if not rule_replace.value:
-            placed = _merge(draft.participants, placed)
+            placed = _merge(members, placed)
         save(placed)
 
     def import_dialog() -> None:
@@ -371,7 +376,9 @@ def participants_page() -> None:
 
             async def received(e: events.UploadEventArguments) -> None:
                 try:
-                    rows = s.participants.import_mapping(await e.file.read(), e.file.name)
+                    rows = s.participants.import_mapping(
+                        await e.file.read(), e.file.name
+                    )
                 except (ValueError, UnicodeDecodeError) as error:
                     message.set_text(str(error))
                     return
@@ -405,7 +412,7 @@ def participants_page() -> None:
 
     def show_selected() -> None:
         """Mark the selected row, redraw the map and the preview."""
-        table.rows = _rows(draft, net)
+        table.rows = _rows(members, net)
         table.selected = [r for r in table.rows if r["id"] == selected["id"]]
         table.update()
         selected_label.set_text(
@@ -418,7 +425,7 @@ def participants_page() -> None:
             return
         map_box.clear()
         with map_box:
-            buses = {p.get("bus") for p in draft.participants}
+            buses = {p.get("bus") for p in members}
             p = by_id(selected["id"])
             figure = topology_figure(net["topology"], height=380)
             position = {b["id"]: (b["x"], b["y"]) for b in net["topology"].buses}
@@ -567,7 +574,7 @@ def _time_window(draft: ExperimentFile) -> None:
     Apply and a live count of the training and evaluation days.
     """
     s = services()
-    time = s.config.resolve(draft).time
+    time = s.config.resolve(draft).to_data()["time"]
     days = time.get("days", {})
     flt = days.get("filter") or {}
     form = DraftForm(draft)
@@ -695,12 +702,12 @@ def _time_window(draft: ExperimentFile) -> None:
     refresh()
 
 
-def _rows(draft: ExperimentFile, net: dict[str, Any] | None) -> list[dict]:
+def _rows(members: list[dict], net: dict[str, Any] | None) -> list[dict]:
     """Table rows, with what does not fit the network in "check"."""
     elements = {e.id: e for e in (net or {}).get("elements", [])}
     buses = set((net or {}).get("buses", []))
     rows = []
-    for p in draft.participants:
+    for p in members:
         owns = p.get("owns") or {}
         owned = [e for side in owns.values() for e in side]
         profile, scaling = p.get("profile") or {}, p.get("scaling") or {}
@@ -754,9 +761,9 @@ def _scaling_text(scaling: dict) -> str:
     )
 
 
-def _free_number(draft: ExperimentFile) -> int:
+def _free_number(members: list[dict]) -> int:
     """The next number for a default ``agent_NN`` ID."""
-    ids = {p["id"] for p in draft.participants}
+    ids = {p["id"] for p in members}
     n = len(ids) + 1
     while f"agent_{n:02d}" in ids:
         n += 1

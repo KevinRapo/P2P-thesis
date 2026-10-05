@@ -16,6 +16,14 @@ import src_thesis.core.grid_contract as contract
 from src_thesis.adapters.grid import participants as mapping
 from src_thesis.adapters.grid import simbench_new as adapter
 from src_thesis.application.models import ExperimentFile, NetworkSource, Series
+from src_thesis.experiments.models.sections import (
+    Days,
+    Owns,
+    Participant,
+    ParticipantProfile,
+    ProfileRef,
+    Scaling,
+)
 from src_thesis.application.profile_classes import BY_KEY, CLASSES, load_class
 
 # time.resolution -> (adapter resolution, hours per value)
@@ -123,7 +131,7 @@ class ParticipantService:
             adapter.elements(ref), adapter.topology_view(ref), rule, load_class
         )
 
-    def paper_roles(self, participants: list[dict]) -> list[dict]:
+    def paper_roles(self, participants: list[Participant]) -> list[dict]:
         """The first eight participants turned into the agents of [P2] Table 6.
 
         Built: keeps each agent's bus and owned elements; sets its role, catalogue
@@ -135,7 +143,7 @@ class ParticipantService:
         """
         if not participants:
             raise ValueError("Add or place participants first; the roles change them")
-        out = [dict(p) for p in participants]
+        out = [p.model_dump(mode="json", exclude_unset=True) for p in participants]
         for p, (role, kw, battery, demand, generation) in zip(out, PAPER_ROLES):
             p.update(
                 id=role,
@@ -195,16 +203,18 @@ class ParticipantService:
             ValueError: Unknown participant, a profile source without preview
                 (``csv``, ``synthetic``) or a scaling that cannot be applied.
         """
-        p = next((x for x in file.participants if x.get("id") == participant_id), None)
+        p = next((x for x in file.participants if x.id == participant_id), None)
         if p is None:
             raise ValueError(f"No participant {participant_id!r}")
         resolution, step_hours = RESOLUTIONS[
-            file.time.get("resolution", "hourly_aggregated")
+            file.time.resolution or "hourly_aggregated"
         ]
         start = _window_start(file)
-        source = NetworkSource(**file.grid.get("source", {}))
+        source = file.grid.source
+        if source is None or not source.type or not source.code:
+            raise ValueError("The draft has no network (grid.source)")
         ref = contract.NetworkRef(source.type, source.code)
-        scaling = p.get("scaling") or {}
+        scaling = p.scaling or Scaling()
         x: list[str] = []
         y: dict[str, list[float]] = {}
         for side, owned in (("demand", "loads"), ("generation", "sgens")):
@@ -215,8 +225,8 @@ class ParticipantService:
             values = mapping.scale(
                 window,
                 year,
-                scaling.get("mode", "none"),
-                scaling.get(side),
+                scaling.mode or "none",
+                getattr(scaling, side),
                 step_hours,
             )
             y[side] = [round(v, 2) for v in values]
@@ -231,14 +241,14 @@ class ParticipantService:
 
 def _window_start(file: ExperimentFile) -> str:
     """First day of the time window: the fixed date, or the start of the range."""
-    days = file.time.get("days") or {}
-    start = days.get("date") if days.get("mode", "fixed") == "fixed" else None
-    return str(start or days.get("start") or f"{adapter.SIMBENCH_YEAR}-01-01")
+    days = file.time.days or Days()
+    start = days.date if (days.mode or "fixed") == "fixed" else None
+    return str(start or days.start or f"{adapter.SIMBENCH_YEAR}-01-01")
 
 
 def _side(
     ref: contract.NetworkRef,
-    participant: dict[str, Any],
+    participant: Participant,
     side: str,
     owned: str,
     start: str,
@@ -248,27 +258,28 @@ def _side(
     """(labels, window values, year values) of a participant's demand or
     generation before scaling; ``None`` if it has none.
     """
-    profile = participant.get("profile") or {}
-    source = profile.get("source", "native")
+    profile = participant.profile or ParticipantProfile()
+    owns = participant.owns or Owns()
+    source = profile.source or "native"
     year_start = f"{adapter.SIMBENCH_YEAR}-01-01"
     if source == "native":
-        ids = (participant.get("owns") or {}).get(owned) or []
+        ids = getattr(owns, owned) or []
         if not ids:
             return None
         x, window = adapter.element_power(ref, ids, start, days, resolution)
         _, year = adapter.element_power(ref, ids, year_start, 366, resolution)
         return x, _total(window), _total(year)
     if source == "catalog":
-        name = (profile.get(side) or {}).get("type")
+        name = (getattr(profile, side) or ProfileRef()).type
         if not name:
             return None
         x, window = adapter.catalogue_series([name], start, days, resolution)
         _, year = adapter.catalogue_series([name], year_start, 366, resolution)
         if name not in window:
             raise ValueError(f"SimBench has no profile {name!r}")
-        mode = (participant.get("scaling") or {}).get("mode", "none")
+        mode = (participant.scaling or Scaling()).mode or "none"
         if mode == "none":  # no target: take the owned elements' rated power
-            rated = _rated_kw(ref, (participant.get("owns") or {}).get(owned) or [])
+            rated = _rated_kw(ref, getattr(owns, owned) or [])
             if not rated:
                 raise ValueError(
                     f"The {side} profile {name} is a factor of rated power: set a "

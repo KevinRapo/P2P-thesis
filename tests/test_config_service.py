@@ -36,7 +36,7 @@ def test_presets_are_listed_and_valid(config: ConfigService) -> None:
         resolved = config.resolve(file)
         assert config.expand(resolved)
         for p in file.participants:  # owned loads sit on the agent's bus
-            assert p["bus"] and p["owns"]["loads"]
+            assert p.bus and p.owns.loads
 
 
 def test_new_from_preset_writes_a_library_file(config: ConfigService) -> None:
@@ -51,7 +51,7 @@ def test_new_from_preset_writes_a_library_file(config: ConfigService) -> None:
 
 def test_save_and_load_round_trip(config: ConfigService) -> None:
     file = config.new_from_preset(PRESET)
-    file.market["mechanism"] = "buyer"
+    file.market.mechanism = "buyer"
     path = config.save(file)
     loaded = config.load(file.meta.id)
     assert loaded == file
@@ -88,12 +88,12 @@ def test_clone(config: ConfigService) -> None:
 def test_diff_reports_dotted_paths(config: ConfigService) -> None:
     a = config.load(PRESET)
     b = a.model_copy(deep=True)
-    b.market["mechanism"] = "seller"
-    b.participants[2]["bus"] = "LV4.101 Bus 1"
+    b.market.mechanism = "seller"
+    b.participants[2].bus = "LV4.101 Bus 1"
     changes = {c.path: (c.before, c.after) for c in config.diff(a, b)}
     assert changes == {
         "market.mechanism": ("average", "seller"),
-        "participants[2].bus": (a.participants[2]["bus"], "LV4.101 Bus 1"),
+        "participants[2].bus": (a.participants[2].bus, "LV4.101 Bus 1"),
     }
     assert config.diff(a, a) == []
 
@@ -109,8 +109,13 @@ def test_export_bundle_contains_the_file_and_its_data(
     csv = tmp_path / "tariff.csv"
     csv.write_text("hour,price\n0,0.2\n", encoding="utf-8")
     file = config.new_from_preset(PRESET)
-    file.dso["tariffs"]["feed_in"] = {"path": str(csv), "column": "price"}
-    file.dso["tariffs"]["utility"] = {"path": str(tmp_path / "missing.csv")}
+    file = config.update(
+        file,
+        {
+            "dso.tariffs.feed_in": {"path": str(csv), "column": "price"},
+            "dso.tariffs.utility": {"path": str(tmp_path / "missing.csv")},
+        },
+    )
     with zipfile.ZipFile(config.export_bundle(file)) as bundle:
         names = bundle.namelist()
     assert f"{file.meta.id}.marlem.json" in names
@@ -124,11 +129,13 @@ def test_import_file_and_bundle_round_trip(
     csv = tmp_path / "tariff.csv"
     csv.write_text("hour,price\n0,0.2\n", encoding="utf-8")
     file = config.new_from_preset(PRESET)
-    file.dso["tariffs"]["feed_in"] = {"path": str(csv), "column": "price"}
+    file = config.update(
+        file, {"dso.tariffs.feed_in": {"path": str(csv), "column": "price"}}
+    )
     bundle = Path(config.export_bundle(file)).read_bytes()
     imported = config.import_bundle(bundle)
     assert imported.meta.id == f"{file.meta.id}-2"  # the original ID is taken
-    path = Path(imported.dso["tariffs"]["feed_in"]["path"])
+    path = Path(imported.dso.tariffs.feed_in.path)
     assert path.read_text(encoding="utf-8").startswith("hour,price")
     assert "imports" in path.parts
     again = config.import_file(files.dumps(file).encode())
@@ -156,12 +163,34 @@ def test_container_and_default_home(tmp_path: Path, monkeypatch) -> None:
 
 def test_update_sets_dotted_paths_and_validates(config: ConfigService) -> None:
     file = config.new_from_preset(PRESET)
-    updated = config.update(file, {"market.mechanism": "seller", "dso.fees.x": 1.0})
-    assert updated.market["mechanism"] == "seller"
-    assert updated.dso["fees"]["x"] == 1.0
-    assert file.market["mechanism"] == "average"  # the input is not changed
+    updated = config.update(
+        file, {"market.mechanism": "seller", "dso.fees.zone_factor": 1.0}
+    )
+    assert updated.market.mechanism == "seller"
+    assert updated.dso.fees.zone_factor == 1.0
+    assert file.market.mechanism == "average"  # the input is not changed
     with pytest.raises(ValueError):
         config.update(file, {"meta.data_status": "made-up"})
+
+
+def test_unknown_or_mistyped_fields_are_rejected(config: ConfigService) -> None:
+    file = config.new_from_preset(PRESET)
+    for change in (
+        {"dso.fees.zone_factr": 1.0},  # misspelt
+        {"market.mechanism": "cheapest"},  # not a mechanism
+        {"learning.seeds": ["one"]},  # not integers
+        {"participants": [{"id": "a", "bsu": "x"}]},  # misspelt participant field
+    ):
+        with pytest.raises(ValueError):
+            config.update(file, change)
+
+
+def test_files_round_trip_unchanged(config: ConfigService) -> None:
+    for preset in config.list(kind="preset"):
+        text = config.presets_dir.joinpath(Path(preset.path).name).read_text("utf-8")
+        assert files.dumps(files.parse(text)) == json.dumps(
+            json.loads(text), indent=2, ensure_ascii=False
+        )
 
 
 def test_origin_and_delete(config: ConfigService) -> None:

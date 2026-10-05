@@ -39,21 +39,19 @@ class SweepPoint:
 
 def sweep_points(file: ExperimentFile) -> list[SweepPoint]:
     """The points of ``sweep`` (grid = Cartesian product, zip = paired lists)."""
-    sweep = file.sweep or {}
-    params: dict[str, list[Any]] = sweep.get("parameters") or {}
+    sweep = file.sweep
+    params: dict[str, list[Any]] = sweep.parameters or {}
     if not params:
         return [SweepPoint("")]
     paths = list(params)
-    if sweep.get("mode", "grid") == "zip":
+    if (sweep.mode or "grid") == "zip":
         lengths = {len(v) for v in params.values()}
         if len(lengths) != 1:
             raise ValueError("sweep.mode 'zip' needs lists of equal length")
         combos = list(zip(*params.values()))
     else:
         combos = list(itertools.product(*params.values()))
-    labels = sweep.get("labels") or [
-        "_".join(_slug(v) for v in combo) for combo in combos
-    ]
+    labels = sweep.labels or ["_".join(_slug(v) for v in combo) for combo in combos]
     if len(labels) != len(combos):
         raise ValueError(
             f"sweep.labels has {len(labels)} names for {len(combos)} points"
@@ -66,7 +64,7 @@ def sweep_points(file: ExperimentFile) -> list[SweepPoint]:
 
 def apply_overrides(file: ExperimentFile, overrides: dict[str, Any]) -> ExperimentFile:
     """Return a copy with each dotted path (e.g. ``market.mechanism``) set."""
-    data = copy.deepcopy(file.model_dump(mode="json"))
+    data = copy.deepcopy(file.to_data())
     for path, value in overrides.items():
         node = data
         *parents, leaf = path.split(".")
@@ -85,10 +83,10 @@ def expand(file: ExperimentFile) -> list[RunCell]:
     Returns:
         One ``RunCell`` per run, in that order.
     """
-    learning = file.learning or {}
-    paradigms = learning.get("paradigms") or DEFAULT_PARADIGMS
-    algorithms = learning.get("algorithms") or DEFAULT_ALGORITHMS
-    seeds = learning.get("seeds") or DEFAULT_SEEDS
+    learning = file.learning
+    paradigms = learning.paradigms or DEFAULT_PARADIGMS
+    algorithms = learning.algorithms or DEFAULT_ALGORITHMS
+    seeds = learning.seeds or DEFAULT_SEEDS
     cells = []
     for point in sweep_points(file):
         for paradigm, algorithm, seed in itertools.product(
@@ -136,7 +134,7 @@ def run_id(experiment_id: str, cell: RunCell, file_hash: str) -> str:
 def _baseline_names(file: ExperimentFile) -> list[str]:
     names = []
     for entry in file.baselines or []:
-        names.append(entry if isinstance(entry, str) else str(entry.get("name", "")))
+        names.append(entry if isinstance(entry, str) else entry.name)
     return [n for n in names if n]
 
 
