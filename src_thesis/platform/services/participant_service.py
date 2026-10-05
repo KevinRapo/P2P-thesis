@@ -16,17 +16,13 @@ import src_thesis.marlem.grid.contract as contract
 from src_thesis.marlem.grid import placement as mapping
 from src_thesis.marlem.grid import simbench as adapter
 from src_thesis.platform.services.models import ExperimentFile, NetworkSource, Series
-from src_thesis.platform.experiments.models.sections import (
-    Days,
-    Owns,
-    Participant,
-    ParticipantProfile,
-    ProfileRef,
-    Scaling,
+from src_thesis.platform.experiments.models.sections import Participant
+from src_thesis.platform.experiments.factory.profiles import (
+    RESOLUTIONS,
+    participant_power,
+    window_start,
 )
 
-# time.resolution -> (adapter resolution, hours per value)
-RESOLUTIONS = {"hourly_aggregated": ("hourly", 1.0), "native_15min": ("15min", 0.25)}
 PREVIEW_DAYS = 7
 # The eight agents of [P2] Table 6: role, capacity (kW), battery (kWh). The
 # demand and generation profile types are a reconstruction: the paper does not
@@ -168,27 +164,13 @@ class ParticipantService:
         resolution, step_hours = RESOLUTIONS[
             file.time.resolution or "hourly_aggregated"
         ]
-        start = _window_start(file)
+        start = window_start(file)
         source = file.grid.source
         if source is None or not source.type or not source.code:
             raise ValueError("The draft has no network (grid.source)")
         ref = contract.NetworkRef(source.type, source.code)
-        scaling = p.scaling or Scaling()
-        x: list[str] = []
-        y: dict[str, list[float]] = {}
-        for side, owned in (("demand", "loads"), ("generation", "sgens")):
-            series = _side(ref, p, side, owned, start, days, resolution)
-            if series is None:
-                continue
-            x, window, year = series
-            values = mapping.scale(
-                window,
-                year,
-                scaling.mode or "none",
-                getattr(scaling, side),
-                step_hours,
-            )
-            y[side] = [round(v, 2) for v in values]
+        x, power = participant_power(ref, p, start, days, resolution, step_hours)
+        y = {k: [round(v, 2) for v in vs] for k, vs in power.items()}
         if y:
             demand = y.get("demand", [0.0] * len(x))
             generation = y.get("generation", [0.0] * len(x))
@@ -196,68 +178,6 @@ class ParticipantService:
                 round(g - d, 2) for g, d in zip(generation, demand)
             ]
         return Series(x=x, y=y, x_label="time", y_label="kW")
-
-
-def _window_start(file: ExperimentFile) -> str:
-    """First day of the time window: the fixed date, or the start of the range."""
-    days = file.time.days or Days()
-    start = days.date if (days.mode or "fixed") == "fixed" else None
-    return str(start or days.start or f"{adapter.SIMBENCH_YEAR}-01-01")
-
-
-def _side(
-    ref: contract.NetworkRef,
-    participant: Participant,
-    side: str,
-    owned: str,
-    start: str,
-    days: int,
-    resolution: str,
-) -> tuple[list[str], list[float], list[float]] | None:
-    """(labels, window values, year values) of a participant's demand or
-    generation before scaling; ``None`` if it has none.
-    """
-    profile = participant.profile or ParticipantProfile()
-    owns = participant.owns or Owns()
-    source = profile.source or "native"
-    year_start = f"{adapter.SIMBENCH_YEAR}-01-01"
-    if source == "native":
-        ids = getattr(owns, owned) or []
-        if not ids:
-            return None
-        x, window = adapter.element_power(ref, ids, start, days, resolution)
-        _, year = adapter.element_power(ref, ids, year_start, 366, resolution)
-        return x, _total(window), _total(year)
-    if source == "catalog":
-        name = (getattr(profile, side) or ProfileRef()).type
-        if not name:
-            return None
-        x, window = adapter.catalogue_series([name], start, days, resolution)
-        _, year = adapter.catalogue_series([name], year_start, 366, resolution)
-        if name not in window:
-            raise ValueError(f"SimBench has no profile {name!r}")
-        mode = (participant.scaling or Scaling()).mode or "none"
-        if mode == "none":  # no target: take the owned elements' rated power
-            rated = _rated_kw(ref, getattr(owns, owned) or [])
-            if not rated:
-                raise ValueError(
-                    f"The {side} profile {name} is a factor of rated power: set a "
-                    "scaling (peak kW or annual energy) or own an element"
-                )
-            return x, [v * rated for v in window[name]], [v * rated for v in year[name]]
-        return x, window[name], year[name]
-    raise ValueError(f"No preview for profile source {source!r} yet")
-
-
-def _total(values: dict[str, list[float]]) -> list[float]:
-    """Element-wise sum of several series."""
-    return [sum(v) for v in zip(*values.values())] if values else []
-
-
-def _rated_kw(ref: contract.NetworkRef, ids: list[str]) -> float:
-    """Sum of the rated power of the named elements, in kW."""
-    wanted = set(ids)
-    return sum(e.rated_kw for e in adapter.elements(ref) if e.id in wanted)
 
 
 def _participant_from_csv(row: dict[str, str]) -> dict[str, Any]:

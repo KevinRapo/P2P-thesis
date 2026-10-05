@@ -49,6 +49,7 @@ flowchart LR
   end
   subgraph g_factory["factory/"]
     n_platform_experiments_factory_environment["factory/environment.py"]
+    n_platform_experiments_factory_profiles["factory/profiles.py"]
     n_platform_experiments_factory_training["factory/training.py"]
   end
   subgraph g_models["models/"]
@@ -70,16 +71,26 @@ flowchart LR
     n_platform_experiments_worker_runner["worker/runner.py"]
   end
   subgraph USES["uses"]
+    n_marlem_core["marlem/core"]:::ext
+    n_marlem_environment["marlem/environment"]:::ext
     n_marlem_grid["marlem/grid"]:::ext
   end
+  n_platform__users_ --> n_platform_experiments_factory_profiles
   n_platform__users_ --> n_platform_experiments_models_expand
   n_platform__users_ --> n_platform_experiments_models_files
   n_platform__users_ --> n_platform_experiments_models_manifest
   n_platform__users_ --> n_platform_experiments_models_records
   n_platform__users_ --> n_platform_experiments_models_resolve
   n_platform__users_ --> n_platform_experiments_models_sections
+  n_platform_experiments_factory_environment --> n_marlem_core
+  n_platform_experiments_factory_environment --> n_marlem_environment
   n_platform_experiments_factory_environment --> n_marlem_grid
+  n_platform_experiments_factory_environment --> n_platform_experiments_factory_profiles
   n_platform_experiments_factory_environment -.-> n_platform_experiments_models_records
+  n_platform_experiments_factory_environment --> n_platform_experiments_models_resolve
+  n_platform_experiments_factory_profiles --> n_marlem_grid
+  n_platform_experiments_factory_profiles -.-> n_platform_experiments_models_records
+  n_platform_experiments_factory_profiles --> n_platform_experiments_models_sections
   n_platform_experiments_factory_training -.-> n_platform_experiments_models_records
   n_platform_experiments_models_expand -.-> n_platform_experiments_models_records
   n_platform_experiments_models_files -.-> n_platform_experiments_models_records

@@ -122,6 +122,8 @@ flowchart LR
   n_marlem_market__ --> n_marlem_dso__
   n_marlem_marl__ --> n_marlem_environment__
   n_marlem_policies__ --> n_marlem_core__
+  n_platform_experiments__ --> n_marlem_core__
+  n_platform_experiments__ --> n_marlem_environment__
   n_platform_experiments__ --> n_marlem_grid__
   n_platform_services__ --> n_marlem_grid__
   n_platform_services__ --> n_platform_env

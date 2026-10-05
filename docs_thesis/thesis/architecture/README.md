@@ -180,6 +180,8 @@ flowchart LR
   n_marlem_market__ --> n_marlem_dso__
   n_marlem_marl__ --> n_marlem_environment__
   n_marlem_policies__ --> n_marlem_core__
+  n_platform__users_ --> n_marlem_core__
+  n_platform__users_ --> n_marlem_environment__
   n_platform__users_ --> n_marlem_grid__
   n_platform__users_ --> n_marlem_marl__
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
