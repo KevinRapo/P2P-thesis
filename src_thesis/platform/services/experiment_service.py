@@ -10,7 +10,7 @@ from __future__ import annotations
 import subprocess
 from datetime import datetime, timezone
 
-from src_thesis.marlem.policies.registry import CATALOG
+from src_thesis.marlem.simulation.catalog import CONTROLLERS
 from src_thesis.platform.experiments.models import expand as expansion
 from src_thesis.platform.experiments.models.files import canonical_hash
 from src_thesis.platform.experiments.models.manifest import build_manifest
@@ -76,7 +76,7 @@ class ExperimentService:
                     for name, p in spec.params.items()
                 ],
             )
-            for spec in CATALOG.values()
+            for spec in CONTROLLERS.values()
         ]
 
     def create_simulation(
@@ -105,11 +105,11 @@ class ExperimentService:
         Raises:
             ValueError: Unknown controller or parameter, or a value out of range.
         """
-        if controller not in CATALOG:
+        if controller not in CONTROLLERS:
             raise ValueError(f"Unknown controller {controller!r}")
         params = {k: float(v) for k, v in (params or {}).items()}
         for key, value in params.items():
-            spec = CATALOG[controller].params.get(key)
+            spec = CONTROLLERS[controller].params.get(key)
             if spec is None:
                 raise ValueError(f"{controller} has no parameter {key!r}")
             if not spec.low <= value <= spec.high:

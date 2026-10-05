@@ -17,11 +17,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Optional
 
-from src_thesis.marlem.core.engine import AgentSpec, EngineSpec, MarketEngine
-from src_thesis.marlem.core.scenarios import INFO
-from src_thesis.marlem.environment.simulation import SimulationResult, run_simulation
+from src_thesis.marlem.simulation.spec import AgentSpec, EngineSpec, MarketEngine
+from src_thesis.marlem.simulation.catalog import SCENARIOS as TEXT
+from src_thesis.marlem.simulation.loop import SimulationResult, run_simulation
 from src_thesis.marlem.grid.contract import GridModel, ParticipantInjection
-from src_thesis.marlem.policies.registry import get_policy
+from src_thesis.marlem.simulation.controllers import get_policy
 
 Build = Callable[[EngineSpec], tuple[MarketEngine, Optional[GridModel]]]
 EPS = 1e-6  # pu; below this a voltage change is noise
@@ -239,7 +239,7 @@ SCENARIOS: dict[str, Scenario] = {
     for s in (
         Scenario(
             "idle_market",
-            *INFO["idle_market"],
+            *TEXT["idle_market"],
             "no_order",
             lambda e, active, idle: (0.0, 0.0 if idle else e),
             range(0, 24),
@@ -247,7 +247,7 @@ SCENARIOS: dict[str, Scenario] = {
         ),
         Scenario(
             "export_at_noon",
-            *INFO["export_at_noon"],
+            *TEXT["export_at_noon"],
             "net_position",
             lambda e, active, idle: (e if active and not idle else 0.0, 0.0),
             range(11, 14),
@@ -255,7 +255,7 @@ SCENARIOS: dict[str, Scenario] = {
         ),
         Scenario(
             "import_in_the_evening",
-            *INFO["import_in_the_evening"],
+            *TEXT["import_in_the_evening"],
             "net_position",
             lambda e, active, idle: (0.0, e if active and not idle else 0.0),
             range(18, 21),

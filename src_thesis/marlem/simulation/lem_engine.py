@@ -17,15 +17,20 @@ import numpy as np
 
 from src_thesis.marlem.agents.battery import Battery
 from src_thesis.marlem.agents.der import DERAgent
-from src_thesis.marlem.core.engine import AgentSpec, EngineSpec, StepOutcome
+from src_thesis.marlem.simulation.spec import (
+    AgentSpec,
+    EngineSpec,
+    MarketEngine,
+    StepOutcome,
+)
 from src_thesis.marlem.core.location import GridTopology
-from src_thesis.marlem.core.policy import AgentView, Intent
+from src_thesis.marlem.simulation.policy import AgentView, Intent
 from src_thesis.marlem.dso.dso import DSOAgent
 from src_thesis.marlem.environment.lem import LocalEnergyMarket
 from src_thesis.marlem.grid.network import GridNetwork
 from src_thesis.marlem.market.matching import ClearingMechanism, MarketConfig
 from src_thesis.marlem.profiles.dso import DSOProfileHandler
-from src_thesis.marlem.profiles.fixed import FixedProfileHandler
+from src_thesis.marlem.simulation.fixed_profiles import FixedProfileHandler
 
 
 def _padded(
@@ -259,3 +264,8 @@ class LemEngine:
             p2p_kwh=float(stats["p2p_volume"]),
             dso_kwh=float(stats["dso_total_volume"]),
         )
+
+
+def build_engine(spec: EngineSpec, grid: Optional[object] = None) -> MarketEngine:
+    """The engine for ``spec`` (today always the original ``LocalEnergyMarket``)."""
+    return LemEngine(spec, grid)

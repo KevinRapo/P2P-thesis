@@ -159,8 +159,8 @@ flowchart LR
   n_marlem_grid__["marlem/grid/*.py"]
   n_marlem_market__["marlem/market/*.py"]
   n_marlem_marl__["marlem/marl/*.py"]
-  n_marlem_policies__["marlem/policies/*.py"]
   n_marlem_profiles__["marlem/profiles/*.py"]
+  n_marlem_simulation__["marlem/simulation/*.py"]
   subgraph USES["uses"]
     n_marlem_root["marlem/root.py"]:::ext
   end
@@ -173,19 +173,22 @@ flowchart LR
   n_marlem_environment__ --> n_marlem_dso__
   n_marlem_environment__ --> n_marlem_grid__
   n_marlem_environment__ --> n_marlem_market__
-  n_marlem_environment__ --> n_marlem_policies__
   n_marlem_environment__ --> n_marlem_profiles__
   n_marlem_environment__ --> n_marlem_root
   n_marlem_grid__ --> n_marlem_core__
   n_marlem_market__ --> n_marlem_core__
   n_marlem_market__ --> n_marlem_dso__
   n_marlem_marl__ --> n_marlem_environment__
-  n_marlem_policies__ --> n_marlem_core__
-  n_platform__users_ --> n_marlem_core__
-  n_platform__users_ --> n_marlem_environment__
+  n_marlem_simulation__ --> n_marlem_agents__
+  n_marlem_simulation__ --> n_marlem_core__
+  n_marlem_simulation__ --> n_marlem_dso__
+  n_marlem_simulation__ --> n_marlem_environment__
+  n_marlem_simulation__ --> n_marlem_grid__
+  n_marlem_simulation__ --> n_marlem_market__
+  n_marlem_simulation__ --> n_marlem_profiles__
   n_platform__users_ --> n_marlem_grid__
   n_platform__users_ --> n_marlem_marl__
-  n_platform__users_ --> n_marlem_policies__
+  n_platform__users_ --> n_marlem_simulation__
   classDef ext fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 <!-- END generated:graph -->
@@ -226,7 +229,7 @@ Where the SimBench edition adds to the original; the [P1] Fig. 2 classes themsel
 | Component | Why it is there | Location | Doc |
 |---|---|---|---|
 | Grid contracts (`GridModel`, `GridAssessment`, `ParticipantInjection`, `GridViolation`) | The only thing the market and the grid share; the grid backend can change or be mocked | [core/grid_contract.py](../../../src_thesis/marlem/grid/contract.py) | 01 §5 |
-| Settlement ledger (energy identity, battery, cash with fees) | One place decides who delivered and paid what; injections and rewards are derived from it | `marlem/market/settlement.py` | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
+| Settlement ledger (energy identity, battery, cash with fees) | One place decides who delivered and paid what; injections and rewards are derived from it | `marlem/simulation/settlement.py` | 01 §5.1, [audit §5](../validation/marlem-keep-replace-audit.md) |
 | Settlement → injection builder | Turns settled energy (kWh per step) into the power injections (kW) a power flow needs | `marlem/environment/injection.py` | 01 §7 |
 | Scripted baseline policies (no order, random, rule-based) | Reference points that give learned results a scale | `marlem/marl/baselines.py` | 02 §3.10 |
 | RL testbench | MARLEM's trainer is first shown to learn on CartPole, MultiAgentCartPole and Simple Spread, then used on the market (D-16) | [rl_testbench/](../../../src_thesis/platform/testbench/); trainer: [marl/train.py](https://github.com/KevinRapo/P2P-thesis/blob/marlem-annotated/src_thesis/marl/train.py) | [rl-testbench.md](../validation/rl-testbench.md) |

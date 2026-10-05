@@ -29,8 +29,15 @@ MARLEM_RUNTIME = (
     "src_thesis.marlem.cooperation",
     "src_thesis.marlem.environment",
     "src_thesis.marlem.agents",
+    "src_thesis.marlem.simulation",
 )
-APPLICATION_ALLOWED = ("src_thesis.marlem.grid.contract",)
+APPLICATION_ALLOWED = (
+    "src_thesis.marlem.grid.contract",
+    "src_thesis.marlem.simulation.spec",
+    "src_thesis.marlem.simulation.policy",
+    "src_thesis.marlem.simulation.checks",
+    "src_thesis.marlem.simulation.catalog",
+)
 STUDIO_EXTRA = ("src_thesis.marlem", "src_thesis.platform.experiments")
 
 

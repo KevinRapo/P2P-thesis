@@ -38,9 +38,9 @@ class SimulateRunner:
 
     def run(self, ctx: RunContext) -> RunOutcome:
         """Simulate; ends CANCELLED if a cancel was requested between steps."""
-        from src_thesis.marlem.environment.build import build_engine
-        from src_thesis.marlem.environment.simulation import run_simulation
-        from src_thesis.marlem.policies.registry import get_policy
+        from src_thesis.marlem.simulation.lem_engine import build_engine
+        from src_thesis.marlem.simulation.loop import run_simulation
+        from src_thesis.marlem.simulation.controllers import get_policy
         from src_thesis.platform.experiments.factory.environment import (
             build_engine_spec,
             build_grid,

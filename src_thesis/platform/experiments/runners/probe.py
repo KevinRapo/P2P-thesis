@@ -62,14 +62,14 @@ def _world(text: str) -> Any:
 
 def dry_run(text: str) -> dict:
     """Build one day, take the first step with nobody ordering, assess the grid."""
-    from src_thesis.marlem.environment.simulation import run_simulation
-    from src_thesis.marlem.policies.registry import get_policy
+    from src_thesis.marlem.simulation.loop import run_simulation
+    from src_thesis.marlem.simulation.controllers import get_policy
     from src_thesis.platform.experiments.factory.environment import (
         build_engine_spec,
         build_grid,
         build_grid_view,
     )
-    from src_thesis.marlem.environment.build import build_engine
+    from src_thesis.marlem.simulation.lem_engine import build_engine
 
     resolved = _world(text)
     spec = build_engine_spec(resolved)
@@ -108,7 +108,7 @@ def dry_run(text: str) -> dict:
 
 def scenario(text: str, scenario_id: str) -> dict:
     """Run one sanity scenario on the file's network and participants."""
-    from src_thesis.marlem.environment.scenarios import SCENARIOS, run_scenario
+    from src_thesis.marlem.simulation.scenarios import SCENARIOS, run_scenario
     from src_thesis.platform.experiments.factory.environment import (
         build_engine_spec,
         world_builder,

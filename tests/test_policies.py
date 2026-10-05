@@ -2,8 +2,9 @@
 
 import pytest
 
-from src_thesis.marlem.core.policy import AgentView, Intent
-from src_thesis.marlem.policies.registry import get_policy, names
+from src_thesis.marlem.simulation.policy import AgentView, Intent
+from src_thesis.marlem.simulation.catalog import names
+from src_thesis.marlem.simulation.controllers import get_policy
 
 
 def view(agent_id="a", generation=5.0, demand=2.0, min_quantity=0.0) -> AgentView:

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from src_thesis.marlem.core.engine import Settlement
+from src_thesis.marlem.simulation.spec import Settlement
 from src_thesis.marlem.grid.contract import ParticipantInjection
 
 

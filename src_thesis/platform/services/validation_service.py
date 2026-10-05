@@ -8,7 +8,7 @@ them.
 
 from __future__ import annotations
 
-from src_thesis.marlem.core.scenarios import INFO
+from src_thesis.marlem.simulation.catalog import SCENARIOS
 from src_thesis.platform.experiments.models.files import canonical_hash
 from src_thesis.platform.experiments.models.resolve import resolve
 from src_thesis.platform.experiments.runners.probe import run_probe
@@ -283,20 +283,22 @@ class ValidationService:
 
     def scenarios(self) -> list[ScenarioInfo]:
         """The sanity scenarios and what each expects."""
-        return [ScenarioInfo(id=k, title=t, expected=e) for k, (t, e) in INFO.items()]
+        return [
+            ScenarioInfo(id=k, title=t, expected=e) for k, (t, e) in SCENARIOS.items()
+        ]
 
     def run_scenario(self, file: ExperimentFile, scenario_id: str) -> ScenarioOutcome:
         """Run one sanity scenario on the file's network and participants.
 
         Runs in a subprocess; it takes some seconds.
         """
-        if scenario_id not in INFO:
+        if scenario_id not in SCENARIOS:
             raise ValueError(f"Unknown scenario {scenario_id!r}")
         out = run_probe(
             "scenario", file.model_dump_json(exclude_unset=True), scenario_id
         )
         if "error" in out:
-            title, expected = INFO[scenario_id]
+            title, expected = SCENARIOS[scenario_id]
             return ScenarioOutcome(
                 scenario=scenario_id, title=title, expected=expected, error=out["error"]
             )

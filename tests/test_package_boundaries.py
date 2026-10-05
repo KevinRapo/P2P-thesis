@@ -22,7 +22,6 @@ ALLOWED = {
     "dso": ("core",),
     "cooperation": ("core",),
     "profiles": ("core",),
-    "policies": ("core",),
     "grid": ("core",),
     "environment": (
         "core",
@@ -31,9 +30,17 @@ ALLOWED = {
         "dso",
         "cooperation",
         "profiles",
-        "policies",
         "grid",
         "root",
+    ),
+    "simulation": (
+        "core",
+        "agents",
+        "market",
+        "dso",
+        "profiles",
+        "grid",
+        "environment",
     ),
     "marl": ("environment",),
 }
@@ -93,3 +100,28 @@ def test_core_has_no_third_party_runtime() -> None:
         if n.split(".")[0] in heavy
     ]
     assert wrong == []
+
+
+# The modules a user interface may import: plain data, no simulator behind them.
+PLAIN_DATA = ("spec", "policy", "checks", "catalog")
+
+
+@pytest.mark.parametrize("module", PLAIN_DATA)
+def test_plain_data_modules_of_simulation_import_no_simulator(module: str) -> None:
+    path = MARLEM / "simulation" / f"{module}.py"
+    imported = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            imported.add(node.module)
+        elif isinstance(node, ast.Import):
+            imported.update(a.name for a in node.names)
+    allowed = {f"src_thesis.marlem.simulation.{m}" for m in PLAIN_DATA}
+    wrong = {m for m in imported if m.startswith("src_thesis") and m not in allowed}
+    assert wrong == set()
+
+
+def test_simulation_init_imports_nothing() -> None:
+    tree = ast.parse((MARLEM / "simulation" / "__init__.py").read_text("utf-8"))
+    assert not [
+        n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))
+    ]

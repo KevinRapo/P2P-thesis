@@ -10,7 +10,8 @@ from __future__ import annotations
 import random
 from typing import Mapping, Optional
 
-from src_thesis.marlem.core.policy import AgentView, Intent
+from src_thesis.marlem.simulation.catalog import CONTROLLERS, names
+from src_thesis.marlem.simulation.policy import AgentView, Intent, Policy
 
 
 def _clip(value: float, low: float, high: float) -> float:
@@ -109,3 +110,28 @@ class NetPosition:
             else:
                 out[agent_id] = Intent.nothing(mid)
         return out
+
+
+FACTORIES = {"no_order": NoOrder, "random": RandomOrders, "net_position": NetPosition}
+
+
+def get_policy(name: str, **params: float) -> Policy:
+    """Build a controller by name.
+
+    Args:
+        name: One of ``catalog.names()``.
+        **params: Its parameters; unknown or out-of-range values are errors.
+
+    Raises:
+        ValueError: Unknown controller, unknown parameter or value out of range.
+    """
+    if name not in CONTROLLERS:
+        raise ValueError(f"Unknown controller {name!r}; use one of {names()}")
+    spec = CONTROLLERS[name]
+    for key, value in params.items():
+        if key not in spec.params:
+            raise ValueError(f"{name} has no parameter {key!r}")
+        p = spec.params[key]
+        if not p.low <= value <= p.high:
+            raise ValueError(f"{name}.{key} must be between {p.low} and {p.high}")
+    return FACTORIES[name](**params)

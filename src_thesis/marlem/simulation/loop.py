@@ -11,12 +11,17 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Optional
 
-from src_thesis.marlem.core.checks import Finding, check_day, check_step, summarize
-from src_thesis.marlem.core.engine import EngineSpec, MarketEngine
-from src_thesis.marlem.core.policy import Policy
+from src_thesis.marlem.simulation.checks import (
+    Finding,
+    check_day,
+    check_step,
+    summarize,
+)
+from src_thesis.marlem.simulation.spec import EngineSpec, MarketEngine
+from src_thesis.marlem.simulation.policy import Policy
 from src_thesis.marlem.grid.contract import GridModel
-from src_thesis.marlem.grid.injection import injections
-from src_thesis.marlem.market.settlement import settle
+from src_thesis.marlem.simulation.injection import injections
+from src_thesis.marlem.simulation.settlement import settle
 
 
 @dataclass

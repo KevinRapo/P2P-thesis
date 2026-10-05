@@ -75,10 +75,8 @@ flowchart LR
     n_platform_experiments_worker_runner["worker/runner.py"]
   end
   subgraph USES["uses"]
-    n_marlem_core["marlem/core"]:::ext
-    n_marlem_environment["marlem/environment"]:::ext
     n_marlem_grid["marlem/grid"]:::ext
-    n_marlem_policies["marlem/policies"]:::ext
+    n_marlem_simulation["marlem/simulation"]:::ext
   end
   n_platform__users_ --> n_platform_experiments_factory_profiles
   n_platform__users_ --> n_platform_experiments_models_expand
@@ -90,9 +88,8 @@ flowchart LR
   n_platform__users_ --> n_platform_experiments_runners_probe
   n_platform__users_ --> n_platform_experiments_store_filesystem
   n_platform__users_ --> n_platform_experiments_worker_pool
-  n_platform_experiments_factory_environment --> n_marlem_core
-  n_platform_experiments_factory_environment --> n_marlem_environment
   n_platform_experiments_factory_environment --> n_marlem_grid
+  n_platform_experiments_factory_environment --> n_marlem_simulation
   n_platform_experiments_factory_environment --> n_platform_experiments_factory_profiles
   n_platform_experiments_factory_environment -.-> n_platform_experiments_models_records
   n_platform_experiments_factory_environment --> n_platform_experiments_models_resolve
@@ -109,13 +106,11 @@ flowchart LR
   n_platform_experiments_models_resolve --> n_platform_experiments_models_expand
   n_platform_experiments_models_resolve -.-> n_platform_experiments_models_records
   n_platform_experiments_models_resolve --> n_platform_experiments_models_sections
-  n_platform_experiments_runners_probe --> n_marlem_environment
-  n_platform_experiments_runners_probe --> n_marlem_policies
+  n_platform_experiments_runners_probe --> n_marlem_simulation
   n_platform_experiments_runners_probe --> n_platform_experiments_factory_environment
   n_platform_experiments_runners_probe -.-> n_platform_experiments_models_records
   n_platform_experiments_runners_probe --> n_platform_experiments_models_resolve
-  n_platform_experiments_runners_simulate --> n_marlem_environment
-  n_platform_experiments_runners_simulate --> n_marlem_policies
+  n_platform_experiments_runners_simulate --> n_marlem_simulation
   n_platform_experiments_runners_simulate --> n_platform_experiments_factory_environment
   n_platform_experiments_runners_simulate --> n_platform_experiments_factory_profiles
   n_platform_experiments_runners_simulate -.-> n_platform_experiments_models_records

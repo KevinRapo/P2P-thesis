@@ -34,11 +34,11 @@ MARLEM_PACKAGES = [
     "grid",
     "profiles",
     "agents",
-    "policies",
     "market",
     "dso",
     "cooperation",
     "environment",
+    "simulation",
     "marl",
 ]
 PLATFORM_PACKAGES = [

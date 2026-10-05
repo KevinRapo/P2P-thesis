@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.marlem.core.checks import CATALOG
-from src_thesis.marlem.environment.simulation import run_simulation
-from src_thesis.marlem.policies.registry import get_policy
+from src_thesis.marlem.simulation.checks import CATALOG
+from src_thesis.marlem.simulation.loop import run_simulation
+from src_thesis.marlem.simulation.controllers import get_policy
 from src_thesis.platform.experiments.factory.environment import (
     build_engine_spec,
     build_env,

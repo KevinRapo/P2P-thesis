@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Mapping, Optional, Protocol
 
-from src_thesis.marlem.core.policy import AgentView, Intent
+from src_thesis.marlem.simulation.policy import AgentView, Intent
 
 
 @dataclass(frozen=True)

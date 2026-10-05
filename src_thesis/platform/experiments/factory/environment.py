@@ -18,7 +18,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import src_thesis.marlem.grid.contract as contract
-from src_thesis.marlem.core.engine import (
+from src_thesis.marlem.simulation.spec import (
     AgentSpec,
     BatterySpec,
     EngineSpec,
@@ -34,7 +34,7 @@ from src_thesis.platform.experiments.models.records import ExperimentFile, RunCe
 from src_thesis.platform.experiments.models.resolve import resolve_run
 
 if TYPE_CHECKING:  # heavy imports stay out of this module at runtime
-    from src_thesis.marlem.core.engine import MarketEngine
+    from src_thesis.marlem.simulation.spec import MarketEngine
     from src_thesis.marlem.grid.contract import GridModel
 
 ENV_CONFIG_KEY = "marlem_resolved_file"
@@ -193,7 +193,7 @@ def build_env(env_config: dict[str, Any], grid: Any = None) -> "MarketEngine":
         env_config: As made by :func:`build_env_config`.
         grid: The market's grid view; the chosen network's when ``None``.
     """
-    from src_thesis.marlem.environment.build import build_engine
+    from src_thesis.marlem.simulation.lem_engine import build_engine
 
     resolved = ExperimentFile.model_validate(env_config[ENV_CONFIG_KEY])
     cell = RunCell.model_validate(env_config["cell"])
@@ -267,7 +267,7 @@ def world_builder(resolved: ExperimentFile) -> Any:
 
     The sanity scenarios use it to run fixture worlds on the file's own network.
     """
-    from src_thesis.marlem.environment.build import build_engine
+    from src_thesis.marlem.simulation.lem_engine import build_engine
 
     def build(spec: EngineSpec) -> tuple["MarketEngine", "GridModel"]:
         return (

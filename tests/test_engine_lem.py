@@ -5,15 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.marlem.core.engine import (
+from src_thesis.marlem.simulation.spec import (
     AgentSpec,
     BatterySpec,
     EngineSpec,
     MarketSpec,
     TariffSpec,
 )
-from src_thesis.marlem.environment.build import build_engine
-from src_thesis.marlem.policies.registry import get_policy
+from src_thesis.marlem.simulation.lem_engine import build_engine
+from src_thesis.marlem.simulation.controllers import get_policy
 
 PRESETS = (
     Path(__file__).resolve().parents[1] / "src_thesis/platform/experiments/presets"

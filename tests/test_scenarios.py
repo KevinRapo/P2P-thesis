@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src_thesis.marlem.environment.scenarios import SCENARIOS, describe, run_scenario
+from src_thesis.marlem.simulation.scenarios import SCENARIOS, describe, run_scenario
 from src_thesis.platform.experiments.factory.environment import (
     build_engine_spec,
     world_builder,
@@ -42,7 +42,7 @@ def test_scenarios_are_described_for_the_ui() -> None:
 def test_a_wrong_expectation_is_caught(world) -> None:
     from dataclasses import replace
 
-    from src_thesis.marlem.environment.scenarios import _rises
+    from src_thesis.marlem.simulation.scenarios import _rises
 
     spec, build = world
     wrong = replace(SCENARIOS["export_at_noon"], verify=lambda c: _rises(c, -1))

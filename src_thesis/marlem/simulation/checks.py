@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
 
-from src_thesis.marlem.core.engine import EngineSpec, Settlement, StepOutcome
+from src_thesis.marlem.simulation.spec import EngineSpec, Settlement, StepOutcome
 
 TOL = 1e-3  # kWh; orders pass through float32
 

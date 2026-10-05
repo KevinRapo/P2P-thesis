@@ -8,7 +8,7 @@ that no trade covers is the agent's exchange with the upstream grid.
 
 from __future__ import annotations
 
-from src_thesis.marlem.core.engine import EngineSpec, Settlement, StepOutcome
+from src_thesis.marlem.simulation.spec import EngineSpec, Settlement, StepOutcome
 
 
 def settle(outcome: StepOutcome, spec: EngineSpec) -> dict[str, Settlement]:

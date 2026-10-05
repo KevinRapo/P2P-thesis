@@ -14,7 +14,7 @@ import random
 from pathlib import Path
 from typing import Any
 
-from src_thesis.marlem.core.checks import CATALOG as CHECKS
+from src_thesis.marlem.simulation.checks import CATALOG as CHECKS
 from src_thesis.platform.experiments.store.filesystem import ExperimentStore
 from src_thesis.platform.services.experiment_service import ALGORITHMS, PARADIGMS
 from src_thesis.platform.services.models import (

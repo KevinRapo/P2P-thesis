@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from src_thesis.marlem.policies.registry import get_policy
+from src_thesis.marlem.simulation.controllers import get_policy
 from src_thesis.platform.experiments.factory.environment import (
     build_env,
     build_env_config,

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src_thesis.marlem.core.engine import (
+from src_thesis.marlem.simulation.spec import (
     AgentSpec,
     BatterySpec,
     EngineSpec,
@@ -11,8 +11,8 @@ from src_thesis.marlem.core.engine import (
 )
 from src_thesis.marlem.grid import simbench
 from src_thesis.marlem.grid.contract import GridLimits, NetworkRef, ParticipantInjection
-from src_thesis.marlem.grid.injection import injections
-from src_thesis.marlem.market.settlement import settle
+from src_thesis.marlem.simulation.injection import injections
+from src_thesis.marlem.simulation.settlement import settle
 
 CODE = "1-LV-semiurb4--0-sw"
 DAY = "2016-06-01"
