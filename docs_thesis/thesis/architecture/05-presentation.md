@@ -117,14 +117,14 @@ Arrows are imports; the twelve page modules are drawn as one node (`pages/*.py`)
 
 | File | What it is for |
 |---|---|
-| `__main__.py`, `app.py` | Start the server (`python -m src_thesis.platform.studio`); `app.py` imports every page module, which registers its URL, and calls `ui.run` |
+| `src_thesis/run_studio.py`, `__main__.py`, `app.py` | Start the server (`python src_thesis/run_studio.py` or `python -m src_thesis.platform.studio`); `app.py` imports every page module, which registers its URL, and calls `ui.run` |
 | `state.py` | The bridge to the services: `services()` (built once per process), `current_draft()` (the file this browser edits, remembered in `app.storage.user`), notifications across reloads |
 | `layout.py` | `shell()`: header, navigation, footer and title around every page; `navigation.py` lists the menu, `theme.py` the colours |
 | `forms.py` | `DraftForm`: ties page controls (or any value, `track`) to fields of the draft and saves only what changed; `save_changes` for whole-list edits; `date_input` |
 | `components/` | Reusable building blocks: cards and stat tiles, tables, Plotly figures, `network.py` (picker, facts, topology, elements, profile inspector), the only component that calls services, shared by Grid and Inspect, `profiles.py` (the overview of SimBench's profile classes) and `participant_editor.py` (the dialog that adds or edits one participant) |
 | `pages/*.py` | One module per page (§6), each an `@ui.page` function |
 
-Running it: `python -m src_thesis.platform.studio` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
+Running it: `python src_thesis/run_studio.py` with the `marlem` env, then http://localhost:8080. Settings (port, auto-reload, workspace) are environment variables, kept in the repository's `.env` ([.env.example](../../../.env.example) lists them). Auto-reload restarts the server when a `.py` file under `src_thesis/` is saved.
 
 [↑ Contents](#contents)
 

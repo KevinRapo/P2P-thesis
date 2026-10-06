@@ -80,8 +80,10 @@ The left navigation follows the same order: **Build** (Inspect, Grid, Participan
 In a terminal in the repository, with the `marlem` conda environment active:
 
 ```text
-python -m src_thesis.platform.studio
+python src_thesis/run_studio.py
 ```
+
+(`python -m src_thesis.platform.studio` does the same.) The script also works from an editor's "Run Python File" button, from any folder.
 
 A browser tab opens at <http://localhost:8080>. Settings such as the port live in the repository's `.env` file (see `.env.example`). The terminal must stay open while you work; closing it stops the Studio.
 
