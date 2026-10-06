@@ -1,0 +1,24 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Studio (clean, port 8090)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_studio.py",
+            "cwd": "${workspaceFolder}",
+            "python": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "All dev servers (docs 8000, refactor 8080, clean 8090)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/run_all.py",
+            "cwd": "${workspaceFolder}",
+            "python": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe",
+            "console": "integratedTerminal"
+        }
+    ]
+}
