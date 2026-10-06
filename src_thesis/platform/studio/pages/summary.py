@@ -10,9 +10,9 @@ from src_thesis.platform.studio.state import current_draft, flash, open_draft, s
 
 # Top-level sections of the file and the page that edits them.
 SECTION_PAGES = [
-    ("time", "/build/participants"),
+    ("time", "/build/grid?tab=participants"),
     ("grid", "/build/grid"),
-    ("participants", "/build/participants"),
+    ("participants", "/build/grid?tab=participants"),
     ("market", "/build/market"),
     ("dso", "/build/market"),
     ("environment", "/build/market"),

@@ -1,10 +1,11 @@
 # Grid & Participants page
 
-One page with two stages and one shared network plot. Routes: `/build/grid`
-(stage 1) and `/build/participants` (stage 2); switching stage in the page does
-not reload anything, and a saved change reloads onto the same stage.
+One page with two tabs (as on the Inspect page) and one shared network plot. One
+route, `/build/grid`. Switching tab does not reload anything; the tab last used is
+remembered in the browser, so a saved change reloads onto the same tab, and a link
+can open a tab with `?tab=participants`.
 
-## The two stages
+## The two tabs
 
 1. **Grid**: pick the network, read its facts, run a power-flow preview (colours the
    plot by voltage), list its elements (click a bus to filter), set the grid rules.
@@ -17,7 +18,7 @@ not reload anything, and a saved change reloads onto the same stage.
 
 | File | Role |
 |---|---|
-| `page.py` | The routes, the stage switch, the layout: slots beside and below the plot |
+| `page.py` | The route, the tab bar and its panels (beside and below the plot) |
 | `view.py` | `NetworkView`: the one plot, the loaded network, what both stages mark on it |
 | `grid_stage.py` | Stage 1 controls and the draft's `grid` section |
 | `participants_stage.py` | Stage 2 controls and the draft's `participants` and `time` sections |

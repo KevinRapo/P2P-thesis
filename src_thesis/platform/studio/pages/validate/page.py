@@ -20,11 +20,11 @@ _ICONS = {
 # Page that fixes a finding of each area; clicking a finding opens it.
 _AREA_ROUTES = {
     "grid": "/build/grid",
-    "participants": "/build/participants",
+    "participants": "/build/grid?tab=participants",
     "market": "/build/market",
     "dso": "/build/market",
     "learning": "/build/rl",
-    "time": "/build/participants",
+    "time": "/build/grid?tab=participants",
 }
 
 
