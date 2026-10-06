@@ -1,0 +1,134 @@
+# Website for the docs (docs/), built with MkDocs Material.
+#
+# The source stays docs/, unchanged and readable in VS Code / on GitHub.
+# Everything a website needs differently happens at build time in hooks.py.
+#
+#   mkdocs serve -f docs_site/mkdocs.yml -a 127.0.0.1:8001   # live preview
+#   mkdocs build -f docs_site/mkdocs.yml                     # static site in site/
+
+site_name: MARLEM clean
+site_description: MARLEM rebuilt on SimBench networks
+repo_url: https://github.com/KevinRapo/P2P-thesis
+edit_uri: blob/clean/docs/
+docs_dir: ../docs
+site_dir: ../site
+dev_addr: 127.0.0.1:8001
+
+extra:
+  # Links to code outside docs/ become links to this repository and branch.
+  code_links:
+    repo: https://github.com/KevinRapo/P2P-thesis
+    ref: clean
+
+hooks:
+  - hooks.py
+
+# `mkdocs serve` also rebuilds when these change: the code (API pages stay
+# current) and the site assets. Changes to hooks.py need a restart.
+watch:
+  - ../grid
+  - ../market
+  - ../simulation
+  - ../config
+  - ../services
+  - ../studio
+  - overrides
+
+exclude_docs: |
+  *.py
+  *.json
+
+theme:
+  name: material
+  # Site assets that are not docs: overrides/assets/ (diagram zoom, wider layout).
+  custom_dir: overrides
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - tables
+  - attr_list
+  - md_in_html
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+      # GitHub-style anchors, so in-document links work in VS Code and here.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences:
+      custom_fences:
+        # Not "mermaid": Material would draw it in a closed shadow DOM that
+        # cannot be zoomed. overrides/assets/diagrams.js renders these instead.
+        - name: mermaid
+          class: mermaid-diagram
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tilde
+
+extra_css:
+  - assets/diagrams.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+  - https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js
+  - assets/diagrams.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [..]
+          options:
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            docstring_style: google
+            show_if_no_docstring: true
+            filters: ["!^_"]
+            summary: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+
+validation:
+  links:
+    anchors: warn
+
+nav:
+  - Home: index.md
+  - SimBench:
+      - simbench/README.md
+      - Network catalogue: simbench/networks.md
+      - Profiles: simbench/profiles.md
+  # Filled in by hooks.py: one section per top-level folder, one page per module.
+  - API Reference: api/index.md
+  - About these docs: about.md
