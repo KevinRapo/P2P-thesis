@@ -40,7 +40,7 @@ The adapter contains the library-specific work.
 
 ## Who calls it
 
-The [`participants` Studio page](../../src_thesis/platform/studio/pages/participants.py)
+The [`participants` Studio page](../../src_thesis/platform/studio/pages/network/participants_stage.py)
 calls `s.participants.suggest_mapping` through `run.io_bound`, so loading data does
 not block the UI event loop. The service calls `adapter.elements`,
 `adapter.topology_view` and `mapping.place`. Its preview operation similarly

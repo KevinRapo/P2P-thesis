@@ -1,4 +1,4 @@
-"""Grid (05 §6): choose the network for the experiment, check it, set its rules.
+"""Stage 1 of the network page: choose the network, check it, set its rules.
 
 Writes the draft's ``grid`` section: the network (``grid.source``), the
 background elements, voltage and loading limits, line ratings, reactive power,
@@ -6,28 +6,31 @@ power-flow settings and what happens when the power flow fails. Only fields the
 user changes are written (``DraftForm``).
 
 Built from the network blocks in ``components/network.py``, shared with the
-Inspect page (which adds the profiles and the comparison). With the pandapower
-backend, loading a network or running a power flow takes seconds, so those calls
-run in a worker thread (``run.io_bound``) while the page shows a spinner.
+Inspect page (which adds the profiles and the comparison). The topology itself is
+the page's shared plot (``view.py``). With the pandapower backend, loading a
+network or running a power flow takes seconds, so those calls run in a worker
+thread (``run.io_bound``) while the page shows a spinner.
 """
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from nicegui import run, ui
 
 from src_thesis.platform.services.models import NetworkSource
 from src_thesis.platform.studio.components.cards import section
 from src_thesis.platform.studio.components.network import (
-    DEFAULT_SOURCE,
     ElementsTable,
     NetworkPicker,
     busy,
-    clicked_bus,
     failed,
     show_summary,
-    show_topology,
 )
 from src_thesis.platform.studio.forms import DraftForm
-from src_thesis.platform.studio.layout import shell
-from src_thesis.platform.studio.state import current_draft, draft_network, services
+
+if TYPE_CHECKING:
+    from src_thesis.platform.studio.pages.network.page import Context
 
 BACKGROUND_HINTS = {
     "mapped_replacement": "Every element no agent owns keeps running with its own "
@@ -45,83 +48,59 @@ RATINGS_HINTS = {
 }
 
 
-@ui.page("/build/grid")
-def grid_page() -> None:
-    """Grid (05 §6): pick a network, see its topology and elements, run one power
-    flow, and set the draft's limits and ratings.
+def build_grid_stage(ctx: Context, side: ui.element, below: ui.element) -> None:
+    """Build stage 1: the picker and preview beside the plot, the elements and the
+    grid rules below it.
+
+    Args:
+        ctx: What the stages share (services, draft, the plot).
+        side: Slot beside the plot.
+        below: Slot below it.
     """
-    s = services()
-    draft = current_draft()
+    s, draft, view, draft_source = ctx.s, ctx.draft, ctx.view, ctx.draft_source
     # Values shown: the draft's, else the defaults (02 §3.3). Only changed fields are
     # written, so a default stays unset in the file.
     # The form view of the resolved file: the same dotted paths the controls write.
     grid = s.config.resolve(draft).to_data()["grid"]
     form = DraftForm(draft)
-    draft_source = draft_network(draft, DEFAULT_SOURCE)
-    # Page state shared by the handlers: the topology shown, the bus selected in it
-    # and the voltages of the last preview (to colour the buses).
-    state: dict = {"topology": None, "bus": None, "voltages": None}
 
-    with shell(
-        "grid",
-        "Grid",
-        "Network for the experiment: topology, elements and a power-flow preview",
-    ):
-        # Row 1: network picker | topology. Row 2: elements | power-flow preview |
-        # limits. Empty boxes are filled by the handlers below.
-        with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
-            with section(
-                "Network",
-                "Pick a source, a voltage level and a network",
-                "hub",
-                classes="basis-1/3 min-w-[360px]",
-            ):
-                picker = NetworkPicker(
-                    s,
-                    draft_source,
-                    on_pick=lambda source: load_network(source),
-                )
-                # Which network the draft uses, and whether the picked one differs.
-                source_note = ui.label().classes("mls-card-caption")
-                summary_box = ui.column().classes("w-full gap-1")
-            with section(
-                "Topology",
-                "Colour = element type, or voltage after a preview. "
-                "Click a bus to list its elements.",
-                "account_tree",
-                classes="grow",
-            ):
-                plot_box = ui.column().classes("w-full")
+    with side:
+        with section("Network", "Pick a source, a voltage level and a network", "hub"):
+            picker = NetworkPicker(
+                s, draft_source, on_pick=lambda source: load_network(source)
+            )
+            # Which network the draft uses, and whether the picked one differs.
+            source_note = ui.label().classes("mls-card-caption")
+            summary_box = ui.column().classes("w-full gap-1")
+        with section(
+            "Power-flow preview",
+            "One solve on the unmodified network (no RL); colours the plot by "
+            "voltage",
+            "electric_bolt",
+        ):
+            with ui.input("Day", value="2016-06-15").classes("w-full") as day:
+                with ui.menu().props("no-parent-event") as menu:
+                    with ui.date(mask="YYYY-MM-DD").bind_value(day):
+                        with ui.row().classes("justify-end"):
+                            ui.button("Close", on_click=menu.close).props("flat")
+                with day.add_slot("append"):
+                    ui.icon("edit_calendar").on("click", menu.open).classes(
+                        "cursor-pointer"
+                    )
+            ui.label("Hour of the day").classes("mls-card-caption")
+            hour = ui.slider(min=0, max=23, value=12).props("label-always")
+            preview_button = ui.button(
+                "Run preview", icon="play_arrow", on_click=lambda: run_preview()
+            ).props("unelevated")
+            pf_box = ui.column().classes("w-full gap-1")
 
-        with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
-            with section(
-                "Elements",
-                "Loads, generators and storage of the selected network",
-                "list",
-                classes="grow basis-0",
-            ):
-                elements = ElementsTable(s)
-            with section(
-                "Power-flow preview",
-                "One solve on the unmodified network (no RL)",
-                "electric_bolt",
-                classes="basis-1/3 min-w-0",
-            ):
-                with ui.input("Day", value="2016-06-15").classes("w-full") as day:
-                    with ui.menu().props("no-parent-event") as menu:
-                        with ui.date(mask="YYYY-MM-DD").bind_value(day):
-                            with ui.row().classes("justify-end"):
-                                ui.button("Close", on_click=menu.close).props("flat")
-                    with day.add_slot("append"):
-                        ui.icon("edit_calendar").on("click", menu.open).classes(
-                            "cursor-pointer"
-                        )
-                ui.label("Hour of the day").classes("mls-card-caption")
-                hour = ui.slider(min=0, max=23, value=12).props("label-always")
-                preview_button = ui.button(
-                    "Run preview", icon="play_arrow", on_click=lambda: run_preview()
-                ).props("unelevated")
-                pf_box = ui.column().classes("w-full gap-1")
+    with below:
+        with section(
+            "Elements",
+            "Loads, generators and storage of the selected network",
+            "list",
+        ):
+            elements = ElementsTable(s)
 
         _settings(form, grid)
 
@@ -129,144 +108,130 @@ def grid_page() -> None:
             ui.button("Apply to draft", icon="save", on_click=lambda: apply()).props(
                 "unelevated"
             )
+            ui.button(
+                "Next: participants",
+                icon="arrow_forward",
+                on_click=lambda: ctx.switch("participants"),
+            ).props("outline")
 
-        # ------------------------------------------------------------ handlers
-        def redraw() -> None:
-            """Redraw the topology with the current voltages and selected bus."""
-            if state["topology"] is not None:
-                show_topology(
-                    plot_box,
-                    state["topology"],
-                    voltages=state["voltages"],
-                    bus=state["bus"],
-                    on_click=on_bus_click,
-                )
+    ctx.picked = lambda: picker.source
+    form.track("grid.source", lambda: picker.source.model_dump())
 
-        form.track("grid.source", lambda: picker.source.model_dump())
+    # ------------------------------------------------------------ handlers
+    def explain_source() -> None:
+        """Say whether the picked network is the draft's or a new choice."""
+        if picker.source == draft_source:
+            source_note.set_text(f"The draft uses this network ({draft_source.code}).")
+        else:
+            source_note.set_text(
+                f"Not saved yet: the draft uses {draft_source.code}. "
+                "Apply to draft to use this network (needed before placing "
+                "participants on it)."
+            )
 
-        def explain_source() -> None:
-            """Say whether the picked network is the draft's or a new choice."""
-            if picker.source == draft_source:
-                source_note.set_text(
-                    f"The draft uses this network ({draft_source.code})."
-                )
-            else:
-                source_note.set_text(
-                    f"Not saved yet: the draft uses {draft_source.code}. "
-                    "Apply to draft to use this network."
-                )
+    def apply() -> None:
+        """Save the changes; ask first if the network changes under the agents."""
+        changes = form.changes()
+        if not changes:
+            ui.notify("No changes to apply")
+            return
+        if "grid.source" not in changes or not draft.participants:
+            form.save(changes)
+            return
+        with ui.dialog() as dialog, ui.card().classes("mls-card max-w-[34rem]"):
+            ui.label("Change the network?").classes("mls-card-title")
+            ui.label(
+                f"The draft's {len(draft.participants)} participants sit on buses "
+                f"of {draft_source.code} and own its elements. On another network "
+                "these names usually do not exist. Keep them to fix them in the "
+                "participants stage, or remove them and place new ones there."
+            ).classes("text-body2")
+            with ui.row().classes("justify-end w-full gap-2"):
+                ui.button("Cancel", on_click=dialog.close).props("flat")
+                ui.button(
+                    "Keep participants",
+                    on_click=lambda: (dialog.close(), form.save(changes)),
+                ).props("outline")
+                ui.button(
+                    "Remove participants",
+                    on_click=lambda: (
+                        dialog.close(),
+                        form.save({**changes, "participants": []}),
+                    ),
+                ).props("unelevated color=negative")
+        dialog.open()
 
-        def apply() -> None:
-            """Save the changes; ask first if the network changes under the agents."""
-            changes = form.changes()
-            if not changes:
-                ui.notify("No changes to apply")
-                return
-            if "grid.source" not in changes or not draft.participants:
-                form.save(changes)
-                return
-            with ui.dialog() as dialog, ui.card().classes("mls-card max-w-[34rem]"):
-                ui.label("Change the network?").classes("mls-card-title")
-                ui.label(
-                    f"The draft's {len(draft.participants)} participants sit on buses "
-                    f"of {draft_source.code} and own its elements. On another network "
-                    "these names usually do not exist. Keep them to fix them on the "
-                    "Participants page, or remove them and place new ones there."
-                ).classes("text-body2")
-                with ui.row().classes("justify-end w-full gap-2"):
-                    ui.button("Cancel", on_click=dialog.close).props("flat")
-                    ui.button(
-                        "Keep participants",
-                        on_click=lambda: (dialog.close(), form.save(changes)),
-                    ).props("outline")
-                    ui.button(
-                        "Remove participants",
-                        on_click=lambda: (
-                            dialog.close(),
-                            form.save({**changes, "participants": []}),
-                        ),
-                    ).props("unelevated color=negative")
-            dialog.open()
+    async def load_network(source: NetworkSource) -> None:
+        """A network was picked: show its summary, topology and elements."""
+        explain_source()
+        pf_box.clear()
+        busy(summary_box, "Loading network …")
+        try:
+            summary = await run.io_bound(s.grid.summary, source)
+        except Exception as e:  # noqa: BLE001  show the error on the page
+            failed(summary_box, e)
+            return
+        if picker.source != source:  # another network was picked meanwhile
+            return
+        show_summary(summary_box, summary)
+        await view.load(source)
+        await elements.show(source)
 
-        async def load_network(source: NetworkSource) -> None:
-            """A network was picked: show its summary, topology and elements."""
-            explain_source()
-            state.update(topology=None, bus=None, voltages=None)
-            pf_box.clear()
-            busy(summary_box, "Loading network …")
-            busy(plot_box, "Building topology …")
-            try:
-                summary = await run.io_bound(s.grid.summary, source)
-                topology = await run.io_bound(s.grid.topology, source)
-            except Exception as e:  # noqa: BLE001  show the error on the page
-                failed(summary_box, e)
-                plot_box.clear()
-                return
-            if picker.source != source:  # another network was picked meanwhile
-                return
-            state["topology"] = topology
-            show_summary(summary_box, summary)
-            redraw()
-            await elements.show(source)
+    async def on_bus_click(bus: str) -> None:
+        """A bus was clicked: list its elements and outline it."""
+        view.bus = bus
+        await elements.show(picker.source, bus)
+        view.redraw()
 
-        async def on_bus_click(e) -> None:
-            """A bus was clicked: list its elements and outline it."""
-            state["bus"] = clicked_bus(e)
-            await elements.show(picker.source, state["bus"])
-            redraw()
+    view.handlers["grid"] = on_bus_click
 
-        async def run_preview() -> None:
-            """Run one power flow for the chosen day and hour, show it, colour the
-            buses by voltage.
-            """
-            preview_button.disable()
-            busy(pf_box, "Running power flow …")
-            try:
-                result = await run.io_bound(
-                    s.grid.preview_powerflow, picker.source, day.value, int(hour.value)
-                )
-            except Exception as e:  # noqa: BLE001
-                failed(pf_box, e)
-                return
-            finally:
-                preview_button.enable()
-            pf_box.clear()
-            with pf_box:
-                ui.label("converged" if result.converged else "NOT converged").classes(
-                    "text-positive" if result.converged else "text-negative"
-                )
-                if result.converged:
-                    facts = [
-                        (
-                            "Voltage",
-                            f"{result.min_voltage_pu:.3f} – "
-                            f"{result.max_voltage_pu:.3f} pu",
-                        ),
-                        ("Max line loading", _percent(result.max_line_loading_percent)),
-                        (
-                            "Max trafo loading",
-                            _percent(result.max_trafo_loading_percent),
-                        ),
-                        ("Losses", _kw(result.losses_kw)),
-                        ("External grid", _kw(result.external_grid_kw)),
-                        ("Violations", str(len(result.violations))),
-                    ]
-                    for label, value in facts:
-                        with ui.row().classes("justify-between w-full no-wrap"):
-                            ui.label(label).classes("mls-card-caption")
-                            ui.label(value).classes("text-body2")
-                for v in result.violations[:8]:
-                    ui.label(v).classes("text-negative text-caption")
-                if len(result.violations) > 8:
-                    ui.label(f"… {len(result.violations) - 8} more").classes(
-                        "text-caption"
-                    )
-                for note in result.notes:
-                    ui.label(note).classes("mls-card-caption")
-            state["voltages"] = result.bus_voltage_pu or None
-            redraw()
+    async def run_preview() -> None:
+        """Run one power flow for the chosen day and hour, show it, colour the
+        buses by voltage.
+        """
+        preview_button.disable()
+        busy(pf_box, "Running power flow …")
+        try:
+            result = await run.io_bound(
+                s.grid.preview_powerflow, picker.source, day.value, int(hour.value)
+            )
+        except Exception as e:  # noqa: BLE001
+            failed(pf_box, e)
+            return
+        finally:
+            preview_button.enable()
+        pf_box.clear()
+        with pf_box:
+            ui.label("converged" if result.converged else "NOT converged").classes(
+                "text-positive" if result.converged else "text-negative"
+            )
+            if result.converged:
+                facts = [
+                    (
+                        "Voltage",
+                        f"{result.min_voltage_pu:.3f} – "
+                        f"{result.max_voltage_pu:.3f} pu",
+                    ),
+                    ("Max line loading", _percent(result.max_line_loading_percent)),
+                    ("Max trafo loading", _percent(result.max_trafo_loading_percent)),
+                    ("Losses", _kw(result.losses_kw)),
+                    ("External grid", _kw(result.external_grid_kw)),
+                    ("Violations", str(len(result.violations))),
+                ]
+                for label, value in facts:
+                    with ui.row().classes("justify-between w-full no-wrap"):
+                        ui.label(label).classes("mls-card-caption")
+                        ui.label(value).classes("text-body2")
+            for v in result.violations[:8]:
+                ui.label(v).classes("text-negative text-caption")
+            if len(result.violations) > 8:
+                ui.label(f"… {len(result.violations) - 8} more").classes("text-caption")
+            for note in result.notes:
+                ui.label(note).classes("mls-card-caption")
+        view.voltages = result.bus_voltage_pu or None
+        view.redraw()
 
-        picker.start()
+    picker.start()
 
 
 def _percent(value: float | None) -> str:

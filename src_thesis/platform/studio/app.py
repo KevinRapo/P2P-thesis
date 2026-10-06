@@ -44,12 +44,11 @@ from nicegui import app, ui  # noqa: E402
 
 # Importing a page module runs its @ui.page decorator, which registers the route.
 import src_thesis.platform.studio.pages.compare  # noqa: F401, E402
-import src_thesis.platform.studio.pages.grid  # noqa: F401, E402
+import src_thesis.platform.studio.pages.network.page  # noqa: F401, E402
 import src_thesis.platform.studio.pages.home  # noqa: F401, E402
 import src_thesis.platform.studio.pages.inspect  # noqa: F401, E402
 import src_thesis.platform.studio.pages.library  # noqa: F401, E402
 import src_thesis.platform.studio.pages.market  # noqa: F401, E402
-import src_thesis.platform.studio.pages.participants  # noqa: F401, E402
 import src_thesis.platform.studio.pages.results  # noqa: F401, E402
 import src_thesis.platform.studio.pages.rl  # noqa: F401, E402
 import src_thesis.platform.studio.pages.runs  # noqa: F401, E402

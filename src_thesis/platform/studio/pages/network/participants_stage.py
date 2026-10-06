@@ -1,31 +1,39 @@
-"""Participants (05 §6): the agents, where they sit, what drives them; the time window.
+"""Stage 2 of the network page: the agents, where they sit, what drives them; the
+time window.
 
 Writes the draft's ``participants`` list and ``time`` section (01 §3, 02 §3.2 and
 §3.4). Participants are added and edited one at a time in a dialog, placed in
 bulk by a rule, imported from a mapping file or given the [P2] Table 6 roles;
 every such action saves the whole list at once. The time window has its own
 "Apply" and shows how many training and evaluation days it selects.
+
+They are drawn on the page's shared plot (``view.py``): rings for participant
+buses, squares for flexible ones, a filled mark for the selected participant. The
+participants belong to the network saved in the draft, so every action waits until
+the network picked in stage 1 has been applied.
 """
 
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from nicegui import events, run, ui
 
 from src_thesis.platform.services.models import ExperimentFile
 from src_thesis.platform.studio.components.cards import section
-from src_thesis.platform.studio.components.charts import line_figure, topology_figure
-from src_thesis.platform.studio.components.network import DEFAULT_SOURCE, busy, failed
+from src_thesis.platform.studio.components.charts import line_figure
+from src_thesis.platform.studio.components.network import busy, failed
 from src_thesis.platform.studio.components.participant_editor import (
     EditorContext,
     edit_participant,
     new_participant,
 )
 from src_thesis.platform.studio.forms import DraftForm, date_input, save_changes
-from src_thesis.platform.studio.layout import shell
-from src_thesis.platform.studio.state import current_draft, draft_network, services
+from src_thesis.platform.studio.state import services
+
+if TYPE_CHECKING:
+    from src_thesis.platform.studio.pages.network.page import Context
 
 DAY_MODE_HINTS = {
     "fixed": "One day, every episode (the papers' setting).",
@@ -49,19 +57,23 @@ COLUMNS = [
 ]
 
 
-@ui.page("/build/participants")
-def participants_page() -> None:
-    """Participants (05 §6): edit the draft's agents and its time window."""
-    s = services()
-    draft = current_draft()
-    source = draft_network(draft, DEFAULT_SOURCE)
+def build_participants_stage(ctx: Context, side: ui.element, below: ui.element) -> None:
+    """Build stage 2: the assignment tools beside the plot, the participant table,
+    profile preview and time window below it.
+
+    Args:
+        ctx: What the stages share (services, draft, the plot).
+        side: Slot beside the plot.
+        below: Slot below it.
+    """
+    s, draft, view, source = ctx.s, ctx.draft, ctx.view, ctx.draft_source
     # The participants as editable data (what the dialog and the tools change);
     # every save goes through the typed file, which rejects unknown fields.
     members = [
         p.model_dump(mode="json", exclude_unset=True) for p in draft.participants
     ]
-    # Network data for the map, the checks and the editor; loaded after the page
-    # is shown, because loading a network takes seconds.
+    # Network data for the checks and the editor, taken from the shared view once
+    # it has loaded.
     net: dict[str, Any] = {
         "topology": None,
         "elements": [],
@@ -69,20 +81,31 @@ def participants_page() -> None:
         "candidates": [],  # flexible buses: a generator or storage
     }
     selected: dict[str, str | None] = {"id": members[0]["id"] if members else None}
+    catalogue: dict[str, Any] = {"demand": {}, "generation": {}, "csv": {}}
+
+    def saved() -> bool:
+        """Whether the network shown is the draft's; only then can participants be
+        edited."""
+        if ctx.picked() == source:
+            return True
+        ui.notify(
+            "Apply the network in stage 1 first: participants belong to the "
+            "network saved in the draft.",
+            type="warning",
+        )
+        return False
 
     def save(participants: list[dict]) -> None:
         """Write the whole participant list to the draft and reload."""
-        save_changes(draft, {"participants": participants})
+        if saved():
+            save_changes(draft, {"participants": participants})
 
-    with shell(
-        "participants",
-        "Participants",
-        "Tie each agent to a bus, owned elements, profiles and a battery",
-    ):
+    with side:
+        gate = ui.label().classes("text-warning text-body2")
         with section(
             "Assignment tools",
-            f"Network {source.code} (chosen on the Grid page). Every action saves "
-            "the participant list to the draft.",
+            f"Network {source.code}. Every action saves the participant list to "
+            "the draft.",
             "auto_fix_high",
         ):
             with ui.row().classes("gap-2"):
@@ -99,7 +122,6 @@ def participants_page() -> None:
                     icon="menu_book",
                     on_click=lambda: roles_dialog(),
                 ).props("outline")
-                ui.space()
                 ui.button(
                     "Remove all",
                     icon="delete_sweep",
@@ -117,72 +139,60 @@ def participants_page() -> None:
             "only regular load stays background",
             "bolt",
         ):
-            with ui.row().classes("w-full gap-3 items-center no-wrap"):
-                rule_hint = ui.label("Loading the network …").classes(
-                    "mls-card-caption grow"
+            rule_hint = ui.label("Loading the network …").classes("mls-card-caption")
+            rule_replace = (
+                ui.toggle(
+                    {True: "Replace all participants", False: "Add to them"},
+                    value=True,
                 )
-                rule_replace = (
-                    ui.toggle(
-                        {True: "Replace all participants", False: "Add to them"},
-                        value=True,
-                    )
-                    .props("no-caps dense no-wrap")
-                    .classes("shrink-0")
-                )
-                rule_apply = ui.button(
-                    "Make flexible buses participants",
-                    icon="bolt",
-                    on_click=lambda: place(),
-                ).props("unelevated")
+                .props("no-caps dense no-wrap")
+                .classes("shrink-0")
+            )
+            rule_apply = ui.button(
+                "Make flexible buses participants",
+                icon="bolt",
+                on_click=lambda: place(),
+            ).props("unelevated")
             rule_apply.set_enabled(False)
 
-        with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
-            with section(
-                "Participants",
-                f"{len(members)} agents; their order is the agents' "
-                "order everywhere. Click a row to preview it.",
-                "groups",
-                classes="grow basis-0 min-w-0",
-            ):
-                table = (
-                    ui.table(
-                        columns=[
-                            {"name": f, "label": label, "field": f, "align": "left"}
-                            for f, label in COLUMNS
-                        ],
-                        rows=_rows(members, None),
-                        row_key="id",
-                        pagination=10,
-                    )
-                    .classes("w-full")
-                    .props("flat dense")
+    with below:
+        with section(
+            "Participants",
+            f"{len(members)} agents; their order is the agents' order everywhere. "
+            "Click a row, or a ringed bus on the plot, to select one.",
+            "groups",
+        ):
+            table = (
+                ui.table(
+                    columns=[
+                        {"name": f, "label": label, "field": f, "align": "left"}
+                        for f, label in COLUMNS
+                    ],
+                    rows=_rows(members, None),
+                    row_key="id",
+                    pagination=10,
                 )
-                table.add_slot(
-                    "body-cell-check",
-                    '<q-td :props="props"><span :class="props.value ? '
-                    "'text-negative' : 'text-positive'\">"
-                    "{{ props.value || 'ok' }}</span></q-td>",
-                )
-                with ui.row().classes("gap-1"):
-                    for icon, tip, action in (
-                        ("edit", "Edit", lambda: edit()),
-                        ("content_copy", "Duplicate", lambda: duplicate()),
-                        ("arrow_upward", "Move up", lambda: move(-1)),
-                        ("arrow_downward", "Move down", lambda: move(1)),
-                        ("delete", "Remove", lambda: remove()),
-                    ):
-                        ui.button(icon=icon, on_click=action).props(
-                            "flat dense round"
-                        ).tooltip(f"{tip} the selected participant")
-                    selected_label = ui.label().classes("mls-card-caption self-center")
-            with section(
-                "Map",
-                "Agents' buses ringed, the selected agent filled; squares are "
-                "flexible buses",
-                "map",
-                classes="basis-2/5 min-w-0",
-            ):
-                map_box = ui.column().classes("w-full")
+                .classes("w-full")
+                .props("flat dense")
+            )
+            table.add_slot(
+                "body-cell-check",
+                '<q-td :props="props"><span :class="props.value ? '
+                "'text-negative' : 'text-positive'\">"
+                "{{ props.value || 'ok' }}</span></q-td>",
+            )
+            with ui.row().classes("gap-1"):
+                for icon, tip, action in (
+                    ("edit", "Edit", lambda: edit()),
+                    ("content_copy", "Duplicate", lambda: duplicate()),
+                    ("arrow_upward", "Move up", lambda: move(-1)),
+                    ("arrow_downward", "Move down", lambda: move(1)),
+                    ("delete", "Remove", lambda: remove()),
+                ):
+                    ui.button(icon=icon, on_click=action).props(
+                        "flat dense round"
+                    ).tooltip(f"{tip} the selected participant")
+                selected_label = ui.label().classes("mls-card-caption self-center")
 
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
@@ -194,7 +204,25 @@ def participants_page() -> None:
                 preview_box = ui.column().classes("w-full")
             _time_window(draft)
 
+        with ui.row().classes("justify-start w-full"):
+            ui.button(
+                "Back: grid",
+                icon="arrow_back",
+                on_click=lambda: ctx.switch("grid"),
+            ).props("outline")
+
     # ------------------------------------------------------------ handlers
+    def refresh_gate(stage: str) -> None:
+        """Warn when the plot shows a network the draft does not use yet."""
+        gate.set_text(
+            ""
+            if ctx.picked() == source
+            else f"The network picked in stage 1 is not saved yet; the draft uses "
+            f"{source.code}. Apply it in stage 1 before editing participants."
+        )
+
+    ctx.hooks.append(refresh_gate)
+
     def by_id(pid: str | None) -> dict | None:
         return next((p for p in members if p["id"] == pid), None)
 
@@ -204,8 +232,8 @@ def participants_page() -> None:
             e: p["id"]
             for p in members
             if p["id"] != exclude
-            for side in (p.get("owns") or {}).values()
-            for e in side
+            for side_ in (p.get("owns") or {}).values()
+            for e in side_
         }
         return EditorContext(
             buses=net["buses"],
@@ -218,6 +246,8 @@ def participants_page() -> None:
         )
 
     def ready() -> bool:
+        if not saved():
+            return False
         if net["topology"] is None:
             ui.notify("The network is still loading")
             return False
@@ -282,7 +312,7 @@ def participants_page() -> None:
         )
 
     async def explain_rule() -> None:
-        """Count the flexible buses and mark them on the map."""
+        """Count the flexible buses and mark them on the plot."""
         if net["topology"] is None:
             return
         try:
@@ -307,10 +337,12 @@ def participants_page() -> None:
             "participant yet. Add one by hand, or choose another network."
         )
         rule_apply.set_enabled(bool(found))
-        draw_map()
+        sync_plot()
 
     async def place() -> None:
         """Make the flexible buses participants and save them."""
+        if not saved():
+            return
         try:
             placed = await run.io_bound(s.participants.suggest_mapping, source)
         except Exception as e:  # noqa: BLE001  shown under the controls
@@ -321,6 +353,8 @@ def participants_page() -> None:
         save(placed)
 
     def import_dialog() -> None:
+        if not saved():
+            return
         with ui.dialog() as dialog, ui.card().classes("mls-card w-[38rem]"):
             ui.label("Import a participant mapping").classes("mls-card-title")
             ui.label(
@@ -369,66 +403,21 @@ def participants_page() -> None:
         )
 
     def show_selected() -> None:
-        """Mark the selected row, redraw the map and the preview."""
+        """Mark the selected row, redraw the plot and the preview."""
         table.rows = _rows(members, net)
         table.selected = [r for r in table.rows if r["id"] == selected["id"]]
         table.update()
         selected_label.set_text(
             f"Selected: {selected['id']}" if selected["id"] else "No selection"
         )
-        draw_map()
+        sync_plot()
 
-    def draw_map() -> None:
-        if net["topology"] is None:
-            return
-        map_box.clear()
-        with map_box:
-            buses = {p.get("bus") for p in members}
-            p = by_id(selected["id"])
-            figure = topology_figure(net["topology"], height=380)
-            position = {b["id"]: (b["x"], b["y"]) for b in net["topology"].buses}
-            free = [
-                position[bus]
-                for bus in net.get("candidates", [])
-                if bus in position and bus not in buses
-            ]
-            figure.add_scatter(
-                x=[x for x, _ in free],
-                y=[y for _, y in free],
-                mode="markers",
-                marker={
-                    "size": 13,
-                    "symbol": "square-open",
-                    "color": "#2563EB",
-                    "line": {"width": 1.5},
-                },
-                name="flexible bus",
-                hoverinfo="skip",
-            )
-            at = [position[bus] for bus in buses if bus in position]
-            figure.add_scatter(
-                x=[x for x, _ in at],
-                y=[y for _, y in at],
-                mode="markers",
-                marker={
-                    "size": 15,
-                    "color": "rgba(0,0,0,0)",
-                    "line": {"color": "#DB2777", "width": 2},
-                },
-                name="participant bus",
-                hoverinfo="skip",
-            )
-            if p and p.get("bus") in position:
-                x, y = position[p["bus"]]
-                figure.add_scatter(
-                    x=[x],
-                    y=[y],
-                    mode="markers",
-                    marker={"size": 15, "color": "#DB2777"},
-                    name=f"selected: {p['id']}",
-                    hoverinfo="name",
-                )
-            ui.plotly(figure).classes("w-full")
+    def sync_plot() -> None:
+        """Give the shared plot the participants, flexible buses and selection."""
+        view.participants = {p["id"]: p["bus"] for p in members if p.get("bus")}
+        view.flexible = net.get("candidates", [])
+        view.selected = selected["id"]
+        view.redraw()
 
     async def preview() -> None:
         if not selected["id"]:
@@ -453,25 +442,40 @@ def participants_page() -> None:
                 return
             ui.plotly(line_figure(series, height=300)).classes("w-full")
 
-    async def select(e: Any) -> None:
-        selected["id"] = e.args[1]["id"]
+    async def select_id(pid: str) -> None:
+        selected["id"] = pid
         show_selected()
         await preview()
 
-    async def load() -> None:
-        busy(map_box, "Loading network …")
+    async def select(e: Any) -> None:
+        await select_id(e.args[1]["id"])
+
+    async def on_bus_click(bus: str) -> None:
+        """A bus was clicked on the plot: select the participant that sits there."""
+        owner = next((p for p in members if p.get("bus") == bus), None)
+        if owner is None:
+            ui.notify(f"No participant on bus {bus}")
+        else:
+            await select_id(owner["id"])
+
+    view.handlers["participants"] = on_bus_click
+
+    async def on_loaded() -> None:
+        """The shared view loaded a network: take its data and show what fits."""
+        net.update(
+            topology=view.topology,
+            elements=view.elements,
+            buses=view.buses,
+            candidates=[],
+        )
+        if view.source != source:  # a network the draft does not use yet
+            sync_plot()
+            return
         try:
-            topology = await run.io_bound(s.grid.topology, source)
-            elements = await run.io_bound(s.grid.elements, source)
             types = await run.io_bound(s.profiles.catalogue_types)
         except Exception as e:  # noqa: BLE001
-            failed(map_box, e)
+            rule_hint.set_text(f"Profile catalogue not available: {e}")
             return
-        net.update(
-            topology=topology,
-            elements=elements,
-            buses=[b["id"] for b in topology.buses],
-        )
         catalogue["demand"] = {
             t.code: f"{t.code} · {t.description or t.category}"
             for t in types
@@ -490,6 +494,8 @@ def participants_page() -> None:
         show_selected()
         await preview()
 
+    view.on_loaded.append(on_loaded)
+
     def confirm(title: str, text: str, action: Any) -> None:
         with ui.dialog() as dialog, ui.card().classes("mls-card max-w-[34rem]"):
             ui.label(title).classes("mls-card-title")
@@ -501,12 +507,10 @@ def participants_page() -> None:
                 )
         dialog.open()
 
-    catalogue: dict[str, Any] = {"demand": {}, "generation": {}, "csv": {}}
     table.on("rowClick", select)
     selected_label.set_text(
         f"Selected: {selected['id']}" if selected["id"] else "No selection"
     )
-    ui.timer(0.1, load, once=True)
 
 
 def _time_window(draft: ExperimentFile) -> None:

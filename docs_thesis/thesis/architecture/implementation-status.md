@@ -53,7 +53,7 @@ Only fields you change are written. A field you never touched stays absent from 
 | R5 SimBench in the loop | ⬜ | — | Needs R4 |
 | R6 Experiment file | 🟡 | Format, load/save, hash, expansion into runs, defaults, day split, manifest, 7 presets | `build_grid` (needs R4); presets have a placeholder mapping and only Case 1 has its sweep |
 | R7 Services, CLI, worker | 🟡 | Real `ConfigService`, grid catalog, `ProfileService`, `ParticipantService` and `TariffService`; experiment store, worker process and pool (tested with a no-op runner) | `ResultService` for training runs, Compare and the matrix; training and baseline runners; the CLI |
-| R8 Studio | 🟡 | Shell and all pages; real grid browsing; the whole experiment file is edited on the Build pages (Grid, Participants, Market & DSO, RL, Summary) and managed in the Library | Compare, the matrix and training curves are sample data. New: Simulate page (controller, days, seed; live replay of market and network; checks grouped as invariants / known engine faults / network limits), Validate with sanity scenarios and dry run, real Runs and Results for simulation runs |
+| R8 Studio | 🟡 | Shell and all pages; real grid browsing; the whole experiment file is edited on the Build pages (Grid & Participants as one two-stage page, Market & DSO, RL, Summary) and managed in the Library | Compare, the matrix and training curves are sample data. New: Simulate page (controller, days, seed; live replay of market and network; checks grouped as invariants / known engine faults / network limits), Validate with sanity scenarios and dry run, real Runs and Results for simulation runs |
 | R9 Evidence runs | ⬜ | — | Needs R1–R8 |
 
 [↑ Contents](#contents)
