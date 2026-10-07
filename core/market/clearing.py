@@ -6,8 +6,8 @@ over, so the Studio can show the market after every stage:
     1  preferences    mutually preferred partners trade first
     2  double auction bids from the highest price down, asks from the lowest up;
                       every pair with bid >= ask trades
-    3  DSO            the DSO buys every remaining sell at the feed-in tariff and
-                      sells every remaining buy at the utility price
+    3  DSO            the DSO clears the rest (``Dso.clear``,
+                      ``core/market/dso/dso.py``)
 
 The stages work on copies: the orders as submitted are never changed. The market
 is lossless (losses come from the power flow) and charges no grid fees yet.
@@ -19,9 +19,8 @@ from dataclasses import dataclass, field, replace
 from typing import Mapping, Sequence
 
 from core.market.clearing_price import ClearingMechanism
+from core.market.dso.dso import DSO_ID, Dso
 from core.market.order import Order, Trade
-
-DSO_ID = "DSO"
 STAGE_NAMES = {1: "Preferences", 2: "Double auction", 3: "DSO"}
 
 
@@ -56,16 +55,14 @@ class ClearingRules:
 
     Attributes:
         mechanism: Pricing mechanism name (``ClearingMechanism``).
-        feed_in_tariff: What the DSO pays for energy it buys.
-        utility_price: What the DSO charges for energy it sells.
+        dso: The DSO, which clears stage 3.
         reference_price: Reference for the proportional mechanism.
         reputation: Each participant's reputation, the double auction's tie-break.
         threshold_kwh: Quantities below this count as nothing.
     """
 
     mechanism: str
-    feed_in_tariff: float
-    utility_price: float
+    dso: Dso
     reference_price: float
     reputation: Mapping[str, float] = field(default_factory=dict)
     threshold_kwh: float = 1e-6
@@ -152,16 +149,8 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
 # Stage 3: the DSO clears the rest
 # --------------------------------------------------------------------------------------
 def dso(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """The DSO buys every remaining sell at the feed-in tariff and sells every
-    remaining buy at the utility price, so every order is cleared."""
-    trades = []
-    for o in _open(orders, rules):
-        if o.is_buy:
-            buyer, seller, price = o.agent_id, DSO_ID, rules.utility_price
-        else:
-            buyer, seller, price = DSO_ID, o.agent_id, rules.feed_in_tariff
-        trades.append(Trade(buyer, seller, price, o.quantity, o.timestamp, stage=3))
-    return StageResult(3, STAGE_NAMES[3], tuple(trades), ())
+    """The DSO clears every order still open ([P1] §3.3.2, ``Dso.clear``)."""
+    return StageResult(3, STAGE_NAMES[3], rules.dso.clear(_open(orders, rules)), ())
 
 
 STAGES = (preferences, double_auction, dso)

@@ -477,7 +477,7 @@ def _people_table(m: MarketManager, view: dict) -> None:
     for pid, p in m.participants.items():
         o = orders.get(pid)
         out = record.participants.get(pid) if record else None
-        soc = out.soc_kwh if out else m.energy_kwh.get(pid)
+        soc = out.soc_kwh if out else (p.battery.energy_kwh if p.battery else None)
         rows.append(
             {
                 "id": pid,
@@ -498,7 +498,7 @@ def _people_table(m: MarketManager, view: dict) -> None:
                 ),
                 "external": round(out.external_kwh, 2) if out else "",
                 "profit": round(out.profit, 3) if out else "",
-                "total": round(m.profit.get(pid, 0.0), 3),
+                "total": round(p.profit, 3),
             }
         )
     data_table(

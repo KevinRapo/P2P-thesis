@@ -1,16 +1,22 @@
 """MarketManager: the one class that runs the market, step by step.
 
 The counterpart of ``LocalEnergyMarket`` (``lem.py``) in the original MARLEM,
-without the learning parts (no observation, no reward). It owns the participants'
-profiles and batteries, the clearing, the ledger and the step-time grid, and runs
-one market step in the order of the paper ([P1] §3.9; docs: marlem/methodology.md
-§3):
+without the learning parts (no observation, no reward). It holds the participants
+(``core/market/agent/der.py``), the DSO (``core/market/dso/dso.py``), the ledger
+and the step-time grid, and runs one market step in the order of the paper ([P1]
+§3.9; docs: marlem/methodology.md §3). Each element computes its own equations;
+the manager only calls them in order:
 
-    1  validate   orders limited to the market bounds and to eq. 15
+    1  validate   orders limited to the market bounds and to each participant's
+                  eq. 15a-b (``Participant.max_sell_kwh``, ``max_buy_kwh``)
     2  orders     intents become orders; partners chosen if preferences are on
+                  (``Participant.choose_partner``)
     3  clear      stage 1 preferences, stage 2 double auction, stage 3 DSO
-    4  settle     energy, batteries (eq. 16), balance (eq. 13), profit (eq. 14)
+                  (``Dso.clear``)
+    4  settle     each participant: balance (eq. 13), profit (eq. 14), battery
+                  (eq. 16) (``Participant.settle``)
     4' grid       what each participant physically did -> one power flow
+                  (``Participant.injection``)
     6  advance    clearing price, ledger block, clock
 
 Phases 5 (reward and KPIs) and 7 (observation) of the paper are learning only.
@@ -25,12 +31,19 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
-from core.config.scenario import ParticipantSetup, Scenario
+from core.config.scenario import BatterySetup, Scenario
 from core.grid import simbench
-from core.grid.contract import GridAssessment, NetworkRef, ParticipantInjection
+from core.grid.contract import GridAssessment, NetworkRef
 from core.grid.powerflow import SimBenchGrid
 from core.market import bidding, clearing
-from core.market.clearing import DSO_ID, ClearingRules, StageResult
+from core.market.agent.battery import Battery
+from core.market.agent.der import (
+    Participant,
+    ParticipantOutcome,
+    profiles_from_elements,
+)
+from core.market.clearing import ClearingRules, StageResult
+from core.market.dso.dso import DSO_ID, Dso
 from core.market.order import Order, Trade
 from core.market.validation import Validator
 
@@ -66,34 +79,6 @@ class StepInputs:
     demand_kwh: Mapping[str, float]
     feed_in_tariff: float
     utility_price: float
-
-
-@dataclass(frozen=True)
-class ParticipantOutcome:
-    """What one participant did in one step ([P1] eq. 13, 14, 16).
-
-    Attributes:
-        generation_kwh, demand_kwh: Own generation and demand.
-        bought_kwh, sold_kwh: Energy traded (with peers and the DSO).
-        charge_kwh: Energy the battery drew from the bus.
-        discharge_kwh: Energy the battery delivered to the bus.
-        external_kwh: Energy no trade covers: + exported, − imported.
-        soc_kwh: Battery energy after the step (``None``: no battery).
-        balance_kwh: Eq. 13: (G − D) + (bought − sold).
-        profit: Eq. 14 for this step: revenue − cost of its trades.
-    """
-
-    participant_id: str
-    generation_kwh: float
-    demand_kwh: float
-    bought_kwh: float
-    sold_kwh: float
-    charge_kwh: float
-    discharge_kwh: float
-    external_kwh: float
-    soc_kwh: Optional[float]
-    balance_kwh: float
-    profit: float
 
 
 @dataclass
@@ -184,21 +169,18 @@ class MarketManager:
         if not scenario.participants:
             raise ValueError("The scenario has no participants")
         scenario = self.scenario = deepcopy(scenario)
-        self.participants: dict[str, ParticipantSetup] = {
-            p.id: p for p in scenario.participants
-        }
         self.grid = SimBenchGrid(
             scenario.grid, {p.id: list(p.owns) for p in scenario.participants}
         )
+        self.participants: dict[str, Participant] = {}
+        self.dso = Dso(
+            feed_in_tariff=scenario.dso.feed_in_tariff,
+            utility_price=scenario.dso.utility_price,
+        )
         self.history: list[StepRecord] = []
         self.pending: Optional[PendingStep] = None
-        self.energy_kwh: dict[str, Optional[float]] = {}
-        self.profit: dict[str, float] = {}
-        self.reputation: dict[str, float] = {}
         self.ledger: Optional[Validator] = None
         self.clearing_price = 0.0
-        self._generation: dict[str, list[float]] = {}
-        self._demand: dict[str, list[float]] = {}
         self._distance: dict[tuple[str, str], float] = {}
 
     # --- Running the day -------------------------------------------------------------
@@ -218,21 +200,15 @@ class MarketManager:
         return self.current_step >= self.n_steps
 
     def reset(self) -> None:
-        """Read the participants' profiles, fill the batteries to their initial
-        state of charge, prepare the grid and go back to step 0."""
-        g, d = self.scenario.grid, self.scenario.dso
-        self._read_profiles()
-        self.energy_kwh = {
-            pid: (p.battery.initial_soc * p.battery.capacity_kwh if p.battery else None)
-            for pid, p in self.participants.items()
-        }
-        self.profit = {pid: 0.0 for pid in self.participants}
-        self.reputation = {pid: 0.5 for pid in self.participants}
+        """Build the participants from their profiles (batteries at their initial
+        state of charge), prepare the grid and go back to step 0."""
+        g = self.scenario.grid
+        self.participants = self._build_participants()
         difficulty = self.scenario.market.ledger_difficulty
         self.ledger = Validator(difficulty) if difficulty > 0 else None
-        self.clearing_price = (d.feed_in_tariff + d.utility_price) / 2
+        self.clearing_price = self.dso.market_price()
         self.grid = SimBenchGrid(
-            g, {p.id: list(p.owns) for p in self.participants.values()}
+            g, {p.id: list(p.owns) for p in self.scenario.participants}
         )
         self.grid.reset()
         self._distance = {}
@@ -300,39 +276,54 @@ class MarketManager:
         return played
 
     # --- Inputs ----------------------------------------------------------------------
-    def _read_profiles(self) -> None:
-        """Each participant's generation and demand per step, in kWh, from the
-        SimBench profiles of the elements it owns."""
+    def _build_participants(self) -> dict[str, Participant]:
+        """One ``Participant`` per scenario participant, with its generation and
+        demand from the SimBench profiles of the elements it owns."""
         g = self.scenario.grid
         ref = NetworkRef("simbench", g.code)
         kinds = {e.id: e.element_type for e in simbench.elements(ref)}
-        owned = [e for p in self.participants.values() for e in p.owns]
+        owned = [e for p in self.scenario.participants for e in p.owns]
         resolution = "hourly" if g.step_hours == 1.0 else "15min"
         _, power = simbench.element_power(ref, owned, g.day, 1, resolution)
-        for pid, p in self.participants.items():
-            gen = [0.0] * self.n_steps
-            dem = [0.0] * self.n_steps
-            for e in p.owns:
-                series = power.get(e, [])
-                target = gen if kinds.get(e) == "sgen" else dem
-                if kinds.get(e) == "storage":
-                    continue  # storage elements follow the participant's battery
-                for t, kw in enumerate(series[: self.n_steps]):
-                    target[t] += kw * g.step_hours
-            self._generation[pid] = gen
-            self._demand[pid] = dem
+        out = {}
+        for p in self.scenario.participants:
+            generation, demand = profiles_from_elements(
+                p.owns, kinds, power, g.step_hours, self.n_steps
+            )
+            out[p.id] = Participant(
+                id=p.id,
+                bus=p.bus,
+                owns=p.owns,
+                generation_kwh=generation,
+                demand_kwh=demand,
+                battery=self._battery(p.battery),
+            )
+        return out
+
+    def _battery(self, b: Optional[BatterySetup]) -> Optional[Battery]:
+        """The configured battery as a ``Battery``; ``None`` without one."""
+        if b is None:
+            return None
+        return Battery(
+            capacity_kwh=b.capacity_kwh,
+            min_soc=b.min_soc,
+            max_soc=b.max_soc,
+            charge_efficiency=b.charge_efficiency,
+            discharge_efficiency=b.discharge_efficiency,
+            initial_soc=b.initial_soc,
+            max_power_kw=b.max_power_kw,
+            step_hours=self.scenario.grid.step_hours,
+        )
 
     def _inputs(self, step: int) -> StepInputs:
         """Generation, demand and tariffs of ``step``."""
-        d = self.scenario.dso
+        people = self.participants.items()
         return StepInputs(
             step=step,
-            generation_kwh={
-                pid: self._generation[pid][step] for pid in self.participants
-            },
-            demand_kwh={pid: self._demand[pid][step] for pid in self.participants},
-            feed_in_tariff=d.feed_in_tariff,
-            utility_price=d.utility_price,
+            generation_kwh={pid: p.generation_kwh[step] for pid, p in people},
+            demand_kwh={pid: p.demand_kwh[step] for pid, p in people},
+            feed_in_tariff=self.dso.feed_in_tariff,
+            utility_price=self.dso.utility_price,
         )
 
     def _rule_intents(self, inputs: StepInputs) -> dict[str, OrderIntent]:
@@ -342,9 +333,9 @@ class MarketManager:
                 pid,
                 inputs.generation_kwh[pid],
                 inputs.demand_kwh[pid],
-                *self._battery_room(pid),
+                *p.battery_room(),
             )
-            for pid in self.participants
+            for pid, p in self.participants.items()
         }
         rule = bidding.net_position(
             views,
@@ -362,22 +353,17 @@ class MarketManager:
         return intents
 
     def _with_partners(self, intents: dict[str, OrderIntent]) -> dict[str, OrderIntent]:
-        """Each participant names the electrically nearest participant on the other
-        side of the market as its preferred partner."""
+        """Each participant names a preferred partner on the other side of the
+        market (``Participant.choose_partner``)."""
         out = {}
-        for pid, intent in intents.items():
-            others = [o for o in intents.values() if o.is_buy != intent.is_buy]
-            if not others:
-                out[pid] = intent
-                continue
-            nearest = min(others, key=lambda o: self._km(pid, o.participant_id))
-            out[pid] = OrderIntent(
-                pid,
-                intent.is_buy,
-                intent.price,
-                intent.quantity_kwh,
-                nearest.participant_id,
+        for pid, i in intents.items():
+            others = [
+                o.participant_id for o in intents.values() if o.is_buy != i.is_buy
+            ]
+            partner = self.participants[pid].choose_partner(
+                others, lambda other: self._km(pid, other)
             )
+            out[pid] = OrderIntent(pid, i.is_buy, i.price, i.quantity_kwh, partner)
         return out
 
     def _km(self, a: str, b: str) -> float:
@@ -390,34 +376,19 @@ class MarketManager:
         return self._distance[key]
 
     # --- Phases 1 and 2: validate, orders --------------------------------------------
-    def _battery_room(self, pid: str) -> tuple[float, float]:
-        """(chargeable, dischargeable) energy at the bus this step, eq. 15c-d with
-        efficiencies and the power limit."""
-        p = self.participants[pid]
-        b, e = p.battery, self.energy_kwh.get(pid)
-        if b is None or e is None:
-            return 0.0, 0.0
-        cap = b.max_power_kw * self.scenario.grid.step_hours if b.max_power_kw else None
-        charge = max(0.0, b.max_soc * b.capacity_kwh - e) / b.charge_efficiency
-        discharge = max(0.0, e - b.min_soc * b.capacity_kwh) * b.discharge_efficiency
-        if cap is not None:
-            charge, discharge = min(charge, cap), min(discharge, cap)
-        return charge, discharge
-
     def _validate(
         self, inputs: StepInputs, intents: Mapping[str, OrderIntent]
     ) -> tuple[dict[str, OrderIntent], list[str]]:
-        """Phase 1: limit each intent to the market bounds and to what is
-        physically possible (eq. 15a-b)."""
+        """Phase 1: limit each intent to the market bounds and to what the
+        participant can physically deliver or take (eq. 15a-b)."""
         m = self.scenario.market
         valid, notes = {}, []
         for pid, i in intents.items():
             if pid not in self.participants:
                 notes.append(f"{pid}: not a participant, dropped")
                 continue
-            charge, discharge = self._battery_room(pid)
-            net = inputs.generation_kwh[pid] - inputs.demand_kwh[pid]
-            most = max(0.0, -net) + charge if i.is_buy else max(0.0, net) + discharge
+            p, step = self.participants[pid], inputs.step
+            most = p.max_buy_kwh(step) if i.is_buy else p.max_sell_kwh(step)
             quantity = min(i.quantity_kwh, most, m.max_quantity)
             price = min(m.max_price, max(m.min_price, i.price))
             if quantity < i.quantity_kwh - 1e-9:
@@ -452,10 +423,9 @@ class MarketManager:
     def _rules(self, p: PendingStep) -> ClearingRules:
         return ClearingRules(
             mechanism=self.scenario.market.mechanism,
-            feed_in_tariff=p.inputs.feed_in_tariff,
-            utility_price=p.inputs.utility_price,
+            dso=self.dso,
             reference_price=self.clearing_price,
-            reputation=self.reputation,
+            reputation={pid: q.reputation for pid, q in self.participants.items()},
         )
 
     def _clearing_price(self, trades: list[Trade]) -> float:
@@ -471,85 +441,32 @@ class MarketManager:
     def _settle(
         self, inputs: StepInputs, trades: list[Trade]
     ) -> dict[str, ParticipantOutcome]:
-        """Energy tracking, batteries (eq. 16), balance (eq. 13), profit (eq. 14).
-
-        After its trades a participant has ``G − D + bought − sold`` left at its
-        bus: a surplus charges its battery, a deficit discharges it, and what the
-        battery cannot take or give is exchanged with the upstream grid untraded.
-        """
-        out = {}
-        for pid, p in self.participants.items():
-            bought = sum(t.quantity for t in trades if t.buyer_id == pid)
-            sold = sum(t.quantity for t in trades if t.seller_id == pid)
-            profit = sum(t.price * t.quantity for t in trades if t.seller_id == pid)
-            profit -= sum(t.price * t.quantity for t in trades if t.buyer_id == pid)
-            g, d = inputs.generation_kwh[pid], inputs.demand_kwh[pid]
-            net = g - d + bought - sold
-            charge_room, discharge_room = self._battery_room(pid)
-            charge = discharge = 0.0
-            if net > 0:
-                charge = min(net, charge_room)
-            else:
-                discharge = min(-net, discharge_room)
-            e = self.energy_kwh.get(pid)
-            if e is not None and p.battery is not None:
-                e += charge * p.battery.charge_efficiency
-                e -= discharge / p.battery.discharge_efficiency
-                self.energy_kwh[pid] = e
-            out[pid] = ParticipantOutcome(
-                participant_id=pid,
-                generation_kwh=g,
-                demand_kwh=d,
-                bought_kwh=bought,
-                sold_kwh=sold,
-                charge_kwh=charge,
-                discharge_kwh=discharge,
-                external_kwh=net - charge + discharge,
-                soc_kwh=self.energy_kwh.get(pid),
-                balance_kwh=(g - d) + (bought - sold),
-                profit=profit,
-            )
-        return out
-
-    def _injections(
-        self, outcomes: Mapping[str, ParticipantOutcome]
-    ) -> list[ParticipantInjection]:
-        """Each participant's net power at its bus, from what it physically did:
-        generation and discharge flow in, demand and charge flow out."""
-        h = self.scenario.grid.step_hours
-        out = []
-        for pid, o in outcomes.items():
-            production = (o.generation_kwh + o.discharge_kwh) / h
-            consumption = (o.demand_kwh + o.charge_kwh) / h
-            out.append(
-                ParticipantInjection(
-                    pid,
-                    self.participants[pid].bus,
-                    production,
-                    consumption,
-                    production - consumption,
-                )
-            )
-        return out
+        """Phase 4: each participant settles its trades (``Participant.settle``:
+        eq. 13, 14, 16)."""
+        return {
+            pid: p.settle(inputs.step, trades) for pid, p in self.participants.items()
+        }
 
     def _assess_grid(
         self, step: int, outcomes: Mapping[str, ParticipantOutcome]
     ) -> GridAssessment:
-        """Phase 4': one power flow with the participants' injections."""
-        return self.grid.assess(step, self._injections(outcomes))
+        """Phase 4': one power flow with each participant's injection
+        (``Participant.injection``)."""
+        h = self.scenario.grid.step_hours
+        injections = [
+            self.participants[pid].injection(o, h) for pid, o in outcomes.items()
+        ]
+        return self.grid.assess(step, injections)
 
     # --- Phase 6: advance ------------------------------------------------------------
     def _advance(self, record: StepRecord) -> None:
-        """Profit, clearing price, ledger block, clock. Reputation stays at its
-        start value for now."""
-        for pid, o in record.participants.items():
-            self.profit[pid] += o.profit
+        """Clearing price, ledger block, clock. The participants added their
+        profit when they settled; reputation stays at its start value for now."""
         self.clearing_price = record.clearing_price
         if self.ledger is not None:
             for t in record.trades:
                 self.ledger.add_trade(t)
-            if self.ledger.pending_trades:
-                self.ledger._create_new_block()
+            self.ledger.seal_block()
         self.history.append(record)
         self.pending = None
 

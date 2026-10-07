@@ -37,10 +37,10 @@ flowchart LR
   market --> m5["reputation.py"]:::orig
   market --> m6["validation.py"]:::orig
   market --> agent["agent/"]
-  agent --> a1["der.py"]:::orig
-  agent --> a2["battery.py"]:::orig
+  agent --> a1["der.py"]:::done
+  agent --> a2["battery.py"]:::done
   market --> dso["dso/"]
-  dso --> d1["dso.py"]:::orig
+  dso --> d1["dso.py"]:::done
   market --> profile["profile/"]
   profile --> p1["base.py · der.py · dso.py"]:::orig
 
@@ -100,17 +100,17 @@ are the reference for what is still to rebuild (reputation, fees).
 
 | Script | What it does | State |
 |---|---|---|
-| `manager.py` | `MarketManager`: profiles, batteries, one step in the paper's phases (validate, orders, the three stages, settle, power flow, advance), one stage at a time or all at once; the history of the day | done |
+| `manager.py` | `MarketManager`: profiles, the participants' `Battery` objects, one step in the paper's phases (validate, orders, the three stages, settle, power flow, advance), one stage at a time or all at once; the history of the day | done |
 | `clearing.py` | The three clearing stages as separate functions: preferences, double auction, DSO | done |
 | `bidding.py` | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
 | `clearing_price.py` | Pricing mechanisms with one fixed signature (fixes the seller price) | done |
 | `order.py` | `Order` and `Trade` (with the stage that made it) | done |
 | `matching.py` | The original three-stage clearing | original |
 | `reputation.py` | Reputation update after each period | original |
-| `validation.py` | Hash-chained trade ledger with proof of work | original |
-| `agent/der.py` | A prosumer: order feasibility, partner choice, energy tracking | original |
-| `agent/battery.py` | Battery state of charge, charging and discharging | original, imports |
-| `dso/dso.py` | The DSO: tariffs, clearing the residual, grid fees | original |
+| `validation.py` | Hash-chained trade ledger with proof of work; `seal_block` closes a market period's block | original, public `seal_block` added |
+| `agent/der.py` | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice, settlement (eq. 13, 14, battery eq. 16), its bus injection; `ParticipantOutcome` | done |
+| `agent/battery.py` | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the manager only calls it | done |
+| `dso/dso.py` | `Dso`: tariffs, market price (their midpoint), stage 3 clearing (§3.3.2); `DSO_ID`. Fees (eq. 8) and balance (eq. 7) not built | done |
 | `profile/` | Synthetic or CSV generation, demand and tariff profiles | original, imports |
 
 ## studio/: the user interface

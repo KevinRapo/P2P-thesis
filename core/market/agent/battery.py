@@ -1,214 +1,132 @@
+"""A participant's battery: its energy and how charging and discharging change it.
+
+[P1] eq. 15c-d (what the battery can still take or give) and eq. 16 (its energy
+after a step). Energy in and out is counted at the bus; the efficiencies sit
+between the bus and the stored energy:
+
+    charging      E ← E + E_in · η_charge        the bus gives E_in
+    discharging   E ← E − E_out / η_discharge    the bus gets E_out
+
+The stored energy stays in [SoC_min · C, SoC_max · C]. Seen from the bus, the
+battery can take (E_max − E) / η_charge and give (E − E_min) · η_discharge, and
+at most ``max_power_kw · step_hours`` either way.
 """
-Battery storage model for DER agents in the Local Energy Market.
 
-This module implements a simplified battery model that focuses on energy level
-tracking and efficiency losses during charging and discharging operations.
-"""
+from __future__ import annotations
 
-from enum import Enum
-from typing import Dict, Optional, Tuple
-
-import numpy as np
-
-
-class BatteryState(Enum):
-    """Possible states of a battery."""
-
-    CHARGING = "charging"
-    DISCHARGING = "discharging"
-    IDLE = "idle"
+from typing import Optional
 
 
 class Battery:
-    """Battery storage model focusing on energy level and efficiency."""
+    """One participant's battery during a market day.
 
-    def __init__(self,
-                 nominal_capacity: float,
-                 min_soc: float = 0.0,
-                 max_soc: float = 1.0,
-                 charge_efficiency: float = 1.0,
-                 discharge_efficiency: float = 1.0) -> None:
-        """Initialize the battery model.
+    Args:
+        capacity_kwh: Nominal capacity C.
+        min_soc: Lowest state of charge, 0 to 1.
+        max_soc: Highest state of charge, 0 to 1.
+        charge_efficiency: Share of the energy taken from the bus that is stored.
+        discharge_efficiency: Share of the stored energy taken out that reaches the
+            bus.
+        initial_soc: State of charge at the start of the day.
+        max_power_kw: Charging and discharging power limit (``None``: no limit).
+        step_hours: Length of a market step, for the power limit.
+    """
 
-        Args:
-            nominal_capacity: Nominal capacity of the battery in kWh
-            min_soc: Minimum state of charge (0-1)
-            max_soc: Maximum state of charge (0-1)
-            charge_efficiency: Charging efficiency (0-1)
-            discharge_efficiency: Discharging efficiency (0-1)
-        """
-        self.nominal_capacity = nominal_capacity
+    def __init__(
+        self,
+        capacity_kwh: float,
+        min_soc: float,
+        max_soc: float,
+        charge_efficiency: float,
+        discharge_efficiency: float,
+        initial_soc: float,
+        max_power_kw: Optional[float],
+        step_hours: float,
+    ) -> None:
+        self.capacity_kwh = capacity_kwh
         self.min_soc = min_soc
         self.max_soc = max_soc
         self.charge_efficiency = charge_efficiency
         self.discharge_efficiency = discharge_efficiency
-
-        # Initialize state
-        self.state: BatteryState = None
-        self.energy_level: float = None
-        self.cumulative_charge: float = None
-        self.cumulative_discharge: float = None
+        self.initial_soc = initial_soc
+        self.max_power_kw = max_power_kw
+        self.step_hours = step_hours
+        self._check()
+        self.energy_kwh = 0.0
         self.reset()
 
-    def reset(self, seed: Optional[int] = None) -> None:
-        """Reset the battery state.
+    def _check(self) -> None:
+        """Reject a battery eq. 16 cannot run: no capacity, an empty or out-of-range
+        state-of-charge window, an efficiency outside (0, 1], a start outside the
+        window, a power limit that is not positive."""
+        problems = []
+        if self.capacity_kwh <= 0:
+            problems.append(f"capacity {self.capacity_kwh} kWh is not positive")
+        if not 0 <= self.min_soc < self.max_soc <= 1:
+            problems.append(
+                f"SoC window {self.min_soc}-{self.max_soc} is not inside 0-1"
+            )
+        for name in ("charge_efficiency", "discharge_efficiency"):
+            if not 0 < getattr(self, name) <= 1:
+                problems.append(f"{name} {getattr(self, name)} is not in (0, 1]")
+        if not self.min_soc <= self.initial_soc <= self.max_soc:
+            problems.append(f"initial SoC {self.initial_soc} is outside the window")
+        if self.max_power_kw is not None and self.max_power_kw <= 0:
+            problems.append(f"power limit {self.max_power_kw} kW is not positive")
+        if problems:
+            raise ValueError("Battery: " + "; ".join(problems))
 
-        Args:
-            seed: Random seed for reproducibility
-        """
-        if seed is not None:
-            np.random.seed(seed)
+    def reset(self) -> None:
+        """Back to the initial state of charge."""
+        self.energy_kwh = self.initial_soc * self.capacity_kwh
 
-        # Reset state
-        self.state = BatteryState.IDLE
-        self.energy_level = np.random.uniform(self.min_soc * self.nominal_capacity, self.max_soc * self.nominal_capacity)
-        self.cumulative_charge = 0.0
-        self.cumulative_discharge = 0.0
+    # --- State -----------------------------------------------------------------------
+    @property
+    def min_kwh(self) -> float:
+        """Lowest energy the battery may hold."""
+        return self.min_soc * self.capacity_kwh
 
-        # Check reset
-        self._check_init()
+    @property
+    def max_kwh(self) -> float:
+        """Highest energy the battery may hold."""
+        return self.max_soc * self.capacity_kwh
 
-    def _check_init(self) -> None:
-        """Validate battery specifications after initialization.
+    @property
+    def soc(self) -> float:
+        """State of charge, 0 to 1."""
+        return self.energy_kwh / self.capacity_kwh
 
-        Raises:
-            ValueError: If nominal capacity is less than or equal to zero
-            ValueError: If min SOC is not between 0 and 1
-            ValueError: If max SOC is not between 0 and 1
-            ValueError: If min SOC is greater than max SOC
-        """
-        if self.nominal_capacity <= 0:
-            raise ValueError("Nominal capacity must be greater than zero.")
-        if not 0 <= self.min_soc <= 1:
-            raise ValueError("Min SOC must be between 0 and 1.")
-        if not 0 <= self.max_soc <= 1:
-            raise ValueError("Max SOC must be between 0 and 1.")
-        if self.min_soc >= self.max_soc:
-            raise ValueError("Min SOC must be less than Max SOC.")
-        if not 0 <= self.charge_efficiency <= 1:
-            raise ValueError("Charge efficiency must be between 0 and 1.")
-        if not 0 <= self.discharge_efficiency <= 1:
-            raise ValueError("Discharge efficiency must be between 0 and 1.")
-        if self.energy_level < self.min_soc * self.nominal_capacity or self.energy_level > self.max_soc * self.nominal_capacity:
-            raise ValueError("Energy level must be between min SOC and max SOC.")
+    # --- What it can take or give this step (eq. 15c-d) ------------------------------
+    def _power_cap_kwh(self) -> float:
+        if self.max_power_kw is None:
+            return float("inf")
+        return self.max_power_kw * self.step_hours
 
-    def _can_charge(self, energy: float) -> bool:
-        """Check if charging is possible.
+    @property
+    def chargeable_kwh(self) -> float:
+        """Energy the battery can still take from the bus this step (eq. 15d)."""
+        room = max(0.0, self.max_kwh - self.energy_kwh) / self.charge_efficiency
+        return min(room, self._power_cap_kwh())
 
-        Args:
-            energy: Charging energy in kWh
+    @property
+    def dischargeable_kwh(self) -> float:
+        """Energy the battery can still give to the bus this step (eq. 15c)."""
+        room = max(0.0, self.energy_kwh - self.min_kwh) * self.discharge_efficiency
+        return min(room, self._power_cap_kwh())
 
-        Returns:
-            True if charging is possible
-        """
-        if energy <= 0:
-            return False
+    # --- Charging and discharging (eq. 16) -------------------------------------------
+    def charge(self, kwh: float) -> float:
+        """Take up to ``kwh`` from the bus; returns what it took."""
+        taken = min(max(0.0, kwh), self.chargeable_kwh)
+        self.energy_kwh = min(
+            self.max_kwh, self.energy_kwh + taken * self.charge_efficiency
+        )
+        return taken
 
-        # Check if battery is already full
-        if self.energy_level + energy >= self.max_soc * self.nominal_capacity:
-            return False
-
-        return True
-
-    def _can_discharge(self, energy: float) -> bool:
-        """Check if discharging is possible.
-
-        Args:
-            energy: Discharge energy in kWh
-
-        Returns:
-            True if discharging is possible
-        """
-        if energy <= 0:
-            return False
-
-        # Check if battery is already empty
-        if self.energy_level - energy <= self.min_soc * self.nominal_capacity:
-            return False
-
-        return True
-
-    def charge(self, energy: float) -> float:
-        """Charge the battery.
-
-        Args:
-            energy: Charging energy in Wh
-
-        Returns:
-            Energy charged to the battery
-        """
-        if self._can_charge(energy):
-            # Calculate maximum possible charge considering efficiency
-            max_energy = min(energy,  # Energy from requested charge
-                             self.max_soc * self.nominal_capacity - self.energy_level)  # Energy until full
-
-            energy_stored = max_energy * self.charge_efficiency
-
-            # Update state
-            self.energy_level += energy_stored
-            self.cumulative_charge += energy_stored
-            self.state = BatteryState.CHARGING
-
-            return energy_stored
-
-        else:
-            self.state = BatteryState.IDLE
-            return 0.0
-
-    def discharge(self, energy: float) -> float:
-        """Discharge the battery.
-
-        Args:
-            energy: Discharging energy in Wh
-
-        Returns:
-            Energy discharged from the battery
-        """
-        if self._can_discharge(energy):
-            # Calculate maximum possible discharge considering efficiency
-            max_energy = min(energy,  # Energy from requested discharge
-                             self.energy_level - self.min_soc * self.nominal_capacity)  # Energy until empty
-
-            energy_discharged = max_energy * self.discharge_efficiency
-
-            # Update state
-            self.energy_level -= energy_discharged
-            self.cumulative_discharge += energy_discharged
-            self.state = BatteryState.DISCHARGING
-
-            return energy_discharged
-
-        else:
-            self.state = BatteryState.IDLE
-            return 0.0
-
-    def idle(self) -> None:
-        """Update battery state for a time step."""
-        self.state = BatteryState.IDLE
-
-    def get_state(self) -> Dict:
-        """Get current battery state.
-
-        Returns:
-            Dictionary containing battery state information
-        """
-        available_charge, available_discharge = self.estimate_available_energy()
-
-        return {"state": self.state,
-                "energy_level": self.energy_level,
-                "soc": self.energy_level / self.nominal_capacity,
-                "available_charge": available_charge,
-                "available_discharge": available_discharge,
-                "cumulative_charge": self.cumulative_charge,
-                "cumulative_discharge": self.cumulative_discharge}
-
-    def estimate_available_energy(self) -> Tuple[float, float]:
-        """Estimate available energy for charging and discharging.
-
-        Returns:
-            Tuple of (available charge capacity, available discharge capacity)
-        """
-        available_charge = self.max_soc * self.nominal_capacity - self.energy_level
-        available_discharge = self.energy_level - self.min_soc * self.nominal_capacity
-
-        return (available_charge, available_discharge)
+    def discharge(self, kwh: float) -> float:
+        """Give up to ``kwh`` to the bus; returns what it gave."""
+        given = min(max(0.0, kwh), self.dischargeable_kwh)
+        self.energy_kwh = max(
+            self.min_kwh, self.energy_kwh - given / self.discharge_efficiency
+        )
+        return given

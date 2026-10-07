@@ -88,6 +88,12 @@ class Validator:
         if len(self.pending_trades) >= self.block_size:
             self._create_new_block()
 
+    def seal_block(self) -> None:
+        """Validate the pending trades as one block now, e.g. at the end of a market
+        period ([P1] §3.3.4)."""
+        if self.pending_trades:
+            self._create_new_block()
+
     def _create_new_block(self) -> None:
         """Create and validate a new block with pending trades."""
         if not self.pending_trades:
