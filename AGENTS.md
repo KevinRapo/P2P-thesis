@@ -4,6 +4,14 @@ MARLEM rebuilt step by step on SimBench networks: configure a local energy marke
 then step through it by hand and watch the network's power flow. No reinforcement
 learning at this stage.
 
+## Current stage: the core first, the Studio later
+
+Right now the work is making sure the market runs correctly on the SimBench
+network: `core/`, validated in `notebooks/`. **Do not update `studio/` in
+parallel.** Change `core/` and the notebooks only, and leave the Studio as it is
+until the user says to bring it up to date, even when a core change leaves a page
+behind. Note in the reply what the Studio will need then.
+
 ## Code structure
 
 ### Three layers
@@ -50,9 +58,9 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   import the core's plain data records (`StepRecord`, `Trade`, `NetworkRef`,
   `BatterySetup`, `DSO_ID`, the `DESCRIPTIONS` captions) to read and display them,
   but never construct or drive a core engine class. Inside the Studio,
-  `MarketService` builds and holds the `LocalEnergyMarket` between clicks; a notebook
-  uses `LocalEnergyMarket` directly. A page may name `LocalEnergyMarket` as a type (under
-  `TYPE_CHECKING`) to annotate what it reads.
+  `MarketService` builds and holds the `LocalEnergyMarket` between clicks; a
+  notebook uses `LocalEnergyMarket` directly. A page may name `LocalEnergyMarket`
+  as a type (under `TYPE_CHECKING`) to annotate what it reads.
 
 Every folder and script, with how far it is built, is in
 `docs/structure.md`: update it whenever a file is added, moved, renamed or built.
