@@ -125,6 +125,8 @@ validation:
 
 nav:
   - Home: index.md
+  - MARLEM:
+      - Methodology: marlem/methodology.md
   - SimBench:
       - simbench/README.md
       - Network catalogue: simbench/networks.md
