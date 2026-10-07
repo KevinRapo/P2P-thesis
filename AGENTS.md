@@ -12,9 +12,8 @@ learning at this stage.
 |---|---|
 | `config/` | The scenario the user configures (`Scenario`), and saving and loading it |
 | `grid/` | The SimBench network: catalogue, topology, profiles, power flow. The only place that imports pandapower or simbench |
-| `market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and the market step |
-| `simulation/` | Stepping a scenario: market step, then power flow, one step at a time |
-| `services/` | What the Studio calls. Translates between the Studio's models and `grid/`, `market/` and `simulation/` |
+| `market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `MarketManager` (`manager.py`), the one class that runs a market step and its power flow |
+| `services/` | What the Studio calls. Translates between the Studio's models and `grid/` and `market/` |
 | `studio/` | The NiceGUI Studio: `pages/`, `components/`, layout, theme |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |

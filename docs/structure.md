@@ -3,9 +3,9 @@
 > The repository folder by folder, down to each script: what it is for and how far
 > it is built. Keep this page current when files are added, moved or built.
 
-Layers from bottom to top: `grid/` and `market/` model the network and the market,
-`simulation/` steps them together, `config/` describes a scenario, `services/`
-is what the Studio calls, and `studio/` is the user interface. Lower layers never
+Layers from bottom to top: `grid/` models the network, `market/` the market on it
+(its `MarketManager` runs both, step by step), `config/` describes a scenario,
+`services/` is what the Studio calls, and `studio/` is the user interface. Lower layers never
 import higher ones.
 
 ```mermaid
@@ -22,7 +22,7 @@ flowchart LR
   grid --> g3["powerflow.py"]:::stub
 
   root --> market["market/"]
-  market --> m1["step.py"]:::stub
+  market --> m1["manager.py"]:::stub
   market --> m2["order.py"]:::orig
   market --> m3["matching.py"]:::orig
   market --> m4["clearing_price.py"]:::orig
@@ -35,9 +35,6 @@ flowchart LR
   dso --> d1["dso.py"]:::orig
   market --> profile["profile/"]
   profile --> p1["base.py · der.py · dso.py"]:::orig
-
-  root --> sim["simulation/"]
-  sim --> s1["session.py"]:::stub
 
   root --> services["services/"]
   services --> v1["container.py"]:::done
@@ -87,12 +84,13 @@ never pandapower objects.
 
 ## market/: the MARLEM market
 
-The market of the paper ([methodology](marlem/methodology.md)). The original files
-are the reference to rebuild from; `step.py` is where the rebuilt step will run.
+The market of the paper ([methodology](marlem/methodology.md)). `manager.py` is the
+one class that runs it, like `lem.py` in the original; the original files are the
+reference its pieces are rebuilt from.
 
 | Script | What it does | State |
 |---|---|---|
-| `step.py` | `MarketStep`: one period of the market without learning, with its inputs and outcome | stub |
+| `manager.py` | `MarketManager`: reset, step, run to the end, history. One step runs the paper's phases: validate, orders, clear, settle, power flow, advance | stub |
 | `order.py` | `Order` and `Trade` | original |
 | `matching.py` | The three-stage clearing: preferences, double auction, DSO | original |
 | `clearing_price.py` | Pricing mechanisms: average, buyer, seller, spread, Nash, proportional | original |
@@ -102,15 +100,6 @@ are the reference to rebuild from; `step.py` is where the rebuilt step will run.
 | `agent/battery.py` | Battery state of charge, charging and discharging | original, imports |
 | `dso/dso.py` | The DSO: tariffs, clearing the residual, grid fees | original |
 | `profile/` | Synthetic or CSV generation, demand and tariff profiles | original, imports |
-
-## simulation/: stepping the scenario
-
-Joins the market and the grid: each step clears the market, then runs a power flow
-with what the participants physically did.
-
-| Script | What it does | State |
-|---|---|---|
-| `session.py` | `StepSession`: reset, step, run to the end, history of steps | stub |
 
 ## services/: what the Studio calls
 

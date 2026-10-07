@@ -28,7 +28,6 @@ hooks:
 watch:
   - ../grid
   - ../market
-  - ../simulation
   - ../config
   - ../services
   - ../studio

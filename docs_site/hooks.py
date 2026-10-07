@@ -43,7 +43,6 @@ API_SECTIONS = [
     # scenario that configures them, then the services and the Studio on top.
     ("Grid: SimBench networks", "grid", ["grid"], "simbench/README.md"),
     ("Market: the MARLEM market", "market", ["market"], None),
-    ("Simulation: stepping a scenario", "simulation", ["simulation"], None),
     ("Config: the scenario", "config", ["config"], None),
     ("Services: what the Studio calls", "services", ["services"], None),
     ("Studio: pages and components", "studio", ["studio"], None),
