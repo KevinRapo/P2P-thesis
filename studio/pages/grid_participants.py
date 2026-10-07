@@ -10,7 +10,7 @@ from __future__ import annotations
 from nicegui import run, ui
 
 from config.scenario import BatterySetup
-from services.models import NetworkSource
+from grid.contract import NetworkRef
 from studio.components.cards import section
 from studio.components.charts import topology_figure
 from studio.components.network import NetworkPicker, busy, clicked_bus, failed
@@ -68,7 +68,7 @@ def page() -> None:
 
     state: dict = {"topology": None, "shown": scenario.grid.code}
 
-    async def load(source: NetworkSource) -> None:
+    async def load(source: NetworkRef) -> None:
         """Show the picked network; offer to use it if it is not the scenario's."""
         state["shown"] = source.code
         apply_box.clear()
@@ -128,7 +128,7 @@ def page() -> None:
     with picker_box:
         NetworkPicker(
             s,
-            NetworkSource(type="simbench", code=scenario.grid.code),
+            NetworkRef("simbench", scenario.grid.code),
             on_pick=load,
             allow_file=False,
         ).start()

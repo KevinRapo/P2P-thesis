@@ -72,9 +72,9 @@ def collect() -> list[dict[str, Any]]:
     rows = []
     for source_type in ("simbench", "pandapower_builtin"):
         for info in services.grid.list_networks(source_type):
-            print(info.source.code, flush=True)
+            print(info.ref.code, flush=True)
             try:
-                rows.append(_facts(services, info.source))
+                rows.append(_facts(services, info.ref))
             except Exception as error:  # noqa: BLE001  report and continue
                 print(f"  skipped: {error}", flush=True)
     return rows
@@ -103,7 +103,7 @@ def _facts(services: Any, source: Any) -> dict[str, Any]:
     pv_buses = {e.bus for e in sgens if types.get(e.profile_type) == "pv"}
     return {
         "code": source.code,
-        "type": source.type,
+        "type": source.source_type,
         **_parse(source.code),
         "label": info.label,
         "level": info.voltage_level,

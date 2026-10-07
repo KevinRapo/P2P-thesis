@@ -6,14 +6,9 @@ the Inspect page's profile tables, plots and class overview.
 
 from __future__ import annotations
 
-import grid.contract as contract
 from grid import simbench as adapter
-from services.models import (
-    NetworkSource,
-    ProfileClass,
-    ProfileType,
-    Series,
-)
+from grid.contract import NetworkRef
+from services.models import ProfileClass, ProfileType, Series
 from services.profile_classes import CLASSES, category, description
 
 
@@ -33,13 +28,12 @@ class ProfileService:
         return [profile_class for profile_class, _ in CLASSES]
 
     # --- A network's profiles ---------------------------------------------------------
-    def profile_types(self, source: NetworkSource) -> list[ProfileType]:
+    def profile_types(self, source: NetworkRef) -> list[ProfileType]:
         """The SimBench profiles a network ships, with how many elements use each.
 
         Built: read from the network through the pandapower adapter. Networks
         without profiles (pandapower built-ins) return an empty list.
         """
-        ref = contract.NetworkRef(source.type, source.code)
         return [
             ProfileType(
                 code=r.name,
@@ -51,12 +45,12 @@ class ProfileService:
                 mean=r.mean,
                 peak=r.peak,
             )
-            for r in adapter.profile_catalog(ref)
+            for r in adapter.profile_catalog(source)
         ]
 
     def profile_series(
         self,
-        source: NetworkSource,
+        source: NetworkRef,
         codes: list[str],
         start: str,
         days: int = 7,
@@ -78,8 +72,7 @@ class ProfileService:
         Returns:
             One y series per profile, as factors of the element's rated power.
         """
-        ref = contract.NetworkRef(source.type, source.code)
-        x, y = adapter.profile_series(ref, codes, start, days, resolution, quantity)
+        x, y = adapter.profile_series(source, codes, start, days, resolution, quantity)
         return Series(
             x=x,
             y=y,
@@ -89,7 +82,7 @@ class ProfileService:
 
     def profile_power(
         self,
-        source: NetworkSource,
+        source: NetworkRef,
         codes: list[str],
         start: str,
         days: int = 7,
@@ -115,9 +108,8 @@ class ProfileService:
             One y series per profile (e.g. "H0-A (6)": its six elements summed) or
             per element, in kW or kvar.
         """
-        ref = contract.NetworkRef(source.type, source.code)
         x, y = adapter.profile_power(
-            ref, codes, start, days, resolution, quantity, per_element
+            source, codes, start, days, resolution, quantity, per_element
         )
         unit = "kW" if quantity == "p" else "kvar"
         return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")

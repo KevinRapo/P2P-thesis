@@ -13,10 +13,10 @@ from typing import Any, Optional
 import plotly.graph_objects as go
 from nicegui import run, ui
 
+from grid.contract import NetworkRef
 from market.clearing import DSO_ID
 from market.manager import MarketManager, StepRecord
 from market.order import Trade
-from services.models import NetworkSource
 from studio.components.cards import section
 from studio.components.charts import styled, topology_figure
 from studio.components.network import busy, failed
@@ -110,7 +110,7 @@ def page() -> None:
         if m is None or state["code"] == m.scenario.grid.code:
             return
         busy(network_box, "Building topology …")
-        source = NetworkSource(type="simbench", code=m.scenario.grid.code)
+        source = NetworkRef("simbench", m.scenario.grid.code)
         try:
             state["topology"] = await run.io_bound(s.grid.topology, source)
             state["code"] = source.code
@@ -373,7 +373,7 @@ def _network(topology, m: MarketManager, view: dict) -> go.Figure:
     fig = topology_figure(
         topology, voltages=voltages, highlight=buses, height=480, violating=violating
     )
-    pos = {b["id"]: (b["x"], b["y"]) for b in topology.buses}
+    pos = {b.id: (b.x, b.y) for b in topology.buses}
     bus_of = {pid: p.bus for pid, p in m.participants.items()}
     ext = topology.external_grid_bus
 

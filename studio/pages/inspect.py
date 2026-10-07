@@ -8,13 +8,9 @@ from the network blocks in ``components/network.py``, shared with the Grid page.
 
 from nicegui import run, ui
 
+from grid.contract import NetworkRef
 from services.container import Services
-from services.models import (
-    NetworkSource,
-    ProfileClass,
-    ProfileType,
-    Series,
-)
+from services.models import ProfileClass, ProfileType, Series
 from studio.components.cards import section
 from studio.components.charts import line_figure
 from studio.components.network import (
@@ -33,7 +29,7 @@ from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
 
-COMPARE_DEFAULT = {"type": "simbench", "code": "1-LV-rural1--0-sw"}
+COMPARE_DEFAULT = NetworkRef("simbench", "1-LV-rural1--0-sw")
 
 
 # --------------------------------------------------------------------------------------
@@ -97,7 +93,7 @@ def _network_tab(s: Services) -> None:
         ):
             picker = NetworkPicker(
                 s,
-                NetworkSource(**DEFAULT_SOURCE),
+                DEFAULT_SOURCE,
                 on_pick=lambda source: load(source),
                 allow_file=False,
             )
@@ -123,7 +119,7 @@ def _network_tab(s: Services) -> None:
     ):
         profiles = ProfileInspector(s)
 
-    async def load(source: NetworkSource) -> None:
+    async def load(source: NetworkRef) -> None:
         """Show the picked network's facts, topology, elements and profiles."""
         state["topology"] = None
         busy(summary_box, "Loading network …")
@@ -169,7 +165,7 @@ def _compare_tab(s: Services) -> None:
             with section(label, icon="hub", classes="grow basis-0"):
                 NetworkPicker(
                     s,
-                    NetworkSource(**initial),
+                    initial,
                     on_pick=lambda source, side=side: load(side, source),
                     allow_file=False,
                 ).start()
@@ -180,7 +176,7 @@ def _compare_tab(s: Services) -> None:
     ):
         compare_box = ui.column().classes("w-full gap-4")
 
-    async def load(side: str, source: NetworkSource) -> None:
+    async def load(side: str, source: NetworkRef) -> None:
         """Load one side's network, then redraw the comparison."""
         state[side] = {"source": source}
         busy(compare_box, "Loading network …")

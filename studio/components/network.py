@@ -13,13 +13,9 @@ from typing import Any
 
 from nicegui import run, ui
 
+from grid.contract import NetworkRef, NetworkSummary, TopologyView
 from services.container import Services
-from services.models import (
-    NetworkSource,
-    NetworkSummary,
-    ProfileType,
-    TopologyView,
-)
+from services.models import ProfileType
 from studio.components.cards import not_implemented
 from studio.components.charts import line_figure, topology_figure
 from studio.components.profiles import ProfileOverview
@@ -33,7 +29,7 @@ SOURCE_LABELS = {
     "pandapower_builtin": "Built-in",
     "pandapower_file": "File",
 }
-DEFAULT_SOURCE = {"type": "simbench", "code": "1-LV-semiurb4--0-sw"}
+DEFAULT_SOURCE = NetworkRef("simbench", "1-LV-semiurb4--0-sw")
 
 # The "no filter" choice of the SimBench filters (a select needs a hashable value).
 ALL = "all"
@@ -174,15 +170,15 @@ class NetworkPicker:
     Args:
         services: The services (``grid.list_networks`` fills the dropdowns).
         initial: The network shown first.
-        on_pick: Called with the picked ``NetworkSource`` (also for ``initial``).
+        on_pick: Called with the picked ``NetworkRef`` (also for ``initial``).
         allow_file: Show the "File" source and its (not yet working) upload.
     """
 
     def __init__(
         self,
         services: Services,
-        initial: NetworkSource,
-        on_pick: Callable[[NetworkSource], Awaitable[None]],
+        initial: NetworkRef,
+        on_pick: Callable[[NetworkRef], Awaitable[None]],
         allow_file: bool = True,
     ) -> None:
         self.services = services
@@ -192,7 +188,9 @@ class NetworkPicker:
         labels = dict(SOURCE_LABELS)
         if not allow_file:
             labels.pop("pandapower_file")
-        self.toggle = ui.toggle(labels, value=initial.type).props("no-caps dense")
+        self.toggle = ui.toggle(labels, value=initial.source_type).props(
+            "no-caps dense"
+        )
         self.level = ui.select([], label="Voltage level").classes("w-full")
         # SimBench only: narrow the list by network type, scenario and switches.
         with ui.column().classes("w-full gap-0") as self.facets:
@@ -242,9 +240,7 @@ class NetworkPicker:
         self.status.clear()
         levels = list(dict.fromkeys(n.voltage_level for n in self.networks))
         self.level.set_options(levels)
-        match = next(
-            (n for n in self.networks if n.source.code == self.source.code), None
-        )
+        match = next((n for n in self.networks if n.ref.code == self.source.code), None)
         self.level.value = match.voltage_level if match else next(iter(levels), None)
         self.facets.set_visibility(source_type == "simbench")
         self.category.set_options(
@@ -277,7 +273,7 @@ class NetworkPicker:
         return all(want in (None, ALL) or want == have for want, have in wanted)
 
     def _fill_networks(self) -> None:
-        options = {n.source.code: n.label for n in self.networks if self._matches(n)}
+        options = {n.ref.code: n.label for n in self.networks if self._matches(n)}
         self.facet_hint.text = f"{len(options)} networks. " + SCENARIO_HINTS.get(
             self.scenario.value, SCENARIO_HINTS[ALL]
         )
@@ -288,7 +284,7 @@ class NetworkPicker:
     async def _on_network(self, e: Any) -> None:
         if not e.value:
             return
-        self.source = NetworkSource(type=self.toggle.value, code=e.value)
+        self.source = NetworkRef(self.toggle.value, e.value)
         await self.on_pick(self.source)
 
 
@@ -304,7 +300,7 @@ class ElementsTable:
 
     def __init__(self, services: Services) -> None:
         self.services = services
-        self.source: NetworkSource | None = None
+        self.source: NetworkRef | None = None
         self.bus: str | None = None
         with ui.row().classes("items-center gap-2"):
             self.label = ui.label("All buses").classes("mls-card-caption")
@@ -314,7 +310,7 @@ class ElementsTable:
             self.clear_button.set_visibility(False)
         self.box = ui.column().classes("w-full")
 
-    async def show(self, source: NetworkSource | None, bus: str | None = None) -> None:
+    async def show(self, source: NetworkRef | None, bus: str | None = None) -> None:
         """Load and show the elements of ``source`` (all, or those on ``bus``)."""
         self.source, self.bus = source, bus
         self.label.set_text(f"Bus {bus}" if bus else "All buses")
@@ -359,7 +355,7 @@ class ProfileInspector:
     def __init__(self, services: Services, catalogue: bool = False) -> None:
         self.services = services
         self.catalogue = catalogue
-        self.source: NetworkSource | None = None
+        self.source: NetworkRef | None = None
         self.selected: list[str] = []
         self.loaded = False
         self.rows: list[dict] = []
@@ -442,7 +438,7 @@ class ProfileInspector:
         )
         self.scale_hint.set_text(SCALE_HINTS[bool(self.per_element.value)])
 
-    async def show(self, source: NetworkSource | None = None) -> None:
+    async def show(self, source: NetworkRef | None = None) -> None:
         """Load the profiles (of ``source``, or the catalogue); plot the first two."""
         self.source = source
         busy(self.table_box, "Reading profiles …")

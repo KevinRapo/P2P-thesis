@@ -2,7 +2,8 @@
 
 import plotly.graph_objects as go
 
-from services.models import Series, TopologyView
+from grid.contract import BusView, TopologyView
+from services.models import Series
 
 from studio.theme import SERIES
 
@@ -93,8 +94,8 @@ def _branch_trace(fig: go.Figure, pos: dict, branches: list, **line) -> None:
     """Draw branches as one line trace (``None`` breaks the line between segments)."""
     xs, ys = [], []
     for br in branches:
-        if br["from"] in pos and br["to"] in pos:
-            (x0, y0), (x1, y1) = pos[br["from"]], pos[br["to"]]
+        if br.from_bus in pos and br.to_bus in pos:
+            (x0, y0), (x1, y1) = pos[br.from_bus], pos[br.to_bus]
             xs += [x0, x1, None]
             ys += [y0, y1, None]
     if xs:
@@ -119,21 +120,21 @@ def topology_figure(
         height: Height in pixels.
         violating: Buses outlined in red (outside their voltage limits).
     """
-    pos = {b["id"]: (b["x"], b["y"]) for b in topology.buses}
+    pos = {b.id: (b.x, b.y) for b in topology.buses}
     fig = go.Figure()
-    lines = [br for br in topology.lines if br.get("kind", "line") == "line"]
+    lines = [br for br in topology.branches if br.kind == "line"]
     # Lines first (dotted when open), then transformers and switches drawn thick.
     _branch_trace(
         fig,
         pos,
-        [br for br in lines if br.get("closed", True)],
+        [br for br in lines if br.closed],
         color="rgba(100,116,139,0.6)",
         width=1.5,
     )
     _branch_trace(
         fig,
         pos,
-        [br for br in lines if not br.get("closed", True)],
+        [br for br in lines if not br.closed],
         color="rgba(100,116,139,0.45)",
         width=1,
         dash="dot",
@@ -141,31 +142,29 @@ def topology_figure(
     _branch_trace(
         fig,
         pos,
-        [br for br in topology.lines if br.get("kind") in ("trafo", "switch")],
+        [br for br in topology.branches if br.kind in ("trafo", "switch")],
         color="#0F172A",
         width=3,
     )
 
-    def hover(b: dict) -> str:
+    def hover(b: BusView) -> str:
         """Hover text: bus ID, kind, voltage level and, after a preview, the voltage."""
-        text = f"{b['id']}<br>{b['kind']}"
-        if "vn_kv" in b:
-            text += f" · {b['vn_kv']} kV"
-        if voltages and b["id"] in voltages:
-            text += f"<br>{voltages[b['id']]:.3f} pu"
+        text = f"{b.id}<br>{b.kind} · {b.vn_kv} kV"
+        if voltages and b.id in voltages:
+            text += f"<br>{voltages[b.id]:.3f} pu"
         return text
 
-    def size(b: dict) -> int:
+    def size(b: BusView) -> int:
         """Marker size: external grid large, buses with elements medium, empty buses
         small.
         """
-        return 16 if b["kind"] == "external_grid" else (9 if b["kind"] != "bus" else 6)
+        return 16 if b.kind == "external_grid" else (9 if b.kind != "bus" else 6)
 
-    def outline(group: list[dict]) -> dict:
+    def outline(group: list[BusView]) -> dict:
         """Amber outline for highlighted buses (selected bus, participants), red for
         buses outside their voltage limits."""
-        bad = [bool(violating) and b["id"] in violating for b in group]
-        marked = [bool(highlight) and b["id"] in highlight for b in group]
+        bad = [bool(violating) and b.id in violating for b in group]
+        marked = [bool(highlight) and b.id in highlight for b in group]
         return dict(
             width=[3 if m or v else 0.5 for m, v in zip(marked, bad)],
             color=["#DC2626" if v else "#D97706" for v in bad],
@@ -176,16 +175,16 @@ def topology_figure(
     if voltages:
         group = topology.buses
         fig.add_scatter(
-            x=[b["x"] for b in group],
-            y=[b["y"] for b in group],
+            x=[b.x for b in group],
+            y=[b.y for b in group],
             mode="markers",
-            customdata=[b["id"] for b in group],
+            customdata=[b.id for b in group],
             text=[hover(b) for b in group],
             hoverinfo="text",
             showlegend=False,
             marker=dict(
                 size=[size(b) for b in group],
-                color=[voltages.get(b["id"], 1.0) for b in group],
+                color=[voltages.get(b.id, 1.0) for b in group],
                 colorscale="RdYlGn",
                 cmin=0.93,
                 cmax=1.05,
@@ -195,16 +194,16 @@ def topology_figure(
         )
     else:
         kinds = sorted(
-            {b["kind"] for b in topology.buses}, key=lambda k: k != "external_grid"
+            {b.kind for b in topology.buses}, key=lambda k: k != "external_grid"
         )
         for kind in kinds:
-            group = [b for b in topology.buses if b["kind"] == kind]
+            group = [b for b in topology.buses if b.kind == kind]
             fig.add_scatter(
-                x=[b["x"] for b in group],
-                y=[b["y"] for b in group],
+                x=[b.x for b in group],
+                y=[b.y for b in group],
                 mode="markers",
                 name=kind.replace("_", " "),
-                customdata=[b["id"] for b in group],
+                customdata=[b.id for b in group],
                 text=[hover(b) for b in group],
                 hoverinfo="text",
                 marker=dict(

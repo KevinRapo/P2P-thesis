@@ -119,10 +119,10 @@ market or pandapower directly.
 | Script | What it does | State |
 |---|---|---|
 | `container.py` | Builds the services once | done |
-| `grid_catalog_service.py` | Networks, their facts, topology, elements, the network cache | done |
+| `grid_catalog_service.py` | Networks, their facts, topology, elements as the grid contract's records; the network cache and its background warming | done |
 | `profile_service.py` | A network's profiles and SimBench's whole catalogue | done |
 | `profile_classes.py` | SimBench's profile classes and how a profile name is classified | done |
-| `models.py` | The data types the Studio receives | done |
+| `models.py` | The data types only the Studio needs: profile classes, profile types, chart series | done |
 | `workspace.py` | Where the Studio keeps its data (`C:\MARLEM` here) | done |
 | `scenario_service.py` | The scenario being edited, saved on every change; calls `config/placement.py` to place participants | done |
 | `market_service.py` | Builds the `MarketManager` the Step page plays | done |
