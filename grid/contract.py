@@ -236,6 +236,7 @@ class GridAssessment:
     bus_voltage_pu: Mapping[str, float]
     violations: tuple[GridViolation, ...]
     notes: tuple[str, ...] = field(default_factory=tuple)
+    line_loading_percent: Mapping[str, float] = field(default_factory=dict)
 
 
 class GridModel(Protocol):

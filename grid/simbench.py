@@ -1023,7 +1023,13 @@ def _assessment(
                     limit = float(line_limits[i])
             if value > limit:
                 violations.append(
-                    GridViolation("LINE_OVERLOAD", "line", str(i), float(value), limit)
+                    GridViolation(
+                        "LINE_OVERLOAD",
+                        "line",
+                        _branch_name(net.line, i, "line"),
+                        float(value),
+                        limit,
+                    )
                 )
     max_trafo = None
     if len(net.res_trafo):
@@ -1054,4 +1060,14 @@ def _assessment(
         bus_voltage_pu={ids[int(b)]: round(float(v), 4) for b, v in vm.items()},
         violations=tuple(violations),
         notes=tuple(notes),
+        line_loading_percent={
+            _branch_name(net.line, i, "line"): round(float(v), 2)
+            for i, v in net.res_line.loading_percent.items()
+        },
     )
+
+
+def _branch_name(table: Any, i: Any, kind: str) -> str:
+    """A line's or transformer's ID, as in ``topology_view``."""
+    name = table.at[i, "name"]
+    return str(name) if isinstance(name, str) else f"{kind} {i}"
