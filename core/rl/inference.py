@@ -4,7 +4,7 @@ Multi-agent reinforcement learning inference implementation using Ray RLlib.
 
 from os import path
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 
 import numpy as np
 import torch
@@ -15,14 +15,16 @@ from ray.rllib.core.rl_module.rl_module import RLModule
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.utils.numpy import convert_to_numpy
 
-from .lem import LocalEnergyMarket
-from .train import GroupedLEM
+# DEVIATION: the market environment is not imported; the environment class is
+# an argument (`env_class`), as in RLTrainer.
+from .train import grouped
 
 
 class RLInference:
     """Manages training using Ray RLlib with support for multiple algorithms."""
 
     def __init__(self,
+                 env_class: Type[MultiAgentEnv],
                  env_config: Dict[str, Any],
                  exploration: bool = False,
                  checkpoint_path: Optional[str] = None,
@@ -30,11 +32,13 @@ class RLInference:
         """Initialize the RL trainer.
 
         Args:
+            env_class: The multi-agent environment class the module was trained on.
             env_config: Environment configuration dictionary
             exploration: Whether to use stochastic actions
             checkpoint_path: Path to trained experiment checkpoint
             storage_path: Path to store training results
         """
+        self.env_class = env_class
         self.env_config = env_config
         self.exploration = exploration
         self.checkpoint_path = checkpoint_path
@@ -47,7 +51,7 @@ class RLInference:
         self.rl_module: RLModule | MultiRLModule = self._restore_from_checkpoint(checkpoint_path)
 
         # Initialize environment
-        self.env: MultiAgentEnv = LocalEnergyMarket(env_config) if isinstance(self.rl_module, MultiRLModule) else GroupedLEM(env_config)
+        self.env: MultiAgentEnv = env_class(env_config) if isinstance(self.rl_module, MultiRLModule) else grouped(env_class)(env_config)
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
@@ -70,18 +74,14 @@ class RLInference:
         if not isinstance(self.env_config, dict):
             raise ValueError(f"The <env_config> must be a dictionary, got <env_config = {self.env_config}>.")
 
-        # Check required environment configuration keys
-        for key in ["max_steps", "market_config", "agents"]:
-            if key not in self.env_config:
-                raise ValueError(f"The <env_config> is missing the required key: <key = {key}>.")
+        # DEVIATION: the market's keys (market_config, agents) are checked by the
+        # environment itself. `max_steps` stays required: the episode loop uses it.
+        if "max_steps" not in self.env_config:
+            raise ValueError("The <env_config> is missing the required key: <key = max_steps>.")
 
         # Validate max_steps
         if not isinstance(self.env_config["max_steps"], int) or self.env_config["max_steps"] <= 0:
             raise ValueError(f"The <max_steps> must be a positive integer, got <max_steps = {self.env_config["max_steps"]}>.")
-
-        # Validate agents
-        if not isinstance(self.env_config["agents"], list) or len(self.env_config["agents"]) == 0:
-            raise ValueError(f"The <agents> must be a non-empty list, got <agents = {self.env_config["agents"]}>.")
 
     def _restore_from_checkpoint(self, checkpoint_path: str) -> None:
         """Restore RL module from checkpoint directory for inference.

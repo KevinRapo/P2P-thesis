@@ -2,10 +2,11 @@
 Multi-agent reinforcement learning training implementation using Ray RLlib.
 """
 
+import json
 from datetime import datetime
 from os import cpu_count
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Tuple
+from typing import Any, Dict, Literal, Optional, Tuple, Type
 
 import ray
 from gymnasium import spaces
@@ -32,14 +33,16 @@ from torch.cuda import device_count, is_available
 from .base import RLAlgorithm, TrainingMode
 from .ctce import CTCEModule
 from .ctde import CTDEModule
-from .io import EnvConfigHandler
-from .lem import LocalEnergyMarket
+# DEVIATION: the market environment (lem.py, io.py) is not imported. The trainer
+# takes the environment class as an argument (`env_class`), so any multi-agent
+# environment with the same interface can be trained (see core/envs/).
 
 
 class RLTrainer:
     """Manages training using Ray RLlib with support for multiple algorithms."""
 
     def __init__(self,
+                 env_class: Type[MultiAgentEnv],
                  env_config: Dict[str, Any],
                  algorithm: RLAlgorithm = RLAlgorithm.PPO,
                  training: TrainingMode = TrainingMode.DTDE,
@@ -54,6 +57,9 @@ class RLTrainer:
         """Initialize the RL trainer.
 
         Args:
+            env_class: The multi-agent environment class, built as
+                ``env_class(env_config)``. DEVIATION: the original always used
+                ``LocalEnergyMarket``.
             env_config: Environment configuration dictionary
             algorithm: RL algorithm to use (PPO, APPO, SAC)
             training: Training mode (CTCE, CTDE, DTDE)
@@ -66,6 +72,8 @@ class RLTrainer:
             gpus: Number of GPUs per learner
             storage_path: Path to store training results
         """
+        self.env_class = env_class
+        self.grouped_env_class = grouped(env_class)
         self.env_config = env_config
         self.algorithm = algorithm
         self.training = training
@@ -82,7 +90,7 @@ class RLTrainer:
         self._check_init()
 
         # Initialize environment
-        self.env: MultiAgentEnv = LocalEnergyMarket(env_config) if self.training == TrainingMode.DTDE else GroupedLEM(env_config)
+        self.env: MultiAgentEnv = env_class(env_config) if self.training == TrainingMode.DTDE else self.grouped_env_class(env_config)
 
     def _check_init(self) -> None:
         """Validate initialization parameters to ensure proper configuration."""
@@ -130,18 +138,10 @@ class RLTrainer:
         if not isinstance(self.env_config, dict):
             raise ValueError(f"The <env_config> must be a dictionary, got <env_config = {self.env_config}>.")
 
-        # Check required environment configuration keys
-        for key in ["max_steps", "market_config", "agents"]:
-            if key not in self.env_config:
-                raise ValueError(f"The <env_config> is missing the required key: <key = {key}>.")
-
-        # Validate max_steps
-        if not isinstance(self.env_config["max_steps"], int) or self.env_config["max_steps"] <= 0:
-            raise ValueError(f"The <max_steps> must be a positive integer, got <max_steps = {self.env_config["max_steps"]}>.")
-
-        # Validate agents
-        if not isinstance(self.env_config["agents"], list) or len(self.env_config["agents"]) == 0:
-            raise ValueError(f"The <agents> must be a non-empty list, got <agents = {self.env_config["agents"]}>.")
+        # DEVIATION: the market's keys (max_steps, market_config, agents) are
+        # checked by the environment itself; here only that it is an environment.
+        if not (isinstance(self.env_class, type) and issubclass(self.env_class, MultiAgentEnv)):
+            raise ValueError(f"The <env_class> must be a MultiAgentEnv subclass, got <env_class = {self.env_class}>.")
 
     @staticmethod
     def _get_cpus_count() -> int:
@@ -308,7 +308,7 @@ class RLTrainer:
         """
         if self.training == TrainingMode.CTCE:
             return (config
-                    .environment(GroupedLEM,
+                    .environment(self.grouped_env_class,
                                  env_config=self.env_config)
                     .rl_module(rl_module_spec=RLModuleSpec(module_class=CTCEModule,
                                                            observation_space=self.env.observation_space,
@@ -319,7 +319,7 @@ class RLTrainer:
 
         elif self.training == TrainingMode.CTDE:
             return (config
-                    .environment(GroupedLEM,
+                    .environment(self.grouped_env_class,
                                  env_config=self.env_config)
                     .rl_module(rl_module_spec=RLModuleSpec(module_class=CTDEModule,
                                                            observation_space=self.env.observation_space,
@@ -342,7 +342,7 @@ class RLTrainer:
                                 for agent_id in self.env.agents_id}
 
             return (config
-                    .environment(LocalEnergyMarket,
+                    .environment(self.env_class,
                                  env_config=self.env_config)
                     .multi_agent(policies=agents_policy,
                                  policy_mapping_fn=lambda agent_id, *args, **kwargs: agent_id)
@@ -394,9 +394,11 @@ class RLTrainer:
         Args:
             results: The results of the training and evaluation.
         """
-        EnvConfigHandler.save(self.env_config,
-                              storage_path=str(Path(results.get_best_result().path).parent),
-                              name="env_config")
+        # DEVIATION: plain JSON instead of the market's EnvConfigHandler; values
+        # JSON cannot hold are written as text.
+        folder = Path(results.get_best_result().path).parent
+        with open(folder / "env_config.json", "w", encoding="utf-8") as f:
+            json.dump({"env_class": self.env_class.__name__, **self.env_config}, f, indent=2, default=str)
 
     def train(self,
               embeddings_dim: int = 128,
@@ -436,7 +438,7 @@ class RLTrainer:
                                              mode="max",
                                              reuse_actors=False),
                       run_config=RunConfig(storage_path=self.storage_path,
-                                           name=f"lem_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
+                                           name=f"{self.env_class.__name__.lower()}_{self.algorithm.value}_{self.training.value}_{datetime.now().strftime('%Y%m%d%H%M')}",
                                            stop={TRAINING_ITERATION: self.iters if _iters is None else abs(int(_iters)),
                                                  #  "time_total_s": None,
                                                  DONE: True},
@@ -620,10 +622,14 @@ class RLTrainer:
                 "eval": {k: v for k, v in eval.config.items() if k in hyperparam_mutations}}
 
 
-class GroupedLEM(MultiAgentEnv):
+class GroupedEnv(MultiAgentEnv):
     """
-    Grouped environment for the local energy market.
+    Grouped environment: all agents of ``env_class`` as one agent, for CTCE and
+    CTDE. DEVIATION: was ``GroupedLEM``, fixed to the local energy market; build a
+    subclass for any environment with ``grouped(env_class)``.
     """
+
+    env_class: Type[MultiAgentEnv]
 
     def __init__(self, env_config: Dict[str, Any]) -> None:
         """Initialize the grouped environment.
@@ -634,7 +640,7 @@ class GroupedLEM(MultiAgentEnv):
         super().__init__()
 
         # Multi-agent environment
-        env = LocalEnergyMarket(env_config)
+        env = self.env_class(env_config)
 
         _tuple_obs_space = self._dict_to_tuple_space(env.observation_spaces)
         _tuple_act_space = self._dict_to_tuple_space(env.action_spaces)
@@ -705,6 +711,15 @@ class GroupedLEM(MultiAgentEnv):
         tuple_of_spaces = tuple(dict_space[key] for key in sorted_keys)
 
         return spaces.Tuple(tuple_of_spaces)
+
+
+def grouped(env_class: Type[MultiAgentEnv]) -> Type[GroupedEnv]:
+    """The grouped version of ``env_class`` (a ``GroupedEnv`` subclass).
+
+    DEVIATION: new; RLlib builds environments from a class and a config, so the
+    wrapped class is fixed in a subclass rather than passed in the config.
+    """
+    return type(f"Grouped{env_class.__name__}", (GroupedEnv,), {"env_class": env_class})
 
 
 class SingleOptimizerCallback(RLlibCallback):
