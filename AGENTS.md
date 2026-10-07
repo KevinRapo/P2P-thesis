@@ -25,7 +25,8 @@ no Studio here.
 | `ctde.py` | `CTDEModule`: central actor and critic for training, one head per agent for acting | original, unchanged |
 | `train.py` | `RLTrainer` (Ray Tune with population-based training), `GroupedEnv` | original, isolated |
 | `inference.py` | `RLInference`: roll out a trained checkpoint | original, isolated |
-| `local.py` | `build_local`, `train_local`: the trainer's configuration in one process | new |
+| `local.py` | `build_local`, `train`, `train_local`: the trainer's configuration in one process, with the learner's health metrics | new |
+| `probe.py` | `run_probe`, `evaluate`, `query`: train on a probe, then read the learner's value and action outputs in the probe's states | new |
 
 - Copied from `src/environment/` of the original repository (`main`, 15d6715) in
   the first commit, unchanged, so `git diff` against it shows every change.
@@ -37,6 +38,15 @@ no Studio here.
   `GroupedEnv`, built for any class with `grouped(env_class)`.
 
 ## Environments (`core/envs/`)
+
+- `probes.py`: probe environments after Andy Jones's guide
+  (https://andyljones.com/posts/rl-debugging.html), multi-agent and continuous;
+  each adds one piece of the learning problem and has an exact answer. They
+  validate the training paradigms; run them first after any change to
+  `core/rl/` (`notebooks/probe_paradigms.ipynb`).
+- `toy.py`: two small tasks with a known best return (individual and team
+  reward), for comparing how fast the paradigms learn
+  (`notebooks/validate_rl.ipynb`).
 
 An environment the trainer can use: a `MultiAgentEnv` built as
 `Env(env_config)`, with `agents_id`, `observation_spaces` and `action_spaces`

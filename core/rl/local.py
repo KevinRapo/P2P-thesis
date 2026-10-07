@@ -51,30 +51,57 @@ def build_local(trainer: RLTrainer, embeddings_dim: int = 128, **training) -> Al
     return config.build_algo()
 
 
+# What the learner reports per module, as Jones's guide suggests watching it:
+# entropy falls and levels out, KL stays small, the value function explains more
+# and more of the returns (explained variance towards 1).
+LEARNER_METRICS = {
+    "entropy": "entropy",
+    "mean_kl_loss": "kl",
+    "policy_loss": "policy_loss",
+    "vf_loss": "vf_loss",
+    "vf_explained_var": "vf_explained_var",
+}
+
+
+def train(algo: Algorithm, iters: int) -> pd.DataFrame:
+    """Train a built algorithm ``iters`` more iterations.
+
+    Returns:
+        One row per iteration: ``return_mean`` (mean episode return over all
+        agents, the metric Tune optimises), ``seconds``, and the learner metrics
+        of ``LEARNER_METRICS``, averaged over the modules (one per agent in
+        DTDE).
+    """
+    rows = []
+    for _ in range(iters):
+        start = time.time()
+        result = algo.train()
+        row = {
+            "return_mean": result[ENV_RUNNER_RESULTS].get(EPISODE_RETURN_MEAN),
+            "seconds": time.time() - start,
+        }
+        modules = [
+            stats
+            for module_id, stats in result.get("learners", {}).items()
+            if module_id != "__all_modules__" and isinstance(stats, dict)
+        ]
+        for key, name in LEARNER_METRICS.items():
+            found = [float(m[key]) for m in modules if key in m]
+            row[name] = sum(found) / len(found) if found else None
+        rows.append(row)
+    out = pd.DataFrame(rows)
+    out.index = pd.RangeIndex(1, len(out) + 1, name="iteration")
+    return out
+
+
 def train_local(
     trainer: RLTrainer, iters: int, embeddings_dim: int = 128, **training
 ) -> pd.DataFrame:
-    """Train ``iters`` iterations of the trainer's configuration in this process.
-
-    Arguments as in ``build_local``, plus ``iters``, the training iterations.
-
-    Returns:
-        One row per iteration: ``iteration``, ``return_mean`` (mean episode
-        return over all agents, the metric Tune optimises) and ``seconds``.
-    """
+    """Build the trainer's algorithm in this process, train it ``iters``
+    iterations and stop it. Arguments as in ``build_local``; returns as
+    ``train``."""
     algo = build_local(trainer, embeddings_dim, **training)
-    rows = []
     try:
-        for i in range(1, iters + 1):
-            start = time.time()
-            result = algo.train()
-            rows.append(
-                {
-                    "iteration": i,
-                    "return_mean": result[ENV_RUNNER_RESULTS].get(EPISODE_RETURN_MEAN),
-                    "seconds": time.time() - start,
-                }
-            )
+        return train(algo, iters)
     finally:
         algo.stop()
-    return pd.DataFrame(rows).set_index("iteration")
