@@ -17,6 +17,7 @@ flowchart LR
   config --> c1["scenario.py"]:::data
   config --> c2["store.py"]:::done
   config --> c3["placement.py"]:::done
+  config --> c4["workspace.py"]:::done
 
   root --> grid["grid/"]
   grid --> g1["contract.py"]:::done
@@ -46,7 +47,6 @@ flowchart LR
   services --> v3["profile_service.py"]:::done
   services --> v4["profile_classes.py"]:::done
   services --> v5["models.py"]:::done
-  services --> v6["workspace.py"]:::done
   services --> v7["scenario_service.py"]:::done
   services --> v8["market_service.py"]:::done
 
@@ -77,6 +77,7 @@ Everything the user sets before stepping the market, as plain data.
 |---|---|---|
 | `scenario.py` | `Scenario`: the network (`GridSetup`), the participants with their batteries, the market rules and the DSO tariffs and fees | data only |
 | `store.py` | Save and load a scenario as JSON | done |
+| `workspace.py` | Where the Studio keeps its data: the network cache, the scenario file, per-browser state (`C:\MARLEM` here) | done |
 | `placement.py` | Placing participants on the scenario's network: one on a bus, or one per load or prosumer bus; imports `grid/` | done |
 
 ## grid/: the SimBench network
@@ -124,7 +125,6 @@ market or pandapower directly.
 | `profile_service.py` | A network's profiles and SimBench's whole catalogue | done |
 | `profile_classes.py` | SimBench's profile classes and how a profile name is classified | done |
 | `models.py` | The data types only the Studio needs: profile classes, profile types, chart series | done |
-| `workspace.py` | Where the Studio keeps its data (`C:\MARLEM` here) | done |
 | `scenario_service.py` | The scenario being edited, saved on every change; calls `config/placement.py` to place participants | done |
 | `market_service.py` | Builds and holds the `MarketManager` the Step page plays; build, next part, step, run to the end | done |
 

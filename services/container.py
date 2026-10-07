@@ -12,11 +12,11 @@ inside functions).
 from dataclasses import dataclass
 from pathlib import Path
 
+from config.workspace import Workspace
 from services.grid_catalog_service import GridCatalogService
 from services.market_service import MarketService
 from services.profile_service import ProfileService
 from services.scenario_service import ScenarioService
-from services.workspace import Workspace
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ def build_services(home: Path | None = None) -> Services:
     """Build all services.
 
     Args:
-        home: Workspace folder; default outside OneDrive (``workspace.py``).
+        home: Workspace folder; default outside OneDrive (``config/workspace.py``).
     """
     workspace = Workspace(home) if home else Workspace.default()
     return Services(

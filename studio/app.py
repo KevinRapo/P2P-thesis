@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from services.workspace import default_home
+from config.workspace import default_home
 
 # NiceGUI fixes its storage folder when it is imported: keep the per-browser state
 # (dark mode) in the workspace, outside the repository and OneDrive.
