@@ -1,7 +1,7 @@
 """SimBench's profile classes and how a profile name is classified.
 
-Shared by ``ProfileService`` (the catalogue and its overview) and
-``ParticipantService`` (placement filters by load type).
+Used by ``ProfileService`` to class the profiles of a network and of the
+catalogue, and to describe them in the Inspect page's overview.
 """
 
 from __future__ import annotations
