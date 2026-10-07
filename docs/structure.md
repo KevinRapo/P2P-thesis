@@ -5,8 +5,9 @@
 
 Layers from bottom to top: `grid/` models the network, `market/` the market on it
 (its `MarketManager` runs both, step by step), `config/` describes a scenario,
-`services/` is what the Studio calls, and `studio/` is the user interface. Lower layers never
-import higher ones.
+`services/` is what the Studio calls, and `studio/` is the user interface. Lower
+layers never import higher ones: the core (`grid/`, `market/`, `config/`) imports
+nothing from `services/` or `studio/`.
 
 ```mermaid
 flowchart LR
@@ -125,7 +126,7 @@ market or pandapower directly.
 | `models.py` | The data types only the Studio needs: profile classes, profile types, chart series | done |
 | `workspace.py` | Where the Studio keeps its data (`C:\MARLEM` here) | done |
 | `scenario_service.py` | The scenario being edited, saved on every change; calls `config/placement.py` to place participants | done |
-| `market_service.py` | Builds the `MarketManager` the Step page plays | done |
+| `market_service.py` | Builds and holds the `MarketManager` the Step page plays; build, next part, step, run to the end | done |
 
 ## studio/: the user interface
 

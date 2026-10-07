@@ -10,13 +10,31 @@ learning at this stage.
 
 | Folder | Holds |
 |---|---|
-| `config/` | The scenario the user configures (`Scenario`), and saving and loading it |
+| `config/` | The scenario the user configures (`Scenario`), placing participants on its network, saving and loading it |
 | `grid/` | The SimBench network: catalogue, topology, profiles, power flow. The only place that imports pandapower or simbench |
 | `market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `MarketManager` (`manager.py`), the one class that runs a market step and its power flow |
-| `services/` | What the Studio calls. Translates between the Studio's models and `grid/` and `market/` |
+| `services/` | What the Studio calls: a thin adapter (caching, background threads, the current scenario, building the market) over the core |
 | `studio/` | The NiceGUI Studio: `pages/`, `components/`, layout, theme |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
+
+### Layer rules
+
+- **Core** is `grid/`, `market/` and `config/`. It imports nothing from `services/` or
+  `studio/`. Its API is `grid/contract.py` for the grid, `MarketManager`
+  (`market/manager.py`) for the market, and `Scenario` (`config/`) with its rules,
+  e.g. placing participants (`config/placement.py`). `config/` may import `grid/`,
+  never the reverse.
+- **`services/`** is a thin adapter for the Studio: caching, background threads,
+  the current scenario, workspace paths. No domain rules, no records that copy the
+  core's: return the core's records as they are. `services/models.py` holds only
+  what the Studio alone needs (profile classes and types, chart series).
+- **`studio/`** calls `services/` only. A page may import the core's plain data
+  records (`StepRecord`, `Trade`, `NetworkRef`, `BatterySetup`, `DSO_ID`, the
+  `DESCRIPTIONS` captions) to read and display them, but it must not construct or
+  drive an engine class. `MarketService` is the only place that builds and holds
+  the `MarketManager`; pages call it to build, step and advance. A page may name
+  `MarketManager` as a type (under `TYPE_CHECKING`) to annotate what it reads.
 
 Every folder and script, with how far it is built, is in
 `docs/structure.md`: update it whenever a file is added, moved, renamed or built.

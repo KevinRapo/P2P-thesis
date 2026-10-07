@@ -8,14 +8,14 @@ so far, the participants and the network.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import plotly.graph_objects as go
 from nicegui import run, ui
 
 from grid.contract import NetworkRef
 from market.clearing import DSO_ID
-from market.manager import MarketManager, StepRecord
+from market.manager import StepRecord
 from market.order import Trade
 from studio.components.cards import section
 from studio.components.charts import styled, topology_figure
@@ -23,6 +23,9 @@ from studio.components.network import busy, failed
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
+
+if TYPE_CHECKING:  # only to annotate what the page reads; the page never builds one
+    from market.manager import MarketManager
 
 PARTS = (
     "Orders",
@@ -134,16 +137,9 @@ def page() -> None:
     def build() -> None:
         s.market.build(s.scenario.current())
 
-    def next_part() -> None:
-        m = s.market.manager
-        if m.pending is None:
-            m.start_step()
-        else:
-            m.advance()
-
     def render() -> None:
         m = s.market.manager
-        _controls(controls, m, act, build, next_part)
+        _controls(controls, m, act, build)
         view = _view(m)
         for box in (book_box, network_box, trades_box, people_box, day_box, volt_box):
             box.clear()
@@ -194,9 +190,8 @@ def _clock(m: MarketManager, step: int) -> str:
     return f"{fmt(start)}–{fmt(end)}"
 
 
-def _controls(
-    box: ui.element, m: Optional[MarketManager], act, build, next_part
-) -> None:
+def _controls(box: ui.element, m: Optional[MarketManager], act, build) -> None:
+    market = services().market
     box.clear()
     with box:
         if m is None:
@@ -245,19 +240,21 @@ def _controls(
             else:
                 label = NEXT[pos]
             ui.button(
-                label, icon="arrow_forward", on_click=lambda: act(next_part, label)
+                label,
+                icon="arrow_forward",
+                on_click=lambda: act(market.next_part, label),
             ).props("unelevated no-caps").set_enabled(
                 not (m.done and m.pending is None)
             )
             ui.button(
                 "Finish this step",
                 icon="fast_forward",
-                on_click=lambda: act(m.step, "Step"),
+                on_click=lambda: act(market.step, "Step"),
             ).props("outline no-caps").set_enabled(not m.done or m.pending is not None)
             ui.button(
                 "Run to the end of the day",
                 icon="last_page",
-                on_click=lambda: act(m.run_to_end, "Run"),
+                on_click=lambda: act(market.run_to_end, "Run"),
             ).props("outline no-caps").set_enabled(not m.done)
             ui.button(
                 "Reset", icon="restart_alt", on_click=lambda: act(build, "Reset")

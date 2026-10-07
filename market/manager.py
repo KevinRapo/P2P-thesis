@@ -21,6 +21,7 @@ A step can run at once (``step``) or one stage at a time (``start_step``, then
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
@@ -174,13 +175,15 @@ class MarketManager:
     """The configured market on its network, run one step at a time.
 
     Args:
-        scenario: The network, the participants, the market rules and the DSO.
+        scenario: The network, the participants, the market rules and the DSO. The
+            manager keeps its own copy: later edits to the caller's scenario do
+            not change a market being played.
     """
 
     def __init__(self, scenario: Scenario) -> None:
         if not scenario.participants:
             raise ValueError("The scenario has no participants")
-        self.scenario = scenario
+        scenario = self.scenario = deepcopy(scenario)
         self.participants: dict[str, ParticipantSetup] = {
             p.id: p for p in scenario.participants
         }
