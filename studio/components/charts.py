@@ -30,6 +30,13 @@ def _base(
     return fig
 
 
+def styled(
+    fig: go.Figure, height: int, y_title: str = "", x_title: str = ""
+) -> go.Figure:
+    """Give any figure the Studio's look (for figures built on a page)."""
+    return _base(fig, height, y_title, x_title)
+
+
 def line_figure(
     series: Series, height: int = 300, dashed: tuple[str, ...] = (), kind: str = "line"
 ) -> go.Figure:

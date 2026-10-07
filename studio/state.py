@@ -1,15 +1,11 @@
-"""What the Studio holds: the services, the scenario being edited and its market."""
+"""What the Studio holds: the services. The scenario and the market live in them
+(``services().scenario``, ``services().market``)."""
 
 from __future__ import annotations
 
-from config.scenario import Scenario
 from services.container import Services, build_services
-from market.manager import MarketManager
 
 _SERVICES: Services | None = None
-
-scenario = Scenario()
-market: MarketManager | None = None
 
 
 def services() -> Services:
