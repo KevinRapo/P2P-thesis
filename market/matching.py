@@ -12,7 +12,7 @@ import numpy as np
 
 from ..grid.network import GridNetwork
 from .dso import DSOAgent
-from .mechanism import ClearingMechanism
+from .clearing_price import ClearingMechanism
 from .order import Order, Trade
 from .validation import Validator
 
