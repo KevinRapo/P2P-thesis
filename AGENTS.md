@@ -19,6 +19,9 @@ learning at this stage.
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
 
+Every folder and script, with how far it is built, is in
+`docs/structure.md`: update it whenever a file is added, moved, renamed or built.
+
 ### Studio: pages and components
 
 - **A page** is one file in `studio/pages/`. Code that only one page uses stays in

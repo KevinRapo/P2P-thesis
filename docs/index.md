@@ -6,6 +6,7 @@ is getting to know SimBench, the data everything else stands on.
 
 | Section | Start with |
 |---|---|
+| **Code structure** | [Every folder and script](structure.md): what it does and how far it is built. |
 | **MARLEM** | [Methodology](marlem/methodology.md): the market as the paper states it (clearing, pricing, DSO fees, reputation, agents, batteries, grid, one market step), without the reinforcement-learning parts. |
 | **SimBench** | [Overview](simbench/README.md): what SimBench is, its codes, grids, scenarios and study cases. [Network catalogue](simbench/networks.md): every network's size, load, PV and load mix. [Profiles](simbench/profiles.md): the time series of every load and generator class, and where they come from. |
 | **API Reference** | [One page per module](api/index.md), generated from the docstrings, one section per top-level folder. |
