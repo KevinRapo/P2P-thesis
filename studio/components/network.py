@@ -9,6 +9,7 @@ block shows a spinner.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from dataclasses import asdict
 from typing import Any
 
 from nicegui import run, ui
@@ -329,7 +330,7 @@ class ElementsTable:
             if not rows:
                 ui.label("No loads, generators or storage.").classes("mls-card-caption")
                 return
-            data_table([r.model_dump() for r in rows], ELEMENT_COLUMNS, pagination=10)
+            data_table([asdict(r) for r in rows], ELEMENT_COLUMNS, pagination=10)
 
 
 # --------------------------------------------------------------------------------------
