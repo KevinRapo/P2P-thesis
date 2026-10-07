@@ -6,9 +6,16 @@ the Inspect page's profile tables, plots and class overview.
 
 from __future__ import annotations
 
+from core.config.scenario import Scenario
 from core.grid import simbench as adapter
 from core.grid.contract import NetworkRef
-from studio.adapters.models import ProfileClass, ProfileType, Series
+from studio.adapters.models import (
+    DayElement,
+    DayProfiles,
+    ProfileClass,
+    ProfileType,
+    Series,
+)
 from studio.adapters.profile_classes import CLASSES, category, description
 
 
@@ -113,6 +120,38 @@ class ProfileService:
         )
         unit = "kW" if quantity == "p" else "kvar"
         return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")
+
+    # --- The scenario's day -----------------------------------------------------------
+    def day_profiles(self, scenario: Scenario) -> DayProfiles:
+        """Every load, generator and storage unit of the scenario's network on its
+        day, in kW per market step, each marked as a participant's or background.
+
+        Built: SimBench's absolute profiles through the adapter, at the step length
+        the market uses (hourly or 15 minutes).
+        """
+        g = scenario.grid
+        ref = NetworkRef("simbench", g.code)
+        owner = {e: p.id for p in scenario.participants for e in p.owns}
+        elements = adapter.elements(ref)
+        resolution = "hourly" if g.step_hours == 1.0 else "15min"
+        x, power = adapter.element_power(
+            ref, [e.id for e in elements], g.day, 1, resolution
+        )
+        return DayProfiles(
+            x=x,
+            step_hours=g.step_hours,
+            elements=[
+                DayElement(
+                    id=e.id,
+                    element_type=e.element_type,
+                    bus=e.bus,
+                    profile_type=e.profile_type,
+                    owner=owner.get(e.id, ""),
+                    kw=power.get(e.id, [0.0] * len(x)),
+                )
+                for e in elements
+            ],
+        )
 
     # --- SimBench's whole catalogue ---------------------------------------------------
     def catalogue_types(self, scenario: int = 0) -> list[ProfileType]:

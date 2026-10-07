@@ -11,17 +11,9 @@ from nicegui import ui
 
 from core.market.clearing_price import DESCRIPTIONS
 from studio.components.cards import section
+from studio.components.labels import MECHANISMS
 from studio.layout import shell
 from studio.state import services
-
-MECHANISMS = {
-    "average": "Average",
-    "buyer": "Buyer's price",
-    "seller": "Seller's price",
-    "bid_ask_spread": "Bid-ask spread",
-    "nash_bargaining": "Nash bargaining",
-    "proportional_surplus": "Proportional surplus",
-}
 
 
 # --------------------------------------------------------------------------------------

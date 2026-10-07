@@ -3,7 +3,7 @@
 import plotly.graph_objects as go
 
 from core.grid.contract import BusView, TopologyView
-from studio.adapters.models import Series
+from studio.adapters.models import DayElement, DayProfiles, Series
 
 from studio.theme import SERIES
 
@@ -65,6 +65,72 @@ def line_figure(
                 ),
             )
     return _base(fig, height, series.y_label, series.x_label)
+
+
+# --------------------------------------------------------------------------------------
+# A day of profiles
+# --------------------------------------------------------------------------------------
+DAY_COLORS = {"load": "#2563EB", "sgen": "#D97706", "storage": "#7C3AED"}
+DAY_NAMES = {"load": "Demand", "sgen": "Generation", "storage": "Storage"}
+
+
+def _clock(day: DayProfiles) -> list[str]:
+    """Time of day of each step (the labels carry the date too)."""
+    return [label[-5:] for label in day.x]
+
+
+def day_figure(
+    day: DayProfiles,
+    elements: list[DayElement],
+    height: int = 280,
+    faint: bool = False,
+) -> go.Figure:
+    """Demand, generation and storage of ``elements``, each summed per step.
+
+    Args:
+        day: The day's profiles (time axis and step length).
+        elements: The elements to sum, e.g. all participants'.
+        height: Height in pixels.
+        faint: Draw dashed and light, for elements that are switched off.
+    """
+    fig = go.Figure()
+    for kind in ("load", "sgen", "storage"):
+        group = [e for e in elements if e.element_type == kind]
+        if not group:
+            continue
+        fig.add_scatter(
+            x=_clock(day),
+            y=day.total_kw(group),
+            name=f"{DAY_NAMES[kind]} ({len(group)})",
+            mode="lines",
+            line=dict(
+                color=DAY_COLORS[kind],
+                width=2,
+                shape="hv",
+                dash="dash" if faint else "solid",
+            ),
+            opacity=0.55 if faint else 1.0,
+        )
+    return _base(fig, height, "kW")
+
+
+def element_figure(
+    day: DayProfiles,
+    lines: dict[str, list[float]],
+    height: int = 280,
+    y_title: str = "kW",
+) -> go.Figure:
+    """One line per name, over the day (colours cycle through the series palette)."""
+    fig = go.Figure()
+    for i, (name, kw) in enumerate(lines.items()):
+        fig.add_scatter(
+            x=_clock(day),
+            y=kw,
+            name=name,
+            mode="lines",
+            line=dict(color=SERIES[i % len(SERIES)], width=2, shape="hv"),
+        )
+    return _base(fig, height, y_title)
 
 
 # --------------------------------------------------------------------------------------

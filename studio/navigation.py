@@ -1,4 +1,4 @@
-"""The left navigation: the four pages of the Studio."""
+"""The left navigation: the pages of the Studio."""
 
 from dataclasses import dataclass
 
@@ -27,6 +27,7 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
             NavItem("inspect", "Inspect", "travel_explore", "/inspect"),
             NavItem("grid", "Grid & Participants", "hub", "/grid"),
             NavItem("market", "Market & DSO", "storefront", "/market"),
+            NavItem("summary", "Summary", "fact_check", "/summary"),
         ],
     ),
     ("Run", [NavItem("step", "Step", "skip_next", "/step")]),

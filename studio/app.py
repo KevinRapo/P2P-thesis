@@ -1,4 +1,4 @@
-"""The Studio: four pages to configure a market and step through it.
+"""The Studio: pages to configure a market and step through it.
 
 Start it with ``run_studio.py`` (VS Code: Run Python File, or the "Studio" launch
 entry). Auto-reload is on: saving a .py file restarts the server and the open
@@ -25,6 +25,7 @@ from studio.pages import (  # noqa: E402
     market_dso,
     settings,
     step,
+    summary,
 )
 from studio.state import services  # noqa: E402
 
@@ -41,6 +42,7 @@ ROUTES = {
     "/inspect": inspect.page,
     "/grid": grid_participants.page,
     "/market": market_dso.page,
+    "/summary": summary.page,
     "/step": step.page,
     "/settings": settings.page,
 }
