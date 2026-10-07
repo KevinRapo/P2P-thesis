@@ -11,6 +11,7 @@ this order:
 3. ``%LOCALAPPDATA%\\MARLEM`` on Windows, ``~/.local/share/marlem`` elsewhere.
 
     <home>/cache/networks/   built networks, so they open at once
+    <home>/scenarios/        the scenario the Studio edits (current.json)
     <home>/studio-state/     the Studio's per-browser state
 """
 
@@ -122,3 +123,8 @@ class Workspace:
     def network_cache(self) -> Path:
         """``<home>/cache/networks``: built networks, so they open at once."""
         return self.home / "cache" / "networks"
+
+    @property
+    def scenario_file(self) -> Path:
+        """``<home>/scenarios/current.json``: the scenario the Studio edits."""
+        return self.home / "scenarios" / "current.json"

@@ -2,7 +2,7 @@
 
 Only what a market step without RL needs: the network, the participants on it, the
 market rules and the DSO. Plain data, edited by the Studio pages and read by the
-session that builds the market and the grid.
+``MarketManager`` that runs the market on the network.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ class GridSetup:
         line_max_percent: Line loading limit.
     """
 
-    code: str = ""
-    day: str = ""
+    code: str = "1-LV-rural1--0-sw"
+    day: str = "2016-06-15"
     step_hours: float = 1.0
     background: str = "profiles"
     v_min_pu: float = 0.95
@@ -75,7 +75,24 @@ class ParticipantSetup:
 # --------------------------------------------------------------------------------------
 @dataclass
 class MarketSetup:
-    """Market rules ([P1] §3.3)."""
+    """Market rules ([P1] §3.3) and how participants bid.
+
+    Attributes:
+        mechanism: Pricing mechanism (``market/clearing_price.py``).
+        min_price: Lowest order price.
+        max_price: Highest order price.
+        min_quantity: Smallest order quantity (kWh).
+        max_quantity: Largest order quantity (kWh).
+        partner_preference: Participants name their nearest counterpart as
+            preferred partner (stage 1 of the clearing).
+        bid_margin: Where participants bid between the DSO's tariffs: sellers ask
+            ``FiT + margin · spread``, buyers bid ``utility − margin · spread``.
+            Below 0.5 bids and asks overlap and peers trade.
+        bid_jitter: Random spread of the prices around that, as a share of the
+            tariff spread, so the order book is not flat.
+        seed: Seed of the jitter.
+        ledger_difficulty: Proof-of-work difficulty of the trade ledger (0: off).
+    """
 
     mechanism: str = "average"
     min_price: float = 0.0
@@ -83,6 +100,9 @@ class MarketSetup:
     min_quantity: float = 0.0
     max_quantity: float = 100.0
     partner_preference: bool = False
+    bid_margin: float = 0.3
+    bid_jitter: float = 0.1
+    seed: int = 0
     ledger_difficulty: int = 0
 
 
