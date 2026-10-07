@@ -5,7 +5,6 @@ Order and trade data classes for the Local Energy Market.
 from dataclasses import dataclass
 from typing import Optional
 
-from ..grid.base import Location
 
 
 @dataclass
@@ -17,7 +16,7 @@ class Order:
     quantity: float
     is_buy: bool
     timestamp: float
-    location: Optional[Location] = None  # Agent's location in the grid
+    location: Optional[str] = None  # Agent's bus in the network
     partner_id: Optional[str] = None  # ID of the preferred trading partner. If specified, the agent prefers to trade with this partner when possible.
 
 
@@ -32,3 +31,4 @@ class Trade:
     distance: float = 0.0  # Distance between trading agents
     transmission_loss: float = 0.0  # Energy loss due to transmission
     fees: float = 0.0  # Grid-related fees collected by the DSO
+    stage: int = 0  # Clearing stage that made the trade: 1, 2 or 3 (DSO)

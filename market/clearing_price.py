@@ -1,198 +1,116 @@
+"""Clearing (pricing) mechanisms: the price of a matched buy and sell order.
+
+[P1] §3.3.3. Every mechanism takes the same three arguments, in the same order:
+the buy order, the sell order and a reference price (the previous clearing price,
+or the midpoint of the DSO's tariffs). The original code let each mechanism name
+its own arguments, so the seller mechanism received the buy order and returned the
+buyer's price; one fixed signature rules that out.
 """
-Market mechanism implementation for the Local Energy Market.
-"""
+
+from __future__ import annotations
 
 from enum import Enum
 from typing import Protocol
 
-from .order import Order
+from market.order import Order
 
 
+# --------------------------------------------------------------------------------------
+# The interface
+# --------------------------------------------------------------------------------------
 class BasePricing(Protocol):
-    """Protocol defining the interface for pricing mechanisms.
+    """What every pricing mechanism provides."""
 
-    All pricing mechanisms must implement this protocol, but can accept
-    different parameters based on their specific needs.
-    """
-
-    def calculate_price(self, *args, **kwargs) -> float:
-        """Calculate the trade price for a matched pair of orders.
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
+        """The trade price of a matched pair.
 
         Args:
-            *args: Additional positional arguments
-            **kwargs: Additional keyword arguments
-
-        Returns:
-            Calculated trade price
+            buy_order: The buyer's order.
+            sell_order: The seller's order.
+            reference_price: Previous clearing price, or the tariffs' midpoint.
         """
         ...
 
 
-class AveragePricing(BasePricing):
-    """Calculates trade price as average of buy and sell prices."""
+# --------------------------------------------------------------------------------------
+# The mechanisms
+# --------------------------------------------------------------------------------------
+class AveragePricing:
+    """Average of bid and ask, [P1] (9)."""
 
-    def calculate_price(self,
-                        buy_order: Order,
-                        sell_order: Order,
-                        *args,
-                        **kwargs) -> float:
-        """Calculate average of buy and sell prices.
-
-        Args:
-            buy_order: Buy order
-            sell_order: Sell order
-
-        Returns:
-            Average price
-        """
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
         return (buy_order.price + sell_order.price) / 2
 
 
-class BuyerPricing(BasePricing):
-    """Sets trade price to buyer's bid price (i.e., pay-as-bid pricing)."""
+class BuyerPricing:
+    """The buyer's bid ("pay as offer"); favours the seller."""
 
-    def calculate_price(self,
-                        buy_order: Order,
-                        *args,
-                        **kwargs) -> float:
-        """Calculate price based on pay-as-bid principle.
-
-        Args:
-            buy_order: Buy order
-
-        Returns:
-            Buyer's price
-        """
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
         return buy_order.price
 
 
-class SellerPricing(BasePricing):
-    """Sets trade price to seller's ask price."""
+class SellerPricing:
+    """The seller's ask ("pay as bid"); favours the buyer."""
 
-    def calculate_price(self,
-                        sell_order: Order,
-                        *args,
-                        **kwargs) -> float:
-        """Use seller's price as trade price.
-
-        Args:
-            sell_order: Sell order
-
-        Returns:
-            Seller's price
-        """
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
         return sell_order.price
 
 
-class BidAskSpreadPricing(BasePricing):
-    """Implement a pricing mechanism that sets the price at a point within the bid-ask spread."""
+class BidAskSpreadPricing:
+    """A point inside the bid-ask spread: ``factor`` 0 is the ask, 1 the bid.
 
-    def calculate_price(self,
-                        buy_order: Order,
-                        sell_order: Order,
-                        factor: float = 0.5,
-                        *args,
-                        **kwargs) -> float:
-        """Calculate price based on continuous double auction principles.
-
-        The price is set at a point within the bid-ask spread, determined by an
-        improvement factor. This creates a "price improvement" for both parties.
-
-        Args:
-            buy_order: Buy order
-            sell_order: Sell order
-            factor: Factor (0-1) determining where in the bid-ask spread the clearing price is set
-
-        Returns:
-            Calculated continuous double auction price
-        """
-        bid_ask_spread = buy_order.price - sell_order.price
-
-        return sell_order.price + bid_ask_spread * max(0.0, min(factor, 1.0))
-
-
-class NashBargainingPricing(BasePricing):
-    """Implements Nash bargaining solution for surplus division.
-
-    The Nash solution maximizes the product of utility gains over disagreement payoffs,
-    typically resulting in equal surplus sharing under symmetric conditions.
-    This promotes fair and efficient coordination between trading agents.
+    Used in the [P1] case study, not defined in [P1] §3.3.3.
     """
 
-    def calculate_price(self,
-                        buy_order: Order,
-                        sell_order: Order,
-                        *args,
-                        **kwargs) -> float:
-        """Calculate price based on Nash bargaining solution.
+    def __init__(self, factor: float = 0.5) -> None:
+        self.factor = max(0.0, min(factor, 1.0))
 
-        The solution maximizes (buyer_gain - d1) * (seller_gain - d2) where
-        d1, d2 are disagreement payoffs. Under symmetric conditions, this
-        results in equal surplus sharing.
-
-        Args:
-            buy_order: Buy order
-            sell_order: Sell order
-
-        Returns:
-            Nash bargaining solution price
-        """
-        # Calculate total surplus from the trade
-        bid_ask_spread = buy_order.price - sell_order.price
-
-        if bid_ask_spread <= 0:
-            # No positive surplus, use average pricing as fallback
-            return AveragePricing().calculate_price(buy_order, sell_order)
-
-        # Under symmetric disagreement payoffs, Nash solution is equal split
-        return sell_order.price + bid_ask_spread / 2
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
+        return sell_order.price + (buy_order.price - sell_order.price) * self.factor
 
 
-class ProportionalSurplusPricing(BasePricing):
-    """Implements proportional surplus sharing based on bid distances.
+class NashBargainingPricing:
+    """Equal split of the surplus, [P1] (10); the average when there is none."""
 
-    Allocates surplus proportionally to each agent's distance from a reference price,
-    incentivizing truthful bidding and rewarding agents based on their willingness
-    to trade.
-    """
-
-    def calculate_price(self,
-                        buy_order: Order,
-                        sell_order: Order,
-                        market_price: float,
-                        *args,
-                        **kwargs) -> float:
-        """Calculate price based on proportional surplus sharing.
-
-        Surplus is allocated proportionally to each agent's bid distance from
-        the reference price, rewarding agents who bid more aggressively.
-
-        Args:
-            buy_order: Buy order
-            sell_order: Sell order
-            market_price: Reference market price. If None, falls back to average pricing.
-
-        Returns:
-            Proportional surplus sharing price
-        """
-        # Calculate distances from reference price
-        buyer_distance = max(0, buy_order.price - market_price)
-        seller_distance = max(0, market_price - sell_order.price)
-        total_distance = buyer_distance + seller_distance
-
-        # Calculate surplus
-        bid_ask_spread = buy_order.price - sell_order.price
-
-        # If no meaningful distances, fall back to average pricing
-        if total_distance == 0 or bid_ask_spread <= 0:
-            return AveragePricing().calculate_price(buy_order, sell_order)
-
-        # Allocate surplus proportionally
-        return sell_order.price + (buyer_distance / total_distance) * bid_ask_spread
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
+        spread = buy_order.price - sell_order.price
+        if spread <= 0:
+            return (buy_order.price + sell_order.price) / 2
+        return sell_order.price + spread / 2
 
 
+class ProportionalSurplusPricing:
+    """Surplus split by each side's distance from the reference price, [P1] (11)
+    (reconstructed); the average when the distances say nothing."""
+
+    def calculate_price(
+        self, buy_order: Order, sell_order: Order, reference_price: float
+    ) -> float:
+        buyer = max(0.0, buy_order.price - reference_price)
+        seller = max(0.0, reference_price - sell_order.price)
+        spread = buy_order.price - sell_order.price
+        if buyer + seller == 0 or spread <= 0:
+            return (buy_order.price + sell_order.price) / 2
+        return sell_order.price + buyer / (buyer + seller) * spread
+
+
+# --------------------------------------------------------------------------------------
+# Choosing a mechanism by name
+# --------------------------------------------------------------------------------------
 class ClearingMechanism(Enum):
-    """Different clearing mechanisms."""
+    """The mechanisms by the name the scenario uses."""
 
     AVERAGE = "average"
     BUYER = "buyer"
@@ -202,12 +120,25 @@ class ClearingMechanism(Enum):
     PROPORTIONAL_SURPLUS = "proportional_surplus"
 
     def get_instance(self) -> BasePricing:
-        """Get the pricing instance for this mechanism."""
-        mechanisms = {"average": AveragePricing,
-                      "buyer": BuyerPricing,
-                      "seller": SellerPricing,
-                      "bid_ask_spread": BidAskSpreadPricing,
-                      "nash_bargaining": NashBargainingPricing,
-                      "proportional_surplus": ProportionalSurplusPricing}
+        """The pricing object of this mechanism."""
+        return {
+            "average": AveragePricing,
+            "buyer": BuyerPricing,
+            "seller": SellerPricing,
+            "bid_ask_spread": BidAskSpreadPricing,
+            "nash_bargaining": NashBargainingPricing,
+            "proportional_surplus": ProportionalSurplusPricing,
+        }[self.value]()
 
-        return mechanisms[self.value]()
+
+# What each mechanism means, for the Studio's captions.
+DESCRIPTIONS = {
+    "average": "Midpoint of bid and ask: both sides share the surplus equally.",
+    "buyer": "The buyer's bid: the seller gets the whole surplus.",
+    "seller": "The seller's ask: the buyer gets the whole surplus.",
+    "bid_ask_spread": "Halfway inside the bid-ask spread (as the paper's case study).",
+    "nash_bargaining": "Equal split of the surplus (the same as the average when "
+    "bid ≥ ask).",
+    "proportional_surplus": "Surplus split by how far each side bid from the "
+    "previous clearing price.",
+}
