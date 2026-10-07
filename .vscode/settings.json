@@ -1,0 +1,10 @@
+{
+    "python-envs.pythonProjects": [
+        {
+            "path": ".",
+            "envManager": "ms-python.python:conda",
+            "packageManager": "ms-python.python:conda"
+        }
+    ],
+    "python.defaultInterpreterPath": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe"
+}
