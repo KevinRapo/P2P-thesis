@@ -1,7 +1,7 @@
 """Technology-neutral grid contract: what crosses the grid seam.
 
 Plain, frozen data only: no pandapower, SimBench or NetworkX objects cross this
-seam. The pandapower adapter (``grid/simbench.py``) produces these records; the
+seam. The pandapower adapter (``core/grid/simbench.py``) produces these records; the
 market, the services and the Studio consume them.
 
 The catalog records are used by the Studio's Inspect page. ``ParticipantInjection``

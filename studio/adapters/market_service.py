@@ -8,8 +8,8 @@ drive it themselves. The records the manager returns are plain data.
 
 from __future__ import annotations
 
-from config.scenario import Scenario
-from market.manager import MarketManager
+from core.config.scenario import Scenario
+from core.market.manager import MarketManager
 
 
 # --------------------------------------------------------------------------------------

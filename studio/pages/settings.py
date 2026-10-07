@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nicegui import app, run, ui
 
-from config import workspace
+from studio.adapters import workspace
 from studio.components.cards import section
 from studio.components.tables import data_table
 from studio.layout import shell

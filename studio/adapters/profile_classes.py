@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from services.models import ProfileClass
+from studio.adapters.models import ProfileClass
 
 # --------------------------------------------------------------------------------------
 # SimBench's profile classes

@@ -1,7 +1,7 @@
 """Plain data only the Studio needs: profile classes, profile types, chart series.
 
 Everything about networks (catalogue, topology, elements, power flow) comes from the
-grid contract (``grid/contract.py``) as it is.
+grid contract (``core/grid/contract.py``) as it is.
 """
 
 from typing import Any, Literal

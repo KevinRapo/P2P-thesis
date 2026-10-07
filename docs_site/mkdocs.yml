@@ -24,13 +24,13 @@ hooks:
   - hooks.py
 
 # `mkdocs serve` also rebuilds when these change: the code (API pages stay
-# current) and the site assets. Changes to hooks.py need a restart.
+# current), the build hooks (reloaded on every rebuild) and the site assets.
+# This list is read once at start: after adding or renaming a top-level code
+# folder, restart the server once.
 watch:
-  - ../grid
-  - ../market
-  - ../config
-  - ../services
+  - ../core
   - ../studio
+  - hooks.py
   - overrides
 
 exclude_docs: |

@@ -8,9 +8,9 @@ are given and leave saving to the caller.
 
 from __future__ import annotations
 
-from config.scenario import BatterySetup, ParticipantSetup, Scenario
-from grid import simbench
-from grid.contract import ElementRecord, NetworkRef
+from core.config.scenario import BatterySetup, ParticipantSetup, Scenario
+from core.grid import simbench
+from core.grid.contract import ElementRecord, NetworkRef
 
 
 def elements_by_bus(scenario: Scenario) -> dict[str, list[ElementRecord]]:

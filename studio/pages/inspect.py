@@ -8,9 +8,9 @@ from the network blocks in ``components/network.py``, shared with the Grid page.
 
 from nicegui import run, ui
 
-from grid.contract import NetworkRef
-from services.container import Services
-from services.models import ProfileClass, ProfileType, Series
+from core.grid.contract import NetworkRef
+from studio.adapters.container import Services
+from studio.adapters.models import ProfileClass, ProfileType, Series
 from studio.components.cards import section
 from studio.components.charts import line_figure
 from studio.components.network import (

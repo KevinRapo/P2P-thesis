@@ -6,7 +6,7 @@ import json
 from dataclasses import asdict, fields
 from pathlib import Path
 
-from config.scenario import (
+from core.config.scenario import (
     BatterySetup,
     DsoSetup,
     GridSetup,

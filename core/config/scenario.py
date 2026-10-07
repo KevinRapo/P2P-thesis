@@ -78,7 +78,7 @@ class MarketSetup:
     """Market rules ([P1] §3.3) and how participants bid.
 
     Attributes:
-        mechanism: Pricing mechanism (``market/clearing_price.py``).
+        mechanism: Pricing mechanism (``core/market/clearing_price.py``).
         min_price: Lowest order price.
         max_price: Highest order price.
         min_quantity: Smallest order quantity (kWh).

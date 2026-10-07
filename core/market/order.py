@@ -6,23 +6,26 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-
 @dataclass
 class Order:
     """Represents a market order."""
-    id: str # Unique identifier for the order
+
+    id: str  # Unique identifier for the order
     agent_id: str
     price: float
     quantity: float
     is_buy: bool
     timestamp: float
     location: Optional[str] = None  # Agent's bus in the network
-    partner_id: Optional[str] = None  # ID of the preferred trading partner. If specified, the agent prefers to trade with this partner when possible.
+    partner_id: Optional[str] = (
+        None  # ID of the preferred trading partner. If specified, the agent prefers to trade with this partner when possible.
+    )
 
 
 @dataclass
 class Trade:
     """Represents a completed trade between two agents."""
+
     buyer_id: str
     seller_id: str
     price: float

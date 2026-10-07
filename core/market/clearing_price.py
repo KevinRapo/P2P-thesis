@@ -12,7 +12,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Protocol
 
-from market.order import Order
+from core.market.order import Order
 
 
 # --------------------------------------------------------------------------------------

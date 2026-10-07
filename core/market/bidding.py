@@ -19,7 +19,7 @@ from __future__ import annotations
 import random
 from typing import Mapping, Optional
 
-from config.scenario import MarketSetup
+from core.config.scenario import MarketSetup
 
 
 # --------------------------------------------------------------------------------------

@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING, Any, Optional
 import plotly.graph_objects as go
 from nicegui import run, ui
 
-from grid.contract import NetworkRef
-from market.clearing import DSO_ID
-from market.manager import StepRecord
-from market.order import Trade
+from core.grid.contract import NetworkRef
+from core.market.clearing import DSO_ID
+from core.market.manager import StepRecord
+from core.market.order import Trade
 from studio.components.cards import section
 from studio.components.charts import styled, topology_figure
 from studio.components.network import busy, failed
@@ -25,7 +25,7 @@ from studio.layout import shell
 from studio.state import services
 
 if TYPE_CHECKING:  # only to annotate what the page reads; the page never builds one
-    from market.manager import MarketManager
+    from core.market.manager import MarketManager
 
 PARTS = (
     "Orders",

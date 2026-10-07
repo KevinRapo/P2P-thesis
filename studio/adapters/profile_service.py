@@ -6,10 +6,10 @@ the Inspect page's profile tables, plots and class overview.
 
 from __future__ import annotations
 
-from grid import simbench as adapter
-from grid.contract import NetworkRef
-from services.models import ProfileClass, ProfileType, Series
-from services.profile_classes import CLASSES, category, description
+from core.grid import simbench as adapter
+from core.grid.contract import NetworkRef
+from studio.adapters.models import ProfileClass, ProfileType, Series
+from studio.adapters.profile_classes import CLASSES, category, description
 
 
 class ProfileService:

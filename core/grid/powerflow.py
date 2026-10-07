@@ -10,9 +10,14 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
-from config.scenario import GridSetup
-from grid import simbench
-from grid.contract import GridAssessment, GridLimits, NetworkRef, ParticipantInjection
+from core.config.scenario import GridSetup
+from core.grid import simbench
+from core.grid.contract import (
+    GridAssessment,
+    GridLimits,
+    NetworkRef,
+    ParticipantInjection,
+)
 
 
 # --------------------------------------------------------------------------------------

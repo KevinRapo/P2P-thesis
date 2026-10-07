@@ -40,12 +40,11 @@ document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() }
 API_NAV_TITLE = "API Reference"
 API_SECTIONS = [
     # In the order data flows: the network, the market on it, stepping both, the
-    # scenario that configures them, then the services and the Studio on top.
-    ("Grid: SimBench networks", "grid", ["grid"], "simbench/README.md"),
-    ("Market: the MARLEM market", "market", ["market"], None),
-    ("Config: the scenario", "config", ["config"], None),
-    ("Services: what the Studio calls", "services", ["services"], None),
-    ("Studio: pages and components", "studio", ["studio"], None),
+    # scenario that configures them (all three in core/), then the Studio on top.
+    ("Grid: SimBench networks", "grid", ["core.grid"], "simbench/README.md"),
+    ("Market: the MARLEM market", "market", ["core.market"], None),
+    ("Config: the scenario", "config", ["core.config"], None),
+    ("Studio: pages, components, adapters", "studio", ["studio"], None),
 ]
 _API_PAGES: dict[str, str] = {}
 

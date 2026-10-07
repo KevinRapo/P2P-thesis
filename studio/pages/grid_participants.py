@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from nicegui import run, ui
 
-from config.scenario import BatterySetup
-from grid.contract import NetworkRef
+from core.config.scenario import BatterySetup
+from core.grid.contract import NetworkRef
 from studio.components.cards import section
 from studio.components.charts import topology_figure
 from studio.components.network import NetworkPicker, busy, clicked_bus, failed

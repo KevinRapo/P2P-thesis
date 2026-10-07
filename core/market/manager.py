@@ -25,14 +25,14 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Mapping, Optional
 
-from config.scenario import ParticipantSetup, Scenario
-from grid import simbench
-from grid.contract import GridAssessment, NetworkRef, ParticipantInjection
-from grid.powerflow import SimBenchGrid
-from market import bidding, clearing
-from market.clearing import DSO_ID, ClearingRules, StageResult
-from market.order import Order, Trade
-from market.validation import Validator
+from core.config.scenario import ParticipantSetup, Scenario
+from core.grid import simbench
+from core.grid.contract import GridAssessment, NetworkRef, ParticipantInjection
+from core.grid.powerflow import SimBenchGrid
+from core.market import bidding, clearing
+from core.market.clearing import DSO_ID, ClearingRules, StageResult
+from core.market.order import Order, Trade
+from core.market.validation import Validator
 
 
 # --------------------------------------------------------------------------------------
@@ -336,7 +336,7 @@ class MarketManager:
         )
 
     def _rule_intents(self, inputs: StepInputs) -> dict[str, OrderIntent]:
-        """The bidding rule's intents (``market/bidding.py``)."""
+        """The bidding rule's intents (``core/market/bidding.py``)."""
         views = {
             pid: bidding.BidView(
                 pid,

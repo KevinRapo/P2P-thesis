@@ -1,7 +1,7 @@
 """GridCatalogService: the networks, their facts, topology and cache.
 
-Backed by the pandapower adapter (``grid/simbench.py``). It returns the adapter's
-plain contract records (``grid/contract.py``) as they are, and adds the network
+Backed by the pandapower adapter (``core/grid/simbench.py``). It returns the adapter's
+plain contract records (``core/grid/contract.py``) as they are, and adds the network
 cache and its background warming for the Studio. It never touches pandapower itself.
 """
 
@@ -10,8 +10,8 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from grid import simbench as adapter
-from grid.contract import (
+from core.grid import simbench as adapter
+from core.grid.contract import (
     ElementRecord,
     GridAssessment,
     NetworkInfo,

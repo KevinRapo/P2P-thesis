@@ -2,15 +2,15 @@
 
 The Studio restarts on every code change, so the scenario is saved after every edit
 and read back at start. Placing participants follows the rules of
-``config/placement.py``.
+``core/config/placement.py``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from config import placement, store
-from config.scenario import Scenario
+from core.config import placement, store
+from core.config.scenario import Scenario
 
 
 # --------------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ class ScenarioService:
         self.save()
 
     # --- Placing participants --------------------------------------------------------
-    # The rules are in ``config/placement.py``; here the result is kept on disk.
+    # The rules are in ``core/config/placement.py``; here the result is kept on disk.
     def toggle(self, bus: str) -> str:
         """Add or remove a participant on ``bus``; returns what happened."""
         message = placement.toggle(self.current(), bus)

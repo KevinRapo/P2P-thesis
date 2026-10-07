@@ -64,7 +64,7 @@ the mean of all 96 values of a day.
 ## 2. The classes at a glance
 
 Grouped as in SimBench's own overview (Meinecke et al., 2020, Figures 1 and 8); the
-Studio classifies every profile by its name (`services/profile_classes.py`).
+Studio classifies every profile by its name (`studio/adapters/profile_classes.py`).
 
 | Group | Class | Names | Profiles | P / Q | Mean factor | Section |
 |---|---|---|---|---|---|---|

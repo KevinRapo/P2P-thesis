@@ -13,9 +13,9 @@ from typing import Any
 
 from nicegui import run, ui
 
-from grid.contract import NetworkRef, NetworkSummary, TopologyView
-from services.container import Services
-from services.models import ProfileType
+from core.grid.contract import NetworkRef, NetworkSummary, TopologyView
+from studio.adapters.container import Services
+from studio.adapters.models import ProfileType
 from studio.components.cards import not_implemented
 from studio.components.charts import line_figure, topology_figure
 from studio.components.profiles import ProfileOverview

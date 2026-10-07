@@ -6,35 +6,53 @@ learning at this stage.
 
 ## Code structure
 
+### Three layers
+
+```
+core/        the MARLEM functionality: everything a notebook can call
+notebooks/   calls core/ only: validates it without the Studio
+studio/      the NiceGUI Studio: pages and components on top of adapters/
+```
+
+When something looks wrong in the Studio, reproduce it in a notebook first. If
+the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
+
 ### Top-level folders
 
 | Folder | Holds |
 |---|---|
-| `config/` | The scenario the user configures (`Scenario`), placing participants on its network, saving and loading it |
-| `grid/` | The SimBench network: catalogue, topology, profiles, power flow. The only place that imports pandapower or simbench |
-| `market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `MarketManager` (`manager.py`), the one class that runs a market step and its power flow |
-| `services/` | What the Studio calls: a thin adapter (caching, background threads, the current scenario, building the market) over the core |
-| `studio/` | The NiceGUI Studio: `pages/`, `components/`, layout, theme |
+| `core/` | The core API: the market and its network, callable without any UI |
+| `core/config/` | The scenario (`Scenario`), placing participants on its network, saving and loading it |
+| `core/grid/` | The SimBench network: catalogue, topology, profiles, power flow. The only place that imports pandapower or simbench |
+| `core/market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `MarketManager` (`manager.py`), the one class that runs a market step and its power flow |
+| `notebooks/` | Jupyter notebooks that call `core/` directly to validate it |
+| `studio/` | The NiceGUI Studio: `pages/`, `components/`, `adapters/`, layout, theme |
+| `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, workspace paths) |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
 
 ### Layer rules
 
-- **Core** is `grid/`, `market/` and `config/`. It imports nothing from `services/` or
-  `studio/`. Its API is `grid/contract.py` for the grid, `MarketManager`
-  (`market/manager.py`) for the market, and `Scenario` (`config/`) with its rules,
-  e.g. placing participants (`config/placement.py`). `config/` may import `grid/`,
-  never the reverse.
-- **`services/`** is a thin adapter for the Studio: caching, background threads,
-  the current scenario, workspace paths. No domain rules, no records that copy the
-  core's: return the core's records as they are. `services/models.py` holds only
-  what the Studio alone needs (profile classes and types, chart series).
-- **`studio/`** calls `services/` only. A page may import the core's plain data
-  records (`StepRecord`, `Trade`, `NetworkRef`, `BatterySetup`, `DSO_ID`, the
-  `DESCRIPTIONS` captions) to read and display them, but it must not construct or
-  drive an engine class. `MarketService` is the only place that builds and holds
-  the `MarketManager`; pages call it to build, step and advance. A page may name
-  `MarketManager` as a type (under `TYPE_CHECKING`) to annotate what it reads.
+- **`core/`** imports nothing from `studio/` or `notebooks/`. Its API is
+  `core/grid/contract.py` for the grid, `MarketManager` (`core/market/manager.py`)
+  for the market, and `Scenario` (`core/config/`) with its rules, e.g. placing
+  participants (`core/config/placement.py`). `core/config/` may import
+  `core/grid/`, never the reverse. Every rule of the market or the network lives
+  here, so a notebook can check it.
+- **`notebooks/`** import `core/` only, never `studio/`.
+- **`studio/adapters/`** is the Studio's thin layer over the core: caching,
+  background threads, the current scenario, the market being played between
+  clicks, workspace paths. No domain rules, no records that copy the core's:
+  return the core's records as they are. `studio/adapters/models.py` holds only
+  what the Studio alone needs (profile classes and types, chart series). Test for
+  any logic here: if a notebook would want it too, it belongs in `core/`.
+- **`studio/pages/` and `studio/components/`** call `studio/adapters/`. They may
+  import the core's plain data records (`StepRecord`, `Trade`, `NetworkRef`,
+  `BatterySetup`, `DSO_ID`, the `DESCRIPTIONS` captions) to read and display them,
+  but never construct or drive a core engine class. Inside the Studio,
+  `MarketService` builds and holds the `MarketManager` between clicks; a notebook
+  uses `MarketManager` directly. A page may name `MarketManager` as a type (under
+  `TYPE_CHECKING`) to annotate what it reads.
 
 Every folder and script, with how far it is built, is in
 `docs/structure.md`: update it whenever a file is added, moved, renamed or built.

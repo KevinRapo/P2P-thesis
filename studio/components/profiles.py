@@ -15,7 +15,7 @@ from collections.abc import Awaitable, Callable
 
 from nicegui import ui
 
-from services.models import ProfileClass, ProfileType
+from studio.adapters.models import ProfileClass, ProfileType
 
 # --------------------------------------------------------------------------------------
 # Colours and captions

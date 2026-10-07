@@ -1,13 +1,13 @@
 """pandapower adapter for SimBench and the pandapower built-in networks.
 
 The only module that imports ``pandapower`` and ``simbench``. Everything it
-returns is plain contract data from ``grid/contract.py``; no pandapower object
+returns is plain contract data from ``core/grid/contract.py``; no pandapower object
 leaves it.
 
 It lists networks, loads them once per process (with a disk cache), summarises
 them, builds a topology view, lists their elements and profiles, and runs one
 power flow on the unmodified network for a chosen day and hour. The step-time
-power flow is ``grid/powerflow.py``.
+power flow is ``core/grid/powerflow.py``.
 
 Heavy imports happen inside the functions, so importing this module is cheap.
 """
@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from grid.contract import (
+from core.grid.contract import (
     BranchView,
     BusView,
     ElementRecord,

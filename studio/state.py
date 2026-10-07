@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from services.container import Services, build_services
+from studio.adapters.container import Services, build_services
 
 _SERVICES: Services | None = None
 

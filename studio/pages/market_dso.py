@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from market.clearing_price import DESCRIPTIONS
+from core.market.clearing_price import DESCRIPTIONS
 from studio.components.cards import section
 from studio.layout import shell
 from studio.state import services

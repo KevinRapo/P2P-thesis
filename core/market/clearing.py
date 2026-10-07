@@ -18,8 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Mapping, Sequence
 
-from market.clearing_price import ClearingMechanism
-from market.order import Order, Trade
+from core.market.clearing_price import ClearingMechanism
+from core.market.order import Order, Trade
 
 DSO_ID = "DSO"
 STAGE_NAMES = {1: "Preferences", 2: "Double auction", 3: "DSO"}

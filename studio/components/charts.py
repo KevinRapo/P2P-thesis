@@ -2,8 +2,8 @@
 
 import plotly.graph_objects as go
 
-from grid.contract import BusView, TopologyView
-from services.models import Series
+from core.grid.contract import BusView, TopologyView
+from studio.adapters.models import Series
 
 from studio.theme import SERIES
 
