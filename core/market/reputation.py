@@ -4,13 +4,21 @@ This module implements a decentralized reputation system that evaluates agent
 reliability, price fairness, and grid contribution based on market outcomes.
 """
 
-from typing import List, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, List, Tuple
 
 import numpy as np
 
-from ..agent.der import DERAgent
-from .matching import MatchingResult
 from .order import Trade
+
+if TYPE_CHECKING:
+    from .agent.der import Participant as DERAgent
+
+# The original's MatchingResult (trades, unmatched_orders, clearing_price,
+# grid_balance) left with matching.py. Rebuilding reputation ([P1] eq. 12) on the
+# StepRecord is still to do; until then this module is the original's logic.
+MatchingResult = Any
 
 
 class ReputationHandler:

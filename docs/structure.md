@@ -33,7 +33,6 @@ flowchart LR
   market --> m8["bidding.py"]:::done
   market --> m4["clearing_price.py"]:::done
   market --> m2["order.py"]:::done
-  market --> m3["matching.py"]:::orig
   market --> m5["reputation.py"]:::orig
   market --> m6["validation.py"]:::orig
   market --> agent["agent/"]
@@ -105,8 +104,7 @@ are the reference for what is still to rebuild (reputation, fees).
 | `bidding.py` | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
 | `clearing_price.py` | Pricing mechanisms with one fixed signature (fixes the seller price) | done |
 | `order.py` | `Order` and `Trade` (with the stage that made it) | done |
-| `matching.py` | The original three-stage clearing | original |
-| `reputation.py` | Reputation update after each period | original |
+| `reputation.py` | Reputation update after each period (eq. 12); its types are type-only now, so it imports | original, to rebuild on `StepRecord` |
 | `validation.py` | Hash-chained trade ledger with proof of work; `seal_block` closes a market period's block | original, public `seal_block` added |
 | `agent/der.py` | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice, settlement (eq. 13, 14, battery eq. 16), its bus injection; `ParticipantOutcome` | done |
 | `agent/battery.py` | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the market only calls it | done |
