@@ -24,7 +24,7 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 | `core/` | The core API: the market and its network, callable without any UI |
 | `core/config/` | The scenario (`Scenario`), placing participants on its network, saving and loading it |
 | `core/grid/` | The SimBench network: catalogue, topology, profiles, power flow. The only place that imports pandapower or simbench |
-| `core/market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `MarketManager` (`manager.py`), the one class that runs a market step and its power flow |
+| `core/market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `LocalEnergyMarket` (`lem.py`), the one class that runs a market step and its power flow |
 | `notebooks/` | Jupyter notebooks that call `core/` directly to validate it |
 | `studio/` | The NiceGUI Studio: `pages/`, `components/`, `adapters/`, layout, theme |
 | `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, workspace paths) |
@@ -34,7 +34,7 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 ### Layer rules
 
 - **`core/`** imports nothing from `studio/` or `notebooks/`. Its API is
-  `core/grid/contract.py` for the grid, `MarketManager` (`core/market/manager.py`)
+  `core/grid/contract.py` for the grid, `LocalEnergyMarket` (`core/market/lem.py`)
   for the market, and `Scenario` (`core/config/`) with its rules, e.g. placing
   participants (`core/config/placement.py`). `core/config/` may import
   `core/grid/`, never the reverse. Every rule of the market or the network lives
@@ -50,8 +50,8 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   import the core's plain data records (`StepRecord`, `Trade`, `NetworkRef`,
   `BatterySetup`, `DSO_ID`, the `DESCRIPTIONS` captions) to read and display them,
   but never construct or drive a core engine class. Inside the Studio,
-  `MarketService` builds and holds the `MarketManager` between clicks; a notebook
-  uses `MarketManager` directly. A page may name `MarketManager` as a type (under
+  `MarketService` builds and holds the `LocalEnergyMarket` between clicks; a notebook
+  uses `LocalEnergyMarket` directly. A page may name `LocalEnergyMarket` as a type (under
   `TYPE_CHECKING`) to annotate what it reads.
 
 Every folder and script, with how far it is built, is in

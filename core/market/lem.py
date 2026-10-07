@@ -1,11 +1,11 @@
-"""MarketManager: the one class that runs the market, step by step.
+"""LocalEnergyMarket: the one class that runs the market, step by step.
 
-The counterpart of ``LocalEnergyMarket`` (``lem.py``) in the original MARLEM,
+Named as in the original MARLEM (``LocalEnergyMarket`` in ``lem.py``), but
 without the learning parts (no observation, no reward). It holds the participants
 (``core/market/agent/der.py``), the DSO (``core/market/dso/dso.py``), the ledger
 and the step-time grid, and runs one market step in the order of the paper ([P1]
 §3.9; docs: marlem/methodology.md §3). Each element computes its own equations;
-the manager only calls them in order:
+the market only calls them in order:
 
     1  validate   orders limited to the market bounds and to each participant's
                   eq. 15a-b (``Participant.max_sell_kwh``, ``max_buy_kwh``)
@@ -154,14 +154,14 @@ class StepRecord:
 
 
 # --------------------------------------------------------------------------------------
-# The manager
+# The market
 # --------------------------------------------------------------------------------------
-class MarketManager:
+class LocalEnergyMarket:
     """The configured market on its network, run one step at a time.
 
     Args:
         scenario: The network, the participants, the market rules and the DSO. The
-            manager keeps its own copy: later edits to the caller's scenario do
+            market keeps its own copy: later edits to the caller's scenario do
             not change a market being played.
     """
 
@@ -473,7 +473,7 @@ class MarketManager:
 
 __all__ = [
     "DSO_ID",
-    "MarketManager",
+    "LocalEnergyMarket",
     "OrderIntent",
     "ParticipantOutcome",
     "PendingStep",

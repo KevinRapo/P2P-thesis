@@ -2,7 +2,7 @@
 
 Only what a market step without RL needs: the network, the participants on it, the
 market rules and the DSO. Plain data, edited by the Studio pages and read by the
-``MarketManager`` that runs the market on the network.
+``LocalEnergyMarket`` that runs the market on the network.
 """
 
 from __future__ import annotations

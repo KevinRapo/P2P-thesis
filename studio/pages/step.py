@@ -15,7 +15,7 @@ from nicegui import run, ui
 
 from core.grid.contract import NetworkRef
 from core.market.clearing import DSO_ID
-from core.market.manager import StepRecord
+from core.market.lem import StepRecord
 from core.market.order import Trade
 from studio.components.cards import section
 from studio.components.charts import styled, topology_figure
@@ -25,7 +25,7 @@ from studio.layout import shell
 from studio.state import services
 
 if TYPE_CHECKING:  # only to annotate what the page reads; the page never builds one
-    from core.market.manager import MarketManager
+    from core.market.lem import LocalEnergyMarket
 
 PARTS = (
     "Orders",
@@ -176,21 +176,21 @@ def page() -> None:
 # --------------------------------------------------------------------------------------
 # Controls: where the step is, what the next click does
 # --------------------------------------------------------------------------------------
-def _position(m: MarketManager) -> int:
+def _position(m: LocalEnergyMarket) -> int:
     """-1 before the orders, 0 orders in, 1-3 after each stage, 4 step done."""
     if m.pending is not None:
         return len(m.pending.stages)
     return 4 if m.history else -1
 
 
-def _clock(m: MarketManager, step: int) -> str:
+def _clock(m: LocalEnergyMarket, step: int) -> str:
     h = m.scenario.grid.step_hours
     start, end = step * h, (step + 1) * h
     fmt = lambda x: f"{int(x) % 24:02d}:{int(round(x % 1 * 60)):02d}"  # noqa: E731
     return f"{fmt(start)}–{fmt(end)}"
 
 
-def _controls(box: ui.element, m: Optional[MarketManager], act, build) -> None:
+def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> None:
     market = services().market
     box.clear()
     with box:
@@ -268,7 +268,7 @@ def _controls(box: ui.element, m: Optional[MarketManager], act, build) -> None:
 # --------------------------------------------------------------------------------------
 # What is shown: the step being played, or the last one
 # --------------------------------------------------------------------------------------
-def _view(m: Optional[MarketManager]) -> dict[str, Any]:
+def _view(m: Optional[LocalEnergyMarket]) -> dict[str, Any]:
     empty = {"orders": (), "open": (), "trades": [], "record": None, "inputs": None}
     if m is None:
         return empty
@@ -356,7 +356,7 @@ def _order_book(view: dict) -> go.Figure:
 # --------------------------------------------------------------------------------------
 # Network: participants, trades, voltages
 # --------------------------------------------------------------------------------------
-def _network(topology, m: MarketManager, view: dict) -> go.Figure:
+def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
     record: Optional[StepRecord] = view["record"]
     voltages = (
         dict(record.grid.bus_voltage_pu) if record and record.grid.converged else None
@@ -463,7 +463,7 @@ def _trades_table(trades: list[Trade]) -> None:
     )
 
 
-def _people_table(m: MarketManager, view: dict) -> None:
+def _people_table(m: LocalEnergyMarket, view: dict) -> None:
     inputs = view["inputs"]
     if inputs is None:
         ui.label(
@@ -528,7 +528,7 @@ def _people_table(m: MarketManager, view: dict) -> None:
 # --------------------------------------------------------------------------------------
 # The day: volumes, prices, voltages
 # --------------------------------------------------------------------------------------
-def _day_figure(m: MarketManager) -> go.Figure:
+def _day_figure(m: LocalEnergyMarket) -> go.Figure:
     x = [_clock(m, r.step)[:5] for r in m.history]
     fig = go.Figure()
     fig.add_bar(
@@ -555,7 +555,7 @@ def _day_figure(m: MarketManager) -> go.Figure:
     return fig
 
 
-def _voltage_figure(m: MarketManager) -> go.Figure:
+def _voltage_figure(m: LocalEnergyMarket) -> go.Figure:
     x = [_clock(m, r.step)[:5] for r in m.history]
     g = m.scenario.grid
     fig = go.Figure()

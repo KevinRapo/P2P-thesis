@@ -4,7 +4,7 @@
 > it is built. Keep this page current when files are added, moved or built.
 
 Three layers. `core/` is the MARLEM functionality: `core/grid/` models the
-network, `core/market/` the market on it (its `MarketManager` runs both, step by
+network, `core/market/` the market on it (its `LocalEnergyMarket` runs both, step by
 step), `core/config/` describes a scenario. `notebooks/` call `core/` directly to
 validate it. `studio/` is the user interface: its pages and components call
 `studio/adapters/`, a thin layer over `core/`. `core/` never imports `studio/` or
@@ -28,7 +28,7 @@ flowchart LR
   grid --> g3["powerflow.py"]:::done
 
   core --> market["market/"]
-  market --> m1["manager.py"]:::done
+  market --> m1["lem.py"]:::done
   market --> m7["clearing.py"]:::done
   market --> m8["bidding.py"]:::done
   market --> m4["clearing_price.py"]:::done
@@ -93,14 +93,14 @@ never pandapower objects.
 
 ## core/market/: the MARLEM market
 
-The market of the paper ([methodology](marlem/methodology.md)). `manager.py` is the
-one class that runs it, like `lem.py` in the original; `clearing.py`, `bidding.py`
+The market of the paper ([methodology](marlem/methodology.md)). `lem.py` is the
+one class that runs it (`LocalEnergyMarket`, as in the original); `clearing.py`, `bidding.py`
 and `clearing_price.py` are its rebuilt pieces, and the remaining original files
 are the reference for what is still to rebuild (reputation, fees).
 
 | Script | What it does | State |
 |---|---|---|
-| `manager.py` | `MarketManager`: profiles, the participants' `Battery` objects, one step in the paper's phases (validate, orders, the three stages, settle, power flow, advance), one stage at a time or all at once; the history of the day | done |
+| `lem.py` | `LocalEnergyMarket`: the participants (`Participant`) and the DSO (`Dso`), one step in the paper's phases (validate, orders, the three stages, settle, power flow, advance), one stage at a time or all at once; the history of the day | done |
 | `clearing.py` | The three clearing stages as separate functions: preferences, double auction, DSO | done |
 | `bidding.py` | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
 | `clearing_price.py` | Pricing mechanisms with one fixed signature (fixes the seller price) | done |
@@ -109,7 +109,7 @@ are the reference for what is still to rebuild (reputation, fees).
 | `reputation.py` | Reputation update after each period | original |
 | `validation.py` | Hash-chained trade ledger with proof of work; `seal_block` closes a market period's block | original, public `seal_block` added |
 | `agent/der.py` | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice, settlement (eq. 13, 14, battery eq. 16), its bus injection; `ParticipantOutcome` | done |
-| `agent/battery.py` | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the manager only calls it | done |
+| `agent/battery.py` | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the market only calls it | done |
 | `dso/dso.py` | `Dso`: tariffs, market price (their midpoint), stage 3 clearing (§3.3.2); `DSO_ID`. Fees (eq. 8) and balance (eq. 7) not built | done |
 | `profile/` | Synthetic or CSV generation, demand and tariff profiles | original, imports |
 
@@ -156,7 +156,7 @@ market or pandapower directly.
 | `profile_classes.py` | SimBench's profile classes and how a profile name is classified | done |
 | `models.py` | The data types only the Studio needs: profile classes, profile types, chart series, a day's element profiles | done |
 | `scenario_service.py` | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants | done |
-| `market_service.py` | Builds and holds the `MarketManager` the Step page plays; build, next part, step, run to the end | done |
+| `market_service.py` | Builds and holds the `LocalEnergyMarket` the Step page plays; build, next part, step, run to the end | done |
 
 ## Around the code
 

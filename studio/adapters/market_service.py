@@ -1,6 +1,6 @@
 """MarketService: the market built from the scenario, stepped by the Step page.
 
-The only place that builds and holds the ``MarketManager``. The Studio asks it to
+The only place that builds and holds the ``LocalEnergyMarket``. The Studio asks it to
 build the market from the current scenario and to step it; pages read the manager's
 state (history, participants, pending step) to display it but never construct or
 drive it themselves. The records the manager returns are plain data.
@@ -9,7 +9,7 @@ drive it themselves. The records the manager returns are plain data.
 from __future__ import annotations
 
 from core.config.scenario import Scenario
-from core.market.manager import MarketManager
+from core.market.lem import LocalEnergyMarket
 
 
 # --------------------------------------------------------------------------------------
@@ -19,11 +19,11 @@ class MarketService:
     """The market being stepped."""
 
     def __init__(self) -> None:
-        self.manager: MarketManager | None = None
+        self.manager: LocalEnergyMarket | None = None
 
-    def build(self, scenario: Scenario) -> MarketManager:
+    def build(self, scenario: Scenario) -> LocalEnergyMarket:
         """A fresh market from ``scenario`` (the manager copies it), reset to step 0."""
-        manager = MarketManager(scenario)
+        manager = LocalEnergyMarket(scenario)
         manager.reset()
         self.manager = manager
         return manager
@@ -45,7 +45,7 @@ class MarketService:
         """Play the rest of the day."""
         self._built().run_to_end()
 
-    def _built(self) -> MarketManager:
+    def _built(self) -> LocalEnergyMarket:
         if self.manager is None:
             raise RuntimeError("The market is not built yet")
         return self.manager
