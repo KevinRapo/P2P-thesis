@@ -8,7 +8,7 @@ market rules and the DSO. Plain data, edited by the Studio pages and read by the
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Mapping, Optional
 
 
 # --------------------------------------------------------------------------------------
@@ -105,6 +105,19 @@ class MarketSetup:
     seed: int = 0
     ledger_difficulty: int = 0
 
+    def problems(self) -> list[str]:
+        """What makes these rules wrong or the peer market pointless."""
+        found = []
+        if self.bid_margin >= 0.5:
+            found.append(
+                "Bid margin is 0.5 or more: peers will not trade with each other."
+            )
+        if self.min_price > self.max_price:
+            found.append("Min price is above max price.")
+        if self.min_quantity > self.max_quantity:
+            found.append("Min quantity is above max quantity.")
+        return found
+
 
 @dataclass
 class DsoSetup:
@@ -114,6 +127,15 @@ class DsoSetup:
     utility_price: float = 0.30
     fees_charged: bool = False
     fees: dict[str, float] = field(default_factory=dict)
+
+    def problems(self) -> list[str]:
+        """Tariffs that break p_FiT < p_P2P < p_utility ([P1] §3.3.2), so peers
+        gain nothing by trading with each other."""
+        if self.feed_in_tariff >= self.utility_price:
+            return [
+                "Feed-in tariff is not below the utility price: no gain from peers."
+            ]
+        return []
 
 
 # --------------------------------------------------------------------------------------
@@ -128,3 +150,24 @@ class Scenario:
     participants: list[ParticipantSetup] = field(default_factory=list)
     market: MarketSetup = field(default_factory=MarketSetup)
     dso: DsoSetup = field(default_factory=DsoSetup)
+
+    def problems(self, element_types: Optional[Mapping[str, str]] = None) -> list[str]:
+        """What would make the market pointless or wrong, in plain words.
+
+        Args:
+            element_types: Element type per network element (``load``, ``sgen``,
+                ``storage``), to check that someone can generate; skipped when
+                ``None``.
+        """
+        found = []
+        if not self.participants:
+            found.append(
+                "No participants: place them on the Grid & Participants page."
+            )
+        elif element_types is not None and not any(
+            element_types.get(e) == "sgen" for p in self.participants for e in p.owns
+        ):
+            found.append(
+                "No participant owns a generator: nobody has anything to sell."
+            )
+        return found + self.market.problems() + self.dso.problems()

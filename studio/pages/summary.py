@@ -122,24 +122,10 @@ def page() -> None:
 # Is it ready?
 # --------------------------------------------------------------------------------------
 def _problems(scenario: Scenario, day: DayProfiles | None) -> list[str]:
-    """What would make the market pointless or wrong, in plain words."""
-    m, d = scenario.market, scenario.dso
-    found = []
-    if not scenario.participants:
-        found.append("No participants: place them on the Grid & Participants page.")
-    elif day is not None and not any(e.element_type == "sgen" for e in day.owned()):
-        found.append("No participant owns a generator: nobody has anything to sell.")
-    if m.bid_margin >= 0.5:
-        found.append("Bid margin is 0.5 or more: peers will not trade with each other.")
-    if m.min_price > m.max_price:
-        found.append("Min price is above max price.")
-    if m.min_quantity > m.max_quantity:
-        found.append("Min quantity is above max quantity.")
-    if d.feed_in_tariff >= d.utility_price:
-        found.append(
-            "Feed-in tariff is not below the utility price: no gain from peers."
-        )
-    return found
+    """The scenario's own problems (``Scenario.problems``), with the element types
+    of the loaded day when there is one."""
+    types = {e.id: e.element_type for e in day.elements} if day else None
+    return scenario.problems(types)
 
 
 def _checks(box: ui.element, scenario: Scenario, day: DayProfiles | None) -> None:

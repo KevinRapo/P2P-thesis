@@ -76,7 +76,7 @@ Everything the user sets before stepping the market, as plain data.
 
 | Script | What it does | State |
 |---|---|---|
-| `scenario.py` | `Scenario`: the network (`GridSetup`), the participants with their batteries, the market rules and the DSO tariffs and fees | data only |
+| `scenario.py` | `Scenario`: the network (`GridSetup`), the participants with their batteries, the market rules and the DSO tariffs and fees; each setup lists its own problems (`problems()`), shown on the Summary page | data and its checks |
 | `store.py` | Save and load a scenario as JSON | done |
 | `placement.py` | Placing participants on the scenario's network: one on a bus, or one per load or prosumer bus; imports `core/grid/` | done |
 
