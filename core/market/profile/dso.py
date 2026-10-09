@@ -99,7 +99,8 @@ class DSOProfileHandler(ProfileHandler):
     def _enforce_price_relationship(self,
                                     feed_in_tariff: List[float],
                                     utility_price: List[float]) -> Tuple[List[float], List[float]]:
-        """Ensure utility prices are always higher than feed-in tariffs.
+        """Ensure utility prices are always higher than feed-in tariffs
+        (p_utility > p_FiT, [P1] §3.4.4).
 
         Args:
             feed_in_tariff: Feed-in tariff profile
@@ -217,7 +218,8 @@ class DSOProfileHandler(ProfileHandler):
             return self._apply_smoothing(self._random_utility_price_profile(steps))
 
     def _random_feed_in_tariff_profile(self, steps: int) -> List[float]:
-        """Generate a step function feed-in tariff profile with randomness.
+        """Generate a step function feed-in tariff profile with randomness ([P1]
+        §3.4.4).
 
         Args:
             steps: Number of steps needed
@@ -277,7 +279,8 @@ class DSOProfileHandler(ProfileHandler):
         return profile
 
     def _random_utility_price_profile(self, steps: int) -> List[float]:
-        """Generate a step function utility price profile with randomness.
+        """Generate a step function utility price profile with randomness ([P1]
+        §3.4.4).
 
         Args:
             steps: Number of steps needed

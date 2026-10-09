@@ -10,7 +10,8 @@ over, so the Studio can show the market after every stage:
                       ``core/market/dso/dso.py``)
 
 The stages work on copies: the orders as submitted are never changed. The market
-is lossless (losses come from the power flow) and charges no grid fees yet.
+is lossless (losses come from the power flow, not [P1] eq. 18) and charges no grid
+fees yet ([P1] eq. 8).
 """
 
 from __future__ import annotations
@@ -54,10 +55,11 @@ class ClearingRules:
     """What the stages need besides the orders.
 
     Attributes:
-        mechanism: Pricing mechanism name (``ClearingMechanism``).
+        mechanism: Pricing mechanism name (``ClearingMechanism``, [P1] §3.3.3).
         dso: The DSO, which clears stage 3.
-        reference_price: Reference for the proportional mechanism.
-        reputation: Each participant's reputation, the double auction's tie-break.
+        reference_price: p_ref of the proportional mechanism ([P1] eq. 11).
+        reputation: Each participant's reputation r_i ([P1] eq. 12), the double
+            auction's tie-break.
         threshold_kwh: Quantities below this count as nothing.
     """
 
@@ -87,9 +89,9 @@ def _open(orders: Sequence[Order], rules: ClearingRules) -> tuple[Order, ...]:
 # Stage 1: mutual preferences
 # --------------------------------------------------------------------------------------
 def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """Pairs that named each other as preferred partner trade first, at the
-    mechanism's price, whatever their prices. Orders that prefer the DSO wait for
-    stage 3."""
+    """Stage 1 ([P1] §3.3.2; PreferenceMatch in Algorithm 1): pairs that named each
+    other as preferred partner (β, [P1] eq. 2) trade first, at the mechanism's
+    price, whatever their prices. Orders that prefer the DSO wait for stage 3."""
     work = [replace(o) for o in orders]
     pricing = ClearingMechanism(rules.mechanism).get_instance()
     trades = []
@@ -114,9 +116,10 @@ def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
 # Stage 2: double auction
 # --------------------------------------------------------------------------------------
 def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """Bids sorted by price (high first), asks by price (low first); reputation and
-    arrival break ties. Pairs trade while the bid is at least the ask. Orders that
-    prefer the DSO stay out."""
+    """Stage 2 ([P1] §3.3.2; PriceMatch in Algorithm 1): bids sorted by price (high
+    first), asks by price (low first); reputation ([P1] eq. 12) and arrival break
+    ties. Pairs trade while the bid is at least the ask. Orders that prefer the DSO
+    stay out."""
     work = [replace(o) for o in orders]
     pricing = ClearingMechanism(rules.mechanism).get_instance()
     rep = rules.reputation
@@ -149,7 +152,8 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
 # Stage 3: the DSO clears the rest
 # --------------------------------------------------------------------------------------
 def dso(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """The DSO clears every order still open ([P1] §3.3.2, ``Dso.clear``)."""
+    """Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in
+    Algorithm 1; ``Dso.clear``)."""
     return StageResult(3, STAGE_NAMES[3], rules.dso.clear(_open(orders, rules)), ())
 
 

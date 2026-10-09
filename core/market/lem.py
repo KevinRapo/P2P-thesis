@@ -12,12 +12,13 @@ the market only calls them in order:
     2  orders     intents become orders; partners chosen if preferences are on
                   (``Participant.choose_partner``)
     3  clear      stage 1 preferences, stage 2 double auction, stage 3 DSO
-                  (``Dso.clear``)
+                  (§3.3.2, Algorithm 1; ``core/market/clearing.py``, ``Dso.clear``)
     4  settle     each participant: balance (eq. 13), profit (eq. 14), battery
                   (eq. 16) (``Participant.settle``)
     4' grid       what each participant physically did -> one power flow
-                  (``Participant.injection``)
-    6  advance    clearing price, ledger block, clock
+                  (``Participant.injection``; replaces the graph model of §3.5.3)
+    6  advance    clearing price, ledger block (§3.3.4), clock; reputation
+                  (eq. 12) not updated yet
 
 Phases 5 (reward and KPIs) and 7 (observation) of the paper are learning only.
 
@@ -53,7 +54,8 @@ from core.market.validation import Validator
 # --------------------------------------------------------------------------------------
 @dataclass(frozen=True)
 class OrderIntent:
-    """What one participant wants to trade this step (the paper's action)."""
+    """What one participant wants to trade this step: the paper's action
+    a_i = <p_bid, q_bid, α, β> ([P1] eq. 2)."""
 
     participant_id: str
     is_buy: bool
@@ -68,10 +70,10 @@ class StepInputs:
 
     Attributes:
         step: The step (0-based).
-        generation_kwh: Each participant's generation.
-        demand_kwh: Each participant's demand.
-        feed_in_tariff: What the DSO pays per kWh.
-        utility_price: What the DSO charges per kWh.
+        generation_kwh: Each participant's generation G_t.
+        demand_kwh: Each participant's demand D_t.
+        feed_in_tariff: p_FiT, what the DSO pays per kWh ([P1] §3.3.1).
+        utility_price: p_utility, what the DSO charges per kWh ([P1] §3.3.1).
     """
 
     step: int
@@ -120,11 +122,13 @@ class StepRecord:
         step: The step (0-based).
         inputs: Profiles and tariffs of the step.
         orders: Orders as submitted.
-        stages: The three clearing stages.
-        participants: What each participant did.
+        stages: The three clearing stages ([P1] §3.3.2).
+        participants: What each participant did ([P1] eq. 13, 14, 16).
         clearing_price: Volume-weighted price of the step's peer-to-peer trades
-            (the previous one when there were none).
-        grid: The power flow with the participants' injections.
+            (the previous one when there were none); UpdateMarketState of [P1]
+            Algorithm 1.
+        grid: The power flow with the participants' injections (in place of the
+            grid state update of [P1] §3.5.3).
         notes: What validation changed.
     """
 
@@ -218,9 +222,9 @@ class LocalEnergyMarket:
     def start_step(
         self, intents: Optional[Mapping[str, OrderIntent]] = None
     ) -> PendingStep:
-        """Phases 1 and 2: the step's inputs, intents (the bidding rule's when none
-        are given), validation and orders. The clearing stages follow with
-        ``advance``."""
+        """Phases 1 and 2 ([P1] §3.9; Phase 1 of Algorithm 1): the step's inputs,
+        intents (the bidding rule's when none are given), validation and orders.
+        The clearing stages follow with ``advance``."""
         if self.pending is not None:
             raise RuntimeError("A step is already being played")
         if self.done:
@@ -236,8 +240,9 @@ class LocalEnergyMarket:
         return self.pending
 
     def advance(self) -> StageResult | StepRecord:
-        """Run the next part of the pending step: the next clearing stage, or, after
-        stage 3, settlement, power flow and the record."""
+        """Run the next part of the pending step: the next clearing stage (phase 3,
+        [P1] §3.3.2), or, after stage 3, settlement, power flow and the record
+        (phases 4 and 6, [P1] §3.9)."""
         p = self.pending
         if p is None:
             raise RuntimeError("No step is being played; call start_step")
@@ -269,7 +274,8 @@ class LocalEnergyMarket:
                 return result
 
     def run_to_end(self) -> list[StepRecord]:
-        """Play every remaining step of the day."""
+        """Play every remaining step of the day (phase 8 of [P1] §3.9: stop after
+        the last period)."""
         played = []
         while not self.done:
             played.append(self.step())
@@ -278,7 +284,8 @@ class LocalEnergyMarket:
     # --- Inputs ----------------------------------------------------------------------
     def _build_participants(self) -> dict[str, Participant]:
         """One ``Participant`` per scenario participant, with its generation and
-        demand from the SimBench profiles of the elements it owns."""
+        demand from the SimBench profiles of the elements it owns (in place of the
+        profiles of [P1] §3.4.4)."""
         g = self.scenario.grid
         ref = NetworkRef("simbench", g.code)
         kinds = {e.id: e.element_type for e in simbench.elements(ref)}
@@ -301,7 +308,8 @@ class LocalEnergyMarket:
         return out
 
     def _battery(self, b: Optional[BatterySetup]) -> Optional[Battery]:
-        """The configured battery as a ``Battery``; ``None`` without one."""
+        """The configured battery as a ``Battery`` ([P1] eq. 16); ``None`` without
+        one."""
         if b is None:
             return None
         return Battery(
@@ -316,7 +324,8 @@ class LocalEnergyMarket:
         )
 
     def _inputs(self, step: int) -> StepInputs:
-        """Generation, demand and tariffs of ``step``."""
+        """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are fixed for the
+        day; [P1] §3.4.4 lets them change per step."""
         people = self.participants.items()
         return StepInputs(
             step=step,
@@ -353,8 +362,8 @@ class LocalEnergyMarket:
         return intents
 
     def _with_partners(self, intents: dict[str, OrderIntent]) -> dict[str, OrderIntent]:
-        """Each participant names a preferred partner on the other side of the
-        market (``Participant.choose_partner``)."""
+        """Each participant names a preferred partner β ([P1] eq. 2) on the other
+        side of the market (``Participant.choose_partner``, [P1] §3.4)."""
         out = {}
         for pid, i in intents.items():
             others = [
@@ -367,7 +376,8 @@ class LocalEnergyMarket:
         return out
 
     def _km(self, a: str, b: str) -> float:
-        """Line length between two participants' buses (cached)."""
+        """Line length between two participants' buses (cached): the electrical
+        distance d_ij ([P1] §3.5.1)."""
         key = (a, b) if a < b else (b, a)
         if key not in self._distance:
             self._distance[key] = self.grid.electrical_distance(
@@ -379,8 +389,9 @@ class LocalEnergyMarket:
     def _validate(
         self, inputs: StepInputs, intents: Mapping[str, OrderIntent]
     ) -> tuple[dict[str, OrderIntent], list[str]]:
-        """Phase 1: limit each intent to the market bounds and to what the
-        participant can physically deliver or take (eq. 15a-b)."""
+        """Phase 1 ([P1] §3.9): limit each intent to the market bounds ([P1] eq. 2,
+        §3.2.3) and to what the participant can physically deliver or take ([P1]
+        eq. 15a-b)."""
         m = self.scenario.market
         valid, notes = {}, []
         for pid, i in intents.items():
@@ -403,7 +414,8 @@ class LocalEnergyMarket:
         return valid, notes
 
     def _orders(self, intents: Mapping[str, OrderIntent]) -> tuple[Order, ...]:
-        """Phase 2: intents to orders; arrival order is the participants' order."""
+        """Phase 2 ([P1] §3.9): intents to orders; arrival order is the
+        participants' order."""
         rank = {pid: n for n, pid in enumerate(self.participants)}
         return tuple(
             Order(
@@ -421,6 +433,8 @@ class LocalEnergyMarket:
 
     # --- Phase 3: clearing -----------------------------------------------------------
     def _rules(self, p: PendingStep) -> ClearingRules:
+        """Phase 3 ([P1] §3.9): what the stages need besides the orders: the
+        mechanism ([P1] §3.3.3), p_ref ([P1] eq. 11) and reputation ([P1] eq. 12)."""
         return ClearingRules(
             mechanism=self.scenario.market.mechanism,
             dso=self.dso,
@@ -430,7 +444,7 @@ class LocalEnergyMarket:
 
     def _clearing_price(self, trades: list[Trade]) -> float:
         """Volume-weighted price of the peer-to-peer trades; the previous price when
-        there were none."""
+        there were none. Next step's p_ref ([P1] eq. 11)."""
         p2p = [t for t in trades if t.stage < 3]
         volume = sum(t.quantity for t in p2p)
         if volume <= 0:
@@ -441,8 +455,8 @@ class LocalEnergyMarket:
     def _settle(
         self, inputs: StepInputs, trades: list[Trade]
     ) -> dict[str, ParticipantOutcome]:
-        """Phase 4: each participant settles its trades (``Participant.settle``:
-        eq. 13, 14, 16)."""
+        """Phase 4 ([P1] §3.9): each participant settles its trades
+        (``Participant.settle``: [P1] eq. 13, 14, 16)."""
         return {
             pid: p.settle(inputs.step, trades) for pid, p in self.participants.items()
         }
@@ -451,7 +465,8 @@ class LocalEnergyMarket:
         self, step: int, outcomes: Mapping[str, ParticipantOutcome]
     ) -> GridAssessment:
         """Phase 4': one power flow with each participant's injection
-        (``Participant.injection``)."""
+        (``Participant.injection``), in place of the grid update of [P1] §3.5.3
+        (flows, eq. 19; balance, eq. 20)."""
         h = self.scenario.grid.step_hours
         injections = [
             self.participants[pid].injection(o, h) for pid, o in outcomes.items()
@@ -460,8 +475,9 @@ class LocalEnergyMarket:
 
     # --- Phase 6: advance ------------------------------------------------------------
     def _advance(self, record: StepRecord) -> None:
-        """Clearing price, ledger block, clock. The participants added their
-        profit when they settled; reputation stays at its start value for now."""
+        """Phase 6 ([P1] §3.9): clearing price, ledger block (ValidateBlock,
+        [P1] §3.3.4), clock. The participants added their profit when they settled
+        ([P1] eq. 14); reputation ([P1] eq. 12) stays at its start value for now."""
         self.clearing_price = record.clearing_price
         if self.ledger is not None:
             for t in record.trades:

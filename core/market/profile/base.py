@@ -1,7 +1,8 @@
 """
 Base class for profile management.
 
-This module handles loading, generation, and management of time-varying profiles.
+This module handles loading, generation, and management of time-varying profiles
+([P1] §3.4.4: loaded from files or generated, then smoothed).
 """
 
 from pathlib import Path
@@ -45,7 +46,8 @@ class ProfileHandler:
     def _apply_smoothing(self,
                          profile: List[float],
                          window_size: int = 3) -> List[float]:
-        """Applies a simple moving average filter to smooth a profile.
+        """Applies a simple moving average filter to smooth a profile ([P1]
+        §3.4.4).
 
         Args:
             profile: The profile data to smooth.

@@ -29,6 +29,7 @@ class Battery:
             bus.
         initial_soc: State of charge at the start of the day.
         max_power_kw: Charging and discharging power limit (``None``: no limit).
+            [P1] §3.4 names rate limits, but eq. 16 has none.
         step_hours: Length of a market step, for the power limit.
     """
 
@@ -104,13 +105,15 @@ class Battery:
 
     @property
     def chargeable_kwh(self) -> float:
-        """Energy the battery can still take from the bus this step (eq. 15d)."""
+        """Energy the battery can still take from the bus this step ([P1] eq. 15d,
+        with η_charge and the power limit)."""
         room = max(0.0, self.max_kwh - self.energy_kwh) / self.charge_efficiency
         return min(room, self._power_cap_kwh())
 
     @property
     def dischargeable_kwh(self) -> float:
-        """Energy the battery can still give to the bus this step (eq. 15c)."""
+        """Energy the battery can still give to the bus this step ([P1] eq. 15c,
+        with η_discharge and the power limit)."""
         room = max(0.0, self.energy_kwh - self.min_kwh) * self.discharge_efficiency
         return min(room, self._power_cap_kwh())
 
@@ -118,6 +121,7 @@ class Battery:
     def charge(self, kwh: float) -> float:
         """Take up to ``kwh`` from the bus; returns what it took."""
         taken = min(max(0.0, kwh), self.chargeable_kwh)
+        # [P1] eq. 16, charging: min(E + E_in · η_charge, SoC_max · C)
         self.energy_kwh = min(
             self.max_kwh, self.energy_kwh + taken * self.charge_efficiency
         )
@@ -126,6 +130,7 @@ class Battery:
     def discharge(self, kwh: float) -> float:
         """Give up to ``kwh`` to the bus; returns what it gave."""
         given = min(max(0.0, kwh), self.dischargeable_kwh)
+        # [P1] eq. 16, discharging: max(E − E_out / η_discharge, SoC_min · C)
         self.energy_kwh = max(
             self.min_kwh, self.energy_kwh - given / self.discharge_efficiency
         )

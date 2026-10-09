@@ -3,6 +3,9 @@ Decentralized transaction validation for Local Energy Market.
 
 This module implements a blockchain-inspired validation mechanism for market transactions,
 ensuring decentralized verification without requiring a central authority.
+
+[P1] §3.3.4 (ValidateBlock in Algorithm 1): trades hashed with SHA-256, sealed in
+a block by a simplified proof of work, appended to the chain.
 """
 
 import hashlib
@@ -23,7 +26,8 @@ class TransactionBlock:
     hash: str = ""
 
     def calculate_hash(self) -> str:
-        """Calculate block hash using trades and previous hash."""
+        """Calculate block hash using trades and previous hash (SHA-256, [P1]
+        §3.3.4)."""
         block_content = {"timestamp": self.timestamp,
                          "previous_hash": self.previous_hash,
                          "trades": [{"buyer_id": trade.buyer_id,
@@ -107,7 +111,7 @@ class Validator:
                                      trades=self.pending_trades.copy(),
                                      nonce=0)
 
-        # Proof of work
+        # Proof of work ([P1] §3.3.4)
         while True:
             new_block.hash = new_block.calculate_hash()
             if new_block.hash.startswith("0" * self.difficulty):

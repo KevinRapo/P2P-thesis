@@ -173,7 +173,8 @@ class DERProfileHandler(ProfileHandler):
                                    steps: int,
                                    capacity: float,
                                    max_value: float = 1.0) -> List[float]:
-        """Generate a random generation profile (solar-like).
+        """Generate a random generation profile (solar-like): G_t = C · I_t · (1 +
+        ε_noise + ε_cloud) with a Gaussian I_t centred at noon ([P1] eq. 17).
 
         Args:
             steps: Number of steps needed
@@ -207,7 +208,8 @@ class DERProfileHandler(ProfileHandler):
                                capacity: float,
                                min_value: float = 0.2,
                                max_value: float = 1.0) -> List[float]:
-        """Generate a random demand profile (typical residential pattern).
+        """Generate a random demand profile (typical residential pattern, morning
+        and evening peaks; [P1] §3.4.4).
 
         Args:
             steps: Number of steps needed

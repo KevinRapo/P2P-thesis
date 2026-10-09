@@ -12,6 +12,11 @@ over or ask for what is missing, at a price between the DSO's two tariffs.
 
 With ``margin`` below 0.5 bids lie above asks and peers trade with each other;
 above 0.5 nobody does and everything goes to the DSO.
+
+Not from the paper: in [P1] the order is the learned action a_i ([P1] eq. 2), and
+the case study bids at random within the bounds (zero intelligence, [P1] §4). The
+rule only borrows the paper's terms: the battery room of [P1] eq. 15c-d and prices
+between p_FiT and p_utility ([P1] §3.3.1).
 """
 
 from __future__ import annotations
@@ -32,8 +37,10 @@ class BidView:
         participant_id: The participant.
         generation_kwh: Its generation this step.
         demand_kwh: Its demand this step.
-        chargeable_kwh: What its battery can still take from the bus.
-        dischargeable_kwh: What its battery can still deliver to the bus.
+        chargeable_kwh: What its battery can still take from the bus ([P1] eq.
+            15d).
+        dischargeable_kwh: What its battery can still deliver to the bus ([P1] eq.
+            15c).
     """
 
     def __init__(
@@ -89,6 +96,7 @@ def net_position(
         if quantity <= 1e-9:
             continue
         price += rng.uniform(-1, 1) * market.bid_jitter * spread
+        # Clipped to [p_min, p_max] ([P1] eq. 2, §3.2.3)
         price = min(market.max_price, max(market.min_price, price))
         out[pid] = (is_buy, price, quantity, (partners or {}).get(pid))
     return out

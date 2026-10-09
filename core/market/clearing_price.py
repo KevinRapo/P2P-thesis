@@ -38,7 +38,7 @@ class BasePricing(Protocol):
 # The mechanisms
 # --------------------------------------------------------------------------------------
 class AveragePricing:
-    """Average of bid and ask, [P1] (9)."""
+    """Average of bid and ask ([P1] eq. 9)."""
 
     def calculate_price(
         self, buy_order: Order, sell_order: Order, reference_price: float
@@ -47,7 +47,7 @@ class AveragePricing:
 
 
 class BuyerPricing:
-    """The buyer's bid ("pay as offer"); favours the seller."""
+    """The buyer's bid ("pay as offer"); favours the seller ([P1] §3.3.3)."""
 
     def calculate_price(
         self, buy_order: Order, sell_order: Order, reference_price: float
@@ -56,7 +56,7 @@ class BuyerPricing:
 
 
 class SellerPricing:
-    """The seller's ask ("pay as bid"); favours the buyer."""
+    """The seller's ask ("pay as bid"); favours the buyer ([P1] §3.3.3)."""
 
     def calculate_price(
         self, buy_order: Order, sell_order: Order, reference_price: float
@@ -80,7 +80,7 @@ class BidAskSpreadPricing:
 
 
 class NashBargainingPricing:
-    """Equal split of the surplus, [P1] (10); the average when there is none."""
+    """Equal split of the surplus ([P1] eq. 10); the average when there is none."""
 
     def calculate_price(
         self, buy_order: Order, sell_order: Order, reference_price: float
@@ -92,8 +92,8 @@ class NashBargainingPricing:
 
 
 class ProportionalSurplusPricing:
-    """Surplus split by each side's distance from the reference price, [P1] (11)
-    (reconstructed); the average when the distances say nothing."""
+    """Surplus split by each side's distance from the reference price ([P1] eq. 11,
+    reconstructed); the average when the distances say nothing."""
 
     def calculate_price(
         self, buy_order: Order, sell_order: Order, reference_price: float

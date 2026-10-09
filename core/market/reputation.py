@@ -1,7 +1,8 @@
 """Reputation system for tracking agent behavior in the Local Energy Market.
 
 This module implements a decentralized reputation system that evaluates agent
-reliability, price fairness, and grid contribution based on market outcomes.
+reliability, price fairness, and grid contribution based on market outcomes
+([P1] §3.3.4, eq. 12): r_i = w_rel·δ_rel + w_fair·δ_fair + w_grid·δ_grid.
 """
 
 from __future__ import annotations
@@ -35,9 +36,9 @@ class ReputationHandler:
         """Initialize the reputation system.
 
         Args:
-            reliability_weight: Weight for reliability in overall score
-            fairness_weight: Weight for price fairness in overall score
-            grid_weight: Weight for grid contribution in overall score
+            reliability_weight: w_rel in [P1] eq. 12 (the paper gives no value)
+            fairness_weight: w_fair in [P1] eq. 12 (the paper gives no value)
+            grid_weight: w_grid in [P1] eq. 12 (the paper gives no value)
         """
         self.reliability_weight = reliability_weight
         self.fairness_weight = fairness_weight
@@ -62,7 +63,7 @@ class ReputationHandler:
             raise ValueError(f"Weights must sum to 1.0. Current value: <reliability_weight = {self.reliability_weight}, fairness_weight = {self.fairness_weight}, grid_weight = {self.grid_weight}>.")
 
     def reset(self, seed: int = None) -> float:
-        """Generate initial reputation score for an agent.
+        """Generate initial reputation score for an agent (random; not in [P1]).
 
         Args:
             seed: Optional random seed for reproducible reputation initialization
@@ -81,6 +82,9 @@ class ReputationHandler:
                           time_of_day: float,
                           dso_id: str = "DSO") -> float:
         """Update reputation metrics for an agent based on matching results.
+
+        Blends the old score with the new one by time of day: the decay of [P1]
+        §3.3.4, whose factor the paper does not give.
 
         Args:
             agent: DERAgent object
@@ -129,21 +133,21 @@ class ReputationHandler:
         if not matching_result.trades:
             return agent.reputation
 
-        # STEP 1. Reliability score
+        # STEP 1. Reliability score: δ_rel ([P1] eq. 12)
         agent_trades = [t for t in matching_result.trades if t.buyer_id == agent.id or t.seller_id == agent.id]
         agent_unmatched = [o for o in matching_result.unmatched_orders if o.agent_id == agent.id]
 
         # Higher reliability if more orders were matched
         reliability = len(agent_trades) / (len(agent_trades) + len(agent_unmatched)) if (agent_trades or agent_unmatched) else self._neutral
 
-        # STEP 2. Price fairness
+        # STEP 2. Price fairness: δ_fair ([P1] eq. 12)
         if agent_trades:
             price_deviations = [abs(t.price - matching_result.clearing_price) / matching_result.clearing_price for t in agent_trades if matching_result.clearing_price > 0]
             fairness = 1.0 - min(1.0, np.mean(price_deviations) if price_deviations else 0.0)
         else:
             fairness = self._neutral
 
-        # STEP 3. Grid contribution
+        # STEP 3. Grid contribution: δ_grid ([P1] eq. 12)
         if agent_trades:
             grid_contributions = []
 
@@ -162,7 +166,7 @@ class ReputationHandler:
         else:
             grid_contribution = self._neutral
 
-        # Calculate overall score with weights
+        # Calculate overall score with weights ([P1] eq. 12)
         overall_score = (self.reliability_weight * reliability) + (self.fairness_weight * fairness) + (self.grid_weight * grid_contribution)
 
         return max(0.0, min(1.0, overall_score))
@@ -172,7 +176,8 @@ class ReputationHandler:
                                trade: Trade,
                                grid_balance: float,
                                dso_id: str) -> float:
-        """Calculate trade's impact on grid stability.
+        """Calculate trade's impact on grid stability (the min(q / |B|, 1) form of
+        B_impact, [P1] eq. 8h, on the grid balance of [P1] eq. 7).
 
         This method evaluates how a trade impacts grid stability based on the current grid state.
         - Positive impact: Agent helps balance the grid (sells during shortage, buys during excess)

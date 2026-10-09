@@ -159,7 +159,9 @@ class Participant:
         self, candidates: Sequence[str], distance_km: Callable[[str], float]
     ) -> Optional[str]:
         """The rule-based preferred partner ([P1] §3.4, phase 2 of §3.9): the
-        candidate at the shortest grid distance. ``None`` when there is none.
+        candidate at the shortest grid distance d_ij ([P1] §3.5.1). [P1] scores
+        reputation and distance together; distance alone here, as reputation
+        ([P1] eq. 12) is not updated yet. ``None`` when there is none.
 
         Args:
             candidates: Participants it could name.
@@ -179,14 +181,16 @@ class Participant:
         """
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
         sold = sum(t.quantity for t in trades if t.seller_id == self.id)
+        # [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy)
         profit = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
         profit -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
         g, d = self.generation_kwh[step], self.demand_kwh[step]
-        balance = (g - d) + (bought - sold)
+        balance = (g - d) + (bought - sold)  # [P1] eq. 13
         b = self.battery
+        # [P1] eq. 16: a surplus charges the battery, a deficit discharges it
         charge = b.charge(balance) if b and balance > 0 else 0.0
         discharge = b.discharge(-balance) if b and balance < 0 else 0.0
-        self.profit += profit
+        self.profit += profit  # profit_{t+1} = profit_t + ... ([P1] eq. 14)
         return ParticipantOutcome(
             participant_id=self.id,
             generation_kwh=g,
@@ -207,7 +211,7 @@ class Participant:
     ) -> ParticipantInjection:
         """Its net power at its bus for the power flow, from what it physically
         did (never from its trades): generation and discharge flow in, demand and
-        charge flow out."""
+        charge flow out. Replaces the trade-path flows of [P1] §3.5.3."""
         production = (outcome.generation_kwh + outcome.discharge_kwh) / step_hours
         consumption = (outcome.demand_kwh + outcome.charge_kwh) / step_hours
         return ParticipantInjection(

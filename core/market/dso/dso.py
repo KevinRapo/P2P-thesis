@@ -24,8 +24,9 @@ class Dso:
     """The DSO of one market day.
 
     Args:
-        feed_in_tariff: p_FiT, what the DSO pays per kWh it buys.
-        utility_price: p_utility, what the DSO charges per kWh it sells.
+        feed_in_tariff: p_FiT, what the DSO pays per kWh it buys ([P1] §3.3.1).
+        utility_price: p_utility, what the DSO charges per kWh it sells ([P1]
+            §3.3.1).
         id: The DSO's ID in trades and partner preferences.
     """
 
@@ -38,7 +39,7 @@ class Dso:
 
     def market_price(self) -> float:
         """The midpoint of p_FiT and p_utility: the reference price before any
-        peer-to-peer trade (the original's ``get_market_price``)."""
+        peer-to-peer trade (the original's ``get_market_price``; not in [P1])."""
         return (self.feed_in_tariff + self.utility_price) / 2
 
     def clear(self, orders: Sequence[Order]) -> tuple[Trade, ...]:

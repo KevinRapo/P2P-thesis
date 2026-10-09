@@ -133,7 +133,8 @@ class SimBenchGrid:
 
     # --- Distances -------------------------------------------------------------------
     def electrical_distance(self, bus_a: str, bus_b: str) -> float:
-        """Line length in km between two buses (transformers count 0)."""
+        """Line length in km between two buses (transformers count 0): the
+        shortest-path electrical distance d_ij of [P1] §3.5.1."""
         import networkx as nx
 
         if self._net is None:

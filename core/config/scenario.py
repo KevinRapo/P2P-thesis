@@ -42,7 +42,8 @@ class GridSetup:
 # --------------------------------------------------------------------------------------
 @dataclass
 class BatterySetup:
-    """A participant's battery ([P1] eq. 16)."""
+    """A participant's battery ([P1] eq. 16): C_nom (``capacity_kwh``), SoC_min,
+    SoC_max, η_charge, η_discharge. ``max_power_kw`` is not in eq. 16."""
 
     capacity_kwh: float
     min_soc: float = 0.1
@@ -78,20 +79,22 @@ class MarketSetup:
     """Market rules ([P1] §3.3) and how participants bid.
 
     Attributes:
-        mechanism: Pricing mechanism (``core/market/clearing_price.py``).
-        min_price: Lowest order price.
-        max_price: Highest order price.
-        min_quantity: Smallest order quantity (kWh).
-        max_quantity: Largest order quantity (kWh).
+        mechanism: Pricing mechanism (``core/market/clearing_price.py``, [P1]
+            §3.3.3).
+        min_price: Lowest order price, p_min ([P1] eq. 2).
+        max_price: Highest order price, p_max ([P1] eq. 2).
+        min_quantity: Smallest order quantity (kWh), q_min ([P1] eq. 2).
+        max_quantity: Largest order quantity (kWh), q_max ([P1] eq. 2).
         partner_preference: Participants name their nearest counterpart as
-            preferred partner (stage 1 of the clearing).
+            preferred partner β ([P1] eq. 2; stage 1 of the clearing, §3.3.2).
         bid_margin: Where participants bid between the DSO's tariffs: sellers ask
             ``FiT + margin · spread``, buyers bid ``utility − margin · spread``.
             Below 0.5 bids and asks overlap and peers trade.
         bid_jitter: Random spread of the prices around that, as a share of the
             tariff spread, so the order book is not flat.
         seed: Seed of the jitter.
-        ledger_difficulty: Proof-of-work difficulty of the trade ledger (0: off).
+        ledger_difficulty: Proof-of-work difficulty of the trade ledger (0: off;
+            [P1] §3.3.4).
     """
 
     mechanism: str = "average"
@@ -121,7 +124,8 @@ class MarketSetup:
 
 @dataclass
 class DsoSetup:
-    """DSO tariffs and grid fees ([P1] §3.3.1)."""
+    """DSO tariffs and grid fees ([P1] §3.3.1): p_FiT, p_utility and the fee
+    factors f_* of [P1] eq. 8 (fees not charged yet)."""
 
     feed_in_tariff: float = 0.08
     utility_price: float = 0.30
