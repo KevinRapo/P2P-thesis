@@ -46,7 +46,9 @@ def load(path: Path) -> Scenario:
 
 
 def save(scenario: Scenario, path: Path) -> None:
-    """Write ``scenario`` to ``path``."""
+    """Write ``scenario`` to ``path``, with Unix line endings on every platform so a
+    saved scenario does not show as changed in git after each save on Windows."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(scenario), indent=2), encoding="utf-8")
+    text = json.dumps(asdict(scenario), indent=2)
+    path.write_text(text, encoding="utf-8", newline="\n")

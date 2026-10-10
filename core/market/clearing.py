@@ -3,7 +3,7 @@
 Each stage takes the orders still open and returns its trades and the orders left
 over, so the Studio can show the market after every stage:
 
-    1  preferences    mutually preferred partners trade first
+    1  preferences    mutually preferred partners trade first, if bid >= ask
     2  double auction bids from the highest price down, asks from the lowest up;
                       every pair with bid >= ask trades
     3  DSO            the DSO clears the rest (``Dso.clear``,
@@ -109,7 +109,8 @@ def _open(orders: Sequence[Order], rules: ClearingRules) -> tuple[Order, ...]:
 def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
     """Stage 1 ([P1] §3.3.2; PreferenceMatch in Algorithm 1): pairs that named each
     other as preferred partner (β, [P1] eq. 2) trade first, at the mechanism's
-    price, whatever their prices. Orders that prefer the DSO wait for stage 3."""
+    price, when the bid reaches the ask (as the original's
+    ``validate_grid_constraints``). Orders that prefer the DSO wait for stage 3."""
     work = [replace(o) for o in orders]
     pricing = ClearingMechanism(rules.mechanism).get_instance()
     trades = []
@@ -119,6 +120,8 @@ def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
             continue
         sell = by_agent.get(buy.partner_id)
         if sell is None or sell.is_buy or sell.partner_id != buy.agent_id:
+            continue
+        if buy.price < sell.price:
             continue
         quantity = min(buy.quantity, sell.quantity)
         if quantity <= rules.threshold_kwh:
