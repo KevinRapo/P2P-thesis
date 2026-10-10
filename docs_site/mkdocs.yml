@@ -68,6 +68,7 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - admonition
+  - pymdownx.details
   - footnotes
   - toc:
       permalink: true
@@ -129,6 +130,7 @@ nav:
       - Methodology: marlem/methodology.md
   - Validation:
       - Market layer: validation/market.md
+      - The two papers: validation/papers.md
   - SimBench:
       - simbench/README.md
       - Network catalogue: simbench/networks.md
