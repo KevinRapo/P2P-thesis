@@ -2,7 +2,8 @@
 
 The network's own elements follow their SimBench profiles, except the ones the
 participants own: those are switched off and replaced by each participant's net
-injection at its bus (what it physically did in the step, never its trades).
+injection at its bus (what it physically did in the step, never its trades). It
+also gives the market the way between two buses: distance, lines and zones.
 Ported from the refactor branch's step-time model.
 """
 
@@ -15,6 +16,7 @@ from core.grid import simbench
 from core.grid.contract import (
     GridAssessment,
     GridLimits,
+    GridPath,
     NetworkRef,
     ParticipantInjection,
 )
@@ -45,12 +47,16 @@ class SimBenchGrid:
         self._owned_rows: dict[str, list[int]] = {}
         self._static: dict[tuple[str, str], Any] = {}
         self._loads: dict[str, int] = {}
+        self._graph: Any = None
+        self._zones: dict[int, str] = {}
 
     # --- Preparing the network -------------------------------------------------------
     def reset(self) -> None:
         """Load a fresh copy of the network for the configured day."""
         net = simbench._working_copy(self.ref)
         self._net = net
+        self._graph = None
+        self._zones = {}
         self._bus_index = {name: i for i, name in simbench._bus_ids(net).items()}
         self._loads = {}
         wanted = {e for ids in self.owned.values() for e in ids}
@@ -131,29 +137,78 @@ class SimBenchGrid:
             return simbench._not_converged(step, [])
         return simbench._assessment(net, step, self.setup.step_hours, [], self.limits)
 
-    # --- Distances -------------------------------------------------------------------
+    # --- Distances, paths and zones -------------------------------------------------
     def electrical_distance(self, bus_a: str, bus_b: str) -> float:
         """Line length in km between two buses (transformers count 0): the
         shortest-path electrical distance d_ij of [P1] §3.5.1."""
+        return self.path(bus_a, bus_b).distance_km
+
+    def path(self, bus_a: str, bus_b: str) -> GridPath:
+        """The shortest way between two buses along the lines: its length d_ij
+        ([P1] §3.5.1), the lines on it (for the congestion of [P1] eq. 8a) and the
+        zone of each end ([P1] §3.5.4, for the zone bonus of eq. 8e)."""
+        import networkx as nx
+
+        graph = self._topology()
+        a, b = self._bus_index[bus_a], self._bus_index[bus_b]
+        nodes = nx.shortest_path(graph, a, b, weight="weight")
+        lines = tuple(
+            graph.edges[u, v]["line"]
+            for u, v in zip(nodes, nodes[1:])
+            if graph.edges[u, v]["line"]
+        )
+        km = sum(graph.edges[u, v]["weight"] for u, v in zip(nodes, nodes[1:]))
+        return GridPath(float(km), lines, self._zones[a], self._zones[b])
+
+    def _topology(self) -> Any:
+        """The network as a weighted graph (built once per reset): lines weigh
+        their length, transformers and bus-to-bus switches 0. Also fills the zones."""
         import networkx as nx
 
         if self._net is None:
             self.reset()
+        if self._graph is not None:
+            return self._graph
+        net = self._net
         graph = nx.Graph()
-        for _, row in self._net.line.iterrows():
-            graph.add_edge(int(row.from_bus), int(row.to_bus), weight=row.length_km)
-        for _, row in self._net.trafo.iterrows():
-            graph.add_edge(int(row.hv_bus), int(row.lv_bus), weight=0.0)
-        for _, row in self._net.switch[self._net.switch.et == "b"].iterrows():
-            graph.add_edge(int(row.bus), int(row.element), weight=0.0)
-        return float(
-            nx.shortest_path_length(
-                graph,
-                self._bus_index[bus_a],
-                self._bus_index[bus_b],
-                weight="weight",
+        graph.add_nodes_from(int(i) for i in net.bus.index)
+        for i, row in net.line.iterrows():
+            graph.add_edge(
+                int(row.from_bus),
+                int(row.to_bus),
+                weight=float(row.length_km),
+                line=simbench._branch_name(net.line, i, "line"),
             )
-        )
+        for _, row in net.switch[net.switch.et == "b"].iterrows():
+            graph.add_edge(int(row.bus), int(row.element), weight=0.0, line="")
+        self._zones = self._feeders(graph)
+        for _, row in net.trafo.iterrows():
+            graph.add_edge(int(row.hv_bus), int(row.lv_bus), weight=0.0, line="")
+        self._graph = graph
+        return graph
+
+    def _feeders(self, graph: Any) -> dict[int, str]:
+        """Each bus's zone: the feeder it hangs on ([P1] §3.5.4 leaves zones open).
+        Without the transformers, every bus is reached from the nearest
+        transformer's low-voltage bus (or the external grid); the first bus after
+        it names the feeder. The low-voltage busbar itself is its own zone."""
+        import networkx as nx
+
+        net = self._net
+        names = simbench._bus_ids(net)
+        roots = {int(b) for b in net.trafo.lv_bus} or {int(b) for b in net.ext_grid.bus}
+        roots &= set(graph.nodes)
+        if not roots:
+            return {int(b): "" for b in graph.nodes}
+        _, paths = nx.multi_source_dijkstra(graph, roots, weight="weight")
+        zones = {}
+        for bus in graph.nodes:
+            way = paths.get(bus)
+            if way is None:
+                zones[bus] = names[bus]
+            else:
+                zones[bus] = names[way[1]] if len(way) > 1 else names[way[0]]
+        return zones
 
 
 def _element_id(row: Any, table: str, i: Any) -> str:

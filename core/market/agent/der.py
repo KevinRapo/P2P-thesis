@@ -5,7 +5,10 @@
     profiles      G_t and D_t from the network elements it took over
     feasibility   eq. 15a-b: the most it may sell or buy this step
     partner       the rule-based preferred partner (§3.4, phase 2 of §3.9)
-    settlement    eq. 13 (balance), eq. 14 (profit), the battery (eq. 16)
+    settlement    eq. 13 (balance), eq. 14 (profit, less its grid fees), the
+                  battery (eq. 16)
+    reputation    its r_i, as the reputation module last set it (eq. 12, §3.3.4;
+                  ``core/market/reputation.py``)
     injection     its power at its bus, for the power flow
 
 The market decides the trades; the participant turns them into what it physically
@@ -37,7 +40,8 @@ class ParticipantOutcome:
         external_kwh: Energy no trade covers: + exported, − imported.
         soc_kwh: Battery energy after the step (``None``: no battery).
         balance_kwh: Eq. 13: (G − D) + (bought − sold).
-        profit: Eq. 14 for this step: revenue − cost of its trades.
+        fees: Grid fees it paid this step (eq. 8; its share of each trade's).
+        profit: Eq. 14 for this step: revenue − cost of its trades − fees.
     """
 
     participant_id: str
@@ -50,6 +54,7 @@ class ParticipantOutcome:
     external_kwh: float
     soc_kwh: Optional[float]
     balance_kwh: float
+    fees: float
     profit: float
 
 
@@ -156,19 +161,36 @@ class Participant:
 
     # --- Partner choice --------------------------------------------------------------
     def choose_partner(
-        self, candidates: Sequence[str], distance_km: Callable[[str], float]
+        self,
+        candidates: Sequence[str],
+        distance_km: Callable[[str], float],
+        reputation: Mapping[str, float],
+        reputation_weight: float,
     ) -> Optional[str]:
         """The rule-based preferred partner ([P1] §3.4, phase 2 of §3.9): the
-        candidate at the shortest grid distance d_ij ([P1] §3.5.1). [P1] scores
-        reputation and distance together; distance alone here, as reputation
-        ([P1] eq. 12) is not updated yet. ``None`` when there is none.
+        candidate with the best weighted score of high reputation (eq. 12) and
+        short grid distance d_ij (§3.5.1). Closeness runs from 1 for the nearest
+        candidate to 0 for the farthest; ties go to the nearer one. ``None`` when
+        there is no candidate.
 
         Args:
             candidates: Participants it could name.
             distance_km: Grid distance from this participant to a candidate.
+            reputation: Each candidate's reputation.
+            reputation_weight: Weight of reputation against closeness, 0 to 1.
         """
         others = [c for c in candidates if c != self.id]
-        return min(others, key=distance_km) if others else None
+        if not others:
+            return None
+        km = {c: distance_km(c) for c in others}
+        near, far = min(km.values()), max(km.values())
+
+        def score(c: str) -> tuple[float, float]:
+            closeness = (far - km[c]) / (far - near) if far > near else 1.0
+            weighted = reputation_weight * reputation.get(c, 0.5)
+            return weighted + (1 - reputation_weight) * closeness, -km[c]
+
+        return max(others, key=score)
 
     # --- Settlement (eq. 13, 14, 16) -------------------------------------------------
     def settle(self, step: int, trades: Sequence[Trade]) -> ParticipantOutcome:
@@ -177,13 +199,17 @@ class Participant:
         After its trades it has ``G − D + bought − sold`` left at its bus (eq. 13):
         a surplus charges its battery, a deficit discharges it (eq. 16), and what
         the battery cannot take or give is exchanged with the upstream grid
-        untraded. The step's profit adds to the running profit (eq. 14).
+        untraded. The step's profit, less the grid fees it pays (eq. 8), adds to
+        the running profit (eq. 14).
         """
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
         sold = sum(t.quantity for t in trades if t.seller_id == self.id)
-        # [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy)
+        fees = sum(t.buyer_fee for t in trades if t.buyer_id == self.id)
+        fees += sum(t.seller_fee for t in trades if t.seller_id == self.id)
+        # [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy), less the fees
         profit = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
         profit -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
+        profit -= fees
         g, d = self.generation_kwh[step], self.demand_kwh[step]
         balance = (g - d) + (bought - sold)  # [P1] eq. 13
         b = self.battery
@@ -202,6 +228,7 @@ class Participant:
             external_kwh=balance - charge + discharge,
             soc_kwh=b.energy_kwh if b else None,
             balance_kwh=balance,
+            fees=fees,
             profit=profit,
         )
 

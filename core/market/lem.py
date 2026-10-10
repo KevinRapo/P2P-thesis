@@ -9,16 +9,21 @@ the market only calls them in order:
 
     1  validate   orders limited to the market bounds and to each participant's
                   eq. 15a-b (``Participant.max_sell_kwh``, ``max_buy_kwh``)
-    2  orders     intents become orders; partners chosen if preferences are on
-                  (``Participant.choose_partner``)
+    2  orders     intents become orders; partners chosen by reputation and
+                  distance if preferences are on (``Participant.choose_partner``)
     3  clear      stage 1 preferences, stage 2 double auction, stage 3 DSO
-                  (§3.3.2, Algorithm 1; ``core/market/clearing.py``, ``Dso.clear``)
-    4  settle     each participant: balance (eq. 13), profit (eq. 14), battery
-                  (eq. 16) (``Participant.settle``)
+                  (§3.3.2, Algorithm 1; ``core/market/clearing.py``, ``Dso.clear``);
+                  the DSO gives every trade its distance, loss (eq. 18) and fee
+                  (eq. 8) (``Dso.assess``)
+    4  settle     each participant: balance (eq. 13), profit less fees (eq. 14),
+                  battery (eq. 16) (``Participant.settle``); the DSO: its balance
+                  (eq. 7) and fees (``Dso.settle``)
     4' grid       what each participant physically did -> one power flow
                   (``Participant.injection``; replaces the graph model of §3.5.3)
-    6  advance    clearing price, ledger block (§3.3.4), clock; reputation
-                  (eq. 12) not updated yet
+    6  advance    reputation (eq. 12 with its decay;
+                  ``ReputationHandler.update_reputation``), clearing price, ledger
+                  block (§3.3.4), the DSO sees the power flow (``Dso.observe``),
+                  clock
 
 Phases 5 (reward and KPIs) and 7 (observation) of the paper are learning only.
 
@@ -29,12 +34,12 @@ A step can run at once (``step``) or one stage at a time (``start_step``, then
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Mapping, Optional
 
 from core.config.scenario import BatterySetup, Scenario
 from core.grid import simbench
-from core.grid.contract import GridAssessment, NetworkRef
+from core.grid.contract import GridAssessment, GridPath, NetworkRef
 from core.grid.powerflow import SimBenchGrid
 from core.market import bidding, clearing
 from core.market.agent.battery import Battery
@@ -44,8 +49,9 @@ from core.market.agent.der import (
     profiles_from_elements,
 )
 from core.market.clearing import ClearingRules, StageResult
-from core.market.dso.dso import DSO_ID, Dso
+from core.market.dso.dso import DSO_ID, Dso, DsoOutcome
 from core.market.order import Order, Trade
+from core.market.reputation import ReputationHandler, ReputationScore
 from core.market.validation import Validator
 
 
@@ -113,6 +119,12 @@ class PendingStep:
         """Every trade of the stages run so far."""
         return [t for s in self.stages for t in s.trades]
 
+    @property
+    def grid_balance_kwh(self) -> float:
+        """B_grid before stage 3 ([P1] eq. 20): energy offered minus energy asked
+        (+ excess supply). Trades between peers do not change it."""
+        return _balance(self.orders)
+
 
 @dataclass(frozen=True)
 class StepRecord:
@@ -129,7 +141,10 @@ class StepRecord:
             Algorithm 1.
         grid: The power flow with the participants' injections (in place of the
             grid state update of [P1] §3.5.3).
+        dso: What the DSO did: its balance (eq. 7), revenue and fees.
         notes: What validation changed.
+        reputation: Each participant's reputation update ([P1] eq. 12, §3.3.4):
+            its three components, score and reputation after the step.
     """
 
     step: int
@@ -139,7 +154,9 @@ class StepRecord:
     participants: dict[str, ParticipantOutcome]
     clearing_price: float
     grid: GridAssessment
+    dso: DsoOutcome
     notes: tuple[str, ...] = ()
+    reputation: dict[str, ReputationScore] = field(default_factory=dict)
 
     @property
     def trades(self) -> list[Trade]:
@@ -155,6 +172,26 @@ class StepRecord:
     def dso_kwh(self) -> float:
         """Energy traded with the DSO."""
         return sum(s.volume_kwh for s in self.stages if s.stage == 3)
+
+    @property
+    def grid_balance_kwh(self) -> float:
+        """B_grid before stage 3 ([P1] eq. 20): offered minus asked."""
+        return _balance(self.orders)
+
+    @property
+    def losses_kwh(self) -> float:
+        """Transmission losses of the step's trades ([P1] eq. 18), recorded."""
+        return sum(t.transmission_loss for t in self.trades)
+
+    @property
+    def fees(self) -> float:
+        """Grid fees of the step's trades ([P1] eq. 8), charged or not."""
+        return sum(t.fees for t in self.trades)
+
+
+def _balance(orders: tuple[Order, ...]) -> float:
+    """Energy offered minus energy asked."""
+    return sum(-o.quantity if o.is_buy else o.quantity for o in orders)
 
 
 # --------------------------------------------------------------------------------------
@@ -177,15 +214,33 @@ class LocalEnergyMarket:
             scenario.grid, {p.id: list(p.owns) for p in scenario.participants}
         )
         self.participants: dict[str, Participant] = {}
+        d, m = scenario.dso, scenario.market
         self.dso = Dso(
-            feed_in_tariff=scenario.dso.feed_in_tariff,
-            utility_price=scenario.dso.utility_price,
+            feed_in_tariff=d.feed_in_tariff,
+            utility_price=d.utility_price,
+            fees_charged=d.fees_charged,
+            fee_buyer_share=d.fee_buyer_share,
+            loss_factor=d.loss_factor,
+            congestion_factor=d.congestion_factor,
+            congestion_threshold=d.congestion_threshold,
+            voltage_factor=d.voltage_factor,
+            voltage_threshold=d.voltage_threshold,
+            thermal_threshold=d.thermal_threshold,
+            thermal_cap=d.thermal_cap,
+            imbalance_factor=d.imbalance_factor,
+            zone_factor=d.zone_factor,
+        )
+        self.reputation_handler = ReputationHandler(
+            reliability_weight=m.reliability_weight,
+            fairness_weight=m.fairness_weight,
+            grid_weight=m.grid_weight,
+            decay=m.reputation_decay,
         )
         self.history: list[StepRecord] = []
         self.pending: Optional[PendingStep] = None
         self.ledger: Optional[Validator] = None
         self.clearing_price = 0.0
-        self._distance: dict[tuple[str, str], float] = {}
+        self._paths: dict[tuple[str, str], GridPath] = {}
 
     # --- Running the day -------------------------------------------------------------
     @property
@@ -205,9 +260,10 @@ class LocalEnergyMarket:
 
     def reset(self) -> None:
         """Build the participants from their profiles (batteries at their initial
-        state of charge), prepare the grid and go back to step 0."""
+        state of charge), the DSO, prepare the grid and go back to step 0."""
         g = self.scenario.grid
         self.participants = self._build_participants()
+        self.dso.reset()
         difficulty = self.scenario.market.ledger_difficulty
         self.ledger = Validator(difficulty) if difficulty > 0 else None
         self.clearing_price = self.dso.market_price()
@@ -215,7 +271,7 @@ class LocalEnergyMarket:
             g, {p.id: list(p.owns) for p in self.scenario.participants}
         )
         self.grid.reset()
-        self._distance = {}
+        self._paths = {}
         self.history = []
         self.pending = None
 
@@ -251,16 +307,19 @@ class LocalEnergyMarket:
             p.stages.append(result)
             return result
         outcomes = self._settle(p.inputs, p.trades)
+        clearing_price = self._clearing_price(p.trades)
         record = StepRecord(
             step=p.step,
             inputs=p.inputs,
             orders=p.orders,
             stages=tuple(p.stages),
             participants=outcomes,
-            clearing_price=self._clearing_price(p.trades),
+            clearing_price=clearing_price,
             grid=self._assess_grid(p.step, outcomes),
+            dso=self.dso.settle(p.trades),
             notes=tuple(p.notes),
         )
+        record = self._update_reputation(record)
         self._advance(record)
         return record
 
@@ -363,27 +422,33 @@ class LocalEnergyMarket:
 
     def _with_partners(self, intents: dict[str, OrderIntent]) -> dict[str, OrderIntent]:
         """Each participant names a preferred partner β ([P1] eq. 2) on the other
-        side of the market (``Participant.choose_partner``, [P1] §3.4)."""
+        side of the market, by reputation and distance
+        (``Participant.choose_partner``, [P1] §3.4)."""
+        reputation = {pid: q.reputation for pid, q in self.participants.items()}
+        weight = self.scenario.market.partner_reputation_weight
         out = {}
         for pid, i in intents.items():
             others = [
                 o.participant_id for o in intents.values() if o.is_buy != i.is_buy
             ]
             partner = self.participants[pid].choose_partner(
-                others, lambda other: self._km(pid, other)
+                others,
+                lambda other: self._path(pid, other).distance_km,
+                reputation,
+                weight,
             )
             out[pid] = OrderIntent(pid, i.is_buy, i.price, i.quantity_kwh, partner)
         return out
 
-    def _km(self, a: str, b: str) -> float:
-        """Line length between two participants' buses (cached): the electrical
-        distance d_ij ([P1] §3.5.1)."""
+    def _path(self, a: str, b: str) -> GridPath:
+        """The grid path between two participants' buses (cached): distance d_ij
+        ([P1] §3.5.1), lines and zones."""
         key = (a, b) if a < b else (b, a)
-        if key not in self._distance:
-            self._distance[key] = self.grid.electrical_distance(
-                self.participants[a].bus, self.participants[b].bus
+        if key not in self._paths:
+            self._paths[key] = self.grid.path(
+                self.participants[key[0]].bus, self.participants[key[1]].bus
             )
-        return self._distance[key]
+        return self._paths[key]
 
     # --- Phases 1 and 2: validate, orders --------------------------------------------
     def _validate(
@@ -434,12 +499,15 @@ class LocalEnergyMarket:
     # --- Phase 3: clearing -----------------------------------------------------------
     def _rules(self, p: PendingStep) -> ClearingRules:
         """Phase 3 ([P1] §3.9): what the stages need besides the orders: the
-        mechanism ([P1] §3.3.3), p_ref ([P1] eq. 11) and reputation ([P1] eq. 12)."""
+        mechanism ([P1] §3.3.3), p_ref ([P1] eq. 11), reputation ([P1] eq. 12),
+        the grid paths and the market's balance (for the DSO's fees, eq. 8)."""
         return ClearingRules(
             mechanism=self.scenario.market.mechanism,
             dso=self.dso,
             reference_price=self.clearing_price,
             reputation={pid: q.reputation for pid, q in self.participants.items()},
+            path=self._path,
+            grid_balance_kwh=p.grid_balance_kwh,
         )
 
     def _clearing_price(self, trades: list[Trade]) -> float:
@@ -474,11 +542,25 @@ class LocalEnergyMarket:
         return self.grid.assess(step, injections)
 
     # --- Phase 6: advance ------------------------------------------------------------
+    def _update_reputation(self, record: StepRecord) -> StepRecord:
+        """Phase 6 ([P1] §3.9): every participant's reputation from the step's
+        outcome, by the reputation module (``ReputationHandler.update_reputation``,
+        [P1] eq. 12 and its decay), as the original's ``lem.py`` did; the record
+        with the updates."""
+        updates = {}
+        for pid, participant in self.participants.items():
+            update = self.reputation_handler.update_reputation(participant, record)
+            participant.reputation = update.reputation
+            updates[pid] = update
+        return replace(record, reputation=updates)
+
     def _advance(self, record: StepRecord) -> None:
         """Phase 6 ([P1] §3.9): clearing price, ledger block (ValidateBlock,
-        [P1] §3.3.4), clock. The participants added their profit when they settled
-        ([P1] eq. 14); reputation ([P1] eq. 12) stays at its start value for now."""
+        [P1] §3.3.4), the DSO sees the power flow for the next step's fees,
+        clock. The participants added their profit when they settled ([P1] eq.
+        14); their reputation is updated just before (``_update_reputation``)."""
         self.clearing_price = record.clearing_price
+        self.dso.observe(record.grid)
         if self.ledger is not None:
             for t in record.trades:
                 self.ledger.add_trade(t)
@@ -489,10 +571,12 @@ class LocalEnergyMarket:
 
 __all__ = [
     "DSO_ID",
+    "DsoOutcome",
     "LocalEnergyMarket",
     "OrderIntent",
     "ParticipantOutcome",
     "PendingStep",
+    "ReputationScore",
     "StepInputs",
     "StepRecord",
 ]

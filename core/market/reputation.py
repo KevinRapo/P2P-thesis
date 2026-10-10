@@ -3,11 +3,29 @@
 This module implements a decentralized reputation system that evaluates agent
 reliability, price fairness, and grid contribution based on market outcomes
 ([P1] §3.3.4, eq. 12): r_i = w_rel·δ_rel + w_fair·δ_fair + w_grid·δ_grid.
+
+The original's ``ReputationHandler``, kept as it was, with every reputation dial
+here (the weights and the decay). It now reads a step's ``StepRecord`` instead of
+the original's ``MatchingResult``. Where the original disagreed with [P1] it is
+changed, each marked "[P1]" below:
+
+    decay        a constant factor (the original blended by the time of day, so
+                 late in the day new behaviour counted almost nothing)
+    reliability  matched to total order VOLUME, matched by peers (the original
+                 counted trades against unmatched orders, which the DSO always
+                 clears, so it was always 1)
+    fairness     the agent's peer trades against the step's peer clearing price
+                 (the original's clearing price included the DSO's trades)
+    grid         on the market's balance B_grid of the step (the original's
+                 balance stayed 0, so this part was always neutral); a trade with
+                 the DSO is neutral, 0 on the -1 to 1 scale (the original returned
+                 0.5 there)
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, List, Tuple
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
 
@@ -15,11 +33,23 @@ from .order import Trade
 
 if TYPE_CHECKING:
     from .agent.der import Participant as DERAgent
+    from .lem import StepRecord
 
-# The original's MatchingResult (trades, unmatched_orders, clearing_price,
-# grid_balance) left with matching.py. Rebuilding reputation ([P1] eq. 12) on the
-# StepRecord is still to do; until then this module is the original's logic.
-MatchingResult = Any
+
+@dataclass(frozen=True)
+class ReputationScore:
+    """One agent's reputation update for one step: the three components of [P1]
+    eq. 12, their weighted sum, and the reputation after the decay blend.
+
+    Not in the original (it returned only the new reputation); kept so the
+    notebook can show why a reputation moved.
+    """
+
+    reliability: float
+    fairness: float
+    grid: float
+    score: float
+    reputation: float
 
 
 class ReputationHandler:
@@ -29,20 +59,26 @@ class ReputationHandler:
     evaluating agents on reliability, price fairness, and grid contribution.
     """
 
-    def __init__(self,
-                 reliability_weight: float = 0.3,
-                 fairness_weight: float = 0.2,
-                 grid_weight: float = 0.5) -> None:
+    def __init__(
+        self,
+        reliability_weight: float = 0.3,
+        fairness_weight: float = 0.2,
+        grid_weight: float = 0.5,
+        decay: float = 0.8,
+    ) -> None:
         """Initialize the reputation system.
 
         Args:
             reliability_weight: w_rel in [P1] eq. 12 (the paper gives no value)
             fairness_weight: w_fair in [P1] eq. 12 (the paper gives no value)
             grid_weight: w_grid in [P1] eq. 12 (the paper gives no value)
+            decay: Share of the old reputation kept at each update, the decay
+                factor of [P1] §3.3.4 (the paper gives no value)
         """
         self.reliability_weight = reliability_weight
         self.fairness_weight = fairness_weight
         self.grid_weight = grid_weight
+        self.decay = decay
         self._neutral = 0.5
 
         # Check initialization
@@ -50,20 +86,27 @@ class ReputationHandler:
 
     def _check_init(self) -> None:
         """Check if the reputation handler is initialized correctly."""
-        if self.reliability_weight < 0.0 or self.reliability_weight > 1.0:
-            raise ValueError(f"Reliability weight must be between 0.0 and 1.0. Current value: <reliability_weight = {self.reliability_weight}>.")
+        for name in ("reliability_weight", "fairness_weight", "grid_weight", "decay"):
+            value = getattr(self, name)
+            if value < 0.0 or value > 1.0:
+                raise ValueError(
+                    f"{name} must be between 0.0 and 1.0. Current value: "
+                    f"<{name} = {value}>."
+                )
 
-        if self.fairness_weight < 0.0 or self.fairness_weight > 1.0:
-            raise ValueError(f"Fairness weight must be between 0.0 and 1.0. Current value: <fairness_weight = {self.fairness_weight}>.")
+        total = self.reliability_weight + self.fairness_weight + self.grid_weight
+        if abs(total - 1.0) > 1e-9:
+            raise ValueError(
+                "Weights must sum to 1.0. Current value: "
+                f"<reliability_weight = {self.reliability_weight}, "
+                f"fairness_weight = {self.fairness_weight}, "
+                f"grid_weight = {self.grid_weight}>."
+            )
 
-        if self.grid_weight < 0.0 or self.grid_weight > 1.0:
-            raise ValueError(f"Grid weight must be between 0.0 and 1.0. Current value: <grid_weight = {self.grid_weight}>.")
-
-        if self.reliability_weight + self.fairness_weight + self.grid_weight != 1.0:
-            raise ValueError(f"Weights must sum to 1.0. Current value: <reliability_weight = {self.reliability_weight}, fairness_weight = {self.fairness_weight}, grid_weight = {self.grid_weight}>.")
-
-    def reset(self, seed: int = None) -> float:
+    def reset(self, seed: Optional[int] = None) -> float:
         """Generate initial reputation score for an agent (random; not in [P1]).
+
+        Not used by ``LocalEnergyMarket``, which starts every agent at 0.5.
 
         Args:
             seed: Optional random seed for reproducible reputation initialization
@@ -71,32 +114,32 @@ class ReputationHandler:
         Returns:
             Initial reputation score between 0.0 and 1.0
         """
-        if seed is not None:
-            np.random.seed(seed)
+        return float(np.random.default_rng(seed).uniform(0.0, 1.0))
 
-        return np.random.uniform(0.0, 1.0)
+    def update_reputation(
+        self, agent: DERAgent, record: StepRecord, dso_id: str = "DSO"
+    ) -> ReputationScore:
+        """Update reputation metrics for an agent based on the step's outcome.
 
-    def update_reputation(self,
-                          agent: DERAgent,
-                          matching_result: MatchingResult,
-                          time_of_day: float,
-                          dso_id: str = "DSO") -> float:
-        """Update reputation metrics for an agent based on matching results.
-
-        Blends the old score with the new one by time of day: the decay of [P1]
-        §3.3.4, whose factor the paper does not give.
+        [P1] §3.3.4: the new score is blended into the old reputation with the
+        decay factor, so recent behaviour weighs more and the past fades:
+        r ← decay · r + (1 − decay) · score.
 
         Args:
             agent: DERAgent object
-            matching_result: Result of the order matching process
-            time_of_day: Current time of day (0-1)
+            record: The step's record (orders, trades, clearing price, balance)
             dso_id: ID of the DSO agent for identifying DSO trades
 
         Returns:
-            Updated reputation score
+            The step's components, score and updated reputation
         """
-        new_reputation = self._calculate_reputation(agent, matching_result, dso_id)
-        return (time_of_day * agent.reputation) + ((1.0 - time_of_day) * new_reputation)
+        reliability, fairness, grid, new_reputation = self._calculate_reputation(
+            agent, record, dso_id
+        )
+        reputation = (self.decay * agent.reputation) + (
+            (1.0 - self.decay) * new_reputation
+        )
+        return ReputationScore(reliability, fairness, grid, new_reputation, reputation)
 
     def get_agent_ranking(self, agents: List[DERAgent]) -> List[Tuple[str, float]]:
         """Get ranked list of agents by overall reputation.
@@ -110,40 +153,58 @@ class ReputationHandler:
         rankings = [(agent.id, agent.reputation) for agent in agents]
         return sorted(rankings, key=lambda x: x[1], reverse=True)
 
-    def _calculate_reputation(self,
-                              agent: DERAgent,
-                              matching_result: MatchingResult,
-                              dso_id: str) -> float:
-        """Calculate reputation metrics for an agent based on matching results.
+    def _calculate_reputation(
+        self, agent: DERAgent, record: StepRecord, dso_id: str
+    ) -> Tuple[float, float, float, float]:
+        """Calculate reputation metrics for an agent based on the step's outcome.
 
         This method calculates reputation considering three key components:
-        1. Reliability - Did the agent's orders get matched successfully?
+        1. Reliability - How much of the agent's order did peers match?
         2. Price fairness - How close were the agent's prices to the market clearing price?
         3. Grid contribution - Did the agent's trades help balance the grid?
 
         Args:
             agent: DERAgent object
-            matching_result: Result of the order matching process
+            record: The step's record
             dso_id: ID of the DSO agent for identifying DSO trades
 
         Returns:
-            Calculated reputation score [0-1]
+            (reliability, fairness, grid contribution, calculated score [0-1])
         """
-        # If there are no trades in the matching result, return existing reputation
-        if not matching_result.trades:
-            return agent.reputation
+        # If there are no trades in the step, the existing reputation stands
+        if not record.trades:
+            return (
+                self._neutral,
+                self._neutral,
+                self._neutral,
+                agent.reputation,
+            )
 
-        # STEP 1. Reliability score: δ_rel ([P1] eq. 12)
-        agent_trades = [t for t in matching_result.trades if t.buyer_id == agent.id or t.seller_id == agent.id]
-        agent_unmatched = [o for o in matching_result.unmatched_orders if o.agent_id == agent.id]
+        agent_trades = [
+            t
+            for t in record.trades
+            if t.buyer_id == agent.id or t.seller_id == agent.id
+        ]
+        agent_orders = [o for o in record.orders if o.agent_id == agent.id]
+        p2p_trades = [
+            t for t in agent_trades if dso_id not in (t.buyer_id, t.seller_id)
+        ]
 
-        # Higher reliability if more orders were matched
-        reliability = len(agent_trades) / (len(agent_trades) + len(agent_unmatched)) if (agent_trades or agent_unmatched) else self._neutral
+        # STEP 1. Reliability score: δ_rel ([P1] eq. 12): matched to total order
+        # volume. [P1]: by volume, and matched by peers, since the DSO clears all.
+        ordered = sum(o.quantity for o in agent_orders)
+        matched = sum(t.quantity for t in p2p_trades)
+        reliability = min(1.0, matched / ordered) if ordered > 0 else self._neutral
 
-        # STEP 2. Price fairness: δ_fair ([P1] eq. 12)
-        if agent_trades:
-            price_deviations = [abs(t.price - matching_result.clearing_price) / matching_result.clearing_price for t in agent_trades if matching_result.clearing_price > 0]
-            fairness = 1.0 - min(1.0, np.mean(price_deviations) if price_deviations else 0.0)
+        # STEP 2. Price fairness: δ_fair ([P1] eq. 12): deviation from the market
+        # clearing price. [P1]: the agent's peer trades, as the clearing price is
+        # the peer trades' (the DSO's tariffs would count as unfair prices).
+        clearing_price = record.clearing_price
+        if p2p_trades and clearing_price > 0:
+            price_deviations = [
+                abs(t.price - clearing_price) / clearing_price for t in p2p_trades
+            ]
+            fairness = 1.0 - min(1.0, float(np.mean(price_deviations)))
         else:
             fairness = self._neutral
 
@@ -152,14 +213,14 @@ class ReputationHandler:
             grid_contributions = []
 
             for trade in agent_trades:
-                # Only consider trades where this agent is directly involved
-                if (trade.buyer_id == agent.id) or (trade.seller_id == agent.id):
-                    # Calculate the impact of this trade on grid stability
-                    impact = self._calculate_grid_impact(agent.id, trade, matching_result.grid_balance, dso_id)
-                    grid_contributions.append(impact)
+                # Calculate the impact of this trade on grid stability
+                impact = self._calculate_grid_impact(
+                    agent.id, trade, record.grid_balance_kwh, dso_id
+                )
+                grid_contributions.append(impact)
 
             # Average the contributions across all trades
-            grid_contribution = np.mean(grid_contributions) if grid_contributions else 0.0
+            grid_contribution = float(np.mean(grid_contributions))
 
             # Normalize to 0-1 range (since _calculate_grid_impact returns -1 to 1)
             grid_contribution = (grid_contribution + 1) / 2
@@ -167,17 +228,24 @@ class ReputationHandler:
             grid_contribution = self._neutral
 
         # Calculate overall score with weights ([P1] eq. 12)
-        overall_score = (self.reliability_weight * reliability) + (self.fairness_weight * fairness) + (self.grid_weight * grid_contribution)
+        overall_score = (
+            (self.reliability_weight * reliability)
+            + (self.fairness_weight * fairness)
+            + (self.grid_weight * grid_contribution)
+        )
 
-        return max(0.0, min(1.0, overall_score))
+        return (
+            reliability,
+            fairness,
+            grid_contribution,
+            max(0.0, min(1.0, overall_score)),
+        )
 
-    def _calculate_grid_impact(self,
-                               agent_id: str,
-                               trade: Trade,
-                               grid_balance: float,
-                               dso_id: str) -> float:
+    def _calculate_grid_impact(
+        self, agent_id: str, trade: Trade, grid_balance: float, dso_id: str
+    ) -> float:
         """Calculate trade's impact on grid stability (the min(q / |B|, 1) form of
-        B_impact, [P1] eq. 8h, on the grid balance of [P1] eq. 7).
+        B_impact, [P1] eq. 8h, on the market's balance B_grid, [P1] eq. 20).
 
         This method evaluates how a trade impacts grid stability based on the current grid state.
         - Positive impact: Agent helps balance the grid (sells during shortage, buys during excess)
@@ -186,7 +254,8 @@ class ReputationHandler:
         Args:
             agent_id: ID of the DERAgent whose reputation is being calculated
             trade: Completed trade
-            grid_balance: Current grid balance (positive = excess supply, negative = shortage)
+            grid_balance: The step's balance B_grid (positive = excess supply,
+                negative = shortage), kWh
             dso_id: ID of the DSO agent for identifying DSO trades
 
         Returns:
@@ -200,11 +269,12 @@ class ReputationHandler:
 
         # For DSO trades, evaluate differently
         if (trade.buyer_id == dso_id) or (trade.seller_id == dso_id):
-            # DSO trades are always stabilizing by definition
-            return self._neutral
+            # DSO trades are neutral: 0 on this -1 to 1 scale (the original
+            # returned 0.5 here, which counted them as helping)
+            return 0.0
 
         # Calculate impact based on grid state and agent's role
-        is_buyer = (trade.buyer_id == agent_id)
+        is_buyer = trade.buyer_id == agent_id
         if grid_balance > 0:  # Excess supply
             if is_buyer:
                 # Buying during excess is good (+)

@@ -202,6 +202,32 @@ class ParticipantInjection:
 
 
 @dataclass(frozen=True)
+class GridPath:
+    """The way between two buses along the lines: what the market needs of a trade's
+    route ([P1] §3.5.1, §3.5.4).
+
+    Attributes:
+        distance_km: Line length along the shortest path, d_ij (transformers and
+            bus-to-bus switches count 0).
+        lines: The lines on that path, by the IDs of
+            ``GridAssessment.line_loading_percent``.
+        zone_a: Zone of the first bus: the feeder it hangs on, named by the first
+            bus after the transformer (or the external grid) on its way there.
+        zone_b: Zone of the second bus.
+    """
+
+    distance_km: float = 0.0
+    lines: tuple[str, ...] = ()
+    zone_a: str = ""
+    zone_b: str = ""
+
+    @property
+    def same_zone(self) -> bool:
+        """Whether both buses hang on the same feeder."""
+        return self.zone_a == self.zone_b
+
+
+@dataclass(frozen=True)
 class GridViolation:
     """One limit violation found by a power flow.
 
@@ -256,6 +282,10 @@ class GridModel(Protocol):
 
     def electrical_distance(self, bus_a: str, bus_b: str) -> float:
         """Distance in km along the lines between two buses."""
+        ...
+
+    def path(self, bus_a: str, bus_b: str) -> GridPath:
+        """The shortest way between two buses: distance, lines and zones."""
         ...
 
     def summary(self) -> NetworkSummary:

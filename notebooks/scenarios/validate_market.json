@@ -76,15 +76,29 @@
     "min_quantity": 0.0,
     "max_quantity": 100.0,
     "partner_preference": true,
+    "partner_reputation_weight": 0.5,
     "bid_margin": 0.3,
     "bid_jitter": 0.1,
     "seed": 0,
-    "ledger_difficulty": 0
+    "ledger_difficulty": 0,
+    "reliability_weight": 0.3,
+    "fairness_weight": 0.2,
+    "grid_weight": 0.5,
+    "reputation_decay": 0.8
   },
   "dso": {
     "feed_in_tariff": 0.08,
     "utility_price": 0.3,
-    "fees_charged": false,
-    "fees": {}
+    "fees_charged": true,
+    "fee_buyer_share": 0.5,
+    "loss_factor": 0.03,
+    "congestion_factor": 0.5,
+    "congestion_threshold": 0.8,
+    "voltage_factor": 0.15,
+    "voltage_threshold": 0.05,
+    "thermal_threshold": 0.2,
+    "thermal_cap": 0.3,
+    "imbalance_factor": 0.15,
+    "zone_factor": 0.15
   }
 }

@@ -1,23 +1,50 @@
-"""The DSO: the market maker of last resort ([P1] §3.3.1).
+"""The DSO: the market maker of last resort and the grid's operator ([P1] §3.3.1).
 
 What belongs to the DSO and nobody else:
 
     tariffs          p_FiT, what it pays for energy it buys, and p_utility, what it
                      charges for energy it sells; p_FiT < p_P2P < p_utility
     market price     the midpoint of the two, the reference before any trade
+    grid             what it saw in the last power flow: the lines' loading
+    losses, fees     eq. 18 and eq. 8 for every trade, and who pays them
     stage 3          it buys every remaining sell at p_FiT and sells every
                      remaining buy at p_utility, so every order clears (§3.3.2)
+    balance          eq. 7, its energy sold minus bought, and its money
 
-Grid fees (eq. 8) and the DSO balance (eq. 7) are not built yet.
+[P1] gives the fee factors no values and F_trans no formula; the choices are in
+``Dso.fees`` and ``Dso.clear``.
 """
 
 from __future__ import annotations
 
-from typing import Sequence
+from dataclasses import dataclass, replace
+from typing import Mapping, Sequence
 
-from core.market.order import Order, Trade
+from core.grid.contract import GridAssessment, GridPath
+from core.market.order import GridFees, Order, Trade
 
 DSO_ID = "DSO"
+
+
+@dataclass(frozen=True)
+class DsoOutcome:
+    """What the DSO did in one step.
+
+    Attributes:
+        bought_kwh: Energy it bought from participants (stage 3).
+        sold_kwh: Energy it sold to participants (stage 3).
+        balance_kwh: Eq. 7 for this step: sold − bought (+ the market imports).
+        energy_revenue: What it was paid for energy minus what it paid.
+        fees: Fees it collected from every trade (0 when not charged).
+        profit: Energy revenue plus fees.
+    """
+
+    bought_kwh: float
+    sold_kwh: float
+    balance_kwh: float
+    energy_revenue: float
+    fees: float
+    profit: float
 
 
 class Dso:
@@ -27,29 +54,190 @@ class Dso:
         feed_in_tariff: p_FiT, what the DSO pays per kWh it buys ([P1] §3.3.1).
         utility_price: p_utility, what the DSO charges per kWh it sells ([P1]
             §3.3.1).
+        fees_charged: Whether the participants pay the fees.
+        fee_buyer_share: Share of a peer-to-peer fee the buyer pays.
+        loss_factor: κ of eq. 18, per km.
+        congestion_factor: f_cong of eq. 8a.
+        congestion_threshold: C_threshold of eq. 8a.
+        voltage_factor: f_volt of eq. 8f, per km.
+        voltage_threshold: V_threshold of eq. 8c.
+        thermal_threshold: T_threshold of eq. 8g.
+        thermal_cap: f_threshold of eq. 8d.
+        imbalance_factor: f_imb of eq. 8b.
+        zone_factor: f_zone of eq. 8e.
         id: The DSO's ID in trades and partner preferences.
     """
 
     def __init__(
-        self, feed_in_tariff: float, utility_price: float, id: str = DSO_ID
+        self,
+        feed_in_tariff: float,
+        utility_price: float,
+        fees_charged: bool = True,
+        fee_buyer_share: float = 0.5,
+        loss_factor: float = 0.03,
+        congestion_factor: float = 0.5,
+        congestion_threshold: float = 0.8,
+        voltage_factor: float = 0.15,
+        voltage_threshold: float = 0.05,
+        thermal_threshold: float = 0.2,
+        thermal_cap: float = 0.3,
+        imbalance_factor: float = 0.15,
+        zone_factor: float = 0.15,
+        id: str = DSO_ID,
     ) -> None:
         self.feed_in_tariff = feed_in_tariff
         self.utility_price = utility_price
+        self.fees_charged = fees_charged
+        self.fee_buyer_share = fee_buyer_share
+        self.loss_factor = loss_factor
+        self.congestion_factor = congestion_factor
+        self.congestion_threshold = congestion_threshold
+        self.voltage_factor = voltage_factor
+        self.voltage_threshold = voltage_threshold
+        self.thermal_threshold = thermal_threshold
+        self.thermal_cap = thermal_cap
+        self.imbalance_factor = imbalance_factor
+        self.zone_factor = zone_factor
         self.id = id
+        self.line_loading_percent: Mapping[str, float] = {}
+        self.balance_kwh = 0.0
+        self.profit = 0.0
+        self.fees = 0.0
 
+    def reset(self) -> None:
+        """Back to the start of the day: nothing seen of the grid, balance 0."""
+        self.line_loading_percent = {}
+        self.balance_kwh = 0.0
+        self.profit = 0.0
+        self.fees = 0.0
+
+    # --- Tariffs ---------------------------------------------------------------------
     def market_price(self) -> float:
         """The midpoint of p_FiT and p_utility: the reference price before any
         peer-to-peer trade (the original's ``get_market_price``; not in [P1])."""
         return (self.feed_in_tariff + self.utility_price) / 2
 
-    def clear(self, orders: Sequence[Order]) -> tuple[Trade, ...]:
+    # --- The grid it operates --------------------------------------------------------
+    def observe(self, grid: GridAssessment) -> None:
+        """Remember the lines' loading of the power flow just run: the congestion
+        the next step's fees see ([P1] §3.5.3, G_{t+1} of Algorithm 1)."""
+        self.line_loading_percent = dict(grid.line_loading_percent)
+
+    def congestion(self, lines: Sequence[str]) -> float:
+        """C_t of a trade ([P1] eq. 8a): the highest loading on its path in the
+        last power flow, 0 to 1. 0 before the first flow or without lines."""
+        loading = [self.line_loading_percent.get(line, 0.0) for line in lines]
+        return min(1.0, max(loading, default=0.0) / 100)
+
+    def transmission_loss(self, distance_km: float, quantity: float) -> float:
+        """[P1] eq. 18: l_ij = d_ij · q_ij · κ."""
+        return distance_km * quantity * self.loss_factor
+
+    # --- Fees (eq. 8) ----------------------------------------------------------------
+    def fees_of(
+        self, quantity: float, price: float, path: GridPath, loss_kwh: float
+    ) -> GridFees:
+        """[P1] eq. 8 for a peer-to-peer trade of ``quantity`` at ``price`` along
+        ``path``. F_trans has no formula in [P1]: here it is the lost energy at the
+        trade price ("the loss ... is included in the DSO fees", §3.5.2). F_imb
+        is 0: eq. 8h gives a balance impact only to trades with the DSO."""
+        value = quantity * price
+        c = self.congestion(path.lines)
+        congestion = 0.0
+        if c > self.congestion_threshold:  # 8a
+            congestion = self.congestion_factor * (c - self.congestion_threshold)
+            congestion *= value
+        thermal = 0.0
+        if c > self.thermal_threshold:  # 8g, 8d
+            f_thermal = (c - self.thermal_threshold) / (1 - self.thermal_threshold)
+            thermal = min(f_thermal, self.thermal_cap) * value
+        v_drop = self.voltage_factor * path.distance_km  # 8f
+        return GridFees(
+            congestion=congestion,
+            transmission=loss_kwh * price,
+            voltage=min(v_drop, self.voltage_threshold) * value,  # 8c
+            thermal=thermal,
+            zone=-self.zone_factor * value if path.same_zone else 0.0,  # 8e
+        )
+
+    def imbalance_fee(self, trade: Trade, grid_balance_kwh: float) -> GridFees:
+        """[P1] eq. 8b with 8h for a trade with the DSO: B_impact = ±min(q / |B|, 1)
+        on the market's balance B (+ excess supply). Charged only when the trade
+        worsens the balance (the DSO buys during excess demand or sells during
+        excess supply); a trade that helps pays nothing, as in the original."""
+        if abs(grid_balance_kwh) < 1e-9:
+            return GridFees()
+        dso_buys = trade.buyer_id == self.id
+        helps = dso_buys == (grid_balance_kwh > 0)
+        if helps:
+            return GridFees()
+        impact = min(trade.quantity / abs(grid_balance_kwh), 1.0)
+        value = trade.quantity * trade.price
+        return GridFees(imbalance=self.imbalance_factor * impact * value)
+
+    def _charged(self, trade: Trade, parts: GridFees) -> Trade:
+        """The trade with its fee, split between who pays it: the buyer's share of
+        a peer-to-peer fee, the participant's whole fee with the DSO. Nothing is
+        paid when the fees are not charged."""
+        total = parts.total
+        if not self.fees_charged:
+            buyer = seller = 0.0
+        elif trade.buyer_id == self.id:
+            buyer, seller = 0.0, total
+        elif trade.seller_id == self.id:
+            buyer, seller = total, 0.0
+        else:
+            buyer = total * self.fee_buyer_share
+            seller = total - buyer
+        return replace(
+            trade, fees=total, fee_parts=parts, buyer_fee=buyer, seller_fee=seller
+        )
+
+    def assess(self, trade: Trade, path: GridPath) -> Trade:
+        """A peer-to-peer trade with its distance d_ij ([P1] §3.5.1), loss l_ij
+        (eq. 18) and fee (eq. 8)."""
+        loss = self.transmission_loss(path.distance_km, trade.quantity)
+        trade = replace(trade, distance=path.distance_km, transmission_loss=loss)
+        return self._charged(
+            trade, self.fees_of(trade.quantity, trade.price, path, loss)
+        )
+
+    # --- Stage 3 ---------------------------------------------------------------------
+    def clear(
+        self, orders: Sequence[Order], grid_balance_kwh: float = 0.0
+    ) -> tuple[Trade, ...]:
         """Stage 3 ([P1] §3.3.2): buy every remaining sell at p_FiT and sell every
-        remaining buy at p_utility."""
+        remaining buy at p_utility. The DSO sits at no distance and loses nothing;
+        a trade that worsens the market's balance pays the imbalance fee (eq. 8b)."""
         trades = []
         for o in orders:
             if o.is_buy:
                 buyer, seller, price = o.agent_id, self.id, self.utility_price
             else:
                 buyer, seller, price = self.id, o.agent_id, self.feed_in_tariff
-            trades.append(Trade(buyer, seller, price, o.quantity, o.timestamp, stage=3))
+            trade = Trade(buyer, seller, price, o.quantity, o.timestamp, stage=3)
+            trades.append(
+                self._charged(trade, self.imbalance_fee(trade, grid_balance_kwh))
+            )
         return tuple(trades)
+
+    # --- Balance (eq. 7) -------------------------------------------------------------
+    def settle(self, trades: Sequence[Trade]) -> DsoOutcome:
+        """The DSO's step: eq. 7, B_DSO = Σ (E_sold − E_bought), its energy
+        revenue and the fees it collected; added to its running totals."""
+        bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
+        sold = sum(t.quantity for t in trades if t.seller_id == self.id)
+        revenue = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
+        revenue -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
+        fees = sum(t.buyer_fee + t.seller_fee for t in trades)
+        self.balance_kwh += sold - bought
+        self.profit += revenue + fees
+        self.fees += fees
+        return DsoOutcome(
+            bought_kwh=bought,
+            sold_kwh=sold,
+            balance_kwh=sold - bought,
+            energy_revenue=revenue,
+            fees=fees,
+            profit=revenue + fees,
+        )

@@ -33,7 +33,7 @@ flowchart LR
   market --> m8["bidding.py"]:::done
   market --> m4["clearing_price.py"]:::done
   market --> m2["order.py"]:::done
-  market --> m5["reputation.py"]:::orig
+  market --> m5["reputation.py"]:::done
   market --> m6["validation.py"]:::orig
   market --> agent["agent/"]
   agent --> a1["der.py"]:::done
@@ -79,7 +79,7 @@ Everything the user sets before stepping the market, as plain data.
 
 | Script | What it does | State |
 |---|---|---|
-| `scenario.py` | `Scenario`: the network (`GridSetup`), the participants with their batteries, the market rules and the DSO tariffs and fees; each setup lists its own problems (`problems()`), shown on the Summary page | data and its checks |
+| `scenario.py` | `Scenario`: the network (`GridSetup`), the participants with their batteries, the market rules with the reputation weights and decay, and the DSO's tariffs, fee factors and loss factor; each setup lists its own problems (`problems()`), shown on the Summary page | data and its checks |
 | `store.py` | Save and load a scenario as JSON | done |
 | `placement.py` | Placing participants on the scenario's network: one on a bus, or one per load or prosumer bus; imports `core/grid/` | done |
 
@@ -90,29 +90,29 @@ never pandapower objects.
 
 | Script | What it does | State |
 |---|---|---|
-| `contract.py` | The plain records that cross the grid seam: networks, topology, elements, profiles, power-flow results | done |
+| `contract.py` | The plain records that cross the grid seam: networks, topology, elements, profiles, power-flow results, the path between two buses (`GridPath`) | done |
 | `simbench.py` | Lists, loads and caches networks; topology, elements, profiles, the profile catalogue; a one-hour power flow | done |
-| `powerflow.py` | `SimBenchGrid`: one power flow per market step; owned elements switched off, each participant's net injection at its bus; distances along the lines | done |
+| `powerflow.py` | `SimBenchGrid`: one power flow per market step; owned elements switched off, each participant's net injection at its bus; the path between two buses (distance, lines, zones = feeders) | done |
 
 ## core/market/: the MARLEM market
 
 The market of the paper ([methodology](marlem/methodology.md)). `lem.py` is the
-one class that runs it (`LocalEnergyMarket`, as in the original); `clearing.py`, `bidding.py`
-and `clearing_price.py` are its rebuilt pieces, and the remaining original files
-are the reference for what is still to rebuild (reputation, fees).
+one class that runs it (`LocalEnergyMarket`, as in the original); `clearing.py`,
+`bidding.py`, `clearing_price.py` and `reputation.py` are its rebuilt pieces, and
+the remaining original files (ledger, profiles) are the reference.
 
 | Script | What it does | State |
 |---|---|---|
-| `lem.py` | `LocalEnergyMarket`: the participants (`Participant`) and the DSO (`Dso`), one step in the paper's phases (validate, orders, the three stages, settle, power flow, advance), one stage at a time or all at once; the history of the day | done |
-| `clearing.py` | The three clearing stages as separate functions: preferences, double auction, DSO | done |
+| `lem.py` | `LocalEnergyMarket`: the participants (`Participant`), the DSO (`Dso`) and the reputation rule, one step in the paper's phases (validate, orders, the three stages, settle, power flow, rate, advance), one stage at a time or all at once; the history of the day | done |
+| `clearing.py` | The three clearing stages as separate functions: preferences, double auction, DSO; every trade assessed by the DSO (distance, loss, fee) | done |
 | `bidding.py` | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
 | `clearing_price.py` | Pricing mechanisms with one fixed signature (fixes the seller price) | done |
-| `order.py` | `Order` and `Trade` (with the stage that made it) | done |
-| `reputation.py` | Reputation update after each period (eq. 12); its types are type-only now, so it imports | original, to rebuild on `StepRecord` |
+| `order.py` | `Order`, `Trade` (stage, distance, loss, fee and who pays it) and `GridFees` (the parts of eq. 8) | done |
+| `reputation.py` | The original's `ReputationHandler`, all reputation dials in one place (weights, decay): eq. 12 from reliability, price fairness and grid contribution, blended with the decay; reads a `StepRecord`; fixed where it disagreed with [P1] (see its docstring); `ReputationScore` | done |
 | `validation.py` | Hash-chained trade ledger with proof of work; `seal_block` closes a market period's block | original, public `seal_block` added |
-| `agent/der.py` | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice, settlement (eq. 13, 14, battery eq. 16), its bus injection; `ParticipantOutcome` | done |
+| `agent/der.py` | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice by reputation and distance, settlement (eq. 13, 14 less its fees, battery eq. 16), its reputation (decay blend), its bus injection; `ParticipantOutcome` | done |
 | `agent/battery.py` | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the market only calls it | done |
-| `dso/dso.py` | `Dso`: tariffs, market price (their midpoint), stage 3 clearing (§3.3.2); `DSO_ID`. Fees (eq. 8) and balance (eq. 7) not built | done |
+| `dso/dso.py` | `Dso`: tariffs, market price (their midpoint), the lines' loading of the last power flow, transmission losses (eq. 18), grid fees (eq. 8) and who pays them, stage 3 clearing (§3.3.2), its balance (eq. 7) and money; `DsoOutcome`, `DSO_ID` | done |
 | `profile/` | Synthetic or CSV generation, demand and tariff profiles | original, imports |
 
 ## studio/: the user interface
@@ -188,9 +188,13 @@ Where the rebuilt step differs from the paper or the original code, for now:
 |---|---|
 | Orders | Written by the bidding rule (`core/market/bidding.py`); no learning |
 | Orders preferring the DSO | Skip stages 1 and 2 and are cleared in stage 3 (the original cleared them first) |
-| Losses | The market is lossless; losses show in the power flow |
-| Grid fees (eq. 8) | Not charged yet |
-| Reputation (eq. 12) | Stays at 0.5 for everyone; only the auction's tie-break |
+| Distance d_ij | Line length along the shortest path between the two buses (km); 0 for trades with the DSO |
+| Losses (eq. 18) | Recorded on every peer trade as d · q · κ (κ = 0.03 per km); not taken off the delivered energy, since the power flow has the physical losses |
+| Grid fees (eq. 8) | Calculated by the DSO for every trade and charged (`fees_charged`). Congestion C_t is the highest line loading on the trade's path in the previous step's power flow (0 at step 0). F_trans, which has no formula in [P1], is the lost energy at the trade price. Zones are feeders. F_imb applies only to trades with the DSO that worsen the market's balance. Peer fees split 50/50 between buyer and seller; a DSO trade's fee is paid by the participant. Factor values are the original code's |
+| DSO balance (eq. 7) | Energy sold minus bought per step and over the day, plus the DSO's revenue and fees; money adds up to 0 with the participants' profits |
+| Market balance B_grid (eq. 20) | Energy offered minus energy asked in the step's orders (before stage 3) |
+| Reputation (eq. 12) | `ReputationHandler.update_reputation` for every participant after each step, as in the original: reliability = order volume matched by peers / order volume, fairness = its peer trade prices against the peer clearing price, grid = its trades against B_grid (DSO trades neutral). Weights 0.3/0.2/0.5 (the original's); decay a constant, r ← 0.8 r + 0.2 score (the original used the time of day). Start 0.5 |
+| Partner choice (§3.4) | Weighted score: 0.5 · reputation + 0.5 · closeness (1 = nearest candidate, 0 = farthest) |
 | Tariffs | Constant over the day |
 | Submitted orders | Never changed by the clearing (the original changed them in place) |
 | Batteries (eq. 15–16) | Efficiencies and the power limit included; partial charges allowed |
