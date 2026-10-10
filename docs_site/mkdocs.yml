@@ -127,6 +127,8 @@ nav:
   - Code structure: structure.md
   - MARLEM:
       - Methodology: marlem/methodology.md
+  - Validation:
+      - Market layer: validation/market.md
   - SimBench:
       - simbench/README.md
       - Network catalogue: simbench/networks.md
