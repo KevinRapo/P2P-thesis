@@ -18,6 +18,9 @@ from studio.adapters.market_service import MarketService
 from studio.adapters.profile_service import ProfileService
 from studio.adapters.scenario_service import ScenarioService
 
+# The scenario files the Studio offers to open: the notebooks' scenarios.
+SCENARIO_LIBRARY = Path(__file__).resolve().parents[2] / "notebooks" / "scenarios"
+
 
 @dataclass(frozen=True)
 class Services:
@@ -46,6 +49,6 @@ def build_services(home: Path | None = None) -> Services:
     return Services(
         grid=GridCatalogService(cache=workspace.network_cache),
         profiles=ProfileService(),
-        scenario=ScenarioService(workspace.scenario_file),
+        scenario=ScenarioService(workspace.scenario_file, SCENARIO_LIBRARY),
         market=MarketService(),
     )

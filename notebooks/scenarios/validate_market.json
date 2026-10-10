@@ -1,0 +1,90 @@
+{
+  "name": "validate_market",
+  "grid": {
+    "code": "1-LV-rural1--0-sw",
+    "day": "2016-06-15",
+    "step_hours": 1.0,
+    "background": "profiles",
+    "v_min_pu": 0.95,
+    "v_max_pu": 1.05,
+    "line_max_percent": 100.0
+  },
+  "participants": [
+    {
+      "id": "P1",
+      "bus": "LV1.101 Bus 7",
+      "owns": [
+        "LV1.101 Load 9",
+        "LV1.101 SGen 1"
+      ],
+      "battery": {
+        "capacity_kwh": 10,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": null
+      }
+    },
+    {
+      "id": "P2",
+      "bus": "LV1.101 Bus 8",
+      "owns": [
+        "LV1.101 Load 2",
+        "LV1.101 SGen 4"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P3",
+      "bus": "LV1.101 Bus 1",
+      "owns": [
+        "LV1.101 Load 8"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P4",
+      "bus": "LV1.101 Bus 5",
+      "owns": [
+        "LV1.101 Load 13"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P5",
+      "bus": "LV1.101 Bus 12",
+      "owns": [
+        "LV1.101 Load 10"
+      ],
+      "battery": {
+        "capacity_kwh": 10,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": null
+      }
+    }
+  ],
+  "market": {
+    "mechanism": "average",
+    "min_price": 0.0,
+    "max_price": 1.0,
+    "min_quantity": 0.0,
+    "max_quantity": 100.0,
+    "partner_preference": true,
+    "bid_margin": 0.3,
+    "bid_jitter": 0.1,
+    "seed": 0,
+    "ledger_difficulty": 0
+  },
+  "dso": {
+    "feed_in_tariff": 0.08,
+    "utility_price": 0.3,
+    "fees_charged": false,
+    "fees": {}
+  }
+}

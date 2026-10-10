@@ -28,6 +28,10 @@ class MarketService:
         self.manager = manager
         return manager
 
+    def clear(self) -> None:
+        """Forget the market, e.g. when another scenario is opened."""
+        self.manager = None
+
     def next_part(self) -> None:
         """The next part of the step: collect the orders when no step is running,
         else the next clearing stage, or settlement and the power flow."""

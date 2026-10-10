@@ -2,11 +2,13 @@
 
 The Studio restarts on every code change, so the scenario is saved after every edit
 and read back at start. Placing participants follows the rules of
-``core/config/placement.py``.
+``core/config/placement.py``. A scenario file (a notebook's, e.g.
+``notebooks/scenarios/validate_market.json``) can be opened in its place.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from core.config import placement, store
@@ -21,10 +23,13 @@ class ScenarioService:
 
     Args:
         path: Where the scenario is kept (``Workspace.scenario_file``).
+        library: The folder of scenario files offered to open
+            (``notebooks/scenarios``).
     """
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, library: Path | None = None) -> None:
         self.path = path
+        self.library = library
         self._scenario: Scenario | None = None
 
     # --- The current scenario --------------------------------------------------------
@@ -40,6 +45,26 @@ class ScenarioService:
     def save(self) -> None:
         """Keep the current scenario on disk."""
         store.save(self.current(), self.path)
+
+    # --- Scenario files --------------------------------------------------------------
+    def files(self) -> list[Path]:
+        """The scenario files in the library, by name."""
+        if self.library is None or not self.library.is_dir():
+            return []
+        return sorted(self.library.glob("*.json"))
+
+    def peek(self, path: Path) -> Scenario:
+        """The scenario in ``path``, without opening it."""
+        return store.load(path)
+
+    def parse(self, text: str) -> Scenario:
+        """The scenario in a file's text (an uploaded file)."""
+        return store.from_dict(json.loads(text))
+
+    def open(self, scenario: Scenario) -> None:
+        """Make ``scenario`` the current one and save it; its file is not changed."""
+        self._scenario = scenario
+        self.save()
 
     def set_network(self, code: str) -> None:
         """Use another network; participants belong to the old one and are removed."""

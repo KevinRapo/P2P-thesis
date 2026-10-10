@@ -45,6 +45,10 @@ flowchart LR
 
   root --> notebooks["notebooks/"]
   notebooks --> n1["validate_market.ipynb"]:::done
+  notebooks --> n2["scenarios/validate_market.json"]:::done
+
+  root --> tests["tests/"]
+  tests --> x1["test_studio_matches_core.py"]:::done
 
   root --> studio["studio/"]
   studio --> t1["app.py · layout.py · navigation.py<br/>state.py · theme.py · static/"]:::done
@@ -119,7 +123,7 @@ only when more than one place uses it.
 | Script | What it does | State |
 |---|---|---|
 | `app.py` | Registers the pages and starts the server | done |
-| `layout.py`, `navigation.py`, `theme.py`, `static/` | Page frame, left navigation, colours and styles | done |
+| `layout.py`, `navigation.py`, `theme.py`, `static/` | Page frame, left navigation, colours and styles; the header names the current scenario and opens another from a scenario file (`notebooks/scenarios/` or an upload) | done |
 | `state.py` | The adapters (`services()`), built once | done |
 | `pages/inspect.py` | Inspect: any network in depth, all SimBench profiles, two networks compared | done |
 | `pages/settings.py` | Workspace folder, network cache and its coverage, dark mode | done |
@@ -139,6 +143,15 @@ Notebooks import `core/` only. Run them with the `marlem` conda env as kernel.
 | Notebook | What it does | State |
 |---|---|---|
 | `validate_market.ipynb` | Scenario, inputs per step, one step part by part, the whole day, rule checks, experiments side by side | done |
+| `scenarios/validate_market.json` | The notebook's scenario, saved by it in the Studio's format: open it from the Studio's header (Scenario: … → Open) to play the same scenario there | done |
+
+## tests/: the Studio against the core
+
+Run with `python -m pytest tests` in the `marlem` conda env.
+
+| Test | What it checks | State |
+|---|---|---|
+| `test_studio_matches_core.py` | `validate_market.json` read by `ScenarioService` and stepped part by part by `MarketService` gives the same `StepRecord`s as `LocalEnergyMarket.run_to_end` | done |
 
 ## studio/adapters/: what the pages call
 
@@ -153,8 +166,8 @@ market or pandapower directly.
 | `profile_service.py` | A network's profiles and SimBench's whole catalogue; every element's power on the scenario's day (`day_profiles`) | done |
 | `profile_classes.py` | SimBench's profile classes and how a profile name is classified | done |
 | `models.py` | The data types only the Studio needs: profile classes, profile types, chart series, a day's element profiles | done |
-| `scenario_service.py` | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants | done |
-| `market_service.py` | Builds and holds the `LocalEnergyMarket` the Step page plays; build, next part, step, run to the end | done |
+| `scenario_service.py` | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants; lists, reads and opens scenario files | done |
+| `market_service.py` | Builds and holds the `LocalEnergyMarket` the Step page plays; build, next part, step, run to the end, clear (when another scenario is opened) | done |
 
 ## Around the code
 
