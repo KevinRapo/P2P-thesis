@@ -3,8 +3,8 @@
 > Every problem found in the **market layer** of MARLEM: in the original code, in
 > the paper [P1], or in the method itself. For each one, what was wrong, where it
 > came from, and what `marlem-clean` does about it. The reinforcement-learning layer
-> (actions, observations, reward, KPIs, training) is validated separately on the RL
-> branch and is left out here.
+> (actions, observations, reward, KPIs, training) is validated separately, starting
+> with the training layer in [rl.md](rl.md), and is left out here.
 
 ## Scope and sources
 
@@ -1635,7 +1635,9 @@ of the paper's market, not a reproduction of its results.
 
 ## Outside this document
 
-The register's other IDs belong to the RL layer and are validated on the RL branch:
+The register's other IDs belong to the RL layer. The training paradigms, trainer and
+inference are in [rl.md](rl.md); the rest belong to the connection between the market
+and the RL layer:
 
 - **Actions and observations:** I-10, I-39, I-40, I-58
 - **Reward:** I-02, I-41 to I-47, I-75, I-76, I-79

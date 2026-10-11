@@ -131,6 +131,7 @@ nav:
       - Methodology: marlem/methodology.md
   - Validation:
       - Market layer: validation/market.md
+      - RL layer: validation/rl.md
       - The two papers: validation/papers.md
   - SimBench:
       - simbench/README.md
