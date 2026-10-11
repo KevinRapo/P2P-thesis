@@ -57,7 +57,8 @@ class Trade:
     price: float  # p_ij ([P1] §3.3.3)
     quantity: float  # q_ij
     timestamp: float
-    distance: float = 0.0  # d_ij ([P1] §3.5.1), km along the lines; 0 with the DSO
+    # d_ij ([P1] §3.5.1), km along the lines; with the DSO, to the transformer
+    distance: float = 0.0
     # l_ij ([P1] eq. 18), recorded only: the market stays lossless, the power flow
     # has the physical losses
     transmission_loss: float = 0.0

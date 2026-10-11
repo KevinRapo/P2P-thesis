@@ -204,7 +204,7 @@ $$
 | $B_{\text{grid}} \in [-1,1]$ | Grid balance ($>0$ excess supply, $<0$ excess demand) | — |
 | $f_{\ast}$ | Configurable fee factors | not given |
 
-$F_{\text{trans}}$ (usage per unit distance) is named in (8) but has **no formula** in the paper. Agents do not observe the topology; only the DSO computes distance fees and congestion.
+$F_{\text{trans}}$ is named in (8), described as a charge for "usage per unit of distance of the transmission lines (predefined by the DSO)", but has **no formula** in the paper. Agents do not observe the topology; only the DSO computes distance fees and congestion.
 
 ??? note "Not in [P1]: the original code"
 

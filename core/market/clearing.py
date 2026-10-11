@@ -65,6 +65,8 @@ class ClearingRules:
             auction's tie-break.
         path: The grid path between two participants (distance, lines, zones),
             for the DSO's losses and fees.
+        upstream: A participant's path to the transformer's busbar, where the
+            DSO's energy enters: the route of its trades with the DSO.
         grid_balance_kwh: The market's balance B_grid before stage 3 ([P1] eq.
             20; + excess supply), for the imbalance fee of stage 3 (eq. 8b).
         threshold_kwh: Quantities below this count as nothing.
@@ -75,6 +77,7 @@ class ClearingRules:
     reference_price: float
     reputation: Mapping[str, float] = field(default_factory=dict)
     path: Callable[[str, str], GridPath] = lambda a, b: GridPath()
+    upstream: Callable[[str], GridPath] = lambda participant: GridPath()
     grid_balance_kwh: float = 0.0
     threshold_kwh: float = 1e-6
 
@@ -175,7 +178,9 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
 def dso(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
     """Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in
     Algorithm 1; ``Dso.clear``)."""
-    trades = rules.dso.clear(_open(orders, rules), rules.grid_balance_kwh)
+    trades = rules.dso.clear(
+        _open(orders, rules), rules.grid_balance_kwh, rules.upstream
+    )
     return StageResult(3, STAGE_NAMES[3], trades, ())
 
 

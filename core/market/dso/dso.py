@@ -12,13 +12,13 @@ What belongs to the DSO and nobody else:
     balance          eq. 7, its energy sold minus bought, and its money
 
 [P1] gives the fee factors no values and F_trans no formula; the choices are in
-``Dso.fees`` and ``Dso.clear``.
+``Dso.fees_of``, ``Dso.imbalance_fee`` and ``Dso.clear``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Mapping, Sequence
+from typing import Callable, Mapping, Sequence
 
 from core.grid.contract import GridAssessment, GridPath
 from core.market.order import GridFees, Order, Trade
@@ -204,21 +204,42 @@ class Dso:
 
     # --- Stage 3 ---------------------------------------------------------------------
     def clear(
-        self, orders: Sequence[Order], grid_balance_kwh: float = 0.0
+        self,
+        orders: Sequence[Order],
+        grid_balance_kwh: float = 0.0,
+        upstream: Callable[[str], GridPath] = lambda participant: GridPath(),
     ) -> tuple[Trade, ...]:
         """Stage 3 ([P1] §3.3.2): buy every remaining sell at p_FiT and sell every
-        remaining buy at p_utility. The DSO sits at no distance and loses nothing;
-        a trade that worsens the market's balance pays the imbalance fee (eq. 8b)."""
+        remaining buy at p_utility.
+
+        The DSO's energy enters where the upstream grid feeds the network, so a
+        trade with it runs along ``upstream(participant)``, the path to the
+        transformer's busbar: it has a distance, a loss (eq. 18) and the fees of
+        that path (eq. 8) like a peer trade, but no zone bonus, since the DSO is in
+        no participant's zone. A trade that worsens the market's balance also pays
+        the imbalance fee (eq. 8b)."""
         trades = []
         for o in orders:
             if o.is_buy:
                 buyer, seller, price = o.agent_id, self.id, self.utility_price
             else:
                 buyer, seller, price = self.id, o.agent_id, self.feed_in_tariff
-            trade = Trade(buyer, seller, price, o.quantity, o.timestamp, stage=3)
-            trades.append(
-                self._charged(trade, self.imbalance_fee(trade, grid_balance_kwh))
+            path = upstream(o.agent_id)
+            loss = self.transmission_loss(path.distance_km, o.quantity)
+            trade = Trade(
+                buyer,
+                seller,
+                price,
+                o.quantity,
+                o.timestamp,
+                distance=path.distance_km,
+                transmission_loss=loss,
+                stage=3,
             )
+            parts = self.fees_of(o.quantity, price, path, loss)
+            imbalance = self.imbalance_fee(trade, grid_balance_kwh).imbalance
+            parts = replace(parts, zone=0.0, imbalance=imbalance)
+            trades.append(self._charged(trade, parts))
         return tuple(trades)
 
     # --- Balance (eq. 7) -------------------------------------------------------------

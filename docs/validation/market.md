@@ -55,14 +55,14 @@ energy:
 |---|---|---|---|---|---|---|
 | [1. The market step](#1-the-market-step) | 4 | 3 | 1 | 0 | 0 | 0 |
 | [2. Orders and feasibility](#2-orders-and-feasibility) | 4 | 4 | 0 | 0 | 0 | 0 |
-| [3. Clearing stages](#3-clearing-stages) | 3 | 1 | 0 | 1 | 1 | 0 |
+| [3. Clearing stages](#3-clearing-stages) | 3 | 1 | 0 | 2 | 0 | 0 |
 | [4. Pricing mechanisms](#4-pricing-mechanisms) | 3 | 2 | 0 | 1 | 0 | 0 |
-| [5. Settlement, battery and balances](#5-settlement-battery-and-balances) | 8 | 6 | 0 | 1 | 1 | 0 |
-| [6. DSO: balance and grid fees](#6-dso-balance-and-grid-fees) | 11 | 4 | 0 | 3 | 1 | 3 |
+| [5. Settlement, battery and balances](#5-settlement-battery-and-balances) | 8 | 7 | 0 | 1 | 0 | 0 |
+| [6. DSO: balance and grid fees](#6-dso-balance-and-grid-fees) | 11 | 5 | 0 | 3 | 0 | 3 |
 | [7. Grid model used by the market](#7-grid-model-used-by-the-market) | 7 | 1 | 5 | 1 | 0 | 0 |
-| [8. Reputation](#8-reputation) | 4 | 3 | 0 | 1 | 0 | 0 |
-| [9. Trade ledger](#9-trade-ledger) | 1 | 0 | 0 | 0 | 1 | 0 |
-| **Total** | **45** | **24** | **6** | **8** | **4** | **3** |
+| [8. Reputation](#8-reputation) | 4 | 2 | 0 | 1 | 1 | 0 |
+| [9. Trade ledger](#9-trade-ledger) | 1 | 0 | 0 | 0 | 0 | 1 |
+| **Total** | **45** | **25** | **6** | **9** | **1** | **4** |
 
 The most consequential ones for any result produced with the original:
 
@@ -450,13 +450,24 @@ does three other things:
 - its candidates include agents on the *same* side of the market, so a seller can
   name another seller, a preference stage 1 can never match.
 
-**In `marlem-clean`.** $0.5 \cdot \text{reputation} + 0.5 \cdot \text{closeness}$, over participants on
-the other side of the market only ([der.py](../../core/market/agent/der.py#L163),
-[lem.py](../../core/market/lem.py#L423)).
+**In `marlem-clean`.** A weighted score of reputation and closeness, over
+participants on the other side of the market only. Both are rescaled over the
+candidates, 1 for the best and 0 for the worst, so the weight $w$
+(`partner_reputation_weight`, 0.5) gives each the same say:
+
+$$
+\text{score}_j = w\, \frac{r_j - r_{\min}}{r_{\max} - r_{\min}}
++ (1 - w)\, \frac{d_{\max} - d_j}{d_{\max} - d_{\min}}
+$$
+
+Without the rescaling, reputations that all start at 0.5 and drift by a few
+hundredths would lose to distance every time. Ties go to the nearer candidate
+([der.py](../../core/market/agent/der.py#L187-L223),
+[lem.py](../../core/market/lem.py#L425)).
 
 ### I-55: the stage-2 capacity check can never trigger
 
-**Code · <mark>Open</mark>**
+**Code · Decided**
 
 [`src/market/matching.py` L158, L299-L307](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L158)
 
@@ -478,9 +489,14 @@ balance, not with the balance after the trade, and that balance is the DSO
 balance, which stays 0 (I-24). The check never fires, so stage 2 has no grid
 constraint at all.
 
-**In `marlem-clean`.** The check is gone. The power flow reports voltage and
-loading violations but does not block trades. [P1] says violating trades "can be
-penalized or disallowed by the DSO" without choosing; no policy is set yet.
+**In `marlem-clean`.** The check is gone. [P1] says violating trades "can be
+penalized or disallowed by the DSO" without choosing. **Decided: penalized.** The
+congestion and thermal fees (eq. 8a, 8d) price the loading of the lines on a
+trade's path in the previous power flow, trades with the DSO included (I-54). The
+power flow reports voltage and loading violations but blocks no trade.
+Disallowing would need a grid check per trade, for example with sensitivity
+factors as in Guerrero, Chapman and Verbič (2019), and a rollback: future work.
+The episode runs show whether violations occur at all.
 
 ## 4. Pricing mechanisms
 
@@ -720,6 +736,15 @@ charge/discharge rates", but eq. 16 has no rate, and neither does the code.
 and $(E - E_{\min}) \cdot \eta_{\text{discharge}}$, and an optional `max_power_kw` caps both
 ([battery.py](../../core/market/agent/battery.py#L107-L119)).
 
+The power limit comes from SimBench. A participant that takes over a SimBench
+storage unit gets it as its battery, with its energy capacity and power rating.
+Storage exists only in SimBench's future scenarios (`--1-`, `--2-`); scenario 0 has
+none. A battery added anywhere else gets SimBench's ratio, capacity ÷ 2 h, which
+holds for all 84 storage units of the twelve LV future-scenario networks.
+`BATTERY_PRESETS` offers their 10th, 50th and 90th percentile sizes: 6.8, 13.7 and
+66.4 kWh ([placement.py](../../core/config/placement.py#L22-L56)). A
+`BatterySetup` written by hand has no limit unless `max_power_kw` is given.
+
 <mark class="review">Review</mark> Can simbench provide the battery power value also or we should provide it ourselves?
 
 ### I-22: no household energy balance
@@ -823,7 +848,9 @@ the DSO's money adds up to 0 every step (notebook check "money adds up").
 
 ### I-21: demand satisfied ignores battery discharge
 
-**Code · <mark>Open</mark>** does salazar say anything about this in their paper? If the trades could always be settled with the DSO then Im not sure why he even included it?
+**Code · Fixed**
+
+<mark class="review">Review</mark> does salazar say anything about this in their paper? If the trades could always be settled with the DSO then Im not sure why he even included it?
 
 [`src/agent/der.py` L254-L259](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/der.py#L250-L262)
 
@@ -841,9 +868,19 @@ An agent that covers its night demand from its battery is counted as having
 `update_battery_from_trades` (lem.py L416-L423), so the discharge is not even known
 yet when this runs.
 
-**In `marlem-clean`.** Not rebuilt yet: the "demand satisfied vs deferred"
-counters of [P1] §3.4.1 do not exist. Demand is always met, by the battery, by
-trades or untraded from upstream.
+**In `marlem-clean`.** [P1] §3.4.1 tracks "the total demand satisfied versus the
+demand deferred, providing a measure of the agent's energy security", and [P1]
+and [P2] list the cumulative values among the observations. Every participant's
+outcome now has its demand and supply satisfied and deferred
+([der.py](../../core/market/agent/der.py#L60-L82)). Generation, purchases and
+battery discharge all count, and the battery has settled before they are read.
+
+Since the DSO clears every order, no demand goes physically unmet. *Deferred* is
+what the participant's own orders and battery left uncovered, exchanged with the
+upstream grid untraded (`external_kwh`). It is a signal of how well an agent
+ordered, not a market rule: the reward's unmet-demand penalty $\gamma_{UD}$ is
+about the same quantity. With the rule-based bidding it is always 0 (notebook
+checks "nothing left untraded" and "satisfied + deferred = demand").
 
 ## 6. DSO: balance and grid fees
 
@@ -990,9 +1027,21 @@ formula. The code computes the trade's distance under the comment "calculate
 transmission distance and fee", then never uses it for a fee: `transmission_fee`
 stays 0. (The distance does feed the voltage fee.)
 
-**In `marlem-clean`.** $F_{\text{trans}}$ is the lost energy at the trade price,
-$l_{ij} \cdot p_{ij}$, after [P1] §3.5.2: the loss "is included in the DSO fees"
-([dso.py](../../core/market/dso/dso.py#L137)).
+**In `marlem-clean`.** The form is set; its values are open. [P1] gives two
+hints. The text of eq. 8 calls $F_{\text{trans}}$ a charge for "usage per unit of
+distance of the transmission lines (predefined by the DSO)", and §3.5.2 says the
+losses "are incorporated into trading fees". Both give a fee of quantity ×
+distance × a price factor. Here it is the lost energy (eq. 18) at the trade price
+([dso.py](../../core/market/dso/dso.py#L137)):
+
+$$
+F_{\text{trans}} = l_{ij}\, p_{ij} = \kappa\, d_{ij}\, q_{ij}\, p_{ij}
+$$
+
+Still to choose: the price factor ($\kappa\, p_{ij}$, or a fixed tariff per kWh
+and km as in the MW-mile method) and the distance (line length now; an
+impedance-based electrical distance is an option). The same fee applies to trades
+with the DSO, along the path to the transformer (I-54).
 
 ### I-30: $F_{\text{volt}}$ is gated by its threshold and capped at 0.2
 
@@ -1059,7 +1108,9 @@ supply); a trade that helps pays nothing ([dso.py](../../core/market/dso/dso.py#
 
 ### I-54: DSO trades skip the grid, and the grid check ignores direction
 
-**Code · <mark>Open</mark>** What options do we have here? It would make sense to atleast use the feeder distance from the bus as the closest point to the DSO but im not sure if that is good enough, in any case some dynamics instead of nothing!?
+**Code · Fixed**
+
+<mark class="review">Review</mark> What options do we have here? It would make sense to atleast use the feeder distance from the bus as the closest point to the DSO but im not sure if that is good enough, in any case some dynamics instead of nothing!?
 
 [`src/market/dso.py` L224-L226, L371](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L219-L226)
 
@@ -1080,9 +1131,20 @@ and are never checked against the grid. The check that does exist adds the
 quantity to the balance whatever the trade's direction, so a trade that would
 *reduce* an imbalance is treated as increasing it.
 
-**In `marlem-clean`.** DSO trades are still at no distance and lose nothing. No
-trade is blocked for grid reasons (see I-55); the power flow shows the physical
-result of all energy, DSO trades included.
+**In `marlem-clean`.** The DSO's energy enters where the upstream grid feeds
+the network, the transformer's low-voltage busbar. A trade with the DSO runs along
+the participant's path to that busbar
+([powerflow.py](../../core/grid/powerflow.py#L158),
+[dso.py](../../core/market/dso/dso.py#L206)). It has a distance, a loss (eq. 18)
+and the fees of that path: congestion and thermal on its lines, voltage and
+transmission by its length. It gets no zone bonus, since the DSO is in no
+participant's zone. A neighbour is closer than the transformer, so a peer trade
+pays less in fees than a trade with the DSO: the local incentive of [P1] §3.5.2.
+In the notebook's example day the DSO trades pay about 1.4 in fees, the peer
+trades about −1.1 (notebook check "DSO trade runs to the transformer").
+
+No trade is blocked for grid reasons (I-55): the fees penalize, and the power flow
+shows the physical result of all energy.
 
 ### I-74: the thermal fee starts far below the congestion fee
 
@@ -1106,6 +1168,27 @@ are the original's.
 **In `marlem-clean`.** Kept as defaults (`thermal_threshold`,
 `congestion_threshold`), each its own setting.
 
+Real distribution grids have no fee that starts at 20 % loading. "Congestion" means
+loading beyond a line's thermal rating, and operators act near that limit, for
+example through flexibility markets such as the Dutch GOPACS. The thermal costs
+underneath grow smoothly: losses with the square of the current, transformer
+ageing steeply above rated load.
+
+In the model the two fees are not separate effects anyway: eq. 8a and 8g read the
+same loading $C_t$. Together they form one fee that rises with loading in two
+steps, gently from $T_{\text{threshold}}$ and steeply from $C_{\text{threshold}}$
+(with $x^+ = \max(x, 0)$):
+
+$$
+\frac{F_{\text{thermal}} + F_{\text{cong}}}{q_{ij}\, p_{ij}} =
+\min\!\left(\frac{(C_t - T_{\text{threshold}})^+}{1 - T_{\text{threshold}}},\
+f_{\text{threshold}}\right) + f_{\text{cong}}\, (C_t - C_{\text{threshold}})^+
+$$
+
+The values are set once the episode runs show how loaded the lines of SimBench's
+LV networks get. Below about 30 % loading both parts are close to 0, and the
+choice does not matter.
+
 ### N-05: the same-zone bonus outweighs every fee
 
 **Paper · Flagged**
@@ -1123,11 +1206,13 @@ if buy_order.location and sell_order.location and buy_order.location.zone == sel
 low-voltage feeder the other fees are small: the voltage fee is about 3 % of the
 value (once charged as eq. 8c), the loss fee less than 1 %, and congestion and
 thermal fees are 0 at normal loading. Total fees are therefore **negative**: the
-DSO pays peers to trade locally. In the example day of the notebook, the fees over
-the day add up to about −1.1. [P1] gives no factor values; whether a subsidy is
-intended is not said.
+DSO pays peers to trade locally. In the notebook's example day the peer trades'
+fees add up to about −1.1: a zone bonus of −1.6 against 0.5 of other fees. [P1]
+gives no factor values; whether a subsidy is intended is not said.
 
-**In `marlem-clean`.** Kept; `zone_factor` is one setting.
+**In `marlem-clean`.** Kept at the original's 0.15 for now. `zone_factor` is one
+setting, and its value is open: it should be of the size of the other fees, a few
+percent of a trade's value.
 
 ### N-06: zones exist only for the paper's graphs
 
@@ -1148,6 +1233,24 @@ such labels, so the zone bonus needs a definition that fits it.
 **In `marlem-clean`.** A zone is a feeder: the branch a bus hangs on, named by the
 first bus after the transformer's low-voltage busbar
 ([powerflow.py](../../core/grid/powerflow.py#L190)).
+
+[P2] did use zones: its case study divides IEEE-34 into six named zones
+(substation, transformer, feeder 1 and 2, lateral 1 and 2) for 8 agents. Its zones
+are branches of the feeder, as here. On SimBench's networks they hold a few to a
+few dozen loads:
+
+| Network | Zones with loads | Loads per zone |
+|---|---|---|
+| `1-LV-rural1--0-sw` | 4 | 1, 3, 4, 5 |
+| `1-LV-semiurb4--0-sw` | 3 | 5, 8, 26 |
+| `1-LV-urban6--0-sw` | 7 | 1 to 16 |
+| `1-MV-rural--0-sw` | 9 | 1 to 18 |
+
+A zone's only effect is the bonus of eq. 8e: a trade within one zone pays
+$f_{\text{zone}}$ of its value less. Regulators do something similar: Austria's
+Renewable Expansion Act (EAG, 2021) cuts grid charges more for local energy
+communities (low-voltage level) than for regional ones. How large the bonus should
+be is the open question of N-05.
 
 ## 7. Grid model used by the market
 
@@ -1353,7 +1456,7 @@ total order volume", and it never varies.
 
 ### I-38b: the decay follows the time of day
 
-**Fidelity · Fixed**
+**Fidelity · <mark>Open</mark>**
 
 <mark class="review">Review</mark> If and what formula to use? Just reverse salazars to the proper form?
 
@@ -1378,6 +1481,13 @@ the day goes on, the opposite of the paper.
 
 **In `marlem-clean`.** A constant decay, $r \leftarrow 0.8\, r + 0.2\, \text{score}$, in
 `update_reputation` ([reputation.py](../../core/market/reputation.py#L119-L142)).
+
+**Open.** The constant decay is kept for now, but its form and value are still to
+be decided. Reversing the original's weights would still tie the memory to the
+hour of the day. With 0.8 the start value halves every 3 steps
+($\ln 0.5 / \ln 0.8$). Setting the decay as a half-life in hours,
+$\delta = 0.5^{\Delta t / T_{1/2}}$, would keep that memory the same when the step
+length changes (I-56).
 
 ### I-38c: the grid part is always neutral, and fairness mixes in the DSO
 
@@ -1452,7 +1562,7 @@ generator (`np.random.default_rng(seed)`), but is not used.
 
 ### I-66: the block hash leaves out losses and fees
 
-**Code · <mark>Open</mark>**
+**Code · Flagged**
 
 [`src/market/validation.py` L25-L34](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/validation.py#L25-L34),
 [`src/market/matching.py` L395-L396](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L395-L396)
@@ -1479,6 +1589,10 @@ breaking the chain. The matcher also calls the validator's *private*
 in one process, not a consensus between parties. [P1] §3.3.4 presents it as an
 emulation, which is fair, but the hash should cover everything that moves money.
 
+**In `marlem-clean`.** Out of scope for now: the ledger changes no market result.
+The validator is kept as in the original; once the ledger matters, its hash should
+cover each trade's distance, loss and fee.
+
 **In `marlem-clean`.** Original code, with a public `seal_block` in place of the
 private call; off by default (`ledger_difficulty = 0`). Now that fees are charged,
 the hash should cover them.
@@ -1498,7 +1612,7 @@ recorded decision, because the paper cannot settle it.
 | Stage 1 | The DSO-preferred sub-stage the original added is not in the paper | I-15 |
 | Pricing | The case study's bid-ask spread mechanism is not among the mechanisms of §3.3.3 | I-17 |
 | Reputation (eq. 12) | Weights and decay factor have no values; "fairness" and "grid contribution" have no formulas | I-38 |
-| Grid physics | Linear, unbounded losses and voltage drop, called "high-fidelity". Capacity violations "can be penalized or disallowed", with no choice made | I-70, I-55 |
+| Grid physics | Linear, unbounded losses and voltage drop, called "high-fidelity". Capacity violations "can be penalized or disallowed", with no choice made (penalized here) | I-70, I-55 |
 | Zones | Defined for graph topologies only | N-06 |
 | Units | \$/MWh in the case study, kWh per implicit 1-hour step | I-56 |
 

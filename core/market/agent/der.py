@@ -57,6 +57,30 @@ class ParticipantOutcome:
     fees: float
     profit: float
 
+    # [P1] §3.4.1 tracks "the total demand satisfied versus the demand deferred".
+    # The DSO clears every order, so no demand goes unmet physically; deferred is
+    # what the participant's own orders and battery left uncovered, exchanged with
+    # the upstream grid untraded (``external_kwh``).
+    @property
+    def deferred_demand_kwh(self) -> float:
+        """Demand that generation, purchases and battery discharge did not cover."""
+        return max(0.0, -self.external_kwh)
+
+    @property
+    def satisfied_demand_kwh(self) -> float:
+        """Demand covered by generation, purchases and battery discharge."""
+        return self.demand_kwh - self.deferred_demand_kwh
+
+    @property
+    def deferred_supply_kwh(self) -> float:
+        """Generation that demand, sales and battery charge did not take up."""
+        return max(0.0, self.external_kwh)
+
+    @property
+    def satisfied_supply_kwh(self) -> float:
+        """Generation taken up by demand, sales and battery charge."""
+        return self.generation_kwh - self.deferred_supply_kwh
+
 
 # --------------------------------------------------------------------------------------
 # Profiles from network elements
@@ -169,8 +193,10 @@ class Participant:
     ) -> Optional[str]:
         """The rule-based preferred partner ([P1] §3.4, phase 2 of §3.9): the
         candidate with the best weighted score of high reputation (eq. 12) and
-        short grid distance d_ij (§3.5.1). Closeness runs from 1 for the nearest
-        candidate to 0 for the farthest; ties go to the nearer one. ``None`` when
+        short grid distance d_ij (§3.5.1). Both are rescaled over the candidates
+        so the weight means the same for each: closeness runs from 1 for the
+        nearest candidate to 0 for the farthest, standing from 1 for the highest
+        reputation to 0 for the lowest. Ties go to the nearer one. ``None`` when
         there is no candidate.
 
         Args:
@@ -185,9 +211,13 @@ class Participant:
         km = {c: distance_km(c) for c in others}
         near, far = min(km.values()), max(km.values())
 
+        rep = {c: reputation.get(c, 0.5) for c in others}
+        low, high = min(rep.values()), max(rep.values())
+
         def score(c: str) -> tuple[float, float]:
             closeness = (far - km[c]) / (far - near) if far > near else 1.0
-            weighted = reputation_weight * reputation.get(c, 0.5)
+            standing = (rep[c] - low) / (high - low) if high > low else 1.0
+            weighted = reputation_weight * standing
             return weighted + (1 - reputation_weight) * closeness, -km[c]
 
         return max(others, key=score)

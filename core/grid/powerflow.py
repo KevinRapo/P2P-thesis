@@ -49,6 +49,7 @@ class SimBenchGrid:
         self._loads: dict[str, int] = {}
         self._graph: Any = None
         self._zones: dict[int, str] = {}
+        self._roots: set[int] = set()
 
     # --- Preparing the network -------------------------------------------------------
     def reset(self) -> None:
@@ -152,13 +153,30 @@ class SimBenchGrid:
         graph = self._topology()
         a, b = self._bus_index[bus_a], self._bus_index[bus_b]
         nodes = nx.shortest_path(graph, a, b, weight="weight")
+        return self._along(graph, nodes)
+
+    def path_upstream(self, bus: str) -> GridPath:
+        """The way from a bus to where the upstream grid feeds the network: the
+        nearest transformer's low-voltage busbar (or the external grid bus). The
+        route of energy bought from or sold to the DSO."""
+        import networkx as nx
+
+        graph = self._topology()
+        a = self._bus_index[bus]
+        if not self._roots:
+            return GridPath(0.0, (), self._zones[a], self._zones[a])
+        _, nodes = nx.multi_source_dijkstra(graph, self._roots, a, weight="weight")
+        return self._along(graph, nodes[::-1])
+
+    def _along(self, graph: Any, nodes: list[int]) -> GridPath:
+        """The path through ``nodes``: its length, its lines, the zones of its ends."""
         lines = tuple(
             graph.edges[u, v]["line"]
             for u, v in zip(nodes, nodes[1:])
             if graph.edges[u, v]["line"]
         )
         km = sum(graph.edges[u, v]["weight"] for u, v in zip(nodes, nodes[1:]))
-        return GridPath(float(km), lines, self._zones[a], self._zones[b])
+        return GridPath(float(km), lines, self._zones[nodes[0]], self._zones[nodes[-1]])
 
     def _topology(self) -> Any:
         """The network as a weighted graph (built once per reset): lines weigh
@@ -181,6 +199,8 @@ class SimBenchGrid:
             )
         for _, row in net.switch[net.switch.et == "b"].iterrows():
             graph.add_edge(int(row.bus), int(row.element), weight=0.0, line="")
+        roots = {int(b) for b in net.trafo.lv_bus} or {int(b) for b in net.ext_grid.bus}
+        self._roots = roots & set(graph.nodes)
         self._zones = self._feeders(graph)
         for _, row in net.trafo.iterrows():
             graph.add_edge(int(row.hv_bus), int(row.lv_bus), weight=0.0, line="")
@@ -194,13 +214,10 @@ class SimBenchGrid:
         it names the feeder. The low-voltage busbar itself is its own zone."""
         import networkx as nx
 
-        net = self._net
-        names = simbench._bus_ids(net)
-        roots = {int(b) for b in net.trafo.lv_bus} or {int(b) for b in net.ext_grid.bus}
-        roots &= set(graph.nodes)
-        if not roots:
+        names = simbench._bus_ids(self._net)
+        if not self._roots:
             return {int(b): "" for b in graph.nodes}
-        _, paths = nx.multi_source_dijkstra(graph, roots, weight="weight")
+        _, paths = nx.multi_source_dijkstra(graph, self._roots, weight="weight")
         zones = {}
         for bus in graph.nodes:
             way = paths.get(bus)

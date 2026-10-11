@@ -288,6 +288,10 @@ class GridModel(Protocol):
         """The shortest way between two buses: distance, lines and zones."""
         ...
 
+    def path_upstream(self, bus: str) -> GridPath:
+        """The way from a bus to where the upstream grid feeds the network."""
+        ...
+
     def summary(self) -> NetworkSummary:
         """Totals of the network."""
         ...

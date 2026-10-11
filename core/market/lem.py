@@ -241,6 +241,7 @@ class LocalEnergyMarket:
         self.ledger: Optional[Validator] = None
         self.clearing_price = 0.0
         self._paths: dict[tuple[str, str], GridPath] = {}
+        self._upstream_paths: dict[str, GridPath] = {}
 
     # --- Running the day -------------------------------------------------------------
     @property
@@ -272,6 +273,7 @@ class LocalEnergyMarket:
         )
         self.grid.reset()
         self._paths = {}
+        self._upstream_paths = {}
         self.history = []
         self.pending = None
 
@@ -450,6 +452,14 @@ class LocalEnergyMarket:
             )
         return self._paths[key]
 
+    def _upstream(self, pid: str) -> GridPath:
+        """A participant's path to the transformer's busbar (cached): the route of
+        its trades with the DSO."""
+        if pid not in self._upstream_paths:
+            bus = self.participants[pid].bus
+            self._upstream_paths[pid] = self.grid.path_upstream(bus)
+        return self._upstream_paths[pid]
+
     # --- Phases 1 and 2: validate, orders --------------------------------------------
     def _validate(
         self, inputs: StepInputs, intents: Mapping[str, OrderIntent]
@@ -507,6 +517,7 @@ class LocalEnergyMarket:
             reference_price=self.clearing_price,
             reputation={pid: q.reputation for pid, q in self.participants.items()},
             path=self._path,
+            upstream=self._upstream,
             grid_balance_kwh=p.grid_balance_kwh,
         )
 
