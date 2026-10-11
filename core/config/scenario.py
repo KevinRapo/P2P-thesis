@@ -212,8 +212,8 @@ class Scenario:
 
         Args:
             element_types: Element type per network element (``load``, ``sgen``,
-                ``storage``), to check that someone can generate; skipped when
-                ``None``.
+                ``storage``), to check that someone can generate and that taken
+                over storage has a battery; skipped when ``None``.
         """
         found = []
         if not self.participants:
@@ -224,4 +224,12 @@ class Scenario:
             found.append(
                 "No participant owns a generator: nobody has anything to sell."
             )
+        if element_types is not None:
+            for p in self.participants:
+                storage = [e for e in p.owns if element_types.get(e) == "storage"]
+                if storage and p.battery is None:
+                    found.append(
+                        f"{p.id} takes over {', '.join(storage)} but has no "
+                        "battery: the storage unit would disappear."
+                    )
         return found + self.market.problems() + self.dso.problems()

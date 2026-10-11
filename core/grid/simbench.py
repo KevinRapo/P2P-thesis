@@ -500,7 +500,12 @@ def _radial_layout(net: Any) -> dict[int, tuple[float, float]]:
     return coords
 
 
-def _bus_kinds(net: Any) -> dict[int, str]:
+BUS_KIND_ORDER = ("load", "pv", "gen", "storage")
+
+
+def _element_kinds(net: Any) -> dict[int, str]:
+    """What is connected to each bus: load, pv, gen (any other static generator)
+    and storage, joined by "+" in that order; "" for a bus without elements."""
     kinds: dict[int, set[str]] = {int(b): set() for b in net.bus.index}
     for b in net.load.bus:
         kinds[int(b)].add("load")
@@ -510,16 +515,29 @@ def _bus_kinds(net: Any) -> dict[int, str]:
         )
     for b in net.storage.bus:
         kinds[int(b)].add("storage")
+    return {b: "+".join(k for k in BUS_KIND_ORDER if k in s) for b, s in kinds.items()}
+
+
+def _bus_kinds(net: Any) -> dict[int, str]:
     ext = {int(b) for b in net.ext_grid.bus}
-    order = ["load", "pv", "gen", "storage"]
     return {
-        b: (
-            "external_grid"
-            if b in ext
-            else ("+".join(k for k in order if k in s) or "bus")
-        )
-        for b, s in kinds.items()
+        b: "external_grid" if b in ext else (kind or "bus")
+        for b, kind in _element_kinds(net).items()
     }
+
+
+def bus_kinds(ref: NetworkRef) -> dict[str, str]:
+    """Each bus with elements and what is on it: ``"load"``, ``"load+pv"``,
+    ``"load+storage"``, ``"load+gen+storage"``, ... (load, pv, gen, storage joined
+    by "+" in that order; gen is any static generator other than PV). Buses
+    without elements are left out.
+
+    Args:
+        ref: The network.
+    """
+    net = _load(ref)
+    ids = _bus_ids(net)
+    return {ids[b]: kind for b, kind in _element_kinds(net).items() if kind}
 
 
 def topology_view(ref: NetworkRef) -> TopologyView:
@@ -615,6 +633,11 @@ def elements(ref: NetworkRef, bus: str | None = None) -> list[ElementRecord]:
                     bus=ids[int(row.bus)],
                     profile_type=str(profile) if isinstance(profile, str) else "",
                     rated_kw=round(float(rated_mw) * 1000, 2),
+                    energy_kwh=(
+                        round(float(row.max_e_mwh) * 1000, 2)
+                        if kind == "storage"
+                        else 0.0
+                    ),
                 )
             )
     return [e for e in out if bus is None or e.bus == bus]

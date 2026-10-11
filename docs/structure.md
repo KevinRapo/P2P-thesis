@@ -81,7 +81,7 @@ Everything the user sets before stepping the market, as plain data.
 |---|---|---|
 | `scenario.py` | `Scenario`: the network (`GridSetup`), the participants with their batteries, the market rules with the reputation weights and decay, and the DSO's tariffs, fee factors and loss factor; each setup lists its own problems (`problems()`), shown on the Summary page | data and its checks |
 | `store.py` | Save and load a scenario as JSON | done |
-| `placement.py` | Placing participants on the scenario's network: one on a bus, or one per load or prosumer bus; imports `core/grid/` | done |
+| `placement.py` | Placing participants on the scenario's network: one on a bus, or one on every bus of the chosen kinds (`load`, `load+pv`, `load+storage`, ...); taken-over SimBench storage becomes the participant's battery, fixed in size (`set_battery`); SimBench-sized battery presets; imports `core/grid/` | done |
 
 ## core/grid/: the SimBench network
 
@@ -197,5 +197,5 @@ Where the rebuilt step differs from the paper or the original code, for now:
 | Partner choice (§3.4) | Weighted score: 0.5 · standing + 0.5 · closeness, both rescaled over the candidates (closeness 1 = nearest, 0 = farthest; standing 1 = highest reputation, 0 = lowest) |
 | Tariffs | Constant over the day |
 | Submitted orders | Never changed by the clearing (the original changed them in place) |
-| Batteries (eq. 15–16) | Efficiencies and the power limit included; partial charges allowed |
+| Batteries (eq. 15–16) | Efficiencies and the power limit included; partial charges allowed. A participant taking over a SimBench storage unit gets its capacity and power; other batteries take their power limit by hand (none by default), or SimBench's capacity ÷ 2 h through `simbench_battery` and its presets |
 | Demand satisfied / deferred (§3.4.1) | Per step on each outcome; deferred = what the participant's orders and battery left uncovered, exchanged with the upstream grid untraded |

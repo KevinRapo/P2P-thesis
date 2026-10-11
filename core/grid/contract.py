@@ -134,7 +134,9 @@ class ElementRecord:
         element_type: ``"load"``, ``"sgen"`` or ``"storage"``.
         bus: Bus ID it is connected to.
         profile_type: SimBench profile name; empty if none.
-        rated_kw: Rated active power.
+        rated_kw: Rated active power (a storage unit's charge and discharge
+            power limit).
+        energy_kwh: A storage unit's energy capacity; 0 for loads and generators.
     """
 
     id: str
@@ -142,6 +144,7 @@ class ElementRecord:
     bus: str
     profile_type: str = ""
     rated_kw: float = 0.0
+    energy_kwh: float = 0.0
 
 
 @dataclass(frozen=True)
