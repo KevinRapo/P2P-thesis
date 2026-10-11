@@ -7,6 +7,8 @@ SimBench profiles become its demand and generation.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from nicegui import run, ui
 
 from core.config.scenario import BatterySetup
@@ -52,7 +54,7 @@ def page() -> None:
                 classes="grow",
             ):
                 plot_box = ui.column().classes("w-full")
-                _placement_buttons(lambda: redraw())
+                placement_box = ui.column().classes("w-full gap-1")
         with section(
             "Participants",
             "Each takes over the loads and generators on its bus. Select one to "
@@ -61,7 +63,7 @@ def page() -> None:
         ):
             table_box = ui.column().classes("w-full")
 
-    state: dict = {"topology": None, "shown": scenario.grid.code}
+    state: dict = {"topology": None, "shown": scenario.grid.code, "kinds_of": None}
 
     async def load(source: NetworkRef) -> None:
         """Show the picked network; offer to use it if it is not the scenario's."""
@@ -118,6 +120,9 @@ def page() -> None:
                     topology_figure(topology, highlight=marked, height=480)
                 ).classes("w-full")
                 plot.on("plotly_click", on_click)
+        if state["kinds_of"] != current.grid.code:  # the bus kinds of this network
+            state["kinds_of"] = current.grid.code
+            _placement_buttons(placement_box, redraw)
         _participant_table(table_box, redraw)
 
     with picker_box:
@@ -195,38 +200,53 @@ def _is_2016(value: str | None) -> bool:
 # --------------------------------------------------------------------------------------
 # Placing participants
 # --------------------------------------------------------------------------------------
-def _placement_buttons(redraw) -> None:
-    """Place one participant per load bus or per prosumer bus, or clear them."""
+def _placement_buttons(box: ui.element, redraw) -> None:
+    """Place one participant on every bus of the chosen kinds, or clear them."""
     s = services()
-    with ui.row().classes("w-full items-end gap-2"):
+    counts = s.scenario.kind_counts()
+    box.clear()
+    with box, ui.row().classes("w-full items-end gap-2"):
+        kinds = (
+            ui.select(
+                {k: f"{k} ({n})" for k, n in counts.items()},
+                value=[k for k in counts if "load" in k],
+                multiple=True,
+                label="Bus kinds",
+            )
+            .props("use-chips")
+            .classes("min-w-[280px] grow")
+        )
         battery = ui.number(
-            "Battery for PV buses (kWh)", value=10, min=0, step=5
-        ).classes("w-56")
+            "Battery for generator buses (kWh)", value=10, min=0, step=5
+        ).classes("w-60")
+        power = ui.number("Its max power (kW, empty: none)", min=0).classes("w-56")
 
-        async def place(which: str) -> None:
+        async def place() -> None:
+            if not kinds.value:
+                ui.notify("Pick at least one bus kind", type="warning")
+                return
             n = await run.io_bound(
-                s.scenario.place_all, which, float(battery.value or 0)
+                s.scenario.place_all,
+                list(kinds.value),
+                float(battery.value or 0),
+                float(power.value) if power.value else None,
             )
             ui.notify(f"{n} participants placed")
             redraw()
 
-        ui.button(
-            "One per load bus", icon="home", on_click=lambda: place("loads")
-        ).props("outline no-caps")
-        ui.button(
-            "One per prosumer bus",
-            icon="solar_power",
-            on_click=lambda: place("prosumers"),
-        ).props("outline no-caps")
+        ui.button("Place", icon="groups", on_click=place).props("outline no-caps")
         ui.button(
             "Clear",
             icon="delete",
             on_click=lambda: (s.scenario.clear(), redraw()),
         ).props("flat no-caps color=negative")
-    ui.label(
-        "A prosumer bus has a load and a generator. Placing replaces the current "
-        "participants; buses with PV get the battery size above (0: none)."
-    ).classes("mls-card-caption")
+    with box:
+        ui.label(
+            "A bus kind is what the bus carries (load, pv, gen = other generator, "
+            "storage), with how many buses have it. Placing replaces the current "
+            "participants. A bus with storage keeps it as its battery; other buses "
+            "with a generator get the battery above (0: none)."
+        ).classes("mls-card-caption")
 
 
 def _participant_table(box: ui.element, redraw) -> None:
@@ -249,7 +269,16 @@ def _participant_table(box: ui.element, redraw) -> None:
                     "bus": p.bus,
                     "elements": len(p.owns),
                     "owns": ", ".join(p.owns),
-                    "battery": f"{p.battery.capacity_kwh:g} kWh" if p.battery else "—",
+                    "battery": (
+                        f"{p.battery.capacity_kwh:g} kWh"
+                        + (
+                            f", {p.battery.max_power_kw:g} kW"
+                            if p.battery.max_power_kw
+                            else ""
+                        )
+                        if p.battery
+                        else "—"
+                    ),
                 }
             )
         table = data_table(
@@ -272,41 +301,80 @@ def _participant_table(box: ui.element, redraw) -> None:
                 return
             pid = e.selection[0]["id"]
             p = next(x for x in current.participants if x.id == pid)
+            storage = s.scenario.storage_of(pid)
+            battery = p.battery or storage
+            presets = s.scenario.battery_presets()
             with editor, ui.row().classes("w-full items-end gap-2"):
                 ui.label(f"{pid} battery").classes("text-body2 text-weight-medium")
+                size = ui.select(
+                    {"": "Custom"}
+                    | {
+                        name: f"SimBench {name}: {b.capacity_kwh:g} kWh, "
+                        f"{b.max_power_kw:g} kW"
+                        for name, b in presets.items()
+                    },
+                    value="",
+                    label="Size",
+                ).classes("w-64")
                 cap = ui.number(
                     "Capacity (kWh, 0: none)",
-                    value=p.battery.capacity_kwh if p.battery else 0,
+                    value=battery.capacity_kwh if battery else 0,
                     min=0,
                 ).classes("w-44")
+                power = ui.number(
+                    "Max power (kW, empty: none)",
+                    value=battery.max_power_kw if battery else None,
+                    min=0,
+                ).classes("w-52")
                 soc = ui.number(
                     "Start SoC (0–1)",
-                    value=p.battery.initial_soc if p.battery else 0.5,
+                    value=battery.initial_soc if battery else 0.5,
                     min=0,
                     max=1,
                     step=0.1,
                 ).classes("w-36")
-                power = ui.number(
-                    "Max power (kW, empty: none)",
-                    value=p.battery.max_power_kw if p.battery else None,
-                    min=0,
-                ).classes("w-52")
+
+                def use_preset(e) -> None:
+                    if e.value:
+                        cap.value = presets[e.value].capacity_kwh
+                        power.value = presets[e.value].max_power_kw
+
+                size.on_value_change(use_preset)
+                if storage is not None:  # the storage unit's size is fixed
+                    for field in (size, cap, power):
+                        field.disable()
 
                 def apply() -> None:
                     if (cap.value or 0) <= 0:
-                        p.battery = None
+                        new = None
                     else:
-                        p.battery = BatterySetup(
+                        values = dict(
                             capacity_kwh=float(cap.value),
                             initial_soc=float(soc.value or 0.5),
                             max_power_kw=float(power.value) if power.value else None,
                         )
-                    s.scenario.save()
-                    ui.notify(f"{pid}: battery saved")
+                        new = (
+                            replace(battery, **values)
+                            if battery
+                            else BatterySetup(**values)
+                        )
+                    try:
+                        ui.notify(s.scenario.set_battery(pid, new))
+                    except ValueError as err:
+                        ui.notify(str(err), type="negative")
+                        return
                     redraw()
 
                 ui.button("Save", icon="check", on_click=apply).props(
                     "unelevated no-caps"
                 )
+            with editor:
+                ui.label(
+                    f"{pid} took over SimBench storage: its capacity and power are "
+                    "fixed; only the start SoC can change."
+                    if storage is not None
+                    else "Size: a SimBench-sized battery (energy = 2 h of its power, "
+                    "as every SimBench storage unit), or Custom."
+                ).classes("mls-card-caption")
 
         table.on_select(edit)

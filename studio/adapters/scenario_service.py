@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from core.config import placement, store
-from core.config.scenario import Scenario
+from core.config.scenario import BatterySetup, Scenario
 
 
 # --------------------------------------------------------------------------------------
@@ -82,11 +82,40 @@ class ScenarioService:
         self.save()
         return message
 
-    def place_all(self, which: str, battery_kwh: float = 0.0) -> int:
+    def kind_counts(self) -> dict[str, int]:
+        """How many buses of each kind the network has (``placement.kind_counts``)."""
+        return placement.kind_counts(self.current())
+
+    def place_all(
+        self,
+        kinds: list[str],
+        battery_kwh: float = 0.0,
+        battery_power_kw: float | None = None,
+    ) -> int:
         """Replace the participants (see ``placement.place_all``)."""
-        count = placement.place_all(self.current(), which, battery_kwh)
+        count = placement.place_all(
+            self.current(), kinds, battery_kwh, battery_power_kw
+        )
         self.save()
         return count
+
+    def battery_presets(self) -> dict[str, BatterySetup]:
+        """SimBench-sized batteries by name (``placement.battery_preset``)."""
+        return {
+            name: placement.battery_preset(name) for name in placement.BATTERY_PRESETS
+        }
+
+    def storage_of(self, participant_id: str) -> BatterySetup | None:
+        """The SimBench storage a participant took over, as a battery
+        (``placement.participant_storage``)."""
+        return placement.participant_storage(self.current(), participant_id)
+
+    def set_battery(self, participant_id: str, battery: BatterySetup | None) -> str:
+        """Give a participant a battery (``placement.set_battery``; raises
+        ``ValueError`` for a change to its SimBench storage)."""
+        message = placement.set_battery(self.current(), participant_id, battery)
+        self.save()
+        return message
 
     def clear(self) -> None:
         """Remove every participant."""
