@@ -93,6 +93,11 @@ Each issue below has the same parts:
 - **In `marlem-clean`**: what the rebuild does, with a link, and the new code
   when it is short enough to compare.
 
+<mark class="ok">Fixed</mark>        green: fixed, and you're fine with what was done
+<mark class="review">Review</mark>   yellow: the AI fixed it, but you want to look again
+<mark class="open">Open</mark>       red: still open
+
+
 ## 1. The market step
 
 ### I-01: only 23 of 24 periods run
@@ -122,6 +127,8 @@ after all of them are recorded ([lem.py](../../core/market/lem.py#L252-L259)).
 ### I-78: an invalid order stops the simulation
 
 **Fidelity · Fixed**
+
+<mark class="review">Review</mark> This raises a bigger topic, how to deal with invalid actions across all the features
 
 [`src/environment/lem.py` L336-L343](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L336-L343)
 
@@ -420,6 +427,8 @@ cleared in stage 3 with the rest
 
 **Fidelity · Fixed**
 
+<mark class="review">Review</mark> How to weight the formula, 50/50 ok?
+
 [`src/agent/der.py` L154-L159](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/der.py#L154-L159),
 [`src/environment/lem.py` L362-L365](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L362-L365)
 
@@ -447,7 +456,7 @@ the other side of the market only ([der.py](../../core/market/agent/der.py#L163)
 
 ### I-55: the stage-2 capacity check can never trigger
 
-**Code · Open**
+**Code · <mark>Open</mark>**
 
 [`src/market/matching.py` L158, L299-L307](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L158)
 
@@ -590,9 +599,32 @@ elif energy_balance < 0:
 **Why it is wrong.** Energy *sold* leaves the household, so it must reduce what is
 left for the battery; energy *bought* adds to it. [P1] eq. 13 is
 $B = (G - D) + (E_{\text{bought}} - E_{\text{sold}})$. The code has the trade term the other way
-round, $(G - D) + (\text{sold} - \text{bought})$. Selling 10 kWh with $G = D$ therefore
-*charges* the battery from 50 to 60 kWh (T7), and buying drains it. Every result
-involving batteries is affected.
+round, $(G - D) + (\text{sold} - \text{bought})$.
+
+This is not the paper's logic with every sign reversed, which would still give the
+right battery behaviour. The one expression mixes two conventions: $G - D$ counts a
+surplus as positive, while $\text{sold} - \text{bought}$ counts *exports* as positive.
+A consistently mirrored version would need $D - G$ as well, and would charge the
+battery when the result is negative; the code charges it when the result is
+positive. The inputs are what their names say: `energy_sold` is the energy the agent
+sold ([lem.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L392-L401)), so no other sign makes up for it.
+
+The original code itself, run on five households (battery at 50 kWh,
+efficiencies 1):
+
+| Household | Left for the battery, eq. 13 | The code's balance | Battery after |
+|---|---|---|---|
+| $G = D$, sells 10 kWh | −10 | +10 | **60**, charged |
+| Surplus 5, sells its surplus | 0 | +10 | **60**, charged |
+| Deficit 5, buys its deficit | 0 | −10 | **40**, drained |
+| Surplus 5, no trade | +5 | +5 | 55 |
+| Deficit 5, no trade | −5 | −5 | 45 |
+
+The code agrees with the paper only when the agent does not trade. As soon as it
+trades, the trade term doubles the surplus or deficit instead of cancelling it: a
+household that sells its 5 kWh surplus still charges 10 kWh into its battery, and
+one that buys its deficit still drains 10 kWh from it (T7). Every result involving
+batteries is affected.
 
 **In `marlem-clean`.** Eq. 13, then the battery
 ([der.py](../../core/market/agent/der.py#L214-L219)):
@@ -688,6 +720,8 @@ charge/discharge rates", but eq. 16 has no rate, and neither does the code.
 and $(E - E_{\min}) \cdot \eta_{\text{discharge}}$, and an optional `max_power_kw` caps both
 ([battery.py](../../core/market/agent/battery.py#L107-L119)).
 
+<mark class="review">Review</mark> Can simbench provide the battery power value also or we should provide it ourselves?
+
 ### I-22: no household energy balance
 
 **Paper · Fixed**
@@ -712,9 +746,9 @@ grid untraded and recorded as `external_kwh`. The power flow uses this physical
 outcome, never the trades ([der.py](../../core/market/agent/der.py#L196-L247)).
 The notebook checks it every step ("nothing left untraded").
 
-### I-26: the agent's balance is sold minus bought
+### I-26: the agent's "balance" is its net trade, in the other sign convention
 
-**Fidelity · Fixed**
+**Fidelity, inconsistency · Fixed**
 
 [`src/environment/lem.py` L440](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L440),
 [`src/market/matching.py` L435-L445](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L426-L445)
@@ -732,11 +766,32 @@ def get_agent_position(self, agent_id: str) -> float:
     return position
 ```
 
-**Why it is wrong.** [P1] eq. 13 defines the balance as
-$B = (G - D) + (E_{\text{bought}} - E_{\text{sold}})$: positive means surplus. The code stores only
-the trades, $\text{sold} - \text{bought}$, with no $G - D$ and with the opposite sign for the
-trade term. An agent that bought exactly its deficit has $B = 0$ in the paper but a
+**What is going on.** [P1] eq. 13 defines the balance as
+$B = (G - D) + (E_{\text{bought}} - E_{\text{sold}})$: positive means surplus. The code's
+`agent.balance` is a different quantity under the same name: only the agent's trades,
+$\text{sold} - \text{bought}$, with no $G - D$, and positive when the agent is a net
+*seller*. An agent that bought exactly its deficit has $B = 0$ in the paper but a
 negative "balance" here.
+
+The sign on its own is not a fault. Its only reader in the original code is the
+reward's impact term,
+`prev_balance = self.dso.balance - agent.balance`
+([reward.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L297)), where the DSO balance counts excess
+supply as positive. Selling adds supply, so subtracting the agent's net selling
+correctly gives the market without this agent. The convention is used
+consistently there.
+
+It is an **inconsistency**, not a fault:
+
+- **The name says eq. 13, the content is something else.** The paper's balance is a
+  household's energy left after trading; this is its net trade only.
+- **The sign convention differs from the rest of the market code.** Everywhere else
+  a positive balance means surplus (eq. 13, eq. 20, the DSO balance, the
+  reputation, the fees); here positive means "sold more than bought".
+- **Its one reader sees it a step late.** `agent.balance` is set after the rewards
+  are computed ([lem.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L440)), so the reward uses the
+  previous step's value. In the first step it is the random start
+  $U(-C, C)$ that `reset()` puts there ([der.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/der.py#L108)).
 
 **In `marlem-clean`.** `balance_kwh` is eq. 13 ([der.py](../../core/market/agent/der.py#L214)).
 
@@ -768,7 +823,7 @@ the DSO's money adds up to 0 every step (notebook check "money adds up").
 
 ### I-21: demand satisfied ignores battery discharge
 
-**Code · Open**
+**Code · <mark>Open</mark>** does salazar say anything about this in their paper? If the trades could always be settled with the DSO then Im not sure why he even included it?
 
 [`src/agent/der.py` L254-L259](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/der.py#L250-L262)
 
@@ -919,6 +974,8 @@ profit -= fees
 
 **Paper · Decided**
 
+<mark class="review">Review</mark> How to calculate transmission fee? what examples are used in other literature?
+
 [`src/market/dso.py` L293, L314](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L293-L314)
 
 ```python
@@ -998,9 +1055,11 @@ $F_{\text{imb}}$ is 0 in every possible run (N-04).
 market's balance $B_{\text{grid}}$ (the DSO buying in excess demand, or selling in excess
 supply); a trade that helps pays nothing ([dso.py](../../core/market/dso/dso.py#L163-L176)).
 
+<mark class="review">Review</mark> What trade could exactly help at the same time while bringing in more of the quantity that already exists in the P2P market? I dont see a situation
+
 ### I-54: DSO trades skip the grid, and the grid check ignores direction
 
-**Code · Open**
+**Code · <mark>Open</mark>** What options do we have here? It would make sense to atleast use the feeder distance from the bus as the closest point to the DSO but im not sure if that is good enough, in any case some dynamics instead of nothing!?
 
 [`src/market/dso.py` L224-L226, L371](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L219-L226)
 
@@ -1028,6 +1087,8 @@ result of all energy, DSO trades included.
 ### I-74: the thermal fee starts far below the congestion fee
 
 **Paper · Flagged**
+
+<mark class="review">Review</mark> How is this usually handeled in real life? Who is to say that the thermal fee cant start much earlier, I understand congestion might be more important but they are different effects.
 
 [`src/market/dso.py` L65-L67](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L65-L67)
 
@@ -1071,6 +1132,8 @@ intended is not said.
 ### N-06: zones exist only for the paper's graphs
 
 **Paper · Flagged**
+
+<mark class="review">Review</mark> I need suggestions here on options to see if they make sense, Im not sure how zones make sense on these small scale experiments but then again simbench has large networks also, how big were the zones for salazar or did he even use them?
 
 [`src/market/dso.py` L317](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L317)
 
@@ -1292,6 +1355,8 @@ total order volume", and it never varies.
 
 **Fidelity · Fixed**
 
+<mark class="review">Review</mark> If and what formula to use? Just reverse salazars to the proper form?
+
 [`src/market/reputation.py` L86-L87](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py#L86-L87),
 [`src/environment/lem.py` L436, L441](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L436-L441)
 
@@ -1359,6 +1424,8 @@ if (trade.buyer_id == dso_id) or (trade.seller_id == dso_id):
 
 **Code · Decided**
 
+<mark class="review">Review</mark> I started pondering about the reputation mechanism, it is a good feature and so on and makes sense to keep it and i want to but in the span of a single day especially if its dynamic, not sure how to handle this and like maybe the day is too short to make it meaningful, because very dependent on initial conditions.
+
 [`src/market/reputation.py` L65-L68](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py#L56-L68),
 [`src/environment/lem.py` L281-L283](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L281-L283)
 
@@ -1385,7 +1452,7 @@ generator (`np.random.default_rng(seed)`), but is not used.
 
 ### I-66: the block hash leaves out losses and fees
 
-**Code · Open**
+**Code · <mark>Open</mark>**
 
 [`src/market/validation.py` L25-L34](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/validation.py#L25-L34),
 [`src/market/matching.py` L395-L396](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L395-L396)

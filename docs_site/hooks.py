@@ -24,10 +24,13 @@ LINK = re.compile(r"\]\(([^)\s]+)\)")
 FENCE = re.compile(r"^```.*?^```", re.M | re.S)
 SERVED = {".md", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".gif"}
 
+# "md-ellipsis" too: the table of contents and navigation repeat a heading's text, its
+# \(...\) math included, in md-ellipsis spans without the arithmatex class. MathJax
+# only looks inside elements whose own class matches, so the span is named directly.
 MATHJAX = """window.MathJax = {
   tex: {inlineMath: [["\\\\(", "\\\\)"]], displayMath: [["\\\\[", "\\\\]"]],
         processEscapes: true, processEnvironments: true},
-  options: {ignoreHtmlClass: ".*|", processHtmlClass: "arithmatex"}
+  options: {ignoreHtmlClass: ".*|", processHtmlClass: "arithmatex|md-ellipsis"}
 };
 document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() })
 """

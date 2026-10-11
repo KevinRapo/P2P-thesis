@@ -1,0 +1,34 @@
+/* Review marks: my own verdict on an issue, next to the AI's status.
+   Usage: <mark class="ok">Fixed</mark>, <mark class="review">Review</mark>,
+   <mark class="open">Open</mark>. Loaded by MkDocs (extra_css) and by the
+   VS Code Markdown preview (markdown.styles in .vscode/settings.json). */
+
+mark.ok,
+mark.review,
+mark.open,
+.md-typeset mark.ok,
+.md-typeset mark.review,
+.md-typeset mark.open {
+  color: #1a1a1a;
+  padding: 0 0.3em;
+  border-radius: 0.25em;
+  box-shadow: none;
+}
+
+/* Green: fixed, and I agree with what was done. */
+mark.ok,
+.md-typeset mark.ok {
+  background-color: #b2f2bb;
+}
+
+/* Yellow: fixed by the AI, but I should look at it again. */
+mark.review,
+.md-typeset mark.review {
+  background-color: #ffec99;
+}
+
+/* Red: still open. */
+mark.open,
+.md-typeset mark.open {
+  background-color: #ffc9c9;
+}

@@ -6,5 +6,8 @@
             "packageManager": "ms-python.python:conda"
         }
     ],
-    "python.defaultInterpreterPath": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe"
+    "python.defaultInterpreterPath": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe",
+    "markdown.styles": [
+        "docs_site/overrides/assets/marks.css"
+    ]
 }
