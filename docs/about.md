@@ -26,7 +26,7 @@ anchors. Those links point at the `clean` branch, so they work once it is pushed
 The API pages are generated from the code, never written by hand:
 
 - **One section per top-level folder** (`core.grid`, `core.market`,
-  `core.config`, `studio`), in `API_SECTIONS` in `docs_site/hooks.py`. A package
+  `core.config`, `studio`, `RL.core`), in `API_SECTIONS` in `docs_site/hooks.py`. A package
   becomes a section with an index page; its subpackages become subsections.
 - **One page per module**, with its classes and functions, their signatures, type
   annotations and source. The module index lists each module with the **first line

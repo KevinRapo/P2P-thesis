@@ -9,7 +9,7 @@
     "python.defaultInterpreterPath": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe",
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestArgs": ["tests"],
+    "python.testing.pytestArgs": ["tests", "RL/tests"],
     "python.testing.cwd": "${workspaceFolder}",
     "markdown.styles": [
         "docs_site/overrides/assets/marks.css"

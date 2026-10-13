@@ -3,13 +3,14 @@
 > The repository folder by folder, down to each script: what it is for and how far
 > it is built. Keep this page current when files are added, moved or built.
 
-Three layers. `core/` is the MARLEM functionality: `core/grid/` models the
-network, `core/market/` the market on it (its `LocalEnergyMarket` runs both, step by
-step), `core/config/` describes a scenario. `notebooks/` call `core/` directly to
-validate it. `studio/` is the user interface: its pages and components call
-`studio/adapters/`, a thin layer over `core/`. `core/` never imports `studio/` or
-`notebooks/`, so anything that looks wrong in the Studio can be reproduced in a
-notebook to tell a core problem from a UI one.
+The market has three layers: `core/grid/` models the network,
+`core/market/` models the market on it (`LocalEnergyMarket` runs both, step by
+step), and `core/config/` describes a scenario. `notebooks/` call `core/`
+directly to validate it. The NiceGUI Studio is in `studio/`: pages and components
+call `studio/adapters/`, a thin layer over `core/`. `core/` never imports `studio/`
+or `notebooks/`, so anything that looks wrong in the Studio can be reproduced in
+a notebook to tell a core problem from a UI one. The separate `RL/` folder holds
+the RL implementation and experiments; it does not import the market.
 
 ```mermaid
 flowchart LR
@@ -46,6 +47,11 @@ flowchart LR
   root --> notebooks["notebooks/"]
   notebooks --> n1["validate_market.ipynb"]:::done
   notebooks --> n2["scenarios/validate_market.json"]:::done
+
+  root --> rl["RL/"]
+  rl --> rc["core/rl/ / core/fixed/ / core/envs/"]:::done
+  rl --> rn["notebooks/original/ / notebooks/fixed/"]:::done
+  rl --> rt["tests/ / runs/ (local results)"]:::done
 
   root --> tests["tests/"]
   tests --> x1["test_studio_matches_core.py"]:::done
@@ -169,6 +175,37 @@ market or pandapower directly.
 | `scenario_service.py` | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants; lists, reads and opens scenario files | done |
 | `market_service.py` | Builds and holds the `LocalEnergyMarket` the Step page plays; build, next part, step, run to the end, clear (when another scenario is opened) | done |
 
+## RL/: independent reinforcement learning
+
+Copied from the `RL` branch, including the benchmark work. The inner layout is
+preserved; Python imports use `RL.core.*` to avoid the market's `core`. Neither
+implementation imports the other. Paths below are relative to `RL/`.
+Run `python -m pytest RL/tests` from the clean root, or `python -m pytest` in `RL/`.
+Notebooks locate `RL/` and put the clean root on `PYTHONPATH` for worker processes.
+
+| Path | What it does |
+|---|---|
+| `core/rl/base.py` | Original algorithm/paradigm enums and module protection |
+| `core/rl/ctce.py`, `core/rl/ctde.py` | Original central and per-agent actor modules, with issue annotations |
+| `core/rl/train.py`, `core/rl/inference.py` | Original trainer and inference, isolated from the market |
+| `core/rl/local.py`, `core/rl/probe.py` | Training in one process and reading learned probe outputs |
+| `core/fixed/grouping.py` | Joint agent observations, actions and team rewards |
+| `core/fixed/ctde_modules.py` | RLlib modules with separate actors per agent |
+| `core/fixed/config.py` | Algorithms, paradigms and configuration |
+| `core/fixed/policy.py` | Policy actions, baselines, rollout and evaluation |
+| `core/fixed/train.py` | Training budgets, metrics, run records and saved policies |
+| `core/fixed/benchmark.py` | Build, training and sampling timings |
+| `core/envs/probes.py` | Five probe tasks with known answers |
+| `core/envs/toy.py` | Individual and team toy tasks |
+| `core/envs/spread.py` | MPE2 simple_spread and visualisation helpers |
+| `core/envs/shapes.py` | Cheap environment with the market's observation/action sizes |
+| `notebooks/original/` | Notebooks to validate the original RL implementation |
+| `notebooks/fixed/` | Notebooks to validate the fixed implementation and inspect learning |
+| `tests/` | Deterministic environment checks and shared helpers |
+| `runs/` | Copied local results and checkpoints; ignored by Git |
+| `README.md`, `AGENTS.md`, `LICENSE` | Running instructions, development rules and original license |
+| `pytest.ini`, `.vscode/settings.json`, `.gitignore` | Local test configuration, editor settings and ignored outputs |
+
 ## Around the code
 
 | Path | What it is |
@@ -178,6 +215,7 @@ market or pandapower directly.
 | `run_studio.py` | Starts the Studio with auto-reload |
 | `run_all.py` | Starts the dev servers (both branches' docs and Studios) in their own windows |
 | `AGENTS.md` | Rules for working in this repository |
+| `pytest.ini` | Discover market and RL tests together from the clean root |
 | `.vscode/` | Launch entries and the Python interpreter |
 
 ## Choices in the rebuilt market step

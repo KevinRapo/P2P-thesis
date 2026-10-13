@@ -1,8 +1,8 @@
 # AGENTS.md: implementation guide for MARLEM clean
 
 MARLEM rebuilt step by step on SimBench networks: configure a local energy market,
-then step through it by hand and watch the network's power flow. No reinforcement
-learning at this stage.
+then step through it by hand and watch the network's power flow. Reinforcement
+learning lives in `RL/`, independent of the market layer.
 
 ## Current stage: the core first, the Studio later
 
@@ -36,6 +36,7 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 | `notebooks/` | Jupyter notebooks that call `core/` directly to validate it |
 | `studio/` | The NiceGUI Studio: `pages/`, `components/`, `adapters/`, layout, theme |
 | `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, workspace paths) |
+| `RL/` | Independent RL code, environments, notebooks, tests and runs; read `RL/AGENTS.md` before editing |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
 
@@ -91,3 +92,10 @@ Every folder and script, with how far it is built, is in
 - A file with one purpose (one class, a few lines) needs no sections.
 - When adding code, put it in the section it belongs to; when a section grows its
   own purpose, give it its own banner.
+
+## RL isolation
+
+`RL/` keeps the former RL worktree's layout. Import it as `RL.core.*`, while the
+market remains `core.*`. Neither layer imports the other. RL notebooks call
+`RL.core` only. Market work follows the core-first guidance above; RL work follows
+`RL/AGENTS.md`.
