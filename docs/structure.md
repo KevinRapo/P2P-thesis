@@ -47,6 +47,7 @@ flowchart LR
   root --> notebooks["notebooks/"]
   notebooks --> n1["validate_market.ipynb"]:::done
   notebooks --> n2["scenarios/validate_market.json"]:::done
+  notebooks --> n3["benchmark_market_step.ipynb<br/>results/market_step.csv"]:::done
 
   root --> rl["RL/"]
   rl --> rc["core/rl/ / core/fixed/ / core/envs/"]:::done
@@ -150,6 +151,8 @@ Notebooks import `core/` only. Run them with the `marlem` conda env as kernel.
 |---|---|---|
 | `validate_market.ipynb` | Scenario, inputs per step, one step part by part, the whole day, rule checks, experiments side by side | done |
 | `scenarios/validate_market.json` | The notebook's scenario, saved by it in the Studio's format: open it from the Studio's header (Scenario: … → Open) to play the same scenario there | done |
+| `benchmark_market_step.ipynb` | Time per market step on SimBench LV networks of 13 to 118 participants (random orders), split into market logic, grid preparation and the power flow; the floor under a training run on the market | done |
+| `results/market_step.csv` | That notebook's summary, read by the RL speed benchmark (`RL/notebooks/fixed/benchmark_speed.ipynb`) | done |
 
 ## tests/: the Studio against the core
 
@@ -177,9 +180,9 @@ market or pandapower directly.
 
 ## RL/: independent reinforcement learning
 
-Copied from the `RL` branch, including the benchmark work. The inner layout is
-preserved; Python imports use `RL.core.*` to avoid the market's `core`. Neither
-implementation imports the other. Paths below are relative to `RL/`.
+Copied from the `RL` branch, including the uncommitted benchmark work. The inner
+layout is preserved; Python imports use `RL.core.*` to avoid the market's `core`.
+Neither implementation imports the other. Paths below are relative to `RL/`.
 Run `python -m pytest RL/tests` from the clean root, or `python -m pytest` in `RL/`.
 Notebooks locate `RL/` and put the clean root on `PYTHONPATH` for worker processes.
 
@@ -199,10 +202,14 @@ Notebooks locate `RL/` and put the clean root on `PYTHONPATH` for worker process
 | `core/envs/toy.py` | Individual and team toy tasks |
 | `core/envs/spread.py` | MPE2 simple_spread and visualisation helpers |
 | `core/envs/shapes.py` | Cheap environment with the market's observation/action sizes |
-| `notebooks/original/` | Notebooks to validate the original RL implementation |
-| `notebooks/fixed/` | Notebooks to validate the fixed implementation and inspect learning |
-| `tests/` | Deterministic environment checks and shared helpers |
+| `notebooks/original/probe_paradigms.ipynb`, `simple_spread.ipynb`, `validate_rl.ipynb` | Validate the original RL implementation |
+| `notebooks/fixed/probe_paradigms.ipynb`, `simple_spread.ipynb` | Validate the fixed implementation |
+| `notebooks/fixed/probe_playground.ipynb` | Inspect learning iteration by iteration |
+| `notebooks/fixed/benchmark_speed.ipynb` | Compare RL timing with `../notebooks/results/market_step.csv` |
+| `tests/test_0_every_probe.py` through `test_5_obs_action_probe.py` | Deterministic environment checks |
+| `tests/probe_helpers.py`, `tests/conftest.py` | Shared assertions and readable test output |
 | `runs/` | Copied local results and checkpoints; ignored by Git |
+| `__init__.py`, `core/**/__init__.py` | Package markers and public imports |
 | `README.md`, `AGENTS.md`, `LICENSE` | Running instructions, development rules and original license |
 | `pytest.ini`, `.vscode/settings.json`, `.gitignore` | Local test configuration, editor settings and ignored outputs |
 

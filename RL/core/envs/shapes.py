@@ -6,7 +6,7 @@ also holds one reputation per agent, ``42 + n_agents``), in episodes of the
 market's length (24 hourly steps by default). Nothing else of the market is in
 it: observations are drawn at random every step and the reward is cheap, so a
 run on it times RLlib and the networks alone. The market's own cost per step is
-measured on the clean branch (``notebooks/benchmark_market_step.ipynb``).
+measured on the market side (``../notebooks/benchmark_market_step.ipynb``).
 
 The reward is learnable, so the same runs also show whether a paradigm still
 learns at this size: each agent has a fixed random linear target

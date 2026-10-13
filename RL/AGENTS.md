@@ -88,8 +88,8 @@ names the issues it fixes.
   observations, 4 actions, 24-step days), random observations and a cheap
   learnable reward: times the RL layer at market size without the market
   (`notebooks/fixed/benchmark_speed.ipynb`, results in `runs/benchmark/`). The
-  market's own time per step comes from `marlem-clean`'s
-  `notebooks/benchmark_market_step.ipynb`.
+  market's own time per step comes from the market side's
+  `../notebooks/benchmark_market_step.ipynb`.
 
 An environment the trainer can use: a `MultiAgentEnv` built as
 `Env(env_config)`, with `agents_id`, `observation_spaces` and `action_spaces`
