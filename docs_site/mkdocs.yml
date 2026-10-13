@@ -129,6 +129,8 @@ nav:
   - Code structure: structure.md
   - MARLEM:
       - Methodology: marlem/methodology.md
+  - RL:
+      - Training cycle (3 × 3): rl/training.md
   - Validation:
       - Market layer: validation/market.md
       - RL layer: validation/rl.md

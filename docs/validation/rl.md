@@ -73,16 +73,22 @@ The only changes to the copied code isolate it from the market (the trainer take
 the environment class as an argument); each is marked `DEVIATION:` in the code, and
 none changes how training works.
 
+**In the code.** On the RL branch every issue below is marked above the
+lines at fault in `core/rl/`: `FAULT <ID>:` for a defect, `DECIDE <ID>:` for a
+*Judgment* issue, so the document and the code can be read side by side. The comments are the only
+change; the line numbers in the links below are those of the original. I-52 is not
+marked: the original's test file is not copied to the RL branch.
+
 ## Summary
 
 | Part of the RL layer | Issues | Tested | Read | Judgment |
 |---|---|---|---|---|
 | [1. Training paradigms](#1-training-paradigms) | 4 | 2 | 1 | 1 |
 | [2. Grouping the agents](#2-grouping-the-agents) | 1 | 0 | 1 | 0 |
-| [3. Policy networks and loss](#3-policy-networks-and-loss) | 3 | 2 | 1 | 0 |
-| [4. Trainer and hyperparameters](#4-trainer-and-hyperparameters) | 3 | 0 | 2 | 1 |
+| [3. Policy networks and loss](#3-policy-networks-and-loss) | 4 | 2 | 2 | 0 |
+| [4. Trainer and hyperparameters](#4-trainer-and-hyperparameters) | 4 | 0 | 3 | 1 |
 | [5. Inference, evaluation and tests](#5-inference-evaluation-and-tests) | 4 | 0 | 3 | 1 |
-| **Total** | **15** | **4** | **8** | **3** |
+| **Total** | **17** | **4** | **10** | **3** |
 
 The most consequential ones:
 
@@ -95,6 +101,9 @@ The most consequential ones:
   the action the entropy bonus drives it to overflow. The KL term then becomes
   infinite, `kl_coeff = 0` turns that into a NaN loss, and RLlib silently zeroes
   the NaN gradients and carries on. Confirmed by test.
+- **SAC's actor in CTCE and CTDE never learns from the critic (R-05).** It samples
+  its action without the reparameterisation gradient, so it is trained only to
+  raise its entropy.
 - **The paradigms are not compared like for like (R-03, I-60, I-73).** DTDE uses
   RLlib's standard network, CTCE and CTDE a smaller custom one without its
   safeguards; CTCE is trained on the sum of all rewards and learns more slowly.
@@ -555,6 +564,47 @@ CTDE … failing in DTDE") to the paradigms.
 **How to test it.** Probes 1-6 with SAC in each paradigm. SAC has no value
 function, so its value probes check the Q-values instead.
 
+### R-05: SAC's actor in CTCE and CTDE gets no gradient from the critic
+
+**Code · Read**
+
+[`src/environment/ctce.py` L132-L146](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L132-L146)
+(`ctde.py` [L143-L157](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L143-L157) is the same)
+
+```python
+# SECOND PASS: Compute Q-values for actions sampled from current policy to train the actor
+curr_action_dist = self.action_dist_cls.from_logits(action_logits)
+curr_actions_resampled = curr_action_dist.sample()
+# ...
+fwd_out["q_curr"] = torch.min(self.qf(curr_qf_embeddings).squeeze(-1),
+                              self.qf_twin(curr_qf_twin_embeddings).squeeze(-1))
+fwd_out["logp_resampled"] = curr_action_dist.logp(curr_actions_resampled)
+```
+
+**Why it is wrong.** SAC trains its actor on
+$L_\pi = \alpha \log\pi_\theta(\tilde a \mid s) - \min_j Q_j(s, \tilde a)$ ([P2] eq. 15).
+The second term is how the actor learns from the critic: $\tilde a$ must be a
+*reparameterised* sample, $\tilde a = m_\theta(s) + \sigma_\theta(s)\,\varepsilon$, so
+that the gradient flows through $\partial Q / \partial \tilde a$ into $\theta$.
+RLlib's own SAC module does this with `rsample()`
+([`default_sac_torch_rl_module.py` L155](https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/sac/torch/default_sac_torch_rl_module.py#L155)).
+The custom modules call `sample()`, which draws without a gradient (checked:
+`sample()` returns a tensor with `requires_grad=False`, `rsample()` one with
+`True`). The $Q$ term is then a constant for the actor, and $\partial L_\pi /
+\partial\theta$ comes from $\alpha \log\pi_\theta$ alone: the actor is trained only
+to raise its entropy, never toward higher Q-values. The critic still learns, so Q
+metrics look healthy.
+
+So SAC-DTDE (RLlib's module) is SAC, but SAC-CTCE and SAC-CTDE are not: their
+policies drift toward maximum spread regardless of the reward. In CTDE this adds to
+I-48 (the trained actor does not even act). [P2] reports SAC as "excellent in CTCE
+and CTDE … failing in DTDE".
+
+**How to test it.** Probe 4 with SAC-CTCE: the action means should stay where they
+start while the entropy rises; with `rsample()` they should move to the targets.
+Directly: one SAC loss on a batch, then check that the actor's parameters receive a
+gradient from the $Q$ term (zero now).
+
 ## 4. Trainer and hyperparameters
 
 ### I-49: population-based training jumps the learning rate and reaches entropy 10
@@ -628,6 +678,38 @@ ray.shutdown()
 **How to test it.** Each is checkable directly: build the trainer with
 `evaluation_duration=5`; count the worker processes of a run; run a trial that
 raises and check whether Ray is still up.
+
+### R-06: APPO's `lambda_` has no effect
+
+**Code · Read**
+
+[`src/environment/train.py` L186-L189](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L186-L189),
+[L229-L235](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L229-L235)
+
+```python
+elif self.algorithm == RLAlgorithm.APPO:
+    hyperparam_mutations = {"lr": loguniform(0.0001, 0.01),
+                            "entropy_coeff": loguniform(0.01, 10.0),
+                            "lambda_": loguniform(0.8, 0.99)}
+# ...
+return (APPOConfig()
+        .training(lr=1e-5,
+                  vtrace=True,
+                  lambda_=0.95,
+```
+
+**Why it is wrong.** APPO computes its targets with V-trace, and RLlib's V-trace
+takes no λ
+([`vtrace_torch_v2.py` L72-L81](https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/impala/torch/vtrace_torch_v2.py#L72-L81));
+nothing in APPO's learner reads `lambda_`
+([`appo_torch_learner.py` L141-L150](https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/appo/torch/appo_torch_learner.py#L141-L150)).
+The setting is ignored, and one of the three hyperparameters population-based
+training searches for APPO searches nothing: trials that differ only in `lambda_`
+are identical, and a "best `lambda_`" read from the results is noise. [P2] does not
+mention λ for APPO.
+
+**How to test it.** Two APPO runs with the same seed and `lambda_` 0.8 and 0.99:
+their losses should match step for step.
 
 ### I-50: the budget is counted in iterations, the paper in episodes
 
@@ -796,6 +878,11 @@ independently:
   population-based training raising the entropy coefficient toward 10, trials of
   the grouped paradigms are exactly the ones whose spread can diverge, and the
   original would keep reporting them.
+- **SAC-CTCE and SAC-CTDE policies were never steered by their critics (R-05).**
+  Their actors only gained entropy, so [P2]'s SAC results in the grouped
+  paradigms ("excellent in CTCE and CTDE") come from policies that did not learn
+  from the reward.
+- **APPO's λ search found nothing (R-06)**: `lambda_` has no effect in APPO.
 - **The ranking mixes paradigm with network (R-03, R-04)** and with training
   length (I-60), on one seed (I-72).
 
@@ -809,6 +896,8 @@ paradigms need the fixes above before they can be repeated.
 |---|---|---|
 | CTCE trained longer on probes 4 and 5 | Decides "slow, not broken" | I-60 |
 | APPO and SAC on the probes | I-48 and R-01 follow from the code for them; SAC's distribution differs (R-04) | I-48, R-04 |
+| SAC-CTCE on probe 4; the actor's gradient from the Q term | Confirms that SAC's grouped actors never learn from the critic | R-05 |
+| Two APPO runs differing only in `lambda_` | Confirms the setting is ignored | R-06 |
 | Probe 6 with different action bounds per agent | The only way to show the wrong action scaling | I-59 |
 | The Ray Tune path (`RLTrainer.train`) | Population-based training, evaluation workers and checkpoints have not run; the bench uses `build_local` | I-49, I-62 |
 | `RLInference` | Its action scaling and metrics | I-61 |
