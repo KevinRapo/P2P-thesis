@@ -129,6 +129,7 @@ nav:
   - Code structure: structure.md
   - MARLEM:
       - Methodology: marlem/methodology.md
+      - Learning layer: marlem/learning.md
   - RL:
       - Training cycle (3 × 3): rl/training.md
       - One iteration, step by step: rl/cycle.md

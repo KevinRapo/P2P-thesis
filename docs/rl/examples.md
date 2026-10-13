@@ -15,7 +15,7 @@ Every number below was computed with that code or with RLlib's own functions
 | File | What it defines | Section here |
 |---|---|---|
 | [grouping.py](../../../marlem-rl/core/fixed/grouping.py) | `GroupedEnv`: all agents as one, for CTCE and CTDE | 1, 2, 4 |
-| [modules.py](../../../marlem-rl/core/fixed/modules.py) | CTDE: RLlib's modules with one actor per agent | 3, 5 |
+| [ctde_modules.py](../../../marlem-rl/core/fixed/ctde_modules.py) | CTDE: RLlib's modules with one actor per agent | 3, 5 |
 | [config.py](../../../marlem-rl/core/fixed/config.py) | the settings of each of the nine combinations | 6 |
 | [policy.py](../../../marlem-rl/core/fixed/policy.py) | acting with a trained policy, baselines, the team score | 7 |
 | [train.py](../../../marlem-rl/core/fixed/train.py) | the budget, the NaN stop, when evaluation runs | 8 |
@@ -108,20 +108,20 @@ passes them to the environment:
 ## 3. CTDE: one actor per agent (A2)
 
 In CTDE each agent's action may depend only on its own observation. Our module
-([modules.py L134-L140](../../../marlem-rl/core/fixed/modules.py#L134-L140)) is
+([ctde_modules.py L134-L140](../../../marlem-rl/core/fixed/ctde_modules.py#L134-L140)) is
 RLlib's PPO module for the group with the actor replaced by three separate ones,
 each the network RLlib would build for that agent alone (`agent_actors`,
-[L99-L119](../../../marlem-rl/core/fixed/modules.py#L99-L119)). The critic is left
+[L99-L119](../../../marlem-rl/core/fixed/ctde_modules.py#L99-L119)). The critic is left
 as RLlib builds it, on all of $s$.
 
 **Encoders** (`AgentEncoders`,
-[L48-L66](../../../marlem-rl/core/fixed/modules.py#L48-L66)). Agent $i$'s encoder
+[L48-L66](../../../marlem-rl/core/fixed/ctde_modules.py#L48-L66)). Agent $i$'s encoder
 reads only its slice of $s$: `agent_2`'s positions 1-2 = (0.4, 0.8), `agent_10`'s
 3-4 = (−0.2, 0.5), `agent_1`'s 5-6 = (0.9, 0.1). Each turns its 2 numbers into a
 256-number latent, $h_i$; the three latents are put side by side (768 numbers).
 
 **Heads** (`AgentHeads`,
-[L69-L96](../../../marlem-rl/core/fixed/modules.py#L69-L96)). Head $i$ reads only
+[L69-L96](../../../marlem-rl/core/fixed/ctde_modules.py#L69-L96)). Head $i$ reads only
 $h_i$ and outputs $[m_{i}, \ell_{i}]$ for its 2 action dimensions. Say:
 
 | Agent | Head output $[m_q, m_p, \ell_q, \ell_p]$ |
