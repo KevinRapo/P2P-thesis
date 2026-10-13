@@ -131,6 +131,8 @@ nav:
       - Methodology: marlem/methodology.md
   - RL:
       - Training cycle (3 × 3): rl/training.md
+      - One iteration, step by step: rl/cycle.md
+      - Worked examples (our code): rl/examples.md
   - Validation:
       - Market layer: validation/market.md
       - RL layer: validation/rl.md
