@@ -127,24 +127,27 @@ validation:
 
 nav:
   - Home: index.md
-  - marlem-v1: v1.md
-  - Code structure: structure.md
+  # The MARLEM papers and what was found in them and in their code.
   - MARLEM:
-      - Methodology: marlem/methodology.md
-      - Learning layer: marlem/learning.md
-  - RL:
-      - Training cycle (3 × 3): rl/training.md
-      - One iteration, step by step: rl/cycle.md
-      - Worked examples (our code): rl/examples.md
-  - Validation:
-      - Issue register: validation/register.md
-      - Market layer: validation/market.md
-      - RL layer: validation/rl.md
-      - The two papers: validation/papers.md
-  - SimBench:
-      - simbench/README.md
-      - Network catalogue: simbench/networks.md
-      - Profiles: simbench/profiles.md
+      - Paper overview:
+          - Methodology: marlem/methodology.md
+          - Learning layer: marlem/learning.md
+      - Validation:
+          - Issue register: validation/register.md
+          - Market layer: validation/market.md
+          - RL layer: validation/rl.md
+          - The two papers: validation/papers.md
+      - Reinforcement learning:
+          - Training cycle (3 × 3): rl/training.md
+          - One iteration, step by step: rl/cycle.md
+          - Worked examples (our code): rl/examples.md
+  # This thesis's implementation.
+  - Implementation:
+      - marlem-v1: v1.md
+      - Code structure: structure.md
+      - SimBench:
+          - simbench/README.md
+          - Network catalogue: simbench/networks.md
+          - Profiles: simbench/profiles.md
   # Filled in by hooks.py: one section per top-level folder, one page per module.
   - API Reference: api/index.md
-  - About these docs: about.md
