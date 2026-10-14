@@ -136,7 +136,7 @@ class ExperimentCard:
         caption = (spec or {}).get("description") or (
             "" if spec else "Runs made without the runner (no experiment.json)"
         )
-        with section(name, caption, "monitoring"):
+        with section(name, caption, "insights"):
             self.header = ui.row().classes("w-full items-center gap-2")
             self.table = (
                 ui.table(
@@ -232,7 +232,7 @@ class RunsMonitor:
             if not data:
                 placeholder(
                     f"No experiments yet. Start one in a terminal: {START_HINT}",
-                    "monitoring",
+                    "insights",
                 )
             for name, spec, _alive, _runs in data:
                 self.cards[name] = ExperimentCard(name, self, spec)
