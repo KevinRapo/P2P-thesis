@@ -1,0 +1,364 @@
+"""An experiment: a JSON file that says which runs to train.
+
+``experiments/<name>.json`` describes a grid of runs (algorithms x paradigms x
+seeds x variants) on one environment. ``Experiment.expand()`` turns it into one
+``RunSpec`` per run; ``RunSpec.run()`` builds the ``core.rl.Run`` to train.
+
+Importing this module is cheap (no Ray, torch or pandapower): the environment
+class and ``core.rl`` are imported only when a run is built.
+
+Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
+
+    {
+      "name": "sac_alpha",              default: the file's name
+      "description": "free text",
+      "env": "market",                  or "module:Class"
+      "scenario": "scenarios/validate_market.json",   relative to the repo root
+      "train_days": {"from": "2016-06-01", "to": "2016-06-30"},   or a list
+      "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
+      "env_config": {},                 extra environment settings
+      "algorithms": ["sac"], "paradigms": ["dtde"], "seeds": [0],
+      "variants": {"a1": {"initial_alpha": 1.0}},   name -> training overrides
+      "budget": 24000,                  environment steps; int or {algorithm: int}
+      "eval_every": 6000,               int or {algorithm: int}, or instead
+      "eval_points": 4,                 number of evaluations, eval_every =
+                                        budget // eval_points (give one of the two)
+      "eval_episodes": 10,
+      "heldout_seeds": 14,              a count (seeds 2000, 2001, ...) or a list;
+                                        default: one per test day
+      "training": {"sac": {...}},       overrides per algorithm; a variant's
+                                        overrides are merged on top
+      "model": {},                      network overrides
+      "max_parallel": 3, "torch_threads": 1
+    }
+
+Evaluation points: the trainer always evaluates at step 0 (the untrained policy and
+the baselines) and at the end of the budget; ``eval_every`` / ``eval_points`` add
+the evaluations in between (``eval_points`` counts the final one: 4 points on a
+budget of 24000 evaluate at 6000, 12000, 18000 and 24000). Neither: only at the
+end.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+import os
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any, Optional
+
+REPO = Path(__file__).resolve().parents[2]
+
+# Kept in step with core.rl.config (a test compares them): importing the enums from
+# there would load Ray and torch just to read a status.
+ALGORITHMS = ("ppo", "appo", "sac")
+PARADIGMS = ("ctce", "ctde", "dtde")
+MARKET_ENVS = ("market", "core.env:MarketEnv", "core.env.market_env:MarketEnv")
+HELDOUT_SEED_START = 2000
+
+
+class SpecError(ValueError):
+    """The experiment file is wrong; the message says what to change."""
+
+
+# --------------------------------------------------------------------------------------
+# Where things are
+# --------------------------------------------------------------------------------------
+def runs_root() -> Path:
+    """The folder with the experiments: ``$MARLEM_RUNS`` or ``<repo>/runs``."""
+    return Path(os.environ.get("MARLEM_RUNS") or REPO / "runs")
+
+
+def load_env_class(env: str) -> type:
+    """The environment class: ``"market"`` or a ``"module:Class"`` path."""
+    if env in MARKET_ENVS:
+        from core.env import MarketEnv
+
+        return MarketEnv
+    module, _, name = env.partition(":")
+    obj: Any = importlib.import_module(module)
+    for part in name.split("."):
+        obj = getattr(obj, part)
+    return obj
+
+
+# --------------------------------------------------------------------------------------
+# One run of the grid
+# --------------------------------------------------------------------------------------
+@dataclass
+class RunSpec:
+    """One run of an experiment: everything ``core.rl.Run`` needs."""
+
+    name: str
+    algorithm: str
+    paradigm: str
+    seed: int
+    variant: Optional[str]
+    env: str
+    env_config: dict
+    budget: int
+    eval_every: int
+    eval_episodes: int
+    training: dict
+    model: dict
+    out_dir: Path
+    index: int = 0
+
+    def run(self):
+        """The ``core.rl.Run`` to train (imports ``core.rl``: slow)."""
+        from core.rl.train import Run
+
+        return Run(
+            algorithm=self.algorithm,
+            paradigm=self.paradigm,
+            env_class=load_env_class(self.env),
+            env_config=dict(self.env_config),
+            budget=self.budget,
+            seed=self.seed,
+            eval_every=self.eval_every,
+            eval_episodes=self.eval_episodes,
+            training=dict(self.training),
+            model=dict(self.model),
+            out_dir=self.out_dir,
+        )
+
+
+# --------------------------------------------------------------------------------------
+# The experiment file
+# --------------------------------------------------------------------------------------
+@dataclass
+class Experiment:
+    """An experiment as written in ``experiments/<name>.json`` (see the module)."""
+
+    name: str
+    algorithms: list[str]
+    paradigms: list[str]
+    seeds: list[int]
+    budget: int | dict[str, int]
+    scenario: Optional[str] = None
+    env: str = "market"
+    train_days: list[str] = field(default_factory=list)
+    test_days: list[str] = field(default_factory=list)
+    env_config: dict = field(default_factory=dict)
+    variants: dict[str, dict] = field(default_factory=dict)
+    eval_every: int | dict[str, int] | None = None
+    eval_points: int | dict[str, int] | None = None
+    eval_episodes: int = 10
+    heldout_seeds: int | list[int] | None = None
+    training: dict[str, dict] = field(default_factory=dict)
+    model: dict = field(default_factory=dict)
+    max_parallel: int = 3
+    torch_threads: int = 1
+    description: str = ""
+
+    # --- Loading ----------------------------------------------------------------------
+    @classmethod
+    def load(cls, path: str | Path, check_files: bool = True) -> "Experiment":
+        """Read and validate an experiment file; the name defaults to its stem."""
+        path = Path(path)
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            raise SpecError(f"experiment file not found: {path}") from None
+        except json.JSONDecodeError as error:
+            raise SpecError(f"{path}: not valid JSON ({error})") from None
+        return cls.from_dict(data, default_name=path.stem, check_files=check_files)
+
+    @classmethod
+    def from_dict(
+        cls, data: dict, default_name: str = "experiment", check_files: bool = True
+    ) -> "Experiment":
+        if not isinstance(data, dict):
+            raise SpecError("an experiment file holds one JSON object")
+        known = set(cls.__dataclass_fields__)
+        unknown = sorted(set(data) - known)
+        if unknown:
+            raise SpecError(
+                f"unknown field(s) {unknown}; the fields are {sorted(known)}"
+            )
+        data = dict(data)
+        data.setdefault("name", default_name)
+        for key in ("train_days", "test_days"):
+            data[key] = _days(data.get(key), key)
+        for key in ("algorithms", "paradigms", "seeds", "budget"):
+            if key not in data:
+                raise SpecError(f"missing field '{key}'")
+        try:
+            experiment = cls(**data)
+        except TypeError as error:
+            raise SpecError(str(error)) from None
+        experiment.validate(check_files=check_files)
+        return experiment
+
+    # --- Validation -------------------------------------------------------------------
+    def validate(self, check_files: bool = True) -> None:
+        name = self.name
+        if not name or any(c in name for c in '/\\:*?"<>| ') or name.startswith("."):
+            raise SpecError(f"name {name!r} must be a plain folder name (no spaces)")
+        for axis, allowed, values in (
+            ("algorithms", ALGORITHMS, self.algorithms),
+            ("paradigms", PARADIGMS, self.paradigms),
+        ):
+            if not isinstance(values, list) or not values:
+                raise SpecError(f"'{axis}' must be a non-empty list")
+            bad = [v for v in values if v not in allowed]
+            if bad:
+                raise SpecError(f"unknown {axis} {bad}; choose from {list(allowed)}")
+            if len(set(values)) != len(values):
+                raise SpecError(f"'{axis}' has duplicates")
+        if (
+            not isinstance(self.seeds, list)
+            or not self.seeds
+            or not all(
+                isinstance(s, int) and not isinstance(s, bool) for s in self.seeds
+            )
+            or len(set(self.seeds)) != len(self.seeds)
+        ):
+            raise SpecError("'seeds' must be a non-empty list of distinct integers")
+        if not isinstance(self.variants, dict) or not all(
+            isinstance(v, dict) for v in self.variants.values()
+        ):
+            raise SpecError("'variants' maps a name to a dict of training overrides")
+        for variant in self.variants:
+            if not variant or any(c in variant for c in '/\\:*?"<>| '):
+                raise SpecError(f"variant name {variant!r} must be a plain word")
+        if not isinstance(self.training, dict) or not set(self.training) <= set(
+            ALGORITHMS
+        ):
+            raise SpecError(
+                "'training' maps an algorithm name to its overrides, e.g. "
+                '{"ppo": {"lr": 0.0003}}; keys must be among ' + str(list(ALGORITHMS))
+            )
+        if self.eval_every is not None and self.eval_points is not None:
+            raise SpecError("give 'eval_every' or 'eval_points', not both")
+        for algorithm in self.algorithms:
+            budget = self._per_algorithm(self.budget, algorithm, "budget")
+            if not isinstance(budget, int) or budget <= 0:
+                raise SpecError(f"budget for {algorithm} must be a positive integer")
+            for key in ("eval_every", "eval_points"):
+                value = self._per_algorithm(getattr(self, key), algorithm, key, True)
+                if value is not None and (not isinstance(value, int) or value < 0):
+                    raise SpecError(f"'{key}' for {algorithm} must be an integer >= 0")
+        if self.max_parallel < 1 or self.torch_threads < 1 or self.eval_episodes < 1:
+            raise SpecError("max_parallel, torch_threads, eval_episodes must be >= 1")
+        if self.is_market and not self.scenario:
+            raise SpecError("the market environment needs a 'scenario' file")
+        if self.scenario and check_files and not self.scenario_path.is_file():
+            raise SpecError(
+                f"scenario file not found: {self.scenario_path} "
+                "('scenario' is relative to the repository root)"
+            )
+        if self.env not in MARKET_ENVS and ":" not in self.env:
+            raise SpecError(f"env {self.env!r} must be 'market' or 'module:Class'")
+
+    @staticmethod
+    def _per_algorithm(value, algorithm: str, key: str, optional: bool = False):
+        if isinstance(value, dict):
+            if algorithm not in value:
+                if optional:
+                    return None
+                raise SpecError(f"'{key}' has no entry for algorithm '{algorithm}'")
+            return value[algorithm]
+        return value
+
+    # --- Derived ----------------------------------------------------------------------
+    @property
+    def is_market(self) -> bool:
+        return self.env in MARKET_ENVS
+
+    @property
+    def scenario_path(self) -> Path:
+        return (REPO / self.scenario).resolve()
+
+    def heldout_seed_list(self) -> list[int]:
+        """Seeds of the held-out evaluation: a given list, a count from 2000, or one
+        per test day."""
+        if isinstance(self.heldout_seeds, list):
+            return [int(s) for s in self.heldout_seeds]
+        count = self.heldout_seeds or len(self.test_days) or 14
+        return list(range(HELDOUT_SEED_START, HELDOUT_SEED_START + int(count)))
+
+    def heldout_config(self) -> dict:
+        """The environment config of the held-out evaluation (test days)."""
+        config: dict = {"scenario": str(self.scenario_path), "days": self.test_days}
+        return config | self.env_config
+
+    # --- Expansion --------------------------------------------------------------------
+    def expand(self, exp_dir: Optional[Path] = None) -> list[RunSpec]:
+        """One ``RunSpec`` per run of the grid; run folders are inside ``exp_dir``
+        (default: ``<runs root>/<name>``)."""
+        exp_dir = Path(exp_dir) if exp_dir else runs_root() / self.name
+        variants = self.variants or {None: {}}
+        specs: list[RunSpec] = []
+        for algorithm in self.algorithms:
+            budget = self._per_algorithm(self.budget, algorithm, "budget")
+            every = self._per_algorithm(self.eval_every, algorithm, "eval_every", True)
+            points = self._per_algorithm(
+                self.eval_points, algorithm, "eval_points", True
+            )
+            if every is None:
+                every = budget // points if points else 0
+            for paradigm in self.paradigms:
+                for variant, overrides in variants.items():
+                    for seed in self.seeds:
+                        name = f"{algorithm}_{paradigm}_s{seed}"
+                        if variant is not None:
+                            name += f"_{variant}"
+                        specs.append(
+                            RunSpec(
+                                name=name,
+                                algorithm=algorithm,
+                                paradigm=paradigm,
+                                seed=seed,
+                                variant=variant,
+                                env=self.env,
+                                env_config=self._env_config(seed),
+                                budget=budget,
+                                eval_every=every,
+                                eval_episodes=self.eval_episodes,
+                                training=dict(self.training.get(algorithm, {}))
+                                | dict(overrides),
+                                model=dict(self.model),
+                                out_dir=exp_dir / name,
+                                index=len(specs),
+                            )
+                        )
+        return specs
+
+    def _env_config(self, seed: int) -> dict:
+        config: dict = {}
+        if self.scenario:
+            config["scenario"] = str(self.scenario_path)
+        if self.train_days:
+            config["days"] = list(self.train_days)
+        config["seed"] = seed
+        return config | self.env_config
+
+
+# --------------------------------------------------------------------------------------
+# Days
+# --------------------------------------------------------------------------------------
+def _days(value, key: str) -> list[str]:
+    """A list of ISO dates, or ``{"from": ..., "to": ...}`` (both included)."""
+    if value is None:
+        return []
+    try:
+        if isinstance(value, dict):
+            if set(value) != {"from", "to"}:
+                raise SpecError(f"'{key}' as a range needs exactly 'from' and 'to'")
+            first, last = date.fromisoformat(value["from"]), date.fromisoformat(
+                value["to"]
+            )
+            if last < first:
+                raise SpecError(f"'{key}': 'to' is before 'from'")
+            return [
+                (first + timedelta(days=i)).isoformat()
+                for i in range((last - first).days + 1)
+            ]
+        if isinstance(value, list):
+            return [date.fromisoformat(d).isoformat() for d in value]
+    except (ValueError, TypeError) as error:
+        raise SpecError(f"'{key}': bad date ({error}); use YYYY-MM-DD") from None
+    raise SpecError(f"'{key}' must be a list of dates or {{'from': ..., 'to': ...}}")

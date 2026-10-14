@@ -1,0 +1,16 @@
+{
+  "description": "Quick check that the runner works end to end: two tiny PPO runs.",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-07"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-03"},
+  "algorithms": ["ppo"],
+  "paradigms": ["dtde"],
+  "seeds": [0, 1],
+  "budget": 2000,
+  "eval_points": 2,
+  "eval_episodes": 3,
+  "heldout_seeds": 3,
+  "training": {
+    "ppo": {"train_batch_size_per_learner": 500, "minibatch_size": 100}
+  }
+}

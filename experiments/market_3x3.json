@@ -1,0 +1,32 @@
+{
+  "description": "All three algorithms x all three paradigms on the market (old/market_10x.py).",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["sac", "ppo", "appo"],
+  "paradigms": ["ctce", "ctde", "dtde"],
+  "seeds": [0],
+  "budget": {"sac": 24000, "ppo": 240000, "appo": 240000},
+  "eval_points": 10,
+  "eval_episodes": 10,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "train_batch_size_per_learner": 2400,
+      "minibatch_size": 240,
+      "num_epochs": 10
+    },
+    "appo": {"lr": 0.0003, "train_batch_size_per_learner": 480},
+    "sac": {
+      "actor_lr": 0.0003,
+      "critic_lr": 0.0003,
+      "num_steps_sampled_before_learning_starts": 1000,
+      "replay_buffer_config": {
+        "type": "MultiAgentEpisodeReplayBuffer",
+        "capacity": 50000
+      },
+      "initial_alpha": 0.01
+    }
+  },
+  "max_parallel": 3
+}

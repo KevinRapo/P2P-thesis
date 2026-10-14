@@ -1,0 +1,29 @@
+{
+  "description": "SAC-DTDE on the market with three initial temperatures (old/sac_alpha.py).",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["sac"],
+  "paradigms": ["dtde"],
+  "seeds": [0],
+  "variants": {
+    "a1": {"initial_alpha": 1.0},
+    "a0.1": {"initial_alpha": 0.1},
+    "a0.01": {"initial_alpha": 0.01}
+  },
+  "budget": 24000,
+  "eval_every": 6000,
+  "eval_episodes": 10,
+  "training": {
+    "sac": {
+      "actor_lr": 0.0003,
+      "critic_lr": 0.0003,
+      "num_steps_sampled_before_learning_starts": 1000,
+      "replay_buffer_config": {
+        "type": "MultiAgentEpisodeReplayBuffer",
+        "capacity": 50000
+      }
+    }
+  },
+  "max_parallel": 3
+}
