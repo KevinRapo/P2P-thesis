@@ -28,7 +28,7 @@ from ray.rllib.core.rl_module.apis import ValueFunctionAPI
 from ray.rllib.utils.spaces.space_utils import unsquash_action
 
 from RL.core.fixed.config import Paradigm
-from RL.core.fixed.grouping import GROUP, join, join_spaces, split
+from RL.core.fixed.grouping import GROUP, central_obs, join, join_spaces, split
 
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
 
@@ -56,8 +56,8 @@ class Policy:
 
     Args:
         modules: The run's ``MultiRLModule`` (the learner's, with its critic).
-        paradigm: How the modules map to agents: one per agent (DTDE) or one for
-            the group (CTCE, CTDE).
+        paradigm: How the modules map to agents: one per agent (DTDE, CTDE; under
+            CTDE each also sees the global state) or one for the group (CTCE).
         env: An instance of the multi-agent environment (for agents and spaces).
     """
 
@@ -70,9 +70,12 @@ class Policy:
         self.joint_space = join_spaces([self.act_spaces[a] for a in self.agents])
 
     def _inputs(self, obs: dict) -> dict[str, np.ndarray]:
-        """Each module's input: the agent's observation, or all of them joined."""
+        """Each module's input: the agent's observation (DTDE), extended with the
+        global state (CTDE), or all of them joined (CTCE)."""
         if self.paradigm == Paradigm.DTDE:
             return {a: np.asarray(obs[a], dtype=np.float32) for a in self.agents}
+        if self.paradigm == Paradigm.CTDE:
+            return central_obs(obs, self.agents)
         return {GROUP: join(obs, self.agents)}
 
     def _unit_actions(self, obs: dict, explore: bool) -> dict[str, np.ndarray]:
@@ -102,7 +105,7 @@ class Policy:
                 most likely action.
         """
         unit = self._unit_actions(obs, explore)
-        if self.paradigm == Paradigm.DTDE:
+        if self.paradigm != Paradigm.CTCE:
             return {
                 a: np.asarray(unsquash_action(unit[a], self.act_spaces[a]), np.float32)
                 for a in self.agents
@@ -115,8 +118,8 @@ class Policy:
 
     def values(self, obs: dict) -> dict[str, float]:
         """Each module's value of the state: ``V`` (PPO, APPO) or, for SAC, the
-        smaller twin ``Q`` at the policy's most likely action. In CTCE and CTDE
-        this is the group's value, the sum of the agents' values."""
+        smaller twin ``Q`` at the policy's most likely action: per agent in DTDE and
+        CTDE (each agent's own return), the group's in CTCE (the summed return)."""
         unit = self._unit_actions(obs, explore=False)
         out = {}
         with torch.no_grad():

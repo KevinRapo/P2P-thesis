@@ -1,13 +1,16 @@
 """The algorithm configuration of one combination of algorithm and paradigm.
 
 Only RLlib's algorithms and modules are used; what changes between paradigms is
-the environment the algorithm sees and, for CTDE, the actor network:
+the environment the algorithm sees and, for CTDE, what the actor reads:
 
-| Paradigm | Environment | Module |
-|---|---|---|
-| DTDE | the multi-agent environment, one module per agent | RLlib's default |
-| CTCE | ``GroupedEnv``: one agent, joint ``Box`` spaces, summed reward | RLlib's default |
-| CTDE | ``GroupedEnv`` | RLlib's default with a per-agent actor (``ctde_modules.py``) |
+| Paradigm | Environment | Modules | Objective |
+|---|---|---|---|
+| DTDE | the multi-agent environment | one per agent, RLlib's default | own reward |
+| CTDE | ``CentralStateEnv``: o_i plus the global state | one per agent, actor on o_i, critic on everything (``ctde_modules.py``) | own reward |
+| CTCE | ``GroupedEnv``: one agent, joint ``Box`` spaces | one, RLlib's default | summed reward (social planner) |
+
+DTDE and CTDE optimise the same individual objective and differ only in what the
+critic sees, so a difference between them is the central critic's.
 
 Every paradigm uses the same network settings (RLlib's defaults: 2 x 256 tanh,
 separate actor and critic), which fixes R-03.
@@ -16,10 +19,13 @@ The hyperparameters start from the original's (``SETTINGS``, [P2] Table 8), with
 the defects removed:
 
 - PPO: ``use_kl_loss=False``, so the KL term is not computed at all (fixes R-02;
-  the original set ``kl_coeff=0`` and kept it).
+  the original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from
+  RLlib's 10: RLlib caps the squared value error there, so an error above about
+  3.2 would give the critic no gradient at all. Rewards should still be scaled by
+  the environment to returns of order 1-10.
 - APPO: no ``lambda_``; RLlib's V-trace has no lambda (fixes R-06).
 - SAC: ``target_entropy="auto"`` (the negative action size of each module: the
-  agent's in DTDE, the group's in CTCE and CTDE, as the original intended), a
+  agent's in DTDE and CTDE, the group's in CTCE, as the original intended), a
   uniform replay buffer of 1000 steps for every paradigm. Episodes are sampled
   in fragments (RLlib's default), not ``complete_episodes`` as in the original:
   in that mode RLlib 2.51 resets the environment with the run's seed at every
@@ -46,7 +52,7 @@ from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
-from RL.core.fixed.grouping import GROUP, GroupedEnv
+from RL.core.fixed.grouping import GROUP, CentralStateEnv, GroupedEnv
 from RL.core.fixed.ctde_modules import CTDE_MODULES
 
 
@@ -80,6 +86,7 @@ SETTINGS: dict[Algorithm, dict[str, Any]] = {
         "clip_param": 0.2,
         "grad_clip": 0.5,
         "use_kl_loss": False,
+        "vf_clip_param": 1e6,
     },
     Algorithm.APPO: {
         "lr": 1e-5,
@@ -113,7 +120,10 @@ def env_spec(
     if paradigm == Paradigm.DTDE:
         env = env_class(env_config)
         return env_class, env_config, list(env.agents_id)
-    return GroupedEnv, {"env_class": env_class, "env_config": env_config}, [GROUP]
+    wrapped = {"env_class": env_class, "env_config": env_config}
+    if paradigm == Paradigm.CTDE:
+        return CentralStateEnv, wrapped, list(env_class(env_config).agents_id)
+    return GroupedEnv, wrapped, [GROUP]
 
 
 def build_config(
@@ -169,16 +179,14 @@ def build_config(
     config = config.rl_module(model_config=model_config)
 
     if paradigm == Paradigm.CTDE:
-        grouped = GroupedEnv(config_for_env)
+        central = CentralStateEnv(config_for_env)
         specs = {
-            GROUP: RLModuleSpec(
+            mid: RLModuleSpec(
                 module_class=CTDE_MODULES[algorithm.value],
                 model_config=config.model_config
-                | {
-                    "agent_obs_dims": grouped.obs_dims,
-                    "agent_act_dims": grouped.act_dims,
-                },
+                | {"own_obs_dim": central.own_dims[mid]},
             )
+            for mid in module_ids
         }
     else:
         specs = {mid: RLModuleSpec() for mid in module_ids}

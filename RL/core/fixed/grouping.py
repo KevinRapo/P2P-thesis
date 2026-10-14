@@ -1,11 +1,17 @@
-"""All agents of a multi-agent environment as one agent, for CTCE and CTDE.
+"""How the paradigms see a multi-agent environment: grouped (CTCE) or with a
+central state (CTDE).
 
-The group observes every agent's observation and outputs every agent's action,
-each joined into one flat ``Box`` in the environment's agent order, and receives
-the sum of the agents' rewards. Built this way, the group is an ordinary agent
-with a ``Box`` observation and action, so RLlib's own modules and algorithms
-train it unchanged (CTCE), and CTDE only changes the network that maps the joint
-observation to the joint action (``core/fixed/ctde_modules.py``).
+``GroupedEnv`` (CTCE): all agents as one agent, ``"group"``. It observes every
+agent's observation and outputs every agent's action, each joined into one flat
+``Box`` in the environment's agent order, and receives the sum of the agents'
+rewards: one controller maximising the total (the social planner). RLlib's own
+modules and algorithms train it as an ordinary single agent.
+
+``CentralStateEnv`` (CTDE): the agents stay separate, each with its own reward,
+but each agent's observation is extended with the global state, every agent's
+observation joined: ``[o_i, o_1, ..., o_N]``. The CTDE modules
+(``RL/core/fixed/ctde_modules.py``) let the actor read only ``o_i`` and the critic
+read all of it, so the critic is central and the actor decentralised.
 
 Fixes I-59: the original put the agents' spaces in sorted name order and their
 data in environment order. Here both follow ``env.agents_id``, and each agent
@@ -121,6 +127,68 @@ class GroupedEnv(MultiAgentEnv):
             {GROUP: truncateds["__all__"], "__all__": truncateds["__all__"]},
             {GROUP: {"rewards": dict(rewards), "infos": infos}},
         )
+
+    def render(self):
+        return self.env.render()
+
+
+# --------------------------------------------------------------------------------------
+# CTDE: each agent's observation extended with the global state
+# --------------------------------------------------------------------------------------
+def central_obs(obs: dict, agents: list[str]) -> dict[str, np.ndarray]:
+    """Each agent's observation followed by every agent's, ``[o_i, o_1..o_N]``."""
+    state = join(obs, agents)
+    return {
+        a: np.concatenate([np.asarray(obs[a], dtype=np.float32).reshape(-1), state])
+        for a in agents
+    }
+
+
+class CentralStateEnv(MultiAgentEnv):
+    """The agents of ``env_class``, each observing ``[o_i, o_1, ..., o_N]``.
+
+    Actions, rewards, episode ends and infos pass through unchanged: every agent
+    keeps its own reward. ``own_dims[a]`` is the size of agent ``a``'s own part,
+    the first entries of its observation.
+
+    env_config keys:
+        env_class: The multi-agent environment class.
+        env_config: Its ``env_config``.
+    """
+
+    def __init__(self, env_config: Optional[dict[str, Any]] = None) -> None:
+        super().__init__()
+        config = env_config or {}
+        self.env = config["env_class"](config.get("env_config", {}))
+        self.agents_id = list(self.env.agents_id)
+        self.agents = self.possible_agents = list(self.agents_id)
+        spaces_ = self.env.observation_spaces
+        state = join_spaces([spaces_[a] for a in self.agents_id])
+        self.own_dims = {a: int(np.prod(spaces_[a].shape)) for a in self.agents_id}
+        self.observation_spaces = {
+            a: join_spaces([spaces_[a], state]) for a in self.agents_id
+        }
+        self.action_spaces = dict(self.env.action_spaces)
+
+    def reset(
+        self, *, seed: Optional[int] = None, options: Optional[dict] = None
+    ) -> tuple[MultiAgentDict, MultiAgentDict]:
+        obs, infos = self.env.reset(seed=seed, options=options)
+        return central_obs(obs, self.agents_id), infos
+
+    def step(
+        self, action_dict: MultiAgentDict
+    ) -> tuple[
+        MultiAgentDict, MultiAgentDict, MultiAgentDict, MultiAgentDict, MultiAgentDict
+    ]:
+        obs, rewards, terminateds, truncateds, infos = self.env.step(action_dict)
+        missing = set(self.agents_id) - set(obs)
+        if missing:
+            raise ValueError(
+                f"CentralStateEnv needs every agent at every step; no observation "
+                f"for {missing}."
+            )
+        return central_obs(obs, self.agents_id), rewards, terminateds, truncateds, infos
 
     def render(self):
         return self.env.render()

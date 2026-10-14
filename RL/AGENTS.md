@@ -55,15 +55,19 @@ names the issues it fixes.
 
 | File | What it is |
 |---|---|
-| `grouping.py` | `GroupedEnv`: all agents as one (CTCE, CTDE), joint `Box` spaces in agent order, summed reward |
-| `ctde_modules.py` | CTDE: RLlib's default modules with the actor split into one network per agent |
+| `grouping.py` | `GroupedEnv` (CTCE): all agents as one, joint `Box` spaces in agent order, summed reward. `CentralStateEnv` (CTDE): each agent observes `[o_i, o_1..o_N]`, own reward |
+| `ctde_modules.py` | CTDE: one RLlib default module per agent; the actor reads only the agent's own observation, the critic all of it (MAPPO / MASAC with per-agent critics) |
 | `config.py` | `build_config`: one algorithm and paradigm; `SETTINGS` (the original's hyperparameters, less the defective ones) |
 | `policy.py` | `Policy` (acts as training does), baselines, `rollout`, `evaluate` on held-out seeds |
 | `train.py` | `train(Run(...))`: budget in environment steps, NaN stop, `run.json`, metrics, evaluation, checkpoint; `load_policy` |
 | `benchmark.py` | `benchmark(Bench(...))`: time one algorithm and paradigm at one problem size (build, warm-up, timed iterations, sampling alone), with every setting that decides the cost in the record |
 
 - No custom losses, distributions or training loops: only the environment
-  (grouping) and, for CTDE, the actor network differ between paradigms.
+  (grouping, central state) and, for CTDE, what the actor reads differ between
+  paradigms.
+- Objectives: DTDE and CTDE learn from each agent's own reward (per-agent
+  critics, advantages and PPO clip); CTCE is one controller on the summed
+  reward (social planner).
 - Same network settings for every paradigm (RLlib's defaults).
 - Runs write to `runs/` (not in git).
 
