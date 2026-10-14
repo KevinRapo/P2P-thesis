@@ -126,6 +126,7 @@ validation:
 
 nav:
   - Home: index.md
+  - marlem-v1: v1.md
   - Code structure: structure.md
   - MARLEM:
       - Methodology: marlem/methodology.md

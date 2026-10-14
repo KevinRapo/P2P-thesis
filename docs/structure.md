@@ -209,8 +209,8 @@ Notebooks locate `RL/` and put the clean root on `PYTHONPATH` for worker process
 | `core/rl/ctce.py`, `core/rl/ctde.py` | Original central and per-agent actor modules, with issue annotations |
 | `core/rl/train.py`, `core/rl/inference.py` | Original trainer and inference, isolated from the market |
 | `core/rl/local.py`, `core/rl/probe.py` | Training in one process and reading learned probe outputs |
-| `core/fixed/grouping.py` | Joint agent observations, actions and team rewards |
-| `core/fixed/ctde_modules.py` | RLlib modules with separate actors per agent |
+| `core/fixed/grouping.py` | `GroupedEnv` (CTCE: joint observations and actions, summed reward); `CentralStateEnv` (CTDE: own observation plus the global state, own reward) |
+| `core/fixed/ctde_modules.py` | CTDE: one RLlib module per agent, actor on its own observation, critic on the global state |
 | `core/fixed/config.py` | Algorithms, paradigms and configuration |
 | `core/fixed/policy.py` | Policy actions, baselines, rollout and evaluation |
 | `core/fixed/train.py` | Training budgets, metrics, run records and saved policies |

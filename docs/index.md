@@ -7,6 +7,7 @@ RL kept in the independent top-level `RL/` folder. They are validated separately
 
 | Section | Start with |
 |---|---|
+| **marlem-v1** | [The working solution](v1.md): the market and the RL layer wired together, what changed, how to train, and the validation results. |
 | **Code structure** | [Every folder and script](structure.md): what it does and how far it is built. |
 | **MARLEM** | [Methodology](marlem/methodology.md): the market as the paper states it (clearing, pricing, DSO fees, reputation, agents, batteries, grid, one market step), without the reinforcement-learning parts. [Learning layer](marlem/learning.md): observation, action, paradigms, algorithms, hyperparameters, population-based training and the 3 × 3 experiment as the papers state them, with the original code's settings where the papers are silent. |
 | **RL** | [Code and running instructions](structure.md#rl-independent-reinforcement-learning). [Training cycle](rl/training.md): the math of one training iteration for PPO, APPO and SAC in each paradigm (CTCE, CTDE, DTDE), and how many steps each takes. [One iteration, step by step](rl/cycle.md): every calculation from the agents' observation to the weight update, with what each paradigm changes. [Worked examples](rl/examples.md): the same cycle with numbers, for the parts our own code defines (grouping, CTDE's per-agent actor, settings, evaluation). |
