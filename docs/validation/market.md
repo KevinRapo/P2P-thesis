@@ -60,9 +60,9 @@ energy:
 | [5. Settlement, battery and balances](#5-settlement-battery-and-balances) | 8 | 7 | 0 | 1 | 0 | 0 |
 | [6. DSO: balance and grid fees](#6-dso-balance-and-grid-fees) | 11 | 5 | 0 | 3 | 0 | 3 |
 | [7. Grid model used by the market](#7-grid-model-used-by-the-market) | 7 | 1 | 5 | 1 | 0 | 0 |
-| [8. Reputation](#8-reputation) | 4 | 2 | 0 | 1 | 1 | 0 |
+| [8. Reputation](#8-reputation) | 4 | 2 | 0 | 2 | 0 | 0 |
 | [9. Trade ledger](#9-trade-ledger) | 1 | 0 | 0 | 0 | 0 | 1 |
-| **Total** | **45** | **25** | **6** | **9** | **1** | **4** |
+| **Total** | **45** | **25** | **6** | **10** | **0** | **4** |
 
 The most consequential ones for any result produced with the original:
 
@@ -1456,7 +1456,7 @@ total order volume", and it never varies.
 
 ### I-38b: the decay follows the time of day
 
-**Fidelity · <mark>Open</mark>**
+**Fidelity · <mark>Decided</mark>** (marlem-v1)
 
 <mark class="review">Review</mark> If and what formula to use? Just reverse salazars to the proper form?
 
@@ -1482,12 +1482,13 @@ the day goes on, the opposite of the paper.
 **In `marlem-clean`.** A constant decay, $r \leftarrow 0.8\, r + 0.2\, \text{score}$, in
 `update_reputation` ([reputation.py](../../core/market/reputation.py#L119-L142)).
 
-**Open.** The constant decay is kept for now, but its form and value are still to
-be decided. Reversing the original's weights would still tie the memory to the
-hour of the day. With 0.8 the start value halves every 3 steps
-($\ln 0.5 / \ln 0.8$). Setting the decay as a half-life in hours,
-$\delta = 0.5^{\Delta t / T_{1/2}}$, would keep that memory the same when the step
-length changes (I-56).
+**Decided (marlem-v1).** A constant decay per **hour**, applied per step as
+$\delta = 0.8^{\Delta t}$ with $\Delta t$ the step length in hours
+([lem.py](../../core/market/lem.py#L233-L238)). Reversing the original's weights
+would still tie the memory to the hour of the day; a per-hour decay keeps the
+memory the same when the step length changes (I-56). With 0.8 the old reputation
+halves in about 3.1 hours ($\ln 0.5 / \ln 0.8$), whether the step is an hour or a
+quarter of an hour. Hourly scenarios behave exactly as before.
 
 ### I-38c: the grid part is always neutral, and fairness mixes in the DSO
 

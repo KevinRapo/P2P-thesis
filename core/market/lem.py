@@ -234,7 +234,7 @@ class LocalEnergyMarket:
             reliability_weight=m.reliability_weight,
             fairness_weight=m.fairness_weight,
             grid_weight=m.grid_weight,
-            decay=m.reputation_decay,
+            decay=m.reputation_decay**scenario.grid.step_hours,  # per hour (I-38b)
         )
         self.history: list[StepRecord] = []
         self.pending: Optional[PendingStep] = None

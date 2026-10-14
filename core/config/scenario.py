@@ -102,8 +102,11 @@ class MarketSetup:
             [P1], the original's value).
         fairness_weight: w_fair of the reputation ([P1] eq. 12).
         grid_weight: w_grid of the reputation ([P1] eq. 12).
-        reputation_decay: Share of the old reputation kept at each update ([P1]
-            §3.3.4 names a decay factor without a value).
+        reputation_decay: Share of the old reputation kept per hour ([P1]
+            §3.3.4 names a decay factor without a value). Applied per step as
+            ``reputation_decay ** step_hours``, so the memory lasts the same time
+            with hourly and quarter-hourly steps (I-38b): 0.8 halves the old
+            reputation in about 3.1 hours.
     """
 
     mechanism: str = "average"
