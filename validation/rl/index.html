@@ -1,0 +1,5775 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="MARLEM rebuilt on SimBench networks">
+      
+      
+      
+        <link rel="canonical" href="https://kevinrapo.github.io/P2P-thesis/validation/rl/">
+      
+      
+        <link rel="prev" href="../market/">
+      
+      
+        <link rel="next" href="../papers/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>RL layer - MARLEM clean</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/diagrams.css">
+    
+      <link rel="stylesheet" href="../../assets/marks.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rl-layer-what-is-wrong-and-how-it-was-tested" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="MARLEM clean" class="md-header__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MARLEM clean
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              RL layer
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../v1/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  marlem-v1
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../structure/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Code structure
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../marlem/methodology/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MARLEM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../rl/training/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  RL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../market/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../simbench/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SimBench
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About these docs
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="MARLEM clean" class="md-nav__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MARLEM clean
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    marlem-v1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MARLEM
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MARLEM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../marlem/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../marlem/learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training cycle (3 × 3)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/cycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One iteration, step by step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Worked examples (our code)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../market/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL layer
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scope-and-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope and sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-read-an-issue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to read an issue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-test-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The test bench
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The test bench">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-tests-confirm-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the tests confirm works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-training-paradigms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Training paradigms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Training paradigms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-48-ctde-never-trains-the-policies-that-act" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-48: CTDE never trains the policies that act
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-60: CTCE is a centralised-information baseline, not an upper bound
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-73-returns-of-the-paradigms-are-compared-across-different-scales" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-73: returns of the paradigms are compared across different scales
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-03-the-paradigms-train-different-networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-03: the paradigms train different networks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-grouping-the-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Grouping the agents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Grouping the agents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-59: grouped spaces are in name order, grouped data in environment order
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-policy-networks-and-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Policy networks and loss
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Policy networks and loss">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#r-01-the-ctce-and-ctde-action-spread-has-no-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-01: the CTCE and CTDE action spread has no limit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-02: kl_coeff = 0 does not switch off the KL term, and a NaN loss goes unnoticed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-04: SAC in CTCE and CTDE uses an unsquashed Gaussian
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-05: SAC's actor in CTCE and CTDE gets no gradient from the critic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-trainer-and-hyperparameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Trainer and hyperparameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Trainer and hyperparameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-49: population-based training jumps the learning rate and reaches entropy 10
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-62-training-configuration-defects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-62: training configuration defects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-06-appos-lambda_-has-no-effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-06: APPO's lambda_ has no effect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-50: the budget is counted in iterations, the paper in episodes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-inference-evaluation-and-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Inference, evaluation and tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Inference, evaluation and tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-61-standalone-inference-does-not-act-like-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-61: standalone inference does not act like training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-64-no-baselines-no-seeds-no-record-of-a-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-64: no baselines, no seeds, no record of a run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-72-p2s-evaluation-protocol-cannot-show-generalisation-or-variance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-72: [P2]'s evaluation protocol cannot show generalisation or variance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-52-the-trainers-test-checks-that-it-runs-not-that-it-learns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-52: the trainer's test checks that it runs, not that it learns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#problems-in-the-papers-rl-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problems in the papers' RL method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-means-for-the-published-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this means for the published results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-tested-yet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not tested yet
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outside-this-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outside this document
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The two papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../simbench/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SimBench
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SimBench
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simbench/networks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simbench/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/grid/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid: SimBench networks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Grid: SimBench networks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/powerflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    powerflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/simbench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    simbench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market: the MARLEM market
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Market: the MARLEM market
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/agent/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    agent
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_2" id="__nav_8_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/dso/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_3" id="__nav_8_3_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    dso
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/dso/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/profile/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_4" id="__nav_8_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    profile
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/bidding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bidding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing_price/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing_price
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/lem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    order
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/reputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/config/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config: the scenario
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Config: the scenario
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/placement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/scenario/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio: pages, components, adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Studio: pages, components, adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/adapters/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_2" id="__nav_8_5_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    container
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/grid_catalog_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_catalog_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/market_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_classes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/run_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/scenario_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    workspace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/components/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    components
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_3" id="__nav_8_5_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/charts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    charts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/day_profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    day_profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/pages/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pages
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_4" id="__nav_8_5_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    pages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/grid_participants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_participants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/inspect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    inspect
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/market_dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/runs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    runs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/navigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    navigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/theme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    theme
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL: the learning layer
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6" id="__nav_8_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL: the learning layer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/envs/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    envs
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6_2" id="__nav_8_6_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    envs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/probes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/spread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spread
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/toy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    toy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/ctde_modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/grouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About these docs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#scope-and-sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope and sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-read-an-issue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to read an issue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-test-bench" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The test bench
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The test bench">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-the-tests-confirm-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the tests confirm works
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-training-paradigms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Training paradigms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Training paradigms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-48-ctde-never-trains-the-policies-that-act" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-48: CTDE never trains the policies that act
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-60: CTCE is a centralised-information baseline, not an upper bound
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-73-returns-of-the-paradigms-are-compared-across-different-scales" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-73: returns of the paradigms are compared across different scales
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-03-the-paradigms-train-different-networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-03: the paradigms train different networks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-grouping-the-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Grouping the agents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Grouping the agents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-59: grouped spaces are in name order, grouped data in environment order
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-policy-networks-and-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Policy networks and loss
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Policy networks and loss">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#r-01-the-ctce-and-ctde-action-spread-has-no-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-01: the CTCE and CTDE action spread has no limit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-02: kl_coeff = 0 does not switch off the KL term, and a NaN loss goes unnoticed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-04: SAC in CTCE and CTDE uses an unsquashed Gaussian
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-05: SAC's actor in CTCE and CTDE gets no gradient from the critic
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-trainer-and-hyperparameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Trainer and hyperparameters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Trainer and hyperparameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-49: population-based training jumps the learning rate and reaches entropy 10
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-62-training-configuration-defects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-62: training configuration defects
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#r-06-appos-lambda_-has-no-effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        R-06: APPO's lambda_ has no effect
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-50: the budget is counted in iterations, the paper in episodes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-inference-evaluation-and-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Inference, evaluation and tests
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Inference, evaluation and tests">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#i-61-standalone-inference-does-not-act-like-training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-61: standalone inference does not act like training
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-64-no-baselines-no-seeds-no-record-of-a-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-64: no baselines, no seeds, no record of a run
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-72-p2s-evaluation-protocol-cannot-show-generalisation-or-variance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-72: [P2]'s evaluation protocol cannot show generalisation or variance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-52-the-trainers-test-checks-that-it-runs-not-that-it-learns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I-52: the trainer's test checks that it runs, not that it learns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#problems-in-the-papers-rl-method" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Problems in the papers' RL method
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-means-for-the-published-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this means for the published results
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#not-tested-yet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Not tested yet
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outside-this-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outside this document
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rl-layer-what-is-wrong-and-how-it-was-tested">RL layer: what is wrong and how it was tested<a class="headerlink" href="#rl-layer-what-is-wrong-and-how-it-was-tested" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Every problem found so far in the <strong>reinforcement-learning layer</strong> of MARLEM: in
+the original code, in the papers [P1] and [P2], or in the method itself. For each
+one, what is wrong, where it comes from, how it was found and, where a test
+exists, what the test showed. Nothing is fixed yet: this document records the
+state of the original. How the market and the RL layer connect (actions,
+observations, reward, KPIs) is left to a separate document.</p>
+</blockquote>
+<h2 id="scope-and-sources">Scope and sources<a class="headerlink" href="#scope-and-sources" title="Permanent link">&para;</a></h2>
+<p><strong>RL layer</strong> means everything that turns an environment into trained policies,
+independent of what the environment is:</p>
+<ul>
+<li>the three training paradigms (CTCE, CTDE, DTDE) and their RL modules;</li>
+<li>the grouping that turns all agents into one for CTCE and CTDE;</li>
+<li>the algorithm settings (PPO, APPO, SAC) and the trainer around them
+  (Ray Tune, population-based training, evaluation, checkpoints);</li>
+<li>standalone inference of a trained policy.</li>
+</ul>
+<p>The market environment itself (<code>lem.py</code>), and what it gives the agents
+(observations, actions, reward, KPIs), is <strong>not</strong> in scope. To keep the two apart,
+the RL code was copied out of the original repository onto its own branch (<code>RL</code>,
+worktree <code>marlem-rl</code>) and tested on small environments with known answers instead
+of the market (see <a href="#the-test-bench">The test bench</a>). The original is kept in <code>RL/</code> on the <code>clean</code> branch; the fixed layer is <code>core/rl/</code>
+here, still independent of the market.</p>
+<p><strong>Sources.</strong></p>
+<ul>
+<li><strong>IDs <code>I-xx</code></strong> are from the validation issue register
+  (<code>docs_thesis/thesis/validation/issues.md</code> on the refactor branch).</li>
+<li><strong>IDs <code>R-xx</code></strong> are new findings made on the RL branch. They are not in the
+  register.</li>
+<li><strong>The RL folder</strong> (<code>RL/</code> on branch <code>clean</code>) holds the copied RL code, test
+  environments, test bench and notebooks. Links below to the original code and its
+  notebooks point into it on GitHub.
+  The former <code>RL</code> branch retains the history of the separate validation work.</li>
+<li><strong>The original code</strong> is the authors' MARLEM repository,
+  <a href="https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7">salazarna/marlem</a>,
+  at commit <code>15d6715</code> (March 2026). Every code link and snippet points there,
+  pinned to that commit. The RL files were copied unchanged into
+  <a href="https://github.com/KevinRapo/P2P-thesis/tree/clean/RL/core/rl">core/rl/</a> (commit <code>bf58193</code>), so the line numbers are the same in
+  both.</li>
+<li><strong>[P1]</strong> is the MARLEM paper (Salazar-Peña et al., Applied Energy 412, 2026,
+  127546). It describes the paradigms in words (§3.7) and leaves MARL training to
+  future work.</li>
+<li><strong>[P2]</strong> is the companion preprint (<em>Harnessing implicit cooperation: a
+  multi-agent reinforcement learning approach towards decentralized local energy
+  markets</em>, SSRN 6685504, not peer reviewed). It gives the paradigms' formulas
+  (§3.4, eq. 16-20), the algorithms' objectives (§3.3, eq. 11-15) and trains the
+  3 × 3 matrix of paradigms and algorithms (§4-5).</li>
+<li><strong>RLlib</strong> is Ray 2.51.1, the version in the <code>marlem</code> conda env. Statements about
+  RLlib's behaviour were checked in its installed source.</li>
+</ul>
+<p><strong>Origin</strong> (as in the register):</p>
+<table>
+<thead>
+<tr>
+<th>Origin</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paper</td>
+<td>The paper itself is wrong, contradictory or silent where the method needs an answer</td>
+</tr>
+<tr>
+<td>Fidelity</td>
+<td>The original code does not do what the paper says</td>
+</tr>
+<tr>
+<td>Code</td>
+<td>A programming defect that the paper has nothing to say about</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Evidence:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Evidence</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tested</strong></td>
+<td>A test on the RL branch reproduces it; the result is given under the issue</td>
+</tr>
+<tr>
+<td><strong>Read</strong></td>
+<td>Found by reading the code; not tested yet. The issue says how it would be tested</td>
+</tr>
+<tr>
+<td><strong>Judgment</strong></td>
+<td>A question about the method that no test can settle; it needs a decision</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Status.</strong> This register describes the original implementation in <code>RL/core/rl/</code> (on the <code>clean</code> branch).
+The separate fixed implementation (<code>core/rl/</code> in this branch) documents its fixes in its module
+docstrings; copying both into <code>RL/</code> does not change the original results.
+The only changes to the copied code isolate it from the market (the trainer takes
+the environment class as an argument); each is marked <code>DEVIATION:</code> in the code, and
+none changes how training works.</p>
+<p><strong>In the code.</strong> In <code>RL/core/rl/</code> (on the <code>clean</code> branch) every issue below is marked above the
+lines at fault in <code>core/rl/</code>: <code>FAULT &lt;ID&gt;:</code> for a defect, <code>DECIDE &lt;ID&gt;:</code> for a
+<em>Judgment</em> issue, so the document and the code can be read side by side. The comments are the only
+change; the line numbers in the links below are those of the original. I-52 is not
+marked: the original's test file is not copied to the RL branch.</p>
+<h2 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Part of the RL layer</th>
+<th>Issues</th>
+<th>Tested</th>
+<th>Read</th>
+<th>Judgment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="#1-training-paradigms">1. Training paradigms</a></td>
+<td>4</td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td><a href="#2-grouping-the-agents">2. Grouping the agents</a></td>
+<td>1</td>
+<td>0</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr>
+<td><a href="#3-policy-networks-and-loss">3. Policy networks and loss</a></td>
+<td>4</td>
+<td>2</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr>
+<td><a href="#4-trainer-and-hyperparameters">4. Trainer and hyperparameters</a></td>
+<td>4</td>
+<td>0</td>
+<td>3</td>
+<td>1</td>
+</tr>
+<tr>
+<td><a href="#5-inference-evaluation-and-tests">5. Inference, evaluation and tests</a></td>
+<td>4</td>
+<td>0</td>
+<td>3</td>
+<td>1</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>17</strong></td>
+<td><strong>4</strong></td>
+<td><strong>10</strong></td>
+<td><strong>3</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The most consequential ones:</p>
+<ul>
+<li><strong>CTDE never trains the policies that act (I-48).</strong> The loss trains a central
+  actor; the agents act with per-agent networks that stay at their random initial
+  weights for any algorithm and any training length. Confirmed by test: the acting
+  networks change by exactly 0.</li>
+<li><strong>CTCE and CTDE policies can diverge to NaN and keep "training" (R-01, R-02).</strong>
+  Their action spread has no upper limit, so where the reward does not depend on
+  the action the entropy bonus drives it to overflow. The KL term then becomes
+  infinite, <code>kl_coeff = 0</code> turns that into a NaN loss, and RLlib silently zeroes
+  the NaN gradients and carries on. Confirmed by test.</li>
+<li><strong>SAC's actor in CTCE and CTDE never learns from the critic (R-05).</strong> It samples
+  its action without the reparameterisation gradient, so it is trained only to
+  raise its entropy.</li>
+<li><strong>The paradigms are not compared like for like (R-03, I-60, I-73).</strong> DTDE uses
+  RLlib's standard network, CTCE and CTDE a smaller custom one without its
+  safeguards; CTCE is trained on the sum of all rewards and learns more slowly.</li>
+<li><strong>Inference does not act like training (I-61).</strong> It skips RLlib's rescaling of
+  actions to the action bounds and reads the market metrics from the wrong place.</li>
+<li><strong>Nothing in the original checks that anything learns (I-52, I-64).</strong> The
+  trainer's test runs 5 iterations and asserts nothing, so I-48 passes it.</li>
+</ul>
+<h2 id="how-to-read-an-issue">How to read an issue<a class="headerlink" href="#how-to-read-an-issue" title="Permanent link">&para;</a></h2>
+<p>Each issue below has the same parts:</p>
+<ul>
+<li><strong>Header</strong>: ID, title, origin, evidence.</li>
+<li><strong>Original code</strong>: the lines at fault, copied from the original repository
+  (salazarna/marlem, commit <code>15d6715</code>). The caption links to them on GitHub with
+  their line numbers. <code># ...</code> stands for lines cut for length.</li>
+<li><strong>Why it is wrong</strong>: what the lines do, which other code or RLlib behaviour makes
+  it a problem, and how that differs from [P1] or [P2].</li>
+<li><strong>Test</strong> (evidence <em>Tested</em>): the <strong>hypothesis</strong>, the <strong>test</strong> that would show
+  it, the <strong>result</strong>, and <strong>what it tells us</strong>.</li>
+<li><strong>How to test it</strong> (evidence <em>Read</em>): the test that would confirm or refute it.</li>
+</ul>
+<h2 id="the-test-bench">The test bench<a class="headerlink" href="#the-test-bench" title="Permanent link">&para;</a></h2>
+<p>Validating RL code is harder than validating the market: a market rule can be
+checked by computing one step by hand, but a learning defect usually shows only as
+"the agents learn badly", which could also be the reward, the hyperparameters or
+too little training. The bench is built so that a failure has only one possible
+cause.</p>
+<p><strong>Isolation.</strong> The RL code runs on small test environments instead of the market
+(<a href="https://github.com/KevinRapo/P2P-thesis/tree/marlem-v1/core/rl/envs">core/rl/envs/</a>). They have the same interface as the market
+environment (one <code>Box</code> observation and action per agent, per-agent rewards,
+episodes that end), so the code under test is exactly the original's.</p>
+<p><strong>What is trusted.</strong> RLlib's algorithms themselves (the PPO, APPO and SAC losses,
+advantage estimation, the optimiser) are widely used and not re-validated. What is
+tested is MARLEM's own code around them: the grouping, the custom CTCE and CTDE
+modules, and the trainer's settings.</p>
+<p><strong>Probe environments</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/envs/probes.py">probes.py</a>), after Andy Jones,
+<a href="https://andyljones.com/posts/rl-debugging.html"><em>Debugging RL, Without the Agonizing Pain</em></a>.
+Each probe has an exact correct answer and adds one piece of the learning problem
+to the previous one, so the first probe a paradigm fails names the broken piece.
+All have 3 agents, one-dimensional observations and actions in [-1, 1], and a
+reward per agent. For CTCE and CTDE the correct value is the sum over the agents,
+since their reward is the group's sum.</p>
+<table>
+<thead>
+<tr>
+<th>Probe</th>
+<th>Observation</th>
+<th>Reward</th>
+<th>Correct answer</th>
+<th>Adds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 Constant</td>
+<td>always 0</td>
+<td>+1, one step</td>
+<td>value 1</td>
+<td>value learning, reward delivery, episode end</td>
+</tr>
+<tr>
+<td>2 Observation</td>
+<td>±1, random per agent</td>
+<td>the agent's observation</td>
+<td>value = observation</td>
+<td>the observation reaches the value network</td>
+</tr>
+<tr>
+<td>3 Discount</td>
+<td>0, then 1</td>
+<td>+1 only at the end of 2 steps</td>
+<td>V(0) = γ, V(1) = 1 (γ = 0.5)</td>
+<td>time, discounting, episode boundaries</td>
+</tr>
+<tr>
+<td>4 Action</td>
+<td>always 0</td>
+<td><span class="arithmatex">\(1 - (a_i - t_i)^2\)</span>, targets −0.6, 0, 0.6</td>
+<td>action = <span class="arithmatex">\(t_i\)</span></td>
+<td>the policy gradient, each agent's own reward</td>
+</tr>
+<tr>
+<td>5 Obs → action</td>
+<td>±1, random per agent</td>
+<td><span class="arithmatex">\(1 - (a_i - o_i/2)^2\)</span></td>
+<td>action = <span class="arithmatex">\(o_i/2\)</span></td>
+<td>the policy uses the agent's own observation</td>
+</tr>
+<tr>
+<td>6 Agent order</td>
+<td>as 4, agent names <code>agent_2, agent_10, agent_1</code></td>
+<td>as 4</td>
+<td>as 4</td>
+<td>agents stay matched when names sort differently</td>
+</tr>
+</tbody>
+</table>
+<p>"Observation always 0" means each agent receives the number 0: the network still
+gets an input, but it carries no information, so the problem becomes "learn one
+constant". That removes input processing from the list of suspects.</p>
+<p><strong>Measurements.</strong></p>
+<ul>
+<li><strong>The learned networks are read directly</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/core/rl/probe.py">probe.py</a>):
+  after training, the learner's value and action outputs are queried in the
+  probe's states and compared with the correct answer (tolerance 0.15; values 0.15
+  times the size of the answer). Return curves are not used to judge a probe; they
+  mix in exploration noise.</li>
+<li><strong>Which networks training changes</strong>: each group of parameters is copied before
+  training and compared after. A network that does not move is not being trained.</li>
+<li><strong>Learner health</strong>, as Jones recommends: entropy, KL between old and new policy,
+  policy and value loss, and whether any loss is NaN or infinite
+  (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/core/rl/local.py">local.py</a>).</li>
+</ul>
+<p><strong>Controls.</strong> DTDE uses RLlib's own network for each agent, so it is the control
+group: a probe that DTDE passes is solvable with these settings and this budget,
+and a paradigm that fails it fails because of MARLEM's code. Probes 1-3 passing in
+a grouped paradigm clears the grouping (rewards, observations, episode ends) before
+its policy is examined.</p>
+<p><strong>Settings.</strong> PPO with the original's settings except the learning rate (3e-4, the
+usual PPO value; the original starts at 1e-5 and relies on population-based
+training to raise it), 1000 environment steps per iteration, 10 iterations for
+probes 1-3 and 20 for 4-6. Training runs in one process with the trainer's own
+algorithm configuration (<code>build_local</code>), not through Ray Tune; the Tune path is not
+tested yet.</p>
+<p><strong>Results</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/probe_paradigms.ipynb">probe_paradigms.ipynb</a>):</p>
+<table>
+<thead>
+<tr>
+<th>Probe</th>
+<th>DTDE</th>
+<th>CTCE</th>
+<th>CTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 Constant</td>
+<td>pass</td>
+<td>pass (3.04 for 3)</td>
+<td>pass (2.98 for 3)</td>
+</tr>
+<tr>
+<td>2 Observation</td>
+<td>pass</td>
+<td>pass, but the loss went NaN (R-02)</td>
+<td>pass</td>
+</tr>
+<tr>
+<td>3 Discount</td>
+<td>pass</td>
+<td>pass</td>
+<td>pass</td>
+</tr>
+<tr>
+<td>4 Action</td>
+<td>pass</td>
+<td><strong>fail</strong>: −0.80, 0.01, 0.73</td>
+<td><strong>fail</strong>: −0.01, 0.19, 0.11</td>
+</tr>
+<tr>
+<td>5 Obs → action</td>
+<td>pass</td>
+<td><strong>fail</strong>: largest error 0.18</td>
+<td><strong>fail</strong>: largest error 0.67</td>
+</tr>
+<tr>
+<td>6 Agent order</td>
+<td>pass</td>
+<td>pass</td>
+<td><strong>fail</strong>: largest error 0.50</td>
+</tr>
+</tbody>
+</table>
+<p>A second notebook, <a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/validate_rl.ipynb">validate_rl.ipynb</a>, trains
+the three paradigms on two slightly larger tasks with known best returns and gives
+the same picture: DTDE learns, CTCE learns slowly, CTDE does not learn.</p>
+<h3 id="what-the-tests-confirm-works">What the tests confirm works<a class="headerlink" href="#what-the-tests-confirm-works" title="Permanent link">&para;</a></h3>
+<p>Not every check found a problem. These parts behave correctly in every paradigm:</p>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Shown by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rewards reach the learner; the grouped reward is the <strong>sum</strong> over agents ([P2] eq. 17)</td>
+<td>Probe 1: grouped value 3.04 and 2.98 for 3 agents</td>
+</tr>
+<tr>
+<td>Each agent's observation reaches the value network, and the critic tells agents apart</td>
+<td>Probe 2, including the mixed state (+1, −1, +1 → 1)</td>
+</tr>
+<tr>
+<td>Episodes end where they should; discounting uses the configured γ</td>
+<td>Probe 3 with γ = 0.5</td>
+</tr>
+<tr>
+<td>DTDE trains each agent's own policy on its own reward and observation</td>
+<td>Probes 4-6</td>
+</tr>
+<tr>
+<td>CTCE keeps observations, actions and rewards matched to the right agent, also when agent names sort differently</td>
+<td>Probes 4-6 (direction and order right), probe 6</td>
+</tr>
+<tr>
+<td>CTDE's acting networks each read only their own agent's observation (decentralised execution is wired correctly)</td>
+<td>Probe 5: each agent's output depends only on its own observation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-training-paradigms">1. Training paradigms<a class="headerlink" href="#1-training-paradigms" title="Permanent link">&para;</a></h2>
+<h3 id="i-48-ctde-never-trains-the-policies-that-act">I-48: CTDE never trains the policies that act<a class="headerlink" href="#i-48-ctde-never-trains-the-policies-that-act" title="Permanent link">&para;</a></h3>
+<p><strong>Fidelity · Tested</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L46-L57"><code>src/environment/ctde.py</code> L46-L57</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Centralized training: encoder and policy heads for centralized actor, and value head for centralized critic</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">pi_encoder</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_encoder_network</span><span class="p">(</span><span class="n">concat_obs_dim</span><span class="p">,</span> <span class="n">embeddings_dim</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">pi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_head_network</span><span class="p">(</span><span class="n">embeddings_dim</span><span class="p">,</span> <span class="n">concat_act_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">vf_head</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_head_network</span><span class="p">(</span><span class="n">embeddings_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># Decentralized execution: each agent gets its own separate policy heads</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">pi_heads</span>  <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleDict</span><span class="p">({</span>
+    <span class="n">agent_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_network</span><span class="p">(</span><span class="n">input_dim</span><span class="o">=</span><span class="n">tuple_obs_space</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                <span class="n">output_dim</span><span class="o">=</span><span class="n">tuple_act_space</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                                <span class="n">embedding_dim</span><span class="o">=</span><span class="n">embeddings_dim</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agents_id</span><span class="p">)})</span>
+</code></pre></div>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L86-L104"><code>src/environment/ctde.py</code> L86-L89, L104</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># _forward_inference: used to act, during training and after it</span>
+<span class="n">obs_tuple</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="n">Columns</span><span class="o">.</span><span class="n">OBS</span><span class="p">][</span><span class="s2">"grouped_agents"</span><span class="p">]</span>
+<span class="n">action_logits</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">pi_heads</span><span class="p">[</span><span class="n">agent_id</span><span class="p">](</span><span class="n">obs_tuple</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">agents_id</span><span class="p">)]</span>
+<span class="k">return</span> <span class="p">{</span><span class="n">Columns</span><span class="o">.</span><span class="n">ACTION_DIST_INPUTS</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">action_logits</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)}</span>
+
+<span class="c1"># _forward_exploration: used to collect training data</span>
+<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_forward_inference</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</code></pre></div>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L121-L128"><code>src/environment/ctde.py</code> L121-L128</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># _forward_train: what the loss is computed from</span>
+<span class="n">concat_obs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="n">Columns</span><span class="o">.</span><span class="n">OBS</span><span class="p">][</span><span class="s2">"grouped_agents"</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">central_embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pi_encoder</span><span class="p">(</span><span class="n">concat_obs</span><span class="p">)</span>
+<span class="n">central_action_logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pi</span><span class="p">(</span><span class="n">central_embeddings</span><span class="p">)</span>
+
+<span class="n">fwd_out</span> <span class="o">=</span> <span class="p">{</span><span class="n">Columns</span><span class="o">.</span><span class="n">ACTION_DIST_INPUTS</span><span class="p">:</span> <span class="n">central_action_logits</span><span class="p">,</span>
+           <span class="n">Columns</span><span class="o">.</span><span class="n">EMBEDDINGS</span><span class="p">:</span> <span class="n">central_embeddings</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> The module holds two actors. The agents act with <code>pi_heads</code>,
+one network per agent on its own observation, in data collection, evaluation and
+inference. The loss is computed from <code>pi</code>, a central actor on all observations.
+Nothing connects the two: <code>pi_heads</code> appear nowhere else except the target-network
+bookkeeping, so no gradient ever reaches them, and every CTDE run acts with
+randomly initialised networks, however long it trains.</p>
+<p>[P1] §3.7.1 and [P2] §3.4.2 describe CTDE correctly: a centralised <strong>critic</strong>
+during training, and "each agent <em>i</em> retains an independent policy network
+<span class="arithmatex">\(\pi_{\theta_i}(a_i \mid o_i)\)</span>", updated by [P2] eq. 18,</p>
+<div class="arithmatex">\[\nabla_{\theta_i} J(\theta_i) = \mathbb{E}\left[\nabla_{\theta_i} \log \pi_{\theta_i}(a_i \mid o_i)\; Q_\phi(s, a_1, \dots, a_I)\right].\]</div>
+<p>The gradient is taken with respect to <span class="arithmatex">\(\theta_i\)</span>, the parameters of the network
+that acts. The code instead takes it with respect to the central actor's. The
+comments show the mix-up: "centralized training" was implemented as "train a
+central actor", while in CTDE "centralized" refers only to what the critic may
+see.</p>
+<p>The PPO update of the central actor is itself distorted. PPO's ratio compares the
+new and old probability of an action <em>under the same policy</em>; here the actions were
+sampled by the heads, so the ratio compares two different networks, starts far
+from 1 and is mostly clipped.</p>
+<p>The defect is in <code>_forward_train</code>, which PPO, APPO and SAC all use, so all three
+CTDE combinations are affected. Inference acts through the same heads.</p>
+<p><strong>Test.</strong></p>
+<ul>
+<li><em>Hypothesis.</em> If the acting networks are never trained, CTDE passes the value
+  probes (the critic is trained) and fails every policy probe, its actions do not
+  move toward the answer, and the <code>pi_heads</code> parameters do not change at all.</li>
+<li><em>Test.</em> Probes 1-6, plus the change of each parameter group over training.</li>
+<li><em>Result.</em> CTDE passes probes 1-3 and fails 4-6. In probe 4 it outputs −0.01,
+  0.19 and 0.11 for targets −0.6, 0 and 0.6. Over two iterations the parameters
+  change by: <code>pi_encoder</code> 0.150, <code>pi</code> 0.114, <code>vf_head</code> 0.168, <strong><code>pi_heads</code> 0.000</strong>.
+  On the toy task (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/validate_rl.ipynb">validate_rl.ipynb</a>) CTDE ends
+  at −26.3, worse than always acting 0 (−10.1).</li>
+<li><em>What it tells us.</em> The behaviour (policy probes fail, value probes pass), the
+  mechanism (zero change in exactly the acting networks) and the code (heads not on
+  the loss's path) agree. The defect is confirmed and fully explained. Only PPO was
+  run; APPO and SAC follow from the code, not from a test.</li>
+</ul>
+<h3 id="i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound">I-60: CTCE is a centralised-information baseline, not an upper bound<a class="headerlink" href="#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound" title="Permanent link">&para;</a></h3>
+<p><strong>Paper · Tested</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L676-L687"><code>src/environment/train.py</code> L676-L687</a></p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">action_dict</span><span class="p">:</span> <span class="n">MultiAgentDict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="o">...</span><span class="p">]:</span>
+    <span class="n">obs</span><span class="p">,</span> <span class="n">rewards</span><span class="p">,</span> <span class="n">terminateds</span><span class="p">,</span> <span class="n">truncateds</span><span class="p">,</span> <span class="n">infos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">action_dict</span><span class="p">)</span>
+    <span class="n">grouped_obs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">obs</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+    <span class="c1"># The reward for the group is the sum of individual rewards</span>
+    <span class="n">grouped_reward</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">rewards</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">grouped_obs</span><span class="p">,</span> <span class="n">grouped_reward</span><span class="p">,</span> <span class="n">terminateds</span><span class="p">[</span><span class="s2">"__all__"</span><span class="p">],</span> <span class="n">truncateds</span><span class="p">[</span><span class="s2">"__all__"</span><span class="p">],</span> <span class="n">infos</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> [P1] §3.7.1 calls CTCE "a theoretical upper bound for system
+performance" and [P2] §3.4.1 "the theoretical upper bound for coordination quality",
+and [P2] reports DTDE as a percentage of it ("91.7 % relative to the theoretical
+centralized benchmark"). CTCE sees everything, so it <em>can represent</em> the best joint
+policy, but it is trained by the same approximate learner on a harder problem: one
+network outputs every agent's action and learns from the <strong>sum</strong> of all rewards.
+The learning signal for agent <em>i</em>'s action carries every other agent's reward
+noise, the classic credit-assignment problem that [P1] itself names as CTDE's
+motivation. With a finite budget, CTCE can end below the decentralised paradigms;
+"upper bound" holds at best in the limit.</p>
+<p><strong>Test.</strong></p>
+<ul>
+<li><em>Hypothesis.</em> With individual rewards, CTCE learns the same policy as DTDE but
+  more slowly, because its gradient for each agent is noisier; it is not broken.</li>
+<li><em>Test.</em> Probes 4-6 and the toy tasks, with the same settings and budget as DTDE.</li>
+<li><em>Result.</em> On probes 4 and 5 CTCE moves every action in the right direction and
+  order, and its entropy falls steadily (4.06 → 0.07 over 3 dimensions), but after
+  20 iterations it is still up to 0.20 off (DTDE: 0.06). It passes probe 6. On the
+  toy task it reaches −17.3 where DTDE reaches −3.7; on the team-reward task it is
+  close to DTDE (−2.1 against −1.8). Clipping actions to [−1, 1] explains at most
+  0.04 of the error at CTCE's final spread (computed).</li>
+<li><em>What it tells us.</em> Consistent with "slow, not broken", but not proven: a longer
+  CTCE run on probes 4 and 5 should pass if the hypothesis is right. That run is
+  prepared and has not been run yet. Either way, [P2]'s percentages "of the CTCE
+  benchmark" depend on how long CTCE was trained, not only on the paradigms.</li>
+</ul>
+<h3 id="i-73-returns-of-the-paradigms-are-compared-across-different-scales">I-73: returns of the paradigms are compared across different scales<a class="headerlink" href="#i-73-returns-of-the-paradigms-are-compared-across-different-scales" title="Permanent link">&para;</a></h3>
+<p><strong>Paper · Judgment</strong></p>
+<p>Same lines as I-60.</p>
+<p><strong>Why it is wrong.</strong> CTCE and CTDE optimise the sum of all agents' rewards
+([P2] eq. 17); DTDE optimises each agent's own return (eq. 19). [P2] Table 9 ranks
+the nine combinations by one "mean episode reward". RLlib's reported episode
+return for a multi-agent run is also the sum over agents, so the numbers may well
+be on the same scale, but the papers do not say which number Table 9 shows, and a
+per-agent mean would be smaller by the number of agents. The comparison needs one
+stated team score, computed from the raw rewards the same way for every paradigm.</p>
+<p><strong>How to settle it.</strong> Decide the team score (sum or mean over agents, from raw
+environment rewards) and report it alongside per-agent returns for every paradigm.</p>
+<h3 id="r-03-the-paradigms-train-different-networks">R-03: the paradigms train different networks<a class="headerlink" href="#r-03-the-paradigms-train-different-networks" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L337-L341"><code>src/environment/train.py</code> L337-L341</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># DTDE: RLlib's default module for each agent, default model config</span>
+<span class="n">agents_rl_module</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent_id</span><span class="p">:</span> <span class="n">RLModuleSpec</span><span class="p">(</span><span class="n">module_class</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span><span class="o">.</span><span class="n">get_module_class</span><span class="p">(),</span>
+                                           <span class="n">observation_space</span><span class="o">=</span><span class="n">agents_policy</span><span class="p">[</span><span class="n">agent_id</span><span class="p">]</span><span class="o">.</span><span class="n">observation_space</span><span class="p">,</span>
+                                           <span class="n">action_space</span><span class="o">=</span><span class="n">agents_policy</span><span class="p">[</span><span class="n">agent_id</span><span class="p">]</span><span class="o">.</span><span class="n">action_space</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">env</span><span class="o">.</span><span class="n">agents_id</span><span class="p">}</span>
+</code></pre></div>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L290-L306"><code>src/environment/ctce.py</code> L290-L306</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># CTCE and CTDE: custom encoder, embeddings_dim = 128 (train.py L166)</span>
+<span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">),</span>
+                           <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+                           <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">),</span>
+                           <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">())</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> DTDE uses RLlib's default network: two hidden layers of 256,
+tanh, and a limit on the action spread. CTCE and CTDE use a custom network: two
+layers of 128, ReLU (CTDE's acting heads add a third), and no limit on the spread
+(R-01). A difference in results between paradigms is therefore
+partly a difference in network size, activation and safeguards. [P2] attributes
+its 3 × 3 differences to the paradigms and algorithms alone.</p>
+<p><strong>How to test it.</strong> Give all paradigms the same network and safeguards (or record
+the difference as part of the paradigm), then repeat the comparison.</p>
+<h2 id="2-grouping-the-agents">2. Grouping the agents<a class="headerlink" href="#2-grouping-the-agents" title="Permanent link">&para;</a></h2>
+<h3 id="i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order">I-59: grouped spaces are in name order, grouped data in environment order<a class="headerlink" href="#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L646-L648"><code>src/environment/train.py</code> L646-L648</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L702-L705">L702-L705</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># GroupedLEM.__init__: RLlib packs the agents' data in env.agents_id order</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">env</span> <span class="o">=</span> <span class="n">env</span><span class="o">.</span><span class="n">with_agent_groups</span><span class="p">(</span><span class="n">groups</span><span class="o">=</span><span class="p">{</span><span class="s2">"grouped_agents"</span><span class="p">:</span> <span class="n">env</span><span class="o">.</span><span class="n">agents_id</span><span class="p">},</span>
+                                 <span class="n">obs_space</span><span class="o">=</span><span class="n">_tuple_obs_space</span><span class="p">,</span>
+                                 <span class="n">act_space</span><span class="o">=</span><span class="n">_tuple_act_space</span><span class="p">)</span>
+
+<span class="c1"># _dict_to_tuple_space: the spaces are put in sorted name order</span>
+<span class="n">sorted_keys</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dict_space</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+<span class="n">tuple_of_spaces</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">dict_space</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">sorted_keys</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> The k-th entry of the grouped observation and action is
+agent <code>agents_id[k]</code>, but the k-th grouped <em>space</em> belongs to the k-th name in
+alphabetical order. They differ whenever the names do not sort in environment order,
+e.g. <code>agent_1</code> … <code>agent_10</code> (alphabetically <code>agent_1, agent_10, agent_2, …</code>).</p>
+<p>Where the spaces have the same shape, data still lands in the right place, but
+RLlib uses the action <strong>bounds</strong>: by default (<code>normalize_actions=True</code>) it rescales
+each policy output from [−1, 1] to its space's <code>[low, high]</code>. In the market, each
+agent's quantity bound is its own capacity
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/action.py#L35-L44"><code>action.py</code> L35-L44</a>).
+With such names, in CTCE and CTDE an agent's bid would be scaled to another agent's
+capacity.</p>
+<p><strong>Test so far.</strong> Probe 6 (agents named <code>agent_2, agent_10, agent_1</code>) passes for
+DTDE and CTCE: observations, actions and rewards stay matched. But all probe agents
+have identical bounds, so the probe cannot show the wrong scaling.</p>
+<p><strong>How to test it.</strong> Probe 6 with different action bounds per agent: the correct
+action of each agent is known in its own units, so a scaling with another agent's
+bounds shows as a wrong answer.</p>
+<h2 id="3-policy-networks-and-loss">3. Policy networks and loss<a class="headerlink" href="#3-policy-networks-and-loss" title="Permanent link">&para;</a></h2>
+<h3 id="r-01-the-ctce-and-ctde-action-spread-has-no-limit">R-01: the CTCE and CTDE action spread has no limit<a class="headerlink" href="#r-01-the-ctce-and-ctde-action-spread-has-no-limit" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Tested</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L45"><code>src/environment/ctce.py</code> L45</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L309-L322">L309-L322</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L365">L365</a></p>
+<div class="highlight"><pre><span></span><code><span class="bp">self</span><span class="o">.</span><span class="n">pi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_head_network</span><span class="p">(</span><span class="n">embeddings_dim</span><span class="p">,</span> <span class="n">concat_act_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>  <span class="c1"># mean + log_std</span>
+
+<span class="c1"># _get_head_network</span>
+<span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
+
+<span class="c1"># _get_distribution_class</span>
+<span class="n">child_dist_cls</span> <span class="o">=</span> <span class="n">TorchDiagGaussian</span>
+</code></pre></div>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L360-L364"><code>src/environment/ctde.py</code> L360-L364</a>
+(the per-agent heads end the same way)</p>
+<p><strong>Why it is wrong.</strong> For each action the policy outputs a mean and a log standard
+deviation <span class="arithmatex">\(\log\sigma\)</span>, and the action is drawn from a Gaussian. Its entropy per
+dimension is <span class="arithmatex">\(1.42 + \log\sigma\)</span>, and PPO's loss rewards entropy (coefficient 0.01).
+Where the reward does not depend on the action, the reward gradient averages to
+zero and the entropy bonus is the only steady force on <span class="arithmatex">\(\log\sigma\)</span>, so it grows
+for as long as training runs. RLlib's own networks clip <span class="arithmatex">\(\log\sigma\)</span> to ±20 (its PPO
+default, <code>log_std_clip_param = 20</code>). MARLEM's custom heads are a plain linear
+layer feeding <code>TorchDiagGaussian</code>, which does not clip, so <span class="arithmatex">\(\log\sigma\)</span> can grow
+until <span class="arithmatex">\(\sigma^2\)</span> overflows the float32 range. In the market, a step where an
+agent's bid cannot change its reward (no counterparty, a full battery) creates
+exactly this condition.</p>
+<p><strong>Test.</strong></p>
+<ul>
+<li><em>Hypothesis.</em> In probe 2 (reward independent of the action) DTDE's entropy stops
+  where RLlib's clip sits, while CTCE's and CTDE's grows without limit until it
+  overflows.</li>
+<li><em>Test.</em> Probe 2, with the learner's entropy and KL logged every iteration.</li>
+<li><em>Result.</em> DTDE's entropy ends at 21.42, exactly <span class="arithmatex">\(1.42 + 20\)</span>, RLlib's clip. CTCE
+  reaches 147.9 and CTDE 151.3 over 3 dimensions, about <span class="arithmatex">\(\log\sigma \approx 48\)</span> per
+  dimension; <span class="arithmatex">\(\sigma^2\)</span> exceeds float32, and the KL between old and new policy
+  becomes infinite. At the original learning rate (1e-5) CTCE did not diverge
+  within 6 iterations; at 3e-4 it diverged within 4.</li>
+<li><em>What it tells us.</em> The missing clip is confirmed, and RLlib's clip is the
+  exact difference. The speed depends on the learning rate and the entropy
+  coefficient, both of which the original's population-based training raises
+  (I-49). In CTDE the network that diverged is the central actor, which never acts
+  (I-48); once the heads are trained, they have the same unbounded output.</li>
+</ul>
+<h3 id="r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02: <code>kl_coeff = 0</code> does not switch off the KL term, and a NaN loss goes unnoticed<a class="headerlink" href="#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Tested</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L216-L226"><code>src/environment/train.py</code> L216-L226</a></p>
+<div class="highlight"><pre><span></span><code><span class="k">return</span> <span class="p">(</span><span class="n">PPOConfig</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">training</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+                  <span class="c1"># ...</span>
+                  <span class="n">num_epochs</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+                  <span class="n">minibatch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+                  <span class="n">kl_coeff</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                  <span class="n">entropy_coeff</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+                  <span class="n">clip_param</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+                  <span class="n">grad_clip</span><span class="o">=</span><span class="mf">0.5</span><span class="p">))</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> Setting <code>kl_coeff=0.0</code> looks like it removes PPO's KL penalty.
+In RLlib it does not: <code>use_kl_loss</code> stays on by default, so the learner still
+computes the KL between the old and new policy and adds <span class="arithmatex">\(0 \cdot \text{KL}\)</span> to the
+loss. When the KL is infinite (R-01), <span class="arithmatex">\(0 \cdot \infty\)</span> is NaN in floating point,
+and the whole loss is NaN. RLlib's default response (<code>torch_skip_nan_gradients =
+False</code>) is to replace NaN gradients with zero, log a warning and step on, warning
+itself that this "can corrupt the internal state of the optimizer". Training
+continues, metrics keep arriving, and the policy has stopped learning. The value
+network does not depend on the KL and keeps learning, so value metrics look
+healthy.</p>
+<p><strong>Test.</strong></p>
+<ul>
+<li><em>Hypothesis.</em> In the iteration where the KL becomes infinite, the total loss is
+  NaN while the policy loss is still finite (the NaN comes from <span class="arithmatex">\(0 \cdot \infty\)</span>, not
+  from the policy itself), and the value network keeps learning afterwards.</li>
+<li><em>Test.</em> Probe 2 with CTCE, logging total loss, policy loss and KL each iteration.</li>
+<li><em>Result.</em> At iteration 4 (learning rate 3e-4): KL = ∞, total loss NaN, policy
+  loss 0.005. From the next iteration on the policy loss is NaN too. The value
+  check of probe 2 still passes (error 0.001). RLlib's log fills with "Gradients …
+  contain nan/inf values" warnings (about 200 MB of them in the notebook).</li>
+<li><em>What it tells us.</em> The mechanism is confirmed: a divergence that should stop a
+  run instead degrades it silently. Any run of the original should be checked for
+  NaN losses before its results are read.</li>
+</ul>
+<h3 id="r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian">R-04: SAC in CTCE and CTDE uses an unsquashed Gaussian<a class="headerlink" href="#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L358-L373"><code>src/environment/ctce.py</code> L358-L373</a></p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">_get_distribution_class</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TorchMultiDistribution</span><span class="p">:</span>
+    <span class="n">tuple_space</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_space</span><span class="p">[</span><span class="s2">"grouped_agents"</span><span class="p">]</span>
+    <span class="n">child_dist_cls</span> <span class="o">=</span> <span class="n">TorchDiagGaussian</span>
+    <span class="c1"># ... one TorchDiagGaussian per agent, for every algorithm</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> RLlib's SAC uses a tanh-squashed Gaussian for bounded actions
+(<code>TorchSquashedGaussian</code>), so that sampled actions stay in bounds and the
+log-probabilities and entropy in SAC's loss ([P2] eq. 15) are those of the actions
+actually taken. The custom modules give SAC the same plain Gaussian as PPO, for both
+CTCE and CTDE, while SAC-DTDE uses RLlib's squashed one. So SAC differs between
+paradigms in its action distribution, and in CTCE and CTDE the entropy target
+(<span class="arithmatex">\(-\sum \dim A_i\)</span>, <a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L240"><code>train.py</code> L240</a>)
+applies to an unbounded distribution whose samples are clipped afterwards. [P2]
+attributes SAC's very different results across paradigms ("excellent in CTCE and
+CTDE … failing in DTDE") to the paradigms.</p>
+<p><strong>How to test it.</strong> Probes 1-6 with SAC in each paradigm. SAC has no value
+function, so its value probes check the Q-values instead.</p>
+<h3 id="r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic">R-05: SAC's actor in CTCE and CTDE gets no gradient from the critic<a class="headerlink" href="#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L132-L146"><code>src/environment/ctce.py</code> L132-L146</a>
+(<code>ctde.py</code> <a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L143-L157">L143-L157</a> is the same)</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># SECOND PASS: Compute Q-values for actions sampled from current policy to train the actor</span>
+<span class="n">curr_action_dist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">action_dist_cls</span><span class="o">.</span><span class="n">from_logits</span><span class="p">(</span><span class="n">action_logits</span><span class="p">)</span>
+<span class="n">curr_actions_resampled</span> <span class="o">=</span> <span class="n">curr_action_dist</span><span class="o">.</span><span class="n">sample</span><span class="p">()</span>
+<span class="c1"># ...</span>
+<span class="n">fwd_out</span><span class="p">[</span><span class="s2">"q_curr"</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">qf</span><span class="p">(</span><span class="n">curr_qf_embeddings</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">qf_twin</span><span class="p">(</span><span class="n">curr_qf_twin_embeddings</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">fwd_out</span><span class="p">[</span><span class="s2">"logp_resampled"</span><span class="p">]</span> <span class="o">=</span> <span class="n">curr_action_dist</span><span class="o">.</span><span class="n">logp</span><span class="p">(</span><span class="n">curr_actions_resampled</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> SAC trains its actor on
+<span class="arithmatex">\(L_\pi = \alpha \log\pi_\theta(\tilde a \mid s) - \min_j Q_j(s, \tilde a)\)</span> ([P2] eq. 15).
+The second term is how the actor learns from the critic: <span class="arithmatex">\(\tilde a\)</span> must be a
+<em>reparameterised</em> sample, <span class="arithmatex">\(\tilde a = m_\theta(s) + \sigma_\theta(s)\,\varepsilon\)</span>, so
+that the gradient flows through <span class="arithmatex">\(\partial Q / \partial \tilde a\)</span> into <span class="arithmatex">\(\theta\)</span>.
+RLlib's own SAC module does this with <code>rsample()</code>
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/sac/torch/default_sac_torch_rl_module.py#L155"><code>default_sac_torch_rl_module.py</code> L155</a>).
+The custom modules call <code>sample()</code>, which draws without a gradient (checked:
+<code>sample()</code> returns a tensor with <code>requires_grad=False</code>, <code>rsample()</code> one with
+<code>True</code>). The <span class="arithmatex">\(Q\)</span> term is then a constant for the actor, and <span class="arithmatex">\(\partial L_\pi /
+\partial\theta\)</span> comes from <span class="arithmatex">\(\alpha \log\pi_\theta\)</span> alone: the actor is trained only
+to raise its entropy, never toward higher Q-values. The critic still learns, so Q
+metrics look healthy.</p>
+<p>So SAC-DTDE (RLlib's module) is SAC, but SAC-CTCE and SAC-CTDE are not: their
+policies drift toward maximum spread regardless of the reward. In CTDE this adds to
+I-48 (the trained actor does not even act). [P2] reports SAC as "excellent in CTCE
+and CTDE … failing in DTDE".</p>
+<p><strong>How to test it.</strong> Probe 4 with SAC-CTCE: the action means should stay where they
+start while the entropy rises; with <code>rsample()</code> they should move to the targets.
+Directly: one SAC loss on a batch, then check that the actor's parameters receive a
+gradient from the <span class="arithmatex">\(Q\)</span> term (zero now).</p>
+<h2 id="4-trainer-and-hyperparameters">4. Trainer and hyperparameters<a class="headerlink" href="#4-trainer-and-hyperparameters" title="Permanent link">&para;</a></h2>
+<h3 id="i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10">I-49: population-based training jumps the learning rate and reaches entropy 10<a class="headerlink" href="#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L178-L189"><code>src/environment/train.py</code> L178-L189</a></p>
+<div class="highlight"><pre><span></span><code><span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="n">RLAlgorithm</span><span class="o">.</span><span class="n">PPO</span><span class="p">:</span>
+    <span class="n">hyperparam_mutations</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"lr"</span><span class="p">:</span> <span class="n">loguniform</span><span class="p">(</span><span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">),</span>
+                            <span class="s2">"entropy_coeff"</span><span class="p">:</span> <span class="n">loguniform</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+                            <span class="s2">"lambda_"</span><span class="p">:</span> <span class="n">loguniform</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">),</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> Training starts at <code>lr=1e-5</code> (L216), but the mutation domain
+starts at 1e-4, so the first resample jumps the learning rate by 10-1000×. The
+entropy coefficient can reach 10, a thousand times its starting value; at that
+size the entropy bonus outweighs the reward in the loss. Together with R-01, the
+search space contains exactly the settings that make CTCE and CTDE diverge, and with
+R-02 those trials keep running with a NaN loss. [P2] ran 10 trials per combination
+with these mutations (§4.2).</p>
+<p><strong>How to test it.</strong> Probe 2 with CTCE and CTDE at entropy coefficients across the
+domain (0.01, 0.1, 1, 10): the iteration at which the KL becomes infinite should
+fall as the coefficient rises.</p>
+<h3 id="i-62-training-configuration-defects">I-62: training configuration defects<a class="headerlink" href="#i-62-training-configuration-defects" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L116"><code>src/environment/train.py</code> L116</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L285-L293">L285-L293</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L426-L458">L426-L458</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># _check_init</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">evaluation_duration</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_duration</span> <span class="o">==</span> <span class="s2">"auto"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">evaluation_duration</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">evaluation_duration</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="c1"># _setup_extra_config</span>
+<span class="o">.</span><span class="n">env_runners</span><span class="p">(</span><span class="n">num_env_runners</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cpus</span><span class="p">,</span> <span class="n">sample_timeout_s</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<span class="c1"># ...</span>
+<span class="o">.</span><span class="n">evaluation</span><span class="p">(</span><span class="n">evaluation_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">evaluation_interval</span><span class="p">,</span>
+            <span class="c1"># ...</span>
+            <span class="n">evaluation_num_env_runners</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cpus</span><span class="p">,</span>
+            <span class="n">evaluation_parallel_to_training</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+
+<span class="c1"># train</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">ray</span><span class="o">.</span><span class="n">is_initialized</span><span class="p">():</span>
+    <span class="n">ray</span><span class="o">.</span><span class="n">init</span><span class="p">()</span>
+<span class="n">tuner</span> <span class="o">=</span> <span class="n">Tuner</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">scheduler</span><span class="o">=</span><span class="n">PopulationBasedTraining</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">tuner</span><span class="o">.</span><span class="n">fit</span><span class="p">()</span>
+<span class="c1"># ...</span>
+<span class="n">ray</span><span class="o">.</span><span class="n">shutdown</span><span class="p">()</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong></p>
+<ul>
+<li><strong>A positive evaluation length is rejected.</strong> <code>not A or B</code> is read as
+  <code>(not A) or B</code>, so any integer, positive or not, raises. Only <code>"auto"</code> works.</li>
+<li><strong>CPUs are counted twice.</strong> <code>cpus</code> sampling workers and another <code>cpus</code>
+  evaluation workers run in parallel, each loading PyTorch. The default
+  <code>cpus = cpu_count() − 4</code> (L154) gives 16 worker processes on a 12-thread machine.
+  On this machine the workers failed with "The paging file is too small" when
+  memory was short.</li>
+<li><strong>Population-based training is always on</strong>, also for a single trial, so a plain
+  run with fixed hyperparameters is not possible.</li>
+<li><strong><code>ray.shutdown()</code> is not in a <code>finally</code></strong>, so a failed run leaves Ray running.</li>
+</ul>
+<p><strong>How to test it.</strong> Each is checkable directly: build the trainer with
+<code>evaluation_duration=5</code>; count the worker processes of a run; run a trial that
+raises and check whether Ray is still up.</p>
+<h3 id="r-06-appos-lambda_-has-no-effect">R-06: APPO's <code>lambda_</code> has no effect<a class="headerlink" href="#r-06-appos-lambda_-has-no-effect" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L186-L189"><code>src/environment/train.py</code> L186-L189</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L229-L235">L229-L235</a></p>
+<div class="highlight"><pre><span></span><code><span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">algorithm</span> <span class="o">==</span> <span class="n">RLAlgorithm</span><span class="o">.</span><span class="n">APPO</span><span class="p">:</span>
+    <span class="n">hyperparam_mutations</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"lr"</span><span class="p">:</span> <span class="n">loguniform</span><span class="p">(</span><span class="mf">0.0001</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">),</span>
+                            <span class="s2">"entropy_coeff"</span><span class="p">:</span> <span class="n">loguniform</span><span class="p">(</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+                            <span class="s2">"lambda_"</span><span class="p">:</span> <span class="n">loguniform</span><span class="p">(</span><span class="mf">0.8</span><span class="p">,</span> <span class="mf">0.99</span><span class="p">)}</span>
+<span class="c1"># ...</span>
+<span class="k">return</span> <span class="p">(</span><span class="n">APPOConfig</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">training</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+                  <span class="n">vtrace</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                  <span class="n">lambda_</span><span class="o">=</span><span class="mf">0.95</span><span class="p">,</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> APPO computes its targets with V-trace, and RLlib's V-trace
+takes no λ
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/impala/torch/vtrace_torch_v2.py#L72-L81"><code>vtrace_torch_v2.py</code> L72-L81</a>);
+nothing in APPO's learner reads <code>lambda_</code>
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/appo/torch/appo_torch_learner.py#L141-L150"><code>appo_torch_learner.py</code> L141-L150</a>).
+The setting is ignored, and one of the three hyperparameters population-based
+training searches for APPO searches nothing: trials that differ only in <code>lambda_</code>
+are identical, and a "best <code>lambda_</code>" read from the results is noise. [P2] does not
+mention λ for APPO.</p>
+<p><strong>How to test it.</strong> Two APPO runs with the same seed and <code>lambda_</code> 0.8 and 0.99:
+their losses should match step for step.</p>
+<h3 id="i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes">I-50: the budget is counted in iterations, the paper in episodes<a class="headerlink" href="#i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes" title="Permanent link">&para;</a></h3>
+<p><strong>Paper · Judgment</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L440"><code>src/environment/train.py</code> L440</a></p>
+<div class="highlight"><pre><span></span><code><span class="n">stop</span><span class="o">=</span><span class="p">{</span><span class="n">TRAINING_ITERATION</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">iters</span> <span class="k">if</span> <span class="n">_iters</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">abs</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">_iters</span><span class="p">)),</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> [P2] §4.2 trains "for a total of 10 000 episodes". The
+trainer stops after a number of <em>training iterations</em>, each of which collects a
+batch of environment steps (4000 by default for PPO, 166 market days of 24 steps).
+10 000 iterations and 10 000 episodes differ by two orders of magnitude, and the
+papers do not say which was meant. Budgets also matter for the paradigm comparison
+(I-60): CTCE needs more data than DTDE to reach the same policy.</p>
+<p><strong>How to settle it.</strong> State the budget in environment steps, the same for every
+paradigm and algorithm.</p>
+<h2 id="5-inference-evaluation-and-tests">5. Inference, evaluation and tests<a class="headerlink" href="#5-inference-evaluation-and-tests" title="Permanent link">&para;</a></h2>
+<h3 id="i-61-standalone-inference-does-not-act-like-training">I-61: standalone inference does not act like training<a class="headerlink" href="#i-61-standalone-inference-does-not-act-like-training" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/inference.py#L159-L174"><code>src/environment/inference.py</code> L159-L174</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># The model outputs mean + log_std for each action dimension</span>
+<span class="n">means</span> <span class="o">=</span> <span class="n">action_dist_params</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">action_dim</span><span class="p">]</span>
+<span class="c1"># ...</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="n">sampled_actions</span> <span class="o">=</span> <span class="n">means</span>
+
+<span class="c1"># Clip actions to valid range</span>
+<span class="n">actions</span><span class="p">[</span><span class="n">agent_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">sampled_actions</span><span class="p">,</span>
+                            <span class="n">a_min</span><span class="o">=</span><span class="n">action_space</span><span class="o">.</span><span class="n">low</span><span class="p">,</span>
+                            <span class="n">a_max</span><span class="o">=</span><span class="n">action_space</span><span class="o">.</span><span class="n">high</span><span class="p">)</span>
+</code></pre></div>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/inference.py#L229-L232"><code>src/environment/inference.py</code> L229-L232</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L486"><code>src/environment/lem.py</code> L486</a></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># inference: market metrics read from the top level of info</span>
+<span class="k">if</span> <span class="n">info</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="n">price_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"market_price"</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+
+<span class="c1"># lem.step: info is keyed by agent</span>
+<span class="n">infos</span> <span class="o">=</span> <span class="p">{</span><span class="n">agent_id</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">info</span> <span class="k">for</span> <span class="n">agent_id</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">agents_id</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong></p>
+<ul>
+<li><strong>Actions are not rescaled.</strong> In training, RLlib treats the policy's output as a
+  value in [−1, 1] and rescales it to the action's bounds
+  (<code>low + (a + 1)(high − low)/2</code>, <code>normalize_actions=True</code> by default). Inference
+  takes the policy's mean as the action itself and only clips it. A trained output
+  of 0.5 for the bid price means 75 % of the price range in training, but a price
+  of 0.5 in inference. Inference evaluates a different policy from the one trained.</li>
+<li><strong>The market metrics are always 0.</strong> The environment returns one info dict per
+  agent, so <code>info.get("market_price")</code> never finds the key, and the mean price,
+  volume and grid balance reported by inference are 0.</li>
+<li><strong>CTDE inference acts with the untrained heads</strong> (I-48).</li>
+</ul>
+<p><strong>How to test it.</strong> Run a trained DTDE probe policy through <code>RLInference</code> and
+through RLlib's own evaluation, and compare the actions sent to the environment.</p>
+<h3 id="i-64-no-baselines-no-seeds-no-record-of-a-run">I-64: no baselines, no seeds, no record of a run<a class="headerlink" href="#i-64-no-baselines-no-seeds-no-record-of-a-run" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><strong>Why it is wrong.</strong> The trainer has no way to evaluate a random or untrained policy
+on the same scenario, runs one seed per trial, and saves no manifest of versions
+and settings. A result such as "SAC-CTDE reaches 3158" cannot be compared with
+what an untrained policy reaches, which is exactly the comparison that would have
+exposed I-48. The probe notebooks report each result against fixed baselines (best,
+always 0, random) for this reason.</p>
+<p><strong>How to test it.</strong> Not a test: a capability to add (random and untrained
+baselines on held-out seeds, several training seeds, a run manifest).</p>
+<h3 id="i-72-p2s-evaluation-protocol-cannot-show-generalisation-or-variance">I-72: [P2]'s evaluation protocol cannot show generalisation or variance<a class="headerlink" href="#i-72-p2s-evaluation-protocol-cannot-show-generalisation-or-variance" title="Permanent link">&para;</a></h3>
+<p><strong>Paper · Judgment</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L285-L293"><code>src/environment/train.py</code> L285-L293</a></p>
+<p><strong>Why it is wrong.</strong> [P2] fixes one global seed ("environmental conditions are
+identical across all experimental runs"), evaluates on the training scenario, and
+ranks by the shaped reward the agents were trained on. That shows how well each
+combination fits one scenario, not how it generalises, and with one seed there is no
+variance to compare. The ranking of Table 9 cannot separate a real difference from
+seed luck.</p>
+<p><strong>How to settle it.</strong> Decide the protocol: held-out days or seeds for evaluation,
+several training seeds per combination, and a score that is not the training
+reward alone.</p>
+<h3 id="i-52-the-trainers-test-checks-that-it-runs-not-that-it-learns">I-52: the trainer's test checks that it runs, not that it learns<a class="headerlink" href="#i-52-the-trainers-test-checks-that-it-runs-not-that-it-learns" title="Permanent link">&para;</a></h3>
+<p><strong>Code · Read</strong></p>
+<p><a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/tests/test_trainer.py#L35-L44"><code>tests/test_trainer.py</code> L35-L44</a>,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/tests/test_trainer.py#L144-L145">L144-L145</a></p>
+<div class="highlight"><pre><span></span><code><span class="n">trainer</span> <span class="o">=</span> <span class="n">RLTrainer</span><span class="p">(</span><span class="n">env_config</span><span class="o">=</span><span class="n">env_config</span><span class="p">,</span>
+                    <span class="n">algorithm</span><span class="o">=...</span><span class="p">,</span>
+                    <span class="n">training</span><span class="o">=...</span><span class="p">,</span>
+                    <span class="n">iters</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                    <span class="c1"># ...</span>
+<span class="n">results</span><span class="p">,</span> <span class="n">training_metrics</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>   <span class="c1"># then prints metrics</span>
+
+<span class="c1"># run_tests</span>
+<span class="n">test_trainer</span><span class="p">(</span><span class="n">algo</span><span class="o">=</span><span class="s2">"ppo"</span><span class="p">,</span>  <span class="c1"># ppo, appo, sac</span>
+             <span class="n">mode</span><span class="o">=</span><span class="s2">"dtde"</span><span class="p">)</span>  <span class="c1"># ctce, ctde, dtde</span>
+</code></pre></div>
+<p><strong>Why it is wrong.</strong> The test trains 5 iterations and prints the metrics; it
+asserts nothing about learning, and by default it runs only PPO-DTDE. A smoke test
+like this cannot catch a learning defect: a CTDE run executes without errors, logs
+moving losses (the central actor <em>is</em> being trained) and saves checkpoints. I-48
+passes it. The register's I-52 covers the whole test suite; this is its RL part.</p>
+<p><strong>What replaces it.</strong> The probe notebooks are the first learning tests: each probe
+has an exact answer, and the parameter-change check fails a frozen actor. They are
+notebooks, not yet automated tests.</p>
+<h2 id="problems-in-the-papers-rl-method">Problems in the papers' RL method<a class="headerlink" href="#problems-in-the-papers-rl-method" title="Permanent link">&para;</a></h2>
+<p>What the papers leave wrong or open, whatever the code does. Each needs a recorded
+decision.</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>The problem in [P1] / [P2]</th>
+<th>Issues</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CTCE as upper bound</td>
+<td>Called a theoretical upper bound, but trained by the same approximate learner on the summed reward; it learns more slowly</td>
+<td>I-60</td>
+</tr>
+<tr>
+<td>Comparing returns</td>
+<td>One "mean episode reward" across paradigms whose objectives are a group sum (eq. 17) and per-agent returns (eq. 19); the score is not defined</td>
+<td>I-73</td>
+</tr>
+<tr>
+<td>CTDE critic</td>
+<td>Eq. 18 uses a joint-action critic <span class="arithmatex">\(Q_\phi(s, \mathbf{a})\)</span>; PPO and APPO learn a state-value critic <span class="arithmatex">\(V(s)\)</span>. "CTDE" names a family, not one method</td>
+<td>I-48</td>
+</tr>
+<tr>
+<td>Budget</td>
+<td>"10 000 episodes"; the code counts iterations</td>
+<td>I-50</td>
+</tr>
+<tr>
+<td>Evaluation</td>
+<td>One seed, evaluation on the training scenario, ranking by the training reward</td>
+<td>I-72</td>
+</tr>
+<tr>
+<td>Network design</td>
+<td>Not described; the paradigms use different networks (R-03) and the custom ones lack RLlib's safeguards (R-01, R-04)</td>
+<td>R-03</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-this-means-for-the-published-results">What this means for the published results<a class="headerlink" href="#what-this-means-for-the-published-results" title="Permanent link">&para;</a></h2>
+<p><strong>[P1] is not affected.</strong> Its results use zero-intelligence agents (random bids);
+it states that "full MARL training is deferred to future work". The defects above
+affect the framework [P1] presents, including its highlight of "the first true,
+like-for-like comparison of … CTCE, DTDE and CTDE", not its numbers.</p>
+<p><strong>[P2] trains the 3 × 3 matrix.</strong> Its hyperparameters (Table 8: learning rate 1e-5,
+entropy 0.01, clip 0.2, gradient clip 0.5, minibatch 128, buffer 1000) are the
+original code's. If its runs used this code, which cannot be confirmed
+independently:</p>
+<ul>
+<li><strong>Every CTDE result comes from untrained policies (I-48).</strong> PPO-CTDE (mean
+  3004.8), APPO-CTDE and SAC-CTDE (mean 3158.2) acted with the heads' initial
+  weights. [P2] reads SAC-CTDE's low standard deviation (42.5) as "the centralized
+  critic successfully guided the local actors"; a policy that never changes also
+  varies little. That untrained policies score close to CTCE (3099-3144) also says
+  the reward hardly separates trained from untrained behaviour, a question for the
+  connection document.</li>
+<li><strong>CTCE and CTDE trials may have run with NaN losses (R-01, R-02, I-49).</strong> With
+  population-based training raising the entropy coefficient toward 10, trials of
+  the grouped paradigms are exactly the ones whose spread can diverge, and the
+  original would keep reporting them.</li>
+<li><strong>SAC-CTCE and SAC-CTDE policies were never steered by their critics (R-05).</strong>
+  Their actors only gained entropy, so [P2]'s SAC results in the grouped
+  paradigms ("excellent in CTCE and CTDE") come from policies that did not learn
+  from the reward.</li>
+<li><strong>APPO's λ search found nothing (R-06)</strong>: <code>lambda_</code> has no effect in APPO.</li>
+<li><strong>The ranking mixes paradigm with network (R-03, R-04)</strong> and with training
+  length (I-60), on one seed (I-72).</li>
+</ul>
+<p>So [P2]'s conclusions about CTDE ("a robust middle ground", "the optimal choice"
+for SAC) are <strong>not supported</strong> by the original code, and its comparisons between
+paradigms need the fixes above before they can be repeated.</p>
+<h2 id="not-tested-yet">Not tested yet<a class="headerlink" href="#not-tested-yet" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Why it matters</th>
+<th>Issues</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CTCE trained longer on probes 4 and 5</td>
+<td>Decides "slow, not broken"</td>
+<td>I-60</td>
+</tr>
+<tr>
+<td>APPO and SAC on the probes</td>
+<td>I-48 and R-01 follow from the code for them; SAC's distribution differs (R-04)</td>
+<td>I-48, R-04</td>
+</tr>
+<tr>
+<td>SAC-CTCE on probe 4; the actor's gradient from the Q term</td>
+<td>Confirms that SAC's grouped actors never learn from the critic</td>
+<td>R-05</td>
+</tr>
+<tr>
+<td>Two APPO runs differing only in <code>lambda_</code></td>
+<td>Confirms the setting is ignored</td>
+<td>R-06</td>
+</tr>
+<tr>
+<td>Probe 6 with different action bounds per agent</td>
+<td>The only way to show the wrong action scaling</td>
+<td>I-59</td>
+</tr>
+<tr>
+<td>The Ray Tune path (<code>RLTrainer.train</code>)</td>
+<td>Population-based training, evaluation workers and checkpoints have not run; the bench uses <code>build_local</code></td>
+<td>I-49, I-62</td>
+</tr>
+<tr>
+<td><code>RLInference</code></td>
+<td>Its action scaling and metrics</td>
+<td>I-61</td>
+</tr>
+<tr>
+<td>Longer episodes and truncation</td>
+<td>The probes are 1-2 steps long; the market has 24 or 96</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h2 id="outside-this-document">Outside this document<a class="headerlink" href="#outside-this-document" title="Permanent link">&para;</a></h2>
+<p>How the market and the RL layer connect is validated in a separate document. The
+register's IDs for it:</p>
+<ul>
+<li><strong>Actions and observations:</strong> I-10, I-39, I-40, I-58</li>
+<li><strong>Reward:</strong> I-02, I-41 to I-47, I-75, I-76, I-79</li>
+<li><strong>KPIs:</strong> I-35 to I-37, I-65, I-68, I-69</li>
+<li><strong>Experiments and reproducibility:</strong> I-03, I-04, I-51, I-63, I-80</li>
+<li><strong>Docs:</strong> I-67</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "search.highlight", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js"></script>
+      
+        <script src="../../assets/diagrams.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

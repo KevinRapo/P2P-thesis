@@ -1,0 +1,5002 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="MARLEM rebuilt on SimBench networks">
+      
+      
+      
+        <link rel="canonical" href="https://kevinrapo.github.io/P2P-thesis/simbench/profiles/">
+      
+      
+        <link rel="prev" href="../networks/">
+      
+      
+        <link rel="next" href="../../api/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Profiles - MARLEM clean</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/diagrams.css">
+    
+      <link rel="stylesheet" href="../../assets/marks.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#simbench-profiles-the-time-series-of-loads-and-generators" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="MARLEM clean" class="md-header__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MARLEM clean
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Profiles
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../v1/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  marlem-v1
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../structure/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Code structure
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../marlem/methodology/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MARLEM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../rl/training/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  RL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../validation/market/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SimBench
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About these docs
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="MARLEM clean" class="md-nav__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MARLEM clean
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    marlem-v1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MARLEM
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MARLEM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../marlem/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../marlem/learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training cycle (3 × 3)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/cycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One iteration, step by step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Worked examples (our code)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/market/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/rl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The two papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SimBench
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SimBench
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../networks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-a-profile-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What a profile is
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. What a profile is">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-the-studio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In the Studio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-classes-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The classes at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-accumulated-consumers-households-businesses-farms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Accumulated consumers: households, businesses, farms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Accumulated consumers: households, businesses, farms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#households-h0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Households (H0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commercial-g0g6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commercial (G0–G6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agricultural-l0l2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agricultural (L0–L2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-bl-h-wb-h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other (BL-H, WB-H)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-individual-consumers-heat-pumps-and-electric-vehicles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Individual consumers: heat pumps and electric vehicles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Individual consumers: heat pumps and electric vehicles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#heat-pumps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heat pumps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#electric-vehicles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Electric vehicles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Generation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Generation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pv-wind-biomass-hydro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PV, wind, biomass, hydro
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-plants-and-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power plants and imports
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-aggregated-grids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Aggregated grids
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-where-the-data-differs-from-the-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Where the data differs from the documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/grid/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid: SimBench networks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Grid: SimBench networks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/powerflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    powerflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/simbench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    simbench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market: the MARLEM market
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Market: the MARLEM market
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/agent/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    agent
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_2" id="__nav_8_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/dso/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_3" id="__nav_8_3_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    dso
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/dso/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/profile/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_4" id="__nav_8_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    profile
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/bidding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bidding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing_price/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing_price
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/lem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    order
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/reputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/config/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config: the scenario
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Config: the scenario
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/placement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/scenario/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio: pages, components, adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Studio: pages, components, adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/adapters/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_2" id="__nav_8_5_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    container
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/grid_catalog_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_catalog_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/market_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_classes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/run_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/scenario_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    workspace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/components/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    components
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_3" id="__nav_8_5_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/charts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    charts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/day_profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    day_profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/pages/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pages
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_4" id="__nav_8_5_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    pages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/grid_participants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_participants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/inspect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    inspect
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/market_dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/runs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    runs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/navigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    navigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/theme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    theme
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL: the learning layer
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6" id="__nav_8_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL: the learning layer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/envs/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    envs
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6_2" id="__nav_8_6_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    envs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/probes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/spread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spread
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/toy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    toy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/ctde_modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/grouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About these docs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-what-a-profile-is" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. What a profile is
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. What a profile is">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-the-studio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In the Studio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-classes-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The classes at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-accumulated-consumers-households-businesses-farms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Accumulated consumers: households, businesses, farms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Accumulated consumers: households, businesses, farms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#households-h0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Households (H0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commercial-g0g6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commercial (G0–G6)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agricultural-l0l2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Agricultural (L0–L2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#other-bl-h-wb-h" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Other (BL-H, WB-H)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-individual-consumers-heat-pumps-and-electric-vehicles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Individual consumers: heat pumps and electric vehicles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Individual consumers: heat pumps and electric vehicles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#heat-pumps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Heat pumps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#electric-vehicles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Electric vehicles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Generation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Generation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pv-wind-biomass-hydro" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PV, wind, biomass, hydro
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-plants-and-imports" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Power plants and imports
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-aggregated-grids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Aggregated grids
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-where-the-data-differs-from-the-documentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Where the data differs from the documentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="simbench-profiles-the-time-series-of-loads-and-generators">SimBench profiles: the time series of loads and generators<a class="headerlink" href="#simbench-profiles-the-time-series-of-loads-and-generators" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>What a SimBench profile is, how the Studio turns it into power, and where each
+class of profiles comes from: households, businesses, farms, heat pumps, electric
+vehicles, PV, wind, biomass, hydro, storage and whole grids.
+SimBench in general: <a href="../">overview</a> · Which networks use which profiles:
+<a href="../networks/">network catalogue</a>.</p>
+</blockquote>
+<p>Section numbers like §3.5.2 refer to the SimBench documentation, version 1.1.0
+(see the <a href="../">overview</a> for the full reference). Counts, means and peaks in
+the tables are measured from the data set the Studio reads (scenario 0 unless
+stated).</p>
+<h2 id="1-what-a-profile-is">1. What a profile is<a class="headerlink" href="#1-what-a-profile-is" title="Permanent link">&para;</a></h2>
+<p>A profile is a <strong>normalised</strong> time series: for every quarter hour of 2016 it gives
+a factor of an element's rated power. The element (a load, static generator or
+storage unit) names its profile in its <code>profile</code> column; many elements share one
+profile.</p>
+<div class="arithmatex">\[
+P_e(t) = p_{e} \cdot f_{\text{profile}(e)}(t), \qquad
+Q_e(t) = q_{e} \cdot f^{q}_{\text{profile}(e)}(t)
+\]</div>
+<p>with <span class="arithmatex">\(p_e\)</span> the element's rated active power (<code>p_mw</code>) and <span class="arithmatex">\(q_e\)</span> its rated reactive
+power (<code>q_mvar</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Year</td>
+<td>2016, a leap year: 366 days</td>
+</tr>
+<tr>
+<td>Resolution</td>
+<td>15 minutes: 96 values per day, <strong>35,136</strong> per year</td>
+</tr>
+<tr>
+<td>Scale</td>
+<td>factor of rated power; 1.0 = rated power</td>
+</tr>
+<tr>
+<td>Reactive power</td>
+<td>loads have a P and a Q profile (<code>H0-A_pload</code>, <code>H0-A_qload</code>); generators and storage have P only</td>
+</tr>
+<tr>
+<td>Tables</td>
+<td><code>load</code>, <code>renewables</code> (PV, wind, biomass, hydro, grids), <code>powerplants</code> (EHV plants, imports), <code>storage</code></td>
+</tr>
+</tbody>
+</table>
+<p>Things to know when reading the numbers:</p>
+<ul>
+<li><strong>Peaks are not always 1.</strong> Load profiles reach 1.0; PV profiles peak at most at
+  0.63 of rated power, because panels rarely deliver their rating.</li>
+<li><strong>Q factors can be negative</strong>: some measured loads feed reactive power back at
+  times.</li>
+<li><strong>Rated power is not energy.</strong> A household of 3 kW with H0-A draws on average
+  0.19 × 3 kW ≈ 0.6 kW. The mean factors below show how far each class stays below
+  its rating.</li>
+<li><strong>Time stamps.</strong> Measurements from other years (feed-in 2011/2012, hydro 2017,
+  households 2010) were moved onto the 2016 calendar, with daylight saving time
+  taken into account; the leap day was filled with the mean of the neighbouring
+  same weekdays (§3.5.4).</li>
+</ul>
+<h3 id="in-the-studio">In the Studio<a class="headerlink" href="#in-the-studio" title="Permanent link">&para;</a></h3>
+<p>The Inspect page shows profiles in two ways:</p>
+<ul>
+<li><strong>Factor</strong> (the Profiles section of a network, and the Profiles tab with SimBench's
+  whole catalogue): the normalised values above.</li>
+<li><strong>kW</strong> ("Sum per profile" / "Per element"): factor × rated power of the elements
+  that use the profile, as in the formula above.</li>
+</ul>
+<p>Resolutions: <strong>15 min</strong> is the raw data; <strong>hourly</strong> is the mean of the four
+quarter hours of each hour (the market's default step, 24 per day); <strong>daily</strong> is
+the mean of all 96 values of a day.</p>
+<h2 id="2-the-classes-at-a-glance">2. The classes at a glance<a class="headerlink" href="#2-the-classes-at-a-glance" title="Permanent link">&para;</a></h2>
+<p>Grouped as in SimBench's own overview (Meinecke et al., 2020, Figures 1 and 8); the
+Studio classifies every profile by its name (<code>studio/adapters/profile_classes.py</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Class</th>
+<th>Names</th>
+<th>Profiles</th>
+<th>P / Q</th>
+<th>Mean factor</th>
+<th>Section</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Load, accumulated</td>
+<td>Households</td>
+<td><code>H0-A</code> … <code>H0-L</code></td>
+<td>6</td>
+<td>P, Q</td>
+<td>0.19</td>
+<td><a href="#households-h0">§3</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Commercial</td>
+<td><code>G0-A</code> … <code>G6-A</code></td>
+<td>15</td>
+<td>P, Q</td>
+<td>0.35</td>
+<td><a href="#commercial-g0g6">§3</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Agricultural</td>
+<td><code>L0-A</code>, <code>L1-A</code>, <code>L2-A</code>, <code>L2-M</code></td>
+<td>4</td>
+<td>P, Q</td>
+<td>0.31</td>
+<td><a href="#agricultural-l0l2">§3</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Other standard profiles</td>
+<td><code>BL-H</code>, <code>WB-H</code></td>
+<td>2</td>
+<td>P, Q</td>
+<td>0.52</td>
+<td><a href="#other-bl-h-wb-h">§3</a></td>
+</tr>
+<tr>
+<td>Load, individual</td>
+<td>Heat pumps</td>
+<td><code>Air_…</code>, <code>Soil_…</code></td>
+<td>8</td>
+<td>P, Q</td>
+<td>0.10</td>
+<td><a href="#heat-pumps">§4</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Electric vehicles</td>
+<td><code>HLS_…</code>, <code>APLS_…</code></td>
+<td>15</td>
+<td>P, Q</td>
+<td>0.01</td>
+<td><a href="#electric-vehicles">§4</a></td>
+</tr>
+<tr>
+<td>Generation</td>
+<td>PV</td>
+<td><code>PV1</code> … <code>PV8</code></td>
+<td>8</td>
+<td>P</td>
+<td>0.07</td>
+<td><a href="#pv-wind-biomass-hydro">§5</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Wind</td>
+<td><code>WP1</code> … <code>WP12</code></td>
+<td>12</td>
+<td>P</td>
+<td>0.36</td>
+<td><a href="#pv-wind-biomass-hydro">§5</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Biomass</td>
+<td><code>BM1</code> … <code>BM5</code></td>
+<td>5</td>
+<td>P</td>
+<td>0.33</td>
+<td><a href="#pv-wind-biomass-hydro">§5</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Hydro</td>
+<td><code>Hydro1</code> … <code>Hydro3</code></td>
+<td>3</td>
+<td>P</td>
+<td>0.29</td>
+<td><a href="#pv-wind-biomass-hydro">§5</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Conventional plants</td>
+<td><code>pp_1</code> …</td>
+<td>318</td>
+<td>P</td>
+<td>0.22</td>
+<td><a href="#power-plants-and-imports">§5</a></td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>Storage</td>
+<td><code>Storage_PV…_…</code></td>
+<td>0 (scenario 0), 60 (scenarios 1, 2)</td>
+<td>P</td>
+<td>0.10</td>
+<td><a href="#6-storage">§6</a></td>
+</tr>
+<tr>
+<td>Aggregated grids</td>
+<td>SimBench grids, load</td>
+<td><code>lv_…</code>, <code>mv_…</code>, <code>hv_…</code></td>
+<td>16</td>
+<td>P, Q</td>
+<td>0.18</td>
+<td><a href="#7-aggregated-grids">§7</a></td>
+</tr>
+<tr>
+<td></td>
+<td>SimBench grids, generation</td>
+<td><code>lv_…</code>, <code>mv_…</code>, <code>hv_…</code></td>
+<td>14</td>
+<td>P</td>
+<td>0.15</td>
+<td><a href="#7-aggregated-grids">§7</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Omitted HV grids</td>
+<td><code>HS0</code> … <code>HS27</code>, <code>HSexp0/1</code></td>
+<td>30</td>
+<td>P, Q</td>
+<td>0.53</td>
+<td><a href="#7-aggregated-grids">§7</a></td>
+</tr>
+<tr>
+<td></td>
+<td>Import</td>
+<td><code>imp0</code>, <code>imp1</code></td>
+<td>2</td>
+<td>P</td>
+<td>0.39</td>
+<td><a href="#power-plants-and-imports">§5</a></td>
+</tr>
+</tbody>
+</table>
+<p>The whole catalogue has <strong>458 profiles in scenario 0</strong> and <strong>518 in scenarios 1
+and 2</strong>: the difference is the 60 storage profiles.</p>
+<h2 id="3-accumulated-consumers-households-businesses-farms">3. Accumulated consumers: households, businesses, farms<a class="headerlink" href="#3-accumulated-consumers-households-businesses-farms" title="Permanent link">&para;</a></h2>
+<p>Accumulated consumers are many similar customers that are planned with a
+<strong>standard load profile</strong> (SLP), the German utilities' typical-day curves: H0
+households, G0–G6 businesses, L0–L2 farms, B0 band load (§3.5.1). SimBench replaces
+each SLP by a <strong>real measured time series</strong> that matches it, so the profiles keep
+the randomness of real customers.</p>
+<p>How the series were chosen:</p>
+<ol>
+<li><strong>Data.</strong> Businesses and farms: 2,539 anonymised 15-minute measurements of 2016
+   (customers with a power meter, mostly under 100,000 kWh a year), after removing
+   faulty files (~10 %) and series with cos φ &lt; 0.8 (~14 %). Households: the IZES
+   data set (HTW Berlin, 2010), resampled to 15 minutes by taking every 15th value
+   instead of averaging, so the short-term peaks stay.</li>
+<li><strong>Average week.</strong> Each series is averaged to one week (each weekday over the
+   year, seasons ignored) and normalised to the week's mean.</li>
+<li><strong>Matching.</strong> The distance to every SLP is the cumulative Euclidean distance
+   (load and time) between the points of the two curves. A series is assigned to
+   the SLP it is closest to, if it is not as close to another one.</li>
+<li><strong>Size classes.</strong> By mean consumption per 15 minutes: 0–4 kWh for LV, 10–20 kWh
+   for MV (318 series, 12.5 %), above 100 kWh for HV (17 series, 0.7 %).</li>
+</ol>
+<p>The <strong>suffix</strong> after the dash is the consumption level and size class: <code>-A</code>, <code>-B</code>,
+<code>-C</code> … are different low-consumption series of the same class (LV), <code>-M</code> medium
+(MV), <code>-H</code> high (HV).</p>
+<h3 id="households-h0">Households (H0)<a class="headerlink" href="#households-h0" title="Permanent link">&para;</a></h3>
+<p><code>H0-A</code>, <code>H0-B</code>, <code>H0-C</code>: the three household series closest to H0 (§4.1.5,
+Figure 4.15). <code>H0-G</code> and <code>H0-L</code>: households that match the business profile G6 and
+the farm profile L1 better than H0. They were kept on purpose, so the set covers
+the spread of real households: many real households use much more at weekends than
+H0 assumes. <code>H0-H</code>: an HV-size industrial customer whose shape resembles H0 (high
+base load, even rise over the week).</p>
+<h3 id="commercial-g0g6">Commercial (G0–G6)<a class="headerlink" href="#commercial-g0g6" title="Permanent link">&para;</a></h3>
+<p>G for <em>Gewerbe</em>. SLP meaning: G0 business in general, G1 weekdays 8–18 h, G2
+mainly evening, G3 continuous, G4 shops and hairdressers, G5 bakeries, G6 weekend
+business. Series: <code>G0-A</code>, <code>G0-M</code>, <code>G1-A</code>, <code>G1-B</code>, <code>G1-C</code>, <code>G2-A</code>, <code>G3-A</code>, <code>G3-M</code>,
+<code>G3-H</code>, <code>G4-A</code>, <code>G4-B</code>, <code>G4-M</code>, <code>G4-H</code>, <code>G5-A</code>, <code>G6-A</code>.</p>
+<p>G0 is itself a mix of the other G profiles, so no real customer is "G0"; a
+measured series is supplied anyway because grid operators often use G0 for all
+businesses. Most measured business series matched G1 (over 20 % of the data).</p>
+<h3 id="agricultural-l0l2">Agricultural (L0–L2)<a class="headerlink" href="#agricultural-l0l2" title="Permanent link">&para;</a></h3>
+<p>L for <em>Landwirtschaft</em>: L0 farms in general, L1 farms with dairy, L2 other farms.
+Series: <code>L0-A</code>, <code>L1-A</code>, <code>L2-A</code>, <code>L2-M</code>. Farm profiles have an even demand over the
+week with high morning and evening peaks, which is also why many measured
+households matched them.</p>
+<h3 id="other-bl-h-wb-h">Other (BL-H, WB-H)<a class="headerlink" href="#other-bl-h-wb-h" title="Permanent link">&para;</a></h3>
+<p>Two HV-size series with an almost constant demand ("band load"). They matched B0
+and L2 only loosely and are listed as "other".</p>
+<h2 id="4-individual-consumers-heat-pumps-and-electric-vehicles">4. Individual consumers: heat pumps and electric vehicles<a class="headerlink" href="#4-individual-consumers-heat-pumps-and-electric-vehicles" title="Permanent link">&para;</a></h2>
+<p>One device each, simulated bottom-up rather than measured (§3.5.2). Both use a
+fixed lagging power factor cos φ = 0.93, since the models give no reactive power.</p>
+<h3 id="heat-pumps">Heat pumps<a class="headerlink" href="#heat-pumps" title="Permanent link">&para;</a></h3>
+<p>The electrical demand of a heat pump that heats a three-person single-family house
+in Hanover or Lübeck (heat demand of 2016 with 2011 weather, so it correlates with
+the PV and wind series).</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Heat source and operation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Air_Parallel_1/2</code></td>
+<td>Air source. Below −2 °C the pump and a backup heater run together</td>
+</tr>
+<tr>
+<td><code>Air_Alternative_1/2</code></td>
+<td>Air source. Below −2 °C the pump stops and the heater covers everything</td>
+</tr>
+<tr>
+<td><code>Air_Semi-Parallel_1/2</code></td>
+<td>Air source. Both run between −2 °C and −5 °C; below −5 °C only the heater</td>
+</tr>
+<tr>
+<td><code>Soil_Alternative_1/2</code></td>
+<td>Ground source (probe), soil at a constant 7 °C. The documentation describes only parallel operation for ground-source pumps; the data names it "Alternative"</td>
+</tr>
+</tbody>
+</table>
+<p><code>_1</code> and <code>_2</code> are the two cities. How the series behave:</p>
+<ul>
+<li><strong>Lockout periods.</strong> The utility blocks heat pumps every day 07:45–09:30,
+  11:30–12:30 and 16:45–19:00: the profile is 0 then, and catches up afterwards.</li>
+<li><strong>Storage.</strong> A hot-water tank (8.7 kWh) and a space-heating tank (11–14 kWh) are
+  charged when either falls below 50 % and filled to 100 %; hot water first.</li>
+<li><strong>Efficiency.</strong> COP = 0.36 · Carnot COP, flow temperature 55 °C.</li>
+<li><strong>Size.</strong> Pumps of 3.8–4.9 kW with heaters of 0.5–10.7 kW; in the grids, heat pumps
+  of 2–30 kW use these profiles (larger ones at MV).</li>
+</ul>
+<h3 id="electric-vehicles">Electric vehicles<a class="headerlink" href="#electric-vehicles" title="Permanent link">&para;</a></h3>
+<p>Charging power at one charging point, from a bottom-up simulation of drivers
+(§3.5.2, §4.1.5): car model, battery (20–100 kWh) and consumption (15 or
+25 kWh/100 km) drawn from the German fleet, measured charging curves of ten EV
+models, and trips from the survey <em>Mobilität in Deutschland</em> (number of trips,
+arrival times, purpose, distance, speed). A car charges with 80 % probability if
+it parks over three hours (20 % otherwise), always below 20 % state of charge.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Charging point</th>
+<th>Power</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HLS_A_3.7</code>, <code>HLS_B_3.7</code>, <code>HLS_C_3.7</code></td>
+<td>at home (<em>Heimladestation</em>)</td>
+<td>3.7 kW</td>
+</tr>
+<tr>
+<td><code>HLS_A_11.0</code>, <code>HLS_B_11.0</code></td>
+<td>at home</td>
+<td>11 kW</td>
+</tr>
+<tr>
+<td><code>HLS_A_22.0</code></td>
+<td>at home</td>
+<td>22 kW</td>
+</tr>
+<tr>
+<td><code>APLS_A_3.7</code>, <code>APLS_B_3.7</code></td>
+<td>at work (<em>Arbeitsplatzladestation</em>)</td>
+<td>3.7 kW</td>
+</tr>
+<tr>
+<td><code>APLS_A_11.0</code>, <code>APLS_B_11.0</code></td>
+<td>at work</td>
+<td>11 kW</td>
+</tr>
+<tr>
+<td><code>APLS_A_22.0</code></td>
+<td>at work</td>
+<td>22 kW</td>
+</tr>
+<tr>
+<td><code>APLS_A_50.0</code></td>
+<td>at work</td>
+<td>50 kW</td>
+</tr>
+<tr>
+<td><code>APLS_0.1014</code>, <code>APLS_0.5202</code>, <code>APLS_0.033</code></td>
+<td>aggregated workplace charging for MV grids (name: nominal power in MW)</td>
+<td>e.g. 101.4 kW, the sum of the LV workplace series; ×5 for large companies</td>
+</tr>
+</tbody>
+</table>
+<p>The single-point series are normalised to a maximum of 1. The aggregated ones are
+not, because all chargers never run at once. With a <strong>mean factor of 0.01</strong>, an
+EV charger draws its full power only for short times: these are the most "peaky"
+profiles in SimBench.</p>
+<h2 id="5-generation">5. Generation<a class="headerlink" href="#5-generation" title="Permanent link">&para;</a></h2>
+<h3 id="pv-wind-biomass-hydro">PV, wind, biomass, hydro<a class="headerlink" href="#pv-wind-biomass-hydro" title="Permanent link">&para;</a></h3>
+<p>PV, wind and biomass series were simulated with SIMONA, an agent-based grid
+simulation of the TU Dortmund, from weather data of the German Weather Service for
+2011 and 2012 (§3.5.4). Plant sites follow the HV grids, so a wind farm in an HV
+grid gets the weather of its region. Hydro series are real, anonymised plant data
+of 2017. All are normalised to the plant's rating and have <strong>no reactive power</strong>:
+reactive power depends on how a plant is controlled, which SimBench leaves to the
+user (the study cases assume cos φ = 1).</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Site</th>
+<th>PV orientation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PV1</code></td>
+<td>Hanover (site 3)</td>
+<td>east</td>
+</tr>
+<tr>
+<td><code>PV2</code></td>
+<td>Lübeck (site 1)</td>
+<td>east</td>
+</tr>
+<tr>
+<td><code>PV3</code></td>
+<td>Hanover (site 1)</td>
+<td>south</td>
+</tr>
+<tr>
+<td><code>PV4</code></td>
+<td>Hanover (site 2)</td>
+<td>south</td>
+</tr>
+<tr>
+<td><code>PV5</code></td>
+<td>Lübeck (site 2)</td>
+<td>south</td>
+</tr>
+<tr>
+<td><code>PV6</code></td>
+<td>Lübeck (site 3)</td>
+<td>south</td>
+</tr>
+<tr>
+<td><code>PV7</code></td>
+<td>Hanover (site 2)</td>
+<td>west</td>
+</tr>
+<tr>
+<td><code>PV8</code></td>
+<td>Lübeck (site 2)</td>
+<td>west</td>
+</tr>
+<tr>
+<td><code>WP1</code>, <code>WP2</code></td>
+<td>Baltic Sea, North Sea (offshore)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>WP3</code>, <code>WP9</code>, <code>WP6</code></td>
+<td>Baltic coast, North Sea coast, East Germany</td>
+<td></td>
+</tr>
+<tr>
+<td><code>WP4</code>, <code>WP7</code>, <code>WP10</code></td>
+<td>east, north and south of HV grid 1</td>
+<td></td>
+</tr>
+<tr>
+<td><code>WP5</code>, <code>WP8</code>, <code>WP11</code></td>
+<td>east, north and south of HV grid 2</td>
+<td></td>
+</tr>
+<tr>
+<td><code>WP12</code></td>
+<td>(not listed in the documentation's table)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>BM1</code> … <code>BM5</code></td>
+<td>biomass plants: almost constant output (mean factor 0.33)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>Hydro1</code> … <code>Hydro3</code></td>
+<td>run-of-river plants</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>For a local market at LV, <strong>PV is the generation that matters</strong>: it is the only
+generation SimBench connects at LV. Its mean factor of 0.07 means a 10 kW system
+yields on average 0.7 kW, concentrated around noon and in summer.</p>
+<h3 id="power-plants-and-imports">Power plants and imports<a class="headerlink" href="#power-plants-and-imports" title="Permanent link">&para;</a></h3>
+<p>Only in the EHV grids: <code>pp_1</code> … <code>pp_318</code>, one profile per conventional power plant
+(many are constant), and <code>imp0</code>, <code>imp1</code>, generators at the border that stand for
+power from neighbouring countries.</p>
+<h2 id="6-storage">6. Storage<a class="headerlink" href="#6-storage" title="Permanent link">&para;</a></h2>
+<p>SimBench models two kinds of batteries (§3.5.5, §4.1.5):</p>
+<ul>
+<li><strong>PV batteries</strong> that maximise self-consumption: the PV series is coupled to a
+  household or business series; surplus PV charges the battery, a deficit
+  discharges it. PV size = household energy × 0.00071 /h; the battery is large
+  enough to store any surplus; charge and discharge efficiency 0.95; self-discharge
+  4 % per month.</li>
+<li><strong>Grid-beneficial batteries</strong> next to wind and PV plants that store the top 3 %
+  of the plant's energy (a fixed power limit above which the feed-in is stored).</li>
+</ul>
+<p>The profile is the battery's power at its bus <strong>as if only the PV system and the
+battery were connected</strong>; the household's own load is a separate element. Only the
+batteries actually installed in a grid have a profile, named after the series they
+combine: <code>Storage_PV3_H0-A</code> is a battery with PV3 next to an H0-A household.</p>
+<p><strong>Scenario 0 ships no storage profiles</strong>: batteries only appear in the future
+scenarios, which have 60 of them.</p>
+<h2 id="7-aggregated-grids">7. Aggregated grids<a class="headerlink" href="#7-aggregated-grids" title="Permanent link">&para;</a></h2>
+<p>Where a network connects a whole grid of the level below as one element, that
+element follows the summed time series of the grid it stands for (§3.5.3,
+§4.1.5):</p>
+<ul>
+<li><strong><code>lv_…</code>, <code>mv_…</code>, <code>hv_…</code> (bottom-up).</strong> A year-long power flow of each SimBench
+  grid, recorded at its slack: <code>lv_rural1</code> is the total load (or generation) of LV
+  rural 1, used by an MV network's loads. Load versions have P and Q; generation
+  versions P only. <code>mv_add1</code>, <code>mv_add2</code> are further MV grids.</li>
+<li><strong><code>HS0</code> … <code>HS27</code>, <code>HSexp0</code>, <code>HSexp1</code> (top-down).</strong> The EHV grid covers all of
+  Germany, but only some HV grids are modelled. The rest come from Germany's total
+  demand (ENTSO-E), split into households (by population, H0), farms (2 % of
+  demand, by farmland, L0), businesses (by employees and area, G0) and industry and
+  transport (the remainder), assigned to EHV/HV nodes by Voronoi areas and reduced
+  to 28 representative series by k-means. <code>exp</code> marks the two series for nodes
+  outside Germany. cos φ = 0.93.</li>
+</ul>
+<p>For a local market these matter only as the background of MV and higher networks:
+an MV load called <code>lv_semiurb4</code> is a whole neighbourhood, not a prosumer.</p>
+<h2 id="8-where-the-data-differs-from-the-documentation">8. Where the data differs from the documentation<a class="headerlink" href="#8-where-the-data-differs-from-the-documentation" title="Permanent link">&para;</a></h2>
+<p>Found while writing this page, by comparing the documentation (v1.1.0) with the
+profiles the <code>simbench</code> package ships. The data is what the Studio uses.</p>
+<table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>Documentation says</th>
+<th>Data has</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ground-source heat pumps</td>
+<td>only parallel operation (§3.5.2)</td>
+<td>profiles named <code>Soil_Alternative_1/2</code></td>
+</tr>
+<tr>
+<td>Wind profiles</td>
+<td>table of sites lists <code>WP1</code> … <code>WP11</code> (Table 4.7)</td>
+<td>12 profiles, <code>WP1</code> … <code>WP12</code></td>
+</tr>
+<tr>
+<td>Feed-in scale</td>
+<td>"normalised to one" (§4.1.5)</td>
+<td>factors of rated power: PV peaks at 0.63, not 1</td>
+</tr>
+<tr>
+<td>Aggregated grid profiles</td>
+<td>"normalised to one" (§4.1.5)</td>
+<td>peaks of 0.95 (load) and 0.92 (generation)</td>
+</tr>
+<tr>
+<td>Storage profiles</td>
+<td>active and reactive power series (§4.1.5)</td>
+<td>active power only</td>
+</tr>
+<tr>
+<td>Storage profiles per scenario</td>
+<td>—</td>
+<td>none in scenario 0; 60 in scenarios 1 and 2</td>
+</tr>
+</tbody>
+</table>
+<p>The documentation's wording "normalised to one" most likely means "relative to the
+rated power", which the data follows; the other rows are open.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "search.highlight", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js"></script>
+      
+        <script src="../../assets/diagrams.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

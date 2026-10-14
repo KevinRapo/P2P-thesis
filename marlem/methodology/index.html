@@ -1,0 +1,5196 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="MARLEM rebuilt on SimBench networks">
+      
+      
+      
+        <link rel="canonical" href="https://kevinrapo.github.io/P2P-thesis/marlem/methodology/">
+      
+      
+        <link rel="prev" href="../../structure/">
+      
+      
+        <link rel="next" href="../learning/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Methodology - MARLEM clean</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/diagrams.css">
+    
+      <link rel="stylesheet" href="../../assets/marks.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#marlem-the-market-as-stated-in-the-paper" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="MARLEM clean" class="md-header__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MARLEM clean
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Methodology
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../v1/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  marlem-v1
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../structure/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Code structure
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MARLEM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../rl/training/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  RL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../validation/market/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../simbench/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SimBench
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About these docs
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="MARLEM clean" class="md-nav__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MARLEM clean
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    marlem-v1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MARLEM
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MARLEM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-architecture-p1-31-fig-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Architecture ([P1] §3.1, Fig. 2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-orders-p1-323" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Orders ([P1] §3.2.3)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-one-market-step-p1-39-fig-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. One market step ([P1] §3.9, Fig. 4)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-market-p1-33" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Market ([P1] §3.3)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Market ([P1] §3.3)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-market-operation-workflow-p1-algorithm-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Market operation workflow ([P1] Algorithm 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-three-stage-matching-p1-332-fig-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Three-stage matching ([P1] §3.3.2, Fig. 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-clearing-pricing-mechanisms-p1-333" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Clearing (pricing) mechanisms ([P1] §3.3.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-dso-balance-and-fees-p1-331" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 DSO: balance and fees ([P1] §3.3.1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-reputation-and-validation-p1-334" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Reputation and validation ([P1] §3.3.4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-agents-p1-34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Agents ([P1] §3.4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Agents ([P1] §3.4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-state-and-accounting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 State and accounting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-physical-feasibility-p1-342" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Physical feasibility ([P1] §3.4.2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-battery-p1-343" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Battery ([P1] §3.4.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-profiles-p1-344" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Profiles ([P1] §3.4.4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-grid-p1-35" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Grid ([P1] §3.5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Grid ([P1] §3.5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-state-updates-p1-353" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 State updates ([P1] §3.5.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-the-papers-case-study-without-learning-p1-45" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. The paper's case study without learning ([P1] §4–5)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-points-the-paper-leaves-unspecified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Points the paper leaves unspecified
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training cycle (3 × 3)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/cycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One iteration, step by step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rl/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Worked examples (our code)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/market/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/rl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The two papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../simbench/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SimBench
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SimBench
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simbench/networks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simbench/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/grid/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid: SimBench networks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Grid: SimBench networks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/powerflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    powerflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/simbench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    simbench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market: the MARLEM market
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Market: the MARLEM market
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/agent/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    agent
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_2" id="__nav_8_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/dso/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_3" id="__nav_8_3_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    dso
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/dso/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/profile/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_4" id="__nav_8_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    profile
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/bidding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bidding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing_price/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing_price
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/lem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    order
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/reputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/config/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config: the scenario
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Config: the scenario
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/placement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/scenario/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio: pages, components, adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Studio: pages, components, adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/adapters/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_2" id="__nav_8_5_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    container
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/grid_catalog_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_catalog_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/market_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_classes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/run_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/scenario_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    workspace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/components/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    components
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_3" id="__nav_8_5_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/charts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    charts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/day_profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    day_profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/pages/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pages
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_4" id="__nav_8_5_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    pages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/grid_participants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_participants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/inspect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    inspect
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/market_dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/runs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    runs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/navigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    navigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/theme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    theme
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL: the learning layer
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6" id="__nav_8_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL: the learning layer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/envs/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    envs
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6_2" id="__nav_8_6_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    envs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/probes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/spread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spread
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/toy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    toy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/ctde_modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/grouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About these docs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-architecture-p1-31-fig-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Architecture ([P1] §3.1, Fig. 2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-orders-p1-323" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Orders ([P1] §3.2.3)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-one-market-step-p1-39-fig-4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. One market step ([P1] §3.9, Fig. 4)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-market-p1-33" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Market ([P1] §3.3)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Market ([P1] §3.3)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-market-operation-workflow-p1-algorithm-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Market operation workflow ([P1] Algorithm 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-three-stage-matching-p1-332-fig-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Three-stage matching ([P1] §3.3.2, Fig. 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-clearing-pricing-mechanisms-p1-333" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Clearing (pricing) mechanisms ([P1] §3.3.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-dso-balance-and-fees-p1-331" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 DSO: balance and fees ([P1] §3.3.1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-reputation-and-validation-p1-334" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Reputation and validation ([P1] §3.3.4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-agents-p1-34" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Agents ([P1] §3.4)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Agents ([P1] §3.4)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-state-and-accounting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 State and accounting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-physical-feasibility-p1-342" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Physical feasibility ([P1] §3.4.2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-battery-p1-343" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 Battery ([P1] §3.4.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-profiles-p1-344" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 Profiles ([P1] §3.4.4)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-grid-p1-35" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Grid ([P1] §3.5)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Grid ([P1] §3.5)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Constraints
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#63-state-updates-p1-353" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.3 State updates ([P1] §3.5.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-the-papers-case-study-without-learning-p1-45" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. The paper's case study without learning ([P1] §4–5)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-points-the-paper-leaves-unspecified" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Points the paper leaves unspecified
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="marlem-the-market-as-stated-in-the-paper">MARLEM: the market as stated in the paper<a class="headerlink" href="#marlem-the-market-as-stated-in-the-paper" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>The part of the MARLEM method this rebuild implements: the market, its DSO, the
+agents' accounting and batteries, the grid, and the order of one market step.
+Everything about reinforcement learning is left out (the observation, the reward,
+the training paradigms and algorithms, the learning experiments): here orders come
+from scripted rules or from the user on the Step page, not from learned policies.
+The learning half is in <a href="../learning/">the learning layer as stated in the papers</a>.
+This file says <strong>what the paper says</strong>, not what the code does. Taken from the
+refactor branch's full summary of both papers and cut to the market. Where the
+paper leaves out what is needed to compute something, a folded section titled
+<strong>Not in [P1]: the original code</strong> (click to open) gives what the original
+implementation does (<a href="https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7">salazarna/marlem</a>, commit <code>15d6715</code>), so the gap can be read
+off; it describes that code, faults included, not what this rebuild does.</p>
+</blockquote>
+<p><strong>Source</strong></p>
+<ul>
+<li><strong>[P1]</strong> Salazar-Peña, Tabares, González-Mancera. <em>MARLEM: A multi-agent
+  reinforcement learning simulation framework for implicit cooperation in
+  decentralized local energy markets.</em> Applied Energy 412 (2026) 127546.
+  <a href="https://doi.org/10.1016/j.apenergy.2026.127546">doi:10.1016/j.apenergy.2026.127546</a>. This paper defines the environment.</li>
+<li><strong>[P2]</strong> Same authors, <em>Harnessing Implicit Cooperation: A Multi-Agent
+  Reinforcement Learning Approach Towards Decentralized Local Energy Markets</em>
+  (SSRN preprint), the learning study. Cited here only for the mean congestion
+  (§6.3).</li>
+</ul>
+<p>Equation numbers, at the right of each equation, are [P1]'s own; the one taken
+from [P2] is marked. Equations garbled in the PDF
+text extraction were reconstructed from the surrounding text and are marked
+<em>(reconstructed)</em>.</p>
+<p><strong>Notation</strong></p>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(i \in \mathcal{I}\)</span></td>
+<td>DER agent (prosumer)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(t \in \{1,\dots,\tau\}\)</span></td>
+<td>Trading period (time step)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(G_t,\ D_t\)</span></td>
+<td>Generation and demand of an agent at <span class="arithmatex">\(t\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(E_{\text{bought},t},\ E_{\text{sold},t}\)</span></td>
+<td>Energy bought and sold by an agent at <span class="arithmatex">\(t\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(p,\ q\)</span></td>
+<td>Price and quantity (of an order or trade)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(p_{\text{FiT}},\ p_{\text{utility}}\)</span></td>
+<td>DSO feed-in tariff (DSO buys) and utility price (DSO sells)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(C_{\text{nom}},\ SoC\)</span></td>
+<td>Battery nominal capacity and state of charge</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\mathcal{G} = \langle \mathcal{V}, \xi \rangle\)</span></td>
+<td>Grid graph: nodes <span class="arithmatex">\(\mathcal{V}\)</span>, lines (edges) <span class="arithmatex">\(\xi\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_{ij}\)</span></td>
+<td>Electrical distance between agents <span class="arithmatex">\(i\)</span> and <span class="arithmatex">\(j\)</span> (shortest path)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-architecture-p1-31-fig-2">1. Architecture ([P1] §3.1, Fig. 2)<a class="headerlink" href="#1-architecture-p1-31-fig-2" title="Permanent link">&para;</a></h2>
+<p>The paper has three conceptual levels:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Content</th>
+<th>In this rebuild</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Level 0: Platform Marketplace</strong></td>
+<td>Market Module (order matching, clearing, DSO, reputation, validation) and Grid Module (network, losses, congestion). Provides the physical and economic environment.</td>
+<td>built: the market, and a SimBench network with a power flow instead of the paper's graph model</td>
+</tr>
+<tr>
+<td><strong>Level 1: MARL Agents</strong></td>
+<td>Self-interested DER agents with generation and demand profiles and an optional battery. Each learns a bidding policy from local observations.</td>
+<td>the agents and their batteries, without learning: orders come from rules or the user</td>
+</tr>
+<tr>
+<td><strong>Level 2: Implicit Cooperation</strong></td>
+<td>The emergent coordination produced by shared KPIs in the observations and cooperation terms in the reward, also measured by those KPIs.</td>
+<td>left out</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-orders-p1-323">2. Orders ([P1] §3.2.3)<a class="headerlink" href="#2-orders-p1-323" title="Permanent link">&para;</a></h2>
+<p>In the paper an agent's action <em>is</em> its order for the period. Without learning,
+the same four values describe what a participant submits:</p>
+<div class="arithmatex">\[
+a_i = \left\langle p_{\text{bid}},\ q_{\text{bid}},\ \alpha,\ \beta \right\rangle \tag{2}
+\]</div>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Domain</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(p_{\text{bid}}\)</span></td>
+<td><span class="arithmatex">\([p_{\min}, p_{\max}]\)</span></td>
+<td>Bid price</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(q_{\text{bid}}\)</span></td>
+<td><span class="arithmatex">\([q_{\min}, q_{\max}]\)</span></td>
+<td>Bid quantity</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\alpha\)</span></td>
+<td><span class="arithmatex">\(\{0, 1\}\)</span></td>
+<td>Order type: 0 = sell, 1 = buy</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\beta\)</span></td>
+<td><span class="arithmatex">\(\{0, 1, \dots, \lvert\mathcal{I}\rvert + 1\}\)</span></td>
+<td>Preferred trading partner index (the other agents, the DSO, or no preference)</td>
+</tr>
+</tbody>
+</table>
+<p>Two constraint layers are applied:</p>
+<ol>
+<li><span class="arithmatex">\(p_{\text{bid}}\)</span> and <span class="arithmatex">\(q_{\text{bid}}\)</span> are clipped to the market bounds.</li>
+<li><span class="arithmatex">\(q_{\text{bid}}\)</span> is constrained for physical feasibility with the battery, using
+   <span class="arithmatex">\(q_{\text{sell,max}}\)</span> and <span class="arithmatex">\(q_{\text{buy,max}}\)</span> from [P1] (15) (§5.2).</li>
+</ol>
+<h2 id="3-one-market-step-p1-39-fig-4">3. One market step ([P1] §3.9, Fig. 4)<a class="headerlink" href="#3-one-market-step-p1-39-fig-4" title="Permanent link">&para;</a></h2>
+<p>The paper's period <span class="arithmatex">\(t\)</span> runs eight phases. Phases 5 and 7 exist only for learning
+(the reward, the observation) and are not part of this rebuild; the KPI update of
+phase 5 belongs to Level 2 and is left out too.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Phase</th>
+<th>Content</th>
+<th>Here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Action processing and validation</td>
+<td>Limit each order by current generation, demand and battery state (physical). Then validate that price, quantity, type and partner fall within market bounds (rule-based).</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Order creation and submission</td>
+<td>Validated orders become formal orders. If no partner is given, a rule-based selection scores partners by reputation and grid distance.</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Market clearing and trade execution</td>
+<td>Three-stage clearing (§4): mutual preferences → double auction (with reputation) → DSO for the residual. Output: all executed trades and summary statistics.</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Energy tracking and battery updates</td>
+<td>Trades update each agent's physical state (energy tracking, battery SoC) and the grid state (balance, congestion).</td>
+<td>yes; the grid state comes from a power flow</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Reward calculation and KPI updates</td>
+<td>System KPIs from trades, agent states and grid conditions, then every agent's reward.</td>
+<td>no (learning)</td>
+</tr>
+<tr>
+<td>6</td>
+<td>State transition</td>
+<td>Advance the clock. Update states that depend on the full market outcome, such as financial balances and reputation scores.</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Observation update</td>
+<td>Build each agent's next observation.</td>
+<td>no (learning)</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Episode management</td>
+<td>Stop after the last period <span class="arithmatex">\(\tau\)</span>; otherwise repeat for <span class="arithmatex">\(t+1\)</span>.</td>
+<td>yes: the last step of the day</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-market-p1-33">4. Market ([P1] §3.3)<a class="headerlink" href="#4-market-p1-33" title="Permanent link">&para;</a></h2>
+<h3 id="41-market-operation-workflow-p1-algorithm-1">4.1 Market operation workflow ([P1] Algorithm 1)<a class="headerlink" href="#41-market-operation-workflow-p1-algorithm-1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>Input: agents I, joint action {a_1 … a_I}, market state S_t
+Output: executed trades, updated market state S_t′
+
+Phase 1 — Order collection and validation
+  O_t ← ∅
+  for each agent i:
+      o_i ← ActionToOrder(a_i)
+      if ValidateOrder(o_i, S_t): O_t ← O_t ∪ {o_i}
+
+Phase 2 — P2P market clearing
+  trades_pref,  O_rem ← PreferenceMatch(O_t)        # Stage 1: mutual preferences
+  trades_price, O_rem ← PriceMatch(O_rem)           # Stage 2: continuous double auction
+  trades_P2P ← trades_pref ∪ trades_price
+  for each trade in trades_P2P: UpdateAgentStates(trade)   # energy, profit for buyer and seller
+
+Phase 3 — DSO clearing and finalization
+  trades_DSO ← DSOClear(O_rem)                      # Stage 3: residual cleared by the DSO
+  for each trade in trades_DSO: UpdateAgentStates(trade)
+  trades_t ← trades_P2P ∪ trades_DSO
+  ValidateBlock(trades_t)                           # simulated blockchain validation
+  S_t′ ← UpdateMarketState(trades_t, S_t)           # prices, volumes, reputations
+  G_{t+1} ← UpdateGridState(trades_t, G_t)          # congestion on the affected edges
+return trades_t, S_t′
+</code></pre></div>
+<h3 id="42-three-stage-matching-p1-332-fig-3">4.2 Three-stage matching ([P1] §3.3.2, Fig. 3)<a class="headerlink" href="#42-three-stage-matching-p1-332-fig-3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 Preference-based</td>
+<td>Match agents that have <em>mutually</em> specified each other as preferred partners. Pre-arranged relationships take priority over the open market.</td>
+</tr>
+<tr>
+<td>2 Price-based (double auction)</td>
+<td>Buys sorted by price descending, sells by price ascending. Trade every compatible pair with <span class="arithmatex">\(p_{\text{bid}} \ge p_{\text{ask}}\)</span>. Reputation is the secondary sort key (tie-breaker).</td>
+</tr>
+<tr>
+<td>3 DSO clearing</td>
+<td>The DSO buys all residual supply at <span class="arithmatex">\(p_{\text{FiT}}\)</span> and sells all residual demand at <span class="arithmatex">\(p_{\text{utility}}\)</span>, guaranteeing clearing. The prices satisfy <span class="arithmatex">\(p_{\text{FiT}} &lt; p_{\text{P2P}} &lt; p_{\text{utility}}\)</span>, which makes local trading attractive.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-clearing-pricing-mechanisms-p1-333">4.3 Clearing (pricing) mechanisms ([P1] §3.3.3)<a class="headerlink" href="#43-clearing-pricing-mechanisms-p1-333" title="Permanent link">&para;</a></h3>
+<p>The P2P trade price <span class="arithmatex">\(p_{ij}\)</span> is set by a configurable mechanism.</p>
+<p><strong>Average</strong>:</p>
+<div class="arithmatex">\[
+p_{ij} = \frac{p_{\text{buy}} + p_{\text{sell}}}{2} \tag{9}
+\]</div>
+<p><strong>Pay-as-bid (seller):</strong> <span class="arithmatex">\(p_{ij} = p_{\text{seller}}\)</span>.</p>
+<p><strong>Pay-as-offer (buyer):</strong> <span class="arithmatex">\(p_{ij} = p_{\text{buyer}}\)</span>. This favours the seller, since <span class="arithmatex">\(p_{\text{buy}} \ge p_{\text{sell}}\)</span>.</p>
+<p><strong>Nash bargaining</strong>, an equal split of the surplus:</p>
+<div class="arithmatex">\[
+p_{ij} = p_{\text{sell}} + \frac{p_{\text{buy}} - p_{\text{sell}}}{2} \tag{10}
+\]</div>
+<p><strong>Proportional surplus</strong> <em>(reconstructed)</em>: the surplus is split by each side's distance from a reference price <span class="arithmatex">\(p_{\text{ref}}\)</span>:</p>
+<div class="arithmatex">\[
+p_{ij} = p_{\text{sell}} + \frac{p_{\text{buy}} - p_{\text{ref}}}{(p_{\text{buy}} - p_{\text{ref}}) + (p_{\text{ref}} - p_{\text{sell}})} \cdot \left(p_{\text{buy}} - p_{\text{sell}}\right) \tag{11}
+\]</div>
+<p>The [P1] case study also uses a <strong>bid-ask spread</strong> mechanism, which is not defined in §3.3.3.</p>
+<h3 id="44-dso-balance-and-fees-p1-331">4.4 DSO: balance and fees ([P1] §3.3.1)<a class="headerlink" href="#44-dso-balance-and-fees-p1-331" title="Permanent link">&para;</a></h3>
+<p>The DSO is the market maker of last resort and a proxy grid operator that collects grid fees.</p>
+<p><strong>DSO balance</strong>:</p>
+<div class="arithmatex">\[
+B_{\text{DSO}} = \sum_{\text{trades}} \left( E_{\text{sold}} - E_{\text{bought}} \right) \tag{7}
+\]</div>
+<p><strong>Total fee for a trade</strong> between <span class="arithmatex">\(i\)</span> and <span class="arithmatex">\(j\)</span> with quantity <span class="arithmatex">\(q_{ij}\)</span> and price <span class="arithmatex">\(p_{ij}\)</span>:</p>
+<div class="arithmatex">\[
+F_{\text{total}} = F_{\text{cong}} + F_{\text{trans}} + F_{\text{imb}} + F_{\text{volt}} + F_{\text{thermal}} + F_{\text{zone}} \tag{8}
+\]</div>
+<div class="arithmatex">\[
+\begin{align*}
+F_{\text{cong}}    &amp;= f_{\text{cong}} \,(C_t - C_{\text{threshold}})\, q_{ij}\, p_{ij} \tag{8a} \\
+F_{\text{imb}}     &amp;= f_{\text{imb}} \,\lvert B_{\text{impact}} \rvert\, q_{ij}\, p_{ij} \tag{8b} \\
+F_{\text{volt}}    &amp;= \min(V_{\text{drop}},\, V_{\text{threshold}})\, q_{ij}\, p_{ij} \tag{8c} \\
+F_{\text{thermal}} &amp;= \min(f_{\text{thermal}},\, f_{\text{threshold}})\, q_{ij}\, p_{ij} \tag{8d} \\
+F_{\text{zone}}    &amp;= -\, f_{\text{zone}}\, q_{ij}\, p_{ij} \quad \text{(same-zone bonus)} \tag{8e} \\
+V_{\text{drop}}    &amp;= f_{\text{volt}}\, d_{ij} \tag{8f} \\
+f_{\text{thermal}} &amp;= \frac{C_t - T_{\text{threshold}}}{1 - T_{\text{threshold}}} \tag{8g}
+\end{align*}
+\]</div>
+<div class="arithmatex">\[
+B_{\text{impact}} =
+\begin{cases}
+\ \ \min\!\left(\dfrac{q_{ij}}{\lvert B_{\text{grid}} \rvert},\, 1\right) &amp; \text{DSO buying during excess supply / selling during excess demand} \\[2ex]
+-\min\!\left(\dfrac{q_{ij}}{\lvert B_{\text{grid}} \rvert},\, 1\right) &amp; \text{DSO buying during excess demand / selling during excess supply} \\[2ex]
+\ \ 0 &amp; \text{balanced grid}
+\end{cases}
+\tag{8h}
+\]</div>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Meaning</th>
+<th>Default in paper</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(C_t \in [0,1]\)</span></td>
+<td>Congestion level at <span class="arithmatex">\(t\)</span></td>
+<td>—</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(C_{\text{threshold}}\)</span></td>
+<td>Congestion intervention threshold</td>
+<td>0.8 (80 % utilization)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(V_{\text{threshold}}\)</span></td>
+<td>Voltage-drop threshold</td>
+<td>0.05 (5 %)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(T_{\text{threshold}}\)</span></td>
+<td>Thermal instability threshold</td>
+<td>0.2 (20 % utilization)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(B_{\text{grid}} \in [-1,1]\)</span></td>
+<td>Grid balance (<span class="arithmatex">\(&gt;0\)</span> excess supply, <span class="arithmatex">\(&lt;0\)</span> excess demand)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f_{\ast}\)</span></td>
+<td>Configurable fee factors</td>
+<td>not given</td>
+</tr>
+</tbody>
+</table>
+<p><span class="arithmatex">\(F_{\text{trans}}\)</span> is named in (8), described as a charge for "usage per unit of distance of the transmission lines (predefined by the DSO)", but has <strong>no formula</strong> in the paper. Agents do not observe the topology; only the DSO computes distance fees and congestion.</p>
+<details class="note">
+<summary>Not in [P1]: the original code</summary>
+<p><code>DSOAgent.calculate_fees</code>
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L274-L345">dso.py</a>)
+computes eq. 8 for every peer trade in stage 2, with these values:</p>
+<table>
+<thead>
+<tr>
+<th>Factor</th>
+<th>In the code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(f_{\text{cong}}\)</span></td>
+<td>0.5</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f_{\text{volt}}\)</span></td>
+<td>0.15 per unit of graph distance</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f_{\text{zone}}\)</span></td>
+<td>0.15</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f_{\text{imb}}\)</span></td>
+<td>0.15</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f_{\text{threshold}}\)</span> (eq. 8d)</td>
+<td>0.3</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(C_{\text{threshold}}\)</span>, <span class="arithmatex">\(V_{\text{threshold}}\)</span>, <span class="arithmatex">\(T_{\text{threshold}}\)</span></td>
+<td>0.8, 0.05, 0.2 (as the paper)</td>
+</tr>
+<tr>
+<td>Transmission factor</td>
+<td><code>distance_factor = 0.35</code> is defined but never used</td>
+</tr>
+</tbody>
+</table>
+<p>Each part, with <span class="arithmatex">\(v = q_{ij}\, p_{ij}\)</span> the trade's value:</p>
+<div class="arithmatex">\[
+\begin{aligned}
+F_{\text{cong}} &amp;= f_{\text{cong}}\,(C_t - C_{\text{threshold}})\, v &amp;&amp; \text{if } C_t &gt; C_{\text{threshold}} \text{, else } 0 \\
+F_{\text{trans}} &amp;= 0 &amp;&amp; \text{always} \\
+F_{\text{volt}} &amp;= \min(0.2,\ V_{\text{drop}})\, v,\quad V_{\text{drop}} = f_{\text{volt}}\, d_{ij} &amp;&amp; \text{if } V_{\text{drop}} &gt; V_{\text{threshold}} \text{, else } 0 \\
+F_{\text{thermal}} &amp;= \min\!\left(0.3,\ \frac{C_t - T_{\text{threshold}}}{1 - T_{\text{threshold}}}\right) v &amp;&amp; \text{if } C_t &gt; T_{\text{threshold}} \text{, else } 0 \\
+F_{\text{zone}} &amp;= -f_{\text{zone}}\, v &amp;&amp; \text{if buyer and seller share a zone} \\
+F_{\text{imb}} &amp;= f_{\text{imb}}\, \lvert B_{\text{impact}} \rvert\, v &amp;&amp; \text{if } B_{\text{impact}} &lt; 0 \text{, else } 0
+\end{aligned}
+\]</div>
+<ul>
+<li><strong><span class="arithmatex">\(C_t\)</span>, the congestion level,</strong> is the highest edge loading on the shortest
+  path between buyer and seller, <span class="arithmatex">\(C_t = \max_{e \in \text{path}} \min(1,\ F_e / C_e)\)</span>.
+  It falls back to the mean over all edges when no path is found.</li>
+<li><strong><span class="arithmatex">\(d_{ij}\)</span></strong> is the shortest-path length on the topology graph.</li>
+<li><strong><span class="arithmatex">\(B_{\text{impact}}\)</span></strong> follows eq. 8h, <span class="arithmatex">\(\pm\min(q_{ij} / \lvert B \rvert, 1)\)</span>.
+  <span class="arithmatex">\(B\)</span> is the DSO balance, not a normalised <span class="arithmatex">\(B_{\text{grid}} \in [-1, 1]\)</span>, and the
+  impact of a peer trade is defined as 0.</li>
+</ul>
+<p>So, against eq. 8:</p>
+<ul>
+<li><span class="arithmatex">\(F_{\text{trans}}\)</span> is 0, although the distance is computed on the line above it
+  (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L291-L314">dso.py L297, L318</a>).</li>
+<li><span class="arithmatex">\(V_{\text{threshold}}\)</span> is used as a gate, not the cap of eq. 8c, and the cap is
+  0.2.</li>
+<li><span class="arithmatex">\(F_{\text{imb}}\)</span> is always 0, because the fee is only computed for peer trades.</li>
+<li>Trades with the DSO carry no fee at all, being created with distance, loss and
+  fee 0.</li>
+<li>The total is stored on the trade and added to <code>dso.fees</code>, but nobody is ever
+  charged.</li>
+</ul>
+<p><strong>The DSO balance (eq. 7) in the code.</strong> <code>dso.balance</code> changes only for DSO
+trades made in stage 1 or 2, never for stage 3 where they normally happen, so it
+stays 0. It is also carried from one step to the next. The DSO's profit is kept
+separately, as <span class="arithmatex">\(p_{\text{utility}} \cdot \text{sold} - p_{\text{FiT}} \cdot
+\text{bought}\)</span> per step.</p>
+<p>These are faults against [P1]; see the <a href="../../validation/market/#6-dso-balance-and-grid-fees">market validation, §6</a>.</p>
+</details>
+<h3 id="45-reputation-and-validation-p1-334">4.5 Reputation and validation ([P1] §3.3.4)<a class="headerlink" href="#45-reputation-and-validation-p1-334" title="Permanent link">&para;</a></h3>
+<p><strong>Reputation</strong> <span class="arithmatex">\(r_i \in [0,1]\)</span>, updated after every trading period with a decay factor that weighs recent behaviour more:</p>
+<div class="arithmatex">\[
+r_i = w_{\text{rel}}\, \delta_{\text{rel},i} + w_{\text{fair}}\, \delta_{\text{fair},i} + w_{\text{grid}}\, \delta_{\text{grid},i} \tag{12}
+\]</div>
+<ul>
+<li><span class="arithmatex">\(\delta_{\text{rel}}\)</span>: reliability, the ratio of matched to total order volume;</li>
+<li><span class="arithmatex">\(\delta_{\text{fair}}\)</span>: price fairness, the deviation from the market clearing price;</li>
+<li><span class="arithmatex">\(\delta_{\text{grid}}\)</span>: grid contribution, whether trades alleviate or worsen grid stress.</li>
+</ul>
+<p>The weights <span class="arithmatex">\(w\)</span> are not given. Reputation is the tie-breaker in the double auction.</p>
+<details class="note">
+<summary>Not in [P1]: the original code</summary>
+<p>[P1] names the three parts of eq. 12 but
+gives no formula, weight, decay value or starting value. The original computes
+them in <code>ReputationHandler</code>
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py">reputation.py</a>),
+after every step, for every agent, from that step's trades:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>In the code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Weights</td>
+<td><span class="arithmatex">\(w_{\text{rel}} = 0.3\)</span>, <span class="arithmatex">\(w_{\text{fair}} = 0.2\)</span>, <span class="arithmatex">\(w_{\text{grid}} = 0.5\)</span></td>
+</tr>
+<tr>
+<td>Start</td>
+<td><span class="arithmatex">\(r_i \sim U(0, 1)\)</span>, drawn at each reset</td>
+</tr>
+<tr>
+<td>Score</td>
+<td><span class="arithmatex">\(r_i^{\text{new}} = \min\left(1, \max\left(0,\ w_{\text{rel}}\, \delta_{\text{rel},i} + w_{\text{fair}}\, \delta_{\text{fair},i} + w_{\text{grid}}\, \delta_{\text{grid},i}\right)\right)\)</span></td>
+</tr>
+<tr>
+<td>Decay</td>
+<td><span class="arithmatex">\(r_i \leftarrow \tau_t\, r_i + (1 - \tau_t)\, r_i^{\text{new}}\)</span>, with <span class="arithmatex">\(\tau_t = (t \bmod T) / T\)</span> the time of day</td>
+</tr>
+</tbody>
+</table>
+<p>With <span class="arithmatex">\(n_i\)</span> the number of agent <span class="arithmatex">\(i\)</span>'s trades in the step (peer and DSO trades
+alike), <span class="arithmatex">\(u_i\)</span> the number of its unmatched orders, <span class="arithmatex">\(\bar{p}\)</span> the step's clearing
+price and <span class="arithmatex">\(B\)</span> the grid balance:</p>
+<div class="arithmatex">\[
+\delta_{\text{rel},i} = \frac{n_i}{n_i + u_i}
+\qquad
+\delta_{\text{fair},i} = 1 - \min\left(1,\ \frac{1}{n_i} \sum_{k} \frac{\lvert p_k - \bar{p} \rvert}{\bar{p}}\right)
+\qquad
+\delta_{\text{grid},i} = \frac{1}{2}\left(1 + \frac{1}{n_i} \sum_{k} \iota_k\right)
+\]</div>
+<p>where the sums run over agent <span class="arithmatex">\(i\)</span>'s trades <span class="arithmatex">\(k\)</span>, and each trade's grid impact
+<span class="arithmatex">\(\iota_k \in [-1, 1]\)</span> is</p>
+<div class="arithmatex">\[
+\iota_k =
+\begin{cases}
+0 &amp; \lvert B \rvert &lt; 0.1 \\
+0.5 &amp; \text{trade with the DSO} \\
++\min(1,\ q_k / \lvert B \rvert) &amp; \text{buying when } B &gt; 0 \text{, or selling when } B &lt; 0 \\
+-\min(1,\ q_k / \lvert B \rvert) &amp; \text{selling when } B &gt; 0 \text{, or buying when } B &lt; 0
+\end{cases}
+\]</div>
+<p>A part with nothing to measure is neutral, 0.5: reliability with no trades and no
+unmatched orders, fairness and grid with no trades. A step without any trade
+leaves every reputation unchanged.</p>
+<p>What feeds these formulas matters as much as the formulas:</p>
+<ul>
+<li><span class="arithmatex">\(u_i\)</span> is always 0, because the matcher passes an empty list of unmatched orders
+  (the DSO clears everything), so <span class="arithmatex">\(\delta_{\text{rel}} = 1\)</span> for any agent with a
+  trade.</li>
+<li><span class="arithmatex">\(\bar{p}\)</span> is the volume-weighted price of <em>all</em> trades, the DSO's included.</li>
+<li><span class="arithmatex">\(B\)</span> is the DSO balance (<code>dso.balance</code>), which stays 0, so every <span class="arithmatex">\(\iota_k = 0\)</span>
+  and <span class="arithmatex">\(\delta_{\text{grid}} = 0.5\)</span>.</li>
+<li>The decay weight is the time of day, so the old reputation counts <span class="arithmatex">\(1/24\)</span> in the
+  first hour and <span class="arithmatex">\(23/24\)</span> in the last.</li>
+<li>The random start is drawn after reseeding the global generator with the same
+  seed for every agent, so all agents start equal.</li>
+</ul>
+<p>The decay weight comes from the environment, not from the reputation module
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/lem.py#L436-L441">lem.py</a>):</p>
+<div class="highlight"><pre><span></span><code><span class="bp">self</span><span class="o">.</span><span class="n">time_of_day</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_steps</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_steps</span>
+<span class="n">agent</span><span class="o">.</span><span class="n">reputation</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reputation_handler</span><span class="o">.</span><span class="n">update_reputation</span><span class="p">(</span><span class="n">agent</span><span class="p">,</span> <span class="n">matching_result</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_of_day</span><span class="p">)</span>
+</code></pre></div>
+<p>These are faults against [P1]; see the <a href="../../validation/market/#8-reputation">market validation, §8</a>.</p>
+</details>
+<p><strong>Decentralized validation.</strong> After each period, all trades are hashed (SHA-256), aggregated into a block and validated with a simplified proof-of-work, then appended to an immutable ledger.</p>
+<details class="note">
+<summary>Not in [P1]: the original code</summary>
+<p><code>Validator</code>
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/validation.py">validation.py</a>)
+collects trades and closes a block every 5 trades (<code>block_size = 5</code>), and the
+matcher forces one more at the end of each step. A block's hash is SHA-256 over
+the previous block's hash, a nonce, the block time (its earliest trade's) and,
+per trade, buyer, seller, price, quantity and time; distance, loss and fee are
+not included. Proof of work raises the nonce until the hash starts with
+<code>difficulty</code> zeros (default 2, so about 256 tries per block). The chain starts
+with an empty genesis block, and <code>verify_chain</code> recomputes every hash and link.</p>
+</details>
+<h2 id="5-agents-p1-34">5. Agents ([P1] §3.4)<a class="headerlink" href="#5-agents-p1-34" title="Permanent link">&para;</a></h2>
+<h3 id="51-state-and-accounting">5.1 State and accounting<a class="headerlink" href="#51-state-and-accounting" title="Permanent link">&para;</a></h3>
+<p>Each agent has an ID, a grid location, forecast profiles <span class="arithmatex">\(G_t\)</span> and <span class="arithmatex">\(D_t\)</span>, a balance, profit, reputation, and cumulative demand satisfied and deferred.</p>
+<p><strong>Balance</strong>; positive means surplus, negative means deficit:</p>
+<div class="arithmatex">\[
+B_t = (G_t - D_t) + (E_{\text{bought},t} - E_{\text{sold},t}) \tag{13}
+\]</div>
+<p><strong>Profit</strong>:</p>
+<div class="arithmatex">\[
+\text{profit}_{t+1} = \text{profit}_t + \sum_{\text{trades}} \left( p_{\text{sell}}\, q_{\text{sell}} - p_{\text{buy}}\, q_{\text{buy}} \right) \tag{14}
+\]</div>
+<p><strong>Partner selection:</strong> learned through <span class="arithmatex">\(\beta\)</span>, or, if not RL-controlled, rule-based. The rule-based variant uses a weighted score of high reputation and short grid distance.</p>
+<h3 id="52-physical-feasibility-p1-342">5.2 Physical feasibility ([P1] §3.4.2)<a class="headerlink" href="#52-physical-feasibility-p1-342" title="Permanent link">&para;</a></h3>
+<p>Before an order is submitted, the requested quantity is constrained by:</p>
+<div class="arithmatex">\[
+\begin{align*}
+q_{\text{sell,max}} &amp;= \max(0,\, G_t - D_t) + E_{\text{dischargeable}} \tag{15a} \\
+q_{\text{buy,max}}  &amp;= \max(0,\, D_t - G_t) + E_{\text{chargeable}} \tag{15b} \\
+E_{\text{dischargeable}} &amp;= (SoC_t - SoC_{\min})\, C_{\text{nom}} \tag{15c} \\
+E_{\text{chargeable}}    &amp;= (SoC_{\max} - SoC_t)\, C_{\text{nom}} \tag{15d}
+\end{align*}
+\]</div>
+<h3 id="53-battery-p1-343">5.3 Battery ([P1] §3.4.3)<a class="headerlink" href="#53-battery-p1-343" title="Permanent link">&para;</a></h3>
+<p>Parameters: <span class="arithmatex">\(C_{\text{nom}}\)</span>, <span class="arithmatex">\(SoC_{\min}\)</span>, <span class="arithmatex">\(SoC_{\max}\)</span>, <span class="arithmatex">\(\eta_{\text{charge}} \in [0,1]\)</span>, <span class="arithmatex">\(\eta_{\text{discharge}} \in [0,1]\)</span>. The energy stays within <span class="arithmatex">\(SoC_{\min} C_{\text{nom}} \le E_{\text{bat},t} \le SoC_{\max} C_{\text{nom}}\)</span> and evolves with the net flow from the agent's balance and trades:</p>
+<div class="arithmatex">\[
+E_{\text{bat},t+1} =
+\begin{cases}
+\min\!\left(E_{\text{bat},t} + E_{\text{in}}\, \eta_{\text{charge}},\ SoC_{\max}\, C_{\text{nom}}\right) &amp; \text{charging with } E_{\text{in}} \\[1.5ex]
+\max\!\left(E_{\text{bat},t} - \dfrac{E_{\text{out}}}{\eta_{\text{discharge}}},\ SoC_{\min}\, C_{\text{nom}}\right) &amp; \text{delivering } E_{\text{out}}
+\end{cases} \tag{16}
+\]</div>
+<p>Discharging depletes storage by <em>more</em> than the delivered energy. The text says the operations are also bound by "maximum charge/discharge rates", but no rate appears in (16).</p>
+<h3 id="54-profiles-p1-344">5.4 Profiles ([P1] §3.4.4)<a class="headerlink" href="#54-profiles-p1-344" title="Permanent link">&para;</a></h3>
+<p>Profiles are loaded from files (real data) or generated procedurally, then smoothed.</p>
+<p><strong>Generation</strong>, solar PV:</p>
+<div class="arithmatex">\[
+G_t = C_{\text{gen},i}\, I_t\, \left(1 + \varepsilon_{\text{noise}} + \varepsilon_{\text{cloud}}\right) \tag{17}
+\]</div>
+<p><span class="arithmatex">\(C_{\text{gen},i}\)</span> is the nominal capacity (PV plus battery). <span class="arithmatex">\(I_t\)</span> is irradiance, a Gaussian centred at noon. <span class="arithmatex">\(\varepsilon_{\text{noise}}\)</span> is random noise. <span class="arithmatex">\(\varepsilon_{\text{cloud}}\)</span> is correlated cloud-cover variation.</p>
+<p><strong>Demand:</strong> a typical pattern with morning and evening peaks, which creates the temporal mismatch with solar generation.</p>
+<p><strong>DSO prices:</strong> <span class="arithmatex">\(p_{\text{FiT}}\)</span> and <span class="arithmatex">\(p_{\text{utility}}\)</span> are step functions with higher prices at peak hours, generated by the same algorithm, always with <span class="arithmatex">\(p_{\text{utility}} &gt; p_{\text{FiT}}\)</span>, and smoothed.</p>
+<h2 id="6-grid-p1-35">6. Grid ([P1] §3.5)<a class="headerlink" href="#6-grid-p1-35" title="Permanent link">&para;</a></h2>
+<p>The paper's grid is a graph model. This rebuild replaces it with a SimBench network and an AC power flow (<a href="../../simbench/">SimBench</a>); the paper's model is kept here because its distances, zones and congestion feed the DSO fees (§4.4) and the partner choice (§5.1).</p>
+<h3 id="61-topology">6.1 Topology<a class="headerlink" href="#61-topology" title="Permanent link">&para;</a></h3>
+<p>The network is a weighted undirected graph <span class="arithmatex">\(\mathcal{G} = \langle \mathcal{V}, \xi \rangle\)</span> with agents at nodes.</p>
+<ul>
+<li><strong>Predefined topologies:</strong> IEEE 13-node and IEEE 34-node feeders.</li>
+<li><strong>Procedural topologies:</strong> mesh, ring and line.</li>
+</ul>
+<p>The electrical distance <span class="arithmatex">\(d_{ij}\)</span> is the <strong>shortest-path length</strong> through the graph, not a Euclidean distance.</p>
+<p><strong>Zones</strong> ([P1] §3.5.4): the graph can be partitioned into connected zones <span class="arithmatex">\(\mathcal{Z} = \langle \mathcal{V}, \xi \rangle \subseteq \mathcal{G}\)</span>. By default a same-zone trade gets a bonus (the negative fee <span class="arithmatex">\(F_{\text{zone}}\)</span>); cross-zone trades can carry extra fees or constraints.</p>
+<h3 id="62-constraints">6.2 Constraints<a class="headerlink" href="#62-constraints" title="Permanent link">&para;</a></h3>
+<p><strong>Transmission losses</strong>, linear, with loss factor <span class="arithmatex">\(\kappa\)</span>. The loss derates the delivered quantity and is included in the DSO fees:</p>
+<div class="arithmatex">\[
+l_{ij} = d_{ij}\, q_{ij}\, \kappa \tag{18}
+\]</div>
+<p><strong>Congestion</strong>. Total grid capacity is distributed over the edges, with more capacity for shorter (lower-impedance) edges. The congestion of edge <span class="arithmatex">\(e\)</span> is:</p>
+<div class="arithmatex">\[
+\zeta_e = \frac{F_e}{\max(C_e)} \tag{19}
+\]</div>
+<h3 id="63-state-updates-p1-353">6.3 State updates ([P1] §3.5.3)<a class="headerlink" href="#63-state-updates-p1-353" title="Permanent link">&para;</a></h3>
+<p><strong>Power-flow update:</strong> after each period, for every executed trade, find the shortest path between buyer and seller, then increase the flow <span class="arithmatex">\(F_e\)</span> on every edge of that path by <span class="arithmatex">\(q_{ij}\)</span> (considering losses). Trades that would violate capacity "can be penalized or disallowed by the DSO".</p>
+<p><strong>Grid balance</strong>; close to 0 means a self-sufficient market:</p>
+<div class="arithmatex">\[
+B_{\text{grid}} = \sum_{i \in \mathcal{I}} \left( G_i - D_i + E_{\text{bought},i} - E_{\text{sold},i} \right) \tag{20}
+\]</div>
+<p><strong>Mean congestion</strong>, from [P2]:</p>
+<div class="arithmatex">\[
+\bar{\zeta} = \frac{1}{\lvert \xi \rvert} \sum_{e \in \xi} \frac{F_e}{\max(C_e)} \tag*{[P2] (2)}
+\]</div>
+<h2 id="7-the-papers-case-study-without-learning-p1-45">7. The paper's case study without learning ([P1] §4–5)<a class="headerlink" href="#7-the-papers-case-study-without-learning-p1-45" title="Permanent link">&para;</a></h2>
+<p>The case study of [P1] trains nothing: its agents bid at random within the rules. That makes it the reference for a market without learning.</p>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agents</td>
+<td>7, 24-hour daily cycle</td>
+</tr>
+<tr>
+<td>Grid</td>
+<td>Mesh topology, nominal capacity 1200 kW</td>
+</tr>
+<tr>
+<td>Clearing</td>
+<td>Bid-ask spread mechanism</td>
+</tr>
+<tr>
+<td>Price / quantity range</td>
+<td>35–280 $/MWh; 0.1–200 kWh</td>
+</tr>
+<tr>
+<td>Generation</td>
+<td>Base capacity 60 kW per agent (random variation)</td>
+</tr>
+<tr>
+<td>Scenarios</td>
+<td>(1) no battery; (2) strategic battery: battery ratios 0.5–1.2, 95 % efficiency, profiles designed for time-shifting (morning generation with storage vs evening demand)</td>
+</tr>
+<tr>
+<td>Agents' policy</td>
+<td><strong>Zero-intelligence</strong>: uniform random bids within valid bounds that respect physical constraints. No MARL training in [P1].</td>
+</tr>
+<tr>
+<td>Reported</td>
+<td>P2P price distribution, net grid imbalance and P2P trading ratio over 24 h, coordination score, trading-network plots</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-points-the-paper-leaves-unspecified">8. Points the paper leaves unspecified<a class="headerlink" href="#8-points-the-paper-leaves-unspecified" title="Permanent link">&para;</a></h2>
+<p>Needed to implement the market but not defined in [P1]:</p>
+<ul>
+<li>The formula of <span class="arithmatex">\(F_{\text{trans}}\)</span>, and the meaning of <span class="arithmatex">\(f_{\text{threshold}}\)</span> in (8d).</li>
+<li>The fee factors <span class="arithmatex">\(f_{\ast}\)</span>.</li>
+<li>Reputation weights and the decay factor.</li>
+<li>The loss factor <span class="arithmatex">\(\kappa\)</span>, the edge-capacity allocation rule, whether edge flows
+  reset each period, and the capacity-violation policy ("penalized or disallowed").</li>
+<li>Battery charge and discharge rate limits.</li>
+<li>The bid-ask spread mechanism used in the case study (§7), which §3.3.3 does not
+  define.</li>
+</ul>
+<details class="note">
+<summary>Not in [P1]: the original code</summary>
+<p>What the original implementation uses for each point:</p>
+<table>
+<thead>
+<tr>
+<th>Point</th>
+<th>In the code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(F_{\text{trans}}\)</span></td>
+<td>Always 0; the distance is computed but unused (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L274-L345">dso.py</a>)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(f_{\text{threshold}}\)</span> (8d)</td>
+<td>A cap: <span class="arithmatex">\(F_{\text{thermal}} = \min(0.3,\ f_{\text{thermal}})\, q_{ij}\, p_{ij}\)</span></td>
+</tr>
+<tr>
+<td>Fee factors <span class="arithmatex">\(f_{\ast}\)</span></td>
+<td><span class="arithmatex">\(f_{\text{cong}} = 0.5\)</span>, <span class="arithmatex">\(f_{\text{volt}} = 0.15\)</span>, <span class="arithmatex">\(f_{\text{zone}} = 0.15\)</span>, <span class="arithmatex">\(f_{\text{imb}} = 0.15\)</span>; a <code>distance_factor = 0.35</code> is defined but never used (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L63-L74">dso.py</a>)</td>
+</tr>
+<tr>
+<td>Reputation weights</td>
+<td><span class="arithmatex">\(w_{\text{rel}} = 0.3\)</span>, <span class="arithmatex">\(w_{\text{fair}} = 0.2\)</span>, <span class="arithmatex">\(w_{\text{grid}} = 0.5\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py#L24-L26">reputation.py</a>)</td>
+</tr>
+<tr>
+<td>Decay factor</td>
+<td>The time of day: <span class="arithmatex">\(r_i \leftarrow \tau_t\, r_i + (1 - \tau_t)\, r_i^{\text{new}}\)</span>, <span class="arithmatex">\(\tau_t = (t \bmod T)/T\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py#L87">reputation.py</a>)</td>
+</tr>
+<tr>
+<td>Loss factor <span class="arithmatex">\(\kappa\)</span></td>
+<td>0.03 per unit of graph distance, a default argument no caller changes (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L331-L348">network.py</a>)</td>
+</tr>
+<tr>
+<td>Edge capacity</td>
+<td>The grid capacity <span class="arithmatex">\(C\)</span> shared in inverse proportion to edge length: <span class="arithmatex">\(C_e = C \cdot \dfrac{1/d_e}{\sum_{e'} 1/d_{e'}}\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L67-L79">network.py</a>)</td>
+</tr>
+<tr>
+<td>Edge flows per period</td>
+<td>Never reset. Each edge starts at a random <span class="arithmatex">\(U(0, 0.3) \cdot C_e\)</span>, every trade on its path adds its quantity, and the flow is capped at <span class="arithmatex">\(C_e\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L85">network.py</a>, <a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L325">L325</a>)</td>
+</tr>
+<tr>
+<td>Capacity-violation policy</td>
+<td>"Disallowed", in two different checks. Stage 1 (<code>validate_grid_constraints</code>) rejects a pair if <span class="arithmatex">\(\lvert B_{\text{DSO}} + q \rvert\)</span> exceeds the grid capacity or the path congestion exceeds 0.8 (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L347-L392">dso.py</a>). Stage 2 skips a match while <span class="arithmatex">\(\lvert B \rvert &gt; q_{\max} \cdot N\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L158">matching.py</a>, <a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L299">L299</a>). Trades with the DSO are never checked. Nothing is penalised</td>
+</tr>
+<tr>
+<td>Battery rate limits</td>
+<td>None. A charge or discharge is limited only by the room to <span class="arithmatex">\(SoC_{\max}\)</span> or <span class="arithmatex">\(SoC_{\min}\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/battery.py#L131-L182">battery.py</a>)</td>
+</tr>
+<tr>
+<td>Bid-ask spread mechanism</td>
+<td><span class="arithmatex">\(p_{ij} = p_{\text{sell}} + \phi\,(p_{\text{buy}} - p_{\text{sell}})\)</span> with <span class="arithmatex">\(\phi\)</span> clipped to [0, 1], default 0.5 (the midpoint) (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/mechanism.py#L87-L111">mechanism.py</a>). The matcher passes the market price as <span class="arithmatex">\(\phi\)</span>, so with prices above 1 it returns <span class="arithmatex">\(p_{\text{buy}}\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>Several of these are faults against [P1]; see the <a href="../../validation/market/">market validation</a>.</p>
+</details>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "search.highlight", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js"></script>
+      
+        <script src="../../assets/diagrams.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

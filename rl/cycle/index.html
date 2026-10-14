@@ -1,0 +1,5383 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="MARLEM rebuilt on SimBench networks">
+      
+      
+      
+        <link rel="canonical" href="https://kevinrapo.github.io/P2P-thesis/rl/cycle/">
+      
+      
+        <link rel="prev" href="../training/">
+      
+      
+        <link rel="next" href="../examples/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>One iteration, step by step - MARLEM clean</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../assets/diagrams.css">
+    
+      <link rel="stylesheet" href="../../assets/marks.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#one-training-iteration-from-observation-to-update" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="MARLEM clean" class="md-header__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            MARLEM clean
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              One iteration, step by step
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="blue-grey" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../v1/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  marlem-v1
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../structure/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Code structure
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../marlem/methodology/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  MARLEM
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../training/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  RL
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../validation/market/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Validation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../simbench/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  SimBench
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../about/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  About these docs
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="MARLEM clean" class="md-nav__button md-logo" aria-label="MARLEM clean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    MARLEM clean
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/KevinRapo/P2P-thesis" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../v1/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    marlem-v1
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MARLEM
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MARLEM
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../marlem/methodology/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../marlem/learning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training cycle (3 × 3)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One iteration, step by step
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One iteration, step by step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-collect-from-observation-to-environment-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Collect: from observation to environment step
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A. Collect: from observation to environment step">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a1-observe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A1. Observe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a2-actor-forward-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A2. Actor forward pass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a3-sample-the-action-and-its-log-probability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A3. Sample the action and its log-probability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a4-rescale-to-the-action-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A4. Rescale to the action bounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a5-environment-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A5. Environment step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a6-until-the-batch-is-full" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A6. Until the batch is full
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#b-targets-what-the-loss-will-be-compared-with" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Targets: what the loss will be compared with
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="B. Targets: what the loss will be compared with">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#b1-episodes-to-a-batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B1. Episodes to a batch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b2-add-a-bootstrap-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B2. Add a bootstrap step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b3-critic-forward-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B3. Critic forward pass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b4-λ-returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B4. λ-returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b5-advantages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B5. Advantages
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-update-one-gradient-step-repeated--940-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Update: one gradient step, repeated ≈ 940 times
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="C. Update: one gradient step, repeated ≈ 940 times">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#c1-forward-pass-with-the-current-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C1. Forward pass with the current weights
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c2-probability-ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C2. Probability ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c3-clipped-surrogate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C3. Clipped surrogate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c4-value-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C4. Value loss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c5-entropy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C5. Entropy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c6-kl-between-the-collecting-and-the-current-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C6. KL between the collecting and the current policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c7-total-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C7. Total loss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c8-gradients-where-each-term-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C8. Gradients: where each term goes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c9-clip-the-gradient-norm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C9. Clip the gradient norm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c10-adam-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C10. Adam step
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-after-the-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. After the update
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D. After the update">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d1-kl-coefficient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D1. KL coefficient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-weights-to-the-env-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D2. Weights to the env runners
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-between-iterations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D3. Between iterations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appo-the-same-cycle-what-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        APPO: the same cycle, what changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sac-the-same-cycle-what-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SAC: the same cycle, what changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-original-code-departs-from-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the original code departs from this
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Worked examples (our code)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Validation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/market/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/rl/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../validation/papers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The two papers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../simbench/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SimBench
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SimBench
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simbench/networks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network catalogue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simbench/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/grid/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Grid: SimBench networks
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_2" id="__nav_8_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Grid: SimBench networks
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/contract/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/powerflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    powerflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/grid/simbench/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    simbench
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Market: the MARLEM market
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3" id="__nav_8_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Market: the MARLEM market
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/agent/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    agent
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_2" id="__nav_8_3_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    agent
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/battery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    battery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/agent/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/dso/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_3" id="__nav_8_3_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    dso
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/dso/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_3_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/market/profile/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_3_4" id="__nav_8_3_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    profile
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/base/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/der/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    der
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/profile/dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/bidding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    bidding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/clearing_price/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    clearing_price
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/lem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/order/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    order
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/reputation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    reputation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/market/validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/config/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Config: the scenario
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Config: the scenario
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/placement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/scenario/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/config/store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Studio: pages, components, adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5" id="__nav_8_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Studio: pages, components, adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/adapters/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    adapters
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_2" id="__nav_8_5_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    adapters
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    container
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/grid_catalog_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_catalog_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/market_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_classes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_classes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/profile_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profile_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/run_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    run_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/scenario_service/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    scenario_service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/adapters/workspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    workspace
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/components/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    components
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_3" id="__nav_8_5_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/charts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    charts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/day_profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    day_profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    network
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/components/tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_5_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/studio/pages/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pages
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_5_4" id="__nav_8_5_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    pages
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/grid_participants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grid_participants
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/inspect/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    inspect
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/market_dso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    market_dso
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/runs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    runs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/step/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    step
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/pages/summary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    summary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/app/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    app
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/navigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    navigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/studio/theme/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    theme
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RL: the learning layer
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6" id="__nav_8_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    RL: the learning layer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_6_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../api/rl/envs/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    envs
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_6_2" id="__nav_8_6_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_8_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    envs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/probes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    probes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/shapes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    shapes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/spread/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spread
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/envs/toy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    toy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    benchmark
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    config
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/ctde_modules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ctde_modules
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/grouping/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    grouping
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/rl/train/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    train
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../about/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    About these docs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-collect-from-observation-to-environment-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Collect: from observation to environment step
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A. Collect: from observation to environment step">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a1-observe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A1. Observe
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a2-actor-forward-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A2. Actor forward pass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a3-sample-the-action-and-its-log-probability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A3. Sample the action and its log-probability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a4-rescale-to-the-action-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A4. Rescale to the action bounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a5-environment-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A5. Environment step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a6-until-the-batch-is-full" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A6. Until the batch is full
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#b-targets-what-the-loss-will-be-compared-with" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Targets: what the loss will be compared with
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="B. Targets: what the loss will be compared with">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#b1-episodes-to-a-batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B1. Episodes to a batch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b2-add-a-bootstrap-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B2. Add a bootstrap step
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b3-critic-forward-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B3. Critic forward pass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b4-λ-returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B4. λ-returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b5-advantages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B5. Advantages
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-update-one-gradient-step-repeated--940-times" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Update: one gradient step, repeated ≈ 940 times
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="C. Update: one gradient step, repeated ≈ 940 times">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#c1-forward-pass-with-the-current-weights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C1. Forward pass with the current weights
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c2-probability-ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C2. Probability ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c3-clipped-surrogate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C3. Clipped surrogate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c4-value-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C4. Value loss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c5-entropy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C5. Entropy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c6-kl-between-the-collecting-and-the-current-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C6. KL between the collecting and the current policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c7-total-loss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C7. Total loss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c8-gradients-where-each-term-goes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C8. Gradients: where each term goes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c9-clip-the-gradient-norm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C9. Clip the gradient norm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c10-adam-step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C10. Adam step
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#d-after-the-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D. After the update
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="D. After the update">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d1-kl-coefficient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D1. KL coefficient
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-weights-to-the-env-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D2. Weights to the env runners
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-between-iterations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D3. Between iterations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#appo-the-same-cycle-what-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        APPO: the same cycle, what changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sac-the-same-cycle-what-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SAC: the same cycle, what changes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-the-original-code-departs-from-this" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where the original code departs from this
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="one-training-iteration-from-observation-to-update">One training iteration, from observation to update<a class="headerlink" href="#one-training-iteration-from-observation-to-update" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>Every calculation in one training iteration, in the order it happens: the
+agents observe, act and collect a batch of steps; the batch is turned into
+targets; the losses are computed and the networks updated; the new weights go
+back to the agents. PPO is followed in full, with the shapes of what flows
+through each step and what the three paradigms (CTCE, CTDE, DTDE) change on the
+way. APPO and SAC follow as differences from it. Steps that repeat (every
+environment step, every minibatch) are written out once, with how often they
+happen. <a href="../training/">The training cycle</a> is the shorter overview of the same
+material. <a href="../examples/">Worked examples</a> puts numbers on the parts our own
+code defines.</p>
+</blockquote>
+<p><strong>Sources.</strong> As in <a href="../training/">The training cycle</a>: RLlib is Ray 2.51.1, read in
+its installed source and linked at tag
+<a href="https://github.com/ray-project/ray/tree/ray-2.51.1/rllib"><code>ray-2.51.1</code></a>; MARLEM's
+code at the original commit
+<a href="https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment"><code>15d6715</code></a>;
+settings are the original's
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L215-L259"><code>train.py</code> L215-L259</a>),
+completed with RLlib's defaults. Where the original code computes something other
+than what is described, the step says so and links to
+<a href="../../validation/rl/">RL layer: what is wrong</a>.</p>
+<h2 id="notation">Notation<a class="headerlink" href="#notation" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(N\)</span></td>
+<td>number of agents, <span class="arithmatex">\(i = 1 \dots N\)</span></td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(d_o\)</span>, <span class="arithmatex">\(d_a\)</span></td>
+<td>size of one agent's observation and action (taken equal for all agents here)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(t\)</span></td>
+<td>environment step: all <span class="arithmatex">\(N\)</span> agents act at once</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(o_{i,t} \in \mathbb{R}^{d_o}\)</span></td>
+<td>agent <span class="arithmatex">\(i\)</span>'s observation</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(s_t = (o_{1,t}, \dots, o_{N,t}) \in \mathbb{R}^{N d_o}\)</span></td>
+<td>all observations, concatenated (CTCE and CTDE)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(u_{i,t} \in \mathbb{R}^{d_a}\)</span></td>
+<td>the action as the policy sampled it, before any rescaling</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(a_{i,t}\)</span></td>
+<td>the action the environment receives</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(r_{i,t}\)</span>, <span class="arithmatex">\(R_t = \sum_i r_{i,t}\)</span></td>
+<td>agent <span class="arithmatex">\(i\)</span>'s reward; the group reward of CTCE and CTDE</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(m\)</span>, <span class="arithmatex">\(\ell = \log\sigma\)</span></td>
+<td>the Gaussian's mean and log standard deviation, one per action dimension</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\pi_\theta\)</span>, <span class="arithmatex">\(\mu\)</span></td>
+<td>the policy being trained; the copy that collected the data</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(V_\phi\)</span></td>
+<td>the critic (state value)</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(T\)</span></td>
+<td>environment steps per iteration: 4000 for PPO</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(K\)</span></td>
+<td>number of env runners (the original sets <span class="arithmatex">\(K\)</span> = <code>cpu_count() - 4</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Settings used below (PPO): <span class="arithmatex">\(\gamma = 0.99\)</span>, <span class="arithmatex">\(\lambda = 0.95\)</span>, clip <span class="arithmatex">\(\epsilon = 0.2\)</span>,
+value coefficient <span class="arithmatex">\(c_v = 1\)</span>, value-loss cap 10, entropy coefficient <span class="arithmatex">\(c_H = 0.01\)</span>,
+KL coefficient <span class="arithmatex">\(\beta = 0\)</span>, gradient-norm clip 0.5, learning rate <span class="arithmatex">\(10^{-5}\)</span>,
+30 epochs, minibatches of 128.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<pre class="mermaid-diagram"><code>flowchart TD
+    subgraph A["A. Collect (env runners), T = 4000 times"]
+        A1["A1 observe o"] --&gt; A2["A2 actor forward: m, log σ"]
+        A2 --&gt; A3["A3 sample u, log μ(u)"]
+        A3 --&gt; A4["A4 rescale u to the bounds: a"]
+        A4 --&gt; A5["A5 env step: r, next o, done"]
+        A5 --&gt; A1
+    end
+    subgraph B["B. Targets (learner), once"]
+        B1["B1 episodes to batch"] --&gt; B2["B2 add a bootstrap step"]
+        B2 --&gt; B3["B3 critic forward: V(o)"]
+        B3 --&gt; B4["B4 λ-returns G"]
+        B4 --&gt; B5["B5 advantages Â, standardised"]
+    end
+    subgraph C["C. Update (learner), ≈ 940 times"]
+        C1["C1 forward: m', log σ', V"] --&gt; C2["C2 ratio ρ"]
+        C2 --&gt; C3["C3-C7 losses"]
+        C3 --&gt; C4["C8 gradients"]
+        C4 --&gt; C5["C9 clip norm, C10 Adam step"]
+    end
+    subgraph D["D. After the update, once"]
+        D1["D1 KL coefficient"] --&gt; D2["D2 weights to env runners"]
+    end
+    A --&gt; B --&gt; C --&gt; D --&gt; A</code></pre>
+<p>What happens how often in one PPO iteration:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>How often</th>
+<th>Done by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1-A5: observe, act, step the environment</td>
+<td><span class="arithmatex">\(T = 4000\)</span> environment steps, <span class="arithmatex">\(4000/K\)</span> per env runner</td>
+<td>env runners, with <span class="arithmatex">\(\mu\)</span></td>
+</tr>
+<tr>
+<td>A2: actor forward pass</td>
+<td>4000 per network: <span class="arithmatex">\(N \times 4000\)</span> in DTDE and CTDE (one per agent's network), 4000 in CTCE</td>
+<td>env runners</td>
+</tr>
+<tr>
+<td>B1-B5: value predictions, returns, advantages</td>
+<td>once, over the whole batch</td>
+<td>learner, critic before the update</td>
+</tr>
+<tr>
+<td>C1-C10: one gradient step</td>
+<td>30 epochs × ≈ 31 minibatches ≈ 940; every step used 30 times</td>
+<td>learner</td>
+</tr>
+<tr>
+<td>D1: KL coefficient</td>
+<td>once</td>
+<td>learner</td>
+</tr>
+<tr>
+<td>D2: weights to the env runners</td>
+<td>once</td>
+<td>learner → env runners</td>
+</tr>
+</tbody>
+</table>
+<h2 id="a-collect-from-observation-to-environment-step">A. Collect: from observation to environment step<a class="headerlink" href="#a-collect-from-observation-to-environment-step" title="Permanent link">&para;</a></h2>
+<p>Each env runner holds a copy <span class="arithmatex">\(\mu\)</span> of the policy, identical to <span class="arithmatex">\(\pi_\theta\)</span> at the
+start of the iteration (D2 of the previous one). Per environment step it does A1 to
+A5. Nothing is learned here: no gradients, no critic.</p>
+<h3 id="a1-observe">A1. Observe<a class="headerlink" href="#a1-observe" title="Permanent link">&para;</a></h3>
+<p>The environment returns one observation per agent, <span class="arithmatex">\(o_{i,t} \in \mathbb{R}^{d_o}\)</span>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What the module receives</td>
+<td>the tuple <span class="arithmatex">\((o_{1,t}, \dots, o_{N,t})\)</span>, one input for the group (<code>GroupedLEM</code>)</td>
+<td>the same tuple</td>
+<td><span class="arithmatex">\(o_{i,t}\)</span>, each agent's module its own</td>
+</tr>
+</tbody>
+</table>
+<p>RLlib passes the observation to the network <strong>as it comes</strong>: the default pipeline
+adds a batch dimension and converts to a tensor, but does not normalise (no
+<code>MeanStdFilter</code>). The scale of the market's observation features goes straight into
+the first layer.</p>
+<h3 id="a2-actor-forward-pass">A2. Actor forward pass<a class="headerlink" href="#a2-actor-forward-pass" title="Permanent link">&para;</a></h3>
+<p>The network turns the observation into the parameters of a Gaussian: a mean <span class="arithmatex">\(m\)</span> and
+a log standard deviation <span class="arithmatex">\(\ell = \log\sigma\)</span> per action dimension
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/core/rl_module/rl_module.py"><code>forward_exploration</code></a>,
+which all three modules route to their inference pass).</p>
+<p><strong>DTDE</strong>, RLlib's default PPO module per agent (<code>fcnet_hiddens = [256, 256]</code>,
+<code>tanh</code>):</p>
+<div class="arithmatex">\[h = \tanh\big(W_2 \tanh(W_1 o_{i,t} + b_1) + b_2\big) \in \mathbb{R}^{256}, \qquad [m, \ell] = W_\pi h + b_\pi \in \mathbb{R}^{2 d_a}, \qquad \ell \leftarrow \text{clip}(\ell, -20, 20).\]</div>
+<p><strong>CTCE</strong>, the custom module
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L290-L322"><code>ctce.py</code> L290-L322</a>):</p>
+<div class="arithmatex">\[e = \text{ReLU}\big(W_2\, \text{ReLU}(W_1 s_t + b_1) + b_2\big) \in \mathbb{R}^{128}, \qquad [m_1, \ell_1, \dots, m_N, \ell_N] = W_\pi e + b_\pi \in \mathbb{R}^{2 N d_a}.\]</div>
+<p>One network outputs every agent's mean and log-std, from all observations. There is
+no clip on <span class="arithmatex">\(\ell\)</span> (<a href="../../validation/rl/#r-01-the-ctce-and-ctde-action-spread-has-no-limit">R-01</a>).</p>
+<p><strong>CTDE</strong>, the custom module's acting heads
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L51-L89"><code>ctde.py</code> L51-L57, L86-L89</a>):
+one small network <span class="arithmatex">\(g_i\)</span> per agent, on its own observation only,</p>
+<div class="arithmatex">\[[m_i, \ell_i] = g_i(o_{i,t}), \qquad g_i:\ \mathbb{R}^{d_o} \xrightarrow{\text{Linear, ReLU}} \mathbb{R}^{128} \xrightarrow{\text{Linear, ReLU}} \mathbb{R}^{128} \xrightarrow{\text{Linear}} \mathbb{R}^{2 d_a},\]</div>
+<p>concatenated over the agents. No clip on <span class="arithmatex">\(\ell\)</span>. These heads are what acts in CTDE,
+and they are never trained (<a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a>).</p>
+<p>The value <span class="arithmatex">\(V_\phi\)</span> is not computed while collecting; PPO needs it only in B3.</p>
+<h3 id="a3-sample-the-action-and-its-log-probability">A3. Sample the action and its log-probability<a class="headerlink" href="#a3-sample-the-action-and-its-log-probability" title="Permanent link">&para;</a></h3>
+<p>Per action dimension <span class="arithmatex">\(k\)</span>, with <span class="arithmatex">\(\sigma_k = e^{\ell_k}\)</span> and fresh noise
+<span class="arithmatex">\(\varepsilon_k \sim \mathcal{N}(0, 1)\)</span>
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/connectors/module_to_env/get_actions.py"><code>get_actions.py</code></a>):</p>
+<div class="arithmatex">\[u_k = m_k + \sigma_k \varepsilon_k, \qquad \log\mu(u) = \sum_k \left[-\frac{(u_k - m_k)^2}{2\sigma_k^2} - \ell_k - \tfrac12 \log 2\pi\right].\]</div>
+<p>In CTCE and CTDE the sum runs over all <span class="arithmatex">\(N d_a\)</span> dimensions, so the group's
+log-probability is the sum of the agents':
+<span class="arithmatex">\(\log\mu(\mathbf{u}) = \sum_i \log\mu(u_i)\)</span>.</p>
+<p><strong>Stored for the learner</strong>, per step: the observation (<span class="arithmatex">\(o_{i,t}\)</span> or <span class="arithmatex">\(s_t\)</span>), the
+sampled <span class="arithmatex">\(u\)</span>, <span class="arithmatex">\(\log\mu(u)\)</span>, and the distribution's inputs <span class="arithmatex">\([m, \ell]\)</span> (needed for the
+KL in C6).</p>
+<h3 id="a4-rescale-to-the-action-bounds">A4. Rescale to the action bounds<a class="headerlink" href="#a4-rescale-to-the-action-bounds" title="Permanent link">&para;</a></h3>
+<p>The policy's actions are meant to live in <span class="arithmatex">\([-1, 1]\)</span>; RLlib rescales them to the
+environment's bounds and clips (<code>normalize_actions=True</code>,
+<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/utils/spaces/space_utils.py#L469-L481"><code>space_utils.py</code> L469-L481</a>):</p>
+<div class="arithmatex">\[a_k = \text{clip}\left(\text{low}_k + (u_k + 1)\,\frac{\text{high}_k - \text{low}_k}{2},\ \text{low}_k,\ \text{high}_k\right).\]</div>
+<p>The environment gets <span class="arithmatex">\(a\)</span>; the batch keeps the unclipped <span class="arithmatex">\(u\)</span>. So every <span class="arithmatex">\(u_k\)</span> beyond
+<span class="arithmatex">\(\pm 1\)</span> acts as the bound, while the learner still sees and trains on the exact
+<span class="arithmatex">\(u_k\)</span>. In CTCE and CTDE each agent's slice is rescaled with the grouped space's
+bounds, which may be another agent's
+(<a href="../../validation/rl/#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order">I-59</a>).</p>
+<h3 id="a5-environment-step">A5. Environment step<a class="headerlink" href="#a5-environment-step" title="Permanent link">&para;</a></h3>
+<p>The environment applies all <span class="arithmatex">\(N\)</span> actions at once and returns, per agent, the reward
+<span class="arithmatex">\(r_{i,t}\)</span>, the next observation <span class="arithmatex">\(o_{i,t+1}\)</span> and whether the episode ended
+(terminated, or truncated by a time limit).</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reward stored</td>
+<td><span class="arithmatex">\(R_t = \sum_i r_{i,t}\)</span> (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L684"><code>train.py</code> L684</a>)</td>
+<td><span class="arithmatex">\(R_t\)</span></td>
+<td><span class="arithmatex">\(r_{i,t}\)</span> in agent <span class="arithmatex">\(i\)</span>'s episode</td>
+</tr>
+<tr>
+<td>Done flag</td>
+<td>one, <code>__all__</code></td>
+<td>one</td>
+<td>per agent, and <code>__all__</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="a6-until-the-batch-is-full">A6. Until the batch is full<a class="headerlink" href="#a6-until-the-batch-is-full" title="Permanent link">&para;</a></h3>
+<p>A1-A5 repeat until the env runners together have 4000 environment steps
+(<code>train_batch_size</code>), each about <span class="arithmatex">\(4000/K\)</span>. An episode that is still running when a
+runner's share is full is cut there (<code>batch_mode="truncate_episodes"</code>) and continues
+in the next iteration, with the next iteration's weights. A cut episode is
+bootstrapped with the critic in B2.</p>
+<h2 id="b-targets-what-the-loss-will-be-compared-with">B. Targets: what the loss will be compared with<a class="headerlink" href="#b-targets-what-the-loss-will-be-compared-with" title="Permanent link">&para;</a></h2>
+<p>Once per iteration, on the learner, before any weight changes
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/ppo/ppo_learner.py#L60-L80"><code>ppo_learner.py</code> L60-L80</a>).</p>
+<h3 id="b1-episodes-to-a-batch">B1. Episodes to a batch<a class="headerlink" href="#b1-episodes-to-a-batch" title="Permanent link">&para;</a></h3>
+<p>The collected episode pieces are laid out as one table per RLlib module.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modules</td>
+<td>1</td>
+<td>1</td>
+<td><span class="arithmatex">\(N\)</span></td>
+</tr>
+<tr>
+<td>Rows per module</td>
+<td>4000</td>
+<td>4000</td>
+<td>≈ 4000 (one per step the agent acted)</td>
+</tr>
+<tr>
+<td>One row holds</td>
+<td><span class="arithmatex">\(s_t\)</span>, <span class="arithmatex">\(\mathbf{u}_t \in \mathbb{R}^{N d_a}\)</span>, <span class="arithmatex">\(R_t\)</span>, <span class="arithmatex">\(\log\mu(\mathbf{u}_t)\)</span>, <span class="arithmatex">\([m, \ell]\)</span></td>
+<td>the same</td>
+<td><span class="arithmatex">\(o_{i,t}\)</span>, <span class="arithmatex">\(u_{i,t}\)</span>, <span class="arithmatex">\(r_{i,t}\)</span>, <span class="arithmatex">\(\log\mu(u_{i,t})\)</span>, <span class="arithmatex">\([m, \ell]\)</span></td>
+</tr>
+</tbody>
+</table>
+<h3 id="b2-add-a-bootstrap-step">B2. Add a bootstrap step<a class="headerlink" href="#b2-add-a-bootstrap-step" title="Permanent link">&para;</a></h3>
+<p>Each episode piece gets one artificial step at its end: the last observation
+repeated, reward 0, and <em>truncated</em> set if the episode did not terminate
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/connectors/learner/add_one_ts_to_episodes_and_truncate.py"><code>add_one_ts_to_episodes_and_truncate.py</code></a>).
+It exists only so that B3 computes <span class="arithmatex">\(V_\phi\)</span> of the last observation; a loss mask
+removes it from every loss in C.</p>
+<h3 id="b3-critic-forward-pass">B3. Critic forward pass<a class="headerlink" href="#b3-critic-forward-pass" title="Permanent link">&para;</a></h3>
+<p>The critic, with its weights from <em>before</em> this iteration's update, evaluates every
+row:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Value</td>
+<td><span class="arithmatex">\(V_\phi(s_t) = w_V^\top e + b_V\)</span>, on the actor's encoder output <span class="arithmatex">\(e\)</span></td>
+<td>the same: central encoder and value head (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L46-L49"><code>ctde.py</code> L46-L49</a>)</td>
+<td><span class="arithmatex">\(V_{\phi_i}(o_{i,t}) = w_V^\top h + b_V\)</span>, on the actor's encoder output <span class="arithmatex">\(h\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>In all three the critic is a linear head on the <strong>same encoder</strong> as the actor
+(RLlib's default is <code>vf_share_layers=True</code>), so in C both losses train the encoder.</p>
+<h3 id="b4-λ-returns">B4. λ-returns<a class="headerlink" href="#b4-λ-returns" title="Permanent link">&para;</a></h3>
+<p>Backwards in time over each episode piece, with <span class="arithmatex">\(\bar V_{t} = V_\phi(o_t)\)</span>, or 0 if
+<span class="arithmatex">\(o_t\)</span> ends a terminated episode
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/utils/postprocessing/value_predictions.py#L7-L38"><code>value_predictions.py</code> L7-L38</a>):</p>
+<div class="arithmatex">\[G_t = r_t + \gamma \left[(1 - \lambda)\, \bar V_{t+1} + \lambda\, G_{t+1}\right], \qquad \text{starting from } G = \bar V \text{ at the bootstrap step.}\]</div>
+<p>A cut episode therefore ends on the critic's estimate, a terminated one on 0.
+Written with the one-step error <span class="arithmatex">\(\delta_t = r_t + \gamma \bar V_{t+1} - V_\phi(o_t)\)</span>,
+this is the GAE sum: <span class="arithmatex">\(G_t = V_\phi(o_t) + \sum_{l \ge 0} (\gamma\lambda)^l \delta_{t+l}\)</span>.
+<span class="arithmatex">\(\lambda = 0.95\)</span> sets how far real rewards are used before the critic's estimate
+takes over (about <span class="arithmatex">\(1/(1 - \gamma\lambda) \approx 17\)</span> steps).</p>
+<p><span class="arithmatex">\(G_t\)</span> is the <strong>value target</strong>. It is not rescaled, so it is on the scale of the
+summed rewards: in CTCE and CTDE about <span class="arithmatex">\(N\)</span> times one agent's.</p>
+<h3 id="b5-advantages">B5. Advantages<a class="headerlink" href="#b5-advantages" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[\hat A_t = G_t - V_\phi(o_t), \qquad \hat A_t \leftarrow \frac{\hat A_t - \operatorname{mean}(\hat A)}{\max\big(10^{-4}, \operatorname{std}(\hat A)\big)},\]</div>
+<p>the mean and standard deviation taken over the module's whole batch
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/connectors/learner/general_advantage_estimation.py#L144-L150"><code>general_advantage_estimation.py</code> L144-L150</a>).
+<span class="arithmatex">\(\hat A_t &gt; 0\)</span> means "the action taken at <span class="arithmatex">\(t\)</span> did better than the critic expected".
+After standardising, about half of the actions in the batch are reinforced and half
+discouraged, whatever the reward scale.</p>
+<p>In CTCE and CTDE there is <strong>one advantage per step for the whole group</strong>: every
+agent's action at <span class="arithmatex">\(t\)</span> is pushed in the same direction by the summed outcome, however
+much that agent contributed to it.</p>
+<h2 id="c-update-one-gradient-step-repeated--940-times">C. Update: one gradient step, repeated ≈ 940 times<a class="headerlink" href="#c-update-one-gradient-step-repeated--940-times" title="Permanent link">&para;</a></h2>
+<p>The 4000 rows are shuffled and cut into minibatches of 128; one pass over all of them
+is an epoch; there are 30 epochs, so ≈ 31 × 30 ≈ 940 gradient steps, and every row is
+used 30 times
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/ppo/ppo.py#L389-L458"><code>ppo.py</code> L389-L458</a>).
+In DTDE each step updates all <span class="arithmatex">\(N\)</span> modules, each on 128 rows of its own agent. One
+gradient step, on a minibatch <span class="arithmatex">\(b\)</span>:</p>
+<h3 id="c1-forward-pass-with-the-current-weights">C1. Forward pass with the current weights<a class="headerlink" href="#c1-forward-pass-with-the-current-weights" title="Permanent link">&para;</a></h3>
+<p>The same network as in A2 and B3, now with the weights as they are at this step:
+<span class="arithmatex">\([m', \ell'] = \pi_\theta(\cdot)\)</span> and <span class="arithmatex">\(V_\phi(\cdot)\)</span> for the 128 rows, the encoder
+computed once and shared by both heads.</p>
+<p>In CTDE this pass goes through the <strong>central</strong> actor
+<span class="arithmatex">\([m', \ell'] = W_\pi\, \text{enc}(s_t) + b_\pi\)</span>, not through the heads <span class="arithmatex">\(g_i\)</span> that
+sampled the actions in A2
+(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L121-L128"><code>ctde.py</code> L121-L128</a>, <a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a>).</p>
+<h3 id="c2-probability-ratio">C2. Probability ratio<a class="headerlink" href="#c2-probability-ratio" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[\rho_t = \exp\big(\log\pi_\theta(u_t \mid o_t) - \log\mu(u_t \mid o_t)\big),\]</div>
+<p>with <span class="arithmatex">\(\log\pi_\theta\)</span> computed as in A3 but with <span class="arithmatex">\(m', \ell'\)</span>, and <span class="arithmatex">\(\log\mu\)</span> the value
+stored in A3. <span class="arithmatex">\(\rho_t &gt; 1\)</span>: the current policy makes the stored action more likely
+than the collecting policy did. On the very first minibatch <span class="arithmatex">\(\pi_\theta = \mu\)</span>, so
+<span class="arithmatex">\(\rho_t = 1\)</span> exactly; that is a check that the stored and recomputed log-probabilities
+agree.</p>
+<p>In CTCE and CTDE, <span class="arithmatex">\(\log\pi_\theta\)</span> is a sum over agents, so
+<span class="arithmatex">\(\rho_t = \prod_i \rho_{i,t}\)</span>: one ratio for the joint action. In CTDE, <span class="arithmatex">\(\mu\)</span> was
+the heads and <span class="arithmatex">\(\pi_\theta\)</span> is the central actor, two different networks, so <span class="arithmatex">\(\rho\)</span>
+starts far from 1 (I-48).</p>
+<h3 id="c3-clipped-surrogate">C3. Clipped surrogate<a class="headerlink" href="#c3-clipped-surrogate" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[S_t = \min\big(\rho_t \hat A_t,\ \text{clip}(\rho_t, 0.8, 1.2)\, \hat A_t\big).\]</div>
+<p>Its gradient is <span class="arithmatex">\(\hat A_t \rho_t \nabla_\theta \log\pi_\theta(u_t \mid o_t)\)</span> while the
+policy has not yet moved more than 20 % on this action in the direction <span class="arithmatex">\(\hat A_t\)</span>
+asks for, and <strong>zero</strong> once it has: a good action (<span class="arithmatex">\(\hat A &gt; 0\)</span>) stops being pushed
+when <span class="arithmatex">\(\rho &gt; 1.2\)</span>, a bad one when <span class="arithmatex">\(\rho &lt; 0.8\)</span>. This is what keeps 30 epochs on the
+same data from running away.</p>
+<h3 id="c4-value-loss">C4. Value loss<a class="headerlink" href="#c4-value-loss" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[L_{V,t} = \min\big((V_\phi(o_t) - G_t)^2,\ 10\big).\]</div>
+<p>Its gradient is <span class="arithmatex">\(2 (V_\phi(o_t) - G_t)\, \nabla_\phi V_\phi(o_t)\)</span> while the error is
+below <span class="arithmatex">\(\sqrt{10} \approx 3.2\)</span>, and <strong>zero</strong> above (<code>vf_clip_param = 10</code>). Since <span class="arithmatex">\(G_t\)</span>
+is on the reward scale (B4), rows whose return the critic misses by more than 3.2
+units teach the critic nothing.</p>
+<h3 id="c5-entropy">C5. Entropy<a class="headerlink" href="#c5-entropy" title="Permanent link">&para;</a></h3>
+<div class="arithmatex">\[\mathcal{H}_t = \sum_k \left(\ell'_k + \tfrac12 \log 2\pi e\right).\]</div>
+<p>Its gradient with respect to each <span class="arithmatex">\(\ell'_k\)</span> is exactly 1: with coefficient 0.01 it is
+a constant push to widen every action dimension. Where the reward does not depend on
+the action, nothing pushes back; with <span class="arithmatex">\(\ell\)</span> unclipped (CTCE, CTDE) <span class="arithmatex">\(\ell\)</span> then grows
+without limit
+(<a href="../../validation/rl/#r-01-the-ctce-and-ctde-action-spread-has-no-limit">R-01</a>).</p>
+<h3 id="c6-kl-between-the-collecting-and-the-current-policy">C6. KL between the collecting and the current policy<a class="headerlink" href="#c6-kl-between-the-collecting-and-the-current-policy" title="Permanent link">&para;</a></h3>
+<p>From the stored <span class="arithmatex">\([m, \ell]\)</span> and the current <span class="arithmatex">\([m', \ell']\)</span>, per row
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/ppo/torch/ppo_torch_learner.py#L74-L80"><code>ppo_torch_learner.py</code> L74-L80</a>):</p>
+<div class="arithmatex">\[\mathrm{KL}_t(\mu \,\|\, \pi_\theta) = \sum_k \left[\ell'_k - \ell_k + \frac{e^{2\ell_k} + (m_k - m'_k)^2}{2\, e^{2\ell'_k}} - \frac12\right].\]</div>
+<p>It is computed because <code>use_kl_loss</code> stays on, although <span class="arithmatex">\(\beta = 0\)</span>
+(<a href="../../validation/rl/#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02</a>).</p>
+<h3 id="c7-total-loss">C7. Total loss<a class="headerlink" href="#c7-total-loss" title="Permanent link">&para;</a></h3>
+<p>Averaged over the minibatch's real rows (the bootstrap rows of B2 masked out):</p>
+<div class="arithmatex">\[L = \frac{1}{|b|} \sum_{t \in b} \Big[-S_t + 1 \cdot L_{V,t} - 0.01\, \mathcal{H}_t\Big] + \beta\, \frac{1}{|b|} \sum_{t \in b} \mathrm{KL}_t, \qquad \beta = 0.\]</div>
+<p>If <span class="arithmatex">\(\mathrm{KL}_t = \infty\)</span>, then <span class="arithmatex">\(\beta \cdot \infty\)</span> is NaN and so is <span class="arithmatex">\(L\)</span> (R-02).</p>
+<h3 id="c8-gradients-where-each-term-goes">C8. Gradients: where each term goes<a class="headerlink" href="#c8-gradients-where-each-term-goes" title="Permanent link">&para;</a></h3>
+<p>Backpropagation gives <span class="arithmatex">\(\partial L / \partial w\)</span> for every weight <span class="arithmatex">\(w\)</span> the loss
+depends on.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Surrogate and entropy</td>
+<td>actor head <span class="arithmatex">\(W_\pi\)</span> and the encoder</td>
+<td>central actor <span class="arithmatex">\(W_\pi\)</span> and the encoder; <strong>not</strong> the heads <span class="arithmatex">\(g_i\)</span></td>
+<td>agent <span class="arithmatex">\(i\)</span>'s actor head and encoder, from agent <span class="arithmatex">\(i\)</span>'s rows only</td>
+</tr>
+<tr>
+<td>Value loss</td>
+<td>value head and the encoder</td>
+<td>value head and the encoder</td>
+<td>agent <span class="arithmatex">\(i\)</span>'s value head and encoder</td>
+</tr>
+<tr>
+<td>Networks with no gradient</td>
+<td>–</td>
+<td>the acting heads <span class="arithmatex">\(g_i\)</span> (I-48)</td>
+<td>–</td>
+</tr>
+</tbody>
+</table>
+<p>The encoder receives both the policy gradient and the value gradient, weighted 1 : 1
+(<span class="arithmatex">\(c_v = 1\)</span>); while value errors are large, the value loss dominates what the shared
+layers learn.</p>
+<h3 id="c9-clip-the-gradient-norm">C9. Clip the gradient norm<a class="headerlink" href="#c9-clip-the-gradient-norm" title="Permanent link">&para;</a></h3>
+<p>All gradients of a module are scaled together so that their global norm is at most
+0.5 (<code>grad_clip</code>, <code>grad_clip_by="global_norm"</code>):</p>
+<div class="arithmatex">\[g \leftarrow g \cdot \min\left(1, \frac{0.5}{\lVert g \rVert_2}\right).\]</div>
+<p>The direction is kept, the length capped. If <span class="arithmatex">\(g\)</span> contains NaN (C7), RLlib replaces it
+with zeros, logs a warning and carries on (R-02).</p>
+<h3 id="c10-adam-step">C10. Adam step<a class="headerlink" href="#c10-adam-step" title="Permanent link">&para;</a></h3>
+<p>One optimiser per module (torch's Adam, <span class="arithmatex">\(\beta_1 = 0.9\)</span>, <span class="arithmatex">\(\beta_2 = 0.999\)</span>),
+learning rate <span class="arithmatex">\(\eta = 10^{-5}\)</span>, for every weight <span class="arithmatex">\(w\)</span>:</p>
+<div class="arithmatex">\[m_w \leftarrow 0.9\, m_w + 0.1\, g_w, \qquad v_w \leftarrow 0.999\, v_w + 0.001\, g_w^2, \qquad w \leftarrow w - \eta\, \frac{\hat m_w}{\sqrt{\hat v_w} + 10^{-8}},\]</div>
+<p>with <span class="arithmatex">\(\hat m_w, \hat v_w\)</span> the bias-corrected averages. Adam divides by the gradient's
+running size, so each weight moves by about <span class="arithmatex">\(\eta\)</span> per step whatever the loss scale:
+after 940 steps, at most about <span class="arithmatex">\(0.01\)</span>.</p>
+<p>Then the next minibatch: C1 again, with the weights just updated.</p>
+<h2 id="d-after-the-update">D. After the update<a class="headerlink" href="#d-after-the-update" title="Permanent link">&para;</a></h2>
+<h3 id="d1-kl-coefficient">D1. KL coefficient<a class="headerlink" href="#d1-kl-coefficient" title="Permanent link">&para;</a></h3>
+<p>Once, from the KL of the last minibatch: <span class="arithmatex">\(\beta \leftarrow 1.5\,\beta\)</span> if
+<span class="arithmatex">\(\mathrm{KL} &gt; 2 \times 0.01\)</span>, <span class="arithmatex">\(\beta \leftarrow 0.5\,\beta\)</span> if
+<span class="arithmatex">\(\mathrm{KL} &lt; 0.5 \times 0.01\)</span>
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/ppo/torch/ppo_torch_learner.py#L141-L166"><code>ppo_torch_learner.py</code> L141-L166</a>).
+From <span class="arithmatex">\(\beta = 0\)</span> it stays 0.</p>
+<h3 id="d2-weights-to-the-env-runners">D2. Weights to the env runners<a class="headerlink" href="#d2-weights-to-the-env-runners" title="Permanent link">&para;</a></h3>
+<p>The updated weights are copied to every env runner: <span class="arithmatex">\(\mu \leftarrow \pi_\theta\)</span>. The
+next iteration starts at A1 with them. The batch is discarded: PPO never uses a step
+again after its iteration.</p>
+<h3 id="d3-between-iterations">D3. Between iterations<a class="headerlink" href="#d3-between-iterations" title="Permanent link">&para;</a></h3>
+<p>The trainer reports the iteration's metrics. Every <code>checkpoint_freq</code> iterations,
+population-based training may replace a trial's weights with a better trial's and
+resample its learning rate, entropy coefficient and <span class="arithmatex">\(\lambda\)</span>
+(<a href="../../validation/rl/#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10">I-49</a>).</p>
+<h2 id="appo-the-same-cycle-what-changes">APPO: the same cycle, what changes<a class="headerlink" href="#appo-the-same-cycle-what-changes" title="Permanent link">&para;</a></h2>
+<p>Asynchronous PPO: the env runners do not wait for the learner, so the data is a
+little older than the policy, and V-trace corrects for it
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/appo/torch/appo_torch_learner.py#L44-L214"><code>appo_torch_learner.py</code> L44-L214</a>).</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What changes from PPO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. Collect</td>
+<td>A1-A5 are the same. The env runners never stop: they send pieces of 50 steps to the learner as they fill and keep acting, so <span class="arithmatex">\(\mu\)</span> can be a few updates behind <span class="arithmatex">\(\pi_\theta\)</span>.</td>
+</tr>
+<tr>
+<td>B. Targets</td>
+<td>No GAE, no standardisation. The pieces are gathered into batches of 500 steps, kept in a circular buffer of 4 batches; each batch is trained on at most twice. Targets are computed inside the loss (C), with the current critic.</td>
+</tr>
+<tr>
+<td>C. Update</td>
+<td>One gradient step per 500-step batch. In it: (1) <span class="arithmatex">\(V_\phi\)</span> for every step; (2) truncated weights <span class="arithmatex">\(\rho_t = c_t = \min(1, \bar\pi(u_t \mid o_t) / \mu(u_t \mid o_t))\)</span> against a <strong>target policy</strong> <span class="arithmatex">\(\bar\pi\)</span>; (3) V-trace targets backwards in time, <span class="arithmatex">\(v_t = V_\phi(o_t) + \rho_t \delta_t + \gamma (1 - d_t) c_t (v_{t+1} - V_\phi(o_{t+1}))\)</span>; (4) advantage <span class="arithmatex">\(A_t = \rho_t (r_t + \gamma (1 - d_t) v_{t+1} - V_\phi(o_t))\)</span>; (5) the clipped surrogate on <span class="arithmatex">\(\pi_\theta / \bar\pi\)</span> with clip 0.4, value loss <span class="arithmatex">\(0.5 \cdot \frac12 (V_\phi - v_t)^2\)</span> (no cap), entropy 0.01, no KL term; (6) gradient-norm clip 0.5, Adam step, learning rate <span class="arithmatex">\(10^{-5}\)</span>. There is no λ: the original's <code>lambda_</code> has no effect (<a href="../../validation/rl/#r-06-appos-lambda_-has-no-effect">R-06</a>).</td>
+</tr>
+<tr>
+<td>D. After</td>
+<td>The target policy is overwritten with <span class="arithmatex">\(\pi_\theta\)</span> every 8000 trained steps. New weights go to the env runners while they keep sampling. An iteration ends after at least 10 s, so the number of steps per iteration depends on the machine.</td>
+</tr>
+</tbody>
+</table>
+<p>The paradigm differences of A2, B3 and C8 hold unchanged, I-48 included.</p>
+<h2 id="sac-the-same-cycle-what-changes">SAC: the same cycle, what changes<a class="headerlink" href="#sac-the-same-cycle-what-changes" title="Permanent link">&para;</a></h2>
+<p>Off-policy: steps go into a replay buffer and are trained on later, in random
+batches
+(<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/sac/torch/sac_torch_learner.py#L270-L350"><code>sac_torch_learner.py</code> L270-L350</a>).
+SAC learns two critics <span class="arithmatex">\(Q_{\psi_1}, Q_{\psi_2}\)</span> of state <em>and action</em>, their slowly
+following copies <span class="arithmatex">\(\bar Q_1, \bar Q_2\)</span>, the actor, and a temperature <span class="arithmatex">\(\alpha\)</span>.</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What changes from PPO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A. Collect</td>
+<td>A1-A3 as in PPO, but in DTDE (RLlib's SAC module) the sample is squashed, <span class="arithmatex">\(\tanh(u) \in (-1, 1)\)</span>, before A4's rescaling. CTCE and CTDE use the plain Gaussian of A3, and A4 clips it (<a href="../../validation/rl/#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian">R-04</a>). Whole episodes are collected (<code>complete_episodes</code>), about 256 environment steps per gradient step, and each step <span class="arithmatex">\((o, a, r, o', d)\)</span> goes into a buffer of 1000 steps, the oldest dropped first. Training starts after 1500 steps.</td>
+</tr>
+<tr>
+<td>B. Targets</td>
+<td>A random batch of 256 steps from the buffer, old and new. For each: a next action <span class="arithmatex">\(a' \sim \pi_\theta(\cdot \mid o')\)</span> and the target <span class="arithmatex">\(y = r + \gamma (1 - d)[\min_j \bar Q_j(o', a') - \alpha \log\pi_\theta(a' \mid o')]\)</span>. In the original's CTCE and CTDE, <span class="arithmatex">\(a'\)</span> comes from a target copy of the actor instead.</td>
+</tr>
+<tr>
+<td>C. Update</td>
+<td>Three losses on the same batch, each with its own Adam optimiser: critics <span class="arithmatex">\(L_Q = \sum_j \text{Huber}(Q_{\psi_j}(o, a) - y)\)</span>, learning rate <span class="arithmatex">\(10^{-5}\)</span>; actor <span class="arithmatex">\(L_\pi = \alpha \log\pi_\theta(\tilde a \mid o) - \min_j Q_{\psi_j}(o, \tilde a)\)</span> with a reparameterised <span class="arithmatex">\(\tilde a = m + \sigma\varepsilon\)</span>, so the actor's gradient runs through <span class="arithmatex">\(\partial Q / \partial \tilde a\)</span>, learning rate <span class="arithmatex">\(10^{-5}\)</span>; temperature <span class="arithmatex">\(L_\alpha = -\log\alpha\, (\log\pi_\theta(\tilde a \mid o) + \bar{\mathcal{H}})\)</span> with target <span class="arithmatex">\(\bar{\mathcal{H}} = -\dim A\)</span>, learning rate <span class="arithmatex">\(3 \cdot 10^{-4}\)</span>. In the original's CTCE and CTDE, <span class="arithmatex">\(\tilde a\)</span> is drawn with <code>sample()</code>, so the actor gets no gradient from the critic (<a href="../../validation/rl/#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic">R-05</a>).</td>
+</tr>
+<tr>
+<td>D. After</td>
+<td>After every gradient step the critic copies follow: <span class="arithmatex">\(\bar\psi_j \leftarrow 0.005\, \psi_j + 0.995\, \bar\psi_j\)</span>. Weights go to the env runners; the buffer is kept, so a step is trained on about once while it stays in the 1000-step buffer.</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Critic</td>
+<td><span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span> on all observations and actions</td>
+<td>the same</td>
+<td><span class="arithmatex">\(Q_{\psi_i}(o_i, a_i)\)</span> per agent</td>
+</tr>
+<tr>
+<td>Entropy target <span class="arithmatex">\(\bar{\mathcal{H}}\)</span></td>
+<td><span class="arithmatex">\(-N d_a\)</span></td>
+<td><span class="arithmatex">\(-N d_a\)</span></td>
+<td><span class="arithmatex">\(-d_a\)</span></td>
+</tr>
+</tbody>
+</table>
+<h2 id="where-the-original-code-departs-from-this">Where the original code departs from this<a class="headerlink" href="#where-the-original-code-departs-from-this" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What the original does</th>
+<th>Recorded as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A2, C1, C8</td>
+<td>CTDE acts with heads <span class="arithmatex">\(g_i\)</span> that receive no gradient; the loss trains a central actor</td>
+<td><a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a></td>
+</tr>
+<tr>
+<td>A2, C5</td>
+<td>CTCE and CTDE: <span class="arithmatex">\(\ell\)</span> unclipped, so the entropy bonus can grow it until it overflows</td>
+<td><a href="../../validation/rl/#r-01-the-ctce-and-ctde-action-spread-has-no-limit">R-01</a></td>
+</tr>
+<tr>
+<td>A4</td>
+<td>CTCE and CTDE: an agent's slice can be rescaled with another agent's bounds</td>
+<td><a href="../../validation/rl/#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order">I-59</a></td>
+</tr>
+<tr>
+<td>C6, C7, C9</td>
+<td><span class="arithmatex">\(\beta = 0\)</span> still computes the KL; an infinite KL makes the loss NaN, and the NaN gradient is zeroed silently</td>
+<td><a href="../../validation/rl/#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02</a></td>
+</tr>
+<tr>
+<td>D3</td>
+<td>Population-based training raises the learning rate 10-1000× and the entropy coefficient up to 10</td>
+<td><a href="../../validation/rl/#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10">I-49</a></td>
+</tr>
+<tr>
+<td>APPO, C</td>
+<td><code>lambda_</code> is set and tuned, but V-trace has no λ</td>
+<td><a href="../../validation/rl/#r-06-appos-lambda_-has-no-effect">R-06</a></td>
+</tr>
+<tr>
+<td>SAC, A</td>
+<td>CTCE and CTDE: unsquashed Gaussian, clipped</td>
+<td><a href="../../validation/rl/#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian">R-04</a></td>
+</tr>
+<tr>
+<td>SAC, C</td>
+<td>CTCE and CTDE: the actor's sample is not reparameterised, so no gradient through the critic</td>
+<td><a href="../../validation/rl/#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic">R-05</a></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.indexes", "search.highlight", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js"></script>
+      
+        <script src="../../assets/diagrams.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
