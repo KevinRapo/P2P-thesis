@@ -16,7 +16,7 @@
 - **[P1]** Salazar-Peña, Tabares, González-Mancera. *MARLEM: A multi-agent
   reinforcement learning simulation framework for implicit cooperation in
   decentralized local energy markets.* Applied Energy 412 (2026) 127546.
-  [marlem.pdf](marlem.pdf). §3.2 (the Dec-POMDP) and §3.7 (paradigms and
+  [doi:10.1016/j.apenergy.2026.127546](https://doi.org/10.1016/j.apenergy.2026.127546). §3.2 (the Dec-POMDP) and §3.7 (paradigms and
   algorithms, in words). [P1] trains nothing; it defers "the full mathematical
   and implementation specifics" of MARL to [P2].
 - **[P2]** Same authors. *Harnessing Implicit Cooperation: A Multi-Agent

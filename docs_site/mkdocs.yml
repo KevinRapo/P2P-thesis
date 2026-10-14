@@ -8,8 +8,9 @@
 
 site_name: MARLEM clean
 site_description: MARLEM rebuilt on SimBench networks
+site_url: https://kevinrapo.github.io/P2P-thesis/
 repo_url: https://github.com/KevinRapo/P2P-thesis
-edit_uri: blob/clean/docs/
+edit_uri: blob/marlem-v1/docs/
 docs_dir: ../docs
 site_dir: ../site
 dev_addr: 127.0.0.1:8001
@@ -18,7 +19,7 @@ extra:
   # Links to code outside docs/ become links to this repository and branch.
   code_links:
     repo: https://github.com/KevinRapo/P2P-thesis
-    ref: clean
+    ref: marlem-v1
 
 hooks:
   - hooks.py
