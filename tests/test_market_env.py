@@ -260,3 +260,33 @@ def test_passes_rllib_environment_check(env):
     from ray.rllib.utils.pre_checks.env import check_multiagent_environments
 
     check_multiagent_environments(env)
+
+
+def test_paradigm_wrappers_over_the_market(env):
+    """The CTDE and CTCE wrappers see the market as the RL layer expects: under
+    CentralStateEnv each agent observes its own 16 values followed by all agents'
+    and keeps its own reward; under GroupedEnv one agent observes everything and
+    receives the sum of the rewards."""
+    from RL.core.fixed.grouping import GROUP, CentralStateEnv, GroupedEnv
+
+    config = {
+        "env_class": MarketEnv,
+        "env_config": {"scenario": str(SCENARIO), "days": DAYS},
+    }
+    n, d = len(env.agents_id), len(OBS_NAMES)
+
+    central = CentralStateEnv(config)
+    obs, _ = central.reset(seed=1)
+    assert all(o.shape == (d + n * d,) for o in obs.values())
+    actions = {a: np.array([0.5, 0.0], np.float32) for a in central.agents_id}
+    obs, rewards, term, _, _ = central.step(actions)
+    assert set(rewards) == set(central.agents_id)
+    first = central.agents_id[0]
+    np.testing.assert_array_equal(obs[first][d : 2 * d], obs[first][:d])
+
+    grouped = GroupedEnv(config)
+    obs, _ = grouped.reset(seed=1)
+    assert obs[GROUP].shape == (n * d,)
+    joint = np.tile(np.array([0.5, 0.0], np.float32), n)
+    _, rewards, _, _, infos = grouped.step({GROUP: joint})
+    assert rewards[GROUP] == pytest.approx(sum(infos[GROUP]["rewards"].values()))
