@@ -48,7 +48,7 @@ API_SECTIONS = [
     ("Market: the MARLEM market", "market", ["core.market"], None),
     ("Config: the scenario", "config", ["core.config"], None),
     ("Studio: pages, components, adapters", "studio", ["studio"], None),
-    ("RL: independent learning experiments", "rl", ["RL.core"], None),
+    ("RL: the learning layer", "rl", ["core.rl"], None),
 ]
 _API_PAGES: dict[str, str] = {}
 

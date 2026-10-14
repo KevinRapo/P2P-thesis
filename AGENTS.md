@@ -2,15 +2,8 @@
 
 MARLEM rebuilt step by step on SimBench networks: configure a local energy market,
 then step through it by hand and watch the network's power flow. Reinforcement
-learning lives in `RL/`, independent of the market layer.
-
-## Current stage: the core first, the Studio later
-
-Right now the work is making sure the market runs correctly on the SimBench
-network: `core/`, validated in `notebooks/`. **Do not update `studio/` in
-parallel.** Change `core/` and the notebooks only, and leave the Studio as it is
-until the user says to bring it up to date, even when a core change leaves a page
-behind. Note in the reply what the Studio will need then.
+learning lives in `core/rl/`, independent of the market layer; `core/runner/`
+is where the two meet: it starts and watches training experiments.
 
 ## Code structure
 
@@ -18,7 +11,14 @@ behind. Note in the reply what the Studio will need then.
 
 ```
 core/        the MARLEM functionality: everything a notebook can call
-notebooks/   calls core/ only: validates it without the Studio
+  grid/ config/ market/   the network, the scenario, the market
+  env/                    MarketEnv: the market as an RL environment
+  rl/                     the RL layer, with envs/ (test environments)
+  runner/                 experiments: start, watch and stop training runs
+experiments/ experiment specs (JSON): which runs to train
+scenarios/   saved scenario files (JSON)
+notebooks/   calls core/ only: validates it without the Studio (market/, rl/)
+tests/       market/, rl/ and runner/ checks
 studio/      the NiceGUI Studio: pages and components on top of adapters/
 ```
 
@@ -33,10 +33,16 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 | `core/config/` | The scenario (`Scenario`), placing participants on its network, saving and loading it |
 | `core/grid/` | The SimBench network: catalogue, topology, profiles, power flow. The only place that imports pandapower or simbench |
 | `core/market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `LocalEnergyMarket` (`lem.py`), the one class that runs a market step and its power flow |
-| `notebooks/` | Jupyter notebooks that call `core/` directly to validate it |
-| `studio/` | The NiceGUI Studio: `pages/`, `components/`, `adapters/`, layout, theme |
-| `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, workspace paths) |
-| `RL/` | Independent RL code, environments, notebooks, tests and runs; read `RL/AGENTS.md` before editing |
+| `core/env/` | `MarketEnv`: the market as an RLlib multi-agent environment |
+| `core/rl/` | The RL layer: the three paradigms on RLlib's algorithms (grouping, CTDE modules, configuration, policy, training, benchmark); `core/rl/envs/` holds the test environments (probes, toy, spread, shapes) |
+| `core/runner/` | Experiments: `spec.py` (the JSON spec and its grid of runs), `launch.py` (a detached worker and its job processes, `stop`), `registry.py` (read-only view of `runs/`), `__main__.py` (`python -m core.runner start / status / stop`). The one place that imports both `core.env` and `core.rl` |
+| `experiments/` | Experiment specs (JSON, tracked): algorithms x paradigms x seeds x variants, budgets, train and test days |
+| `scenarios/` | Saved scenarios (JSON, the Studio's format): the market notebook, the tests and the Studio's Open dialog read them |
+| `notebooks/` | Jupyter notebooks that call `core/` directly: `market/` validates the market, `rl/` validates the RL layer |
+| `tests/` | `market/` (market environment, power flow, Studio against core), `rl/` (probe environments, CTDE structure) and `runner/` (experiment specs, run states) |
+| `runs/` | Training runs, checkpoints and benchmark results (git-ignored); `runs/<experiment>/` is where the runner keeps its files, the one source of truth for CLI and Studio |
+| `studio/` | The NiceGUI Studio: `pages/` (inspect, grid, market, summary, step, runs, settings), `components/`, `adapters/`, layout, theme |
+| `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, the experiments in `runs/`, workspace paths) |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
 
@@ -48,7 +54,8 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   participants (`core/config/placement.py`). `core/config/` may import
   `core/grid/`, never the reverse. Every rule of the market or the network lives
   here, so a notebook can check it.
-- **`notebooks/`** import `core/` only, never `studio/`.
+- **`notebooks/`** import `core/` only, never `studio/`. They find the repository
+  root from wherever they run and write runs to `<root>/runs/`.
 - **`studio/adapters/`** is the Studio's thin layer over the core: caching,
   background threads, the current scenario, the market being played between
   clicks, workspace paths. No domain rules, no records that copy the core's:
@@ -93,9 +100,81 @@ Every folder and script, with how far it is built, is in
 - When adding code, put it in the section it belongs to; when a section grows its
   own purpose, give it its own banner.
 
-## RL isolation
+## Layers inside `core/`
 
-`RL/` keeps the former RL worktree's layout. Import it as `RL.core.*`, while the
-market remains `core.*`. Neither layer imports the other. RL notebooks call
-`RL.core` only. Market work follows the core-first guidance above; RL work follows
-`RL/AGENTS.md`.
+- `core/grid`, `core/config`, `core/market` import nothing from `core/env`,
+  `core/rl` or `core/runner`.
+- `core/rl` imports no market module: the environment arrives as a class, so the
+  probes still test it alone.
+- `core/env` imports the market, never `core/rl`.
+- `core/runner` is the one place that knows both `core/env` and `core/rl`; it
+  imports them only inside a job, so reading status stays fast. Neither imports
+  the runner.
+
+## RL layer (`core/rl/`)
+
+The three paradigms on RLlib's own PPO, APPO and SAC, with RLlib's own modules.
+Each file's docstring names the issues it fixes (IDs in
+[validation/rl.md](docs/validation/rl.md)). The original code and its
+annotations (`FAULT`, `DECIDE`, `DEVIATION` comments) live on the `clean`
+branch, under `RL/core/rl/`.
+
+| File | What it is |
+|---|---|
+| `grouping.py` | `GroupedEnv` (CTCE): all agents as one, joint `Box` spaces in agent order, summed reward. `CentralStateEnv` (CTDE): each agent observes `[o_i, o_1..o_N]`, own reward |
+| `ctde_modules.py` | CTDE: one RLlib default module per agent; the actor reads only the agent's own observation, the critic all of it (MAPPO / MASAC with per-agent critics) |
+| `config.py` | `build_config`: one algorithm and paradigm; `SETTINGS` (the original's hyperparameters, less the defective ones) |
+| `policy.py` | `Policy` (acts as training does), baselines, `rollout`, `evaluate` on held-out seeds |
+| `train.py` | `train(Run(...))`: budget in environment steps, NaN stop, `run.json`, metrics, evaluation, checkpoint; `load_policy` |
+| `benchmark.py` | `benchmark(Bench(...))`: time one algorithm and paradigm at one problem size (build, warm-up, timed iterations, sampling alone), with every setting that decides the cost in the record |
+
+- No custom losses, distributions or training loops: only the environment
+  (grouping, central state) and, for CTDE, what the actor reads differ between
+  paradigms.
+- Objectives: DTDE and CTDE learn from each agent's own reward (per-agent
+  critics, advantages and PPO clip); CTCE is one controller on the summed
+  reward (social planner).
+- Same network settings for every paradigm (RLlib's defaults).
+- Runs write to `runs/` (not in git).
+
+### Environments (`core/rl/envs/`)
+
+- `probes.py`: probe environments after Andy Jones's guide
+  (https://andyljones.com/posts/rl-debugging.html), multi-agent and continuous;
+  each adds one piece of the learning problem and has an exact answer. They
+  validate the training paradigms; run them first after any change to
+  `core/rl/`, `spread.py`, `toy.py` or `shapes.py` (`notebooks/rl/probe_paradigms.ipynb`
+  and `tests/rl/`).
+- `spread.py`: Farama MPE2 `simple_spread` (3 agents cover 3 landmarks, cooperative,
+  continuous actions `Box(0, 1, (5,))`: no-op, left, right, down, up), the second
+  test after the probes, as a 3 x 3 matrix of paradigms and algorithms
+  (`notebooks/rl/simple_spread.ipynb`). Needs `pip install mpe2` (PettingZoo,
+  pygame-ce); `baseline_return` gives the random and zero-action returns to read
+  curves against.
+- `toy.py`: two small tasks with a known best return (individual and team
+  reward), for comparing how fast the paradigms learn.
+- `shapes.py`: `MarketShapedEnv`, N agents with the market's sizes (42
+  observations, 4 actions, 24-step days), random observations and a cheap
+  learnable reward: times the RL layer at market size without the market
+  (`notebooks/rl/benchmark_speed.ipynb`, results in `runs/benchmark/`). The
+  market's own time per step comes from
+  `notebooks/market/benchmark_market_step.ipynb`.
+
+An environment the trainer can use: a `MultiAgentEnv` built as
+`Env(env_config)`, with `agents_id`, `observation_spaces` and `action_spaces`
+(one `Box` per agent), and `"__all__"` in `terminateds` and `truncateds`. This
+is what the market environment (`core/env/`) provides too.
+
+### Running
+
+- RL notebooks put the repository root on `PYTHONPATH` before Ray starts, so
+  worker processes can import `core.rl`.
+- Several worker processes that each load torch (parallel runs, or
+  `num_env_runners > 0`) can fail with "The paging file is too small" on this
+  machine when memory is short; the default runs everything in the driver.
+- Training experiments are started with `python -m core.runner` (see
+  `docs/v1.md` section 4), not from a notebook cell, so they outlive the session.
+  Ray's start-up sometimes fails on this machine under load (a run then shows
+  `failed` or `lost`); `start` on the same experiment re-runs only those.
+- New Python files: Black style, 88-character lines.
+- Never `git stash` in these worktrees.

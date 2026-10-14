@@ -7,18 +7,18 @@
 > [One training iteration](cycle.md); it appears here only where our code feeds
 > it or reads from it. Step labels (A4, C2, ...) are those of that page.
 
-**The code** is the fixed implementation in `RL/core/fixed/` in this repository.
+**The code** is the fixed implementation in `core/rl/` in this repository.
 The links point to the local files.
 Every number below was computed with that code or with RLlib's own functions
 (`unsquash_action`), not by hand.
 
 | File | What it defines | Section here |
 |---|---|---|
-| [grouping.py](../../RL/core/fixed/grouping.py) | `GroupedEnv`: all agents as one, for CTCE and CTDE | 1, 2, 4 |
-| [ctde_modules.py](../../RL/core/fixed/ctde_modules.py) | CTDE: RLlib's modules with one actor per agent | 3, 5 |
-| [config.py](../../RL/core/fixed/config.py) | the settings of each of the nine combinations | 6 |
-| [policy.py](../../RL/core/fixed/policy.py) | acting with a trained policy, baselines, the team score | 7 |
-| [train.py](../../RL/core/fixed/train.py) | the budget, the NaN stop, when evaluation runs | 8 |
+| [grouping.py](../../core/rl/grouping.py) | `GroupedEnv`: all agents as one, for CTCE and CTDE | 1, 2, 4 |
+| [ctde_modules.py](../../core/rl/ctde_modules.py) | CTDE: RLlib's modules with one actor per agent | 3, 5 |
+| [config.py](../../core/rl/config.py) | the settings of each of the nine combinations | 6 |
+| [policy.py](../../core/rl/policy.py) | acting with a trained policy, baselines, the team score | 7 |
+| [train.py](../../core/rl/train.py) | the budget, the NaN stop, when evaluation runs | 8 |
 
 ## The example
 
@@ -38,15 +38,15 @@ So $N = 3$, $d_o = 2$, $d_a = 2$.
 
 ## 1. Grouping the observations (A1, CTCE and CTDE)
 
-[`GroupedEnv`](../../RL/core/fixed/grouping.py#L62-L123) turns the three
+[`GroupedEnv`](../../core/rl/grouping.py#L62-L123) turns the three
 agents into one agent, `"group"`. Its observation is the agents' observations side
 by side, **in the environment's order** (`join`,
-[grouping.py L55-L59](../../RL/core/fixed/grouping.py#L55-L59)):
+[grouping.py L55-L59](../../core/rl/grouping.py#L55-L59)):
 
 $$s = (\underbrace{0.4,\ 0.8}_{\texttt{agent\_2}},\ \underbrace{-0.2,\ 0.5}_{\texttt{agent\_10}},\ \underbrace{0.9,\ 0.1}_{\texttt{agent\_1}}) \in \mathbb{R}^6.$$
 
 The action space is joined the same way (`join_spaces`,
-[L28-L34](../../RL/core/fixed/grouping.py#L28-L34)), each agent's bounds
+[L28-L34](../../core/rl/grouping.py#L28-L34)), each agent's bounds
 in its own slice:
 
 | Position | 1 | 2 | 3 | 4 | 5 | 6 |
@@ -98,7 +98,7 @@ market gets the bound −2, but the batch keeps $u = -1.241$ and the learner tra
 on it.
 
 **Splitting back (A5).** `GroupedEnv.step` cuts the joint action into the agents'
-parts (`split`, [L46-L52](../../RL/core/fixed/grouping.py#L46-L52)) and
+parts (`split`, [L46-L52](../../core/rl/grouping.py#L46-L52)) and
 passes them to the environment:
 
 ```python
@@ -108,20 +108,20 @@ passes them to the environment:
 ## 3. CTDE: one actor per agent (A2)
 
 In CTDE each agent's action may depend only on its own observation. Our module
-([ctde_modules.py L134-L140](../../RL/core/fixed/ctde_modules.py#L134-L140)) is
+([ctde_modules.py L134-L140](../../core/rl/ctde_modules.py#L134-L140)) is
 RLlib's PPO module for the group with the actor replaced by three separate ones,
 each the network RLlib would build for that agent alone (`agent_actors`,
-[L99-L119](../../RL/core/fixed/ctde_modules.py#L99-L119)). The critic is left
+[L99-L119](../../core/rl/ctde_modules.py#L99-L119)). The critic is left
 as RLlib builds it, on all of $s$.
 
 **Encoders** (`AgentEncoders`,
-[L48-L66](../../RL/core/fixed/ctde_modules.py#L48-L66)). Agent $i$'s encoder
+[L48-L66](../../core/rl/ctde_modules.py#L48-L66)). Agent $i$'s encoder
 reads only its slice of $s$: `agent_2`'s positions 1-2 = (0.4, 0.8), `agent_10`'s
 3-4 = (−0.2, 0.5), `agent_1`'s 5-6 = (0.9, 0.1). Each turns its 2 numbers into a
 256-number latent, $h_i$; the three latents are put side by side (768 numbers).
 
 **Heads** (`AgentHeads`,
-[L69-L96](../../RL/core/fixed/ctde_modules.py#L69-L96)). Head $i$ reads only
+[L69-L96](../../core/rl/ctde_modules.py#L69-L96)). Head $i$ reads only
 $h_i$ and outputs $[m_{i}, \ell_{i}]$ for its 2 action dimensions. Say:
 
 | Agent | Head output $[m_q, m_p, \ell_q, \ell_p]$ |
@@ -154,7 +154,7 @@ CTDE's actor is the three DTDE actors, and its critic is CTCE's.
 ## 4. The group's reward (A5, B4)
 
 `GroupedEnv.step` returns one reward for the group, the sum of the agents'
-([L104-L123](../../RL/core/fixed/grouping.py#L104-L123)). With the market
+([L104-L123](../../core/rl/grouping.py#L104-L123)). With the market
 paying
 
 $$r_{\texttt{agent\_2}} = 1.50, \qquad r_{\texttt{agent\_10}} = -0.50, \qquad r_{\texttt{agent\_1}} = 0.25,$$
@@ -231,7 +231,7 @@ none ([I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act)).
 
 ## 6. The settings we choose
 
-[`SETTINGS` and `MODEL`](../../RL/core/fixed/config.py#L72-L106), and
+[`SETTINGS` and `MODEL`](../../core/rl/config.py#L72-L106), and
 what each changes in the cycle:
 
 | Setting | Value | What it does in the cycle |
@@ -253,10 +253,10 @@ counts environment steps, so all paradigms get the same amount of experience.
 
 ## 7. Evaluating a trained policy
 
-[`Policy`](../../RL/core/fixed/policy.py#L54-L131) acts with the trained
+[`Policy`](../../core/rl/policy.py#L54-L131) acts with the trained
 module outside RLlib, the same way RLlib does in training, but without noise.
 
-**The action** (`act`, [L96-L111](../../RL/core/fixed/policy.py#L96-L111)).
+**The action** (`act`, [L96-L111](../../core/rl/policy.py#L96-L111)).
 The most likely action is the mean, then RLlib's own rescaling with the joint
 bounds, then the split:
 
@@ -268,18 +268,18 @@ bounds, then the split:
 For example `agent_10`'s quantity: $-20 + (-0.60 + 1) \times 20 = -12.0$. SAC's
 actions are squashed by tanh, so its most likely action is $\tanh m$; RLlib's own
 deterministic SAC action skips the tanh in Ray 2.51.1, so `_deterministic`
-([L39-L51](../../RL/core/fixed/policy.py#L39-L51)) applies it. The
+([L39-L51](../../core/rl/policy.py#L39-L51)) applies it. The
 original's inference used the mean without rescaling, so `agent_10` would have bid
 −0.60 kWh ([I-61](../validation/rl.md#i-61-standalone-inference-does-not-act-like-training)).
 
-**Baselines** ([L137-L165](../../RL/core/fixed/policy.py#L137-L165)).
+**Baselines** ([L137-L165](../../core/rl/policy.py#L137-L165)).
 "Random" draws each action uniformly within its bounds. "Zero" sends 0 in the
 market's units, clipped to the bounds: quantity 0, price $\max(0, 0.05) = 0.05$
 for every agent. It is *not* the network's 0, which would be the middle of the
 bounds (price 0.20).
 
 **The team score** (`Episode`,
-[L172-L192](../../RL/core/fixed/policy.py#L172-L192)). Every paradigm is
+[L172-L192](../../core/rl/policy.py#L172-L192)). Every paradigm is
 scored in the original multi-agent environment, from the raw per-agent rewards.
 Over a 3-step episode:
 
@@ -296,24 +296,24 @@ combinations and the baselines can be ranked on one scale
 ([I-73](../validation/rl.md#i-73-returns-of-the-paradigms-are-compared-across-different-scales)).
 Evaluation episodes use seeds from 1 000 000 on, which training never reaches
 (`evaluation_seeds`,
-[L245-L249](../../RL/core/fixed/policy.py#L245-L249)).
+[L245-L249](../../core/rl/policy.py#L245-L249)).
 
 `Policy.values` gives the critic's estimate of a state; in CTCE and CTDE that is
 the group's value, comparable to the team score, not to one agent's return.
 
 ## 8. The run: budget, NaN stop, evaluation
 
-[`train`](../../RL/core/fixed/train.py#L238-L335) repeats RLlib's
+[`train`](../../core/rl/train.py#L238-L335) repeats RLlib's
 iteration until the budget of environment steps is used up.
 
 **Budget.** `budget = 100_000` with PPO's 4000 steps per iteration: 25 iterations,
 for every paradigm. With `eval_every = 20_000`, the policy and baselines are
 evaluated at 0 (untrained, together with random and zero), 20 000, 40 000, 60 000,
 80 000 and at the end, 100 000
-([L283-L302](../../RL/core/fixed/train.py#L288-L307)).
+([L283-L302](../../core/rl/train.py#L288-L307)).
 
 **NaN stop** (`_nonfinite`,
-[L194-L209](../../RL/core/fixed/train.py#L199-L214)). After each
+[L194-L209](../../core/rl/train.py#L199-L214)). After each
 iteration the learner's results are searched for losses, entropies and the SAC
 temperature that are NaN or infinite. For
 

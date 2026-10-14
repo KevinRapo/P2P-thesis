@@ -3,7 +3,7 @@
 The Studio restarts on every code change, so the scenario is saved after every edit
 and read back at start. Placing participants follows the rules of
 ``core/config/placement.py``. A scenario file (a notebook's, e.g.
-``notebooks/scenarios/validate_market.json``) can be opened in its place.
+``scenarios/validate_market.json``) can be opened in its place.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class ScenarioService:
     Args:
         path: Where the scenario is kept (``Workspace.scenario_file``).
         library: The folder of scenario files offered to open
-            (``notebooks/scenarios``).
+            (``scenarios``).
     """
 
     def __init__(self, path: Path, library: Path | None = None) -> None:

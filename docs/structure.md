@@ -9,12 +9,15 @@ step), and `core/config/` describes a scenario. `notebooks/` call `core/`
 directly to validate it. The NiceGUI Studio is in `studio/`: pages and components
 call `studio/adapters/`, a thin layer over `core/`. `core/` never imports `studio/`
 or `notebooks/`, so anything that looks wrong in the Studio can be reproduced in
-a notebook to tell a core problem from a UI one. The separate `RL/` folder holds
-the RL implementation and experiments; it does not import the market.
+a notebook to tell a core problem from a UI one. `core/env/` makes the market an
+RL environment; `core/rl/` is the RL layer, which imports no market module (the
+environment arrives as a class), so its probes test it alone. `core/runner/` is the
+one place that knows both: it starts, watches and stops training experiments
+(specs in `experiments/`, results in `runs/`).
 
 ```mermaid
 flowchart LR
-  root(["marlem-clean"])
+  root(["marlem-v1"])
 
   root --> core["core/"]
 
@@ -47,31 +50,48 @@ flowchart LR
   core --> env["env/"]
   env --> e1["market_env.py"]:::done
 
-  root --> notebooks["notebooks/"]
-  notebooks --> n1["validate_market.ipynb"]:::done
-  notebooks --> n2["scenarios/validate_market.json"]:::done
-  notebooks --> n3["benchmark_market_step.ipynb<br/>results/market_step.csv"]:::done
+  core --> rlcore["rl/"]
+  rlcore --> r1["config.py · grouping.py · ctde_modules.py<br/>policy.py · train.py · benchmark.py"]:::done
+  rlcore --> renvs["envs/"]
+  renvs --> r2["probes.py · toy.py · spread.py · shapes.py"]:::done
 
-  root --> rl["RL/"]
-  rl --> rc["core/rl/ / core/fixed/ / core/envs/"]:::done
-  rl --> rn["notebooks/original/ / notebooks/fixed/"]:::done
-  rl --> rt["tests/ / runs/ (local results)"]:::done
+  core --> runnercore["runner/"]
+  runnercore --> ru1["spec.py · launch.py · registry.py<br/>__main__.py"]:::done
+
+  root --> exps["experiments/"]
+  exps --> ex1["smoke.json · sac_alpha.json<br/>market_3x3.json"]:::data
+
+  root --> scen["scenarios/"]
+  scen --> s1["validate_market.json"]:::done
+
+  root --> notebooks["notebooks/"]
+  notebooks --> nm["market/"]
+  nm --> n1["validate_market.ipynb"]:::done
+  nm --> n3["benchmark_market_step.ipynb<br/>results/market_step.csv"]:::done
+  notebooks --> nr["rl/"]
+  nr --> nr1["probe_paradigms · probe_playground<br/>simple_spread · benchmark_speed"]:::done
 
   root --> tests["tests/"]
-  tests --> x1["test_studio_matches_core.py"]:::done
-  tests --> x2["test_market_env.py"]:::done
+  tests --> tm["market/"]
+  tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py"]:::done
+  tests --> tr["rl/"]
+  tr --> x2["test_0 to test_6 · probe_helpers.py · conftest.py"]:::done
+  tests --> tru["runner/"]
+  tru --> x3["test_runner.py · test_run_service.py"]:::done
+
+  root --> runs["runs/ (local results, not in git)"]:::data
 
   root --> studio["studio/"]
   studio --> t1["app.py · layout.py · navigation.py<br/>state.py · theme.py · static/"]:::done
   studio --> pages["pages/"]
   pages --> pg1["inspect.py · settings.py"]:::done
-  pages --> pg2["grid_participants.py · market_dso.py<br/>summary.py · step.py"]:::done
+  pages --> pg2["grid_participants.py · market_dso.py<br/>summary.py · step.py · runs.py"]:::done
   studio --> comps["components/"]
   comps --> k1["network.py · profiles.py · charts.py · cards.py<br/>tables.py · labels.py · day_profiles.py"]:::done
   studio --> adapters["adapters/"]
   adapters --> v1["container.py · workspace.py · models.py"]:::done
   adapters --> v2["grid_catalog_service.py · profile_service.py<br/>profile_classes.py"]:::done
-  adapters --> v3["scenario_service.py · market_service.py"]:::done
+  adapters --> v3["scenario_service.py · market_service.py<br/>run_service.py"]:::done
 
   classDef done fill:#dcfce7,stroke:#15803d,color:#111
   classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
@@ -138,6 +158,51 @@ the step's record to observations and rewards; the market rules stay in
 | `market_env.py` | `MarketEnv`: 16 normalised observations per agent (`OBS_NAMES`), 2 actions (signed quantity with a dead zone, price between the feed-in tariff and the utility price), reward = scaled net energy bill (profit less untraded imports at the utility price), episode = one day drawn from `days`, terminated at the day end; baselines `zero_policy`, `net_position_policy`. The module docstring documents the interface | done |
 | `__init__.py` | Public imports: `MarketEnv`, `OBS_NAMES`, `net_position_policy`, `zero_policy` | done |
 
+## core/rl/: the reinforcement-learning layer
+
+The three paradigms (CTCE, CTDE, DTDE) on RLlib's own PPO, APPO and SAC. It
+imports no market module: the environment is passed in as a class. Each file's
+docstring names the issues it fixes ([validation/rl.md](validation/rl.md)). The
+original code and its annotations live on the `clean` branch.
+
+| Script | What it does | State |
+|---|---|---|
+| `grouping.py` | `GroupedEnv` (CTCE: joint observations and actions, summed reward); `CentralStateEnv` (CTDE: own observation plus the global state, own reward) | done |
+| `ctde_modules.py` | CTDE: one RLlib module per agent, actor on its own observation, critic on the global state | done |
+| `config.py` | Algorithms, paradigms and configuration (`build_config`, `SETTINGS`) | done |
+| `policy.py` | Policy actions, baselines, rollout and evaluation | done |
+| `train.py` | `train(Run(...))`: training budgets, metrics, run records and saved policies; `load_policy` | done |
+| `benchmark.py` | Build, training and sampling timings | done |
+| `envs/probes.py` | Five probe tasks with known answers | done |
+| `envs/toy.py` | Individual and team toy tasks | done |
+| `envs/spread.py` | MPE2 simple_spread and visualisation helpers | done |
+| `envs/shapes.py` | Cheap environment with the market's observation and action sizes | done |
+| `__init__.py`, `envs/__init__.py` | Public imports | done |
+
+## core/runner/: experiments
+
+Start training runs that outlive the terminal, the Studio and the Claude session,
+and watch them from files only. The one place that imports both `core/env/` and
+`core/rl/` (inside a job; the rest stays light). An experiment is a spec in
+`experiments/`; `start` copies it to `runs/<name>/experiment.json`, writes a
+`status.json` per run and spawns one detached worker, which keeps `max_parallel`
+job processes training (one run each, then a held-out evaluation).
+
+| Script | What it does | State |
+|---|---|---|
+| `spec.py` | `Experiment`: the JSON spec (validated early), expanded to one `RunSpec` per algorithm x paradigm x variant x seed, each building a `core.rl.Run` | done |
+| `launch.py` | `start` (queue, detached worker), `work` (the worker loop), `job` (train, held-out evaluation, status), `stop` (kill worker and process trees, checked by pid and start time) | done |
+| `registry.py` | Read-only view of `runs/`: `experiments()`, `runs(experiment)` with a `RunState` per run (state, progress, ETA, last and held-out score); detects `lost` runs | done |
+| `__main__.py` | `python -m core.runner start / status / stop`, plus the internal `work` and `job` | done |
+
+## experiments/: what to train
+
+| File | What it is | State |
+|---|---|---|
+| `smoke.json` | Two tiny PPO-DTDE runs, to check the runner end to end (a few minutes) | done |
+| `sac_alpha.json` | SAC-DTDE on the market with initial temperatures 1, 0.1 and 0.01 | done, not run |
+| `market_3x3.json` | Three algorithms x three paradigms on the market, one seed | done, not run |
+
 ## studio/: the user interface
 
 NiceGUI, port 8090. A page is one file in `pages/`; code goes to `components/`
@@ -146,38 +211,57 @@ only when more than one place uses it.
 | Script | What it does | State |
 |---|---|---|
 | `app.py` | Registers the pages and starts the server | done |
-| `layout.py`, `navigation.py`, `theme.py`, `static/` | Page frame, left navigation, colours and styles; the header names the current scenario and opens another from a scenario file (`notebooks/scenarios/` or an upload) | done |
+| `layout.py`, `navigation.py`, `theme.py`, `static/` | Page frame, left navigation, colours and styles; the header names the current scenario and opens another from a scenario file (`scenarios/` or an upload) | done |
 | `state.py` | The adapters (`services()`), built once | done |
 | `pages/inspect.py` | Inspect: any network in depth, all SimBench profiles, two networks compared | done |
 | `pages/settings.py` | Workspace folder, network cache and its coverage, dark mode | done |
 | `pages/grid_participants.py` | Network, day, step length, background, limits; participants placed by clicking buses or per load or prosumer bus; batteries | done |
 | `pages/market_dso.py` | Pricing mechanism, bounds, preferred partners, ledger; the bidding rule; the DSO's tariffs | done |
 | `pages/summary.py` | Summary before running: readiness checks; tab Settings (every grid, market, DSO and battery setting once, the participants' day, the network) and tab Day profiles | done |
+| `pages/runs.py` | Runs: the training experiments in `runs/`, refreshed every 2 s. One card per experiment (newest first): runs per state, worker alive or not, Stop experiment (with confirmation); a table of its runs with state badge, progress bar, env steps / budget, elapsed, ETA, last evaluation and held-out return, a Stop button per queued or running run, and the error of a failed run in a tooltip | done |
 | `pages/step.py` | One click per part of a step (orders, the three stages, settle and power flow): order book, network with trades and voltages, trades, participants, the day so far | done |
 | `components/network.py` | Network picker with filters, summary, topology plot, element table, profile inspector | done |
 | `components/profiles.py`, `charts.py`, `cards.py`, `tables.py` | Profile class tiles, Plotly figures (also the day's curves), cards, tables | done |
 | `components/day_profiles.py` | The Summary's Day profiles tab: every element on the scenario's day, participants (they trade) apart from the background; summed curves, single curves by row selection | done |
 | `components/labels.py` | The names shown for mechanisms, background modes and step lengths, shared by the settings and summary pages | done |
 
+## scenarios/: saved scenarios
+
+| File | What it is | State |
+|---|---|---|
+| `validate_market.json` | The market notebook's scenario, saved by it in the Studio's format: open it from the Studio's header (Scenario: ... → Open) to play the same scenario there. Also the scenario of `tests/market/` and of the market environment's examples | done |
+
 ## notebooks/: the core without the Studio
 
-Notebooks import `core/` only. Run them with the `marlem` conda env as kernel.
+Notebooks import `core/` only. Run them with the `marlem` conda env as kernel;
+their setup cell finds the repository root from wherever they run. Runs go to
+`runs/` in the root.
 
 | Notebook | What it does | State |
 |---|---|---|
-| `validate_market.ipynb` | Scenario, inputs per step, one step part by part, the whole day, rule checks, experiments side by side | done |
-| `scenarios/validate_market.json` | The notebook's scenario, saved by it in the Studio's format: open it from the Studio's header (Scenario: … → Open) to play the same scenario there | done |
-| `benchmark_market_step.ipynb` | Time per market step on SimBench LV networks of 13 to 118 participants (random orders), split into market logic, grid preparation and the power flow; the floor under a training run on the market | done |
-| `results/market_step.csv` | That notebook's summary, read by the RL speed benchmark (`RL/notebooks/fixed/benchmark_speed.ipynb`) | done |
+| `market/validate_market.ipynb` | Scenario, inputs per step, one step part by part, the whole day, rule checks, experiments side by side | done |
+| `market/benchmark_market_step.ipynb` | Time per market step on SimBench LV networks of 13 to 118 participants (random orders), split into market logic, grid preparation and the power flow; the floor under a training run on the market | done |
+| `market/results/market_step.csv` | That notebook's summary, read by the RL speed benchmark (`notebooks/rl/benchmark_speed.ipynb`) | done |
+| `rl/probe_paradigms.ipynb` | The probe environments on every combination of algorithm and paradigm: run these first after any change to `core/rl/` | done |
+| `rl/probe_playground.ipynb` | Inspect learning iteration by iteration | done |
+| `rl/simple_spread.ipynb` | MPE2 `simple_spread`, the second test after the probes | done |
+| `rl/benchmark_speed.ipynb` | Compare RL timing with `notebooks/market/results/market_step.csv` | done |
 
-## tests/: the Studio against the core
+## tests/: market and RL checks
 
-Run with `python -m pytest tests` in the `marlem` conda env.
+Run with `python -m pytest` from the root in the `marlem` conda env (`pytest.ini`
+sets `testpaths = tests` and `pythonpath = .`).
 
 | Test | What it checks | State |
 |---|---|---|
-| `test_studio_matches_core.py` | `validate_market.json` read by `ScenarioService` and stepped part by part by `MarketService` gives the same `StepRecord`s as `LocalEnergyMarket.run_to_end` | done |
-| `test_market_env.py` | `MarketEnv` on `validate_market.json`: spaces, a zero-action day, the reward as the scaled net bill, action decoding (quantity, price, dead zone), reproducible day draw, `net_position_policy` against `zero_policy`, RLlib's multi-agent environment check | done |
+| `market/test_studio_matches_core.py` | `validate_market.json` read by `ScenarioService` and stepped part by part by `MarketService` gives the same `StepRecord`s as `LocalEnergyMarket.run_to_end` | done |
+| `market/test_market_env.py` | `MarketEnv` on `validate_market.json`: spaces, a zero-action day, the reward as the scaled net bill, action decoding (quantity, price, dead zone), reproducible day draw, `net_position_policy` against `zero_policy`, RLlib's multi-agent environment check | done |
+| `market/test_powerflow_recycle.py` | pandapower's `recycle` in the step power flow gives the same grid results | done |
+| `rl/test_0_every_probe.py` to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
+| `rl/test_6_ctde_structure.py` | The CTDE modules' structure: what the actor and the critic read | done |
+| `rl/probe_helpers.py`, `rl/conftest.py` | Shared assertions and readable test output (each test's docstring is printed) | done |
+| `runner/test_runner.py` | Experiment specs (grid names, budgets, variants, date ranges, validation errors) and the registry's run states (queued, running, lost, completed, failed, legacy, progress and ETA); no training | done |
+| `runner/test_run_service.py` | The Studio's `RunService` over a temporary `runs/` (`MARLEM_RUNS`): experiments newest first, runs, spec, stopping queued runs | done |
 
 ## studio/adapters/: what the pages call
 
@@ -193,42 +277,8 @@ market or pandapower directly.
 | `profile_classes.py` | SimBench's profile classes and how a profile name is classified | done |
 | `models.py` | The data types only the Studio needs: profile classes, profile types, chart series, a day's element profiles | done |
 | `scenario_service.py` | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants; lists, reads and opens scenario files | done |
+| `run_service.py` | The experiments in `runs/` and their runs, as the runner's registry reports them (`RunState`), newest folder first; stops an experiment or one run through `core.runner.launch.stop` | done |
 | `market_service.py` | Builds and holds the `LocalEnergyMarket` the Step page plays; build, next part, step, run to the end, clear (when another scenario is opened) | done |
-
-## RL/: independent reinforcement learning
-
-Copied from the `RL` branch, including the uncommitted benchmark work. The inner
-layout is preserved; Python imports use `RL.core.*` to avoid the market's `core`.
-Neither implementation imports the other. Paths below are relative to `RL/`.
-Run `python -m pytest RL/tests` from the clean root, or `python -m pytest` in `RL/`.
-Notebooks locate `RL/` and put the clean root on `PYTHONPATH` for worker processes.
-
-| Path | What it does |
-|---|---|
-| `core/rl/base.py` | Original algorithm/paradigm enums and module protection |
-| `core/rl/ctce.py`, `core/rl/ctde.py` | Original central and per-agent actor modules, with issue annotations |
-| `core/rl/train.py`, `core/rl/inference.py` | Original trainer and inference, isolated from the market |
-| `core/rl/local.py`, `core/rl/probe.py` | Training in one process and reading learned probe outputs |
-| `core/fixed/grouping.py` | `GroupedEnv` (CTCE: joint observations and actions, summed reward); `CentralStateEnv` (CTDE: own observation plus the global state, own reward) |
-| `core/fixed/ctde_modules.py` | CTDE: one RLlib module per agent, actor on its own observation, critic on the global state |
-| `core/fixed/config.py` | Algorithms, paradigms and configuration |
-| `core/fixed/policy.py` | Policy actions, baselines, rollout and evaluation |
-| `core/fixed/train.py` | Training budgets, metrics, run records and saved policies |
-| `core/fixed/benchmark.py` | Build, training and sampling timings |
-| `core/envs/probes.py` | Five probe tasks with known answers |
-| `core/envs/toy.py` | Individual and team toy tasks |
-| `core/envs/spread.py` | MPE2 simple_spread and visualisation helpers |
-| `core/envs/shapes.py` | Cheap environment with the market's observation/action sizes |
-| `notebooks/original/probe_paradigms.ipynb`, `simple_spread.ipynb`, `validate_rl.ipynb` | Validate the original RL implementation |
-| `notebooks/fixed/probe_paradigms.ipynb`, `simple_spread.ipynb` | Validate the fixed implementation |
-| `notebooks/fixed/probe_playground.ipynb` | Inspect learning iteration by iteration |
-| `notebooks/fixed/benchmark_speed.ipynb` | Compare RL timing with `../notebooks/results/market_step.csv` |
-| `tests/test_0_every_probe.py` through `test_5_obs_action_probe.py` | Deterministic environment checks |
-| `tests/probe_helpers.py`, `tests/conftest.py` | Shared assertions and readable test output |
-| `runs/` | Copied local results and checkpoints; ignored by Git |
-| `__init__.py`, `core/**/__init__.py` | Package markers and public imports |
-| `README.md`, `AGENTS.md`, `LICENSE` | Running instructions, development rules and original license |
-| `pytest.ini`, `.vscode/settings.json`, `.gitignore` | Local test configuration, editor settings and ignored outputs |
 
 ## Around the code
 
@@ -239,7 +289,8 @@ Notebooks locate `RL/` and put the clean root on `PYTHONPATH` for worker process
 | `run_studio.py` | Starts the Studio with auto-reload |
 | `run_all.py` | Starts the dev servers (both branches' docs and Studios) in their own windows |
 | `AGENTS.md` | Rules for working in this repository |
-| `pytest.ini` | Discover market and RL tests together from the clean root |
+| `pytest.ini` | Discover the market and RL tests together from the root (`tests/`) |
+| `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, worker.json, worker.log, <run>/{status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}` |
 | `.vscode/` | Launch entries and the Python interpreter |
 
 ## Choices in the rebuilt market step
