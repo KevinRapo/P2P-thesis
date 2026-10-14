@@ -2198,17 +2198,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#core.market.clearing.ClearingRules.grid_balance_kwh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;grid_balance_kwh
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#core.market.clearing.ClearingRules.threshold_kwh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4403,17 +4392,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#core.market.clearing.ClearingRules.grid_balance_kwh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;grid_balance_kwh
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#core.market.clearing.ClearingRules.threshold_kwh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4500,9 +4478,9 @@ over, so the Studio can show the market after every stage:</p>
                   ``core/market/dso/dso.py``)
 </code></pre></div>
 <p>The stages work on copies: the orders as submitted are never changed. Every trade
-leaves its stage assessed by the DSO: distance d_ij, transmission loss l_ij ([P1]
-eq. 18, recorded: the market stays lossless, the power flow has the physical
-losses) and grid fee ([P1] eq. 8).</p>
+leaves its stage with its distance d_ij and transmission loss l_ij ([P1] eq. 18,
+recorded: the market stays lossless, the power flow has the physical losses). Its
+grid fee ([P1] eq. 8) follows the step's power flow (<code>Dso.charge</code>).</p>
 
 
 
@@ -4981,7 +4959,6 @@ losses) and grid fee ([P1] eq. 8).</p>
     <span class="n">upstream</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span>
         <span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">GridPath</span>
     <span class="p">]</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">participant</span><span class="p">:</span> <span class="n">GridPath</span><span class="p">(),</span>
-    <span class="n">grid_balance_kwh</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="n">threshold_kwh</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-06</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -5088,7 +5065,7 @@ auction's tie-break.</p>
             <td>
               <div class="doc-md-description">
                 <p>The grid path between two participants (distance, lines, zones),
-for the DSO's losses and fees.</p>
+for the DSO's distances and losses.</p>
               </div>
             </td>
           </tr>
@@ -5112,24 +5089,6 @@ for the DSO's losses and fees.</p>
               <div class="doc-md-description">
                 <p>A participant's path to the transformer's busbar, where the
 DSO's energy enters: the route of its trades with the DSO.</p>
-              </div>
-            </td>
-          </tr>
-          <tr class="doc-section-item">
-            <td><code><a class="autorefs autorefs-internal" title="            grid_balance_kwh
-
-
-  
-      class-attribute
-      instance-attribute
-   (core.market.clearing.ClearingRules.grid_balance_kwh)" href="#core.market.clearing.ClearingRules.grid_balance_kwh">grid_balance_kwh</a></code></td>
-            <td>
-                  <code><span title="float">float</span></code>
-            </td>
-            <td>
-              <div class="doc-md-description">
-                <p>The market's balance B_grid before stage 3 ([P1] eq.
-20; + excess supply), for the imbalance fee of stage 3 (eq. 8b).</p>
               </div>
             </td>
           </tr>
@@ -5321,29 +5280,6 @@ DSO's energy enters: the route of its trades with the DSO.</p>
 
 
 
-<h3 id="core.market.clearing.ClearingRules.grid_balance_kwh" class="doc doc-heading">
-<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">grid_balance_kwh</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
-      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
-  </span>
-
-<a href="#core.market.clearing.ClearingRules.grid_balance_kwh" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="n">grid_balance_kwh</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-    </div>
-
-</div>
-
-<div class="doc doc-object doc-attribute">
-
-
-
 <h3 id="core.market.clearing.ClearingRules.threshold_kwh" class="doc doc-heading">
 <code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">threshold_kwh</span>
 
@@ -5398,7 +5334,9 @@ price, when the bid reaches the ask (as the original's
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\clearing.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">112</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
 <span class="normal">113</span>
 <span class="normal">114</span>
 <span class="normal">115</span>
@@ -5420,9 +5358,7 @@ price, when the bid reaches the ask (as the original's
 <span class="normal">131</span>
 <span class="normal">132</span>
 <span class="normal">133</span>
-<span class="normal">134</span>
-<span class="normal">135</span>
-<span class="normal">136</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">preferences</span><span class="p">(</span><span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Order</span><span class="p">],</span> <span class="n">rules</span><span class="p">:</span> <span class="n">ClearingRules</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span><span class="p">:</span>
+<span class="normal">134</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">preferences</span><span class="p">(</span><span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Order</span><span class="p">],</span> <span class="n">rules</span><span class="p">:</span> <span class="n">ClearingRules</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Stage 1 ([P1] §3.3.2; PreferenceMatch in Algorithm 1): pairs that named each</span>
 <span class="sd">    other as preferred partner (β, [P1] eq. 2) trade first, at the mechanism's</span>
 <span class="sd">    price, when the bid reaches the ask (as the original's</span>
@@ -5476,7 +5412,9 @@ stay out.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\clearing.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">142</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
 <span class="normal">143</span>
 <span class="normal">144</span>
 <span class="normal">145</span>
@@ -5504,9 +5442,7 @@ stay out.</p>
 <span class="normal">167</span>
 <span class="normal">168</span>
 <span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">double_auction</span><span class="p">(</span><span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Order</span><span class="p">],</span> <span class="n">rules</span><span class="p">:</span> <span class="n">ClearingRules</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span><span class="p">:</span>
+<span class="normal">170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">double_auction</span><span class="p">(</span><span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Order</span><span class="p">],</span> <span class="n">rules</span><span class="p">:</span> <span class="n">ClearingRules</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Stage 2 ([P1] §3.3.2; PriceMatch in Algorithm 1): bids sorted by price (high</span>
 <span class="sd">    first), asks by price (low first); reputation ([P1] eq. 12) and arrival break</span>
 <span class="sd">    ties. Pairs trade while the bid is at least the ask. Orders that prefer the DSO</span>
@@ -5564,18 +5500,14 @@ Algorithm 1; <code>Dso.clear</code>).</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\clearing.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">178</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">176</span>
+<span class="normal">177</span>
+<span class="normal">178</span>
 <span class="normal">179</span>
-<span class="normal">180</span>
-<span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">dso</span><span class="p">(</span><span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Order</span><span class="p">],</span> <span class="n">rules</span><span class="p">:</span> <span class="n">ClearingRules</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span><span class="p">:</span>
+<span class="normal">180</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">dso</span><span class="p">(</span><span class="n">orders</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Order</span><span class="p">],</span> <span class="n">rules</span><span class="p">:</span> <span class="n">ClearingRules</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in</span>
 <span class="sd">    Algorithm 1; ``Dso.clear``)."""</span>
-    <span class="n">trades</span> <span class="o">=</span> <span class="n">rules</span><span class="o">.</span><span class="n">dso</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span>
-        <span class="n">_open</span><span class="p">(</span><span class="n">orders</span><span class="p">,</span> <span class="n">rules</span><span class="p">),</span> <span class="n">rules</span><span class="o">.</span><span class="n">grid_balance_kwh</span><span class="p">,</span> <span class="n">rules</span><span class="o">.</span><span class="n">upstream</span>
-    <span class="p">)</span>
+    <span class="n">trades</span> <span class="o">=</span> <span class="n">rules</span><span class="o">.</span><span class="n">dso</span><span class="o">.</span><span class="n">clear</span><span class="p">(</span><span class="n">_open</span><span class="p">(</span><span class="n">orders</span><span class="p">,</span> <span class="n">rules</span><span class="p">),</span> <span class="n">rules</span><span class="o">.</span><span class="n">upstream</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">StageResult</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">STAGE_NAMES</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">trades</span><span class="p">,</span> <span class="p">())</span>
 </code></pre></div></td></tr></table></div>
             </details>

@@ -5944,7 +5944,7 @@ constraint at all.</p>
 <p><strong>In <code>marlem-v1</code>.</strong> The check is gone. [P1] says violating trades "can be
 penalized or disallowed by the DSO" without choosing. <strong>Decided: penalized.</strong> The
 congestion and thermal fees (eq. 8a, 8d) price the loading of the lines on a
-trade's path in the previous power flow, trades with the DSO included (I-54). The
+trade's path in the step's own power flow, which runs before the fees are charged; trades with the DSO included (I-54). The
 power flow reports voltage and loading violations but blocks no trade.
 Disallowing would need a grid check per trade, for example with sensitivity
 factors as in Guerrero, Chapman and Verbič (2019), and a rollback: future work.
@@ -6359,15 +6359,19 @@ and stored on the trade, and then nothing reads it. Settlement
 (lem.py L404-L423) uses only the trade quantities, and the agents' profit is never
 updated anyway (I-27). No agent ever pays a fee, so the fees cannot shape any
 incentive, which is their purpose in [P1].</p>
-<p><strong>In <code>marlem-v1</code>.</strong> The DSO puts the fee on every trade and says who pays it,
+<p><strong>In <code>marlem-v1</code>.</strong> After the step's power flow, the DSO puts the fee on every
+trade from that power flow's line loading (<code>Dso.charge</code>) and says who pays it,
 split 50/50 between peers or paid in full by the participant on a DSO trade.
-Settlement takes it off profit, and the DSO collects it
-(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/market/dso/dso.py#L178-L204">dso.py</a>):</p>
+Each participant pays its share out of its profit, and the DSO collects it
+(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/market/agent/der.py#L262-L271">der.py</a>):</p>
 <div class="highlight"><pre><span></span><code><span class="n">fees</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">buyer_fee</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">buyer_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
 <span class="n">fees</span> <span class="o">+=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">seller_fee</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">seller_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-<span class="c1"># ...</span>
-<span class="n">profit</span> <span class="o">-=</span> <span class="n">fees</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">profit</span> <span class="o">-=</span> <span class="n">fees</span>
 </code></pre></div>
+<p>The order of a step is therefore: clear, settle the energy (battery included),
+run the power flow, then charge the fees. Fees are money only and change no
+injection, so they can price the loading the step's own trades caused, and the
+first step of the day is charged like any other.</p>
 <h3 id="i-29-f_texttrans-has-no-formula-and-the-code-uses-0">I-29: <span class="arithmatex">\(F_{\text{trans}}\)</span> has no formula, and the code uses 0<a class="headerlink" href="#i-29-f_texttrans-has-no-formula-and-the-code-uses-0" title="Permanent link">&para;</a></h3>
 <p><strong>Paper · Decided</strong></p>
 <p><mark class="review">Review</mark> How to calculate transmission fee? what examples are used in other literature?</p>

@@ -4464,7 +4464,7 @@ the remaining original files (ledger, profiles) are the reference.</p>
 <tbody>
 <tr>
 <td><code>lem.py</code></td>
-<td><code>LocalEnergyMarket</code>: the participants (<code>Participant</code>), the DSO (<code>Dso</code>) and the reputation rule, one step in the paper's phases (validate, orders, the three stages, settle, power flow, rate, advance), one stage at a time or all at once; the history of the day</td>
+<td><code>LocalEnergyMarket</code>: the participants (<code>Participant</code>), the DSO (<code>Dso</code>) and the reputation rule, one step in the paper's phases (validate, orders, the three stages, settle, power flow, fees, rate, advance), one stage at a time or all at once; the history of the day</td>
 <td>done</td>
 </tr>
 <tr>
@@ -4509,7 +4509,7 @@ the remaining original files (ledger, profiles) are the reference.</p>
 </tr>
 <tr>
 <td><code>dso/dso.py</code></td>
-<td><code>Dso</code>: tariffs, market price (their midpoint), the lines' loading of the last power flow, transmission losses (eq. 18), grid fees (eq. 8) and who pays them, stage 3 clearing (§3.3.2), its balance (eq. 7) and money; <code>DsoOutcome</code>, <code>DSO_ID</code></td>
+<td><code>Dso</code>: tariffs, market price (their midpoint), the lines' loading of the step's power flow, transmission losses (eq. 18), grid fees (eq. 8) charged after that power flow and who pays them, stage 3 clearing (§3.3.2), its balance (eq. 7) and money; <code>DsoOutcome</code>, <code>DSO_ID</code></td>
 <td>done</td>
 </tr>
 <tr>
@@ -5016,7 +5016,7 @@ market or pandapower directly.</p>
 </tr>
 <tr>
 <td>Grid fees (eq. 8)</td>
-<td>Calculated by the DSO for every trade and charged (<code>fees_charged</code>). Congestion C_t is the highest line loading on the trade's path in the previous step's power flow (0 at step 0). F_trans, which has no formula in [P1], is the lost energy at the trade price, κ · d · q · p (the form quantity × distance × price factor is set; the factor and the distance measure are open). Zones are feeders. Trades with the DSO pay the fees of their path to the transformer, without a zone bonus. F_imb applies only to trades with the DSO that worsen the market's balance. No trade is blocked for grid reasons: the fees penalize (I-55). Peer fees split 50/50 between buyer and seller; a DSO trade's fee is paid by the participant. Factor values are the original code's</td>
+<td>Calculated by the DSO for every trade and charged (<code>fees_charged</code>). They are charged after the step's power flow (clear, settle the energy, power flow, then fees), so congestion C_t is the highest line loading on the trade's path in the same step's power flow, the first step included. F_trans, which has no formula in [P1], is the lost energy at the trade price, κ · d · q · p (the form quantity × distance × price factor is set; the factor and the distance measure are open). Zones are feeders. Trades with the DSO pay the fees of their path to the transformer, without a zone bonus. F_imb applies only to trades with the DSO that worsen the market's balance. No trade is blocked for grid reasons: the fees penalize (I-55). Peer fees split 50/50 between buyer and seller; a DSO trade's fee is paid by the participant. Factor values are the original code's</td>
 </tr>
 <tr>
 <td>DSO balance (eq. 7)</td>

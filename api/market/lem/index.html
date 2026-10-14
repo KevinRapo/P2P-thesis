@@ -6071,17 +6071,19 @@ the market only calls them in order:</p>
               distance if preferences are on (``Participant.choose_partner``)
 3  clear      stage 1 preferences, stage 2 double auction, stage 3 DSO
               (§3.3.2, Algorithm 1; ``core/market/clearing.py``, ``Dso.clear``);
-              the DSO gives every trade its distance, loss (eq. 18) and fee
-              (eq. 8) (``Dso.assess``)
-4  settle     each participant: balance (eq. 13), profit less fees (eq. 14),
-              battery (eq. 16) (``Participant.settle``); the DSO: its balance
-              (eq. 7) and fees (``Dso.settle``)
+              the DSO gives every trade its distance and loss (eq. 18)
+              (``Dso.assess``)
+4  settle     each participant: balance (eq. 13), trading profit (eq. 14),
+              battery (eq. 16) (``Participant.settle``)
 4' grid       what each participant physically did -&gt; one power flow
               (``Participant.injection``; replaces the graph model of §3.5.3)
+4" fees       the DSO sees this power flow (``Dso.observe``) and gives every
+              trade its fee (eq. 8) from it (``Dso.charge``); each participant
+              pays its share (``Participant.pay_fees``); the DSO: its balance
+              (eq. 7) and fees (``Dso.settle``)
 6  advance    reputation (eq. 12 with its decay;
               ``ReputationHandler.update_reputation``), clearing price, ledger
-              block (§3.3.4), the DSO sees the power flow (``Dso.observe``),
-              clock
+              block (§3.3.4), clock
 </code></pre></div>
 <p>Phases 5 (reward and KPIs) and 7 (observation) of the paper are learning only.</p>
 <p>A step can run at once (<code>step</code>) or one stage at a time (<code>start_step</code>, then
@@ -9356,9 +9358,7 @@ not change a market being played.</p>
 
                   <details class="mkdocstrings-source">
                     <summary>Source code in <code>core\market\lem.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">211</span>
 <span class="normal">212</span>
 <span class="normal">213</span>
 <span class="normal">214</span>
@@ -9391,7 +9391,9 @@ not change a market being played.</p>
 <span class="normal">241</span>
 <span class="normal">242</span>
 <span class="normal">243</span>
-<span class="normal">244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scenario</span><span class="p">:</span> <span class="n">Scenario</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">244</span>
+<span class="normal">245</span>
+<span class="normal">246</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scenario</span><span class="p">:</span> <span class="n">Scenario</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">scenario</span><span class="o">.</span><span class="n">participants</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"The scenario has no participants"</span><span class="p">)</span>
     <span class="n">scenario</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scenario</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">scenario</span><span class="p">)</span>
@@ -9754,9 +9756,7 @@ state of charge), the DSO, prepare the grid and go back to step 0.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\lem.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">262</span>
-<span class="normal">263</span>
-<span class="normal">264</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">264</span>
 <span class="normal">265</span>
 <span class="normal">266</span>
 <span class="normal">267</span>
@@ -9770,7 +9770,9 @@ state of charge), the DSO, prepare the grid and go back to step 0.</p>
 <span class="normal">275</span>
 <span class="normal">276</span>
 <span class="normal">277</span>
-<span class="normal">278</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Build the participants from their profiles (batteries at their initial</span>
 <span class="sd">    state of charge), the DSO, prepare the grid and go back to step 0."""</span>
     <span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scenario</span><span class="o">.</span><span class="n">grid</span>
@@ -9815,9 +9817,7 @@ The clearing stages follow with <code>advance</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\lem.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">282</span>
 <span class="normal">283</span>
 <span class="normal">284</span>
 <span class="normal">285</span>
@@ -9833,7 +9833,9 @@ The clearing stages follow with <code>advance</code>.</p>
 <span class="normal">295</span>
 <span class="normal">296</span>
 <span class="normal">297</span>
-<span class="normal">298</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">start_step</span><span class="p">(</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">start_step</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">intents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OrderIntent</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PendingStep</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Phases 1 and 2 ([P1] §3.9; Phase 1 of Algorithm 1): the step's inputs,</span>
@@ -9872,15 +9874,13 @@ The clearing stages follow with <code>advance</code>.</p>
     <div class="doc doc-contents ">
 
         <p>Run the next part of the pending step: the next clearing stage (phase 3,
-[P1] §3.3.2), or, after stage 3, settlement, power flow and the record
-(phases 4 and 6, [P1] §3.9).</p>
+[P1] §3.3.2), or, after stage 3, settlement, power flow, fees and the
+record (phases 4 and 6, [P1] §3.9).</p>
 
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\lem.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">302</span>
 <span class="normal">303</span>
 <span class="normal">304</span>
 <span class="normal">305</span>
@@ -9904,10 +9904,18 @@ The clearing stages follow with <code>advance</code>.</p>
 <span class="normal">323</span>
 <span class="normal">324</span>
 <span class="normal">325</span>
-<span class="normal">326</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">advance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span> <span class="o">|</span> <span class="n">StepRecord</span><span class="p">:</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">advance</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StageResult</span> <span class="o">|</span> <span class="n">StepRecord</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Run the next part of the pending step: the next clearing stage (phase 3,</span>
-<span class="sd">    [P1] §3.3.2), or, after stage 3, settlement, power flow and the record</span>
-<span class="sd">    (phases 4 and 6, [P1] §3.9)."""</span>
+<span class="sd">    [P1] §3.3.2), or, after stage 3, settlement, power flow, fees and the</span>
+<span class="sd">    record (phases 4 and 6, [P1] §3.9)."""</span>
     <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending</span>
     <span class="k">if</span> <span class="n">p</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"No step is being played; call start_step"</span><span class="p">)</span>
@@ -9916,16 +9924,22 @@ The clearing stages follow with <code>advance</code>.</p>
         <span class="n">p</span><span class="o">.</span><span class="n">stages</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">result</span>
     <span class="n">outcomes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_settle</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">trades</span><span class="p">)</span>
-    <span class="n">clearing_price</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clearing_price</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">trades</span><span class="p">)</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_assess_grid</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">)</span>
+    <span class="n">stages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_charge_fees</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">grid</span><span class="p">)</span>
+    <span class="n">trades</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">stages</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">trades</span><span class="p">]</span>
+    <span class="n">outcomes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">pid</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">participants</span><span class="p">[</span><span class="n">pid</span><span class="p">]</span><span class="o">.</span><span class="n">pay_fees</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">trades</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">pid</span><span class="p">,</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
     <span class="n">record</span> <span class="o">=</span> <span class="n">StepRecord</span><span class="p">(</span>
         <span class="n">step</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">step</span><span class="p">,</span>
         <span class="n">inputs</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span>
         <span class="n">orders</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">orders</span><span class="p">,</span>
-        <span class="n">stages</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">stages</span><span class="p">),</span>
+        <span class="n">stages</span><span class="o">=</span><span class="n">stages</span><span class="p">,</span>
         <span class="n">participants</span><span class="o">=</span><span class="n">outcomes</span><span class="p">,</span>
-        <span class="n">clearing_price</span><span class="o">=</span><span class="n">clearing_price</span><span class="p">,</span>
-        <span class="n">grid</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_assess_grid</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">),</span>
-        <span class="n">dso</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dso</span><span class="o">.</span><span class="n">settle</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">trades</span><span class="p">),</span>
+        <span class="n">clearing_price</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_clearing_price</span><span class="p">(</span><span class="n">trades</span><span class="p">),</span>
+        <span class="n">grid</span><span class="o">=</span><span class="n">grid</span><span class="p">,</span>
+        <span class="n">dso</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dso</span><span class="o">.</span><span class="n">settle</span><span class="p">(</span><span class="n">trades</span><span class="p">),</span>
         <span class="n">notes</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">notes</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_reputation</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
@@ -9957,14 +9971,14 @@ The clearing stages follow with <code>advance</code>.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\lem.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">328</span>
-<span class="normal">329</span>
-<span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">intents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OrderIntent</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StepRecord</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">intents</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OrderIntent</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StepRecord</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Play one whole step."""</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pending</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">start_step</span><span class="p">(</span><span class="n">intents</span><span class="p">)</span>
@@ -9997,13 +10011,13 @@ the last period).</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\lem.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">337</span>
-<span class="normal">338</span>
-<span class="normal">339</span>
-<span class="normal">340</span>
-<span class="normal">341</span>
-<span class="normal">342</span>
-<span class="normal">343</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run_to_end</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">StepRecord</span><span class="p">]:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span>
+<span class="normal">350</span>
+<span class="normal">351</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run_to_end</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">StepRecord</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">"""Play every remaining step of the day (phase 8 of [P1] §3.9: stop after</span>
 <span class="sd">    the last period)."""</span>
     <span class="n">played</span> <span class="o">=</span> <span class="p">[]</span>

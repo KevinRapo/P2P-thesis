@@ -2075,6 +2075,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#core.market.agent.der.Participant.pay_fees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;pay_fees
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#core.market.agent.der.Participant.injection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4790,6 +4801,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#core.market.agent.der.Participant.pay_fees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;pay_fees
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#core.market.agent.der.Participant.injection" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4849,8 +4871,8 @@
 <div class="highlight"><pre><span></span><code>profiles      G_t and D_t from the network elements it took over
 feasibility   eq. 15a-b: the most it may sell or buy this step
 partner       the rule-based preferred partner (§3.4, phase 2 of §3.9)
-settlement    eq. 13 (balance), eq. 14 (profit, less its grid fees), the
-              battery (eq. 16)
+settlement    eq. 13 (balance), eq. 14 (profit), the battery (eq. 16); its
+              grid fees once the step's power flow is known
 reputation    its r_i, as the reputation module last set it (eq. 12, §3.3.4;
               ``core/market/reputation.py``)
 injection     its power at its bus, for the power flow
@@ -5754,6 +5776,14 @@ did and what it earned.</p>
               </td>
             </tr>
             <tr class="doc-section-item">
+              <td><code><a class="autorefs autorefs-internal" title="            pay_fees (core.market.agent.der.Participant.pay_fees)" href="#core.market.agent.der.Participant.pay_fees">pay_fees</a></code></td>
+              <td>
+                <div class="doc-md-description">
+                  <p>Its share of the step's grid fees (eq. 8), known once the step's power</p>
+                </div>
+              </td>
+            </tr>
+            <tr class="doc-section-item">
               <td><code><a class="autorefs autorefs-internal" title="            injection (core.market.agent.der.Participant.injection)" href="#core.market.agent.der.Participant.injection">injection</a></code></td>
               <td>
                 <div class="doc-md-description">
@@ -6542,8 +6572,8 @@ there is no candidate.</p>
 <p>After its trades it has <code>G − D + bought − sold</code> left at its bus (eq. 13):
 a surplus charges its battery, a deficit discharges it (eq. 16), and what
 the battery cannot take or give is exchanged with the upstream grid
-untraded. The step's profit, less the grid fees it pays (eq. 8), adds to
-the running profit (eq. 14).</p>
+untraded. The step's trading profit adds to the running profit (eq. 14);
+the grid fees follow the step's power flow (<code>pay_fees</code>).</p>
 
 
             <details class="mkdocstrings-source">
@@ -6582,26 +6612,20 @@ the running profit (eq. 14).</p>
 <span class="normal">257</span>
 <span class="normal">258</span>
 <span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
-<span class="normal">263</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">settle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">trades</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Trade</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ParticipantOutcome</span><span class="p">:</span>
+<span class="normal">260</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">settle</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">trades</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Trade</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">ParticipantOutcome</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Turn the step's trades into what the participant did and earned.</span>
 
 <span class="sd">    After its trades it has ``G − D + bought − sold`` left at its bus (eq. 13):</span>
 <span class="sd">    a surplus charges its battery, a deficit discharges it (eq. 16), and what</span>
 <span class="sd">    the battery cannot take or give is exchanged with the upstream grid</span>
-<span class="sd">    untraded. The step's profit, less the grid fees it pays (eq. 8), adds to</span>
-<span class="sd">    the running profit (eq. 14).</span>
+<span class="sd">    untraded. The step's trading profit adds to the running profit (eq. 14);</span>
+<span class="sd">    the grid fees follow the step's power flow (``pay_fees``).</span>
 <span class="sd">    """</span>
     <span class="n">bought</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">quantity</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">buyer_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
     <span class="n">sold</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">quantity</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">seller_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-    <span class="n">fees</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">buyer_fee</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">buyer_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-    <span class="n">fees</span> <span class="o">+=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">seller_fee</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">seller_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-    <span class="c1"># [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy), less the fees</span>
+    <span class="c1"># [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy); the fees come later</span>
     <span class="n">profit</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">price</span> <span class="o">*</span> <span class="n">t</span><span class="o">.</span><span class="n">quantity</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">seller_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
     <span class="n">profit</span> <span class="o">-=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">price</span> <span class="o">*</span> <span class="n">t</span><span class="o">.</span><span class="n">quantity</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">buyer_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
-    <span class="n">profit</span> <span class="o">-=</span> <span class="n">fees</span>
     <span class="n">g</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generation_kwh</span><span class="p">[</span><span class="n">step</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">demand_kwh</span><span class="p">[</span><span class="n">step</span><span class="p">]</span>
     <span class="n">balance</span> <span class="o">=</span> <span class="p">(</span><span class="n">g</span> <span class="o">-</span> <span class="n">d</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">bought</span> <span class="o">-</span> <span class="n">sold</span><span class="p">)</span>  <span class="c1"># [P1] eq. 13</span>
     <span class="n">b</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">battery</span>
@@ -6620,9 +6644,56 @@ the running profit (eq. 14).</p>
         <span class="n">external_kwh</span><span class="o">=</span><span class="n">balance</span> <span class="o">-</span> <span class="n">charge</span> <span class="o">+</span> <span class="n">discharge</span><span class="p">,</span>
         <span class="n">soc_kwh</span><span class="o">=</span><span class="n">b</span><span class="o">.</span><span class="n">energy_kwh</span> <span class="k">if</span> <span class="n">b</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">balance_kwh</span><span class="o">=</span><span class="n">balance</span><span class="p">,</span>
-        <span class="n">fees</span><span class="o">=</span><span class="n">fees</span><span class="p">,</span>
+        <span class="n">fees</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
         <span class="n">profit</span><span class="o">=</span><span class="n">profit</span><span class="p">,</span>
     <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="core.market.agent.der.Participant.pay_fees" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">pay_fees</span>
+
+
+<a href="#core.market.agent.der.Participant.pay_fees" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">pay_fees</span><span class="p">(</span>
+    <span class="n">outcome</span><span class="p">:</span> <span class="n">ParticipantOutcome</span><span class="p">,</span> <span class="n">trades</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Trade</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParticipantOutcome</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Its share of the step's grid fees (eq. 8), known once the step's power
+flow has run: taken from the running profit (eq. 14) and from the step's
+<code>outcome</code>, which <code>settle</code> returned without fees.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>core\market\agent\der.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">pay_fees</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">outcome</span><span class="p">:</span> <span class="n">ParticipantOutcome</span><span class="p">,</span> <span class="n">trades</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">Trade</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParticipantOutcome</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Its share of the step's grid fees (eq. 8), known once the step's power</span>
+<span class="sd">    flow has run: taken from the running profit (eq. 14) and from the step's</span>
+<span class="sd">    ``outcome``, which ``settle`` returned without fees."""</span>
+    <span class="n">fees</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">buyer_fee</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">buyer_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="n">fees</span> <span class="o">+=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">seller_fee</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">trades</span> <span class="k">if</span> <span class="n">t</span><span class="o">.</span><span class="n">seller_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">profit</span> <span class="o">-=</span> <span class="n">fees</span>
+    <span class="k">return</span> <span class="n">replace</span><span class="p">(</span><span class="n">outcome</span><span class="p">,</span> <span class="n">fees</span><span class="o">=</span><span class="n">fees</span><span class="p">,</span> <span class="n">profit</span><span class="o">=</span><span class="n">outcome</span><span class="o">.</span><span class="n">profit</span> <span class="o">-</span> <span class="n">fees</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -6651,17 +6722,17 @@ charge flow out. Replaces the trade-path flows of [P1] §3.5.3.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>core\market\agent\der.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">266</span>
-<span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">274</span>
 <span class="normal">275</span>
-<span class="normal">276</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">injection</span><span class="p">(</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">injection</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">outcome</span><span class="p">:</span> <span class="n">ParticipantOutcome</span><span class="p">,</span> <span class="n">step_hours</span><span class="p">:</span> <span class="nb">float</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ParticipantInjection</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Its net power at its bus for the power flow, from what it physically</span>
