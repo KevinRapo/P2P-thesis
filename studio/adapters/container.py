@@ -4,6 +4,7 @@
     profile_service       ProfileService       SimBench profiles
     scenario_service      ScenarioService      the scenario: saved, participants placed
     market_service        MarketService        the market being stepped
+    run_service           RunService           the training experiments in runs/
 
 None of these modules loads pandapower when imported (the adapter imports it
 inside functions).
@@ -16,10 +17,11 @@ from studio.adapters.workspace import Workspace
 from studio.adapters.grid_catalog_service import GridCatalogService
 from studio.adapters.market_service import MarketService
 from studio.adapters.profile_service import ProfileService
+from studio.adapters.run_service import RunService
 from studio.adapters.scenario_service import ScenarioService
 
-# The scenario files the Studio offers to open: the notebooks' scenarios.
-SCENARIO_LIBRARY = Path(__file__).resolve().parents[2] / "notebooks" / "scenarios"
+# The scenario files the Studio offers to open: the repository's scenarios/ folder.
+SCENARIO_LIBRARY = Path(__file__).resolve().parents[2] / "scenarios"
 
 
 @dataclass(frozen=True)
@@ -31,12 +33,14 @@ class Services:
         profiles: SimBench profiles of networks and the catalogue.
         scenario: The scenario being edited.
         market: The market built from it, stepped by the Step page.
+        runs: The training experiments in ``runs/`` (the Runs page).
     """
 
     grid: GridCatalogService
     profiles: ProfileService
     scenario: ScenarioService
     market: MarketService
+    runs: RunService
 
 
 def build_services(home: Path | None = None) -> Services:
@@ -51,4 +55,5 @@ def build_services(home: Path | None = None) -> Services:
         profiles=ProfileService(),
         scenario=ScenarioService(workspace.scenario_file, SCENARIO_LIBRARY),
         market=MarketService(),
+        runs=RunService(),
     )

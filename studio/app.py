@@ -23,6 +23,7 @@ from studio.pages import (  # noqa: E402
     grid_participants,
     inspect,
     market_dso,
+    runs,
     settings,
     step,
     summary,
@@ -44,6 +45,7 @@ ROUTES = {
     "/market": market_dso.page,
     "/summary": summary.page,
     "/step": step.page,
+    "/runs": runs.page,
     "/settings": settings.page,
 }
 

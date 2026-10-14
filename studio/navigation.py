@@ -31,5 +31,6 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
         ],
     ),
     ("Run", [NavItem("step", "Step", "skip_next", "/step")]),
+    ("Experiments", [NavItem("runs", "Runs", "monitoring", "/runs")]),
     (None, [NavItem("settings", "Settings", "settings", "/settings")]),
 ]
