@@ -5,8 +5,8 @@
     profiles      G_t and D_t from the network elements it took over
     feasibility   eq. 15a-b: the most it may sell or buy this step
     partner       the rule-based preferred partner (§3.4, phase 2 of §3.9)
-    settlement    eq. 13 (balance), eq. 14 (profit, less its grid fees), the
-                  battery (eq. 16)
+    settlement    eq. 13 (balance), eq. 14 (profit), the battery (eq. 16); its
+                  grid fees once the step's power flow is known
     reputation    its r_i, as the reputation module last set it (eq. 12, §3.3.4;
                   ``core/market/reputation.py``)
     injection     its power at its bus, for the power flow
@@ -17,7 +17,7 @@ did and what it earned.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable, Mapping, Optional, Sequence
 
 from core.grid.contract import ParticipantInjection
@@ -229,17 +229,14 @@ class Participant:
         After its trades it has ``G − D + bought − sold`` left at its bus (eq. 13):
         a surplus charges its battery, a deficit discharges it (eq. 16), and what
         the battery cannot take or give is exchanged with the upstream grid
-        untraded. The step's profit, less the grid fees it pays (eq. 8), adds to
-        the running profit (eq. 14).
+        untraded. The step's trading profit adds to the running profit (eq. 14);
+        the grid fees follow the step's power flow (``pay_fees``).
         """
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
         sold = sum(t.quantity for t in trades if t.seller_id == self.id)
-        fees = sum(t.buyer_fee for t in trades if t.buyer_id == self.id)
-        fees += sum(t.seller_fee for t in trades if t.seller_id == self.id)
-        # [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy), less the fees
+        # [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy); the fees come later
         profit = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
         profit -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
-        profit -= fees
         g, d = self.generation_kwh[step], self.demand_kwh[step]
         balance = (g - d) + (bought - sold)  # [P1] eq. 13
         b = self.battery
@@ -258,9 +255,20 @@ class Participant:
             external_kwh=balance - charge + discharge,
             soc_kwh=b.energy_kwh if b else None,
             balance_kwh=balance,
-            fees=fees,
+            fees=0.0,
             profit=profit,
         )
+
+    def pay_fees(
+        self, outcome: ParticipantOutcome, trades: Sequence[Trade]
+    ) -> ParticipantOutcome:
+        """Its share of the step's grid fees (eq. 8), known once the step's power
+        flow has run: taken from the running profit (eq. 14) and from the step's
+        ``outcome``, which ``settle`` returned without fees."""
+        fees = sum(t.buyer_fee for t in trades if t.buyer_id == self.id)
+        fees += sum(t.seller_fee for t in trades if t.seller_id == self.id)
+        self.profit -= fees
+        return replace(outcome, fees=fees, profit=outcome.profit - fees)
 
     # --- Its power at the bus --------------------------------------------------------
     def injection(

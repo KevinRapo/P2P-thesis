@@ -13,17 +13,19 @@ the market only calls them in order:
                   distance if preferences are on (``Participant.choose_partner``)
     3  clear      stage 1 preferences, stage 2 double auction, stage 3 DSO
                   (§3.3.2, Algorithm 1; ``core/market/clearing.py``, ``Dso.clear``);
-                  the DSO gives every trade its distance, loss (eq. 18) and fee
-                  (eq. 8) (``Dso.assess``)
-    4  settle     each participant: balance (eq. 13), profit less fees (eq. 14),
-                  battery (eq. 16) (``Participant.settle``); the DSO: its balance
-                  (eq. 7) and fees (``Dso.settle``)
+                  the DSO gives every trade its distance and loss (eq. 18)
+                  (``Dso.assess``)
+    4  settle     each participant: balance (eq. 13), trading profit (eq. 14),
+                  battery (eq. 16) (``Participant.settle``)
     4' grid       what each participant physically did -> one power flow
                   (``Participant.injection``; replaces the graph model of §3.5.3)
+    4" fees       the DSO sees this power flow (``Dso.observe``) and gives every
+                  trade its fee (eq. 8) from it (``Dso.charge``); each participant
+                  pays its share (``Participant.pay_fees``); the DSO: its balance
+                  (eq. 7) and fees (``Dso.settle``)
     6  advance    reputation (eq. 12 with its decay;
                   ``ReputationHandler.update_reputation``), clearing price, ledger
-                  block (§3.3.4), the DSO sees the power flow (``Dso.observe``),
-                  clock
+                  block (§3.3.4), clock
 
 Phases 5 (reward and KPIs) and 7 (observation) of the paper are learning only.
 
@@ -299,8 +301,8 @@ class LocalEnergyMarket:
 
     def advance(self) -> StageResult | StepRecord:
         """Run the next part of the pending step: the next clearing stage (phase 3,
-        [P1] §3.3.2), or, after stage 3, settlement, power flow and the record
-        (phases 4 and 6, [P1] §3.9)."""
+        [P1] §3.3.2), or, after stage 3, settlement, power flow, fees and the
+        record (phases 4 and 6, [P1] §3.9)."""
         p = self.pending
         if p is None:
             raise RuntimeError("No step is being played; call start_step")
@@ -309,16 +311,22 @@ class LocalEnergyMarket:
             p.stages.append(result)
             return result
         outcomes = self._settle(p.inputs, p.trades)
-        clearing_price = self._clearing_price(p.trades)
+        grid = self._assess_grid(p.step, outcomes)
+        stages = self._charge_fees(p, grid)
+        trades = [t for s in stages for t in s.trades]
+        outcomes = {
+            pid: self.participants[pid].pay_fees(o, trades)
+            for pid, o in outcomes.items()
+        }
         record = StepRecord(
             step=p.step,
             inputs=p.inputs,
             orders=p.orders,
-            stages=tuple(p.stages),
+            stages=stages,
             participants=outcomes,
-            clearing_price=clearing_price,
-            grid=self._assess_grid(p.step, outcomes),
-            dso=self.dso.settle(p.trades),
+            clearing_price=self._clearing_price(trades),
+            grid=grid,
+            dso=self.dso.settle(trades),
             notes=tuple(p.notes),
         )
         record = self._update_reputation(record)
@@ -518,7 +526,6 @@ class LocalEnergyMarket:
             reputation={pid: q.reputation for pid, q in self.participants.items()},
             path=self._path,
             upstream=self._upstream,
-            grid_balance_kwh=p.grid_balance_kwh,
         )
 
     def _clearing_price(self, trades: list[Trade]) -> float:
@@ -552,6 +559,21 @@ class LocalEnergyMarket:
         ]
         return self.grid.assess(step, injections)
 
+    def _charge_fees(
+        self, p: PendingStep, grid: GridAssessment
+    ) -> tuple[StageResult, ...]:
+        """Phase 4": the DSO sees the step's power flow (``Dso.observe``) and
+        gives every trade its fee (eq. 8) from it, so the fees price the loading
+        this step's trades actually caused (``Dso.charge``). The stages with
+        their trades charged."""
+        self.dso.observe(grid)
+        charged = iter(
+            self.dso.charge(p.trades, self._path, self._upstream, p.grid_balance_kwh)
+        )
+        return tuple(
+            replace(s, trades=tuple(next(charged) for _ in s.trades)) for s in p.stages
+        )
+
     # --- Phase 6: advance ------------------------------------------------------------
     def _update_reputation(self, record: StepRecord) -> StepRecord:
         """Phase 6 ([P1] §3.9): every participant's reputation from the step's
@@ -567,11 +589,10 @@ class LocalEnergyMarket:
 
     def _advance(self, record: StepRecord) -> None:
         """Phase 6 ([P1] §3.9): clearing price, ledger block (ValidateBlock,
-        [P1] §3.3.4), the DSO sees the power flow for the next step's fees,
-        clock. The participants added their profit when they settled ([P1] eq.
-        14); their reputation is updated just before (``_update_reputation``)."""
+        [P1] §3.3.4), clock. The participants added their profit when they
+        settled and paid their fees ([P1] eq. 14); their reputation is updated
+        just before (``_update_reputation``)."""
         self.clearing_price = record.clearing_price
-        self.dso.observe(record.grid)
         if self.ledger is not None:
             for t in record.trades:
                 self.ledger.add_trade(t)

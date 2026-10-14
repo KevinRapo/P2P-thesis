@@ -491,7 +491,7 @@ constraint at all.
 **In `marlem-v1`.** The check is gone. [P1] says violating trades "can be
 penalized or disallowed by the DSO" without choosing. **Decided: penalized.** The
 congestion and thermal fees (eq. 8a, 8d) price the loading of the lines on a
-trade's path in the previous power flow, trades with the DSO included (I-54). The
+trade's path in the step's own power flow, which runs before the fees are charged; trades with the DSO included (I-54). The
 power flow reports voltage and loading violations but blocks no trade.
 Disallowing would need a grid check per trade, for example with sensitivity
 factors as in Guerrero, Chapman and Verbič (2019), and a rollback: future work.
@@ -994,17 +994,22 @@ and stored on the trade, and then nothing reads it. Settlement
 updated anyway (I-27). No agent ever pays a fee, so the fees cannot shape any
 incentive, which is their purpose in [P1].
 
-**In `marlem-v1`.** The DSO puts the fee on every trade and says who pays it,
+**In `marlem-v1`.** After the step's power flow, the DSO puts the fee on every
+trade from that power flow's line loading (`Dso.charge`) and says who pays it,
 split 50/50 between peers or paid in full by the participant on a DSO trade.
-Settlement takes it off profit, and the DSO collects it
-([dso.py](../../core/market/dso/dso.py#L178-L204)):
+Each participant pays its share out of its profit, and the DSO collects it
+([der.py](../../core/market/agent/der.py#L262-L271)):
 
 ```python
 fees = sum(t.buyer_fee for t in trades if t.buyer_id == self.id)
 fees += sum(t.seller_fee for t in trades if t.seller_id == self.id)
-# ...
-profit -= fees
+self.profit -= fees
 ```
+
+The order of a step is therefore: clear, settle the energy (battery included),
+run the power flow, then charge the fees. Fees are money only and change no
+injection, so they can price the loading the step's own trades caused, and the
+first step of the day is charged like any other.
 
 ### I-29: $F_{\text{trans}}$ has no formula, and the code uses 0
 

@@ -10,9 +10,9 @@ over, so the Studio can show the market after every stage:
                       ``core/market/dso/dso.py``)
 
 The stages work on copies: the orders as submitted are never changed. Every trade
-leaves its stage assessed by the DSO: distance d_ij, transmission loss l_ij ([P1]
-eq. 18, recorded: the market stays lossless, the power flow has the physical
-losses) and grid fee ([P1] eq. 8).
+leaves its stage with its distance d_ij and transmission loss l_ij ([P1] eq. 18,
+recorded: the market stays lossless, the power flow has the physical losses). Its
+grid fee ([P1] eq. 8) follows the step's power flow (``Dso.charge``).
 """
 
 from __future__ import annotations
@@ -64,11 +64,9 @@ class ClearingRules:
         reputation: Each participant's reputation r_i ([P1] eq. 12), the double
             auction's tie-break.
         path: The grid path between two participants (distance, lines, zones),
-            for the DSO's losses and fees.
+            for the DSO's distances and losses.
         upstream: A participant's path to the transformer's busbar, where the
             DSO's energy enters: the route of its trades with the DSO.
-        grid_balance_kwh: The market's balance B_grid before stage 3 ([P1] eq.
-            20; + excess supply), for the imbalance fee of stage 3 (eq. 8b).
         threshold_kwh: Quantities below this count as nothing.
     """
 
@@ -78,7 +76,6 @@ class ClearingRules:
     reputation: Mapping[str, float] = field(default_factory=dict)
     path: Callable[[str, str], GridPath] = lambda a, b: GridPath()
     upstream: Callable[[str], GridPath] = lambda participant: GridPath()
-    grid_balance_kwh: float = 0.0
     threshold_kwh: float = 1e-6
 
 
@@ -90,7 +87,8 @@ def _trade(
     stage: int,
     rules: ClearingRules,
 ) -> Trade:
-    """A peer-to-peer trade, assessed by the DSO (distance, loss, fee)."""
+    """A peer-to-peer trade with the DSO's distance and loss (its fee comes after
+    the step's power flow)."""
     trade = Trade(
         buyer_id=buy.agent_id,
         seller_id=sell.agent_id,
@@ -178,9 +176,7 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
 def dso(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
     """Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in
     Algorithm 1; ``Dso.clear``)."""
-    trades = rules.dso.clear(
-        _open(orders, rules), rules.grid_balance_kwh, rules.upstream
-    )
+    trades = rules.dso.clear(_open(orders, rules), rules.upstream)
     return StageResult(3, STAGE_NAMES[3], trades, ())
 
 
