@@ -137,6 +137,7 @@ nav:
       - One iteration, step by step: rl/cycle.md
       - Worked examples (our code): rl/examples.md
   - Validation:
+      - Issue register: validation/register.md
       - Market layer: validation/market.md
       - RL layer: validation/rl.md
       - The two papers: validation/papers.md

@@ -20,26 +20,26 @@ independent of what the environment is:
 
 The market environment itself (`lem.py`), and what it gives the agents
 (observations, actions, reward, KPIs), is **not** in scope. To keep the two apart,
-the RL code was copied out of the original repository onto its own branch (`RL`,
-worktree `marlem-rl`) and tested on small environments with known answers instead
-of the market (see [The test bench](#the-test-bench)). The original is kept in `RL/` on the `clean` branch; the fixed layer is `core/rl/`
-here, still independent of the market.
+the original RL code was copied out of the original repository unchanged and tested
+on small environments with known answers instead of the market (see
+[The test bench](#the-test-bench)). That copy, with its issue markers and the test
+notebooks, is kept in `RL/` at commit [`bbef313`](https://github.com/KevinRapo/P2P-thesis/tree/bbef31315e4c762d94bfd6600e29d38d61684c85/RL)
+of the `clean` branch; the fixed layer is `core/rl/` here, still independent of the
+market.
 
 **Sources.**
 
-- **IDs `I-xx`** are from the validation issue register
-  (`docs_thesis/thesis/validation/issues.md` on the refactor branch).
-- **IDs `R-xx`** are new findings made on the RL branch. They are not in the
-  register.
-- **The RL folder** (`RL/` on branch `clean`) holds the copied RL code, test
-  environments, test bench and notebooks. Links below to the original code and its
-  notebooks point into it on GitHub.
-  The former `RL` branch retains the history of the separate validation work.
+- **IDs** are those of the [issue register](register.md), the single list of
+  every issue in the original; this page gives the detail for the RL layer.
+  **IDs `R-xx`** are findings made on the RL test bench.
+- **The RL folder** (`RL/` at commit `bbef313` of the `clean` branch) holds the
+  copied RL code, test environments, test bench and notebooks. Links below to the
+  copied code and its notebooks point into it on GitHub, pinned to that commit.
 - **The original code** is the authors' MARLEM repository,
   [salazarna/marlem](https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7),
   at commit `15d6715` (March 2026). Every code link and snippet points there,
   pinned to that commit. The RL files were copied unchanged into
-  [core/rl/](https://github.com/KevinRapo/P2P-thesis/tree/clean/RL/core/rl) (commit `bf58193`), so the line numbers are the same in
+  [core/rl/](https://github.com/KevinRapo/P2P-thesis/tree/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/core/rl) (commit `bf58193`), so the line numbers are the same in
   both.
 - **[P1]** is the MARLEM paper (Salazar-Peña et al., Applied Energy 412, 2026,
   127546). It describes the paradigms in words (§3.7) and leaves MARL training to
@@ -169,7 +169,7 @@ constant". That removes input processing from the list of suspects.
 
 **Measurements.**
 
-- **The learned networks are read directly** ([probe.py](https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/core/rl/probe.py)):
+- **The learned networks are read directly** ([probe.py](https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/core/rl/probe.py)):
   after training, the learner's value and action outputs are queried in the
   probe's states and compared with the correct answer (tolerance 0.15; values 0.15
   times the size of the answer). Return curves are not used to judge a probe; they
@@ -178,7 +178,7 @@ constant". That removes input processing from the list of suspects.
   training and compared after. A network that does not move is not being trained.
 - **Learner health**, as Jones recommends: entropy, KL between old and new policy,
   policy and value loss, and whether any loss is NaN or infinite
-  ([local.py](https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/core/rl/local.py)).
+  ([local.py](https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/core/rl/local.py)).
 
 **Controls.** DTDE uses RLlib's own network for each agent, so it is the control
 group: a probe that DTDE passes is solvable with these settings and this budget,
@@ -193,7 +193,7 @@ probes 1-3 and 20 for 4-6. Training runs in one process with the trainer's own
 algorithm configuration (`build_local`), not through Ray Tune; the Tune path is not
 tested yet.
 
-**Results** ([probe_paradigms.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/probe_paradigms.ipynb)):
+**Results** ([probe_paradigms.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/notebooks/original/probe_paradigms.ipynb)):
 
 | Probe | DTDE | CTCE | CTDE |
 |---|---|---|---|
@@ -204,7 +204,7 @@ tested yet.
 | 5 Obs → action | pass | **fail**: largest error 0.18 | **fail**: largest error 0.67 |
 | 6 Agent order | pass | pass | **fail**: largest error 0.50 |
 
-A second notebook, [validate_rl.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/validate_rl.ipynb), trains
+A second notebook, [validate_rl.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/notebooks/original/validate_rl.ipynb), trains
 the three paradigms on two slightly larger tasks with known best returns and gives
 the same picture: DTDE learns, CTCE learns slowly, CTDE does not learn.
 
@@ -303,7 +303,7 @@ CTDE combinations are affected. Inference acts through the same heads.
 - *Result.* CTDE passes probes 1-3 and fails 4-6. In probe 4 it outputs −0.01,
   0.19 and 0.11 for targets −0.6, 0 and 0.6. Over two iterations the parameters
   change by: `pi_encoder` 0.150, `pi` 0.114, `vf_head` 0.168, **`pi_heads` 0.000**.
-  On the toy task ([validate_rl.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/validate_rl.ipynb)) CTDE ends
+  On the toy task ([validate_rl.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/notebooks/original/validate_rl.ipynb)) CTDE ends
   at −26.3, worse than always acting 0 (−10.1).
 - *What it tells us.* The behaviour (policy probes fail, value probes pass), the
   mechanism (zero change in exactly the acting networks) and the code (heads not on
@@ -907,8 +907,8 @@ paradigms need the fixes above before they can be repeated.
 
 ## Outside this document
 
-How the market and the RL layer connect is validated in a separate document. The
-register's IDs for it:
+How the market and the RL layer connect is not validated in detail yet; its issues
+are listed in the [register, part B](register.md#b-environment-and-cooperation):
 
 - **Actions and observations:** I-10, I-39, I-40, I-58
 - **Reward:** I-02, I-41 to I-47, I-75, I-76, I-79
