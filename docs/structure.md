@@ -44,6 +44,9 @@ flowchart LR
   market --> profile["profile/"]
   profile --> p1["base.py · der.py · dso.py"]:::orig
 
+  core --> env["env/"]
+  env --> e1["market_env.py"]:::done
+
   root --> notebooks["notebooks/"]
   notebooks --> n1["validate_market.ipynb"]:::done
   notebooks --> n2["scenarios/validate_market.json"]:::done
@@ -56,6 +59,7 @@ flowchart LR
 
   root --> tests["tests/"]
   tests --> x1["test_studio_matches_core.py"]:::done
+  tests --> x2["test_market_env.py"]:::done
 
   root --> studio["studio/"]
   studio --> t1["app.py · layout.py · navigation.py<br/>state.py · theme.py · static/"]:::done
@@ -122,6 +126,18 @@ the remaining original files (ledger, profiles) are the reference.
 | `dso/dso.py` | `Dso`: tariffs, market price (their midpoint), the lines' loading of the last power flow, transmission losses (eq. 18), grid fees (eq. 8) and who pays them, stage 3 clearing (§3.3.2), its balance (eq. 7) and money; `DsoOutcome`, `DSO_ID` | done |
 | `profile/` | Synthetic or CSV generation, demand and tariff profiles | original, imports |
 
+## core/env/: the market as an RL environment
+
+`MarketEnv` is the RLlib `MultiAgentEnv` over `LocalEnergyMarket`: one agent per
+participant, one episode per market day. It only translates actions to orders and
+the step's record to observations and rewards; the market rules stay in
+`core/market/`.
+
+| Script | What it does | State |
+|---|---|---|
+| `market_env.py` | `MarketEnv`: 16 normalised observations per agent (`OBS_NAMES`), 2 actions (signed quantity with a dead zone, price between the feed-in tariff and the utility price), reward = scaled net energy bill (profit less untraded imports at the utility price), episode = one day drawn from `days`, terminated at the day end; baselines `zero_policy`, `net_position_policy`. The module docstring documents the interface | done |
+| `__init__.py` | Public imports: `MarketEnv`, `OBS_NAMES`, `net_position_policy`, `zero_policy` | done |
+
 ## studio/: the user interface
 
 NiceGUI, port 8090. A page is one file in `pages/`; code goes to `components/`
@@ -161,6 +177,7 @@ Run with `python -m pytest tests` in the `marlem` conda env.
 | Test | What it checks | State |
 |---|---|---|
 | `test_studio_matches_core.py` | `validate_market.json` read by `ScenarioService` and stepped part by part by `MarketService` gives the same `StepRecord`s as `LocalEnergyMarket.run_to_end` | done |
+| `test_market_env.py` | `MarketEnv` on `validate_market.json`: spaces, a zero-action day, the reward as the scaled net bill, action decoding (quantity, price, dead zone), reproducible day draw, `net_position_policy` against `zero_policy`, RLlib's multi-agent environment check | done |
 
 ## studio/adapters/: what the pages call
 
