@@ -334,7 +334,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../market/" class="md-tabs__link">
+        <a href="../register/" class="md-tabs__link">
           
   
   
@@ -826,6 +826,8 @@
       
         
       
+        
+      
     
     
     
@@ -873,6 +875,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../register/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Issue register
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -4702,25 +4732,25 @@ independent of what the environment is:</p>
 </ul>
 <p>The market environment itself (<code>lem.py</code>), and what it gives the agents
 (observations, actions, reward, KPIs), is <strong>not</strong> in scope. To keep the two apart,
-the RL code was copied out of the original repository onto its own branch (<code>RL</code>,
-worktree <code>marlem-rl</code>) and tested on small environments with known answers instead
-of the market (see <a href="#the-test-bench">The test bench</a>). The original is kept in <code>RL/</code> on the <code>clean</code> branch; the fixed layer is <code>core/rl/</code>
-here, still independent of the market.</p>
+the original RL code was copied out of the original repository unchanged and tested
+on small environments with known answers instead of the market (see
+<a href="#the-test-bench">The test bench</a>). That copy, with its issue markers and the test
+notebooks, is kept in <code>RL/</code> at commit <a href="https://github.com/KevinRapo/P2P-thesis/tree/bbef31315e4c762d94bfd6600e29d38d61684c85/RL"><code>bbef313</code></a>
+of the <code>clean</code> branch; the fixed layer is <code>core/rl/</code> here, still independent of the
+market.</p>
 <p><strong>Sources.</strong></p>
 <ul>
-<li><strong>IDs <code>I-xx</code></strong> are from the validation issue register
-  (<code>docs_thesis/thesis/validation/issues.md</code> on the refactor branch).</li>
-<li><strong>IDs <code>R-xx</code></strong> are new findings made on the RL branch. They are not in the
-  register.</li>
-<li><strong>The RL folder</strong> (<code>RL/</code> on branch <code>clean</code>) holds the copied RL code, test
-  environments, test bench and notebooks. Links below to the original code and its
-  notebooks point into it on GitHub.
-  The former <code>RL</code> branch retains the history of the separate validation work.</li>
+<li><strong>IDs</strong> are those of the <a href="../register/">issue register</a>, the single list of
+  every issue in the original; this page gives the detail for the RL layer.
+  <strong>IDs <code>R-xx</code></strong> are findings made on the RL test bench.</li>
+<li><strong>The RL folder</strong> (<code>RL/</code> at commit <code>bbef313</code> of the <code>clean</code> branch) holds the
+  copied RL code, test environments, test bench and notebooks. Links below to the
+  copied code and its notebooks point into it on GitHub, pinned to that commit.</li>
 <li><strong>The original code</strong> is the authors' MARLEM repository,
   <a href="https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7">salazarna/marlem</a>,
   at commit <code>15d6715</code> (March 2026). Every code link and snippet points there,
   pinned to that commit. The RL files were copied unchanged into
-  <a href="https://github.com/KevinRapo/P2P-thesis/tree/clean/RL/core/rl">core/rl/</a> (commit <code>bf58193</code>), so the line numbers are the same in
+  <a href="https://github.com/KevinRapo/P2P-thesis/tree/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/core/rl">core/rl/</a> (commit <code>bf58193</code>), so the line numbers are the same in
   both.</li>
 <li><strong>[P1]</strong> is the MARLEM paper (Salazar-Peña et al., Applied Energy 412, 2026,
   127546). It describes the paradigms in words (§3.7) and leaves MARL training to
@@ -4962,7 +4992,7 @@ gets an input, but it carries no information, so the problem becomes "learn one
 constant". That removes input processing from the list of suspects.</p>
 <p><strong>Measurements.</strong></p>
 <ul>
-<li><strong>The learned networks are read directly</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/core/rl/probe.py">probe.py</a>):
+<li><strong>The learned networks are read directly</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/core/rl/probe.py">probe.py</a>):
   after training, the learner's value and action outputs are queried in the
   probe's states and compared with the correct answer (tolerance 0.15; values 0.15
   times the size of the answer). Return curves are not used to judge a probe; they
@@ -4971,7 +5001,7 @@ constant". That removes input processing from the list of suspects.</p>
   training and compared after. A network that does not move is not being trained.</li>
 <li><strong>Learner health</strong>, as Jones recommends: entropy, KL between old and new policy,
   policy and value loss, and whether any loss is NaN or infinite
-  (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/core/rl/local.py">local.py</a>).</li>
+  (<a href="https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/core/rl/local.py">local.py</a>).</li>
 </ul>
 <p><strong>Controls.</strong> DTDE uses RLlib's own network for each agent, so it is the control
 group: a probe that DTDE passes is solvable with these settings and this budget,
@@ -4984,7 +5014,7 @@ training to raise it), 1000 environment steps per iteration, 10 iterations for
 probes 1-3 and 20 for 4-6. Training runs in one process with the trainer's own
 algorithm configuration (<code>build_local</code>), not through Ray Tune; the Tune path is not
 tested yet.</p>
-<p><strong>Results</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/probe_paradigms.ipynb">probe_paradigms.ipynb</a>):</p>
+<p><strong>Results</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/notebooks/original/probe_paradigms.ipynb">probe_paradigms.ipynb</a>):</p>
 <table>
 <thead>
 <tr>
@@ -5033,7 +5063,7 @@ tested yet.</p>
 </tr>
 </tbody>
 </table>
-<p>A second notebook, <a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/validate_rl.ipynb">validate_rl.ipynb</a>, trains
+<p>A second notebook, <a href="https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/notebooks/original/validate_rl.ipynb">validate_rl.ipynb</a>, trains
 the three paradigms on two slightly larger tasks with known best returns and gives
 the same picture: DTDE learns, CTCE learns slowly, CTDE does not learn.</p>
 <h3 id="what-the-tests-confirm-works">What the tests confirm works<a class="headerlink" href="#what-the-tests-confirm-works" title="Permanent link">&para;</a></h3>
@@ -5136,7 +5166,7 @@ CTDE combinations are affected. Inference acts through the same heads.</p>
 <li><em>Result.</em> CTDE passes probes 1-3 and fails 4-6. In probe 4 it outputs −0.01,
   0.19 and 0.11 for targets −0.6, 0 and 0.6. Over two iterations the parameters
   change by: <code>pi_encoder</code> 0.150, <code>pi</code> 0.114, <code>vf_head</code> 0.168, <strong><code>pi_heads</code> 0.000</strong>.
-  On the toy task (<a href="https://github.com/KevinRapo/P2P-thesis/blob/clean/RL/notebooks/original/validate_rl.ipynb">validate_rl.ipynb</a>) CTDE ends
+  On the toy task (<a href="https://github.com/KevinRapo/P2P-thesis/blob/bbef31315e4c762d94bfd6600e29d38d61684c85/RL/notebooks/original/validate_rl.ipynb">validate_rl.ipynb</a>) CTDE ends
   at −26.3, worse than always acting 0 (−10.1).</li>
 <li><em>What it tells us.</em> The behaviour (policy probes fail, value probes pass), the
   mechanism (zero change in exactly the acting networks) and the code (heads not on
@@ -5691,8 +5721,8 @@ paradigms need the fixes above before they can be repeated.</p>
 </tbody>
 </table>
 <h2 id="outside-this-document">Outside this document<a class="headerlink" href="#outside-this-document" title="Permanent link">&para;</a></h2>
-<p>How the market and the RL layer connect is validated in a separate document. The
-register's IDs for it:</p>
+<p>How the market and the RL layer connect is not validated in detail yet; its issues
+are listed in the <a href="../register/#b-environment-and-cooperation">register, part B</a>:</p>
 <ul>
 <li><strong>Actions and observations:</strong> I-10, I-39, I-40, I-58</li>
 <li><strong>Reward:</strong> I-02, I-41 to I-47, I-75, I-76, I-79</li>
