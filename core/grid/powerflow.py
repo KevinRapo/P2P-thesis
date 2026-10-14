@@ -25,6 +25,14 @@ from core.grid.contract import (
 # --------------------------------------------------------------------------------------
 # The step-time grid
 # --------------------------------------------------------------------------------------
+# pandapower's ``recycle``: between steps only the loads' and generators' power
+# changes (never the topology or the transformers), so the internal network model
+# and the run options are built once and reused; only the bus power is refreshed
+# and the equations solved again. The results are the same (same Newton-Raphson
+# solve, same tolerance); a step's power flow takes about a third of the time.
+RECYCLE = {"trafo": False, "gen": False, "bus_pq": True}
+
+
 class SimBenchGrid:
     """A working copy of the network, stepped with the market.
 
@@ -32,6 +40,9 @@ class SimBenchGrid:
         setup: The network, the day, the step length, the background and limits.
         owned: Element IDs each participant owns (they are replaced by injections).
     """
+
+    #: ``RECYCLE`` (default) or ``None`` to rebuild everything at every step.
+    recycle: dict | None = RECYCLE
 
     def __init__(self, setup: GridSetup, owned: dict[str, list[str]]) -> None:
         if setup.step_hours not in (1.0, 0.25):
@@ -133,7 +144,7 @@ class SimBenchGrid:
             net.load.loc[index, "p_mw"] = p_mw
             net.load.loc[index, "q_mvar"] = 0.0
         try:
-            pp.runpp(net, algorithm="nr")
+            pp.runpp(net, algorithm="nr", recycle=self.recycle)
         except pp.LoadflowNotConverged:
             return simbench._not_converged(step, [])
         return simbench._assessment(net, step, self.setup.step_hours, [], self.limits)
