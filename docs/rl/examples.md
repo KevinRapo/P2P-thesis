@@ -1,21 +1,21 @@
 # Worked examples: the parts we define
 
-> The training cycle with numbers, limited to what our own code decides: how the
-> agents are grouped, how CTDE's per-agent actor is put together, the settings we
-> choose, and how a trained policy is evaluated. Everything else (the networks'
-> layers, sampling, GAE, the losses, Adam) is RLlib's and is described in
-> [One training iteration](cycle.md); it appears here only where our code feeds
-> it or reads from it. Step labels (A4, C2, ...) are those of that page.
+> The training cycle with numbers, limited to what our own code decides: what each
+> paradigm's modules receive, how CTDE's local actor and central critic are put
+> together, the settings we choose, and how a trained policy is evaluated.
+> Everything else (the networks' layers, sampling, GAE, the losses, Adam) is
+> RLlib's and is described in [One training iteration](cycle.md); it appears here
+> only where our code feeds it or reads from it. Step labels (A4, C2, ...) are those
+> of that page.
 
-**The code** is the fixed implementation in `core/rl/` in this repository.
-The links point to the local files.
-Every number below was computed with that code or with RLlib's own functions
-(`unsquash_action`), not by hand.
+**The code** is the implementation in `core/rl/` in this repository. The links
+point to the local files. Numbers that depend on the code were computed with it or
+with RLlib's own functions (`unsquash_action`); the rest is arithmetic on them.
 
 | File | What it defines | Section here |
 |---|---|---|
-| [grouping.py](../../core/rl/grouping.py) | `GroupedEnv`: all agents as one, for CTCE and CTDE | 1, 2, 4 |
-| [ctde_modules.py](../../core/rl/ctde_modules.py) | CTDE: RLlib's modules with one actor per agent | 3, 5 |
+| [grouping.py](../../core/rl/grouping.py) | `GroupedEnv`: all agents as one (CTCE); `CentralStateEnv`: each agent's observation with the global state (CTDE) | 1, 2, 4 |
+| [ctde_modules.py](../../core/rl/ctde_modules.py) | CTDE: RLlib's modules with the actor on the agent's own observation | 3, 5 |
 | [config.py](../../core/rl/config.py) | the settings of each of the nine combinations | 6 |
 | [policy.py](../../core/rl/policy.py) | acting with a trained policy, baselines, the team score | 7 |
 | [train.py](../../core/rl/train.py) | the budget, the NaN stop, when evaluation runs | 8 |
@@ -36,18 +36,23 @@ a price (€/kWh). The quantity bound is each agent's own capacity.
 
 So $N = 3$, $d_o = 2$, $d_a = 2$.
 
-## 1. Grouping the observations (A1, CTCE and CTDE)
+## 1. What each module receives (A1)
 
-[`GroupedEnv`](../../core/rl/grouping.py#L62-L123) turns the three
-agents into one agent, `"group"`. Its observation is the agents' observations side
-by side, **in the environment's order** (`join`,
-[grouping.py L55-L59](../../core/rl/grouping.py#L55-L59)):
+All observations side by side, **in the environment's order** (`join`,
+[grouping.py L61-L65](../../core/rl/grouping.py#L61-L65)), are the global state
 
 $$s = (\underbrace{0.4,\ 0.8}_{\texttt{agent\_2}},\ \underbrace{-0.2,\ 0.5}_{\texttt{agent\_10}},\ \underbrace{0.9,\ 0.1}_{\texttt{agent\_1}}) \in \mathbb{R}^6.$$
 
-The action space is joined the same way (`join_spaces`,
-[L28-L34](../../core/rl/grouping.py#L28-L34)), each agent's bounds
-in its own slice:
+| | CTCE | CTDE | DTDE |
+|---|---|---|---|
+| Modules | one, `"group"` | three, one per agent | three, one per agent |
+| Input of `agent_10`'s module | – (the group gets $s$) | $x_{10} = (\underbrace{-0.2,\ 0.5}_{o_{10}},\ \underbrace{0.4,\ 0.8,\ -0.2,\ 0.5,\ 0.9,\ 0.1}_{s}) \in \mathbb{R}^8$ | $o_{10} = (-0.2, 0.5)$ |
+| Wrapper | [`GroupedEnv`](../../core/rl/grouping.py#L68-L137) | [`CentralStateEnv`](../../core/rl/grouping.py#L147-L194) (`central_obs`, [L138-L144](../../core/rl/grouping.py#L138-L144)) | none |
+
+**CTCE.** `GroupedEnv` turns the three agents into one agent, `"group"`, with
+observation $s$. The action space is joined the same way (`join_spaces`,
+[L34-L40](../../core/rl/grouping.py#L34-L40)), each agent's bounds in its own
+slice:
 
 | Position | 1 | 2 | 3 | 4 | 5 | 6 |
 |---|---|---|---|---|---|---|
@@ -56,11 +61,20 @@ in its own slice:
 | high | 5 | 0.35 | 20 | 0.35 | 2 | 0.35 |
 
 To RLlib the group is an ordinary agent with a 6-dimensional `Box` observation and
-action. That is the whole point: RLlib's own module and algorithm then train CTCE
-without any custom network. In DTDE nothing is grouped: each agent's module gets
-its own $o_i$ and its own bounds.
+action, so RLlib's own module and algorithm train CTCE without any custom network.
+
+**CTDE.** `CentralStateEnv` keeps the three agents. Each agent's observation
+becomes its own $o_i$ followed by $s$, 8 numbers; its action space and reward stay
+its own. The own part comes first so that the actor can read it as a fixed slice
+(section 3).
+
+**DTDE.** Nothing is wrapped: each agent's module gets its own $o_i$ and its own
+bounds.
 
 ## 2. From the policy's output to the market (A3-A5)
+
+Shown for CTCE, where one policy outputs all six dimensions; in CTDE and DTDE each
+agent's module does the same for its own two.
 
 **What RLlib does (A3).** Say the policy outputs, for the 6 dimensions, means and
 log-stds
@@ -73,7 +87,7 @@ noise $\varepsilon = (1.0, -0.5, 0.2, 1.5, -2.0, 0.3)$:
 $$u = m + \sigma\varepsilon = (0.907,\ -0.284,\ -0.501,\ 0.652,\ -1.241,\ 0.622).$$
 
 **What our bounds decide (A4).** RLlib rescales each dimension from $[-1, 1]$ to
-the joint space's bounds and clips,
+the bounds and clips,
 $a_k = \text{clip}(\text{low}_k + (u_k + 1)(\text{high}_k - \text{low}_k)/2)$:
 
 | Dimension | $u_k$ | low, high | $a_k$ |
@@ -91,148 +105,146 @@ name order (`agent_1, agent_10, agent_2`) but the data in this order, so positio
 1-2 carried `agent_1`'s bounds and positions 5-6 `agent_2`'s: `agent_2` would have
 bid $-2 + 1.907 \times 2 = 1.81$ kWh instead of 4.53, and `agent_1` would have been
 clipped at −5 instead of −2, beyond its own capacity (I-59). `agent_10` happens to
-sit in the middle of both orders and would have been right.
+sit in the middle of both orders and would have been right. In CTDE and DTDE the
+question does not arise: each module has its own agent's space.
 
 `agent_1`'s quantity shows the clip: $u = -1.241$ is outside $[-1, 1]$, so the
 market gets the bound −2, but the batch keeps $u = -1.241$ and the learner trains
 on it.
 
-**Splitting back (A5).** `GroupedEnv.step` cuts the joint action into the agents'
-parts (`split`, [L46-L52](../../core/rl/grouping.py#L46-L52)) and
-passes them to the environment:
+**Splitting back (A5, CTCE).** `GroupedEnv.step` cuts the joint action into the
+agents' parts (`split`, [L52-L58](../../core/rl/grouping.py#L52-L58)) and passes
+them to the environment:
 
 ```python
 {"agent_2": [4.53, 0.157], "agent_10": [-10.01, 0.298], "agent_1": [-2.0, 0.293]}
 ```
 
-## 3. CTDE: one actor per agent (A2)
+## 3. CTDE: a local actor and a central critic per agent (A2, B3)
 
-In CTDE each agent's action may depend only on its own observation. Our module
-([ctde_modules.py L134-L140](../../core/rl/ctde_modules.py#L134-L140)) is
-RLlib's PPO module for the group with the actor replaced by three separate ones,
-each the network RLlib would build for that agent alone (`agent_actors`,
-[L99-L119](../../core/rl/ctde_modules.py#L99-L119)). The critic is left
-as RLlib builds it, on all of $s$.
+Each agent's module is RLlib's default module for its algorithm, built for the
+agent's 8-number input $x_i$, with one change: the actor's encoder is replaced by
+the encoder RLlib builds for the agent's own 2-number observation, applied to the
+first 2 entries of $x_i$ (`OwnObsEncoder` and `own_encoder`,
+[ctde_modules.py L44-L79](../../core/rl/ctde_modules.py#L44-L79)). The policy head,
+the critic, the losses and the action distribution stay RLlib's
+([`CTDEPPOModule`](../../core/rl/ctde_modules.py#L80-L85); APPO and SAC alike,
+[L88-L108](../../core/rl/ctde_modules.py#L88-L108)).
 
-**Encoders** (`AgentEncoders`,
-[L48-L66](../../core/rl/ctde_modules.py#L48-L66)). Agent $i$'s encoder
-reads only its slice of $s$: `agent_2`'s positions 1-2 = (0.4, 0.8), `agent_10`'s
-3-4 = (−0.2, 0.5), `agent_1`'s 5-6 = (0.9, 0.1). Each turns its 2 numbers into a
-256-number latent, $h_i$; the three latents are put side by side (768 numbers).
+For `agent_10`, with $x_{10}$ of section 1:
 
-**Heads** (`AgentHeads`,
-[L69-L96](../../core/rl/ctde_modules.py#L69-L96)). Head $i$ reads only
-$h_i$ and outputs $[m_{i}, \ell_{i}]$ for its 2 action dimensions. Say:
+| Part | Reads | Output |
+|---|---|---|
+| Actor encoder | entries 1-2 of $x_{10}$: $(-0.2, 0.5) = o_{10}$ | a 256-number latent $h_{10}$ |
+| Actor head | $h_{10}$ | $[m_q, m_p, \ell_q, \ell_p]$, e.g. (−0.60, 0.20, −0.70, −1.20) |
+| Critic encoder and head | all 8 entries: $o_{10}$ and $s$ | $V_{\phi_{10}}(o_{10}, s)$, `agent_10`'s own expected return |
 
-| Agent | Head output $[m_q, m_p, \ell_q, \ell_p]$ |
-|---|---|
-| `agent_2` | (0.30, −0.10, −0.50, −1.00) |
-| `agent_10` | (−0.60, 0.20, −0.70, −1.20) |
-| `agent_1` | (0.10, 0.50, −0.40, −0.90) |
-
-RLlib's Gaussian for a 6-dimensional action reads a 12-number input as *first the 6
-means, then the 6 log-stds* (`loc, log_std = logits.chunk(2)`). So the heads'
-outputs are **rearranged** before they leave the module:
-
-$$(\underbrace{0.30, -0.10}_{m,\ \texttt{agent\_2}}, \underbrace{-0.60, 0.20}_{m,\ \texttt{agent\_10}}, \underbrace{0.10, 0.50}_{m,\ \texttt{agent\_1}}, \underbrace{-0.50, -1.00}_{\ell,\ \texttt{agent\_2}}, \underbrace{-0.70, -1.20}_{\ell,\ \texttt{agent\_10}}, \underbrace{-0.40, -0.90}_{\ell,\ \texttt{agent\_1}}).$$
-
-These are exactly the $m$ and $\ell$ of section 2, so from here on CTDE is the
-same as CTCE: RLlib samples, rescales, stores and trains a 6-dimensional Gaussian.
-Had the outputs simply been concatenated, $(0.30, -0.10, -0.50, -1.00, -0.60, 0.20, \dots)$,
-RLlib would have read `agent_2`'s log-stds as `agent_10`'s means.
+The actor's output is already in the order RLlib's Gaussian expects (*first the
+means, then the log-stds*), since the head is RLlib's own for one agent's 2
+dimensions. Changing any entry of $s$ changes the critic's value but never the
+action: the trained actor can act on $o_{10}$ alone.
 
 **Sizes** (RLlib's default network, 2 × 256 tanh, actor and critic separate):
 
 | | Actor parameters | Critic parameters |
 |---|---|---|
 | DTDE, per agent | 67 588 (input 2, output 4) | 66 817 (input 2) |
+| CTDE, per agent | 67 588 (input 2, output 4) | 68 353 (input 8) |
 | CTCE | 70 668 (input 6, output 12) | 67 841 (input 6) |
-| CTDE | 3 × 67 588 = 202 764 (three DTDE actors) | 67 841 (CTCE's critic) |
 
-CTDE's actor is the three DTDE actors, and its critic is CTCE's.
+CTDE's actor is DTDE's actor; only the critic's first layer is wider, for the
+global state.
 
-## 4. The group's reward (A5, B4)
+## 4. Whose reward each module learns from (A5, B4)
 
-`GroupedEnv.step` returns one reward for the group, the sum of the agents'
-([L104-L123](../../core/rl/grouping.py#L104-L123)). With the market
-paying
+With the market paying
 
-$$r_{\texttt{agent\_2}} = 1.50, \qquad r_{\texttt{agent\_10}} = -0.50, \qquad r_{\texttt{agent\_1}} = 0.25,$$
+$$r_{\texttt{agent\_2}} = 1.50, \qquad r_{\texttt{agent\_10}} = -0.50, \qquad r_{\texttt{agent\_1}} = 0.25:$$
 
-the group gets $R = 1.25$. The agents' own rewards travel along in the group's
-`infos` (for evaluation), but the learner sees only 1.25.
+| | CTCE | CTDE | DTDE |
+|---|---|---|---|
+| Reward the learner sees | one, $R = 1.25$ for the group ([`GroupedEnv`](../../core/rl/grouping.py#L122)) | each module its own: 1.50, −0.50, 0.25 | each module its own: 1.50, −0.50, 0.25 |
+| Critic learns | the group's return, about $N = 3$ times one agent's | each agent's own return, from the whole state | each agent's own return, from its own observation |
+| Advantage | one for the group | one per agent | one per agent |
 
-What follows from it, all computed by RLlib:
+**CTCE.** The agents' own rewards travel along in the group's `infos` (for
+evaluation), but the learner sees only 1.25. $\hat A$ is computed from $R$, so
+`agent_1`'s bid is reinforced or discouraged by the same number as `agent_2`'s,
+although here `agent_10` lost money and `agent_2` earned it. Telling the agents'
+contributions apart is left to the averaging over many steps (the
+credit-assignment cost,
+[I-60](../validation/rl.md#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
 
-- **The critic** $V(s)$ learns the group's return. Its targets are about $N = 3$
-  times the size of one agent's, which matters for RLlib's value-loss cap of 10
-  ([cycle.md C4](cycle.md#c4-value-loss)).
-- **One advantage for the group.** $\hat A$ is computed from $R$, so `agent_1`'s bid
-  is reinforced or discouraged by the same number as `agent_2`'s, although here
-  `agent_10` lost money and `agent_2` earned it. Telling the agents' contributions
-  apart is left to the averaging over many steps (the credit-assignment cost,
-  [I-60](../validation/rl.md#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
+**CTDE and DTDE.** `agent_10`'s loss of 0.50 lowers only `agent_10`'s advantage.
+CTDE's critic sees the whole state, so it can learn, for example, that `agent_10`
+loses money whenever the others have a surplus, and not blame `agent_10`'s own bid
+for that.
 
-In DTDE each agent's module learns from its own $r_i$ and nothing is summed.
+## 5. CTDE in the update: per-agent ratios and clips (C2, C3, C8)
 
-## 5. CTDE in the update: what the per-agent actor means for the loss (C2, C3, C8)
-
-The loss is RLlib's; what our module decides is that the joint policy is a product
-of the agents' policies. Here is what that does in numbers.
+The loss is RLlib's, once per agent's module. Here is what that means in numbers,
+against a grouped policy that would clip the agents together.
 
 **Log-probability.** For the stored $u$ of section 2, per dimension
 $\log\pi = -\frac{(u - m)^2}{2\sigma^2} - \ell - \frac12\log 2\pi$:
 
-| | `agent_2` | `agent_10` | `agent_1` | Group |
-|---|---|---|---|---|
-| $\log\mu(u_i)$ when sampled | −0.963 | −1.083 | −2.583 | −4.629 (the sum) |
+| | `agent_2` | `agent_10` | `agent_1` |
+|---|---|---|---|
+| $\log\mu(u_i)$ when sampled | −0.963 | −1.083 | −2.583 |
 
-**Ratio (C2).** Some minibatches later the heads have moved a little: `agent_2`'s
+**Ratio (C2).** Some minibatches later the actors have moved a little: `agent_2`'s
 quantity mean 0.30 → 0.36, `agent_10`'s price mean 0.20 → 0.235, `agent_1`'s price
 mean 0.50 → 0.53. Recomputed:
 
-| | `agent_2` | `agent_10` | `agent_1` | Group |
-|---|---|---|---|---|
-| $\log\pi_\theta(u_i)$ | −0.869 | −0.915 | −2.563 | −4.347 |
-| $\rho_i = e^{\log\pi_\theta - \log\mu}$ | 1.099 | 1.182 | 1.020 | $\rho = 1.099 \times 1.182 \times 1.020 = $ **1.324** |
+| | `agent_2` | `agent_10` | `agent_1` |
+|---|---|---|---|
+| $\log\pi_{\theta_i}(u_i)$ | −0.869 | −0.915 | −2.563 |
+| $\rho_i = e^{\log\pi_{\theta_i} - \log\mu_i}$ | 1.099 | 1.182 | 1.020 |
 
-**Clip (C3).** RLlib clips the **group's** ratio, $\rho = 1.324$, to $[0.8, 1.2]$.
-With $\hat A = +0.8$:
+**Clip (C3), per agent.** Each module clips its own ratio to $[0.8, 1.2]$ with its
+own advantage. Say $\hat A_2 = +0.8$, $\hat A_{10} = -0.6$, $\hat A_1 = +0.3$:
+
+| | `agent_2` | `agent_10` | `agent_1` |
+|---|---|---|---|
+| $\rho_i \hat A_i$ | 0.879 | −0.709 | 0.306 |
+| $\text{clip}(\rho_i)\, \hat A_i$ | 0.879 | −0.709 | 0.306 |
+| Gradient | yes | yes | yes |
+
+All three ratios are inside the band, so every agent keeps learning.
+
+**A grouped policy would not.** With one product policy, as in CTCE or a grouped
+CTDE, RLlib clips the joint ratio $\rho = 1.099 \times 1.182 \times 1.020 = 1.324$
+with one advantage. With $\hat A = +0.8$,
 
 $$S = \min(1.324 \times 0.8,\ 1.2 \times 0.8) = \min(1.060,\ 0.960) = 0.960,$$
 
-the clipped branch: **no gradient for any agent**, although each agent alone
-($1.099$, $1.182$, $1.020$) is still inside $[0.8, 1.2]$. Three agents that each
-moved a little count as one policy that moved too far. With $\hat A = -0.8$ the
-unclipped branch is the smaller one ($-1.060 < -0.960$), so all three keep
-receiving gradient. The more agents, the sooner the product leaves the band.
-Clipping each agent's ratio separately instead, as MAPPO does, is the open choice
-recorded in [training.md](training.md#ctde); the fixed code keeps RLlib's joint
-clip.
+the clipped branch: **no gradient for any agent**, although each agent alone is
+still inside $[0.8, 1.2]$. Three agents that each moved a little count as one
+policy that moved too far, and the more agents, the sooner the product leaves the
+band. This is why CTDE is per agent (MAPPO); CTCE keeps the joint clip, since it
+*is* one policy.
 
-**Where the gradient goes (C8).** Agent $i$'s network appears only in its own
-term of $\log\pi = \sum_i \log\pi_i(u_i \mid o_i)$, so it receives only that term's
-gradient. On the first minibatch ($\rho = 1$, unclipped), with $\hat A = +0.8$, the
-push on each mean is $\hat A \cdot \partial\log\pi / \partial m_k = \hat A\,(u_k - m_k)/\sigma_k^2$:
+**Where the gradient goes (C8).** Agent $i$'s actor receives only its own term. On
+the first minibatch ($\rho_i = 1$, unclipped) the push on each mean is
+$\hat A_i \cdot \partial\log\pi_i / \partial m_k = \hat A_i\,(u_k - m_k)/\sigma_k^2$:
 
 | | `agent_2` q | `agent_2` p | `agent_10` q | `agent_10` p | `agent_1` q | `agent_1` p |
 |---|---|---|---|---|---|---|
 | $(u_k - m_k)/\sigma_k^2$ | 1.649 | −1.359 | 0.403 | 4.980 | −2.984 | 0.738 |
-| × $\hat A = 0.8$ | 1.319 | −1.087 | 0.322 | 3.984 | −2.387 | 0.590 |
+| × own $\hat A_i$ (0.8, −0.6, 0.3) | 1.319 | −1.087 | −0.242 | −2.988 | −0.895 | 0.221 |
 
-Each mean is pulled toward the action that was sampled, in proportion to how far
-the noise took it ($\varepsilon_k / \sigma_k$). `agent_10`'s head gets only the two
-numbers in its columns, from the gradient of its own 2 outputs, and nothing from
-the other agents' actions; that is "decentralised execution" in the loss. In CTCE
-the same six numbers arrive, but all at one network that sees $s$.
+Each mean is pulled toward the action that was sampled when the agent's own
+outcome was better than its critic expected ($\hat A_i > 0$), and away from it when
+worse: `agent_10`'s means move away from its sampled action, the others' toward
+theirs. In CTCE the six numbers would all carry the group's one advantage.
 
 In the original, these gradients went to a central actor and the acting heads got
 none ([I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act)).
 
 ## 6. The settings we choose
 
-[`SETTINGS` and `MODEL`](../../core/rl/config.py#L72-L106), and
-what each changes in the cycle:
+[`SETTINGS` and `MODEL`](../../core/rl/config.py#L78-L113), and what each changes in
+the cycle:
 
 | Setting | Value | What it does in the cycle |
 |---|---|---|
@@ -243,22 +255,28 @@ what each changes in the cycle:
 | `entropy_coeff` | 0.01 | the constant push to widen $\sigma$ (C5) |
 | `grad_clip` | 0.5 | gradient norm capped at 0.5 (C9) |
 | `use_kl_loss` | False | the KL term is not computed at all (C6 disappears; fixes [R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
-| `vf_share_layers` | False | actor and critic have separate encoders: the value loss no longer trains the actor's layers (C8) |
-| SAC `target_entropy` | `"auto"` | $-\dim A$ of each module: **−2** per agent in DTDE, **−6** for the group in CTCE and CTDE |
+| `vf_clip_param` | $10^6$ | the value loss is not capped (C4) |
+| `vf_share_layers` | False | actor and critic have separate encoders: the value loss does not train the actor's layers (C8) |
+| SAC `target_entropy` | `"auto"` | $-\dim A$ of each module: **−2** per agent in CTDE and DTDE, **−6** for the group in CTCE |
 
-**Steps per iteration.** One PPO iteration samples 4000 environment steps. In
-CTCE and CTDE that is 4000 rows of the group; in DTDE 4000 rows for *each* of the
-three modules, 12 000 rows in total, but still 4000 environment steps. The budget
-counts environment steps, so all paradigms get the same amount of experience.
+An experiment can override them; the market runs use `lr` $3 \cdot 10^{-4}$, PPO
+batches of 2400 steps (100 days), minibatches of 240 and 10 epochs.
+
+**Steps per iteration.** One PPO iteration samples 4000 environment steps. In CTCE
+that is 4000 rows of the group; in CTDE and DTDE 4000 rows for *each* of the three
+modules, 12 000 rows in total, but still 4000 environment steps. The budget counts
+environment steps, so all paradigms get the same amount of experience.
 
 ## 7. Evaluating a trained policy
 
-[`Policy`](../../core/rl/policy.py#L54-L131) acts with the trained
-module outside RLlib, the same way RLlib does in training, but without noise.
+[`Policy`](../../core/rl/policy.py#L54-L139) acts with the trained modules outside
+RLlib, the same way RLlib does in training, but without noise. It builds each
+module's input as the paradigm's wrapper does (`_inputs`: $o_i$, $x_i$ or $s$) and
+always runs in the original multi-agent environment.
 
-**The action** (`act`, [L96-L111](../../core/rl/policy.py#L96-L111)).
-The most likely action is the mean, then RLlib's own rescaling with the joint
-bounds, then the split:
+**The action** (`act`, [L99-L114](../../core/rl/policy.py#L99-L114)). The most
+likely action is the mean, then RLlib's own rescaling, with each agent's bounds in
+CTDE and DTDE and the joint bounds then a split in CTCE. The result is the same:
 
 | | `agent_2` | `agent_10` | `agent_1` |
 |---|---|---|---|
@@ -268,20 +286,20 @@ bounds, then the split:
 For example `agent_10`'s quantity: $-20 + (-0.60 + 1) \times 20 = -12.0$. SAC's
 actions are squashed by tanh, so its most likely action is $\tanh m$; RLlib's own
 deterministic SAC action skips the tanh in Ray 2.51.1, so `_deterministic`
-([L39-L51](../../core/rl/policy.py#L39-L51)) applies it. The
-original's inference used the mean without rescaling, so `agent_10` would have bid
-−0.60 kWh ([I-61](../validation/rl.md#i-61-standalone-inference-does-not-act-like-training)).
+([L39-L51](../../core/rl/policy.py#L39-L51)) applies it. The original's inference
+used the mean without rescaling, so `agent_10` would have bid −0.60 kWh
+([I-61](../validation/rl.md#i-61-standalone-inference-does-not-act-like-training)).
 
-**Baselines** ([L137-L165](../../core/rl/policy.py#L137-L165)).
-"Random" draws each action uniformly within its bounds. "Zero" sends 0 in the
-market's units, clipped to the bounds: quantity 0, price $\max(0, 0.05) = 0.05$
-for every agent. It is *not* the network's 0, which would be the middle of the
-bounds (price 0.20).
+**Baselines** ([L140-L174](../../core/rl/policy.py#L140-L174)). "Random" draws each
+action uniformly within its bounds. "Zero" sends 0 in the environment's units,
+clipped to the bounds: quantity 0, price $\max(0, 0.05) = 0.05$ for every agent. It
+is *not* the network's 0, which would be the middle of the bounds (price 0.20). The
+market environment adds its own baselines (never trade, and the market's bidding
+rule), see [marlem-v1](../v1.md#3-the-market-as-an-environment).
 
-**The team score** (`Episode`,
-[L172-L192](../../core/rl/policy.py#L172-L192)). Every paradigm is
-scored in the original multi-agent environment, from the raw per-agent rewards.
-Over a 3-step episode:
+**The team score** (`Episode`, [L175-L195](../../core/rl/policy.py#L175-L195)).
+Every paradigm is scored in the original multi-agent environment, from the raw
+per-agent rewards. Over a 3-step episode:
 
 | Step | `agent_2` | `agent_10` | `agent_1` |
 |---|---|---|---|
@@ -295,34 +313,35 @@ same number for CTCE, CTDE and DTDE, computed the same way, so the nine
 combinations and the baselines can be ranked on one scale
 ([I-73](../validation/rl.md#i-73-returns-of-the-paradigms-are-compared-across-different-scales)).
 Evaluation episodes use seeds from 1 000 000 on, which training never reaches
-(`evaluation_seeds`,
-[L245-L249](../../core/rl/policy.py#L245-L249)).
+(`evaluation_seeds`, [L248-L252](../../core/rl/policy.py#L248-L252)); the runner's
+held-out evaluation uses test days that training never sees.
 
-`Policy.values` gives the critic's estimate of a state; in CTCE and CTDE that is
-the group's value, comparable to the team score, not to one agent's return.
+`Policy.values` gives each module's critic estimate of a state: in CTCE the group's
+value, comparable to the team score; in CTDE and DTDE each agent's own expected
+return.
 
 ## 8. The run: budget, NaN stop, evaluation
 
-[`train`](../../core/rl/train.py#L238-L335) repeats RLlib's
-iteration until the budget of environment steps is used up.
+[`train`](../../core/rl/train.py#L238-L338) repeats RLlib's iteration until the
+budget of environment steps is used up.
 
 **Budget.** `budget = 100_000` with PPO's 4000 steps per iteration: 25 iterations,
 for every paradigm. With `eval_every = 20_000`, the policy and baselines are
-evaluated at 0 (untrained, together with random and zero), 20 000, 40 000, 60 000,
+evaluated at 0 (untrained, together with the baselines), 20 000, 40 000, 60 000,
 80 000 and at the end, 100 000
-([L283-L302](../../core/rl/train.py#L288-L307)).
+([L287-L308](../../core/rl/train.py#L287-L308)).
 
-**NaN stop** (`_nonfinite`,
-[L194-L209](../../core/rl/train.py#L199-L214)). After each
-iteration the learner's results are searched for losses, entropies and the SAC
+**NaN stop** (`_nonfinite`, [L199-L214](../../core/rl/train.py#L199-L214)). After
+each iteration the learner's results are searched for losses, entropies and the SAC
 temperature that are NaN or infinite. For
 
 ```python
-{"group": {"policy_loss": nan, "vf_loss": 0.31, "entropy": inf,
-           "num_env_steps_trained_throughput": nan}}
+{"agent_10": {"policy_loss": nan, "vf_loss": 0.31, "entropy": inf,
+              "num_env_steps_trained_throughput": nan}}
 ```
 
-it finds `group/policy_loss` and `group/entropy` and stops the run with an error,
-which `run.json` records. The throughput is skipped on purpose: RLlib reports it
-as NaN in the first iteration. The original carried on with zeroed gradients
+it finds `agent_10/policy_loss` and `agent_10/entropy` and stops the run with an
+error, which `run.json` records. The throughput is skipped on purpose: RLlib
+reports it as NaN in the first iteration. The original carried on with zeroed
+gradients
 ([R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).
