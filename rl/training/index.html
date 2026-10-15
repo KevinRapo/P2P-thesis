@@ -4270,22 +4270,31 @@
 
 <h1 id="the-training-cycle-3-algorithms--3-paradigms">The training cycle: 3 algorithms × 3 paradigms<a class="headerlink" href="#the-training-cycle-3-algorithms--3-paradigms" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>The math that has to happen in one training iteration of each of MARLEM's nine
-combinations: PPO, APPO and SAC, each trained as CTCE, CTDE and DTDE. First the
-common skeleton, then each algorithm worked through (PPO in full), then what
-each paradigm changes, then how many steps each algorithm takes, so runs can be
-compared. Where the original code computes something else, the section says so
-and points to <a href="../../validation/rl/">RL layer: what is wrong</a>. The same iteration,
-step by step from the observation, is in <a href="../cycle/">One training iteration</a>.</p>
+<p>The math that has to happen in one training iteration of each of the nine
+combinations: PPO, APPO and SAC, each trained as CTCE, CTDE and DTDE, as
+<code>core/rl/</code> implements them. First the common skeleton, then each algorithm
+worked through (PPO in full), then what each paradigm changes, then how many
+steps each algorithm takes, so runs can be compared. Where the original MARLEM
+code computes something else, the section says so and points to
+<a href="../../validation/rl/">RL layer: what is wrong</a>; <a href="#8-where-the-original-code-differs">section 8</a>
+collects them. The same iteration, step by step from the observation, is in
+<a href="../cycle/">One training iteration</a>.</p>
 </blockquote>
 <p><strong>Sources.</strong> RLlib is Ray 2.51.1, the version in the <code>marlem</code> conda env; every
 statement about it was read in its installed source, linked at tag
-<a href="https://github.com/ray-project/ray/tree/ray-2.51.1/rllib"><code>ray-2.51.1</code></a>. MARLEM's
-code is linked at the original commit
-<a href="https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment"><code>15d6715</code></a>,
-as in the validation document. Settings are the original's
-(<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L215-L259"><code>train.py</code> L215-L259</a>),
-completed with RLlib's defaults. [P2] is the implicit-cooperation preprint.</p>
+<a href="https://github.com/ray-project/ray/tree/ray-2.51.1/rllib"><code>ray-2.51.1</code></a>. The
+implementation is <code>core/rl/</code> in this repository: the paradigms in
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py">grouping.py</a> and
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py">ctde_modules.py</a>, the settings in
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/config.py">config.py</a>. The settings below are its <code>SETTINGS</code>: the
+original's starting values ([P2] Table 8,
+<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L215-L259"><code>train.py</code> L215-L259</a>)
+without the defective ones, completed with RLlib's defaults. An experiment can
+override them; the market runs of <a href="../../v1/#4-how-to-use-it">marlem-v1</a> use a
+learning rate of <span class="arithmatex">\(3 \cdot 10^{-4}\)</span> and PPO batches of 2400 steps, minibatches of
+240 and 10 epochs. The original code is linked at commit
+<a href="https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment"><code>15d6715</code></a>.
+[P2] is the implicit-cooperation preprint.</p>
 <h2 id="notation">Notation<a class="headerlink" href="#notation" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -4309,7 +4318,11 @@ completed with RLlib's defaults. [P2] is the implicit-cooperation preprint.</p>
 </tr>
 <tr>
 <td><span class="arithmatex">\(s_t = (o_{1,t}, \dots, o_{N,t})\)</span></td>
-<td>all observations, concatenated (the grouped paradigms' input)</td>
+<td>all observations, concatenated: CTCE's input, and the global state CTDE's critics see</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(x_{i,t} = (o_{i,t}, s_t)\)</span></td>
+<td>what agent <span class="arithmatex">\(i\)</span>'s module receives in CTDE (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L147-L194"><code>CentralStateEnv</code></a>)</td>
 </tr>
 <tr>
 <td><span class="arithmatex">\(\mathbf{a}_t = (a_{1,t}, \dots, a_{N,t})\)</span></td>
@@ -4317,7 +4330,7 @@ completed with RLlib's defaults. [P2] is the implicit-cooperation preprint.</p>
 </tr>
 <tr>
 <td><span class="arithmatex">\(R_t = \sum_i r_{i,t}\)</span></td>
-<td>the group reward of CTCE and CTDE (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L684"><code>train.py</code> L684</a>)</td>
+<td>the group reward of CTCE (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L122"><code>GroupedEnv</code></a>)</td>
 </tr>
 <tr>
 <td><span class="arithmatex">\(d_t\)</span></td>
@@ -4337,35 +4350,41 @@ completed with RLlib's defaults. [P2] is the implicit-cooperation preprint.</p>
 </tr>
 </tbody>
 </table>
-<p>Every policy is a diagonal Gaussian over the action dimensions (SAC-DTDE then
-squashes it with tanh, <a href="#4-sac">section 4</a>): the network
-outputs a mean <span class="arithmatex">\(m\)</span> and <span class="arithmatex">\(\log\sigma\)</span> per dimension, and</p>
+<p>Every policy is a diagonal Gaussian over the action dimensions (SAC then squashes
+it with tanh, <a href="#4-sac">section 4</a>): the network outputs a mean <span class="arithmatex">\(m\)</span> and <span class="arithmatex">\(\log\sigma\)</span>
+per dimension, and</p>
 <div class="arithmatex">\[\log \pi(a) = \sum_k \left[-\frac{(a_k - m_k)^2}{2\sigma_k^2} - \log\sigma_k - \tfrac12\log 2\pi\right], \qquad \mathcal{H}(\pi) = \sum_k \left(\log\sigma_k + \tfrac12 \log 2\pi e\right).\]</div>
 <p>A sum over dimensions is also a sum over agents when one policy outputs all agents'
-actions. That is the key to the paradigms (<a href="#5-what-each-paradigm-changes">section 5</a>).</p>
+actions, as in CTCE. That is the key to the paradigms
+(<a href="#5-what-each-paradigm-changes">section 5</a>).</p>
 <h2 id="1-one-iteration-the-common-skeleton">1. One iteration: the common skeleton<a class="headerlink" href="#1-one-iteration-the-common-skeleton" title="Permanent link">&para;</a></h2>
 <pre class="mermaid-diagram"><code>flowchart LR
-    A["1 Sample&lt;br/&gt;env runners act with &amp;mu;"] --&gt; B["2 Group&lt;br/&gt;(CTCE, CTDE only)"]
+    A["1 Sample&lt;br/&gt;env runners act with &amp;mu;"] --&gt; B["2 Wrap&lt;br/&gt;(CTCE: group,&lt;br/&gt;CTDE: central state)"]
     B --&gt; C["3 Targets&lt;br/&gt;returns, advantages&lt;br/&gt;or replay sample"]
     C --&gt; D["4 Loss and&lt;br/&gt;gradient steps"]
-    D --&gt; E["5 After the update&lt;br/&gt;target nets, KL coefficient"]
+    D --&gt; E["5 After the update&lt;br/&gt;target nets"]
     E --&gt; F["6 Sync weights&lt;br/&gt;to the env runners"]
     F --&gt; A</code></pre>
 <ol>
 <li><strong>Sample.</strong> Each env runner holds a copy <span class="arithmatex">\(\mu\)</span> of the policy. Per step it
-   computes the distribution from <span class="arithmatex">\(o\)</span>, samples <span class="arithmatex">\(a \sim \mu(\cdot \mid o)\)</span>, rescales
-   it from <span class="arithmatex">\([-1, 1]\)</span> to the action's bounds (<code>normalize_actions=True</code>), and
-   records <span class="arithmatex">\(o, a, r, d\)</span>, <span class="arithmatex">\(\log\mu(a \mid o)\)</span> and the distribution's inputs.</li>
-<li><strong>Group</strong> (CTCE, CTDE). <code>GroupedLEM</code> turns the <span class="arithmatex">\(N\)</span> agents into one: observation
-   <span class="arithmatex">\(s_t\)</span>, action <span class="arithmatex">\(\mathbf{a}_t\)</span>, reward <span class="arithmatex">\(R_t\)</span>, one done flag
-   (<a href="https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L676-L687"><code>train.py</code> L676-L687</a>).</li>
+   computes the distribution from its input, samples <span class="arithmatex">\(a \sim \mu(\cdot \mid o)\)</span>,
+   rescales it from <span class="arithmatex">\([-1, 1]\)</span> to the action's bounds (<code>normalize_actions=True</code>),
+   and records <span class="arithmatex">\(o, a, r, d\)</span>, <span class="arithmatex">\(\log\mu(a \mid o)\)</span> and the distribution's inputs.</li>
+<li><strong>Wrap</strong> (CTCE, CTDE). The environment the algorithm sees
+   (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/config.py#L116-L126"><code>env_spec</code></a>):</li>
+<li>CTCE: <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L68-L137"><code>GroupedEnv</code></a> turns the <span class="arithmatex">\(N\)</span> agents
+     into one: observation <span class="arithmatex">\(s_t\)</span>, action <span class="arithmatex">\(\mathbf{a}_t\)</span>, reward <span class="arithmatex">\(R_t\)</span>, one done
+     flag;</li>
+<li>CTDE: <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L147-L194"><code>CentralStateEnv</code></a> keeps the <span class="arithmatex">\(N\)</span>
+     agents and their rewards, and extends each agent's observation to
+     <span class="arithmatex">\(x_{i,t} = (o_{i,t}, s_t)\)</span>;</li>
+<li>DTDE: the environment as it is.</li>
 <li><strong>Targets.</strong> What the loss regresses on: λ-returns and advantages (PPO), V-trace
    targets (APPO, computed inside the loss), or a batch drawn from the replay buffer
    (SAC).</li>
 <li><strong>Loss and gradient steps.</strong> One Adam step per (mini)batch, after clipping the
    gradient's global norm to 0.5 (<code>grad_clip</code>).</li>
-<li><strong>After the update.</strong> Target networks are copied (APPO, SAC); PPO's KL
-   coefficient is adapted.</li>
+<li><strong>After the update.</strong> Target networks are copied (APPO, SAC).</li>
 <li><strong>Sync.</strong> The new weights go to the env runners: the next iteration samples
    with the updated <span class="arithmatex">\(\mu\)</span>.</li>
 </ol>
@@ -4374,8 +4393,9 @@ actions. That is the key to the paradigms (<a href="#5-what-each-paradigm-change
 <p>On-policy: every iteration collects fresh data with the current policy, trains on
 it, and throws it away
 (<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/ppo/ppo.py#L389-L458"><code>ppo.py</code> L389-L458</a>).</p>
-<p><strong>Sample.</strong> 4000 environment steps (<code>train_batch_size</code>), split over the env
-runners. Episodes are cut where the batch is full (<code>truncate_episodes</code>).</p>
+<p><strong>Sample.</strong> 4000 environment steps (<code>train_batch_size</code>, RLlib's default), split
+over the env runners. Episodes are cut where the batch is full
+(<code>truncate_episodes</code>).</p>
 <p><strong>Targets</strong> (<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/utils/postprocessing/value_predictions.py#L7-L38"><code>value_predictions.py</code> L7-L38</a>).
 With the critic as it is <em>before</em> the update, compute backwards in time the
 λ-return</p>
@@ -4386,10 +4406,11 @@ A truncated episode is bootstrapped with <span class="arithmatex">\(V_\phi\)</sp
 terminated one with 0. The advantages are then <strong>standardised</strong> over the batch,
 <span class="arithmatex">\(\hat A_t \leftarrow (\hat A_t - \text{mean}) / \text{std}\)</span>
 (<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/connectors/learner/general_advantage_estimation.py#L148"><code>general_advantage_estimation.py</code> L148</a>).
-<span class="arithmatex">\(G^\lambda_t\)</span> is the value target.</p>
+<span class="arithmatex">\(G^\lambda_t\)</span> is the value target. (<span class="arithmatex">\(o_t\)</span> stands for the module's input: <span class="arithmatex">\(s_t\)</span> in
+CTCE, <span class="arithmatex">\(x_{i,t}\)</span> in CTDE, <span class="arithmatex">\(o_{i,t}\)</span> in DTDE.)</p>
 <p><strong>Loss</strong> (<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/ppo/torch/ppo_torch_learner.py#L74-L120"><code>ppo_torch_learner.py</code> L74-L120</a>), averaged over the minibatch:</p>
 <div class="arithmatex">\[\rho_t(\theta) = \exp\big(\log\pi_\theta(a_t \mid o_t) - \log\mu(a_t \mid o_t)\big)\]</div>
-<div class="arithmatex">\[L = -\min\big(\rho_t \hat A_t,\; \text{clip}(\rho_t, 1 - \epsilon, 1 + \epsilon)\, \hat A_t\big) + c_v \min\big((V_\phi(o_t) - G^\lambda_t)^2,\; 10\big) - c_H\, \mathcal{H}\big(\pi_\theta(\cdot \mid o_t)\big) + \beta\, \mathrm{KL}(\mu \,\|\, \pi_\theta)\]</div>
+<div class="arithmatex">\[L = -\min\big(\rho_t \hat A_t,\; \text{clip}(\rho_t, 1 - \epsilon, 1 + \epsilon)\, \hat A_t\big) + c_v \min\big((V_\phi(o_t) - G^\lambda_t)^2,\; c_{\max}\big) - c_H\, \mathcal{H}\big(\pi_\theta(\cdot \mid o_t)\big)\]</div>
 <table>
 <thead>
 <tr>
@@ -4406,8 +4427,8 @@ terminated one with 0. The advantages are then <strong>standardised</strong> ove
 </tr>
 <tr>
 <td>value loss</td>
-<td><span class="arithmatex">\(c_v = 1\)</span>, cap 10 (<code>vf_clip_param</code>)</td>
-<td>fit <span class="arithmatex">\(V_\phi\)</span> to <span class="arithmatex">\(G^\lambda\)</span>; the squared error is capped, so an error above <span class="arithmatex">\(\sqrt{10} \approx 3.2\)</span> gives <strong>no</strong> gradient</td>
+<td><span class="arithmatex">\(c_v = 1\)</span>, cap <span class="arithmatex">\(c_{\max} = 10^6\)</span> (<code>vf_clip_param</code>)</td>
+<td>fit <span class="arithmatex">\(V_\phi\)</span> to <span class="arithmatex">\(G^\lambda\)</span>; the cap is lifted from RLlib's 10, which gives <strong>no</strong> gradient for an error above <span class="arithmatex">\(\sqrt{10} \approx 3.2\)</span></td>
 </tr>
 <tr>
 <td>entropy bonus</td>
@@ -4416,8 +4437,8 @@ terminated one with 0. The advantages are then <strong>standardised</strong> ove
 </tr>
 <tr>
 <td>KL penalty</td>
-<td><span class="arithmatex">\(\beta = 0\)</span> (<code>kl_coeff</code>)</td>
-<td>switched off, but still computed: <span class="arithmatex">\(0 \cdot \infty\)</span> = NaN (<a href="../../validation/rl/#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02</a>)</td>
+<td>off (<code>use_kl_loss=False</code>)</td>
+<td>not computed at all; the original set <span class="arithmatex">\(\beta = 0\)</span> and kept computing it, so <span class="arithmatex">\(0 \cdot \infty\)</span> = NaN (<a href="../../validation/rl/#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02</a>)</td>
 </tr>
 </tbody>
 </table>
@@ -4425,11 +4446,12 @@ terminated one with 0. The advantages are then <strong>standardised</strong> ove
 <span class="arithmatex">\(30 \times 4000 / 128 \approx 940\)</span> Adam steps, learning rate <span class="arithmatex">\(10^{-5}\)</span>. In the first
 minibatch <span class="arithmatex">\(\pi_\theta = \mu\)</span>, so <span class="arithmatex">\(\rho = 1\)</span> exactly; later minibatches move away and
 the clip takes over.</p>
-<p><strong>After the update.</strong> The KL coefficient would be multiplied by 1.5 or 0.5
-depending on the measured KL; from 0 it stays 0.</p>
+<p><strong>After the update.</strong> Nothing: without the KL term there is no KL coefficient to
+adapt.</p>
 <p><strong>What to check.</strong> <span class="arithmatex">\(\rho = 1\)</span> on the first minibatch; advantages with mean 0 and
-standard deviation 1; the value loss mostly below the cap; explained variance of
-<span class="arithmatex">\(V_\phi\)</span> rising toward 1; entropy falling slowly, never NaN.</p>
+standard deviation 1; explained variance of <span class="arithmatex">\(V_\phi\)</span> rising toward 1; entropy
+falling slowly, never NaN. The trainer stops a run as soon as a loss or metric is
+NaN or infinite (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L199-L214"><code>train.py</code></a>).</p>
 <h2 id="3-appo">3. APPO<a class="headerlink" href="#3-appo" title="Permanent link">&para;</a></h2>
 <p>Asynchronous PPO: env runners keep sampling while the learner trains, so the data
 is always a little older than the policy. V-trace corrects for that
@@ -4446,8 +4468,10 @@ With truncated importance weights between the target policy and the collecting o
 <p>and the policy-gradient advantage is <span class="arithmatex">\(A_t = \rho_t \big(r_t + \gamma (1 - d_t) v_{t+1} - V_\phi(o_t)\big)\)</span>.
 With <span class="arithmatex">\(\bar\pi = \mu\)</span> this is the <span class="arithmatex">\(n\)</span>-step return; the weights only cut off what the
 older data can no longer vouch for. There is <strong>no λ</strong> in it: RLlib's V-trace takes
-none, so the original's <code>lambda_=0.95</code>, and its population-based training of
-<code>lambda_</code> for APPO, change nothing. Advantages are not standardised.</p>
+none, so <code>core/rl/</code> sets no <code>lambda_</code> for APPO (the original's <code>lambda_=0.95</code>, and
+its population-based training of it, changed nothing,
+<a href="../../validation/rl/#r-06-appos-lambda_-has-no-effect">R-06</a>). Advantages are not
+standardised.</p>
 <p><strong>Loss.</strong></p>
 <div class="arithmatex">\[\rho^{\text{PPO}}_t = \text{clip}\!\left(\frac{\mu(a_t \mid o_t)}{\bar\pi(a_t \mid o_t)}, 0, 2\right) \cdot \frac{\pi_\theta(a_t \mid o_t)}{\mu(a_t \mid o_t)} \approx \frac{\pi_\theta}{\bar\pi}\]</div>
 <div class="arithmatex">\[L = -\min\big(\rho^{\text{PPO}}_t A_t,\; \text{clip}(\rho^{\text{PPO}}_t, 0.6, 1.4)\, A_t\big) + 0.5 \cdot \tfrac12 \big(V_\phi(o_t) - v_t\big)^2 - 0.01\, \mathcal{H}\big(\pi_\theta(\cdot \mid o_t)\big)\]</div>
@@ -4465,29 +4489,33 @@ signals as PPO.</p>
 batches from it, old and new
 (<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/dqn/dqn.py#L647-L755"><code>dqn.py</code> L647-L755</a>,
 which SAC inherits). It learns two critics <span class="arithmatex">\(Q_{\psi_1}, Q_{\psi_2}\)</span>, their slowly
-following copies <span class="arithmatex">\(\bar Q_1, \bar Q_2\)</span>, the actor, and the temperature <span class="arithmatex">\(\alpha\)</span>.</p>
-<p><strong>Sample.</strong> About 256 environment steps per training step, in whole episodes
-(<code>complete_episodes</code>), added to a buffer of 1000 transitions (uniform, the
-original's setting; RLlib's default is prioritised with <span class="arithmatex">\(10^6\)</span>). Training starts
-after 1500 sampled steps.</p>
+following copies <span class="arithmatex">\(\bar Q_1, \bar Q_2\)</span>, the actor, and the temperature <span class="arithmatex">\(\alpha\)</span>; in
+DTDE and CTDE each agent's module has its own.</p>
+<p><strong>Sample.</strong> About 256 environment steps per training step, in episode fragments
+(RLlib's default; the original sampled <code>complete_episodes</code>, which in Ray 2.51
+resets the environment with the run's seed at every sample call), added to a
+uniform buffer of 1000 transitions (the original's size; RLlib's default is
+prioritised with <span class="arithmatex">\(10^6\)</span>). Training starts after 1500 sampled steps.</p>
 <p><strong>Targets.</strong> A batch of 256 transitions <span class="arithmatex">\((o, a, r, o', d)\)</span> from the buffer. For each,
 a next action <span class="arithmatex">\(a' \sim \pi_\theta(\cdot \mid o')\)</span> and</p>
 <div class="arithmatex">\[y = r + \gamma (1 - d)\left[\min_{j=1,2} \bar Q_j(o', a') - \alpha \log \pi_\theta(a' \mid o')\right].\]</div>
 <p><strong>Loss</strong> (<a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/sac/torch/sac_torch_learner.py#L270-L350"><code>sac_torch_learner.py</code> L270-L350</a>),
 three losses, each with its own Adam optimiser:</p>
 <div class="arithmatex">\[L_Q = \sum_{j=1,2} \text{Huber}\big(Q_{\psi_j}(o, a) - y\big), \qquad \text{learning rate } 10^{-5}\]</div>
-<div class="arithmatex">\[L_\pi = \alpha \log \pi_\theta(\tilde a \mid o) - \min_j Q_{\psi_j}(o, \tilde a), \qquad \tilde a = m_\theta(o) + \sigma_\theta(o)\,\varepsilon,\; \varepsilon \sim \mathcal N(0, I), \qquad \text{lr } 10^{-5}\]</div>
+<div class="arithmatex">\[L_\pi = \alpha \log \pi_\theta(\tilde a \mid o) - \min_j Q_{\psi_j}(o, \tilde a), \qquad \tilde a = \tanh\big(m_\theta(o) + \sigma_\theta(o)\,\varepsilon\big),\; \varepsilon \sim \mathcal N(0, I), \qquad \text{lr } 10^{-5}\]</div>
 <div class="arithmatex">\[L_\alpha = -\log\alpha \,\big(\log \pi_\theta(\tilde a \mid o) + \bar{\mathcal H}\big), \qquad \text{lr } 3 \cdot 10^{-4}\]</div>
 <ul>
 <li><strong>The actor learns through the critic.</strong> <span class="arithmatex">\(\tilde a\)</span> is a <em>reparameterised</em> sample
   (<code>rsample</code>, <a href="https://github.com/ray-project/ray/blob/ray-2.51.1/rllib/algorithms/sac/torch/default_sac_torch_rl_module.py#L155"><code>default_sac_torch_rl_module.py</code> L155</a>),
   so <span class="arithmatex">\(\partial L_\pi / \partial\theta\)</span> runs through <span class="arithmatex">\(\partial Q / \partial \tilde a\)</span>:
   the actor moves its actions uphill on the critic. Without it the actor only
-  maximises entropy.</li>
+  maximises entropy, as in the original's CTCE and CTDE
+  (<a href="../../validation/rl/#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic">R-05</a>).</li>
 <li><strong>The temperature</strong> <span class="arithmatex">\(\alpha\)</span> (starting at 1) rises when the entropy is below the
-  target <span class="arithmatex">\(\bar{\mathcal H} = -\dim A\)</span> and falls when above.</li>
-<li><strong>The actions are squashed</strong>: in RLlib's own module <span class="arithmatex">\(\tilde a = \tanh(\cdot)\)</span>, and
-  <span class="arithmatex">\(\log\pi\)</span> includes the <span class="arithmatex">\(-\sum_k \log(1 - \tanh^2)\)</span> correction.</li>
+  target <span class="arithmatex">\(\bar{\mathcal H} = -\dim A\)</span> (<code>target_entropy="auto"</code>) and falls when
+  above.</li>
+<li><strong>The actions are squashed</strong> by tanh in every paradigm, and <span class="arithmatex">\(\log\pi\)</span> includes
+  the <span class="arithmatex">\(-\sum_k \log(1 - \tanh^2)\)</span> correction.</li>
 </ul>
 <p><strong>After the update.</strong> Polyak averaging after every gradient step:
 <span class="arithmatex">\(\bar\psi_j \leftarrow 0.005\, \psi_j + 0.995\, \bar\psi_j\)</span>.</p>
@@ -4495,65 +4523,67 @@ three losses, each with its own Adam optimiser:</p>
 <span class="arithmatex">\(\alpha\)</span> settling; the entropy near its target.</p>
 <h2 id="5-what-each-paradigm-changes">5. What each paradigm changes<a class="headerlink" href="#5-what-each-paradigm-changes" title="Permanent link">&para;</a></h2>
 <p>The algorithm's math stays the same; the paradigm decides <strong>what counts as one
-agent</strong> for RLlib: what the actor and the critic see, which reward they learn from,
-and how many networks there are.</p>
+agent</strong> for RLlib, what its module sees and which reward it learns from. Every
+module is RLlib's default network (2 × 256 tanh) with separate actor and critic
+encoders (<code>vf_share_layers=False</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/config.py#L113"><code>MODEL</code></a>), so
+the paradigms differ in inputs and rewards, not in network design.</p>
 <table>
 <thead>
 <tr>
 <th></th>
 <th>CTCE</th>
-<th>CTDE (as [P2] eq. 18 intends)</th>
+<th>CTDE</th>
 <th>DTDE</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>RLlib agents</td>
-<td>1 (the group)</td>
-<td>1 (the group)</td>
-<td><span class="arithmatex">\(N\)</span>, one module each</td>
+<td>RLlib modules</td>
+<td>1, for the group</td>
+<td><span class="arithmatex">\(N\)</span>, one per agent</td>
+<td><span class="arithmatex">\(N\)</span>, one per agent</td>
+</tr>
+<tr>
+<td>Module input</td>
+<td><span class="arithmatex">\(s\)</span></td>
+<td><span class="arithmatex">\(x_i = (o_i, s)\)</span></td>
+<td><span class="arithmatex">\(o_i\)</span></td>
 </tr>
 <tr>
 <td>Actor</td>
 <td><span class="arithmatex">\(\pi_\theta(\mathbf{a} \mid s)\)</span></td>
-<td><span class="arithmatex">\(\pi_{\theta_i}(a_i \mid o_i)\)</span> per agent</td>
+<td><span class="arithmatex">\(\pi_{\theta_i}(a_i \mid o_i)\)</span>: reads only the <span class="arithmatex">\(o_i\)</span> part of <span class="arithmatex">\(x_i\)</span></td>
 <td><span class="arithmatex">\(\pi_{\theta_i}(a_i \mid o_i)\)</span></td>
 </tr>
 <tr>
 <td>Critic (PPO, APPO)</td>
 <td><span class="arithmatex">\(V_\phi(s)\)</span></td>
-<td><span class="arithmatex">\(V_\phi(s)\)</span></td>
+<td><span class="arithmatex">\(V_{\phi_i}(o_i, s)\)</span></td>
 <td><span class="arithmatex">\(V_{\phi_i}(o_i)\)</span></td>
 </tr>
 <tr>
 <td>Critic (SAC)</td>
 <td><span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span></td>
-<td><span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span></td>
+<td><span class="arithmatex">\(Q_{\psi_i}(o_i, s, a_i)\)</span></td>
 <td><span class="arithmatex">\(Q_{\psi_i}(o_i, a_i)\)</span></td>
 </tr>
 <tr>
 <td>Reward</td>
 <td><span class="arithmatex">\(R = \sum_i r_i\)</span></td>
-<td><span class="arithmatex">\(R = \sum_i r_i\)</span></td>
+<td>own <span class="arithmatex">\(r_i\)</span></td>
 <td>own <span class="arithmatex">\(r_i\)</span></td>
 </tr>
 <tr>
-<td>SAC entropy target</td>
-<td><span class="arithmatex">\(-\sum_i \dim A_i\)</span></td>
-<td><span class="arithmatex">\(-\sum_i \dim A_i\)</span></td>
-<td><span class="arithmatex">\(-\dim A_i\)</span></td>
+<td>PPO ratio and clip</td>
+<td>joint, <span class="arithmatex">\(\rho = \prod_i \rho_i\)</span></td>
+<td>per agent, <span class="arithmatex">\(\rho_i\)</span></td>
+<td>per agent, <span class="arithmatex">\(\rho_i\)</span></td>
 </tr>
 <tr>
-<td>Networks in the code</td>
-<td>custom, 2 × 128 ReLU</td>
-<td>custom; acting heads 3 layers per agent</td>
-<td>RLlib default, 2 × 256 tanh</td>
-</tr>
-<tr>
-<td>Actor and critic</td>
-<td>share the encoder</td>
-<td>central actor and critic share the encoder</td>
-<td>share the encoder (<code>vf_share_layers=True</code>, RLlib's default)</td>
+<td>SAC entropy target, temperature</td>
+<td><span class="arithmatex">\(-\sum_i \dim A_i\)</span>, one <span class="arithmatex">\(\alpha\)</span></td>
+<td><span class="arithmatex">\(-\dim A_i\)</span>, one <span class="arithmatex">\(\alpha_i\)</span> per agent</td>
+<td><span class="arithmatex">\(-\dim A_i\)</span>, one <span class="arithmatex">\(\alpha_i\)</span> per agent</td>
 </tr>
 </tbody>
 </table>
@@ -4565,34 +4595,50 @@ diagonal Gaussian over all action dimensions,</p>
 reward weights every agent's action, and the entropy bonus is <span class="arithmatex">\(N\)</span> times larger
 than one agent's. The learning signal for <span class="arithmatex">\(a_i\)</span> carries every other agent's reward
 noise: the credit-assignment cost that makes CTCE learn more slowly
-(<a href="../../validation/rl/#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound">I-60</a>).</p>
+(<a href="../../validation/rl/#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound">I-60</a>).
+CTCE answers what one controller of all agents would achieve: the social planner,
+maximising the summed return.</p>
 <h3 id="ctde">CTDE<a class="headerlink" href="#ctde" title="Permanent link">&para;</a></h3>
-<p>CTDE is CTCE's loss with the actor <strong>restricted</strong>: each agent's part of the policy
-may only look at its own observation,</p>
-<div class="arithmatex">\[\pi_\theta(\mathbf{a} \mid s) = \prod_{i=1}^{N} \pi_{\theta_i}(a_i \mid o_i), \qquad \log \pi_\theta(\mathbf{a} \mid s) = \sum_i \log \pi_{\theta_i}(a_i \mid o_i).\]</div>
-<p>The critic stays central (<span class="arithmatex">\(V_\phi(s)\)</span> or <span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span>), because it is
-only needed during training. With this actor:</p>
-<ul>
-<li><strong>PPO, APPO.</strong> Two choices, to be decided and recorded: the joint ratio
-  <span class="arithmatex">\(\prod_i \rho_i\)</span> clipped once (exactly CTCE's loss), or a clipped term per agent,
-  <span class="arithmatex">\(\sum_i \min(\rho_i \hat A, \text{clip}(\rho_i)\hat A)\)</span>, as in MAPPO (Yu et al.,
-  2022). Both use one advantage from <span class="arithmatex">\(V_\phi(s)\)</span> and <span class="arithmatex">\(R\)</span>.</li>
-<li><strong>SAC.</strong> <span class="arithmatex">\(L_\pi = \alpha \sum_i \log \pi_{\theta_i}(\tilde a_i \mid o_i) - \min_j Q_{\psi_j}(s, \tilde{\mathbf{a}})\)</span>
-  with every <span class="arithmatex">\(\tilde a_i\)</span> reparameterised: each <span class="arithmatex">\(\theta_i\)</span> gets the gradient of the
-  joint critic through its own action.</li>
-</ul>
-<p>The gradient for <span class="arithmatex">\(\theta_i\)</span> goes into <strong>the network that acts</strong>. In the original
-code it does not: the loss trains a central actor <span class="arithmatex">\(\pi(\mathbf{a} \mid s)\)</span> and the
-agents act with per-agent heads that never change
-(<a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a>).</p>
+<p>Multi-agent PPO (MAPPO, Yu et al., 2022), and its APPO and SAC counterparts: one
+module per agent, no parameter sharing, each trained on <strong>its own reward</strong>. What
+makes it CTDE is only what the networks see:</p>
+<div class="arithmatex">\[a_i \sim \pi_{\theta_i}(\cdot \mid o_i), \qquad V_{\phi_i}(o_i, s), \qquad x_i = (o_i, s).\]</div>
+<p>The actor's encoder reads the first <span class="arithmatex">\(\dim o_i\)</span> entries of <span class="arithmatex">\(x_i\)</span> and nothing else
+(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L60-L79"><code>own_encoder</code></a>), so the trained actor can
+act on its own observation alone (decentralised execution). The critic reads all of
+<span class="arithmatex">\(x_i\)</span>, every agent's observation (centralised training); it is not needed to act.</p>
+<p><strong>PPO, APPO.</strong> Agent <span class="arithmatex">\(i\)</span>'s advantage comes from its own reward and its own central
+critic, and its ratio and clip are its own:</p>
+<div class="arithmatex">\[\hat A_{i,t} = \sum_{l \ge 0} (\gamma\lambda)^l \delta_{i,t+l}, \quad \delta_{i,t} = r_{i,t} + \gamma (1 - d_t) V_{\phi_i}(x_{i,t+1}) - V_{\phi_i}(x_{i,t}), \qquad L_i = -\min\big(\rho_{i,t} \hat A_{i,t},\ \text{clip}(\rho_{i,t}, 0.8, 1.2)\, \hat A_{i,t}\big) + \dots\]</div>
+<p>with <span class="arithmatex">\(\rho_{i,t} = \pi_{\theta_i}(a_{i,t} \mid o_{i,t}) / \mu_i(a_{i,t} \mid o_{i,t})\)</span>.
+Formally this is DTDE's loss; the only difference is the critic's input. A central
+critic can tell how much of agent <span class="arithmatex">\(i\)</span>'s return the other agents' situation
+explains, so its advantage is less noisy than a critic on <span class="arithmatex">\(o_i\)</span> alone.</p>
+<p><strong>SAC.</strong> <span class="arithmatex">\(L_{\pi,i} = \alpha_i \log \pi_{\theta_i}(\tilde a_i \mid o_i) - \min_j Q_{\psi_{ij}}(o_i, s, \tilde a_i)\)</span>,
+with <span class="arithmatex">\(\tilde a_i\)</span> reparameterised: each actor gets the gradient of its own central
+critic through its own action. <strong>Known deviation</strong> from MADDPG and MASAC: the
+critic sees the global state and the agent's own action, not the other agents'
+actions, because RLlib does not provide the joint action in each agent's training
+batch.</p>
+<p><strong>Why per agent, not grouped.</strong> A grouped CTDE (one RLlib agent with a product
+policy <span class="arithmatex">\(\prod_i \pi_{\theta_i}(a_i \mid o_i)\)</span>, as CTCE) would clip the joint ratio
+<span class="arithmatex">\(\prod_i \rho_i\)</span>, which leaves the band sooner the more agents there are
+(<a href="../examples/#5-ctde-in-the-update-per-agent-ratios-and-clips-c2-c3-c8">worked example</a>),
+and would train every agent on the summed reward. The market's prosumers are
+self-interested, so CTDE optimises the same individual objective as DTDE, and a
+difference between the two is the central critic's effect.</p>
+<p><strong>The original</strong> trained a central actor while the agents acted with per-agent
+heads that never changed
+(<a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a>), and
+trained CTDE on the summed reward <span class="arithmatex">\(R\)</span>.</p>
 <h3 id="dtde">DTDE<a class="headerlink" href="#dtde" title="Permanent link">&para;</a></h3>
 <p><span class="arithmatex">\(N\)</span> independent copies of sections 2-4, each with index <span class="arithmatex">\(i\)</span>: agent <span class="arithmatex">\(i\)</span>'s
-advantage comes from its own reward and its own critic, its ratio from its own
-policy. The other agents are part of agent <span class="arithmatex">\(i\)</span>'s environment, and that environment
-changes as they learn.</p>
+advantage comes from its own reward and its own critic <span class="arithmatex">\(V_{\phi_i}(o_i)\)</span>, its ratio
+from its own policy. The other agents are part of agent <span class="arithmatex">\(i\)</span>'s environment, and that
+environment changes as they learn.</p>
 <h2 id="6-the-3--3-matrix">6. The 3 × 3 matrix<a class="headerlink" href="#6-the-3--3-matrix" title="Permanent link">&para;</a></h2>
-<p>What the policy gradient of each combination is built from. "→" marks where the
-original code computes something else.</p>
+<p>What the policy gradient of each combination is built from in <code>core/rl/</code>. "→" marks
+what the original code computes instead.</p>
 <table>
 <thead>
 <tr>
@@ -4606,27 +4652,27 @@ original code computes something else.</p>
 <tr>
 <td><strong>PPO</strong></td>
 <td><span class="arithmatex">\(\prod_i \rho_i\)</span>, GAE on <span class="arithmatex">\(R\)</span> with <span class="arithmatex">\(V_\phi(s)\)</span></td>
-<td><span class="arithmatex">\(\rho_i\)</span> of <span class="arithmatex">\(\pi_{\theta_i}(a_i \mid o_i)\)</span>, GAE on <span class="arithmatex">\(R\)</span> with <span class="arithmatex">\(V_\phi(s)\)</span> → central actor trained, heads act (I-48)</td>
+<td>per agent: <span class="arithmatex">\(\rho_i\)</span>, GAE on <span class="arithmatex">\(r_i\)</span> with <span class="arithmatex">\(V_{\phi_i}(o_i, s)\)</span> → central actor trained on <span class="arithmatex">\(R\)</span>, heads act (I-48)</td>
 <td>per agent: <span class="arithmatex">\(\rho_i\)</span>, GAE on <span class="arithmatex">\(r_i\)</span> with <span class="arithmatex">\(V_{\phi_i}(o_i)\)</span></td>
 </tr>
 <tr>
 <td><strong>APPO</strong></td>
 <td>V-trace on <span class="arithmatex">\(R\)</span>, joint ratio</td>
-<td>as PPO-CTDE with V-trace → I-48</td>
+<td>per agent: V-trace on <span class="arithmatex">\(r_i\)</span> with <span class="arithmatex">\(V_{\phi_i}(o_i, s)\)</span> → I-48</td>
 <td>per agent: V-trace on <span class="arithmatex">\(r_i\)</span></td>
 </tr>
 <tr>
 <td><strong>SAC</strong></td>
-<td><span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span>, gradient through <span class="arithmatex">\(\tilde{\mathbf{a}}\)</span> → no gradient through <span class="arithmatex">\(\tilde{\mathbf{a}}\)</span> (R-05), unsquashed Gaussian (R-04)</td>
-<td><span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span>, gradient through each <span class="arithmatex">\(\tilde a_i\)</span> → I-48, R-05, R-04</td>
-<td>per agent: <span class="arithmatex">\(Q_{\psi_i}(o_i, a_i)\)</span>, squashed Gaussian</td>
+<td><span class="arithmatex">\(Q_\psi(s, \mathbf{a})\)</span>, gradient through <span class="arithmatex">\(\tilde{\mathbf{a}}\)</span>, squashed → no gradient through <span class="arithmatex">\(\tilde{\mathbf{a}}\)</span> (R-05), unsquashed (R-04)</td>
+<td>per agent: <span class="arithmatex">\(Q_{\psi_i}(o_i, s, a_i)\)</span>, gradient through <span class="arithmatex">\(\tilde a_i\)</span> → I-48, R-05, R-04</td>
+<td>per agent: <span class="arithmatex">\(Q_{\psi_i}(o_i, a_i)\)</span>, squashed</td>
 </tr>
 </tbody>
 </table>
 <h2 id="7-steps-per-iteration-and-comparing-runs">7. Steps per iteration, and comparing runs<a class="headerlink" href="#7-steps-per-iteration-and-comparing-runs" title="Permanent link">&para;</a></h2>
-<p>An <strong>iteration</strong> is one call of RLlib's training step, repeated until the
-iteration's minimum time and step counts are met. It means something different for
-each algorithm:</p>
+<p>An <strong>iteration</strong> is one call of RLlib's training step. <code>core/rl/</code> sets
+<code>min_time_s_per_iteration=0</code> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/config.py#L129-L193">config.py</a>), so
+an iteration does not wait for the clock; what it holds still differs by algorithm:</p>
 <table>
 <thead>
 <tr>
@@ -4640,14 +4686,14 @@ each algorithm:</p>
 <tr>
 <td>Ends when</td>
 <td>after one training step (4000 sampled steps)</td>
-<td>at least 10 s have passed (<code>min_time_s_per_iteration</code>)</td>
-<td>at least 1 s and 100 sampled steps</td>
+<td>after one training step</td>
+<td>at least 100 sampled steps (RLlib's SAC default)</td>
 </tr>
 <tr>
 <td>Environment steps sampled</td>
 <td>4000, fixed</td>
-<td>whatever the env runners deliver in 10 s</td>
-<td>about 256 per training step, 1 training step or more</td>
+<td>whatever the env runners have delivered</td>
+<td>about 256 per training step</td>
 </tr>
 <tr>
 <td>Batch per gradient step</td>
@@ -4681,18 +4727,18 @@ each algorithm:</p>
 </tr>
 </tbody>
 </table>
+<p>The original kept RLlib's minimum times: APPO's iteration lasted at least 10 s and
+SAC's at least 1 s, so their steps per iteration depended on the machine.</p>
 <p><strong>Across paradigms.</strong> Batches are counted in environment steps
 (<code>count_steps_by="env_steps"</code>). One environment step is one transition for the
-group in CTCE and CTDE, and <span class="arithmatex">\(N\)</span> transitions in DTDE, one per agent's module. So in
-a PPO iteration each of DTDE's <span class="arithmatex">\(N\)</span> networks trains on 4000 transitions of its own
-agent, and CTCE's single network on 4000 joint transitions: the same number of
-samples per network, for a problem <span class="arithmatex">\(N\)</span> times larger.</p>
+group in CTCE, and <span class="arithmatex">\(N\)</span> transitions in CTDE and DTDE, one per agent's module. So in
+a PPO iteration each of the <span class="arithmatex">\(N\)</span> networks of CTDE and DTDE trains on 4000
+transitions of its own agent, and CTCE's single network on 4000 joint transitions:
+the same number of samples per network, for a problem <span class="arithmatex">\(N\)</span> times larger.</p>
 <p><strong>What makes runs comparable.</strong></p>
 <ul>
 <li><strong>A budget in environment steps</strong>, the same for all nine combinations, not
-  iterations (<a href="../../validation/rl/#i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes">I-50</a>):
-  APPO's and SAC's iterations depend on wall-clock time and differ between
-  machines.</li>
+  iterations (<a href="../../validation/rl/#i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes">I-50</a>).</li>
 <li><strong>Report the gradient steps</strong> alongside: at the same budget PPO takes about 60
   times more gradient steps than APPO or SAC, by design.</li>
 <li><strong>Evaluate at the same environment-step counts</strong>, with the same seeds, on the
@@ -4709,9 +4755,14 @@ samples per network, for a problem <span class="arithmatex">\(N\)</span> times l
 </thead>
 <tbody>
 <tr>
-<td>CTDE's loss trains a central actor; the acting heads never change</td>
+<td>CTDE's loss trains a central actor; the acting heads never change; CTDE learns from the summed reward</td>
 <td>5, 6</td>
 <td><a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a></td>
+</tr>
+<tr>
+<td>The paradigms train different networks: custom 2 × 128 ReLU with a shared encoder in CTCE and CTDE, RLlib's default in DTDE</td>
+<td>5</td>
+<td><a href="../../validation/rl/#r-03-the-paradigms-train-different-networks">R-03</a></td>
 </tr>
 <tr>
 <td>CTCE and CTDE: <span class="arithmatex">\(\log\sigma\)</span> unbounded, entropy can overflow</td>
@@ -4742,6 +4793,11 @@ samples per network, for a problem <span class="arithmatex">\(N\)</span> times l
 <td>APPO: <code>lambda_</code> is set and tuned but V-trace has no λ</td>
 <td>3</td>
 <td><a href="../../validation/rl/#r-06-appos-lambda_-has-no-effect">R-06</a></td>
+</tr>
+<tr>
+<td>Value-loss cap at RLlib's 10</td>
+<td>2</td>
+<td>a setting, not an issue</td>
 </tr>
 </tbody>
 </table>

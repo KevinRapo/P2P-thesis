@@ -968,10 +968,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-grouping-the-observations-a1-ctce-and-ctde" class="md-nav__link">
+  <a href="#1-what-each-module-receives-a1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Grouping the observations (A1, CTCE and CTDE)
+        1. What each module receives (A1)
       
     </span>
   </a>
@@ -990,10 +990,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-ctde-one-actor-per-agent-a2" class="md-nav__link">
+  <a href="#3-ctde-a-local-actor-and-a-central-critic-per-agent-a2-b3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. CTDE: one actor per agent (A2)
+        3. CTDE: a local actor and a central critic per agent (A2, B3)
       
     </span>
   </a>
@@ -1001,10 +1001,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-the-groups-reward-a5-b4" class="md-nav__link">
+  <a href="#4-whose-reward-each-module-learns-from-a5-b4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. The group's reward (A5, B4)
+        4. Whose reward each module learns from (A5, B4)
       
     </span>
   </a>
@@ -1012,10 +1012,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-ctde-in-the-update-what-the-per-agent-actor-means-for-the-loss-c2-c3-c8" class="md-nav__link">
+  <a href="#5-ctde-in-the-update-per-agent-ratios-and-clips-c2-c3-c8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. CTDE in the update: what the per-agent actor means for the loss (C2, C3, C8)
+        5. CTDE in the update: per-agent ratios and clips (C2, C3, C8)
       
     </span>
   </a>
@@ -4083,10 +4083,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#1-grouping-the-observations-a1-ctce-and-ctde" class="md-nav__link">
+  <a href="#1-what-each-module-receives-a1" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Grouping the observations (A1, CTCE and CTDE)
+        1. What each module receives (A1)
       
     </span>
   </a>
@@ -4105,10 +4105,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-ctde-one-actor-per-agent-a2" class="md-nav__link">
+  <a href="#3-ctde-a-local-actor-and-a-central-critic-per-agent-a2-b3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. CTDE: one actor per agent (A2)
+        3. CTDE: a local actor and a central critic per agent (A2, B3)
       
     </span>
   </a>
@@ -4116,10 +4116,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-the-groups-reward-a5-b4" class="md-nav__link">
+  <a href="#4-whose-reward-each-module-learns-from-a5-b4" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. The group's reward (A5, B4)
+        4. Whose reward each module learns from (A5, B4)
       
     </span>
   </a>
@@ -4127,10 +4127,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-ctde-in-the-update-what-the-per-agent-actor-means-for-the-loss-c2-c3-c8" class="md-nav__link">
+  <a href="#5-ctde-in-the-update-per-agent-ratios-and-clips-c2-c3-c8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. CTDE in the update: what the per-agent actor means for the loss (C2, C3, C8)
+        5. CTDE in the update: per-agent ratios and clips (C2, C3, C8)
       
     </span>
   </a>
@@ -4192,17 +4192,17 @@
 
 <h1 id="worked-examples-the-parts-we-define">Worked examples: the parts we define<a class="headerlink" href="#worked-examples-the-parts-we-define" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>The training cycle with numbers, limited to what our own code decides: how the
-agents are grouped, how CTDE's per-agent actor is put together, the settings we
-choose, and how a trained policy is evaluated. Everything else (the networks'
-layers, sampling, GAE, the losses, Adam) is RLlib's and is described in
-<a href="../cycle/">One training iteration</a>; it appears here only where our code feeds
-it or reads from it. Step labels (A4, C2, ...) are those of that page.</p>
+<p>The training cycle with numbers, limited to what our own code decides: what each
+paradigm's modules receive, how CTDE's local actor and central critic are put
+together, the settings we choose, and how a trained policy is evaluated.
+Everything else (the networks' layers, sampling, GAE, the losses, Adam) is
+RLlib's and is described in <a href="../cycle/">One training iteration</a>; it appears here
+only where our code feeds it or reads from it. Step labels (A4, C2, ...) are those
+of that page.</p>
 </blockquote>
-<p><strong>The code</strong> is the fixed implementation in <code>core/rl/</code> in this repository.
-The links point to the local files.
-Every number below was computed with that code or with RLlib's own functions
-(<code>unsquash_action</code>), not by hand.</p>
+<p><strong>The code</strong> is the implementation in <code>core/rl/</code> in this repository. The links
+point to the local files. Numbers that depend on the code were computed with it or
+with RLlib's own functions (<code>unsquash_action</code>); the rest is arithmetic on them.</p>
 <table>
 <thead>
 <tr>
@@ -4214,12 +4214,12 @@ Every number below was computed with that code or with RLlib's own functions
 <tbody>
 <tr>
 <td><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py">grouping.py</a></td>
-<td><code>GroupedEnv</code>: all agents as one, for CTCE and CTDE</td>
+<td><code>GroupedEnv</code>: all agents as one (CTCE); <code>CentralStateEnv</code>: each agent's observation with the global state (CTDE)</td>
 <td>1, 2, 4</td>
 </tr>
 <tr>
 <td><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py">ctde_modules.py</a></td>
-<td>CTDE: RLlib's modules with one actor per agent</td>
+<td>CTDE: RLlib's modules with the actor on the agent's own observation</td>
 <td>3, 5</td>
 </tr>
 <tr>
@@ -4276,15 +4276,44 @@ a price (€/kWh). The quantity bound is each agent's own capacity.</p>
 </tbody>
 </table>
 <p>So <span class="arithmatex">\(N = 3\)</span>, <span class="arithmatex">\(d_o = 2\)</span>, <span class="arithmatex">\(d_a = 2\)</span>.</p>
-<h2 id="1-grouping-the-observations-a1-ctce-and-ctde">1. Grouping the observations (A1, CTCE and CTDE)<a class="headerlink" href="#1-grouping-the-observations-a1-ctce-and-ctde" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L62-L123"><code>GroupedEnv</code></a> turns the three
-agents into one agent, <code>"group"</code>. Its observation is the agents' observations side
-by side, <strong>in the environment's order</strong> (<code>join</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L55-L59">grouping.py L55-L59</a>):</p>
+<h2 id="1-what-each-module-receives-a1">1. What each module receives (A1)<a class="headerlink" href="#1-what-each-module-receives-a1" title="Permanent link">&para;</a></h2>
+<p>All observations side by side, <strong>in the environment's order</strong> (<code>join</code>,
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L61-L65">grouping.py L61-L65</a>), are the global state</p>
 <div class="arithmatex">\[s = (\underbrace{0.4,\ 0.8}_{\texttt{agent\_2}},\ \underbrace{-0.2,\ 0.5}_{\texttt{agent\_10}},\ \underbrace{0.9,\ 0.1}_{\texttt{agent\_1}}) \in \mathbb{R}^6.\]</div>
-<p>The action space is joined the same way (<code>join_spaces</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L28-L34">L28-L34</a>), each agent's bounds
-in its own slice:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Modules</td>
+<td>one, <code>"group"</code></td>
+<td>three, one per agent</td>
+<td>three, one per agent</td>
+</tr>
+<tr>
+<td>Input of <code>agent_10</code>'s module</td>
+<td>– (the group gets <span class="arithmatex">\(s\)</span>)</td>
+<td><span class="arithmatex">\(x_{10} = (\underbrace{-0.2,\ 0.5}_{o_{10}},\ \underbrace{0.4,\ 0.8,\ -0.2,\ 0.5,\ 0.9,\ 0.1}_{s}) \in \mathbb{R}^8\)</span></td>
+<td><span class="arithmatex">\(o_{10} = (-0.2, 0.5)\)</span></td>
+</tr>
+<tr>
+<td>Wrapper</td>
+<td><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L68-L137"><code>GroupedEnv</code></a></td>
+<td><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L147-L194"><code>CentralStateEnv</code></a> (<code>central_obs</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L138-L144">L138-L144</a>)</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p><strong>CTCE.</strong> <code>GroupedEnv</code> turns the three agents into one agent, <code>"group"</code>, with
+observation <span class="arithmatex">\(s\)</span>. The action space is joined the same way (<code>join_spaces</code>,
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L34-L40">L34-L40</a>), each agent's bounds in its own
+slice:</p>
 <table>
 <thead>
 <tr>
@@ -4328,10 +4357,16 @@ in its own slice:</p>
 </tbody>
 </table>
 <p>To RLlib the group is an ordinary agent with a 6-dimensional <code>Box</code> observation and
-action. That is the whole point: RLlib's own module and algorithm then train CTCE
-without any custom network. In DTDE nothing is grouped: each agent's module gets
-its own <span class="arithmatex">\(o_i\)</span> and its own bounds.</p>
+action, so RLlib's own module and algorithm train CTCE without any custom network.</p>
+<p><strong>CTDE.</strong> <code>CentralStateEnv</code> keeps the three agents. Each agent's observation
+becomes its own <span class="arithmatex">\(o_i\)</span> followed by <span class="arithmatex">\(s\)</span>, 8 numbers; its action space and reward stay
+its own. The own part comes first so that the actor can read it as a fixed slice
+(section 3).</p>
+<p><strong>DTDE.</strong> Nothing is wrapped: each agent's module gets its own <span class="arithmatex">\(o_i\)</span> and its own
+bounds.</p>
 <h2 id="2-from-the-policys-output-to-the-market-a3-a5">2. From the policy's output to the market (A3-A5)<a class="headerlink" href="#2-from-the-policys-output-to-the-market-a3-a5" title="Permanent link">&para;</a></h2>
+<p>Shown for CTCE, where one policy outputs all six dimensions; in CTDE and DTDE each
+agent's module does the same for its own two.</p>
 <p><strong>What RLlib does (A3).</strong> Say the policy outputs, for the 6 dimensions, means and
 log-stds</p>
 <div class="arithmatex">\[m = (0.30,\ -0.10,\ -0.60,\ 0.20,\ 0.10,\ 0.50), \qquad \ell = (-0.50,\ -1.00,\ -0.70,\ -1.20,\ -0.40,\ -0.90),\]</div>
@@ -4339,7 +4374,7 @@ log-stds</p>
 noise <span class="arithmatex">\(\varepsilon = (1.0, -0.5, 0.2, 1.5, -2.0, 0.3)\)</span>:</p>
 <div class="arithmatex">\[u = m + \sigma\varepsilon = (0.907,\ -0.284,\ -0.501,\ 0.652,\ -1.241,\ 0.622).\]</div>
 <p><strong>What our bounds decide (A4).</strong> RLlib rescales each dimension from <span class="arithmatex">\([-1, 1]\)</span> to
-the joint space's bounds and clips,
+the bounds and clips,
 <span class="arithmatex">\(a_k = \text{clip}(\text{low}_k + (u_k + 1)(\text{high}_k - \text{low}_k)/2)\)</span>:</p>
 <table>
 <thead>
@@ -4395,60 +4430,56 @@ name order (<code>agent_1, agent_10, agent_2</code>) but the data in this order,
 1-2 carried <code>agent_1</code>'s bounds and positions 5-6 <code>agent_2</code>'s: <code>agent_2</code> would have
 bid <span class="arithmatex">\(-2 + 1.907 \times 2 = 1.81\)</span> kWh instead of 4.53, and <code>agent_1</code> would have been
 clipped at −5 instead of −2, beyond its own capacity (I-59). <code>agent_10</code> happens to
-sit in the middle of both orders and would have been right.</p>
+sit in the middle of both orders and would have been right. In CTDE and DTDE the
+question does not arise: each module has its own agent's space.</p>
 <p><code>agent_1</code>'s quantity shows the clip: <span class="arithmatex">\(u = -1.241\)</span> is outside <span class="arithmatex">\([-1, 1]\)</span>, so the
 market gets the bound −2, but the batch keeps <span class="arithmatex">\(u = -1.241\)</span> and the learner trains
 on it.</p>
-<p><strong>Splitting back (A5).</strong> <code>GroupedEnv.step</code> cuts the joint action into the agents'
-parts (<code>split</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L46-L52">L46-L52</a>) and
-passes them to the environment:</p>
+<p><strong>Splitting back (A5, CTCE).</strong> <code>GroupedEnv.step</code> cuts the joint action into the
+agents' parts (<code>split</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L52-L58">L52-L58</a>) and passes
+them to the environment:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span><span class="s2">"agent_2"</span><span class="p">:</span> <span class="p">[</span><span class="mf">4.53</span><span class="p">,</span> <span class="mf">0.157</span><span class="p">],</span> <span class="s2">"agent_10"</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">10.01</span><span class="p">,</span> <span class="mf">0.298</span><span class="p">],</span> <span class="s2">"agent_1"</span><span class="p">:</span> <span class="p">[</span><span class="o">-</span><span class="mf">2.0</span><span class="p">,</span> <span class="mf">0.293</span><span class="p">]}</span>
 </code></pre></div>
-<h2 id="3-ctde-one-actor-per-agent-a2">3. CTDE: one actor per agent (A2)<a class="headerlink" href="#3-ctde-one-actor-per-agent-a2" title="Permanent link">&para;</a></h2>
-<p>In CTDE each agent's action may depend only on its own observation. Our module
-(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L134-L140">ctde_modules.py L134-L140</a>) is
-RLlib's PPO module for the group with the actor replaced by three separate ones,
-each the network RLlib would build for that agent alone (<code>agent_actors</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L99-L119">L99-L119</a>). The critic is left
-as RLlib builds it, on all of <span class="arithmatex">\(s\)</span>.</p>
-<p><strong>Encoders</strong> (<code>AgentEncoders</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L48-L66">L48-L66</a>). Agent <span class="arithmatex">\(i\)</span>'s encoder
-reads only its slice of <span class="arithmatex">\(s\)</span>: <code>agent_2</code>'s positions 1-2 = (0.4, 0.8), <code>agent_10</code>'s
-3-4 = (−0.2, 0.5), <code>agent_1</code>'s 5-6 = (0.9, 0.1). Each turns its 2 numbers into a
-256-number latent, <span class="arithmatex">\(h_i\)</span>; the three latents are put side by side (768 numbers).</p>
-<p><strong>Heads</strong> (<code>AgentHeads</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L69-L96">L69-L96</a>). Head <span class="arithmatex">\(i\)</span> reads only
-<span class="arithmatex">\(h_i\)</span> and outputs <span class="arithmatex">\([m_{i}, \ell_{i}]\)</span> for its 2 action dimensions. Say:</p>
+<h2 id="3-ctde-a-local-actor-and-a-central-critic-per-agent-a2-b3">3. CTDE: a local actor and a central critic per agent (A2, B3)<a class="headerlink" href="#3-ctde-a-local-actor-and-a-central-critic-per-agent-a2-b3" title="Permanent link">&para;</a></h2>
+<p>Each agent's module is RLlib's default module for its algorithm, built for the
+agent's 8-number input <span class="arithmatex">\(x_i\)</span>, with one change: the actor's encoder is replaced by
+the encoder RLlib builds for the agent's own 2-number observation, applied to the
+first 2 entries of <span class="arithmatex">\(x_i\)</span> (<code>OwnObsEncoder</code> and <code>own_encoder</code>,
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L44-L79">ctde_modules.py L44-L79</a>). The policy head,
+the critic, the losses and the action distribution stay RLlib's
+(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L80-L85"><code>CTDEPPOModule</code></a>; APPO and SAC alike,
+<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/ctde_modules.py#L88-L108">L88-L108</a>).</p>
+<p>For <code>agent_10</code>, with <span class="arithmatex">\(x_{10}\)</span> of section 1:</p>
 <table>
 <thead>
 <tr>
-<th>Agent</th>
-<th>Head output <span class="arithmatex">\([m_q, m_p, \ell_q, \ell_p]\)</span></th>
+<th>Part</th>
+<th>Reads</th>
+<th>Output</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>agent_2</code></td>
-<td>(0.30, −0.10, −0.50, −1.00)</td>
+<td>Actor encoder</td>
+<td>entries 1-2 of <span class="arithmatex">\(x_{10}\)</span>: <span class="arithmatex">\((-0.2, 0.5) = o_{10}\)</span></td>
+<td>a 256-number latent <span class="arithmatex">\(h_{10}\)</span></td>
 </tr>
 <tr>
-<td><code>agent_10</code></td>
-<td>(−0.60, 0.20, −0.70, −1.20)</td>
+<td>Actor head</td>
+<td><span class="arithmatex">\(h_{10}\)</span></td>
+<td><span class="arithmatex">\([m_q, m_p, \ell_q, \ell_p]\)</span>, e.g. (−0.60, 0.20, −0.70, −1.20)</td>
 </tr>
 <tr>
-<td><code>agent_1</code></td>
-<td>(0.10, 0.50, −0.40, −0.90)</td>
+<td>Critic encoder and head</td>
+<td>all 8 entries: <span class="arithmatex">\(o_{10}\)</span> and <span class="arithmatex">\(s\)</span></td>
+<td><span class="arithmatex">\(V_{\phi_{10}}(o_{10}, s)\)</span>, <code>agent_10</code>'s own expected return</td>
 </tr>
 </tbody>
 </table>
-<p>RLlib's Gaussian for a 6-dimensional action reads a 12-number input as <em>first the 6
-means, then the 6 log-stds</em> (<code>loc, log_std = logits.chunk(2)</code>). So the heads'
-outputs are <strong>rearranged</strong> before they leave the module:</p>
-<div class="arithmatex">\[(\underbrace{0.30, -0.10}_{m,\ \texttt{agent\_2}}, \underbrace{-0.60, 0.20}_{m,\ \texttt{agent\_10}}, \underbrace{0.10, 0.50}_{m,\ \texttt{agent\_1}}, \underbrace{-0.50, -1.00}_{\ell,\ \texttt{agent\_2}}, \underbrace{-0.70, -1.20}_{\ell,\ \texttt{agent\_10}}, \underbrace{-0.40, -0.90}_{\ell,\ \texttt{agent\_1}}).\]</div>
-<p>These are exactly the <span class="arithmatex">\(m\)</span> and <span class="arithmatex">\(\ell\)</span> of section 2, so from here on CTDE is the
-same as CTCE: RLlib samples, rescales, stores and trains a 6-dimensional Gaussian.
-Had the outputs simply been concatenated, <span class="arithmatex">\((0.30, -0.10, -0.50, -1.00, -0.60, 0.20, \dots)\)</span>,
-RLlib would have read <code>agent_2</code>'s log-stds as <code>agent_10</code>'s means.</p>
+<p>The actor's output is already in the order RLlib's Gaussian expects (<em>first the
+means, then the log-stds</em>), since the head is RLlib's own for one agent's 2
+dimensions. Changing any entry of <span class="arithmatex">\(s\)</span> changes the critic's value but never the
+action: the trained actor can act on <span class="arithmatex">\(o_{10}\)</span> alone.</p>
 <p><strong>Sizes</strong> (RLlib's default network, 2 × 256 tanh, actor and critic separate):</p>
 <table>
 <thead>
@@ -4465,40 +4496,66 @@ RLlib would have read <code>agent_2</code>'s log-stds as <code>agent_10</code>'s
 <td>66 817 (input 2)</td>
 </tr>
 <tr>
+<td>CTDE, per agent</td>
+<td>67 588 (input 2, output 4)</td>
+<td>68 353 (input 8)</td>
+</tr>
+<tr>
 <td>CTCE</td>
 <td>70 668 (input 6, output 12)</td>
 <td>67 841 (input 6)</td>
 </tr>
+</tbody>
+</table>
+<p>CTDE's actor is DTDE's actor; only the critic's first layer is wider, for the
+global state.</p>
+<h2 id="4-whose-reward-each-module-learns-from-a5-b4">4. Whose reward each module learns from (A5, B4)<a class="headerlink" href="#4-whose-reward-each-module-learns-from-a5-b4" title="Permanent link">&para;</a></h2>
+<p>With the market paying</p>
+<div class="arithmatex">\[r_{\texttt{agent\_2}} = 1.50, \qquad r_{\texttt{agent\_10}} = -0.50, \qquad r_{\texttt{agent\_1}} = 0.25:\]</div>
+<table>
+<thead>
 <tr>
-<td>CTDE</td>
-<td>3 × 67 588 = 202 764 (three DTDE actors)</td>
-<td>67 841 (CTCE's critic)</td>
+<th></th>
+<th>CTCE</th>
+<th>CTDE</th>
+<th>DTDE</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reward the learner sees</td>
+<td>one, <span class="arithmatex">\(R = 1.25\)</span> for the group (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L122"><code>GroupedEnv</code></a>)</td>
+<td>each module its own: 1.50, −0.50, 0.25</td>
+<td>each module its own: 1.50, −0.50, 0.25</td>
+</tr>
+<tr>
+<td>Critic learns</td>
+<td>the group's return, about <span class="arithmatex">\(N = 3\)</span> times one agent's</td>
+<td>each agent's own return, from the whole state</td>
+<td>each agent's own return, from its own observation</td>
+</tr>
+<tr>
+<td>Advantage</td>
+<td>one for the group</td>
+<td>one per agent</td>
+<td>one per agent</td>
 </tr>
 </tbody>
 </table>
-<p>CTDE's actor is the three DTDE actors, and its critic is CTCE's.</p>
-<h2 id="4-the-groups-reward-a5-b4">4. The group's reward (A5, B4)<a class="headerlink" href="#4-the-groups-reward-a5-b4" title="Permanent link">&para;</a></h2>
-<p><code>GroupedEnv.step</code> returns one reward for the group, the sum of the agents'
-(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/grouping.py#L104-L123">L104-L123</a>). With the market
-paying</p>
-<div class="arithmatex">\[r_{\texttt{agent\_2}} = 1.50, \qquad r_{\texttt{agent\_10}} = -0.50, \qquad r_{\texttt{agent\_1}} = 0.25,\]</div>
-<p>the group gets <span class="arithmatex">\(R = 1.25\)</span>. The agents' own rewards travel along in the group's
-<code>infos</code> (for evaluation), but the learner sees only 1.25.</p>
-<p>What follows from it, all computed by RLlib:</p>
-<ul>
-<li><strong>The critic</strong> <span class="arithmatex">\(V(s)\)</span> learns the group's return. Its targets are about <span class="arithmatex">\(N = 3\)</span>
-  times the size of one agent's, which matters for RLlib's value-loss cap of 10
-  (<a href="../cycle/#c4-value-loss">cycle.md C4</a>).</li>
-<li><strong>One advantage for the group.</strong> <span class="arithmatex">\(\hat A\)</span> is computed from <span class="arithmatex">\(R\)</span>, so <code>agent_1</code>'s bid
-  is reinforced or discouraged by the same number as <code>agent_2</code>'s, although here
-  <code>agent_10</code> lost money and <code>agent_2</code> earned it. Telling the agents' contributions
-  apart is left to the averaging over many steps (the credit-assignment cost,
-  <a href="../../validation/rl/#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound">I-60</a>).</li>
-</ul>
-<p>In DTDE each agent's module learns from its own <span class="arithmatex">\(r_i\)</span> and nothing is summed.</p>
-<h2 id="5-ctde-in-the-update-what-the-per-agent-actor-means-for-the-loss-c2-c3-c8">5. CTDE in the update: what the per-agent actor means for the loss (C2, C3, C8)<a class="headerlink" href="#5-ctde-in-the-update-what-the-per-agent-actor-means-for-the-loss-c2-c3-c8" title="Permanent link">&para;</a></h2>
-<p>The loss is RLlib's; what our module decides is that the joint policy is a product
-of the agents' policies. Here is what that does in numbers.</p>
+<p><strong>CTCE.</strong> The agents' own rewards travel along in the group's <code>infos</code> (for
+evaluation), but the learner sees only 1.25. <span class="arithmatex">\(\hat A\)</span> is computed from <span class="arithmatex">\(R\)</span>, so
+<code>agent_1</code>'s bid is reinforced or discouraged by the same number as <code>agent_2</code>'s,
+although here <code>agent_10</code> lost money and <code>agent_2</code> earned it. Telling the agents'
+contributions apart is left to the averaging over many steps (the
+credit-assignment cost,
+<a href="../../validation/rl/#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound">I-60</a>).</p>
+<p><strong>CTDE and DTDE.</strong> <code>agent_10</code>'s loss of 0.50 lowers only <code>agent_10</code>'s advantage.
+CTDE's critic sees the whole state, so it can learn, for example, that <code>agent_10</code>
+loses money whenever the others have a surplus, and not blame <code>agent_10</code>'s own bid
+for that.</p>
+<h2 id="5-ctde-in-the-update-per-agent-ratios-and-clips-c2-c3-c8">5. CTDE in the update: per-agent ratios and clips (C2, C3, C8)<a class="headerlink" href="#5-ctde-in-the-update-per-agent-ratios-and-clips-c2-c3-c8" title="Permanent link">&para;</a></h2>
+<p>The loss is RLlib's, once per agent's module. Here is what that means in numbers,
+against a grouped policy that would clip the agents together.</p>
 <p><strong>Log-probability.</strong> For the stored <span class="arithmatex">\(u\)</span> of section 2, per dimension
 <span class="arithmatex">\(\log\pi = -\frac{(u - m)^2}{2\sigma^2} - \ell - \frac12\log 2\pi\)</span>:</p>
 <table>
@@ -4508,7 +4565,6 @@ of the agents' policies. Here is what that does in numbers.</p>
 <th><code>agent_2</code></th>
 <th><code>agent_10</code></th>
 <th><code>agent_1</code></th>
-<th>Group</th>
 </tr>
 </thead>
 <tbody>
@@ -4517,11 +4573,10 @@ of the agents' policies. Here is what that does in numbers.</p>
 <td>−0.963</td>
 <td>−1.083</td>
 <td>−2.583</td>
-<td>−4.629 (the sum)</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Ratio (C2).</strong> Some minibatches later the heads have moved a little: <code>agent_2</code>'s
+<p><strong>Ratio (C2).</strong> Some minibatches later the actors have moved a little: <code>agent_2</code>'s
 quantity mean 0.30 → 0.36, <code>agent_10</code>'s price mean 0.20 → 0.235, <code>agent_1</code>'s price
 mean 0.50 → 0.53. Recomputed:</p>
 <table>
@@ -4531,41 +4586,68 @@ mean 0.50 → 0.53. Recomputed:</p>
 <th><code>agent_2</code></th>
 <th><code>agent_10</code></th>
 <th><code>agent_1</code></th>
-<th>Group</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><span class="arithmatex">\(\log\pi_\theta(u_i)\)</span></td>
+<td><span class="arithmatex">\(\log\pi_{\theta_i}(u_i)\)</span></td>
 <td>−0.869</td>
 <td>−0.915</td>
 <td>−2.563</td>
-<td>−4.347</td>
 </tr>
 <tr>
-<td><span class="arithmatex">\(\rho_i = e^{\log\pi_\theta - \log\mu}\)</span></td>
+<td><span class="arithmatex">\(\rho_i = e^{\log\pi_{\theta_i} - \log\mu_i}\)</span></td>
 <td>1.099</td>
 <td>1.182</td>
 <td>1.020</td>
-<td>$\rho = 1.099 \times 1.182 \times 1.020 = $ <strong>1.324</strong></td>
 </tr>
 </tbody>
 </table>
-<p><strong>Clip (C3).</strong> RLlib clips the <strong>group's</strong> ratio, <span class="arithmatex">\(\rho = 1.324\)</span>, to <span class="arithmatex">\([0.8, 1.2]\)</span>.
-With <span class="arithmatex">\(\hat A = +0.8\)</span>:</p>
+<p><strong>Clip (C3), per agent.</strong> Each module clips its own ratio to <span class="arithmatex">\([0.8, 1.2]\)</span> with its
+own advantage. Say <span class="arithmatex">\(\hat A_2 = +0.8\)</span>, <span class="arithmatex">\(\hat A_{10} = -0.6\)</span>, <span class="arithmatex">\(\hat A_1 = +0.3\)</span>:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>agent_2</code></th>
+<th><code>agent_10</code></th>
+<th><code>agent_1</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="arithmatex">\(\rho_i \hat A_i\)</span></td>
+<td>0.879</td>
+<td>−0.709</td>
+<td>0.306</td>
+</tr>
+<tr>
+<td><span class="arithmatex">\(\text{clip}(\rho_i)\, \hat A_i\)</span></td>
+<td>0.879</td>
+<td>−0.709</td>
+<td>0.306</td>
+</tr>
+<tr>
+<td>Gradient</td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<p>All three ratios are inside the band, so every agent keeps learning.</p>
+<p><strong>A grouped policy would not.</strong> With one product policy, as in CTCE or a grouped
+CTDE, RLlib clips the joint ratio <span class="arithmatex">\(\rho = 1.099 \times 1.182 \times 1.020 = 1.324\)</span>
+with one advantage. With <span class="arithmatex">\(\hat A = +0.8\)</span>,</p>
 <div class="arithmatex">\[S = \min(1.324 \times 0.8,\ 1.2 \times 0.8) = \min(1.060,\ 0.960) = 0.960,\]</div>
-<p>the clipped branch: <strong>no gradient for any agent</strong>, although each agent alone
-(<span class="arithmatex">\(1.099\)</span>, <span class="arithmatex">\(1.182\)</span>, <span class="arithmatex">\(1.020\)</span>) is still inside <span class="arithmatex">\([0.8, 1.2]\)</span>. Three agents that each
-moved a little count as one policy that moved too far. With <span class="arithmatex">\(\hat A = -0.8\)</span> the
-unclipped branch is the smaller one (<span class="arithmatex">\(-1.060 &lt; -0.960\)</span>), so all three keep
-receiving gradient. The more agents, the sooner the product leaves the band.
-Clipping each agent's ratio separately instead, as MAPPO does, is the open choice
-recorded in <a href="../training/#ctde">training.md</a>; the fixed code keeps RLlib's joint
-clip.</p>
-<p><strong>Where the gradient goes (C8).</strong> Agent <span class="arithmatex">\(i\)</span>'s network appears only in its own
-term of <span class="arithmatex">\(\log\pi = \sum_i \log\pi_i(u_i \mid o_i)\)</span>, so it receives only that term's
-gradient. On the first minibatch (<span class="arithmatex">\(\rho = 1\)</span>, unclipped), with <span class="arithmatex">\(\hat A = +0.8\)</span>, the
-push on each mean is <span class="arithmatex">\(\hat A \cdot \partial\log\pi / \partial m_k = \hat A\,(u_k - m_k)/\sigma_k^2\)</span>:</p>
+<p>the clipped branch: <strong>no gradient for any agent</strong>, although each agent alone is
+still inside <span class="arithmatex">\([0.8, 1.2]\)</span>. Three agents that each moved a little count as one
+policy that moved too far, and the more agents, the sooner the product leaves the
+band. This is why CTDE is per agent (MAPPO); CTCE keeps the joint clip, since it
+<em>is</em> one policy.</p>
+<p><strong>Where the gradient goes (C8).</strong> Agent <span class="arithmatex">\(i\)</span>'s actor receives only its own term. On
+the first minibatch (<span class="arithmatex">\(\rho_i = 1\)</span>, unclipped) the push on each mean is
+<span class="arithmatex">\(\hat A_i \cdot \partial\log\pi_i / \partial m_k = \hat A_i\,(u_k - m_k)/\sigma_k^2\)</span>:</p>
 <table>
 <thead>
 <tr>
@@ -4589,26 +4671,25 @@ push on each mean is <span class="arithmatex">\(\hat A \cdot \partial\log\pi / \
 <td>0.738</td>
 </tr>
 <tr>
-<td>× <span class="arithmatex">\(\hat A = 0.8\)</span></td>
+<td>× own <span class="arithmatex">\(\hat A_i\)</span> (0.8, −0.6, 0.3)</td>
 <td>1.319</td>
 <td>−1.087</td>
-<td>0.322</td>
-<td>3.984</td>
-<td>−2.387</td>
-<td>0.590</td>
+<td>−0.242</td>
+<td>−2.988</td>
+<td>−0.895</td>
+<td>0.221</td>
 </tr>
 </tbody>
 </table>
-<p>Each mean is pulled toward the action that was sampled, in proportion to how far
-the noise took it (<span class="arithmatex">\(\varepsilon_k / \sigma_k\)</span>). <code>agent_10</code>'s head gets only the two
-numbers in its columns, from the gradient of its own 2 outputs, and nothing from
-the other agents' actions; that is "decentralised execution" in the loss. In CTCE
-the same six numbers arrive, but all at one network that sees <span class="arithmatex">\(s\)</span>.</p>
+<p>Each mean is pulled toward the action that was sampled when the agent's own
+outcome was better than its critic expected (<span class="arithmatex">\(\hat A_i &gt; 0\)</span>), and away from it when
+worse: <code>agent_10</code>'s means move away from its sampled action, the others' toward
+theirs. In CTCE the six numbers would all carry the group's one advantage.</p>
 <p>In the original, these gradients went to a central actor and the acting heads got
 none (<a href="../../validation/rl/#i-48-ctde-never-trains-the-policies-that-act">I-48</a>).</p>
 <h2 id="6-the-settings-we-choose">6. The settings we choose<a class="headerlink" href="#6-the-settings-we-choose" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/config.py#L72-L106"><code>SETTINGS</code> and <code>MODEL</code></a>, and
-what each changes in the cycle:</p>
+<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/config.py#L78-L113"><code>SETTINGS</code> and <code>MODEL</code></a>, and what each changes in
+the cycle:</p>
 <table>
 <thead>
 <tr>
@@ -4654,27 +4735,36 @@ what each changes in the cycle:</p>
 <td>the KL term is not computed at all (C6 disappears; fixes <a href="../../validation/rl/#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02</a>)</td>
 </tr>
 <tr>
+<td><code>vf_clip_param</code></td>
+<td><span class="arithmatex">\(10^6\)</span></td>
+<td>the value loss is not capped (C4)</td>
+</tr>
+<tr>
 <td><code>vf_share_layers</code></td>
 <td>False</td>
-<td>actor and critic have separate encoders: the value loss no longer trains the actor's layers (C8)</td>
+<td>actor and critic have separate encoders: the value loss does not train the actor's layers (C8)</td>
 </tr>
 <tr>
 <td>SAC <code>target_entropy</code></td>
 <td><code>"auto"</code></td>
-<td><span class="arithmatex">\(-\dim A\)</span> of each module: <strong>−2</strong> per agent in DTDE, <strong>−6</strong> for the group in CTCE and CTDE</td>
+<td><span class="arithmatex">\(-\dim A\)</span> of each module: <strong>−2</strong> per agent in CTDE and DTDE, <strong>−6</strong> for the group in CTCE</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Steps per iteration.</strong> One PPO iteration samples 4000 environment steps. In
-CTCE and CTDE that is 4000 rows of the group; in DTDE 4000 rows for <em>each</em> of the
-three modules, 12 000 rows in total, but still 4000 environment steps. The budget
-counts environment steps, so all paradigms get the same amount of experience.</p>
+<p>An experiment can override them; the market runs use <code>lr</code> <span class="arithmatex">\(3 \cdot 10^{-4}\)</span>, PPO
+batches of 2400 steps (100 days), minibatches of 240 and 10 epochs.</p>
+<p><strong>Steps per iteration.</strong> One PPO iteration samples 4000 environment steps. In CTCE
+that is 4000 rows of the group; in CTDE and DTDE 4000 rows for <em>each</em> of the three
+modules, 12 000 rows in total, but still 4000 environment steps. The budget counts
+environment steps, so all paradigms get the same amount of experience.</p>
 <h2 id="7-evaluating-a-trained-policy">7. Evaluating a trained policy<a class="headerlink" href="#7-evaluating-a-trained-policy" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L54-L131"><code>Policy</code></a> acts with the trained
-module outside RLlib, the same way RLlib does in training, but without noise.</p>
-<p><strong>The action</strong> (<code>act</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L96-L111">L96-L111</a>).
-The most likely action is the mean, then RLlib's own rescaling with the joint
-bounds, then the split:</p>
+<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L54-L139"><code>Policy</code></a> acts with the trained modules outside
+RLlib, the same way RLlib does in training, but without noise. It builds each
+module's input as the paradigm's wrapper does (<code>_inputs</code>: <span class="arithmatex">\(o_i\)</span>, <span class="arithmatex">\(x_i\)</span> or <span class="arithmatex">\(s\)</span>) and
+always runs in the original multi-agent environment.</p>
+<p><strong>The action</strong> (<code>act</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L99-L114">L99-L114</a>). The most
+likely action is the mean, then RLlib's own rescaling, with each agent's bounds in
+CTDE and DTDE and the joint bounds then a split in CTCE. The result is the same:</p>
 <table>
 <thead>
 <tr>
@@ -4702,18 +4792,18 @@ bounds, then the split:</p>
 <p>For example <code>agent_10</code>'s quantity: <span class="arithmatex">\(-20 + (-0.60 + 1) \times 20 = -12.0\)</span>. SAC's
 actions are squashed by tanh, so its most likely action is <span class="arithmatex">\(\tanh m\)</span>; RLlib's own
 deterministic SAC action skips the tanh in Ray 2.51.1, so <code>_deterministic</code>
-(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L39-L51">L39-L51</a>) applies it. The
-original's inference used the mean without rescaling, so <code>agent_10</code> would have bid
-−0.60 kWh (<a href="../../validation/rl/#i-61-standalone-inference-does-not-act-like-training">I-61</a>).</p>
-<p><strong>Baselines</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L137-L165">L137-L165</a>).
-"Random" draws each action uniformly within its bounds. "Zero" sends 0 in the
-market's units, clipped to the bounds: quantity 0, price <span class="arithmatex">\(\max(0, 0.05) = 0.05\)</span>
-for every agent. It is <em>not</em> the network's 0, which would be the middle of the
-bounds (price 0.20).</p>
-<p><strong>The team score</strong> (<code>Episode</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L172-L192">L172-L192</a>). Every paradigm is
-scored in the original multi-agent environment, from the raw per-agent rewards.
-Over a 3-step episode:</p>
+(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L39-L51">L39-L51</a>) applies it. The original's inference
+used the mean without rescaling, so <code>agent_10</code> would have bid −0.60 kWh
+(<a href="../../validation/rl/#i-61-standalone-inference-does-not-act-like-training">I-61</a>).</p>
+<p><strong>Baselines</strong> (<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L140-L174">L140-L174</a>). "Random" draws each
+action uniformly within its bounds. "Zero" sends 0 in the environment's units,
+clipped to the bounds: quantity 0, price <span class="arithmatex">\(\max(0, 0.05) = 0.05\)</span> for every agent. It
+is <em>not</em> the network's 0, which would be the middle of the bounds (price 0.20). The
+market environment adds its own baselines (never trade, and the market's bidding
+rule), see <a href="../../v1/#3-the-market-as-an-environment">marlem-v1</a>.</p>
+<p><strong>The team score</strong> (<code>Episode</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L175-L195">L175-L195</a>).
+Every paradigm is scored in the original multi-agent environment, from the raw
+per-agent rewards. Over a 3-step episode:</p>
 <table>
 <thead>
 <tr>
@@ -4755,28 +4845,29 @@ same number for CTCE, CTDE and DTDE, computed the same way, so the nine
 combinations and the baselines can be ranked on one scale
 (<a href="../../validation/rl/#i-73-returns-of-the-paradigms-are-compared-across-different-scales">I-73</a>).
 Evaluation episodes use seeds from 1 000 000 on, which training never reaches
-(<code>evaluation_seeds</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L245-L249">L245-L249</a>).</p>
-<p><code>Policy.values</code> gives the critic's estimate of a state; in CTCE and CTDE that is
-the group's value, comparable to the team score, not to one agent's return.</p>
+(<code>evaluation_seeds</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/policy.py#L248-L252">L248-L252</a>); the runner's
+held-out evaluation uses test days that training never sees.</p>
+<p><code>Policy.values</code> gives each module's critic estimate of a state: in CTCE the group's
+value, comparable to the team score; in CTDE and DTDE each agent's own expected
+return.</p>
 <h2 id="8-the-run-budget-nan-stop-evaluation">8. The run: budget, NaN stop, evaluation<a class="headerlink" href="#8-the-run-budget-nan-stop-evaluation" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L238-L335"><code>train</code></a> repeats RLlib's
-iteration until the budget of environment steps is used up.</p>
+<p><a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L238-L338"><code>train</code></a> repeats RLlib's iteration until the
+budget of environment steps is used up.</p>
 <p><strong>Budget.</strong> <code>budget = 100_000</code> with PPO's 4000 steps per iteration: 25 iterations,
 for every paradigm. With <code>eval_every = 20_000</code>, the policy and baselines are
-evaluated at 0 (untrained, together with random and zero), 20 000, 40 000, 60 000,
+evaluated at 0 (untrained, together with the baselines), 20 000, 40 000, 60 000,
 80 000 and at the end, 100 000
-(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L288-L307">L283-L302</a>).</p>
-<p><strong>NaN stop</strong> (<code>_nonfinite</code>,
-<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L199-L214">L194-L209</a>). After each
-iteration the learner's results are searched for losses, entropies and the SAC
+(<a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L287-L308">L287-L308</a>).</p>
+<p><strong>NaN stop</strong> (<code>_nonfinite</code>, <a href="https://github.com/KevinRapo/P2P-thesis/blob/marlem-v1/core/rl/train.py#L199-L214">L199-L214</a>). After
+each iteration the learner's results are searched for losses, entropies and the SAC
 temperature that are NaN or infinite. For</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="s2">"group"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"policy_loss"</span><span class="p">:</span> <span class="n">nan</span><span class="p">,</span> <span class="s2">"vf_loss"</span><span class="p">:</span> <span class="mf">0.31</span><span class="p">,</span> <span class="s2">"entropy"</span><span class="p">:</span> <span class="n">inf</span><span class="p">,</span>
-           <span class="s2">"num_env_steps_trained_throughput"</span><span class="p">:</span> <span class="n">nan</span><span class="p">}}</span>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="s2">"agent_10"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"policy_loss"</span><span class="p">:</span> <span class="n">nan</span><span class="p">,</span> <span class="s2">"vf_loss"</span><span class="p">:</span> <span class="mf">0.31</span><span class="p">,</span> <span class="s2">"entropy"</span><span class="p">:</span> <span class="n">inf</span><span class="p">,</span>
+              <span class="s2">"num_env_steps_trained_throughput"</span><span class="p">:</span> <span class="n">nan</span><span class="p">}}</span>
 </code></pre></div>
-<p>it finds <code>group/policy_loss</code> and <code>group/entropy</code> and stops the run with an error,
-which <code>run.json</code> records. The throughput is skipped on purpose: RLlib reports it
-as NaN in the first iteration. The original carried on with zeroed gradients
+<p>it finds <code>agent_10/policy_loss</code> and <code>agent_10/entropy</code> and stops the run with an
+error, which <code>run.json</code> records. The throughput is skipped on purpose: RLlib
+reports it as NaN in the first iteration. The original carried on with zeroed
+gradients
 (<a href="../../validation/rl/#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed">R-02</a>).</p>
 
 
