@@ -21,6 +21,10 @@ What it fixes:
   training; the algorithm is stopped and Ray shut down even when a run fails.
 - I-61: ``load_policy`` acts with the trained module exactly as training does
   (``core/rl/policy.py``).
+
+Each run starts its own Ray instance, unless ``RAY_ADDRESS`` names one that is
+already running: then the run joins it, so many runs in parallel share one Ray
+instance (its threads and processes are paid once, not once per run).
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ from __future__ import annotations
 import importlib
 import json
 import math
+import os
 import platform
 import subprocess
 import sys
@@ -265,7 +270,9 @@ def train(run: Run) -> dict[str, Any]:
     _write_json(out / "run.json", record)
 
     started_ray = not ray.is_initialized()
-    if started_ray:
+    if started_ray and os.environ.get("RAY_ADDRESS"):
+        ray.init()  # join the shared instance; Ray refuses resources when joining
+    elif started_ray:
         ray.init(
             num_cpus=run.num_env_runners + 1,
             num_gpus=run.num_gpus,
