@@ -101,7 +101,7 @@ def test_get_a_slurm_target_is_direct_on_the_cluster_and_remote_elsewhere(
     target = targets.get("taltech")
     assert isinstance(target, targets.RemoteTarget) and target.name == "taltech"
     assert isinstance(target.remote, Remote)
-    assert (target.remote.host, target.remote.repo) == ("taltech", "~/marlem-slurm")
+    assert (target.remote.host, target.remote.repo) == ("taltech", "~/marlem-v1")
     assert target.remote.python == "~/miniforge3/envs/marlem/bin/python"
     assert target.remote._thread is None  # getting a target connects to nothing
     assert target.mirror == REPO / "runs" / "@taltech"
