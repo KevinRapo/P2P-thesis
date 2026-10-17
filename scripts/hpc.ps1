@@ -2,7 +2,7 @@
 TalTech HPC helper: start, connect to, watch and stop the Jupyter job.
 Reference: docs/hpc/notebooks.md (https://kevinrapo.github.io/P2P-thesis/hpc/notebooks/)
 
-  hpc start [sbatch options]   submit ~/jupyter.slurm, wait until Jupyter runs, open the tunnel
+  hpc start [sbatch options]   submit scripts/jupyter.slurm, wait until Jupyter runs, open the tunnel
                                e.g. hpc start -c 78 --mem=60G -t 01:30:00
                                (Jupyter runs in ~/<current git branch> on the cluster)
   hpc tunnel                   (re)open the tunnel to the running job
@@ -12,11 +12,30 @@ Reference: docs/hpc/notebooks.md (https://kevinrapo.github.io/P2P-thesis/hpc/not
   hpc stop                     cancel the job and close local tunnels
 #>
 
-$HostAlias = "taltech"
-$User = "kerapo"
-$Port = 9437
+# This machine's settings: the environment variable, else .env in the repository root
+# (see .env.example), else the default. The same rule as core/settings.py.
+function Get-Setting([string]$Key, [string]$Default = "") {
+    $value = [Environment]::GetEnvironmentVariable($Key)
+    if ($value) { return $value }
+    $file = Join-Path (Split-Path $PSScriptRoot -Parent) ".env"
+    if (Test-Path $file) {
+        foreach ($line in Get-Content $file) {
+            $line = $line.Trim()
+            if ($line -and -not $line.StartsWith("#") -and $line -match "^([^=]+)=(.*)$") {
+                if ($Matches[1].Trim() -eq $Key) {
+                    $found = $Matches[2].Trim().Trim('"').Trim("'")
+                    if ($found) { return $found }
+                }
+            }
+        }
+    }
+    return $Default
+}
+
+$HostAlias = Get-Setting "MARLEM_SSH_HOST" "taltech"
+$Account = Get-Setting "MARLEM_SLURM_ACCOUNT"
+$Port = [int](Get-Setting "MARLEM_JUPYTER_PORT" "9437")
 $JobName = "jupyter"
-$JobScript = "~/jupyter.slurm"
 
 function Remote([string]$Command) {
     # The cluster's login scripts print a harmless tput warning on stderr: dropped.
@@ -24,7 +43,7 @@ function Remote([string]$Command) {
 }
 
 function Get-Job {
-    $line = Remote "squeue -u $User -n $JobName -h -o '%i %T %N %C %M %l'" | Select-Object -First 1
+    $line = Remote "squeue -u `$USER -n $JobName -h -o '%i %T %N %C %M %l'" | Select-Object -First 1
     if (-not $line) { return $null }
     $f = "$line".Trim() -split "\s+"
     [pscustomobject]@{ Id = $f[0]; State = $f[1]; Node = $f[2]; Cpus = $f[3]; Time = $f[4]; Limit = $f[5] }
@@ -58,16 +77,24 @@ function Start-Jupyter([string[]]$SbatchArgs) {
         return
     }
     # The cluster folder of the code is named after the branch checked out here
-    # (marlem-v1 -> ~/marlem-v1); the job script
-    # starts Jupyter in $REPO.
+    # (marlem-v1 -> ~/marlem-v1); the job script starts Jupyter in $REPO.
     $branch = (git rev-parse --abbrev-ref HEAD 2>$null)
     if (-not $branch) { $branch = "marlem-v1" }
-    $repo = "/gpfs/mariana/home/$User/$branch"
-    if (-not (Remote "test -d $repo && echo yes")) {
-        Write-Host "No $repo on the cluster. Clone the repository there (docs/hpc/setup.md, 'Rebuild the cluster environment')."
+    $clusterHome = "$(Remote 'echo $HOME' | Select-Object -Last 1)".Trim()
+    if (-not $clusterHome) {
+        Write-Host "No answer from '$HostAlias' (VPN? ssh $HostAlias)."
         return
     }
-    $id = Remote "sbatch --parsable --export=ALL,REPO=$repo $($SbatchArgs -join ' ') $JobScript" | Select-Object -Last 1
+    $repo = "$clusterHome/$branch"
+    $script = "$repo/scripts/jupyter.slurm"
+    if (-not (Remote "test -f $script && echo yes")) {
+        Write-Host "No $script on the cluster. Push and pull the code there (git pushc), or clone it (docs/hpc/setup.md)."
+        return
+    }
+    $options = @("--parsable", "--export=ALL,REPO=$repo,PORT=$Port")
+    if ($Account) { $options += "--account=$Account" }
+    $options += $SbatchArgs
+    $id = Remote "sbatch $($options -join ' ') $script" | Select-Object -Last 1
     if (-not ("$id" -match "^\d+")) {
         Write-Host "sbatch failed: $id"
         return
@@ -102,7 +129,7 @@ switch ($command) {
     "start" { Start-Jupyter $rest }
     "tunnel" { Open-Tunnel }
     "status" {
-        Remote "squeue -u $User -o '%.10i %.9P %.10j %.8T %.10M %.9l %.5C %.6m %R'"
+        Remote "squeue -u `$USER -o '%.10i %.9P %.10j %.8T %.10M %.9l %.5C %.6m %R'"
         $job = Get-Job
         if ($job) { Remote "tail -3 ~/$JobName-$($job.Id).out" }
     }
@@ -112,13 +139,13 @@ switch ($command) {
     }
     "top" {
         $job = Get-Job
-        if ($job) { ssh -t $HostAlias "srun --jobid=$($job.Id) --overlap --pty top -u $User" } else { Write-Host "No '$JobName' job." }
+        if ($job) { ssh -t $HostAlias "srun --jobid=$($job.Id) --overlap --pty top -u `$USER" } else { Write-Host "No '$JobName' job." }
     }
     "stop" {
-        Remote "scancel -u $User -n $JobName"
+        Remote "scancel -u `$USER -n $JobName"
         Stop-Tunnels
         Write-Host "Cancelled '$JobName' jobs and closed local tunnels."
-        Remote "squeue -u $User"
+        Remote "squeue -u `$USER"
     }
     default {
         Get-Content $PSCommandPath | Select-Object -Skip 1 -First 11

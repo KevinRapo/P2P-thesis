@@ -2,12 +2,38 @@
 
 ## Access
 
-- Login node `base.hpc.taltech.ee`, user `kerapo`, SSH alias `taltech` (in
-  `~/.ssh/config`, key login). Off campus, connect the TalTech VPN first.
-- Billing account `user_kerapo` (personal, about 10 EUR per quarter). A project
-  account later: change `account` in [targets.toml](../../hpc/targets.toml) and
-  `--account` in `~/jupyter.slurm`.
+- Login node `base.hpc.taltech.ee` with your TalTech user, through an SSH alias
+  (here `taltech`, in `~/.ssh/config`, key login). Off campus, connect the TalTech
+  VPN first.
+- A billing account (a personal `user_<name>` account, about 10 EUR per quarter,
+  or a project account).
 - Docs: <https://docs.hpc.taltech.ee/>. Support: hpcsupport@taltech.ee.
+
+## This machine's settings (`.env`)
+
+What belongs to a person or a site, not to the project, is in `.env` in the
+repository root: git-ignored, one `KEY=VALUE` per line.
+[.env.example](../../.env.example) lists every key with its default; copy it to
+`.env` and fill in. An environment variable of the same name takes precedence.
+[core/settings.py](../../core/settings.py) reads it for the Python code, and
+[hpc.ps1](../../scripts/hpc.ps1) reads the same file.
+
+| Key | Default | Used by |
+|---|---|---|
+| `MARLEM_SLURM_ACCOUNT` | none (required to submit) | `targets.toml`, `hpc start` |
+| `MARLEM_SSH_HOST` | `taltech` | `targets.toml`, `hpc` |
+| `MARLEM_CLUSTER_REPO` | `~/marlem-v1` | `targets.toml` |
+| `MARLEM_CLUSTER_PYTHON` | `~/miniforge3/envs/marlem/bin/python` | `targets.toml` |
+| `MARLEM_JUPYTER_PORT` | `9437` | `hpc`, the Jupyter job |
+| `MARLEM_RUNS` | `<repo>/runs` | the runner |
+| `MARLEM_HOME` | `%LOCALAPPDATA%\MARLEM` | the Studio's workspace |
+| `MARLEM_STUDIO_PORT`, `MARLEM_STUDIO_SHOW` | `8090`, `1` | the Studio |
+
+[hpc/targets.toml](../../hpc/targets.toml) refers to them as `${KEY}` or
+`${KEY:-default}`. A missing value is an error only where it is used: the PC
+needs no account to list or watch the cluster, but the cluster's checkout needs
+one to submit, so put a `.env` there too (`~/marlem-v1/.env`, at least
+`MARLEM_SLURM_ACCOUNT`).
 
 ## What is where
 
@@ -17,7 +43,8 @@
 | Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v1`, a clone of branch `marlem-v1` |
 | Results (`runs/`) | Cluster: `~/marlem-v1/runs/`; synced experiments on this PC in `runs/@taltech/` |
 | Python environment | Cluster: `~/miniforge3/envs/marlem` |
-| Jupyter job script, token, logs | Cluster: `~/jupyter.slurm`, `~/.jupyter_token`, `~/jupyter-<jobid>.out` |
+| Jupyter job script | [scripts/jupyter.slurm](../../scripts/jupyter.slurm), in the cluster's checkout |
+| Jupyter token, logs | Cluster: `~/.jupyter_token`, `~/jupyter-<jobid>.out` |
 
 A notebook cell runs as sent from VS Code; a change to `core/`, a spec or a
 scenario reaches the cluster only by a push and a pull there (`git shipc`).
@@ -29,7 +56,7 @@ scenario reaches the cluster only by a push and a pull there (`git shipc`).
 
 | Command | Does |
 |---|---|
-| `hpc start [sbatch options]` | Submit `~/jupyter.slurm`, wait for Jupyter, open the tunnel. E.g. `hpc start -c 78 --mem=60G -t 01:30:00` |
+| `hpc start [sbatch options]` | Submit `scripts/jupyter.slurm` with the account from `.env`, wait for Jupyter, open the tunnel. E.g. `hpc start -c 78 --mem=60G -t 01:30:00` |
 | `hpc tunnel` | Reopen the tunnel to the running job |
 | `hpc status` | Your jobs and the end of the Jupyter log |
 | `hpc log` | The last 30 lines of the Jupyter log |
@@ -37,10 +64,9 @@ scenario reaches the cluster only by a push and a pull there (`git shipc`).
 | `hpc stop` | Cancel the `jupyter` job, close local tunnels (experiment arrays are not touched) |
 
 - One `jupyter` job at a time: `hpc start` refuses a second.
-- The cluster folder is named after the branch checked out here (`marlem-v1` →
-  `~/marlem-v1`), passed to the job as `REPO`.
-- The SSH alias, port 9437, job name and job script are constants at the top of
-  `hpc.ps1`. The helper does not read `targets.toml`; that is the runner's.
+- The job runs in the cluster folder named after the branch checked out here
+  (`marlem-v1` → `~/marlem-v1`), so that checkout must have `scripts/jupyter.slurm`.
+- sbatch options given to `hpc start` override the script's `#SBATCH` lines.
 
 **Install:** add `marlem-v1\scripts` to the user PATH, from the repository root:
 
@@ -59,7 +85,8 @@ without contacting the cluster.
 ## Git aliases
 
 Two aliases in the repository's `.git/config` (shared by all worktrees, not
-cloned: set them again on a new machine with `git config --edit`):
+cloned: set them again on a new machine with `git config --edit`). `taltech` is
+your SSH alias:
 
 ```ini
 [alias]
@@ -72,9 +99,9 @@ cloned: set them again on a new machine with `git config --edit`):
 | `git pushc` | Push, then `git pull --ff-only` in `~/<branch>` on the cluster |
 | `git shipc "message"` | `git add -A`, commit, `git pushc`; each step only if the previous one succeeded |
 
-`add -A` stages everything, new files included: check `git status` first when
-unsure. Do not pull on the cluster while experiments are queued or running there
-([why](experiments.md#limits)).
+`add -A` stages everything, new files included (`.env` is ignored): check
+`git status` first when unsure. Do not pull on the cluster while experiments are
+queued or running there ([why](experiments.md#limits)).
 
 ## Rebuild the cluster environment
 
@@ -88,33 +115,11 @@ bash Miniforge3-Linux-x86_64.sh -b -p ~/miniforge3
 source ~/.bashrc
 git clone -b marlem-v1 https://github.com/KevinRapo/P2P-thesis.git ~/marlem-v1
 conda env create -f ~/marlem-v1/environment.yml
-```
-
-The same file builds the environment on this PC. The Jupyter token and job script:
-
-```bash
+echo "MARLEM_SLURM_ACCOUNT=<account>" > ~/marlem-v1/.env
 openssl rand -hex 16 > ~/.jupyter_token
 chmod 600 ~/.jupyter_token
 ```
 
-```bash
-#!/bin/bash
-#SBATCH --job-name=jupyter
-#SBATCH --account=user_kerapo        # later: project_xxx
-#SBATCH --partition=short            # max 4 h
-#SBATCH --time=02:00:00              # job and billing end here at the latest
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=8G
-#SBATCH --output=%x-%j.out
-
-source ~/miniforge3/etc/profile.d/conda.sh
-conda activate marlem
-cd "${REPO:-$HOME/marlem-v1}"
-echo "Jupyter on node $(hostname), port 9437"
-jupyter lab --no-browser --ip=0.0.0.0 --port=9437 --ServerApp.port_retries=0 \
-    --IdentityProvider.token="$(cat ~/.jupyter_token)"
-```
-
-Jupyter listens on the node's network behind the token: reach it only through
-the tunnel, and keep the token file private.
+The same `environment.yml` builds the environment on this PC. Jupyter listens on
+the node's network behind the token: reach it only through the tunnel, and keep
+the token file private.

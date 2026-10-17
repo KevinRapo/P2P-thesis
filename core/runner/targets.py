@@ -44,6 +44,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from core import settings as machine
 from core.runner import launch, registry
 from core.runner.registry import RunState
 from core.runner.spec import REPO, Experiment, SpecError, runs_root
@@ -276,7 +277,13 @@ class SlurmTarget(DirectTarget):
 def _setting(name: str, settings: dict[str, Any], key: str) -> Any:
     if key not in settings:
         raise TargetError(f"target '{name}' has no '{key}' in {TARGETS_FILE}")
-    return settings[key]
+    value = settings[key]
+    if isinstance(value, _Unset):
+        raise TargetError(
+            f"target '{name}': '{key}' needs {value.key}; set it in .env "
+            "(see .env.example) or as an environment variable"
+        )
+    return value
 
 
 def _git(*args: str) -> Optional[str]:
@@ -473,8 +480,29 @@ class RemoteTarget(Target):
 # --------------------------------------------------------------------------------------
 # targets.toml
 # --------------------------------------------------------------------------------------
+@dataclasses.dataclass(frozen=True)
+class _Unset:
+    """A target setting whose ``${key}`` is not set on this machine; an error only
+    when the target uses it."""
+
+    key: str
+
+
+def _expand(value: Any) -> Any:
+    """``value`` with every ``${KEY}`` / ``${KEY:-default}`` in its strings replaced
+    by this machine's setting (``core/settings.py``)."""
+    if isinstance(value, str):
+        return machine.expand(value, _Unset)
+    if isinstance(value, list):
+        return [_expand(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _expand(v) for k, v in value.items()}
+    return value
+
+
 def settings(path: Optional[Path] = None) -> dict[str, dict]:
-    """The targets in ``hpc/targets.toml`` (or ``path``) by name; ``local`` is always
+    """The targets in ``hpc/targets.toml`` (or ``path``) by name, with the
+    ``${KEY}`` references to this machine's settings filled in; ``local`` is always
     there."""
     found: dict[str, dict] = {"local": {"kind": "local"}}
     path = Path(path) if path else TARGETS_FILE
@@ -483,7 +511,7 @@ def settings(path: Optional[Path] = None) -> dict[str, dict]:
             found |= tomllib.loads(path.read_text(encoding="utf-8"))
         except tomllib.TOMLDecodeError as error:
             raise TargetError(f"{path}: not valid TOML ({error})") from None
-    return found
+    return _expand(found)
 
 
 def names(path: Optional[Path] = None) -> list[str]:

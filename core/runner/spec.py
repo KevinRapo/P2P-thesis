@@ -59,11 +59,12 @@ from __future__ import annotations
 import copy
 import importlib
 import json
-import os
 from dataclasses import asdict, dataclass, field, replace
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Optional
+
+from core import settings as machine
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -102,8 +103,9 @@ class SpecError(ValueError):
 # Where things are
 # --------------------------------------------------------------------------------------
 def runs_root() -> Path:
-    """The folder with the experiments: ``$MARLEM_RUNS`` or ``<repo>/runs``."""
-    return Path(os.environ.get("MARLEM_RUNS") or REPO / "runs")
+    """The folder with the experiments: the setting ``MARLEM_RUNS``
+    (``core/settings.py``) or ``<repo>/runs``."""
+    return Path(machine.get("MARLEM_RUNS") or REPO / "runs")
 
 
 def load_env_class(env: str) -> type:

@@ -5,3 +5,4 @@ site/
 runs/
 .ipynb_checkpoints/
 .pytest_cache/
+.env

@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from core import settings as machine
 from core.runner import launch, slurm, targets
 from core.runner.__main__ import main
 from core.runner.registry import RunState
@@ -90,13 +91,28 @@ def test_get_local_and_unknown_target():
         targets.get("nope")
 
 
+def machine_settings(monkeypatch, **values: str) -> None:
+    """This machine's settings as given, whatever the real ``.env`` says."""
+    monkeypatch.setattr(machine, "read_env_file", lambda path=None: {})
+    for key in (
+        "MARLEM_SSH_HOST",
+        "MARLEM_CLUSTER_REPO",
+        "MARLEM_CLUSTER_PYTHON",
+        "MARLEM_SLURM_ACCOUNT",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    for key, value in values.items():
+        monkeypatch.setenv(key, value)
+
+
 def test_get_a_slurm_target_is_direct_on_the_cluster_and_remote_elsewhere(
     monkeypatch, tmp_path
 ):
+    machine_settings(monkeypatch, MARLEM_SLURM_ACCOUNT="acc")
     has_sbatch(monkeypatch, True)
     target = targets.get("taltech")
     assert isinstance(target, targets.SlurmTarget) and target.name == "taltech"
-    assert target.settings["account"] == "user_kerapo"
+    assert target.settings["account"] == "acc"
     has_sbatch(monkeypatch, False)
     target = targets.get("taltech")
     assert isinstance(target, targets.RemoteTarget) and target.name == "taltech"
@@ -106,6 +122,45 @@ def test_get_a_slurm_target_is_direct_on_the_cluster_and_remote_elsewhere(
     assert target.remote._thread is None  # getting a target connects to nothing
     assert target.mirror == REPO / "runs" / "@taltech"
     assert targets.get("taltech", root=tmp_path).mirror == tmp_path
+
+
+def test_target_settings_come_from_this_machine(monkeypatch, tmp_path):
+    machine_settings(monkeypatch, MARLEM_SSH_HOST="other", MARLEM_SLURM_ACCOUNT="acc")
+    cluster = targets.settings()["taltech"]
+    assert (cluster["host"], cluster["account"]) == ("other", "acc")
+    assert cluster["repo"] == "~/marlem-v1"  # the default in targets.toml
+    assert cluster["partitions"][0]["name"] == "short"  # not a setting: unchanged
+
+
+def test_an_unset_setting_fails_only_where_it_is_used(monkeypatch):
+    machine_settings(monkeypatch)
+    assert targets.names() == ["local", "taltech"]  # listing needs no account
+    has_sbatch(monkeypatch, False)
+    targets.get("taltech")  # from the PC the account is the cluster's business
+    has_sbatch(monkeypatch, True)
+    target = targets.get("taltech")
+    with pytest.raises(targets.TargetError, match="needs MARLEM_SLURM_ACCOUNT"):
+        target._setting("account")
+
+
+def test_env_file(tmp_path, monkeypatch):
+    env = tmp_path / ".env"
+    env.write_text(
+        '# comment\n\nA=1\nB = "two words"\nC=\nnot a pair\n', encoding="utf-8"
+    )
+    assert machine.read_env_file(env) == {"A": "1", "B": "two words", "C": ""}
+    assert machine.read_env_file(tmp_path / "missing") == {}
+    monkeypatch.setattr(machine, "read_env_file", lambda path=None: {"A": "file"})
+    monkeypatch.delenv("A", raising=False)
+    assert machine.get("A") == "file"
+    monkeypatch.setenv("A", "environment")
+    assert machine.get("A") == "environment"  # the environment wins
+    assert machine.get("MISSING", "d") == "d"
+    assert machine.expand("x ${A} ${MISSING:-y}", str) == "x environment y"
+    assert machine.expand("${MISSING}", lambda key: ("unset", key)) == (
+        "unset",
+        "MISSING",
+    )
 
 
 def test_bad_targets_files(tmp_path):

@@ -6,7 +6,7 @@
             "packageManager": "ms-python.python:conda"
         }
     ],
-    "python.defaultInterpreterPath": "C:\\Users\\Kevin\\miniconda3\\envs\\marlem\\python.exe",
+    "python.defaultInterpreterPath": "${env:USERPROFILE}\\miniconda3\\envs\\marlem\\python.exe",
     "python.testing.pytestEnabled": true,
     "python.testing.unittestEnabled": false,
     "python.testing.pytestArgs": ["tests"],

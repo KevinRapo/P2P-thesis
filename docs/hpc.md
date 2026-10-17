@@ -9,6 +9,8 @@ The TalTech cluster is used in two ways:
 
 Both run the cluster's own checkout, `~/marlem-v1`, at the commit pushed from this
 PC (`git shipc`), in the conda environment of [environment.yml](../environment.yml).
+Your own values (account, SSH host, port) are in a git-ignored `.env`
+([.env.example](../.env.example)).
 
 - **Once:** [setup](hpc/setup.md): access, the environment, the `hpc` helper and the Git aliases.
 - **Reference:** [resources and parallelism](hpc/resources.md) (what a run gets and

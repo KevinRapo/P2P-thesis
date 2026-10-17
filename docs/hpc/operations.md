@@ -37,7 +37,7 @@ Without a job, files can also be browsed at <https://ondemand.hpc.taltech.ee>
 |---|---|
 | `ssh taltech` hangs | The VPN is off |
 | Tunnel: `channel ... open failed` | The job is not running yet, or Jupyter crashed: read `~/jupyter-<jobid>.out` |
-| Port in use | Change `9437` in the job script, `hpc.ps1` and the tunnel |
+| Port in use | Set another `MARLEM_JUPYTER_PORT` in `.env` (`hpc start` passes it to the job) |
 | VS Code cannot connect | The tunnel window is closed or the job ended |
 | Kernel dies | `-t` limit reached, or out of memory (`seff <jobid>`) |
 | Old code runs | Pull on the cluster (when no experiment uses the checkout) and restart the kernel |

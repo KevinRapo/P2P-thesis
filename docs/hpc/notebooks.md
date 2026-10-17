@@ -34,22 +34,24 @@ pull on the cluster), or by hand after a plain push (VS Code's Sync button):
 ssh taltech "cd ~/marlem-v1 && git pull --ff-only"
 ```
 
-**2. Submit the job**, on the cluster (`ssh taltech`):
+**2. Submit the job**, on the cluster (`ssh taltech`, then `cd ~/marlem-v1`), with
+your account (`MARLEM_SLURM_ACCOUNT` in `.env`):
 
 | Command | Job |
 |---|---|
-| `sbatch ~/jupyter.slurm` | The script's own settings: 4 CPUs, 8 GB, 2 h, partition `short` |
-| `sbatch -c 20 --mem=16G -t 03:00:00 ~/jupyter.slurm` | One probe's 9 runs at once |
-| `sbatch -c 78 --mem=60G -t 01:30:00 ~/jupyter.slurm` | A green node's worth (SLURM picks the node) |
+| `sbatch --account=<account> scripts/jupyter.slurm` | The script's own settings: 4 CPUs, 8 GB, 2 h, partition `short` |
+| `sbatch --account=<account> -c 20 --mem=16G -t 03:00:00 scripts/jupyter.slurm` | One probe's 9 runs at once |
+| `sbatch --account=<account> -c 78 --mem=60G -t 01:30:00 scripts/jupyter.slurm` | A green node's worth (SLURM picks the node) |
 
-Options on the command line override the `#SBATCH` lines. Wait for `ST` = `R`
+Options on the command line override the `#SBATCH` lines. Jupyter listens on port
+9437, or `PORT` when exported (`--export=ALL,PORT=...`). Wait for `ST` = `R`
 (`squeue -u $USER`) and for `Jupyter Server ... is running at` in
 `tail -5 ~/jupyter-*.out`.
 
 **3. Open the tunnel**, on this PC, in a window left open:
 
 ```powershell
-$node = ssh taltech "squeue -u kerapo -n jupyter -h -o %N"
+$node = ssh taltech 'squeue -u $USER -n jupyter -h -o %N'
 ssh -N -L 9437:${node}:9437 taltech
 ```
 
@@ -78,7 +80,8 @@ forgotten job ends at its `-t` limit.
 | Time limit | `-t 03:00:00` | The job and every run in it end here |
 | Partition | `-p short` | `short` up to 4 h, `common` up to 8 days |
 | GPU | `-p gpu --gres=gpu:L40:1` | 0.62 EUR per GPU-hour; little gain expected for this code |
-| Account | `--account=project_xxx` | Once a project account exists |
+| Account | `--account=project_xxx` | Or permanently: `MARLEM_SLURM_ACCOUNT` in `.env` |
 
-One-off changes go on the `sbatch` line; permanent ones in `~/jupyter.slurm`
-(Remote-SSH in VS Code, OnDemand's file editor, or `nano` on the cluster).
+One-off changes go on the `sbatch` line (or after `hpc start`); permanent ones in
+[scripts/jupyter.slurm](../../scripts/jupyter.slurm), committed and pulled like
+any code.

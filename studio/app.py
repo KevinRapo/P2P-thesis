@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from core import settings as machine
 from studio.adapters.workspace import default_home
 
 # NiceGUI fixes its storage folder when it is imported: keep the per-browser state
@@ -33,10 +34,11 @@ from studio.state import services  # noqa: E402
 # --------------------------------------------------------------------------------------
 # Settings and routes
 # --------------------------------------------------------------------------------------
-# Port 8090, so it can run beside other local servers. MARLEM_CLEAN_PORT
-# and MARLEM_CLEAN_SHOW=0 let a test run on its own port without opening a tab.
-PORT = int(os.environ.get("MARLEM_CLEAN_PORT", "8090"))
-SHOW = os.environ.get("MARLEM_CLEAN_SHOW", "1") == "1"
+# Port 8090, so it can run beside other local servers. The settings
+# MARLEM_STUDIO_PORT and MARLEM_STUDIO_SHOW=0 (.env or the environment) let a test run
+# on its own port without opening a tab.
+PORT = int(machine.get("MARLEM_STUDIO_PORT", "8090"))
+SHOW = machine.get("MARLEM_STUDIO_SHOW", "1") == "1"
 ROOT = Path(__file__).resolve().parents[1]
 
 ROUTES = {

@@ -4,7 +4,8 @@ The workspace lives outside the repository and outside OneDrive, because sync
 clients lock and duplicate large and frequently written files. Its folder is, in
 this order:
 
-1. ``MARLEM_HOME``, if set (scripts, tests);
+1. the setting ``MARLEM_HOME``, if set (the environment or ``.env``, see
+   ``core/settings.py``; scripts, tests);
 2. the folder chosen in the Studio's Settings page, kept in a small settings
    file (``settings_path()``: ``%APPDATA%\\MARLEM\\settings.json`` on Windows,
    ``~/.config/marlem/settings.json`` elsewhere);
@@ -21,6 +22,8 @@ import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+from core import settings as machine
 
 
 # --------------------------------------------------------------------------------------
@@ -53,7 +56,7 @@ def _saved_home() -> Path | None:
 
 def home_source() -> str:
     """Which rule chose the workspace: "environment", "settings" or "default"."""
-    if os.environ.get("MARLEM_HOME"):
+    if machine.get("MARLEM_HOME"):
         return "environment"
     return "settings" if _saved_home() else "default"
 
@@ -62,8 +65,9 @@ def default_home() -> Path:
     """The workspace folder in use: ``MARLEM_HOME``, else the Settings choice, else the
     built-in default.
     """
-    if os.environ.get("MARLEM_HOME"):
-        return Path(os.environ["MARLEM_HOME"]).expanduser()
+    home = machine.get("MARLEM_HOME")
+    if home:
+        return Path(home).expanduser()
     return _saved_home() or built_in_home()
 
 

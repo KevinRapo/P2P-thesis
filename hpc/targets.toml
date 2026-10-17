@@ -2,6 +2,8 @@
 # a SLURM cluster; on the cluster itself (sbatch available) it submits directly, from
 # another machine it is driven over SSH (host, repo, python) and its results are
 # copied to the mirror. `label` (optional) is the name the Studio shows.
+#
+# ${KEY} and ${KEY:-default} are this machine's settings (.env, see .env.example).
 [local]
 kind = "local"
 label = "This PC"
@@ -9,10 +11,10 @@ label = "This PC"
 [taltech]
 kind = "slurm"
 label = "TalTech"
-host = "taltech"                                  # ssh alias in ~/.ssh/config
-repo = "~/marlem-v1"                           # the code on the cluster
-python = "~/miniforge3/envs/marlem/bin/python"
-account = "user_kerapo"
+host = "${MARLEM_SSH_HOST:-taltech}"              # ssh alias in ~/.ssh/config
+repo = "${MARLEM_CLUSTER_REPO:-~/marlem-v1}"      # the code on the cluster
+python = "${MARLEM_CLUSTER_PYTHON:-~/miniforge3/envs/marlem/bin/python}"
+account = "${MARLEM_SLURM_ACCOUNT}"
 mirror = "runs/@taltech"                          # this PC's copy of the results
 
 [[taltech.partitions]]

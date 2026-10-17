@@ -164,8 +164,8 @@ def _workspace_section() -> None:
         if source == "environment":
             folder.disable()
             ui.label(
-                "Set by the MARLEM_HOME environment variable, which takes precedence; "
-                "unset it to choose the folder here."
+                "Set by MARLEM_HOME (an environment variable or .env), which takes "
+                "precedence; remove it to choose the folder here."
             ).classes("text-warning text-caption")
         elif source == "default":
             ui.label("Default folder (nothing chosen yet).").classes("mls-card-caption")
