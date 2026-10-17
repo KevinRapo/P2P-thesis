@@ -29,7 +29,11 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "training": {"sac": {...}},       overrides per algorithm; a variant's
                                         overrides are merged on top
       "model": {},                      network overrides
-      "max_parallel": 3, "torch_threads": 1
+      "max_parallel": 3, "torch_threads": 1,
+      "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120},
+                                        per run on a SLURM cluster (the defaults
+                                        shown; unknown keys are refused)
+      "test": {"budget": 500}           changes to the test profile, see below
     }
 
 Evaluation points: the trainer always evaluates at step 0 (the untrained policy and
@@ -37,14 +41,26 @@ the baselines) and at the end of the budget; ``eval_every`` / ``eval_points`` ad
 the evaluations in between (``eval_points`` counts the final one: 4 points on a
 budget of 24000 evaluate at 6000, 12000, 18000 and 24000). Neither: only at the
 end.
+
+Test profile: ``Experiment.test_version()`` is the smallest version of the same
+experiment, to prove the pipeline (start, train, evaluate, write the results), not
+to train. It keeps the scenario, environment, algorithms, paradigms, variants and
+settings, and takes the first seed, the first train day and test day, a budget that
+reaches learning (``Experiment.test_budget``: one training batch, and for SAC also its
+warm-up, so the test run really updates the networks), only the final evaluation (one
+episode, one held-out seed), 15 minutes per run and the name ``<name>--test``. The ``test`` block changes any of these: ``seeds`` (a
+list), ``train_days`` and ``test_days`` (a number of days), ``budget`` (an int or
+``{algorithm: int}``), ``eval_episodes``, ``heldout_seeds`` and ``resources``
+(merged over the test defaults).
 """
 
 from __future__ import annotations
 
+import copy
 import importlib
 import json
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Optional
@@ -57,6 +73,25 @@ ALGORITHMS = ("ppo", "appo", "sac")
 PARADIGMS = ("ctce", "ctde", "dtde")
 MARKET_ENVS = ("market", "core.env:MarketEnv", "core.env.market_env:MarketEnv")
 HELDOUT_SEED_START = 2000
+PROFILES = ("full", "test")
+# Per run on a SLURM cluster; ``resources`` in the spec overrides these.
+RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120}
+# What the test profile uses where the ``test`` block says nothing.
+TEST_MINUTES = 15
+TEST_DEFAULT_BUDGET = 100
+# RLlib's own default of ``num_steps_sampled_before_learning_starts`` for SAC in the
+# installed version: SAC samples this many steps before its first update.
+RLLIB_SAC_WARMUP = 1500
+TEST_WARMUP_MARGIN = 100  # steps beyond the warm-up, so learning happens
+TEST_KEYS = (
+    "seeds",
+    "train_days",
+    "test_days",
+    "budget",
+    "eval_episodes",
+    "heldout_seeds",
+    "resources",
+)
 
 
 class SpecError(ValueError):
@@ -151,6 +186,8 @@ class Experiment:
     model: dict = field(default_factory=dict)
     max_parallel: int = 3
     torch_threads: int = 1
+    resources: dict = field(default_factory=dict)
+    test: dict = field(default_factory=dict)
     description: str = ""
 
     # --- Loading ----------------------------------------------------------------------
@@ -252,6 +289,28 @@ class Experiment:
             )
         if self.env not in MARKET_ENVS and ":" not in self.env:
             raise SpecError(f"env {self.env!r} must be 'market' or 'module:Class'")
+        _check_resources(self.resources, "resources")
+        self._validate_test_block()
+
+    def _validate_test_block(self) -> None:
+        test = self.test
+        if not isinstance(test, dict):
+            raise SpecError(f"'test' maps {list(TEST_KEYS)} to settings")
+        unknown = sorted(set(test) - set(TEST_KEYS))
+        if unknown:
+            raise SpecError(f"unknown 'test' key(s) {unknown}; use {list(TEST_KEYS)}")
+        if not isinstance(test.get("seeds", []), list):
+            raise SpecError("'test.seeds' is a list of seeds")
+        for key in ("train_days", "test_days"):
+            count = test.get(key, 1)
+            if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+                raise SpecError(f"'test.{key}' is a number of days (an integer >= 1)")
+        _check_resources(test.get("resources", {}), "test.resources")
+        if test:  # the rest is checked on the version it makes
+            try:
+                self.test_version()
+            except SpecError as error:
+                raise SpecError(f"'test' block: {error}") from None
 
     @staticmethod
     def _per_algorithm(value, algorithm: str, key: str, optional: bool = False):
@@ -272,6 +331,12 @@ class Experiment:
     def scenario_path(self) -> Path:
         return (REPO / self.scenario).resolve()
 
+    @property
+    def run_resources(self) -> dict:
+        """What one run asks of a SLURM cluster: ``cpus``, ``mem_gb`` and ``minutes``,
+        the spec's ``resources`` over the defaults."""
+        return RESOURCE_DEFAULTS | self.resources
+
     def heldout_seed_list(self) -> list[int]:
         """Seeds of the held-out evaluation: a given list, a count from 2000, or one
         per test day."""
@@ -284,6 +349,77 @@ class Experiment:
         """The environment config of the held-out evaluation (test days)."""
         config: dict = {"scenario": str(self.scenario_path), "days": self.test_days}
         return config | self.env_config
+
+    # --- Writing and profiles ---------------------------------------------------------
+    def to_dict(self) -> dict:
+        """The experiment as a JSON-serialisable dict that ``from_dict`` loads back to
+        an equal ``Experiment``; days are written out as lists of ISO dates."""
+        return asdict(self)
+
+    def with_profile(self, profile: str) -> "Experiment":
+        """The experiment as it runs in a profile: ``"full"`` (as written) or
+        ``"test"`` (``test_version()``)."""
+        if profile == "full":
+            return self
+        if profile == "test":
+            return self.test_version()
+        raise SpecError(f"unknown profile {profile!r}; choose from {list(PROFILES)}")
+
+    def test_budget(self, algorithm: str) -> int:
+        """The test profile's budget for ``algorithm``: enough environment steps for
+        learning to happen, from the settings each variant really uses.
+
+        For each variant (or the algorithm's ``training`` settings alone, without
+        variants) the settings are merged as in ``expand``; the budget is one training
+        batch (``train_batch_size_per_learner``, else ``TEST_DEFAULT_BUDGET``), or, if
+        the algorithm has a warm-up before it learns, the warm-up plus
+        ``TEST_WARMUP_MARGIN``. The warm-up is
+        ``num_steps_sampled_before_learning_starts``, by default ``RLLIB_SAC_WARMUP``
+        for SAC and none for the others. The largest over the variants wins.
+        """
+        base = self.training.get(algorithm, {})
+        default_warmup = RLLIB_SAC_WARMUP if algorithm == "sac" else 0
+        budgets = []
+        for overrides in list(self.variants.values()) or [{}]:
+            settings = base | overrides
+            batch = settings.get("train_batch_size_per_learner") or TEST_DEFAULT_BUDGET
+            warmup = settings.get(
+                "num_steps_sampled_before_learning_starts", default_warmup
+            )
+            budgets.append(max(batch, warmup + TEST_WARMUP_MARGIN) if warmup else batch)
+        return max(budgets)
+
+    def test_version(self) -> "Experiment":
+        """The smallest version of this experiment, to prove the pipeline (see the
+        module); each default is overridden by the ``test`` block."""
+        test = self.test
+        budget = test.get(
+            "budget",
+            {algorithm: self.test_budget(algorithm) for algorithm in self.algorithms},
+        )
+        resources = (
+            self.run_resources | {"minutes": TEST_MINUTES} | test.get("resources", {})
+        )
+        description = f"Test version of {self.name}"
+        if self.description:
+            description += f": {self.description}"
+        version = replace(
+            copy.deepcopy(self),
+            name=f"{self.name}--test",
+            seeds=list(test.get("seeds", self.seeds[:1])),
+            train_days=self.train_days[: test.get("train_days", 1)],
+            test_days=self.test_days[: test.get("test_days", 1)],
+            budget=budget,
+            eval_every=None,
+            eval_points=None,
+            eval_episodes=test.get("eval_episodes", 1),
+            heldout_seeds=test.get("heldout_seeds", 1),
+            resources=dict(resources),
+            test={},
+            description=description,
+        )
+        version.validate(check_files=False)  # the scenario is the original's
+        return version
 
     # --- Expansion --------------------------------------------------------------------
     def expand(self, exp_dir: Optional[Path] = None) -> list[RunSpec]:
@@ -335,6 +471,28 @@ class Experiment:
             config["days"] = list(self.train_days)
         config["seed"] = seed
         return config | self.env_config
+
+
+# --------------------------------------------------------------------------------------
+# Resources
+# --------------------------------------------------------------------------------------
+def _check_resources(value, where: str) -> None:
+    """``value`` maps some of ``cpus``, ``mem_gb`` and ``minutes`` to positive numbers
+    (``cpus`` and ``minutes`` whole)."""
+    if not isinstance(value, dict):
+        raise SpecError(f"'{where}' maps {sorted(RESOURCE_DEFAULTS)} to numbers")
+    unknown = sorted(set(value) - set(RESOURCE_DEFAULTS))
+    if unknown:
+        raise SpecError(
+            f"unknown '{where}' key(s) {unknown}; use {sorted(RESOURCE_DEFAULTS)}"
+        )
+    for key, number in value.items():
+        kinds = (int, float) if key == "mem_gb" else int
+        if isinstance(number, bool) or not isinstance(number, kinds) or number <= 0:
+            raise SpecError(
+                f"'{where}.{key}' must be a positive "
+                f"{'number' if key == 'mem_gb' else 'integer'}"
+            )
 
 
 # --------------------------------------------------------------------------------------

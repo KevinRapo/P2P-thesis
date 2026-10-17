@@ -4,7 +4,7 @@
     profile_service       ProfileService       SimBench profiles
     scenario_service      ScenarioService      the scenario: saved, participants placed
     market_service        MarketService        the market being stepped
-    run_service           RunService           the training experiments in runs/
+    run_service           RunService           the experiments of this PC and a cluster
 
 None of these modules loads pandapower when imported (the adapter imports it
 inside functions).
@@ -33,7 +33,8 @@ class Services:
         profiles: SimBench profiles of networks and the catalogue.
         scenario: The scenario being edited.
         market: The market built from it, stepped by the Step page.
-        runs: The training experiments in ``runs/`` (the Runs page).
+        runs: The training experiments on this PC and on a cluster, and starting
+            them (the Runs page).
     """
 
     grid: GridCatalogService

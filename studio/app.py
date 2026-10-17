@@ -60,6 +60,12 @@ def _prepare_networks() -> None:
     services().grid.warm_cache(["LV", "MV"])
 
 
+@app.on_shutdown
+def _close_targets() -> None:
+    """Close what the Runs page opened: the SSH connection to a cluster."""
+    services().runs.close()
+
+
 # --------------------------------------------------------------------------------------
 # Entry point
 # --------------------------------------------------------------------------------------

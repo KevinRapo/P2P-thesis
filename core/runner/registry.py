@@ -5,6 +5,7 @@ they like (every 2 seconds is fine) and see the same thing:
 
     runs/<experiment>/experiment.json    the spec the runner was started with
     runs/<experiment>/worker.json        pid and start time of the worker process
+    runs/<experiment>/slurm.json         the SLURM job array of the experiment, if any
     runs/<experiment>/<run>/status.json  state of one run (written by the runner)
     runs/<experiment>/<run>/run.json     the trainer's record (also in old runs)
 
@@ -13,6 +14,13 @@ is derived: the run says it is running but its process is gone (killed, machine
 restarted), or it is queued but the worker that should start it is gone. Old run
 folders without ``status.json`` get ``completed`` or ``failed`` from their
 ``run.json``, else ``unknown``.
+
+A run submitted to a SLURM cluster has a ``slurm_job`` (its task id, e.g.
+``1042700_3``) in its ``status.json``. Its process is on a compute node, so liveness
+comes from the SLURM state of that task instead of a pid: the caller asks SLURM
+(``slurm.states``) and passes the answer, a ``{task id: {"state", "node"}}`` map, to
+``runs`` and the functions below, which never call SLURM themselves. Without the
+map a task counts as unknown: what the status file says stands.
 """
 
 from __future__ import annotations
@@ -29,6 +37,19 @@ import psutil
 from core.runner.spec import runs_root
 
 STATES = ("queued", "running", "completed", "failed", "stopped", "lost", "unknown")
+# SLURM task states that end a task / that mean it is on a node.
+SLURM_TERMINAL = (
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+    "TIMEOUT",
+    "OUT_OF_MEMORY",
+    "NODE_FAIL",
+    "PREEMPTED",
+    "BOOT_FAIL",
+    "DEADLINE",
+)
+SLURM_RUNNING = ("RUNNING", "COMPLETING")
 
 
 # --------------------------------------------------------------------------------------
@@ -84,18 +105,40 @@ class RunState:
     last_eval: Optional[float] = None  # team return of "trained", latest evaluation
     heldout: Optional[float] = None  # team return of "trained" on the test days
     error: Optional[str] = None
+    slurm_state: Optional[str] = None  # the SLURM state of the run's task, if any
+    host: Optional[str] = None  # the machine the job ran on
 
 
-def current_state(run_dir: Path, worker_dead: bool = False) -> Optional[str]:
-    """Just the state of a run folder (None if it is not a run folder). Cheap."""
+def current_state(
+    run_dir: Path, worker_dead: bool = False, slurm: Optional[dict] = None
+) -> Optional[str]:
+    """Just the state of a run folder (None if it is not a run folder). Cheap.
+
+    ``slurm`` is the map from ``slurm.states``, for runs with a ``slurm_job``."""
     status = read_json(Path(run_dir) / "status.json")
     if status is None:
         return _legacy_state(read_json(Path(run_dir) / "run.json"))
-    return _state_of(status, worker_dead)
+    return _state_of(status, worker_dead, slurm)
 
 
-def _state_of(status: dict, worker_dead: bool) -> str:
+def _slurm_state(status: dict, slurm: Optional[dict]) -> Optional[str]:
+    """The SLURM state of the run's task (None: no task, or SLURM has not said)."""
+    task = status.get("slurm_job")
+    info = (slurm or {}).get(str(task)) if task else None
+    return info.get("state") if info else None
+
+
+def _state_of(status: dict, worker_dead: bool, slurm: Optional[dict] = None) -> str:
     state = str(status.get("state", "unknown"))
+    if status.get("slurm_job"):  # its process is on a node: ask SLURM, not psutil
+        slurm_state = _slurm_state(status, slurm)
+        if state == "running" and slurm_state in SLURM_TERMINAL:
+            return "lost"
+        if state == "queued":
+            if slurm_state in SLURM_TERMINAL:
+                return "lost"
+            return "running" if slurm_state in SLURM_RUNNING else "queued"
+        return state
     if state == "running" and not process_alive(
         status.get("pid"), status.get("create_time")
     ):
@@ -176,14 +219,16 @@ def _elapsed(run_dir: Path, state: str, status: dict, record: dict) -> Optional[
     return None
 
 
-def run_state(run_dir: Path, worker_dead: bool = False) -> Optional[RunState]:
+def run_state(
+    run_dir: Path, worker_dead: bool = False, slurm: Optional[dict] = None
+) -> Optional[RunState]:
     """The state of one run folder, or None if it is not a run folder."""
     run_dir = Path(run_dir)
     status = read_json(run_dir / "status.json")
     record = read_json(run_dir / "run.json") or {}
     if status is None and not record:
         return None
-    state = _state_of(status, worker_dead) if status else _legacy_state(record)
+    state = _state_of(status, worker_dead, slurm) if status else _legacy_state(record)
     status = status or {}
     budget = status.get("budget") or record.get("budget_env_steps")
     last = _last_row(run_dir / "metrics.csv")
@@ -212,6 +257,8 @@ def run_state(run_dir: Path, worker_dead: bool = False) -> Optional[RunState]:
         heldout=_trained_return(run_dir / "heldout.csv", last=False),
         error=status.get("error")
         or (record.get("error") if state == "failed" else None),
+        slurm_state=_slurm_state(status, slurm),
+        host=status.get("host"),
     )
 
 
@@ -239,8 +286,12 @@ def experiments(root: Optional[Path] = None) -> list[str]:
     return found
 
 
-def runs(experiment: str, root: Optional[Path] = None) -> list[RunState]:
-    """The runs of an experiment in the order of its grid (else by name)."""
+def runs(
+    experiment: str, root: Optional[Path] = None, slurm: Optional[dict] = None
+) -> list[RunState]:
+    """The runs of an experiment in the order of its grid (else by name).
+
+    ``slurm`` is the map from ``slurm.states`` (see the module)."""
     root = Path(root) if root else runs_root()
     exp_dir = root / experiment
     info = worker_info(exp_dir)
@@ -249,16 +300,18 @@ def runs(experiment: str, root: Optional[Path] = None) -> list[RunState]:
     for folder in exp_dir.iterdir() if exp_dir.is_dir() else []:
         if not _is_run_dir(folder):
             continue
-        state = run_state(folder, worker_dead)
+        state = run_state(folder, worker_dead, slurm)
         if state is not None:
             index = (read_json(folder / "status.json") or {}).get("index", 10**9)
             entries.append((index, folder.name, state))
     return [state for _, _, state in sorted(entries, key=lambda e: e[:2])]
 
 
-def summary(experiment: str, root: Optional[Path] = None) -> dict[str, Any]:
+def summary(
+    experiment: str, root: Optional[Path] = None, slurm: Optional[dict] = None
+) -> dict[str, Any]:
     """Counts per state, the mean progress and whether a worker is alive."""
-    states = runs(experiment, root)
+    states = runs(experiment, root, slurm)
     counts: dict[str, int] = {}
     for state in states:
         counts[state.state] = counts.get(state.state, 0) + 1

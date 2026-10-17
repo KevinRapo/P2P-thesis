@@ -9,6 +9,8 @@ Run with ``python -m pytest tests/runner -q`` in the ``marlem`` conda env.
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -131,6 +133,23 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
         ({"trainning": {}}, "unknown field"),
         ({"variants": {"a b": {}}}, "plain word"),
         ({"max_parallel": 0}, "max_parallel"),
+        ({"resources": {"gpus": 1}}, "unknown 'resources' key"),
+        ({"resources": {"cpus": 0}}, "'resources.cpus' must be a positive integer"),
+        ({"resources": {"cpus": 1.5}}, "'resources.cpus' must be a positive integer"),
+        ({"resources": {"cpus": True}}, "'resources.cpus' must be a positive integer"),
+        ({"resources": {"mem_gb": 0}}, "'resources.mem_gb' must be a positive number"),
+        ({"resources": {"minutes": -5}}, "'resources.minutes' must be a positive"),
+        ({"resources": [4]}, "'resources' maps"),
+        ({"test": {"budgets": 1}}, "unknown 'test' key"),
+        ({"test": ["seeds"]}, "'test' maps"),
+        ({"test": {"train_days": 0}}, "'test.train_days' is a number of days"),
+        ({"test": {"seeds": 3}}, "'test.seeds' is a list"),
+        ({"test": {"seeds": [1, 1]}}, "'test' block: .*seeds"),
+        (
+            {"test": {"budget": {"ppo": 10}}},
+            "'test' block: .*no entry for algorithm 'sac'",
+        ),
+        ({"test": {"resources": {"cpus": 0}}}, "'test.resources.cpus' must be"),
     ],
 )
 def test_validation_errors(changes, message):
@@ -156,6 +175,156 @@ def test_axis_names_match_the_trainer():
 
     assert ALGORITHMS == tuple(a.value for a in Algorithm)
     assert PARADIGMS == tuple(p.value for p in Paradigm)
+
+
+# --------------------------------------------------------------------------------------
+# Resources, writing a spec back, and the test profile
+# --------------------------------------------------------------------------------------
+def test_run_resources_default_and_override():
+    default = {"cpus": 4, "mem_gb": 4, "minutes": 120}
+    assert Experiment.from_dict(spec(), "x").run_resources == default
+    experiment = Experiment.from_dict(spec(resources={"mem_gb": 8.5}), "x")
+    assert experiment.run_resources == default | {"mem_gb": 8.5}
+    assert experiment.resources == {"mem_gb": 8.5}  # as written
+
+
+def test_to_dict_round_trips_every_experiments_file():
+    for path in sorted((REPO / "experiments").glob("*.json")):
+        experiment = Experiment.load(path)
+        data = json.loads(json.dumps(experiment.to_dict()))  # plain JSON
+        assert Experiment.from_dict(data) == experiment, path
+        assert data["name"] == experiment.name
+
+
+def test_to_dict_writes_days_out_as_dates():
+    experiment = Experiment.from_dict(spec(), "x")
+    data = experiment.to_dict()
+    assert data["train_days"] == ["2016-06-01", "2016-06-02", "2016-06-03"]
+    assert data["test_days"] == ["2016-07-01", "2016-07-02"]
+    data["seeds"].append(9)  # a copy: the experiment is not changed
+    assert experiment.seeds == [0, 1]
+
+
+def test_test_version_is_the_smallest_version():
+    data = spec(
+        description="Everything",
+        variants={"a": {"lr": 0.1}},
+        env_config={"energy_scale": 7.0},
+        training={"ppo": {"train_batch_size_per_learner": 2400}},
+        resources={"cpus": 8, "mem_gb": 16, "minutes": 600},
+        model={"fcnet_hiddens": [8]},
+    )
+    experiment = Experiment.from_dict(data, "big")
+    version = experiment.test_version()
+    assert version.name == "big--test"
+    assert version.seeds == [0]
+    assert version.train_days == ["2016-06-01"]
+    assert version.test_days == ["2016-07-01"]
+    assert version.budget == {"ppo": 2400, "sac": 1600}  # a batch; SAC: warm-up + 100
+    assert (version.eval_every, version.eval_points) == (None, None)
+    assert version.eval_episodes == 1
+    assert version.heldout_seed_list() == [2000]
+    assert version.run_resources == {"cpus": 8, "mem_gb": 16, "minutes": 15}
+    assert version.test == {}
+    assert version.description == "Test version of big: Everything"
+    for key in (
+        "scenario",
+        "env",
+        "env_config",
+        "algorithms",
+        "paradigms",
+        "training",
+        "model",
+        "variants",
+    ):
+        assert getattr(version, key) == getattr(experiment, key), key
+    # the original is untouched
+    assert (experiment.name, experiment.seeds) == ("big", [0, 1])
+    assert experiment.budget == {"ppo": 2000, "sac": 500}
+    runs = version.expand(Path("out"))
+    assert len(runs) == 2 * 2 * 1 * 1  # algorithms x paradigms x seeds x variants
+    assert {r.eval_every for r in runs} == {0}  # only the final evaluation
+    assert {r.budget for r in runs if r.algorithm == "ppo"} == {2400}
+
+
+def test_test_version_without_a_description_or_batch_size():
+    version = Experiment.from_dict(spec(), "x").test_version()
+    assert version.description == "Test version of x"
+    assert version.budget == {"ppo": 100, "sac": 1600}  # RLlib's SAC warm-up is 1500
+    assert version.run_resources["minutes"] == 15
+
+
+def budgets(**changes) -> dict:
+    return Experiment.from_dict(spec(**changes), "x").test_version().budget
+
+
+def test_test_budget_comes_from_the_effective_settings():
+    sac = {"sac": {"num_steps_sampled_before_learning_starts": 400}}
+    assert budgets(training=sac) == {"ppo": 100, "sac": 500}
+    batch = {"sac": {"train_batch_size_per_learner": 3000}, "ppo": {"lr": 1e-4}}
+    assert budgets(training=batch) == {"ppo": 100, "sac": 3000}  # batch > warm-up
+    no_warmup = {"sac": {"num_steps_sampled_before_learning_starts": 0}}
+    assert budgets(training=no_warmup)["sac"] == 100  # explicit 0: no warm-up
+    ppo_warmup = {"ppo": {"num_steps_sampled_before_learning_starts": 50}}
+    assert budgets(training=ppo_warmup)["ppo"] == 150
+
+
+def test_test_budget_is_the_largest_over_the_variants():
+    variants = {
+        "short": {"num_steps_sampled_before_learning_starts": 200},
+        "long": {"num_steps_sampled_before_learning_starts": 2500},
+        "batch": {"train_batch_size_per_learner": 4000},
+    }
+    assert budgets(variants=variants) == {"ppo": 4000, "sac": 4000}
+    del variants["batch"]  # the variants' warm-up reaches PPO too: they merge in
+    assert budgets(variants=variants) == {"ppo": 2600, "sac": 2600}
+    only = {"v": {"train_batch_size_per_learner": 64}}
+    assert budgets(variants=only) == {"ppo": 64, "sac": 1600}
+    assert budgets(test={"budget": 7}) == 7  # an explicit test budget wins
+
+
+def test_test_block_overrides_the_defaults():
+    test = {
+        "seeds": [7, 8],
+        "train_days": 2,
+        "test_days": 5,
+        "budget": 300,
+        "eval_episodes": 2,
+        "heldout_seeds": [5, 6],
+        "resources": {"minutes": 30, "cpus": 2},
+    }
+    version = Experiment.from_dict(spec(test=test), "x").test_version()
+    assert version.seeds == [7, 8]
+    assert version.train_days == ["2016-06-01", "2016-06-02"]
+    assert version.test_days == ["2016-07-01", "2016-07-02"]  # only two exist
+    assert version.budget == 300
+    assert version.eval_episodes == 2
+    assert version.heldout_seed_list() == [5, 6]
+    assert version.run_resources == {"cpus": 2, "mem_gb": 4, "minutes": 30}
+    assert version.test == {}
+
+
+def test_test_block_budget_per_algorithm_and_heldout_count():
+    data = spec(test={"budget": {"ppo": 50, "sac": 60}, "heldout_seeds": 3})
+    version = Experiment.from_dict(data, "x").test_version()
+    assert version.budget == {"ppo": 50, "sac": 60}
+    assert version.heldout_seed_list() == [2000, 2001, 2002]
+
+
+def test_profiles():
+    experiment = Experiment.from_dict(spec(), "x")
+    assert experiment.with_profile("full") is experiment
+    assert experiment.with_profile("test") == experiment.test_version()
+    with pytest.raises(SpecError, match="unknown profile"):
+        experiment.with_profile("tiny")
+
+
+def test_experiments_folder_files_have_a_valid_test_version():
+    for path in sorted((REPO / "experiments").glob("*.json")):
+        experiment = Experiment.load(path)
+        version = experiment.test_version()
+        assert version.name == f"{experiment.name}--test", path
+        assert 0 < len(version.expand()) <= len(experiment.expand()), path
 
 
 # --------------------------------------------------------------------------------------
@@ -318,3 +487,204 @@ def test_stop_marks_queued_and_running_runs_but_keeps_finished_ones(root):
     assert states == {"q": "stopped", "r": "stopped", "d": "completed"}
     with pytest.raises(FileNotFoundError):
         launch.stop("nope", root=root)
+
+
+# --------------------------------------------------------------------------------------
+# Runs on a SLURM cluster
+# --------------------------------------------------------------------------------------
+SLURM_TERMINAL = [
+    "COMPLETED",
+    "FAILED",
+    "CANCELLED",
+    "TIMEOUT",
+    "OUT_OF_MEMORY",
+    "NODE_FAIL",
+    "PREEMPTED",
+    "BOOT_FAIL",
+    "DEADLINE",
+]
+
+
+def slurm_map(task: str, state: str | None, node: str | None = "n1") -> dict:
+    return {task: {"state": state, "node": node}} if state else {}
+
+
+@pytest.mark.parametrize(
+    "status, slurm_state, expected",
+    [("running", state, "lost") for state in SLURM_TERMINAL]
+    + [("queued", state, "lost") for state in SLURM_TERMINAL]
+    + [
+        ("running", "RUNNING", "running"),
+        ("running", "COMPLETING", "running"),
+        ("running", None, "running"),  # SLURM has not said
+        ("queued", "RUNNING", "running"),  # started, the job has not written yet
+        ("queued", "COMPLETING", "running"),
+        ("queued", "PENDING", "queued"),
+        ("queued", None, "queued"),
+        ("completed", "COMPLETED", "completed"),
+        ("completed", "CANCELLED", "completed"),
+        ("failed", "FAILED", "failed"),
+        ("stopped", "CANCELLED", "stopped"),
+    ],
+)
+@pytest.mark.parametrize("process", [me, dead_pid], ids=["live pid", "dead pid"])
+def test_slurm_runs_take_liveness_from_slurm_not_from_the_pid(
+    root, status, slurm_state, expected, process
+):
+    run_dir = root / "exp" / "r"
+    write(run_dir / "status.json", {"state": status, "slurm_job": "42_0"} | process())
+    slurm = slurm_map("42_0", slurm_state) | slurm_map("42_1", "RUNNING")
+    state = registry.runs("exp", root, slurm=slurm)[0]
+    assert state.state == expected
+    assert state.slurm_state == slurm_state
+    assert registry.current_state(run_dir, slurm=slurm) == expected
+    assert registry.summary("exp", root, slurm=slurm)["counts"] == {expected: 1}
+
+
+def test_slurm_runs_without_the_slurm_map_keep_what_they_say(root):
+    exp = root / "exp"
+    write(exp / "a" / "status.json", {"state": "running", "slurm_job": "42_0"})
+    write(exp / "b" / "status.json", {"state": "queued", "slurm_job": "42_1"})
+    write(exp / "worker.json", dead_pid())  # no worker serves a SLURM run
+    states = {s.name: s.state for s in registry.runs("exp", root)}
+    assert states == {"a": "running", "b": "queued"}
+    assert registry.runs("exp", root)[0].slurm_state is None
+
+
+def test_runs_without_slurm_job_ignore_the_slurm_map(root):
+    exp = root / "exp"
+    write(exp / "a" / "status.json", {"state": "running", "index": 0} | dead_pid())
+    write(exp / "b" / "status.json", {"state": "running", "index": 1} | me())
+    write(exp / "c" / "status.json", {"state": "queued", "index": 2})
+    slurm = {"42_0": {"state": "RUNNING", "node": "n1"}}
+    for found in (registry.runs("exp", root), registry.runs("exp", root, slurm)):
+        assert [(s.state, s.slurm_state) for s in found] == [
+            ("lost", None),
+            ("running", None),
+            ("queued", None),
+        ]
+
+
+def test_run_state_reads_the_host(root):
+    exp = root / "exp"
+    write(exp / "a" / "status.json", {"state": "completed", "host": "node7"})
+    write(exp / "b" / "status.json", {"state": "completed"})
+    assert [s.host for s in registry.runs("exp", root)] == ["node7", None]
+
+
+# --------------------------------------------------------------------------------------
+# prepare and mark_stopped (launch)
+# --------------------------------------------------------------------------------------
+def test_prepare_writes_the_experiment_and_resets_unfinished_runs(root):
+    from core.runner import launch
+
+    experiment = Experiment.from_dict(
+        spec(algorithms=["ppo"], paradigms=["dtde"], budget=2000, seeds=[0, 1, 2, 3]),
+        "prep",
+    )
+    exp_dir = root / "prep"
+    specs = launch.prepare(experiment, exp_dir)
+    assert [s.name for s in specs] == [f"ppo_dtde_s{i}" for i in range(4)]
+    assert Experiment.load(exp_dir / "experiment.json") == experiment
+    assert {s.state for s in registry.runs("prep", root)} == {"queued"}
+    assert registry.runs("prep", root)[0].budget == 2000
+
+    for name, status in (
+        ("ppo_dtde_s0", {"state": "completed"}),
+        ("ppo_dtde_s1", {"state": "running"} | me()),
+        ("ppo_dtde_s2", {"state": "failed"}),
+        ("ppo_dtde_s3", {"state": "running", "slurm_job": "42_3"}),
+    ):
+        write(exp_dir / name / "status.json", status | {"index": 0, "budget": 1})
+    (exp_dir / "ppo_dtde_s2" / "metrics.csv").write_text("a\n1\n", encoding="utf-8")
+    slurm = {"42_3": {"state": "TIMEOUT", "node": "n1"}}
+    launch.prepare(experiment, exp_dir, slurm=slurm)
+    states = {s.name: s.state for s in registry.runs("prep", root)}
+    assert states == {
+        "ppo_dtde_s0": "completed",
+        "ppo_dtde_s1": "running",
+        "ppo_dtde_s2": "queued",  # failed: again from scratch
+        "ppo_dtde_s3": "queued",  # lost on SLURM: again
+    }
+    assert not (exp_dir / "ppo_dtde_s2" / "metrics.csv").exists()
+    status = registry.read_json(exp_dir / "ppo_dtde_s3" / "status.json")
+    assert "slurm_job" not in status  # a fresh queue entry
+
+
+def snapshot(folder: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(folder).as_posix(): path.read_bytes()
+        for path in sorted(folder.rglob("*"))
+        if path.is_file()
+    }
+
+
+def test_prepare_refuses_a_changed_spec_and_writes_nothing(root):
+    from core.runner import launch
+
+    data = spec(algorithms=["ppo"], paradigms=["dtde"], budget=2000)
+    experiment = Experiment.from_dict(data, "same")
+    exp_dir = root / "same"
+    launch.prepare(experiment, exp_dir)
+    write(exp_dir / "ppo_dtde_s0" / "status.json", {"state": "failed", "index": 0})
+    launch.prepare(experiment, exp_dir)  # the same spec resumes
+    before = snapshot(exp_dir)
+    for change in ({"budget": 3000}, {"seeds": [0, 1, 2]}, {"description": "x"}):
+        changed = Experiment.from_dict(data | change, "same")
+        with pytest.raises(SpecError, match="'same' changed.*new experiment name"):
+            launch.prepare(changed, exp_dir)
+        assert snapshot(exp_dir) == before  # experiment.json and statuses untouched
+
+
+def test_prepare_compares_an_older_experiment_json_by_its_content(root):
+    from core.runner import launch
+
+    data = spec(algorithms=["ppo"], paradigms=["dtde"], budget=2000)
+    experiment = Experiment.from_dict(data, "old")
+    exp_dir = root / "old"
+    write(exp_dir / "experiment.json", data)  # the spec as written, no name or defaults
+    launch.prepare(experiment, exp_dir)  # the same content: accepted
+    for unreadable in ('{"not": "a spec"}', "{half"):
+        (exp_dir / "experiment.json").write_text(unreadable, encoding="utf-8")
+        before = snapshot(exp_dir)
+        with pytest.raises(SpecError, match="changed since it was started"):
+            launch.prepare(experiment, exp_dir)
+        assert snapshot(exp_dir) == before
+
+
+def test_prepare_writes_the_test_version_under_its_own_name(root):
+    from core.runner import launch
+
+    version = Experiment.from_dict(spec(), "full").test_version()
+    launch.prepare(version, root / version.name)
+    written = registry.read_json(root / "full--test" / "experiment.json")
+    assert written["name"] == "full--test" and written["seeds"] == [0]
+    assert Experiment.from_dict(written) == version
+
+
+def test_mark_stopped_without_kill_leaves_the_process_alone(root):
+    from core.runner import launch
+
+    sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        process = {
+            "pid": sleeper.pid,
+            "create_time": psutil.Process(sleeper.pid).create_time(),
+        }
+        exp = root / "exp"
+        write(exp / "r" / "status.json", {"state": "running"} | process)
+        write(exp / "q" / "status.json", {"state": "queued"})
+        write(exp / "d" / "status.json", {"state": "completed"})
+        result = launch.mark_stopped(exp, kill=False)
+        assert result["killed"] == [] and sorted(result["stopped"]) == ["q", "r"]
+        assert sleeper.poll() is None  # still running
+        write(exp / "r" / "status.json", {"state": "running"} | process)
+        result = launch.mark_stopped(exp, "r")  # kill=True by default
+        assert result == {"killed": ["r"], "stopped": ["r"]}
+        sleeper.wait(timeout=20)
+    finally:
+        sleeper.kill()
+    with pytest.raises(FileNotFoundError, match="no run 'x'"):
+        launch.mark_stopped(exp, "x")
+    with pytest.raises(FileNotFoundError, match="no experiment"):
+        launch.experiment_dir("nope", root)
