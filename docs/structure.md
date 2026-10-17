@@ -318,7 +318,7 @@ market or pandapower directly.
 | `run_all.py` | Starts the dev servers (both branches' docs and Studios) in their own windows |
 | `AGENTS.md` | Rules for working in this repository |
 | `pytest.ini` | Discover the market and RL tests together from the root (`tests/`) |
-| `hpc/` | Where experiments run: `targets.toml` names the targets (`local`, and the `taltech` SLURM cluster with its account and partitions, and for use from the PC the SSH host, the code folder and Python on the cluster and the mirror of the results); each has a `label`, the name the Studio's Runs page shows (This PC, TalTech) |
+| `hpc/` | Where experiments run: `targets.toml` names the targets (`local`, and the `taltech` SLURM cluster with its account and partitions, and for use from the PC the SSH host, the code folder and Python on the cluster and the mirror of the results); each has a `label`, the name the Studio's Runs page shows (This PC, TalTech); how to use the cluster is in [hpc.md](hpc.md) |
 | `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, worker.json, worker.log, <run>/{status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}`; on a SLURM target no worker, instead `slurm.json` and `slurm/` (submitit's batch script, pickles and task logs), and `status.json` of each run has a `slurm_job` |
 | `.vscode/` | Launch entries and the Python interpreter |
 

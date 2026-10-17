@@ -149,5 +149,7 @@ nav:
           - simbench/README.md
           - Network catalogue: simbench/networks.md
           - Profiles: simbench/profiles.md
+  # Running on the TalTech cluster.
+  - HPC: hpc.md
   # Filled in by hooks.py: one section per top-level folder, one page per module.
   - API Reference: api/index.md
