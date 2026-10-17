@@ -62,7 +62,7 @@ from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME,
 )
 
-from core.rl.config import SETTINGS, Algorithm, build_config
+from core.rl.config import SETTINGS, Algorithm, build_algo, build_config
 from core.rl.policy import Policy, baselines, evaluate, evaluation_seeds
 
 REPO = Path(__file__).resolve().parents[2]
@@ -173,6 +173,9 @@ def _record(run: Run, config) -> dict[str, Any]:
         "model": run.model,
         "num_env_runners": run.num_env_runners,
         "num_gpus": run.num_gpus,
+        # None: Python's set order changed with the process, so the same seed does
+        # not reproduce a multi-agent run (the runner fixes it, core/runner/launch.py)
+        "python_hash_seed": os.environ.get("PYTHONHASHSEED"),
         "versions": {
             "python": platform.python_version(),
             "ray": ray.__version__,
@@ -291,7 +294,7 @@ def train(run: Run) -> dict[str, Any]:
         pd.concat(evaluations).to_csv(out / "evaluation.csv", index=False)
 
     try:
-        algo = config.build_algo()
+        algo = build_algo(config)
         # Step 0: the untrained policy and the baselines, on the same seeds.
         evaluate_now(0, baselines(run.env_class, run.env_config, run.seed))
         env_steps, iteration = 0, 0

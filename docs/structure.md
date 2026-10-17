@@ -87,7 +87,7 @@ flowchart TD
   tests --> tm["market/"]
   tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py · test_fees_timing.py"]:::done
   tests --> tr["rl/"]
-  tr --> x2["test_0 to test_6 · probe_helpers.py · conftest.py"]:::done
+  tr --> x2["test_0 to test_7 · probe_helpers.py · conftest.py"]:::done
   tests --> tru["runner/"]
   tru --> x3["test_runner.py · test_run_service.py<br/>test_slurm.py · test_targets.py · test_remote.py"]:::done
 
@@ -187,7 +187,7 @@ original code and its annotations live on the `clean` branch.
 |---|---|---|
 | [`grouping.py`](../core/rl/grouping.py) | `GroupedEnv` (CTCE: joint observations and actions, summed reward); `CentralStateEnv` (CTDE: own observation plus the global state, own reward) | done |
 | [`ctde_modules.py`](../core/rl/ctde_modules.py) | CTDE: one RLlib module per agent, actor on its own observation, critic on the global state | done |
-| [`config.py`](../core/rl/config.py) | Algorithms, paradigms and configuration (`build_config`, `SETTINGS`) | done |
+| [`config.py`](../core/rl/config.py) | Algorithms, paradigms and configuration (`build_config`, `SETTINGS`; modules declared in agent order); `build_algo` builds the algorithm with its replay buffer seeded too | done |
 | [`policy.py`](../core/rl/policy.py) | Policy actions, baselines, rollout and evaluation | done |
 | [`train.py`](../core/rl/train.py) | `train(Run(...))`: training budgets, metrics, run records and saved policies; `load_policy` | done |
 | [`benchmark.py`](../core/rl/benchmark.py) | Build, training and sampling timings | done |
@@ -225,7 +225,7 @@ describes restart, sync and the inspected execution evidence.
 | Script | What it does | State |
 |---|---|---|
 | [`spec.py`](../core/runner/spec.py) | `Experiment`: the JSON spec (validated early, with `resources` and the `test` block), expanded to one `RunSpec` per algorithm x paradigm x variant x seed, each building a `core.rl.Run`; `to_dict` (written to `experiment.json`), `test_version` (the smallest version; `test_budget`: one training batch per algorithm from its effective settings over every variant, SAC also its warm-up so the test run learns) | done |
-| [`launch.py`](../core/runner/launch.py) | `prepare` (the experiment's folder and queued runs; refuses a spec that differs from the saved `experiment.json` before writing anything), `start` (prepare, detached worker), `work` (the worker loop), `job` (train, held-out evaluation, status), `stop` (kill worker and process trees, checked by pid and start time), `mark_stopped` | done |
+| [`launch.py`](../core/runner/launch.py) | `prepare` (the experiment's folder and queued runs; refuses a spec that differs from the saved `experiment.json` before writing anything), `start` (prepare, detached worker), `work` (the worker loop), `job` (train, held-out evaluation, status), `job_environment` (what every job process runs with, `PYTHONHASHSEED` fixed so a seed repeats a run), `stop` (kill worker and process trees, checked by pid and start time), `mark_stopped` | done |
 | [`slurm.py`](../core/runner/slurm.py) | The cluster side, for use where `sbatch` exists: `start` (prepare, then one submitit job array, `slurm.json` and each run's `slurm_job`), `states` (one `sacct` call, parsed to a task map), `stop` (`scancel` first: if it fails the error carries its message and no run is marked; then mark the runs) | implemented; short TalTech runs recorded (see evidence below) |
 | [`registry.py`](../core/runner/registry.py) | Read-only view of `runs/`: `experiments()`, `runs(experiment)` with a `RunState` per run (state, progress, ETA, last and held-out score, SLURM state, host); detects `lost` runs, for SLURM runs from the task map it is given instead of a pid | done |
 | [`targets.py`](../core/runner/targets.py) | `Target` (`check` returns the one readiness report `{target, ok, problems, local_commit, cluster_commit, active}`; `start` calls it and refuses with its problems; `overview` is the one read path, `runs`, `stop`, `sync`, `close`), `LocalTarget`, `SlurmTarget` (on the cluster), `RemoteTarget` (the same cluster from the PC: every call is the runner's CLI on the login node, `sync` replaces the mirror `runs/@taltech/<experiment>` with a fresh copy, `local_runs` reads it), `get(name)` from `hpc/targets.toml` | implemented; remote workflow used for short TalTech runs |
@@ -301,6 +301,7 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`market/test_powerflow_recycle.py`](../tests/market/test_powerflow_recycle.py) | pandapower's `recycle` in the step power flow gives the same grid results | done |
 | [`rl/test_0_every_probe.py`](../tests/rl/test_0_every_probe.py) to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
 | [`rl/test_6_ctde_structure.py`](../tests/rl/test_6_ctde_structure.py) | The CTDE modules' structure: what the actor and the critic read | done |
+| [`rl/test_7_same_seed_same_run.py`](../tests/rl/test_7_same_seed_same_run.py) | The same seed gives the same run: initial weights independent of Python's set order, and two runs in the runner's job processes (PPO DTDE and CTDE, SAC DTDE past its warm-up) bit for bit the same after training | done |
 | [`rl/probe_helpers.py`](../tests/rl/probe_helpers.py), [`rl/conftest.py`](../tests/rl/conftest.py) | Shared assertions and readable test output (each test's docstring is printed) | done |
 | [`runner/test_runner.py`](../tests/runner/test_runner.py) | Experiment specs (grid names, budgets, variants, date ranges, resources, `to_dict` round trip, the test version, validation errors), the registry's run states (queued, running, lost, completed, failed, legacy, progress and ETA, SLURM runs) and `launch.prepare`; no training | done |
 | [`runner/test_run_service.py`](../tests/runner/test_run_service.py) | The Studio's `RunService` over a temporary `runs/` (`MARLEM_RUNS`): this PC's overview newest first with its runs, stopping queued runs, local check always ready; over fake targets: names and labels from `targets.toml`, a target made once and closed, overview newest first, check (with and without a spec), start, stop and sync handed to the target asked, and the specs of `experiments/` (all load; a broken one says why) | done |

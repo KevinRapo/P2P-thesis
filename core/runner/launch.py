@@ -45,6 +45,16 @@ STAGGER_S = 10.0
 PYTHON = sys.executable
 # Files a re-queued run must not keep from its earlier attempt.
 STALE = ("run.json", "metrics.csv", "evaluation.csv", "heldout.csv", "log.txt")
+# Python orders sets of strings differently in every process unless its hash seed
+# is fixed, and RLlib keeps agent ids in sets: without this, the same run seed gives
+# a different multi-agent run each time (tests/rl/test_7_same_seed_same_run.py).
+JOB_ENV = {"PYTHONHASHSEED": "0", "PYTHONUNBUFFERED": "1"}
+
+
+def job_environment() -> dict[str, str]:
+    """The environment of a runner process: this one's, with the repository on
+    ``PYTHONPATH`` and ``JOB_ENV``."""
+    return os.environ | {"PYTHONPATH": str(REPO)} | JOB_ENV
 
 
 # --------------------------------------------------------------------------------------
@@ -86,7 +96,7 @@ def _self_process() -> dict:
 # --------------------------------------------------------------------------------------
 def _spawn_detached(args: list[str], log: Path) -> subprocess.Popen:
     """A process that keeps running after the caller (and its terminal) is gone."""
-    env = os.environ | {"PYTHONPATH": str(REPO), "PYTHONUNBUFFERED": "1"}
+    env = job_environment()
     options: dict = dict(
         args=[PYTHON, "-m", "core.runner", *args],
         cwd=REPO,
@@ -235,7 +245,7 @@ def work(exp_dir: str | Path) -> None:
 
 
 def _start_job(spec: RunSpec) -> subprocess.Popen:
-    env = os.environ | {"PYTHONPATH": str(REPO), "PYTHONUNBUFFERED": "1"}
+    env = job_environment()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
     with open(spec.out_dir / "log.txt", "wb") as log:
         process = subprocess.Popen(

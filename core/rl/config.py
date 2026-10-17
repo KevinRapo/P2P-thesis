@@ -44,6 +44,7 @@ import dataclasses
 from enum import Enum
 from typing import Any, Optional
 
+import numpy as np
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
 from ray.rllib.algorithms.appo import APPOConfig
 from ray.rllib.algorithms.ppo import PPOConfig
@@ -171,7 +172,9 @@ def build_config(
         .reporting(min_time_s_per_iteration=0)
         .debugging(seed=seed)
         .multi_agent(
-            policies=set(module_ids),
+            # In agent order: modules are built, and draw their initial weights, in
+            # this order (a set would change it with every process).
+            policies=list(module_ids),
             policy_mapping_fn=lambda agent_id, episode, **kwargs: agent_id,
         )
     )
@@ -191,3 +194,19 @@ def build_config(
     else:
         specs = {mid: RLModuleSpec() for mid in module_ids}
     return config.rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=specs))
+
+
+def build_algo(config: AlgorithmConfig):
+    """``config.build_algo()``, with every random generator following the seed.
+
+    RLlib's ``debugging(seed=...)`` seeds Python, NumPy and torch, the networks and
+    the environments, but RLlib 2.51 gives the episode replay buffer its own
+    generator from OS entropy (``np.random.default_rng(seed=None)``), so SAC drew
+    different replay batches in every run of the same seed. The buffer's generator
+    is seeded here from the run's seed.
+    """
+    algo = config.build_algo()
+    buffer = getattr(algo, "local_replay_buffer", None)
+    if buffer is not None and hasattr(buffer, "rng"):
+        buffer.rng = np.random.default_rng(config.seed)
+    return algo

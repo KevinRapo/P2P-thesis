@@ -43,7 +43,7 @@ from ray.rllib.utils.metrics import (
     NUM_MODULE_STEPS_TRAINED_LIFETIME,
 )
 
-from core.rl.config import Algorithm, Paradigm, build_config
+from core.rl.config import Algorithm, Paradigm, build_algo, build_config
 from core.rl.train import _git, learner_modules
 
 
@@ -193,7 +193,7 @@ def benchmark(bench: Bench) -> dict[str, Any]:
     algo = None
     try:
         start = time.perf_counter()
-        algo = config.build_algo()
+        algo = build_algo(config)
         record["build_s"] = time.perf_counter() - start
         record |= _shapes(algo)
 

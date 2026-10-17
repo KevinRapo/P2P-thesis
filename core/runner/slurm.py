@@ -165,7 +165,7 @@ def start(
         slurm_array_parallelism=experiment.max_parallel,
         slurm_setup=[
             f"export PYTHONPATH={shlex.quote(str(REPO))}",
-            "export PYTHONUNBUFFERED=1",
+            *(f"export {key}={value}" for key, value in launch.JOB_ENV.items()),
         ],
     )
     jobs = executor.map_array(launch.job, [str(s.out_dir) for s in queued])

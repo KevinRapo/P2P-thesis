@@ -232,6 +232,7 @@ def test_start_submits_one_array_task_per_run(tmp_path, cluster):
     setup = parameters["slurm_setup"]
     assert setup[0].startswith("export PYTHONPATH=")
     assert "export PYTHONUNBUFFERED=1" in setup
+    assert "export PYTHONHASHSEED=0" in setup  # the same seed, the same run
 
     ((fn, arguments),) = executor.mapped
     assert fn is launch.job  # the same job as a local worker runs

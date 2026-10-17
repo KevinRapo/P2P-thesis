@@ -176,6 +176,10 @@ is what the market environment (`core/env/`) provides too.
 
 - RL notebooks put the repository root on `PYTHONPATH` before Ray starts, so
   worker processes can import `core.rl`.
+- A seed repeats a run only in a process started with `PYTHONHASHSEED` fixed
+  (RLlib keeps agent ids in sets); the runner's jobs do this
+  (`launch.job_environment`). Build algorithms with `core.rl.config.build_algo`,
+  not `config.build_algo()`, so the replay buffer follows the seed too.
 - Several worker processes that each load torch (parallel runs, or
   `num_env_runners > 0`) can fail with "The paging file is too small" on this
   machine when memory is short; the default runs everything in the driver.
