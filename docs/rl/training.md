@@ -137,7 +137,7 @@ adapt.
 **What to check.** $\rho = 1$ on the first minibatch; advantages with mean 0 and
 standard deviation 1; explained variance of $V_\phi$ rising toward 1; entropy
 falling slowly, never NaN. The trainer stops a run as soon as a loss or metric is
-NaN or infinite ([`train.py`](../../core/rl/train.py#L199-L214)).
+NaN or infinite ([`train.py`](../../core/rl/train.py#L204-L219)).
 
 ## 3. APPO
 

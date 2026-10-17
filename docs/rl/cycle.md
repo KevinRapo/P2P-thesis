@@ -362,7 +362,7 @@ $$g \leftarrow g \cdot \min\left(1, \frac{0.5}{\lVert g \rVert_2}\right).$$
 The direction is kept, the length capped. If $g$ contains NaN, RLlib replaces it
 with zeros, logs a warning and carries on; the trainer stops the run instead, as
 soon as a loss or metric is NaN or infinite
-([`train.py`](../../core/rl/train.py#L199-L214)).
+([`train.py`](../../core/rl/train.py#L204-L219)).
 
 ### C10. Adam step
 
@@ -394,7 +394,7 @@ again after its iteration.
 
 ### D3. Between iterations
 
-The trainer ([`train`](../../core/rl/train.py#L238-L338)) records the iteration's
+The trainer ([`train`](../../core/rl/train.py#L243-L339)) records the iteration's
 metrics, stops the run on a NaN or infinite learner metric, and evaluates the
 policy and the baselines when the budget of environment steps reaches the next
 evaluation point. Hyperparameters stay fixed during a run. In the original,

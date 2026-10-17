@@ -322,16 +322,16 @@ return.
 
 ## 8. The run: budget, NaN stop, evaluation
 
-[`train`](../../core/rl/train.py#L238-L338) repeats RLlib's iteration until the
+[`train`](../../core/rl/train.py#L243-L339) repeats RLlib's iteration until the
 budget of environment steps is used up.
 
 **Budget.** `budget = 100_000` with PPO's 4000 steps per iteration: 25 iterations,
 for every paradigm. With `eval_every = 20_000`, the policy and baselines are
 evaluated at 0 (untrained, together with the baselines), 20 000, 40 000, 60 000,
 80 000 and at the end, 100 000
-([L287-L308](../../core/rl/train.py#L287-L308)).
+([L298-L317](../../core/rl/train.py#L298-L317)).
 
-**NaN stop** (`_nonfinite`, [L199-L214](../../core/rl/train.py#L199-L214)). After
+**NaN stop** (`_nonfinite`, [L204-L219](../../core/rl/train.py#L204-L219)). After
 each iteration the learner's results are searched for losses, entropies and the SAC
 temperature that are NaN or infinite. For
 

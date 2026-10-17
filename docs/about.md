@@ -11,7 +11,7 @@ mkdocs serve -f docs_site/mkdocs.yml -a 127.0.0.1:8001   # live preview
 mkdocs build -f docs_site/mkdocs.yml             # static site in site/
 ```
 
-`run_all.py docs-clean` starts the preview at http://127.0.0.1:8001. A new document appears on the site once it is added
+`python run_all.py docs` starts the preview at http://127.0.0.1:8001. A new document appears on the site once it is added
 to `nav` in `docs_site/mkdocs.yml`. After editing `docs_site/hooks.py`, restart
 `mkdocs serve`; changes to the docs, the code and `docs_site/overrides/` are
 picked up while it runs.
@@ -19,14 +19,35 @@ picked up while it runs.
 What the site does differently from the Markdown files happens at build time in
 `docs_site/hooks.py`: it generates the API pages, and turns links to code and
 other non-Markdown files into links to the repository on GitHub, keeping `#L` line
-anchors. Those links point at the `clean` branch, so they work once it is pushed.
+anchors. Those links point at the `marlem-v1` branch, so they work once it is pushed.
+
+## Publishing
+
+The active source is branch `marlem-v1`. Commit and push documentation and any
+referenced code there before deploying, so GitHub source links resolve:
+
+```powershell
+git push origin marlem-v1
+$sourceCommit = git rev-parse --short HEAD
+conda run -n marlem mkdocs gh-deploy -f docs_site/mkdocs.yml -m "Deploy docs from marlem-v1 $sourceCommit"
+```
+
+`gh-deploy` builds and updates `gh-pages`; do not check out or edit that branch
+manually. Check the changed pages at the published site after deployment.
+The generated `site/` folder is ignored. Use
+`mkdocs build -f docs_site/mkdocs.yml --strict` before publishing to catch broken
+internal links and API documentation warnings.
+
+The HPC guide keeps `hpc.md` as its overview and old public entry point, with
+subpages under `docs/hpc/`. Windows helper source lives in `scripts/` alongside
+the code; setup instructions live in [the HPC setup page](hpc/setup.md).
 
 ## The API reference
 
 The API pages are generated from the code, never written by hand:
 
 - **One section per top-level folder** (`core.grid`, `core.market`,
-  `core.config`, `studio`, `core.rl`), in `API_SECTIONS` in `docs_site/hooks.py`. A package
+  `core.config`, `core.env`, `studio`, `core.rl`, `core.runner`), in `API_SECTIONS` in `docs_site/hooks.py`. A package
   becomes a section with an index page; its subpackages become subsections.
 - **One page per module**, with its classes and functions, their signatures, type
   annotations and source. The module index lists each module with the **first line

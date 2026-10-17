@@ -1,4 +1,4 @@
-# AGENTS.md: implementation guide for MARLEM clean
+# AGENTS.md: implementation guide for MARLEM v1
 
 MARLEM rebuilt step by step on SimBench networks: configure a local energy market,
 then step through it by hand and watch the network's power flow. Reinforcement
@@ -45,6 +45,8 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 | `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, the experiments in `runs/`, workspace paths) |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
+| `scripts/` | Tracked Windows HPC helpers: `hpc.ps1` and its `hpc.cmd` launcher; the setup and PATH instructions are in `docs/hpc/setup.md` |
+| `hpc/` | `targets.toml`: local and Slurm targets; the active remote checkout is `~/marlem-v1` |
 
 ### Layer rules
 

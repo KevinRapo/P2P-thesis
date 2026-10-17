@@ -1488,7 +1488,7 @@ the day goes on, the opposite of the paper.
 
 **Decided (marlem-v1).** A constant decay per **hour**, applied per step as
 $\delta = 0.8^{\Delta t}$ with $\Delta t$ the step length in hours
-([lem.py](../../core/market/lem.py#L233-L238)). Reversing the original's weights
+([lem.py](../../core/market/lem.py#L234-L239)). Reversing the original's weights
 would still tie the memory to the hour of the day; a per-hour decay keeps the
 memory the same when the step length changes (I-56). With 0.8 the old reputation
 halves in about 3.1 hours ($\ln 0.5 / \ln 0.8$), whether the step is an hour or a

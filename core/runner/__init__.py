@@ -1,4 +1,4 @@
-"""The runner: start training experiments and watch them, from files only.
+"""The runner: start, inspect, stop and sync local or Slurm experiments.
 
 The one place that knows both ``core.env`` (the market as an environment) and
 ``core.rl`` (the training); both are imported only when a job trains, so reading
@@ -14,7 +14,7 @@ the Studio or the Claude session.
     targets.py    where an experiment runs (``hpc/targets.toml``): ``targets.get``
     remote.py     the cluster over SSH from another machine (``Remote``); import it
                   where it is used, it loads asyncssh
-    __main__.py   ``python -m core.runner start | status | stop | check``
+    __main__.py   ``python -m core.runner start | status | stop | sync | check``
 """
 
 from core.runner import targets

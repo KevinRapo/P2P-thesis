@@ -1,12 +1,10 @@
 """Start the dev servers, each in its own console window.
 
     python run_all.py            # all of them
-    python run_all.py docs clean # only some of them
+    python run_all.py docs       # only the documentation preview
 
-    docs     marlem-refactor  MkDocs live preview   http://127.0.0.1:8000
-    studio   marlem-refactor  Studio                http://localhost:8080
-    clean    marlem-clean     Studio                http://localhost:8090
-    docs-clean  marlem-clean  MkDocs live preview   http://127.0.0.1:8001
+    docs     this checkout   MkDocs live preview   http://127.0.0.1:8001
+    studio   this checkout   Studio                http://localhost:8090
 
 Each server gets its own window, so its log stays readable, Ctrl+C there stops
 only that server, and the Studios' auto-reload works. Close a window to stop it.
@@ -16,21 +14,16 @@ import subprocess
 import sys
 from pathlib import Path
 
-# The folder that holds the worktrees (marlem-clean, marlem-refactor, ...).
-ROOT = Path(__file__).resolve().parents[1]
-PYTHON = r"C:\Users\Kevin\miniconda3\envs\marlem\python.exe"
+# Run from the marlem environment; both servers use this checkout and interpreter.
+ROOT = Path(__file__).resolve().parent
+PYTHON = sys.executable
 
 SERVERS = {
     "docs": (
-        ROOT / "marlem-refactor",
+        ROOT,
         [PYTHON, "-m", "mkdocs", "serve", "-f", "docs_site/mkdocs.yml"],
     ),
-    "studio": (ROOT / "marlem-refactor", [PYTHON, "src_thesis/run_studio.py"]),
-    "clean": (ROOT / "marlem-clean", [PYTHON, "run_studio.py"]),
-    "docs-clean": (
-        ROOT / "marlem-clean",
-        [PYTHON, "-m", "mkdocs", "serve", "-f", "docs_site/mkdocs.yml"],
-    ),
+    "studio": (ROOT, [PYTHON, "run_studio.py"]),
 }
 
 

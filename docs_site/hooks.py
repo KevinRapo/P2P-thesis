@@ -47,8 +47,15 @@ API_SECTIONS = [
     ("Grid: SimBench networks", "grid", ["core.grid"], "simbench/README.md"),
     ("Market: the MARLEM market", "market", ["core.market"], None),
     ("Config: the scenario", "config", ["core.config"], None),
+    ("Environment: market to RL", "env", ["core.env"], "v1.md"),
     ("Studio: pages, components, adapters", "studio", ["studio"], None),
     ("RL: the learning layer", "rl", ["core.rl"], None),
+    (
+        "Runner: local and Slurm experiments",
+        "runner",
+        ["core.runner"],
+        "hpc/experiments.md",
+    ),
 ]
 _API_PAGES: dict[str, str] = {}
 

@@ -55,10 +55,10 @@ class Policy:
     """Acts for every agent with the modules of one run.
 
     Args:
-        modules: The run's ``MultiRLModule`` (the learner's, with its critic).
+        modules (MultiRLModule): The run's modules (the learner's, with its critic).
         paradigm: How the modules map to agents: one per agent (DTDE, CTDE; under
             CTDE each also sees the global state) or one for the group (CTCE).
-        env: An instance of the multi-agent environment (for agents and spaces).
+        env (MultiAgentEnv): The multi-agent environment (for agents and spaces).
     """
 
     def __init__(self, modules, paradigm: Paradigm | str, env) -> None:
