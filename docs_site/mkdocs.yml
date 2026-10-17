@@ -152,11 +152,14 @@ nav:
   # Running on the TalTech cluster.
   - HPC:
       - Overview: hpc.md
-      - Setup and helper scripts: hpc/setup.md
-      - Notebook sessions: hpc/notebooks.md
-      - Training experiments: hpc/experiments.md
-      - Resources and parallelism: hpc/resources.md
-      - Measurements and cost estimates: hpc/performance.md
-      - Monitoring and troubleshooting: hpc/operations.md
+      - Getting started:
+          - Setup and helper scripts: hpc/setup.md
+      - Running work:
+          - Notebook sessions: hpc/notebooks.md
+          - Training experiments: hpc/experiments.md
+      - Reference:
+          - Resources and parallelism: hpc/resources.md
+          - Measurements and cost estimates: hpc/performance.md
+          - Monitoring and troubleshooting: hpc/operations.md
   # Filled in by hooks.py: one section per top-level folder, one page per module.
   - API Reference: api/index.md
