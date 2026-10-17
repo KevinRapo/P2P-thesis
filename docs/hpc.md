@@ -1,14 +1,16 @@
 # TalTech HPC
 
-Use the **HPC sidebar** to open a separate document for each topic:
+The TalTech cluster is used in two ways:
 
-- **Getting started:** setup, access and the Windows helper scripts.
-- **Running work:** notebook sessions or unattended training experiments.
-- **Reference:** resources and parallelism, measurements and cost estimates,
-  monitoring and troubleshooting.
+| Use | How | Page |
+|---|---|---|
+| A notebook on a compute node | `hpc start` submits a Jupyter job and opens a tunnel; VS Code runs the cells there | [Notebook sessions](hpc/notebooks.md) |
+| Training experiments | `python -m core.runner ... --target taltech` or the Studio's Runs page: one SLURM job array per experiment | [Training experiments](hpc/experiments.md) |
 
-Notebook sessions use `hpc start` and `hpc stop`. Training experiments use
-`python -m core.runner` or the Studio's Runs page; they do not need a Jupyter job.
+Both run the cluster's own checkout, `~/marlem-v1`, at the commit pushed from this
+PC (`git shipc`), in the conda environment of [environment.yml](../environment.yml).
 
-The active code and documentation are in `marlem-v1`, and the cluster checkout
-is `~/marlem-v1`.
+- **Once:** [setup](hpc/setup.md): access, the environment, the `hpc` helper and the Git aliases.
+- **Reference:** [resources and parallelism](hpc/resources.md) (what a run gets and
+  what the spec controls), [measurements and costs](hpc/performance.md),
+  [monitoring and troubleshooting](hpc/operations.md).

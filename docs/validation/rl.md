@@ -69,8 +69,9 @@ market.
 | **Judgment** | A question about the method that no test can settle; it needs a decision |
 
 **Status.** This register describes the original implementation in `RL/core/rl/` (on the `clean` branch).
-The separate fixed implementation (`core/rl/` in this branch) documents its fixes in its module
-docstrings; copying both into `RL/` does not change the original results.
+The rebuilt layer (`core/rl/` in this branch) names the issues it fixes in its module
+docstrings, and [v1.md](../v1.md) gives its design and its probe and market results.
+Nothing on this page describes the rebuilt layer unless it says so.
 The only changes to the copied code isolate it from the market (the trainer takes
 the environment class as an argument); each is marked `DEVIATION:` in the code, and
 none changes how training works.
@@ -841,7 +842,9 @@ passes it. The register's I-52 covers the whole test suite; this is its RL part.
 
 **What replaces it.** The probe notebooks are the first learning tests: each probe
 has an exact answer, and the parameter-change check fails a frozen actor. They are
-notebooks, not yet automated tests.
+notebooks, not automated tests. In marlem-v1, `tests/rl/` checks the probe
+environments and the CTDE structure; learning on the probes still runs from
+`notebooks/rl/probe_paradigms.ipynb` (results in [v1.md §5](../v1.md#5-validation)).
 
 ## Problems in the papers' RL method
 
@@ -894,6 +897,9 @@ paradigms need the fixes above before they can be repeated.
 
 ## Not tested yet
 
+Open checks of the **original** code. The rebuilt layer passes all five probes in
+all nine combinations of algorithm and paradigm ([v1.md §5](../v1.md#5-validation)).
+
 | What | Why it matters | Issues |
 |---|---|---|
 | CTCE trained longer on probes 4 and 5 | Decides "slow, not broken" | I-60 |
@@ -907,8 +913,10 @@ paradigms need the fixes above before they can be repeated.
 
 ## Outside this document
 
-How the market and the RL layer connect is not validated in detail yet; its issues
-are listed in the [register, part B](register.md#b-environment-and-cooperation):
+How the market and the RL layer connect is not covered here; its issues are listed
+in the [register, part B](register.md#b-environment-and-cooperation). marlem-v1's
+choices for the environment (objective, reward, action, days; I-10, I-39, I-72) are
+in [v1.md §3](../v1.md#3-the-market-as-an-environment).
 
 - **Actions and observations:** I-10, I-39, I-40, I-58
 - **Reward:** I-02, I-41 to I-47, I-75, I-76, I-79

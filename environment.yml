@@ -1,0 +1,45 @@
+# The `marlem` environment: market, RL layer, runner, Studio, tests and docs.
+# Versions are those of the environment the results were produced with.
+#
+#   conda env create -f environment.yml      # from the repository root
+#   conda env update -f environment.yml      # after a change here
+#
+# torch comes from PyTorch's CUDA 12.6 index (the same wheel on this PC and the
+# cluster); without a GPU it runs on the CPU.
+name: marlem
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu126
+      # RL layer
+      - torch==2.6.0
+      - ray[rllib]==2.51.1
+      - gymnasium==1.1.1
+      - pettingzoo==1.27.0
+      - mpe2==1.1.1
+      # Market and grid
+      - pandapower==3.5.4
+      - simbench==1.6.2
+      - networkx==3.6.1
+      - numpy==2.4.6
+      - pandas==2.3.3
+      - scipy==1.18.1
+      # Runner (asyncssh only on the PC that drives a cluster)
+      - submitit==1.5.4
+      - asyncssh==2.24.1
+      - psutil==7.2.2
+      # Studio
+      - nicegui==3.16.0
+      - plotly==7.0.0
+      - pydantic==2.13.5
+      # Notebooks and tests
+      - matplotlib==3.11.1
+      - pillow==12.3.0
+      - jupyterlab==4.6.3
+      - ipykernel==7.3.0
+      - pytest==9.1.1
+      # Docs site
+      - -r docs_site/requirements.txt

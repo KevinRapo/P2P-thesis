@@ -83,7 +83,7 @@ flowchart TD
 
   root --> tests["tests/"]
   tests --> tm["market/"]
-  tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py"]:::done
+  tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py · test_fees_timing.py"]:::done
   tests --> tr["rl/"]
   tr --> x2["test_0 to test_6 · probe_helpers.py · conftest.py"]:::done
   tests --> tru["runner/"]
@@ -186,7 +186,7 @@ original code and its annotations live on the `clean` branch.
 | [`envs/probes.py`](../core/rl/envs/probes.py) | Five probe tasks with known answers | done |
 | [`envs/toy.py`](../core/rl/envs/toy.py) | Individual and team toy tasks | done |
 | [`envs/spread.py`](../core/rl/envs/spread.py) | MPE2 simple_spread and visualisation helpers | done |
-| [`envs/shapes.py`](../core/rl/envs/shapes.py) | Cheap environment with the market's observation and action sizes | done |
+| [`envs/shapes.py`](../core/rl/envs/shapes.py) | Cheap environment with the original market's observation and action sizes (42 and 4; `MarketEnv` has 16 and 2) | done |
 | [`__init__.py`](../core/rl/__init__.py), [`envs/__init__.py`](../core/rl/envs/__init__.py) | Public imports | done |
 
 ## core/runner/: experiments
@@ -289,7 +289,7 @@ sets `testpaths = tests` and `pythonpath = .`).
 |---|---|---|
 | [`market/test_studio_matches_core.py`](../tests/market/test_studio_matches_core.py) | `validate_market.json` read by `ScenarioService` and stepped part by part by `MarketService` gives the same `StepRecord`s as `LocalEnergyMarket.run_to_end` | done |
 | [`market/test_market_env.py`](../tests/market/test_market_env.py) | `MarketEnv` on `validate_market.json`: spaces, a zero-action day, the reward as the scaled net bill, action decoding (quantity, price, dead zone), reproducible day draw, `net_position_policy` against `zero_policy`, RLlib's multi-agent environment check | done |
-| [`market/test_fees_timing.py`](../tests/market/test_fees_timing.py) | Current-step congestion fees and ledger/settlement timing | implemented |
+| [`market/test_fees_timing.py`](../tests/market/test_fees_timing.py) | Grid fees priced on the same step's power flow (congestion and thermal parts), the first step charged like any other | done |
 | [`market/test_powerflow_recycle.py`](../tests/market/test_powerflow_recycle.py) | pandapower's `recycle` in the step power flow gives the same grid results | done |
 | [`rl/test_0_every_probe.py`](../tests/rl/test_0_every_probe.py) to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
 | [`rl/test_6_ctde_structure.py`](../tests/rl/test_6_ctde_structure.py) | The CTDE modules' structure: what the actor and the critic read | done |
@@ -327,7 +327,8 @@ market or pandapower directly.
 | [`run_all.py`](../run_all.py) | Starts this checkout's docs and Studio in separate windows using the current Python; `docs` and `studio` select one |
 | `AGENTS.md` | Rules for working in this repository |
 | `pytest.ini` | Discover the market and RL tests together from the root (`tests/`) |
-| [`scripts/`](../scripts/) | Tracked Windows Jupyter helpers [`hpc.ps1`](../scripts/hpc.ps1) and [`hpc.cmd`](../scripts/hpc.cmd); [setup and PATH](hpc/setup.md#install-the-helper-on-this-pc) |
+| [`environment.yml`](../environment.yml) | The `marlem` conda environment, with the package versions in use (this PC and the cluster) |
+| [`scripts/`](../scripts/) | Tracked Windows Jupyter helpers [`hpc.ps1`](../scripts/hpc.ps1) and [`hpc.cmd`](../scripts/hpc.cmd); [setup and PATH](hpc/setup.md#the-hpc-helper) |
 | `hpc/` | Where experiments run: `targets.toml` names the targets (`local`, and the `taltech` SLURM cluster with its account and partitions, and for use from the PC the SSH host, the code folder and Python on the cluster and the mirror of the results); each has a `label`, the name the Studio's Runs page shows (This PC, TalTech); how to use the cluster is in [hpc.md](hpc.md) |
 | `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, worker.json, worker.log, <run>/{status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}`; on a SLURM target no worker, instead `slurm.json` and `slurm/` (submitit's batch script, pickles and task logs), and `status.json` of each run has a `slurm_job` |
 | `.vscode/` | Launch entries and the Python interpreter |

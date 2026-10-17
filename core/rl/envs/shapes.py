@@ -1,9 +1,11 @@
 """A synthetic environment with the market's shapes, for timing the learner.
 
-Each agent observes as many numbers and sends as many actions as a MARLEM market
-agent (``obs_dim`` 42, ``act_dim`` 4; with partner preference the observation
-also holds one reputation per agent, ``42 + n_agents``), in episodes of the
-market's length (24 hourly steps by default). Nothing else of the market is in
+Each agent observes as many numbers and sends as many actions as an agent of the
+original MARLEM market (``obs_dim`` 42, ``act_dim`` 4; with partner preference the
+observation also holds one reputation per agent, ``42 + n_agents``), in episodes of
+the market's length (24 hourly steps by default). marlem-v1's ``MarketEnv`` is
+smaller (16 observations, 2 actions), so timings at the defaults are an upper
+estimate for it; pass ``obs_dim=16, act_dim=2`` to time its sizes. Nothing else of the market is in
 it: observations are drawn at random every step and the reward is cheap, so a
 run on it times RLlib and the networks alone. The market's own cost per step is
 measured on the market side (``notebooks/market/benchmark_market_step.ipynb``).
@@ -28,7 +30,7 @@ MARKET_ACT_DIM = 4
 
 
 class MarketShapedEnv(MultiAgentEnv):
-    """``n_agents`` agents with the market's observation and action sizes.
+    """``n_agents`` agents with the original market's observation and action sizes.
 
     env_config keys:
         n_agents: Number of agents (default 5).

@@ -155,9 +155,10 @@ branch, under `RL/core/rl/`.
   curves against.
 - `toy.py`: two small tasks with a known best return (individual and team
   reward), for comparing how fast the paradigms learn.
-- `shapes.py`: `MarketShapedEnv`, N agents with the market's sizes (42
-  observations, 4 actions, 24-step days), random observations and a cheap
-  learnable reward: times the RL layer at market size without the market
+- `shapes.py`: `MarketShapedEnv`, N agents with the original MARLEM market's
+  sizes (42 observations, 4 actions, 24-step days; `MarketEnv` has 16 and 2),
+  random observations and a cheap learnable reward: times the RL layer at market
+  size without the market
   (`notebooks/rl/benchmark_speed.ipynb`, results in `runs/benchmark/`). The
   market's own time per step comes from
   `notebooks/market/benchmark_market_step.ipynb`.

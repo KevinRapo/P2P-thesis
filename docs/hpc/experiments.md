@@ -1,66 +1,60 @@
 # Training experiments
 
-[HPC overview](../hpc.md) · [Resources and parallelism](resources.md)
+An experiment is defined once, as a spec in [experiments/](../../experiments/), and
+runs on a target; the CLI, Python and the Studio's Runs page call the same runner,
+[core/runner/](../../core/runner/) ([API](../api/runner/index.md)).
 
-The runner is the shared execution API for CLI, Python and the Studio. Its
-implementation is [core/runner/](../../core/runner/); generated signatures and
-docstrings are in the [runner API](../api/runner/index.md).
+| Term | Meaning |
+|---|---|
+| Experiment | Algorithms × paradigms × seeds × variants, with budgets, scenario, train and test days, training settings and cluster resources ([spec.py](../../core/runner/spec.py)) |
+| Profile | `full`: the spec as written. `test`: its smallest version, named `<name>--test` ([what it keeps](resources.md#full-and-test-profiles)) |
+| Target | `local` (this PC: a detached worker) or `taltech` (one SLURM job array, a task per run, via submitit), from [hpc/targets.toml](../../hpc/targets.toml) |
 
-## Experiment, profile and target
+Every run ends with a held-out evaluation (`heldout.csv`: the trained policy and
+the baselines on the test days).
 
-| Concept | Definition | Location |
-|---|---|---|
-| Experiment | Algorithms × paradigms × seeds × variants, budgets, scenario and training settings | [experiments/](../../experiments/) |
-| Profile | `full` uses the spec; `test` derives a smaller workload named `<name>--test` | `Experiment.with_profile` in [spec.py](../../core/runner/spec.py) |
-| Target | This PC (`local`) or a Slurm cluster (`taltech`) | [hpc/targets.toml](../../hpc/targets.toml) |
+## Commands
 
-The active cluster checkout is `~/marlem-v1`, on branch `marlem-v1`. The previous
-Slurm worktree is a reference copy. Run commands below from the local `marlem-v1`
-root in the `marlem` environment. The remote environment must have the same code
-and the dependencies needed by the chosen environment and algorithm.
-
-## Experiments on the cluster
+From the `marlem-v1` root, in the `marlem` environment:
 
 ```powershell
 python -m core.runner check experiments/smoke.json --target taltech
 python -m core.runner start experiments/smoke.json --profile test --target taltech
+python -m core.runner status --target taltech
 python -m core.runner status smoke--test --target taltech
 python -m core.runner sync smoke--test --target taltech
+python -m core.runner stop smoke--test [run] --target taltech
 ```
 
-To stop the experiment, or just a named run:
+Without `--target` (or with `--target local`) the same commands run on this PC.
+`start` returns at once; `status` lists every experiment, or one experiment's runs
+with state, progress, ETA and scores (on the cluster also the SLURM state and
+node). `--json` gives the same answers as JSON; that is also how this PC talks to
+the cluster.
 
-```powershell
-python -m core.runner stop smoke--test --target taltech
-python -m core.runner stop smoke--test ppo_dtde_s0 --target taltech
-```
+**`check`** says whether a start would work: `ready`, or the problems (the cluster
+does not answer, this PC and the cluster are at different commits, the cluster's
+checkout has changes, the spec or its scenario is not committed), with both
+commits and the experiments queued or running there. `start` runs the same check
+and refuses with its problems. Exit code 1 when not ready.
 
-Use the run name printed by `status`; names depend on the spec. To run locally,
-omit `--target taltech` or use `--target local`. To train the full experiment,
-choose `--profile full` (the default); its folder is `smoke`, not `smoke--test`.
+**`sync`** copies the experiment's results to `runs/@taltech/<experiment>`,
+without checkpoints and `slurm/`. The copy goes to a temporary folder that replaces
+the old one only when complete, so a failed download keeps the previous copy;
+files removed on the cluster disappear here too. Nothing is copied unless asked.
 
-`check` returns `{target, ok, problems, local_commit, cluster_commit, active}`.
-From this PC, readiness checks the remote command, code commits, remote dirty
-checkout and, when a spec is supplied, tracked/unmodified spec and scenario.
-`start` calls the same check. `active` lists queued/running experiments as a
-reminder; it is not a lock. `check --json` exits 1 when not ready; command errors
-are returned as JSON errors when `--json` is requested. This JSON protocol is also
-how the remote target talks to the cluster CLI.
+**Restarting:** `start` on an existing experiment keeps its completed runs and
+starts failed, stopped and lost ones again, **from scratch** (there is no
+checkpoint resume). A changed spec is refused: use a new name.
 
-Local readiness is lightweight, not a dependency or memory stress test. On the
-cluster itself the Slurm target submits directly; the cross-machine Git checks
-belong to the remote target used from this PC.
-
-## Python and Studio
+## Python and the Studio
 
 ```python
 from core.runner import targets
 
 target = targets.get("taltech")
 try:
-    report = target.check("experiments/smoke.json")
-    print(report)
-    # Explicit actions, when ready:
+    print(target.check("experiments/smoke.json"))
     # name = target.start("experiments/smoke.json", profile="test")
     # print(target.runs(name))
     # folder = target.sync(name)
@@ -68,82 +62,61 @@ finally:
     target.close()
 ```
 
-[targets_demo.ipynb](../../notebooks/runner/targets_demo.ipynb) walks through the
-workflow. `Target.overview()` is the common read path. The Studio adapter delegates
-to these same operations; it does not implement a second scheduler.
+[targets_demo.ipynb](../../notebooks/runner/targets_demo.ipynb) walks through it.
 
-Start Studio with `python run_studio.py` and open **Runs**. Each target has a tab.
-The Start dialog lists experiment specs and full/test profiles; cluster checks
-use the selected spec. Start stays disabled while checks report problems and
-while a start request is in flight. Local data refreshes every two seconds and
-cluster data every 20 seconds while the tab is shown. Failed reads retain the
-last view and timestamp with a persistent error. Action failures are notifications.
-**Sync results** is manual; viewing the tab does not copy result files.
+The Studio (`python run_studio.py`, page **Runs**) has a tab per target. This PC is
+read every 2 s, the cluster every 20 s while its tab is shown. The cluster's tab
+shows the `check` line with a Check button, and each experiment has a *Sync
+results* button. *Start experiment* picks a spec, the profile and the target; for
+the cluster it checks the spec and keeps Start disabled while there are problems.
+When the cluster cannot be read, the page keeps the last data with its time.
 
-## Files, status and restart
+## Files
 
-| File | Owner and purpose |
+Everything is in `runs/<experiment>/`, so any terminal and the Studio see the same
+state:
+
+| File | What |
 |---|---|
-| `experiment.json` | Normalized spec saved before starting runs |
-| `worker.json`, `worker.log` | Local supervisor identity and launch history |
-| `slurm.json`, `slurm/` | Cluster array/task IDs and submitit scripts, pickles and logs |
-| `<run>/status.json` | Runner lifecycle, timing, errors, process identity or Slurm job ID |
-| `<run>/run.json` | Training configuration, versions, commit and training outcome |
-| `<run>/metrics.csv` | Training iterations, sampled steps and learner metrics |
-| `<run>/evaluation.csv` | Evaluation on the configured training environment |
-| `<run>/heldout.csv` | Final market evaluation on held-out days and seeds |
-| `<run>/checkpoint/` | Checkpoint saved at the end of training |
-| `<run>/log.txt` | Local job stdout/stderr; cluster output is under `slurm/` |
+| `experiment.json` | The spec as started (a later start must match it) |
+| `worker.json`, `worker.log` | This PC: the worker that keeps `max_parallel` runs going |
+| `slurm.json`, `slurm/` | Cluster: the array and submitit's scripts and task logs |
+| `<run>/status.json` | The run's state, times, error, process or SLURM task |
+| `<run>/run.json` | Training settings, versions, commit and outcome |
+| `<run>/metrics.csv`, `evaluation.csv` | Training iterations; evaluations during training |
+| `<run>/heldout.csv` | The held-out evaluation |
+| `<run>/checkpoint/` | The policy at the end of training |
+| `<run>/log.txt` | This PC: the job's output (on the cluster it is in `slurm/`) |
 
-`run.json` describes training; `status.json` describes the encompassing runner job,
-which also performs held-out evaluation. Their completion times can differ.
+`run.json` covers training; `status.json` the whole job, held-out evaluation
+included.
 
-Starting the same experiment again keeps completed runs and restarts unfinished
-runs that are eligible to restart. Failed/stopped/lost runs train from scratch;
-this is **not checkpoint resume**. Active workers/Slurm tasks prevent duplicate
-restarts of the same experiment. A changed normalized spec is refused before
-saved files or states are altered. Use a new experiment name for changed specs,
-code or scenario contents; code/scenario-content changes are not automatically
-detected by the saved-spec comparison.
+## Limits
 
-`sync` downloads to a temporary sibling folder and replaces
-`runs/@taltech/<experiment>` only when the copy succeeds. Stale mirror files are
-removed, so do not keep hand-edited analysis in that directory. Checkpoints and
-`slurm/` are excluded. Download failure leaves the previous mirror intact;
-replacement failure attempts to restore it. For policy loading, copy the
-checkpoint separately or load it on the cluster.
-
-## Working rules and current limits
-
-- Keep the cluster checkout unchanged while its experiments are queued or running.
-  Tasks read that checkout on start; there is no immutable per-run code snapshot.
-  `git shipc` and `git pushc` also pull on the cluster, so wait before using them.
-- Submit one operation at a time across CLI and Studio. The Start button blocks
-  repeated UI requests, but there is no cross-process submission lock.
-- Keep the default four-CPU request initially. Each run normally starts its own
-  Ray instance; the dated thread-limit observations are in [performance](performance.md).
-  Increasing CPU reservations does not create environment runners.
-- The runner exposes CPU/memory/time requests, not multi-node learning or GPU
-  requests. [Resources](resources.md) lists what the JSON actually supports.
-- An SSH failure is surfaced without automatically replaying the operation. The
-  next call can reconnect. If a submission response is lost, inspect status before
-  deciding whether another submission is needed.
+1. **Leave the cluster's checkout alone while its experiments are queued or
+   running** (`git shipc`, `git pull`, edits): each task reads the checkout when it
+   starts, so a queued task would run the newer code. `check` lists them.
+2. **Changes to code or to a scenario file are not detected**, only changes to the
+   spec: use a new experiment name for them too.
+3. **One start at a time** across the CLI and the Studio; nothing stops two
+   starts from two places at once.
+4. **Each run starts its own Ray instance.** Keep `resources.cpus` at 4 or more so
+   few runs share a node: TalTech allows 4096 threads per user per node
+   ([why](performance.md#parallel-training)).
+5. **No retries over SSH.** A failed call raises its error and the next call
+   reconnects; after a lost answer to `start`, look at `status` before starting
+   again.
 
 ## Existing execution evidence
 
-The following saved artifacts were inspected on 17 October 2026 in the former
-`marlem-slurm/runs/` worktree. They are ignored local results, not published data
-or new tests of the migrated checkout:
+Test-profile runs, inspected on 17 October 2026 in the former `marlem-slurm`
+worktree (results not in git):
 
-| Workload | Evidence |
+| Workload | Outcome |
 |---|---|
-| Local `market_3x3--test` | All nine runs completed; records show zero remote environment runners and zero GPUs |
-| TalTech `market_3x3--test` | Array `1042752`, all nine task status records completed |
-| TalTech `sac_alpha--test` | Array `1042740`: two runs completed with learner metrics beyond warm-up; one task recorded stopped |
+| `market_3x3--test`, this PC | All nine runs completed (no remote environment runners, no GPU) |
+| `market_3x3--test`, TalTech | Array `1042752`: all nine tasks completed |
+| `sac_alpha--test`, TalTech | Array `1042740`: two runs completed with learner metrics past the warm-up, one stopped |
 
-These establish short pipeline executions, not full-budget learning comparisons
-or a complete manual Studio acceptance test. [tests/runner/](../../tests/runner/)
-contains automated checks of the spec, registry, Slurm commands, remote transport,
-target interface and Studio adapter; inspecting those tests is not a claim that
-they were rerun during this documentation refresh. Earlier research results remain
-in [the implementation page](../v1.md#5-validation), with their original budgets.
+They show the pipeline working end to end, not learning results. The earlier
+market results are in [v1.md §5](../v1.md#5-validation).

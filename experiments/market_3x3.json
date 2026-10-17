@@ -1,5 +1,5 @@
 {
-  "description": "All three algorithms x all three paradigms on the market (old/market_10x.py).",
+  "description": "All three algorithms x all three paradigms on the market.",
   "scenario": "scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
   "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
