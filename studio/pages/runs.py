@@ -9,7 +9,7 @@ files (the same as ``python -m core.runner status``) and updated in place: a car
 table is only touched when what it shows has changed.
 
 This PC's tab is read every two seconds. A cluster is read over SSH, so its tab is read
-every 20 seconds and only while it is the tab shown (nothing connects before it is
+every 10 seconds and only while it is the tab shown (nothing connects before it is
 opened). It adds the SLURM state and the node to the table, a Sync results button to
 each card (results are copied only when asked), and a line at the top with what the
 runner's ``check`` found: "Ready", or the problems that stop a start. A read that fails
@@ -39,7 +39,7 @@ from studio.state import services
 
 LOCAL = "local"  # the target that is this PC; any other target is a cluster
 LOCAL_REFRESH_S = 2.0
-REMOTE_REFRESH_S = 20.0  # every read of a cluster is a round trip over SSH
+REMOTE_REFRESH_S = 10.0  # every read of a cluster is a round trip over SSH
 START_HINT = (
     "Start an experiment with the button above, or "
     "`python -m core.runner start experiments/<name>.json [--target taltech]`"

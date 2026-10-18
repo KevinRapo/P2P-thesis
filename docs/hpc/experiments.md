@@ -85,7 +85,7 @@ finally:
 [targets_demo.ipynb](../../notebooks/runner/targets_demo.ipynb) walks through it.
 
 The Studio (`python run_studio.py`, page **Runs**) has a tab per target. This PC is
-read every 2 s, the cluster every 20 s while its tab is shown. The cluster's tab
+read every 2 s, the cluster every 10 s while its tab is shown. The cluster's tab
 shows the `check` line with a Check button, and each experiment has a *Sync
 results* button. When the cluster cannot be read, the page keeps the last data with
 its time.
