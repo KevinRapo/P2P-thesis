@@ -206,13 +206,14 @@ class DirectTarget(Target):
     def _entry(self, name: str) -> dict:
         slurm = self._slurm(name)  # one SLURM question for the summary and the runs
         spec = registry.read_json(self.root / name / "experiment.json")
+        runs = registry.runs(name, self.root, slurm)  # read once for both
         return {
             "name": name,
             "description": (spec or {}).get("description", ""),
-            "summary": registry.summary(name, self.root, slurm),
+            "summary": registry.summarize(runs, name, self.root),
             "modified": (self.root / name).stat().st_mtime,
             "spec": spec,
-            "runs": registry.runs(name, self.root, slurm),
+            "runs": runs,
         }
 
     def sync(self, experiment: str) -> Optional[Path]:

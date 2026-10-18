@@ -769,13 +769,24 @@ def profile_series(
         Time labels (standard time, counted in 15-minute rows from 1 January) and,
         per profile name, its values (factors of rated power).
     """
+    return _series(_load(ref).profiles, names, start, days, resolution, quantity)
+
+
+def _series(
+    profiles: dict[str, Any],
+    names: Sequence[str],
+    start: str,
+    days: int,
+    resolution: str,
+    quantity: str,
+) -> tuple[list[str], dict[str, list[float]]]:
+    """``profile_series`` of profile tables (a network's or the catalogue's)."""
     d, first, last, step = _window(start, days, resolution)
-    net = _load(ref)
-    columns = _profile_columns(net)
+    columns = _profile_columns(profiles)
     values: dict[str, list[float]] = {}
     for table, name in columns:
         if name in names and quantity in columns[(table, name)]:
-            column = net.profiles[table][columns[(table, name)][quantity]]
+            column = profiles[table][columns[(table, name)][quantity]]
             values[name] = [round(v, 4) for v in _aggregate(column, first, last, step)]
     count = len(next(iter(values.values()), []))
     return _labels(d, count, step, resolution), values
@@ -927,16 +938,7 @@ def catalogue_series(
     scenario: int = 0,
 ) -> tuple[list[str], dict[str, list[float]]]:
     """Like ``profile_series``, for profiles of the complete catalogue."""
-    d, first, last, step = _window(start, days, resolution)
-    profiles = _catalogue(scenario)
-    columns = _profile_columns(profiles)
-    values: dict[str, list[float]] = {}
-    for table, name in columns:
-        if name in names and quantity in columns[(table, name)]:
-            column = profiles[table][columns[(table, name)][quantity]]
-            values[name] = [round(v, 4) for v in _aggregate(column, first, last, step)]
-    count = len(next(iter(values.values()), []))
-    return _labels(d, count, step, resolution), values
+    return _series(_catalogue(scenario), names, start, days, resolution, quantity)
 
 
 # --------------------------------------------------------------------------------------

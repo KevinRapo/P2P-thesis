@@ -134,10 +134,9 @@ class RunService:
     # --- Experiment specs ------------------------------------------------------------
     def spec_files(self) -> list[dict]:
         """The specs in the specs folder, by file name, with what the start dialog
-        shows. Each: ``path``, ``name``, ``description``, ``runs`` (of the full
-        experiment) and ``test_runs``, ``budget`` and ``test_budget`` (environment steps
-        per run, an int or one per algorithm), ``resources`` and ``test_resources``
-        (cpus, mem_gb and minutes per run on a cluster), ``text`` (the file as it is
+        shows. Each: ``path``, ``name``, ``description``, ``runs``, ``budget``
+        (environment steps per run, an int or one per algorithm), ``resources`` (cpus,
+        mem_gb and minutes per run on a cluster), ``text`` (the file as it is
         written), ``experiment`` (the ``Experiment``) and ``error``: why the file does
         not load (the other fields but ``text`` are then None)."""
         found = []
@@ -216,22 +215,14 @@ def _replaced(data: dict, values: dict) -> dict:
 def _record(experiment: Optional[Experiment], error: Optional[str] = None) -> dict:
     """What the start dialog shows of an experiment (see ``spec_files``)."""
     if experiment is None:
-        keys = ("name", "description", "runs", "test_runs", "budget", "test_budget")
-        keys += ("resources", "test_resources", "experiment")
+        keys = ("name", "description", "runs", "budget", "resources", "experiment")
         return dict.fromkeys(keys) | {"error": error}
-    try:
-        test = experiment.test_version()
-    except ValueError as problem:  # the test block is checked on loading: unlikely
-        return _record(None, str(problem))
     return {
         "name": experiment.name,
         "description": experiment.description,
         "runs": len(experiment.expand()),
-        "test_runs": len(test.expand()),
         "budget": experiment.budget,
-        "test_budget": test.budget,
         "resources": experiment.run_resources,
-        "test_resources": test.run_resources,
         "experiment": experiment,
         "error": None,
     }

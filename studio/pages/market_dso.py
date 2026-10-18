@@ -83,32 +83,21 @@ def _clearing() -> None:
         on_change=mechanism,
     ).classes("w-full")
     caption = ui.label(DESCRIPTIONS[m.mechanism]).classes("mls-card-caption")
-    with ui.row().classes("w-full gap-2 no-wrap"):
-        ui.number(
-            "Min price",
-            value=m.min_price,
-            step=0.01,
-            on_change=lambda e: save("min_price", float(e.value or 0)),
-        ).classes("grow basis-0")
-        ui.number(
-            "Max price",
-            value=m.max_price,
-            step=0.01,
-            on_change=lambda e: save("max_price", float(e.value or 0)),
-        ).classes("grow basis-0")
-    with ui.row().classes("w-full gap-2 no-wrap"):
-        ui.number(
-            "Min quantity (kWh)",
-            value=m.min_quantity,
-            step=0.1,
-            on_change=lambda e: save("min_quantity", float(e.value or 0)),
-        ).classes("grow basis-0")
-        ui.number(
-            "Max quantity (kWh)",
-            value=m.max_quantity,
-            step=1,
-            on_change=lambda e: save("max_quantity", float(e.value or 0)),
-        ).classes("grow basis-0")
+    for pair in (
+        (("min_price", "Min price", 0.01), ("max_price", "Max price", 0.01)),
+        (
+            ("min_quantity", "Min quantity (kWh)", 0.1),
+            ("max_quantity", "Max quantity (kWh)", 1),
+        ),
+    ):
+        with ui.row().classes("w-full gap-2 no-wrap"):
+            for field, label, step in pair:
+                ui.number(
+                    label,
+                    value=getattr(m, field),
+                    step=step,
+                    on_change=lambda e, f=field: save(f, float(e.value or 0)),
+                ).classes("grow basis-0")
     ui.label(
         "Orders are clipped to these bounds, and to what each participant can "
         "physically deliver or take (its surplus or deficit plus its battery)."

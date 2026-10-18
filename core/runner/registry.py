@@ -311,7 +311,13 @@ def summary(
     experiment: str, root: Optional[Path] = None, slurm: Optional[dict] = None
 ) -> dict[str, Any]:
     """Counts per state, the mean progress and whether a worker is alive."""
-    states = runs(experiment, root, slurm)
+    return summarize(runs(experiment, root, slurm), experiment, root)
+
+
+def summarize(
+    states: list[RunState], experiment: str, root: Optional[Path] = None
+) -> dict[str, Any]:
+    """``summary`` of run states already read (``runs``)."""
     counts: dict[str, int] = {}
     for state in states:
         counts[state.state] = counts.get(state.state, 0) + 1

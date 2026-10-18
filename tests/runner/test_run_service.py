@@ -221,18 +221,14 @@ def test_the_experiments_folder_specs_all_load():
         assert record["name"] == experiment.name
         assert record["description"] == experiment.description
         assert record["runs"] == len(experiment.expand()) >= 1
-        assert record["test_runs"] == len(experiment.test_version().expand()) >= 1
         assert record["budget"] == experiment.budget
         assert record["resources"] == experiment.run_resources
-        assert record["test_budget"] == experiment.test_version().budget
-        assert record["test_resources"]["minutes"] == 15  # the test's default
 
 
 def test_the_smoke_spec_in_numbers():
     (smoke,) = [r for r in RunService().spec_files() if r["name"] == "smoke"]
-    assert (smoke["runs"], smoke["test_runs"]) == (2, 1)  # two seeds; the first only
+    assert smoke["runs"] == 2  # two seeds
     assert smoke["budget"] == 2000
-    assert smoke["test_budget"] == {"ppo": 500}  # one training iteration
     assert smoke["resources"] == {"cpus": 4, "mem_gb": 4, "minutes": 120}
 
 

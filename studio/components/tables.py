@@ -4,21 +4,6 @@ from typing import Any
 
 from nicegui import ui
 
-_STATE_COLORS = {
-    "READY": "blue-grey",
-    "QUEUED": "grey",
-    "RUNNING": "info",
-    "COMPLETED": "positive",
-    "FAILED": "negative",
-    "CANCELLING": "warning",
-    "CANCELLED": "grey-7",
-}
-
-
-def state_color(state: str) -> str:
-    """Badge colour for a run state (grey for unknown states)."""
-    return _STATE_COLORS.get(state, "grey")
-
 
 def data_table(
     rows: list[dict[str, Any]],

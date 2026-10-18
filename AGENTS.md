@@ -117,6 +117,23 @@ Every folder and script, with how far it is built, is in
 - `core/settings.py` imports nothing from the project (standard library only), so
   any layer, the Studio and the notebooks may use it.
 
+## Planned: the paper's grid model as a second grid method
+
+Once the implementation is finished, validated and its final functionality
+decided, the market gets a choice of grid method: the current one (the SimBench
+network with an AC power flow, `core/grid/`) or MARLEM's original graph model
+([P1] §3.5, [methodology §6](docs/marlem/methodology.md): shortest-path electrical
+distance $d_{ij}$, zones, linear losses, congestion from edge flows; the original's
+`src/grid/network.py`), built on the same SimBench network. The two can then be
+compared on one setup. This comes after the current clean-up and the RL work, not
+now.
+
+Until then, be conservative: do not delete original-paper grid or market
+functionality, or anything the second grid method could use, only because nothing
+calls it today (e.g. `electrical_distance`, the paths and zones of
+`core/grid/powerflow.py`, the ledger, the reputation helpers,
+`core/market/profile/`). When unsure, keep it and ask.
+
 ## RL layer (`core/rl/`)
 
 The three paradigms on RLlib's own PPO, APPO and SAC, with RLlib's own modules.

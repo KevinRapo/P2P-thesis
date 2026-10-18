@@ -6,6 +6,8 @@ the Inspect page's profile tables, plots and class overview.
 
 from __future__ import annotations
 
+from typing import Any
+
 from core.config.scenario import Scenario
 from core.grid import simbench as adapter
 from core.grid.contract import NetworkRef
@@ -41,19 +43,7 @@ class ProfileService:
         Built: read from the network through the pandapower adapter. Networks
         without profiles (pandapower built-ins) return an empty list.
         """
-        return [
-            ProfileType(
-                code=r.name,
-                category=category(r.name, r.table),
-                description=description(category(r.name, r.table)),
-                table=r.table,
-                quantities=list(r.quantities),
-                elements=r.elements,
-                mean=r.mean,
-                peak=r.peak,
-            )
-            for r in adapter.profile_catalog(source)
-        ]
+        return [_profile_type(r) for r in adapter.profile_catalog(source)]
 
     def profile_series(
         self,
@@ -163,19 +153,7 @@ class ProfileService:
         Args:
             scenario: SimBench scenario (0 = today, 1 and 2 = future scenarios).
         """
-        return [
-            ProfileType(
-                code=r.name,
-                category=category(r.name, r.table),
-                description=description(category(r.name, r.table)),
-                table=r.table,
-                quantities=list(r.quantities),
-                elements=0,
-                mean=r.mean,
-                peak=r.peak,
-            )
-            for r in adapter.catalogue_profiles(scenario)
-        ]
+        return [_profile_type(r) for r in adapter.catalogue_profiles(scenario)]
 
     def catalogue_series(
         self,
@@ -201,3 +179,18 @@ class ProfileService:
             x_label="time",
             y_label=f"{quantity} (factor of rated power)",
         )
+
+
+def _profile_type(record: Any) -> ProfileType:
+    """A profile record of the grid adapter as the Studio shows it."""
+    kind = category(record.name, record.table)
+    return ProfileType(
+        code=record.name,
+        category=kind,
+        description=description(kind),
+        table=record.table,
+        quantities=list(record.quantities),
+        elements=record.elements,  # 0 in the catalogue: no network
+        mean=record.mean,
+        peak=record.peak,
+    )

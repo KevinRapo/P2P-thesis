@@ -35,10 +35,8 @@ import math
 import os
 import platform
 import subprocess
-import sys
 import time
 import traceback
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -127,9 +125,6 @@ def _class_path(cls: type) -> str:
 
 def _load_class(path: str) -> type:
     module, _, name = path.partition(":")
-    # Runs from earlier layouts used other module names (core.fixed.*, core.envs.*,
-    # also under RL.core.*): see _current_module.
-    module = _current_module(module)
     obj: Any = importlib.import_module(module)
     for part in name.split("."):
         obj = getattr(obj, part)
@@ -386,58 +381,6 @@ def train(run: Run) -> dict[str, Any]:
 # --------------------------------------------------------------------------------------
 # Loading a trained policy
 # --------------------------------------------------------------------------------------
-@contextmanager
-def _checkpoint_imports():
-    """Resolve pre-migration pickle names only while reading a checkpoint.
-
-    Earlier layouts pickled ``core.fixed.*`` and ``core.envs.*`` (and the same
-    under ``RL.core.*``); they now live in ``core.rl.*``. The market's core
-    package is never replaced. Restore any existing entries after loading, so
-    legacy names cannot leak into subsequent market imports.
-    """
-    names = {
-        "envs": "core.rl.envs",
-        "envs.probes": "core.rl.envs.probes",
-        "envs.spread": "core.rl.envs.spread",
-        "envs.toy": "core.rl.envs.toy",
-        "envs.shapes": "core.rl.envs.shapes",
-        "fixed": "core.rl",
-        "fixed.config": "core.rl.config",
-        "fixed.grouping": "core.rl.grouping",
-        "fixed.ctde_modules": "core.rl.ctde_modules",
-    }
-    aliases = {
-        prefix + old: importlib.import_module(new)
-        for prefix in ("core.", "RL.core.")
-        for old, new in names.items()
-    }
-    aliases["RL"] = type(sys)("RL")  # a bare module object
-    aliases["RL.core"] = type(sys)("RL.core")
-    previous = {name: sys.modules.get(name) for name in aliases}
-    try:
-        sys.modules.update(aliases)
-        yield
-    finally:
-        for name, module in previous.items():
-            if module is None:
-                sys.modules.pop(name, None)
-            else:
-                sys.modules[name] = module
-
-
-def _current_module(module: str) -> str:
-    """The module's present name; runs from earlier layouts used ``core.fixed.*``,
-    ``core.envs.*`` and the same under ``RL.core.*``."""
-    for old in ("RL.core.", "core."):
-        if module.startswith(old):
-            rest = module[len(old) :]
-            if rest.startswith("fixed."):
-                return "core.rl." + rest[len("fixed.") :]
-            if rest.startswith("envs."):
-                return "core.rl." + rest
-    return module
-
-
 def load_policy(run_dir: str | Path) -> tuple[Policy, dict[str, Any]]:
     """The trained policy of a finished run, and its record.
 
@@ -447,17 +390,16 @@ def load_policy(run_dir: str | Path) -> tuple[Policy, dict[str, Any]]:
     run_dir = Path(run_dir)
     record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     env_class = _load_class(record["env_class"])
-    with _checkpoint_imports():
-        modules = MultiRLModule.from_checkpoint(
-            str(
-                (
-                    run_dir
-                    / "checkpoint"
-                    / COMPONENT_LEARNER_GROUP
-                    / COMPONENT_LEARNER
-                    / COMPONENT_RL_MODULE
-                ).resolve()
-            )
+    modules = MultiRLModule.from_checkpoint(
+        str(
+            (
+                run_dir
+                / "checkpoint"
+                / COMPONENT_LEARNER_GROUP
+                / COMPONENT_LEARNER
+                / COMPONENT_RL_MODULE
+            ).resolve()
         )
+    )
     env = env_class(record["env_config"])
     return Policy(modules, record["paradigm"], env), record
