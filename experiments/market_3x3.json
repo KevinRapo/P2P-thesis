@@ -28,5 +28,6 @@
       "initial_alpha": 0.01
     }
   },
-  "max_parallel": 3
+  "max_parallel": 3,
+  "num_env_runners": 3
 }
