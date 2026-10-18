@@ -1,5 +1,5 @@
 {
-  "name": "market_3x3_3envRun",
+  "name": "market_3x3_1envRun",
   "description": "All three algorithms x all three paradigms on the market.",
   "scenario": "scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
