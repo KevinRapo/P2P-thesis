@@ -173,7 +173,6 @@ class Experiment:
     """An experiment as written in ``experiments/<name>.json`` (see the module)."""
 
     name: str
-    description: str = ""
     algorithms: list[str]
     paradigms: list[str]
     seeds: list[int]
@@ -195,6 +194,7 @@ class Experiment:
     num_env_runners: int = 0
     resources: dict = field(default_factory=dict)
     test: dict = field(default_factory=dict)
+    description: str = ""
 
     # --- Loading ----------------------------------------------------------------------
     @classmethod
