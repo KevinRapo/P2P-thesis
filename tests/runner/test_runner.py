@@ -61,6 +61,22 @@ def test_default_name_is_the_file_stem(tmp_path):
     assert Experiment.load(path).name == "my_experiment"
 
 
+@pytest.mark.parametrize("settings, expected", [({}, 0), ({"num_env_runners": 3}, 3)])
+def test_env_runners_reach_training_in_both_profiles(settings, expected, monkeypatch):
+    monkeypatch.setattr("core.runner.spec.load_env_class", lambda name: object)
+    experiment = Experiment.from_dict(spec(**settings), "x")
+    restored = Experiment.from_dict(experiment.to_dict())
+    for profile in ("full", "test"):
+        for run_spec in restored.with_profile(profile).expand():
+            assert run_spec.run().num_env_runners == expected
+
+
+@pytest.mark.parametrize("value", [-1, 1.5, True, "3"])
+def test_env_runners_must_be_a_nonnegative_integer(value):
+    with pytest.raises(SpecError, match="num_env_runners must be an integer >= 0"):
+        Experiment.from_dict(spec(num_env_runners=value), "x")
+
+
 def test_budget_and_eval_every_per_algorithm():
     runs = {r.algorithm: r for r in Experiment.from_dict(spec(), "x").expand()}
     assert (runs["ppo"].budget, runs["ppo"].eval_every) == (2000, 500)

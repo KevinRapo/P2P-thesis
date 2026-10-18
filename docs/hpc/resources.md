@@ -1,8 +1,9 @@
 # Resources and parallelism
 
 There are two levels: **independent runs** side by side, and the **work inside one
-run**. The experiment spec controls the first and what each run asks of SLURM; it
-does not (yet) parallelise inside a run.
+run**. The experiment spec controls both: `max_parallel` limits independent runs,
+and `num_env_runners` sets remote sampling processes inside each run. SLURM
+resources are requested separately.
 
 ## Runs side by side
 
@@ -19,7 +20,7 @@ flowchart TD
     S --> B["Run B: 4 CPUs, 4 GB"]
     S --> C["Run C: 4 CPUs, 4 GB"]
     S --> Q["The other runs wait"]
-    A --> L["One process: sampler and learner,<br/>its own Ray instance"]
+    A --> L["Local learner and its own Ray instance<br/>Sampling locally or on num_env_runners actors"]
 ```
 
 | Target | Who schedules | One run is |
@@ -42,32 +43,56 @@ experiment:
 | `resources.mem_gb` | 4 | Memory per run (not per CPU) |
 | `resources.minutes` | 120 | Wall time per run, evaluation and saving included |
 | `torch_threads` | 1 | `torch.set_num_threads` in each run |
+| `num_env_runners` | 0 | Remote sampling processes per run; zero samples locally |
 
 At the defaults three runs take 12 CPUs and 12 GB. On this PC `resources` is
-ignored (no reservation, no time limit); `max_parallel` and `torch_threads` apply.
+ignored (no reservation, no time limit); `max_parallel`, `torch_threads` and
+`num_env_runners` apply.
 On the cluster the runner takes the first partition in `targets.toml` whose limit
 allows `minutes`: `short` up to 240, then `common` up to 11,520; longer is refused.
 
 ## Inside one run
 
-The runner leaves the sampler and GPU settings of [`Run`](../../core/rl/train.py)
-at their defaults, so with [`build_config`](../../core/rl/config.py):
+The runner passes `num_env_runners` to [`Run`](../../core/rl/train.py).
+The default remains zero; GPU training is not exposed in the spec.
+With [`build_config`](../../core/rl/config.py):
 
 | Setting | Value | Meaning |
 |---|---|---|
-| `num_env_runners` | 0 | Sampling in the run's own process, no sampler actors |
-| `num_envs_per_env_runner` | 1 | One market environment |
+| `num_env_runners` | Spec value (default 0) | Zero: local sampling; positive: that many remote sampler actors |
+| `num_envs_per_env_runner` | 1 | One market environment per sampler |
 | `num_learners` | 0 | One learner, in the same process |
 | `num_gpus` | 0 | CPU only |
-| Ray `num_cpus` | 1 | Ray's own bookkeeping, not a CPU pin |
+| Ray `num_cpus` | `num_env_runners + 1` | Samplers plus the driver/learner; Ray bookkeeping, not a CPU pin |
 
-So one run is essentially one busy core (APPO adds learner threads). Raising
+At zero runners, one run is essentially one busy core (APPO adds learner threads). Raising
 `resources.cpus` alone does not make it faster; 4 is an allowance for Ray's own
 threads and processes. The five market participants are agents inside the one
 environment, not processes; training days are what an episode draws from, not
 parallel environments. `budget` counts environment steps (one market step for all
 agents) and is checked after each training iteration, so a run can overshoot it
-(APPO: 480 asked, 500 done). Evaluation runs in the same job, after training.
+(APPO: 480 asked, 500 done). Evaluation stays in the job's driver process.
+
+For example, these top-level experiment fields request three remote samplers per
+run and four SLURM CPUs for the samplers and driver/learner:
+
+```json
+{
+  "num_env_runners": 3,
+  "max_parallel": 3,
+  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120}
+}
+```
+
+With three runs active, this gives nine training samplers and reserves twelve
+SLURM CPUs. Each sampler has its own environment and inference model; allow for
+their additional memory. Size `resources.cpus` for at least `num_env_runners + 1`
+as a starting point; the runner does not automatically change the allocation.
+`torch_threads` is set in the driver, not explicitly in remote sampler actors.
+More samplers can improve sampling throughput but do not guarantee higher CPU
+utilization or faster learning. The training-step budget is aggregated across
+samplers, not repeated for each sampler. Use a new experiment name when changing
+this setting for an existing experiment.
 
 ## Full and test profiles
 
@@ -81,7 +106,8 @@ For `market_3x3`:
 | Train / test days | 30 / 14 | 1 / 1 |
 | Budget SAC / PPO / APPO | 24,000 / 240,000 / 240,000 | 1,100 / 2,400 / 480 |
 
-The test profile keeps algorithms, paradigms, variants and settings, and takes the
+The test profile keeps algorithms, paradigms, variants and settings (including
+`num_env_runners`), and takes the
 first seed, one evaluation episode and one held-out seed. Its budget per algorithm
 is one training batch (`train_batch_size_per_learner`, else 100), or the warm-up
 plus 100 steps where learning starts after a warm-up (SAC: the spec's 1,000, else
@@ -97,7 +123,7 @@ and resources.
 | Cluster allocation per run | `resources` | |
 | PyTorch threads | `torch_threads` | |
 | Training and network settings | `training`, `model`, `variants` | |
-| Sampler processes | no | `Run(num_env_runners=...)` in Python |
+| Sampler processes | `num_env_runners` | Also `Run(num_env_runners=...)` in Python |
 | GPU | no | `Run(num_gpus=...)` in Python, on a GPU node |
 
 Unknown fields are refused. `num_env_runners` inside `training` does not work: that

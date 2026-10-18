@@ -30,6 +30,7 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
                                         overrides are merged on top
       "model": {},                      network overrides
       "max_parallel": 3, "torch_threads": 1,
+      "num_env_runners": 0,             remote samplers per run; 0 samples locally
       "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120},
                                         per run on a SLURM cluster (the defaults
                                         shown; unknown keys are refused)
@@ -142,6 +143,7 @@ class RunSpec:
     model: dict
     out_dir: Path
     index: int = 0
+    num_env_runners: int = 0
 
     def run(self):
         """The ``core.rl.Run`` to train (imports ``core.rl``: slow)."""
@@ -158,6 +160,7 @@ class RunSpec:
             eval_episodes=self.eval_episodes,
             training=dict(self.training),
             model=dict(self.model),
+            num_env_runners=self.num_env_runners,
             out_dir=self.out_dir,
         )
 
@@ -188,6 +191,7 @@ class Experiment:
     model: dict = field(default_factory=dict)
     max_parallel: int = 3
     torch_threads: int = 1
+    num_env_runners: int = 0
     resources: dict = field(default_factory=dict)
     test: dict = field(default_factory=dict)
     description: str = ""
@@ -282,6 +286,8 @@ class Experiment:
                     raise SpecError(f"'{key}' for {algorithm} must be an integer >= 0")
         if self.max_parallel < 1 or self.torch_threads < 1 or self.eval_episodes < 1:
             raise SpecError("max_parallel, torch_threads, eval_episodes must be >= 1")
+        if type(self.num_env_runners) is not int or self.num_env_runners < 0:
+            raise SpecError("num_env_runners must be an integer >= 0")
         if self.is_market and not self.scenario:
             raise SpecError("the market environment needs a 'scenario' file")
         if self.scenario and check_files and not self.scenario_path.is_file():
@@ -461,6 +467,7 @@ class Experiment:
                                 model=dict(self.model),
                                 out_dir=exp_dir / name,
                                 index=len(specs),
+                                num_env_runners=self.num_env_runners,
                             )
                         )
         return specs
