@@ -15,8 +15,10 @@ each card (results are copied only when asked), and a line at the top with what 
 runner's ``check`` found: "Ready", or the problems that stop a start. A read that fails
 is not a notification: a line says why and when the data shown was last updated, and
 goes away with the next read that works. Start, Stop and Sync show their errors as
-notifications. The "Start experiment" button starts a spec from ``experiments/`` on
-either target.
+notifications. The "Start experiment" button starts an experiment on either target,
+with an experiment file from ``experiments/`` as the template, its JSON edited before
+the start (``StartDialog``); "Restart failed runs" starts an experiment
+again from the settings saved in its folder.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
 from nicegui import run, ui
@@ -41,7 +44,11 @@ START_HINT = (
     "Start an experiment with the button above, or "
     "`python -m core.runner start experiments/<name>.json [--target taltech]`"
 )
-PROFILES = {"test": "Test (tiny, checks the pipeline)", "full": "Full"}
+# preset -> (button, icon, what it is for)
+PRESET_BUTTONS = {
+    "test": ("Test preset", "science", "the smallest version, to check the pipeline"),
+    "full": ("Full preset", "rocket_launch", "the template's run size"),
+}
 
 # state -> (Quasar colour of the badge, colour of its text)
 STATE_STYLE = {
@@ -54,6 +61,7 @@ STATE_STYLE = {
     "unknown": ("amber-7", "black"),
 }
 STOPPABLE = ("queued", "running")
+RESTARTABLE = ("failed", "stopped", "lost")
 
 COLUMNS = [
     {"name": "name", "label": "Run", "field": "name", "sortable": True},
@@ -171,6 +179,7 @@ class ExperimentCard:
         self.monitor = monitor
         self.runs: list[RunState] = []
         self._badges_key: Any = None
+        self.has_spec = spec is not None  # settings saved: it can be restarted
         caption = (spec or {}).get("description") or (
             "" if spec else "Runs made without the runner (no experiment.json)"
         )
@@ -184,6 +193,15 @@ class ExperimentCard:
                         icon="sync",
                         on_click=lambda e: monitor.sync(name, e.sender),
                     ).props("outline no-caps dense")
+                self.restart = ui.button(
+                    "Restart failed runs",
+                    icon="replay",
+                    on_click=lambda e: monitor.restart(name, e.sender),
+                ).props("outline no-caps dense")
+                self.restart.tooltip(
+                    "Train the failed, stopped and lost runs again, from scratch, "
+                    "with the settings this experiment was started with"
+                )
                 self.stop = ui.button(
                     "Stop experiment",
                     icon="stop_circle",
@@ -215,7 +233,13 @@ class ExperimentCard:
             self.badges.clear()
             with self.badges:
                 self._build_badges(counts, alive)
-            self.stop.set_visibility(any(counts[state] for state in STOPPABLE))
+            busy = any(counts[state] for state in STOPPABLE)
+            self.stop.set_visibility(busy)
+            self.restart.set_visibility(
+                self.has_spec
+                and not busy
+                and any(counts[state] for state in RESTARTABLE)
+            )
         if runs != self.runs:
             self.table.rows[:] = [_row(r) for r in runs]
             self.table.update()
@@ -420,6 +444,20 @@ class RunsMonitor:
         finally:
             button.props(remove="loading")
 
+    # --- Restarting ------------------------------------------------------------------
+    async def restart(self, experiment: str, button: ui.button) -> None:
+        """Start the experiment again from the settings saved in its folder."""
+        button.props("loading")
+        try:
+            await run.io_bound(self.service.restart, self.target, experiment)
+        except (OSError, RuntimeError, ValueError) as error:
+            _fail(f"Could not restart {experiment}: {error}")
+        else:
+            ui.notify(f"Restarted the failed runs of {experiment}", type="positive")
+            await self.refresh(True)
+        finally:
+            button.props(remove="loading")
+
     # --- Stopping --------------------------------------------------------------------
     async def stop_run(self, experiment: str, name: str) -> None:
         """Stop one run, at once."""
@@ -491,10 +529,18 @@ def _resources(resources: dict) -> str:
 
 
 class StartDialog:
-    """The dialog that starts a spec from ``experiments/`` on a target: which spec,
-    which profile, where. For a cluster it checks the chosen spec there whenever the
-    spec or the target changes, lists the problems, and keeps Start disabled until
-    there are none (``start`` checks again anyway).
+    """The dialog that starts an experiment on a target. An experiment file from
+    ``experiments/`` is the template: its JSON is shown in an editor, and every edit is
+    checked as a start would check it (``RunService.describe``), with the runs it
+    makes or what is wrong. The file itself is never changed. The Test and Full
+    presets rewrite the run size settings in the editor (``RunService.apply_preset``)
+    and leave every other edit; the text can be edited again after. What the editor
+    holds is what starts.
+
+    Start starts the edited experiment as a new one (``RunService.start_new``): if the
+    target has an experiment of that name, the date and time are added to it. For a
+    cluster the dialog checks the target when it opens and when the target changes,
+    and keeps Start disabled until the check has no problems.
 
     Args:
         service: The Runs service.
@@ -512,46 +558,58 @@ class StartDialog:
         self.service = service
         self.targets = dict(targets)
         self.on_started = on_started
-        self.specs: dict[str, dict] = {}  # the specs that load, by path
-        self.report: Optional[dict] = None  # the check of the chosen cluster and spec
+        self.templates: dict[str, dict] = {}  # the experiment files, by path
+        self.record: Optional[dict] = None  # ``describe`` of the editor's text
+        self.report: Optional[dict] = None  # the check of the chosen cluster
         self.starting = False  # a start request is running: one at a time
         with ui.dialog() as self.dialog:
-            with ui.card().classes("w-[560px] max-w-full gap-3"):
+            with ui.card().classes("w-[760px] max-w-full gap-3"):
                 self.body = ui.column().classes("w-full gap-3")  # filled by ``show``
 
     async def show(self) -> None:
-        """Open the dialog with the specs as they are now."""
+        """Open the dialog with the experiment files as they are now."""
         records = await run.io_bound(self.service.spec_files)
-        self.specs = {str(r["path"]): r for r in records if not r["error"]}
+        self.templates = {str(r["path"]): r for r in records}
         self.body.clear()
         with self.body:
-            self._build([r for r in records if r["error"]])
+            self._build()
         self.dialog.open()
-        self._show_details()
+        self._template_changed()
         await self._check()
 
-    def _build(self, broken: list[dict]) -> None:
-        """The fields, made again each time the dialog opens, in the order the user
-        fills them."""
+    def _build(self) -> None:
+        """The fields, made again each time the dialog opens."""
         ui.label("Start an experiment").classes("text-h6")
-        self.spec = ui.select(
-            {path: spec["name"] for path, spec in self.specs.items()},
-            label="Experiment",
-            value=next(iter(self.specs), None),
-            on_change=self._spec_changed,
+        self.template = ui.select(
+            {path: Path(path).stem for path in self.templates},
+            label="Template (an experiment file; it is not changed)",
+            value=next(iter(self.templates), None),
+            on_change=self._template_changed,
         ).classes("w-full")
+        with ui.row().classes("w-full items-center gap-2"):
+            for preset, (label, icon, purpose) in PRESET_BUTTONS.items():
+                ui.button(
+                    label, icon=icon, on_click=lambda p=preset: self._apply_preset(p)
+                ).props("outline no-caps dense").tooltip(
+                    f"Overwrite name, seeds, days, budget, evaluation and resources "
+                    f"in the editor with {purpose}; other edits stay"
+                )
+        ui.label(
+            "Edit the experiment as JSON; the fields are those of an experiment file "
+            "(docs: Training experiments). What the editor holds is what starts. If "
+            "the target has an experiment of this name, the start adds the date and "
+            "time to it."
+        ).classes("mls-card-caption")
+        self.editor = (
+            ui.textarea(on_change=self._changed)
+            .classes("w-full mls-mono")
+            .props("outlined rows=18")
+        )
         self.details = ui.column().classes("w-full gap-1")
-        for record in broken:
-            ui.label(
-                f"{record['path'].name} cannot be used: {record['error']}"
-            ).classes("text-negative text-caption")
-        self.profile = ui.radio(
-            PROFILES, value="test", on_change=self._profile_changed
-        ).props("inline")
         self.target = ui.select(
             self.targets,
             label="Where to run",
-            value=self._default_target("test"),
+            value=LOCAL,
             on_change=self._check,
         ).classes("w-full")
         self.check_box = ui.column().classes("w-full gap-1")
@@ -561,53 +619,84 @@ class StartDialog:
                 "Start", icon="play_arrow", on_click=self._start
             ).props("unelevated no-caps")
 
-    def _default_target(self, profile: str) -> str:
+    def _default_target(self, preset: str) -> str:
         """A test runs on this PC; a full experiment on the first cluster, if any."""
         clusters = [name for name in self.targets if name != LOCAL]
-        return clusters[0] if profile == "full" and clusters else LOCAL
+        return clusters[0] if preset == "full" and clusters else LOCAL
 
-    # --- What the fields show --------------------------------------------------------
-    def _show_details(self) -> None:
-        """What the chosen spec is, and what the chosen profile makes of it."""
-        self.details.clear()
-        spec = self.specs.get(self.spec.value)
-        if spec is None:
+    # --- The experiment ---------------------------------------------------------------
+    def _template_changed(self) -> None:
+        """Put the chosen template's text in the editor."""
+        template = self.templates.get(self.template.value)
+        self.editor.set_value(template["text"] if template else "")
+        self._changed()
+
+    def _apply_preset(self, preset: str) -> None:
+        """Rewrite the editor's run size settings as the preset's, and pick the
+        target that suits it."""
+        template = self.templates.get(self.template.value)
+        if template is None:
             return
-        prefix = "test_" if self.profile.value == "test" else ""
+        try:
+            text = self.service.apply_preset(
+                self.editor.value or "",
+                preset,
+                template["text"],
+                Path(self.template.value).stem,
+            )
+        except ValueError as error:
+            _fail(f"Cannot apply the {preset} preset: {error}")
+            return
+        self.editor.set_value(text)  # checked again by ``_changed``
+        self.target.set_value(self._default_target(preset))
+
+    def _changed(self) -> None:
+        """Check the editor's text and show what it makes."""
+        template = self.templates.get(self.template.value)
+        if template is None:
+            self.record = None
+        else:
+            name = Path(self.template.value).stem  # as for a file without a name
+            self.record = self.service.describe(self.editor.value or "", name)
+        self._show_details()
+        self._update_start()
+
+    def _show_details(self) -> None:
+        """The runs the experiment makes, or what is wrong."""
+        self.details.clear()
+        record = self.record
+        if record is None:
+            return
         with self.details:
-            if spec["description"]:
-                ui.label(spec["description"]).classes("mls-card-caption")
+            if record["error"]:
+                with ui.row().classes("items-start gap-2 no-wrap"):
+                    ui.icon("error_outline", size="20px", color="negative")
+                    ui.label(record["error"]).classes("text-body2 text-negative")
+                return
             key_values(
                 {
-                    "Runs": f"{spec['runs']} (test: {spec['test_runs']})",
-                    "Budget per run": _budget(spec[f"{prefix}budget"]),
-                    "Cluster resources per run": _resources(spec[f"{prefix}resources"]),
+                    "Starts as": record["name"],
+                    "Runs": str(record["runs"]),
+                    "Budget per run": _budget(record["budget"]),
+                    "Cluster resources per run": _resources(record["resources"]),
                 }
             )
 
-    async def _spec_changed(self) -> None:
-        self._show_details()
-        await self._check()
-
-    def _profile_changed(self) -> None:
-        self.target.set_value(self._default_target(self.profile.value))
-        self._show_details()
-
     # --- Checking and starting -------------------------------------------------------
     async def _check(self) -> None:
-        """Check the chosen spec on the chosen cluster (this PC needs no check) and
-        show the report. Start stays disabled until it is ok."""
-        asked = (self.target.value, self.spec.value)
+        """Check the chosen cluster (this PC needs no check) and show the report; the
+        experiment itself is checked here on every edit. Start stays disabled until
+        the report is ok."""
+        asked = self.target.value
         self.report = None
         self.check_box.clear()
         self._update_start()
-        target, spec = asked
-        if target == LOCAL or spec not in self.specs:
+        if asked == LOCAL:
             return
         with self.check_box:
-            ui.label(f"Checking {self.targets[target]} ...").classes("mls-card-caption")
-        report = await _check(self.service, target, spec)
-        if asked != (self.target.value, self.spec.value):  # changed in the meantime
+            ui.label(f"Checking {self.targets[asked]} ...").classes("mls-card-caption")
+        report = await _check(self.service, asked, None)
+        if asked != self.target.value:  # changed in the meantime
             return
         self.report = report
         self.check_box.clear()
@@ -619,20 +708,21 @@ class StartDialog:
         self._update_start()
 
     def _update_start(self) -> None:
-        """Start needs a spec, for a cluster a report that is ok, and no start that
-        is still running."""
-        ready = self.spec.value in self.specs and (
+        """Start needs an experiment that loads, for a cluster a report that is ok,
+        and no start that is still running."""
+        ready = bool(self.record and self.record["experiment"]) and (
             self.target.value == LOCAL or bool(self.report and self.report["ok"])
         )
         self.start.set_enabled(ready and not self.starting)
 
     async def _start(self) -> None:
         target, label = self.target.value, self.targets[self.target.value]
+        experiment = self.record["experiment"]
         self.starting = True
         self._update_start()
         try:
             name = await run.io_bound(
-                self.service.start, target, self.spec.value, self.profile.value
+                self.service.start_new, target, experiment, "full"
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.starting = False

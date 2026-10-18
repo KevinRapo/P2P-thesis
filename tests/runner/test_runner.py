@@ -163,6 +163,14 @@ def test_resolve_refuses_a_scenario_file_that_is_no_scenario(
         Experiment.from_dict(spec(scenario=[1]), "x")
 
 
+def test_dated_adds_the_date_and_time_to_the_name():
+    experiment = Experiment.from_dict(spec(), "x")
+    dated = experiment.dated(datetime(2026, 10, 18, 14, 32, 5))
+    assert dated.name == "x-20261018-143205"
+    assert dated.test_version().name == "x-20261018-143205--test"
+    assert experiment.name == "x" and dated.budget == experiment.budget
+
+
 def test_heldout_seeds_default_to_one_per_test_day():
     experiment = Experiment.from_dict(spec(), "x")
     assert experiment.heldout_seed_list() == [2000, 2001]

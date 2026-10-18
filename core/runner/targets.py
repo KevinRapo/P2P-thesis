@@ -11,6 +11,8 @@ or where the runs happen:
 
     check(spec)                whether the target is ready, as one report (see below)
     start(spec, profile)       check, then queue an experiment; returns its name
+    start_new(spec, profile)   the same, under a dated name if the name is taken
+    restart(experiment)        start an experiment again from the inputs it saved
     overview(experiment)       the experiments there, each with its summary and runs
     runs(experiment)           the runs of one experiment
     stop(experiment, run)      stop an experiment or one run
@@ -46,6 +48,7 @@ import shutil
 import subprocess
 import tomllib
 from abc import ABC, abstractmethod
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -119,6 +122,32 @@ class Target(ABC):
     @abstractmethod
     def _start(self, spec: Spec, profile: str) -> str:
         """Queue and start, once ``check`` has passed."""
+
+    def start_new(
+        self, spec: Spec, profile: str = "full", allow_uncommitted: bool = False
+    ) -> str:
+        """Start ``spec`` as a new experiment, never resuming one: if an experiment
+        here already has its name (in ``profile``), it starts under
+        ``Experiment.dated`` (``<name>-<date>-<time>``). Returns the name it started
+        under; otherwise as ``start``."""
+        experiment = spec if isinstance(spec, Experiment) else Experiment.load(spec)
+        taken = {entry["name"] for entry in self.overview()}
+        if experiment.with_profile(profile).name in taken:
+            experiment = experiment.dated(datetime.now())
+        return self.start(experiment, profile, allow_uncommitted)
+
+    def restart(self, experiment: str, allow_uncommitted: bool = False) -> str:
+        """Start an experiment here again from the inputs saved in its folder
+        (``experiment.json``): its completed runs stay, failed, stopped and lost runs
+        train again from scratch. Returns its name."""
+        (entry,) = self.overview(experiment)
+        if entry["spec"] is None:
+            raise TargetError(
+                f"'{experiment}' has no experiment.json: it was not started by the "
+                "runner, so there are no saved inputs to start it from"
+            )
+        saved = Experiment.from_dict(entry["spec"], experiment, check_files=False)
+        return self.start(saved, "full", allow_uncommitted)
 
     @abstractmethod
     def overview(self, experiment: Optional[str] = None) -> list[dict]:

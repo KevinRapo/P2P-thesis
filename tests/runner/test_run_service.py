@@ -17,7 +17,7 @@ import pytest
 from core.runner import targets
 from core.runner.registry import RunState
 from core.runner.spec import REPO, Experiment
-from studio.adapters.run_service import RunService
+from studio.adapters.run_service import PRESET_KEYS, RunService, apply_preset
 
 
 def make_run(exp_dir, name, **status):
@@ -54,6 +54,14 @@ class FakeTarget:
     def start(self, spec_path, profile="full"):
         self.calls.append(("start", spec_path, profile))
         return "x--test" if profile == "test" else "x"
+
+    def start_new(self, spec, profile="full"):
+        self.calls.append(("start_new", spec, profile))
+        return "x-20261018-120000"
+
+    def restart(self, experiment):
+        self.calls.append(("restart", experiment))
+        return experiment
 
     def stop(self, experiment, run=None):
         self.calls.append(("stop", experiment, run))
@@ -253,3 +261,78 @@ def test_a_spec_that_does_not_load_says_why(tmp_path):
         assert record["runs"] is None and record["resources"] is None
         assert record["name"] == record["path"].stem
     assert RunService(specs=tmp_path / "nowhere").spec_files() == []
+
+
+def test_start_new_and_restart_go_to_the_target_asked(fakes):
+    service = RunService()
+    experiment = Experiment.load(REPO / "experiments" / "smoke.json")
+    assert service.start_new("taltech", experiment, "test") == "x-20261018-120000"
+    assert service.restart("local", "x") == "x"
+    assert fakes["taltech"].calls == [("start_new", experiment, "test")]
+    assert fakes["local"].calls == [("restart", "x")]
+
+
+# --------------------------------------------------------------------------------------
+# The experiment text edited in the start dialog
+# --------------------------------------------------------------------------------------
+def test_describe_turns_edited_text_into_the_experiment():
+    (smoke,) = [r for r in RunService().spec_files() if r["name"] == "smoke"]
+    assert smoke["text"] == smoke["path"].read_text(encoding="utf-8")
+    assert smoke["experiment"] == Experiment.load(smoke["path"])
+    data = json.loads(smoke["text"]) | {"name": "smoke_more", "seeds": [0, 1, 2]}
+    record = RunService().describe(json.dumps(data))
+    assert record["error"] is None and record["runs"] == 3
+    assert record["experiment"].name == "smoke_more"
+    unnamed = RunService().describe(smoke["text"], "smoke")  # the file has no name
+    assert unnamed["experiment"] == smoke["experiment"]
+    for change, message in (
+        ({"seeds": []}, "seeds"),
+        ({"colour": "red"}, "colour"),
+        ({"scenario": "scenarios/missing.json"}, "not found"),
+    ):
+        record = RunService().describe(json.dumps(json.loads(smoke["text"]) | change))
+        assert message in record["error"] and record["experiment"] is None
+    for text in ("{half", "", "[1]"):
+        record = RunService().describe(text)
+        assert record["error"] and record["experiment"] is None
+
+
+def test_the_presets_rewrite_the_run_size_and_keep_every_other_edit():
+    for record in RunService().spec_files():
+        name, template = record["path"].stem, record["text"]
+        edited = json.loads(template)
+        edited["training"] = {"ppo": {"lr": 0.123}}  # an edit the presets keep
+        edited["seeds"] = [7, 8, 9]  # a run size setting: a preset overwrites it
+        text = json.dumps(edited)
+        test_text = apply_preset(text, "test", template, name)
+        test = Experiment.from_dict(json.loads(test_text), name)
+        expected = Experiment.from_dict(
+            json.loads(template) | {"training": edited["training"]}, name
+        ).test_version()
+        assert test == expected, record["path"]  # the template's test version
+        assert apply_preset(test_text, "test", template, name) == test_text  # twice
+        full_text = apply_preset(test_text, "full", template, name)
+        assert json.loads(full_text) == json.loads(template) | {
+            "training": edited["training"]
+        }
+
+
+def test_preset_keys_are_the_settings_the_test_version_changes():
+    for record in RunService().spec_files():
+        full = record["experiment"].to_dict()
+        test = record["experiment"].test_version().to_dict()
+        changed = {key for key in full if full[key] != test[key]} - {"test"}
+        assert changed <= set(PRESET_KEYS), record["path"]
+
+
+def test_a_preset_on_text_that_is_no_experiment_says_why():
+    template = (REPO / "experiments" / "smoke.json").read_text(encoding="utf-8")
+    for text, message in (("{half", "not valid JSON"), ("[1]", "one JSON object")):
+        with pytest.raises(ValueError, match=message):
+            apply_preset(text, "test", template, "smoke")
+    with pytest.raises(ValueError, match="unknown preset"):
+        apply_preset(template, "tiny", template, "smoke")
+    bad = json.dumps(json.loads(template) | {"colour": "red"})
+    with pytest.raises(ValueError, match="colour"):
+        apply_preset(bad, "test", template, "smoke")
+    assert "colour" in apply_preset(bad, "full", template, "smoke")  # nothing to check

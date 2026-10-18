@@ -70,7 +70,7 @@ import copy
 import importlib
 import json
 from dataclasses import asdict, dataclass, field, replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -417,6 +417,11 @@ class Experiment:
         if not isinstance(data, dict):
             raise SpecError(f"{path}: a scenario file holds one JSON object")
         return replace(copy.deepcopy(self), scenario=data)
+
+    def dated(self, when: datetime) -> "Experiment":
+        """This experiment named ``<name>-<YYYYMMDD>-<HHMMSS>`` at ``when``: a new
+        name for another start of the same experiment file."""
+        return replace(copy.deepcopy(self), name=f"{self.name}-{when:%Y%m%d-%H%M%S}")
 
     def with_profile(self, profile: str) -> "Experiment":
         """The experiment as it runs in a profile: ``"full"`` (as written) or

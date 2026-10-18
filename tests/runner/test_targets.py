@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import io
+import re
 import json
 import os
 import subprocess
@@ -237,6 +238,57 @@ def test_local_target_stop_marks_queued_runs(populated):
     assert [r.state for r in target.runs("new")] == ["stopped", "stopped"]
     with pytest.raises(FileNotFoundError):
         target.stop("missing")
+
+
+SMALL = {
+    "scenario": {"s": 1},
+    "algorithms": ["ppo"],
+    "paradigms": ["dtde"],
+    "seeds": [0],
+    "budget": 100,
+}
+
+
+def record_starts(monkeypatch) -> list[tuple]:
+    """Replace starting on this PC with a recorder: ``(experiment, profile)`` per
+    start, which returns the name it would start under."""
+    started = []
+
+    def fake_start(self, spec, profile):
+        started.append((spec, profile))
+        return spec.with_profile(profile).name
+
+    monkeypatch.setattr(targets.LocalTarget, "_start", fake_start)
+    return started
+
+
+def test_start_new_adds_the_date_and_time_to_a_name_taken(populated, monkeypatch):
+    started = record_starts(monkeypatch)
+    target = targets.LocalTarget()
+    fresh = Experiment.from_dict(SMALL, "fresh")
+    assert target.start_new(fresh) == "fresh"  # no experiment of that name
+    taken = Experiment.from_dict(SMALL, "new")  # ``new`` is in ``populated``
+    name = target.start_new(taken)
+    assert re.fullmatch(r"new-\d{8}-\d{6}", name)
+    assert started[-1][0].name == name and started[-1][0].budget == 100
+    assert target.start_new(Experiment.from_dict(SMALL, "new"), "test") == (
+        "new--test"  # the test version's name is free
+    )
+
+
+def test_restart_starts_from_the_saved_settings(populated, monkeypatch):
+    started = record_starts(monkeypatch)
+    saved = Experiment.from_dict(SMALL, "again--test").to_dict()
+    write(populated / "again--test" / "experiment.json", saved)
+    write(populated / "again--test" / "a" / "status.json", {"state": "failed"})
+    target = targets.LocalTarget()
+    assert target.restart("again--test") == "again--test"
+    ((experiment, profile),) = started
+    assert experiment.to_dict() == saved and profile == "full"  # not tested twice
+    with pytest.raises(targets.TargetError, match="no experiment.json"):
+        target.restart("old")
+    with pytest.raises(FileNotFoundError):
+        target.restart("missing")
 
 
 def test_local_target_start_passes_the_profile(populated, monkeypatch):

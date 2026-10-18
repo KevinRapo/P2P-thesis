@@ -3,8 +3,10 @@
 A thin wrapper over ``core.runner``. An experiment runs on a **target** (``targets.py``,
 named in ``hpc/targets.toml``): this PC, or a cluster driven over SSH. The service holds
 one target object per name for the life of the Studio (a cluster's target keeps its SSH
-connection open) and passes the calls on: ``overview``, ``check``, ``start``, ``stop``,
-``sync``. The runner's records (the target's entries and report) are returned as they
+connection open) and passes the calls on: ``overview``, ``check``, ``start``,
+``start_new``, ``restart``, ``stop``, ``sync``. The start dialog edits an experiment
+file's text; ``apply_preset`` rewrites the text as the test or the full experiment,
+and ``describe`` turns it into the ``Experiment`` to start. The runner's records (the target's entries and report) are returned as they
 are; every method is synchronous and may take seconds on a cluster, so the pages call
 them through ``run.io_bound``.
 """
@@ -16,7 +18,26 @@ from pathlib import Path
 from typing import Optional
 
 from core.runner import targets
-from core.runner.spec import REPO, Experiment
+import json
+
+from core.runner.spec import REPO, Experiment, SpecError, resolve
+
+# The settings a preset of the start dialog replaces: those the test version changes
+# (``Experiment.test_version``); the test block itself stays, so it can be edited.
+PRESET_KEYS = (
+    "name",
+    "description",
+    "seeds",
+    "train_days",
+    "test_days",
+    "budget",
+    "eval_every",
+    "eval_points",
+    "eval_episodes",
+    "heldout_seeds",
+    "resources",
+)
+PRESETS = ("test", "full")
 
 
 # --------------------------------------------------------------------------------------
@@ -32,7 +53,9 @@ class RunService:
     """
 
     def __init__(
-        self, root: Optional[Path] = None, specs: Optional[Path] = None
+        self,
+        root: Optional[Path] = None,
+        specs: Optional[Path] = None,
     ) -> None:
         self._root = Path(root) if root else None
         self._specs = Path(specs) if specs else REPO / "experiments"
@@ -85,6 +108,16 @@ class RunService:
         raises ``TargetError`` with the problems if the target is not ready."""
         return self.target(target).start(spec, profile)
 
+    def start_new(self, target: str, spec: targets.Spec, profile: str = "full") -> str:
+        """Start ``spec`` as a new experiment (``Target.start_new``: a dated name if
+        its name is taken there); returns the name it started under."""
+        return self.target(target).start_new(spec, profile)
+
+    def restart(self, target: str, experiment: str) -> str:
+        """Start an experiment again from the inputs saved in its folder
+        (``Target.restart``): its failed, stopped and lost runs train again."""
+        return self.target(target).restart(experiment)
+
     def stop(self, target: str, experiment: str, run: Optional[str] = None) -> dict:
         """Stop a whole experiment, or one run of it (see ``Target.stop``). Kills
         processes or cancels SLURM tasks, so it can take a few seconds."""
@@ -104,37 +137,101 @@ class RunService:
         shows. Each: ``path``, ``name``, ``description``, ``runs`` (of the full
         experiment) and ``test_runs``, ``budget`` and ``test_budget`` (environment steps
         per run, an int or one per algorithm), ``resources`` and ``test_resources``
-        (cpus, mem_gb and minutes per run on a cluster) and ``error``: why the file does
-        not load (the other fields are then None)."""
+        (cpus, mem_gb and minutes per run on a cluster), ``text`` (the file as it is
+        written), ``experiment`` (the ``Experiment``) and ``error``: why the file does
+        not load (the other fields but ``text`` are then None)."""
         found = []
         for path in sorted(self._specs.glob("*.json")):
-            record: dict = {
-                "path": path,
-                "name": path.stem,
-                "description": None,
-                "runs": None,
-                "test_runs": None,
-                "budget": None,
-                "test_budget": None,
-                "resources": None,
-                "test_resources": None,
-                "error": None,
-            }
-            try:
-                experiment = Experiment.load(path)
-                test = experiment.test_version()
-            except (OSError, ValueError) as error:  # a SpecError is a ValueError
-                record["error"] = str(error)
-            else:
-                record |= {
-                    "name": experiment.name,
-                    "description": experiment.description,
-                    "runs": len(experiment.expand()),
-                    "test_runs": len(test.expand()),
-                    "budget": experiment.budget,
-                    "test_budget": test.budget,
-                    "resources": experiment.run_resources,
-                    "test_resources": test.run_resources,
-                }
-            found.append(record)
+            text = path.read_text(encoding="utf-8")
+            record = self.describe(text, path.stem)
+            if record["error"]:
+                record["name"] = path.stem
+            found.append({"path": path, "text": text} | record)
         return found
+
+    def apply_preset(
+        self, text: str, preset: str, template_text: str, default_name: str
+    ) -> str:
+        """The editor's text with a preset applied (``apply_preset``)."""
+        return apply_preset(text, preset, template_text, default_name)
+
+    def describe(self, text: str, default_name: str = "experiment") -> dict:
+        """An experiment file's text, as edited in the start dialog: the record of
+        ``spec_files`` (without ``path`` and ``text``), with ``experiment``, the
+        ``Experiment`` to start (None, and ``error`` says why, if the text is not an
+        experiment or its scenario cannot be read, as a start would read it).
+        ``default_name`` is the name when the text gives none."""
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as error:
+            return _record(None, f"not valid JSON ({error})")
+        try:
+            experiment = Experiment.from_dict(data, default_name)
+            resolve(experiment)  # reads the scenario, as the start will
+        except (OSError, SpecError) as error:
+            return _record(None, str(error))
+        return _record(experiment)
+
+
+def apply_preset(
+    text: str, preset: str, template_text: str, default_name: str = "experiment"
+) -> str:
+    """An experiment text with a preset applied to the settings of ``PRESET_KEYS``:
+    ``"full"`` gives them the template's values (one the template does not give is
+    removed, so it has its default), ``"test"`` the values of the template's test
+    version (``Experiment.test_version``, from the experiment with the template's
+    values, so applying it twice changes nothing). Every other setting keeps its
+    edit and its place. ``default_name`` is the name when the template gives none.
+    ``ValueError`` says why the text or the template is not an experiment."""
+    if preset not in PRESETS:
+        raise ValueError(f"unknown preset {preset!r}; choose from {list(PRESETS)}")
+    data, template = _json_object(text), _json_object(template_text)
+    values = {key: template.get(key) for key in PRESET_KEYS}
+    if preset == "test":
+        full = _replaced(data, values)
+        test = Experiment.from_dict(full, default_name, check_files=False)
+        test_data = test.test_version().to_dict()
+        values = {key: test_data[key] for key in PRESET_KEYS}
+    return json.dumps(_replaced(data, values), indent=2)
+
+
+def _json_object(text: str) -> dict:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise ValueError(f"not valid JSON ({error})") from None
+    if not isinstance(data, dict):
+        raise SpecError("an experiment file holds one JSON object")
+    return data
+
+
+def _replaced(data: dict, values: dict) -> dict:
+    """``data`` with the settings of ``values`` replaced in place, added at the end if
+    new, and removed where the value is None (the default)."""
+    found = {key: values.get(key, value) for key, value in data.items()}
+    found |= {key: value for key, value in values.items() if key not in data}
+    return {key: value for key, value in found.items() if value is not None}
+
+
+def _record(experiment: Optional[Experiment], error: Optional[str] = None) -> dict:
+    """What the start dialog shows of an experiment (see ``spec_files``)."""
+    if experiment is None:
+        keys = ("name", "description", "runs", "test_runs", "budget", "test_budget")
+        keys += ("resources", "test_resources", "experiment")
+        return dict.fromkeys(keys) | {"error": error}
+    try:
+        test = experiment.test_version()
+    except ValueError as problem:  # the test block is checked on loading: unlikely
+        return _record(None, str(problem))
+    return {
+        "name": experiment.name,
+        "description": experiment.description,
+        "runs": len(experiment.expand()),
+        "test_runs": len(test.expand()),
+        "budget": experiment.budget,
+        "test_budget": test.budget,
+        "resources": experiment.run_resources,
+        "test_resources": test.run_resources,
+        "experiment": experiment,
+        "error": None,
+    }

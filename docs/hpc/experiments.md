@@ -62,11 +62,17 @@ name.
 
 ```python
 from core.runner import targets
+from core.runner.spec import Experiment
 
 target = targets.get("taltech")
 try:
     print(target.check("experiments/smoke.json"))
     # name = target.start("experiments/smoke.json", profile="test")
+    # A changed copy, as the Studio's start dialog makes it; a taken name is dated:
+    # experiment = Experiment.load("experiments/smoke.json")
+    # experiment.seeds = [0, 1, 2]
+    # name = target.start_new(experiment, profile="test")
+    # target.restart(name)  # again from its saved settings
     # print(target.runs(name))
     # folder = target.sync(name)
 finally:
@@ -78,9 +84,28 @@ finally:
 The Studio (`python run_studio.py`, page **Runs**) has a tab per target. This PC is
 read every 2 s, the cluster every 20 s while its tab is shown. The cluster's tab
 shows the `check` line with a Check button, and each experiment has a *Sync
-results* button. *Start experiment* picks a spec, the profile and the target; for
-the cluster it checks the spec and keeps Start disabled while there are problems.
-When the cluster cannot be read, the page keeps the last data with its time.
+results* button. When the cluster cannot be read, the page keeps the last data with
+its time.
+
+*Start experiment* takes a spec from `experiments/` as a **template** and shows its
+JSON in an editor: change anything (the fields are those of [an experiment
+file](../../core/runner/spec.py)). Every edit is checked as a start would check it,
+and the dialog shows the runs it makes, or what is wrong. The template file is
+never changed. Two presets rewrite the editor's run size settings (name,
+description, seeds, train and test days, budget, evaluation, held-out seeds,
+resources) and leave every other edit: **Test preset** makes them the template's
+[test version](resources.md#full-and-test-profiles) (`<name>--test`) and picks this
+PC, **Full preset** puts back the template's values and picks the cluster. The
+text can be edited again after a preset; what the editor holds is what starts.
+Start sends the edited experiment to the chosen target, always as a **new**
+experiment: if the target already has one of that name, the
+date and time are added (`<name>-20261018-143200`), so one template can start any
+number of experiments, each with its own saved settings. For the cluster the
+dialog checks the target and keeps Start disabled while there are problems.
+
+**Restart failed runs** (on an experiment with failed, stopped or lost runs and none
+queued or running) starts the experiment again from the settings saved in its
+folder, whatever the template says now: its completed runs stay.
 
 ## Files
 
