@@ -36,13 +36,13 @@ the notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 | `core/market/` | The MARLEM market: orders, matching, pricing, DSO, agents, profiles, and `LocalEnergyMarket` (`lem.py`), the one class that runs a market step and its power flow |
 | `core/env/` | `MarketEnv`: the market as an RLlib multi-agent environment |
 | `core/rl/` | The RL layer: the three paradigms on RLlib's algorithms (grouping, CTDE modules, configuration, policy, training, benchmark); `core/rl/envs/` holds the test environments (probes, toy, spread, shapes) |
-| `core/runner/` | Experiments: `spec.py` (the JSON spec, its grid of runs, resources, the test profile), `launch.py` (a detached worker and its job processes, `stop`), `slurm.py` (a SLURM job array per experiment, submitit; on the cluster), `targets.py` (where an experiment runs: `local` or a cluster, `hpc/targets.toml`), `remote.py` (the cluster over SSH from this PC, asyncssh), `registry.py` (read-only view of `runs/`), `__main__.py` (`python -m core.runner start / status / stop / sync / check [--target]`). The one place that imports both `core.env` and `core.rl` |
+| `core/runner/` | Experiments: `spec.py` (the JSON spec, its grid of runs, resources, the test profile), `launch.py` (a detached worker and its job processes, `stop`), `slurm.py` (a SLURM job array per experiment, submitit; on the cluster), `targets.py` (where an experiment runs: `local` or a cluster, `hpc/targets.toml`), `remote.py` (the cluster over SSH from this PC, asyncssh), `registry.py` (read-only view of `runs/`), `results.py` (the saved results of runs, to compare), `__main__.py` (`python -m core.runner start / status / stop / sync / check [--target]`). The one place that imports both `core.env` and `core.rl` |
 | `experiments/` | Experiment specs (JSON, tracked): algorithms x paradigms x seeds x variants, budgets, train and test days |
 | `scenarios/` | Saved scenarios (JSON, the Studio's format): the market notebook, the tests and the Studio's Open dialog read them |
 | `notebooks/` | Jupyter notebooks that call `core/` directly: `market/` validates the market, `rl/` validates the RL layer |
 | `tests/` | `market/` (market environment, power flow, Studio against core), `rl/` (probe environments, CTDE structure) and `runner/` (experiment specs, run states) |
 | `runs/` | Training runs, checkpoints and benchmark results (git-ignored); `runs/<experiment>/` is where the runner keeps its files, the one source of truth for CLI and Studio |
-| `studio/` | The NiceGUI Studio: `pages/` (inspect, grid, market, summary, step, runs, settings), `components/`, `adapters/`, layout, theme |
+| `studio/` | The NiceGUI Studio: `pages/` (inspect, grid, market, summary, step, runs, results, settings), `components/`, `adapters/`, layout, theme |
 | `studio/adapters/` | What the pages call: a thin layer over `core/` (caching, background threads, the current scenario, the market being played, the experiments in `runs/`, workspace paths) |
 | `docs/` | The documentation, Markdown (see `docs/about.md`) |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |

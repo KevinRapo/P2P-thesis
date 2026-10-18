@@ -34,7 +34,7 @@ PRESET_KEYS = (
     "eval_every",
     "eval_points",
     "eval_episodes",
-    "heldout_seeds",
+    "trace_days",
     "resources",
 )
 PRESETS = ("test", "full")

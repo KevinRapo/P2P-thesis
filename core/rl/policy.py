@@ -12,12 +12,28 @@ same way.
   the raw rewards; per-agent returns are reported next to it.
 - Fixes I-64 and I-72 (the capability): random, constant and untrained policies
   on the same seeds, and evaluation seeds that training never uses.
+
+``evaluation`` keeps every episode, not only the means: one row per policy, episode
+and agent, one row per policy and episode, and, for the episodes asked for, one row
+per step. It reads the environment's infos by this layout (any environment may
+follow it; one that does not still gets its returns):
+
+    infos[agent] = {
+        <name>: amount over the step, of this agent    summed over the episode
+        "state": {<name>: value at the step}           in the step rows only
+        "shared": {<name>: amount over the step}       the same for every agent:
+                                                       summed into the episode row
+        "shared_state": {<name>: value at the step}    in the step rows only
+    }
+
+The infos of ``reset`` (e.g. the market's ``day``) are copied into every row of the
+episode.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -31,6 +47,8 @@ from core.rl.config import Paradigm
 from core.rl.grouping import GROUP, central_obs, join, join_spaces, split
 
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
+# The nested parts of an agent's infos (see the module).
+STATE, SHARED, SHARED_STATE = "state", "shared", "shared_state"
 
 
 # --------------------------------------------------------------------------------------
@@ -201,12 +219,15 @@ def rollout(
     act: ActFn,
     seeds: list[int],
     max_steps: int = 100_000,
+    options: Optional[Sequence[Optional[dict]]] = None,
 ) -> list[Episode]:
-    """Run one episode per seed with ``act`` in the multi-agent environment."""
+    """Run one episode per seed with ``act`` in the multi-agent environment.
+    ``options`` are the ``reset`` options of each episode (e.g. the market's
+    ``{"day": ...}``), one per seed."""
     env = env_class(env_config)
     episodes = []
-    for seed in seeds:
-        obs, infos = env.reset(seed=int(seed))
+    for seed, option in zip(seeds, options or [None] * len(seeds)):
+        obs, infos = env.reset(seed=int(seed), options=option)
         episode = Episode(seed=int(seed), infos=[infos])
         for _ in range(max_steps):
             obs, rewards, terminateds, truncateds, infos = env.step(act(obs))
@@ -231,6 +252,63 @@ def summarize(episodes: list[Episode]) -> dict[str, float]:
     }
 
 
+@dataclass
+class Evaluation:
+    """Several policies scored on the same episodes (``evaluation``).
+
+    Attributes:
+        summary: One row per policy (``summarize``).
+        agents: One row per policy, episode and agent: its return and the sums of
+            its infos' amounts.
+        episodes: One row per policy and episode: the team return and the sums of
+            the shared amounts.
+        trace_agents: For the traced episodes, one row per policy, episode, step
+            and agent: reward, amounts and state (None if none was traced).
+        trace_steps: For the traced episodes, one row per policy, episode and step:
+            the team reward, shared amounts and shared state.
+    """
+
+    summary: pd.DataFrame
+    agents: pd.DataFrame
+    episodes: pd.DataFrame
+    trace_agents: Optional[pd.DataFrame] = None
+    trace_steps: Optional[pd.DataFrame] = None
+
+
+def evaluation(
+    env_class: type,
+    env_config: dict,
+    policies: dict[str, ActFn],
+    seeds: list[int],
+    options: Optional[Sequence[Optional[dict]]] = None,
+    trace: Sequence[int] = (),
+) -> Evaluation:
+    """Score several policies on the same episodes (one per seed, with its
+    ``reset`` options), keeping every episode; the episodes at the indices in
+    ``trace`` are also kept step by step."""
+    summary, agents, episodes, trace_agents, trace_steps = [], [], [], [], []
+    for name, act in policies.items():
+        played = rollout(env_class, env_config, act, seeds, options=options)
+        summary.append({"policy": name, **summarize(played)})
+        for index, episode in enumerate(played):
+            head = {"policy": name, "episode": index, "seed": episode.seed}
+            head |= _reset_fields(episode)
+            episodes.append(head | _episode_row(episode))
+            agents.extend(head | row for row in _agent_rows(episode))
+            if index in trace:
+                steps, per_agent = _trace_rows(episode)
+                trace_steps.extend(head | row for row in steps)
+                trace_agents.extend(head | row for row in per_agent)
+    traced = bool(trace_steps)
+    return Evaluation(
+        pd.DataFrame(summary),
+        pd.DataFrame(agents),
+        pd.DataFrame(episodes),
+        pd.DataFrame(trace_agents) if traced else None,
+        pd.DataFrame(trace_steps) if traced else None,
+    )
+
+
 def evaluate(
     env_class: type,
     env_config: dict,
@@ -238,11 +316,68 @@ def evaluate(
     seeds: list[int],
 ) -> pd.DataFrame:
     """Score several policies on the same seeds; one row per policy."""
+    return evaluation(env_class, env_config, policies, seeds).summary
+
+
+def _reset_fields(episode: Episode) -> dict[str, Any]:
+    """The plain values the first agent's ``reset`` infos give (e.g. ``day``)."""
+    first = next(iter(episode.infos[0].values()), {}) if episode.infos else {}
+    return {k: v for k, v in first.items() if isinstance(v, (str, int, float))}
+
+
+def _amounts(info: dict) -> dict[str, float]:
+    """The numbers at the top of an agent's infos (the nested parts left out)."""
+    return {
+        k: float(v)
+        for k, v in info.items()
+        if isinstance(v, (int, float)) and not isinstance(v, bool)
+    }
+
+
+def _step_infos(episode: Episode) -> list[dict]:
+    """Each step's infos (those of ``reset`` left out)."""
+    return episode.infos[1:]
+
+
+def _agent_rows(episode: Episode) -> list[dict[str, Any]]:
+    returns = episode.returns()
     rows = []
-    for name, act in policies.items():
-        row = summarize(rollout(env_class, env_config, act, seeds))
-        rows.append({"policy": name, **row})
-    return pd.DataFrame(rows)
+    for agent, value in returns.items():
+        sums: dict[str, float] = {}
+        for infos in _step_infos(episode):
+            for k, v in _amounts(infos.get(agent, {})).items():
+                sums[k] = sums.get(k, 0.0) + v
+        rows.append({"agent": agent, "return": value, **sums})
+    return rows
+
+
+def _episode_row(episode: Episode) -> dict[str, Any]:
+    sums: dict[str, float] = {}
+    for infos in _step_infos(episode):
+        first = next(iter(infos.values()), {})
+        for k, v in _amounts(first.get(SHARED, {})).items():
+            sums[k] = sums.get(k, 0.0) + v
+    return {"team_return": episode.team_return(), **sums}
+
+
+def _trace_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
+    """The rows of one episode step by step: ``(steps, agents)``."""
+    steps, agents = [], []
+    for step, (rewards, infos) in enumerate(zip(episode.rewards, _step_infos(episode))):
+        first = next(iter(infos.values()), {})
+        steps.append(
+            {"step": step, "team_reward": float(sum(rewards.values()))}
+            | _amounts(first.get(SHARED, {}))
+            | _amounts(first.get(SHARED_STATE, {}))
+        )
+        for agent, reward in rewards.items():
+            info = infos.get(agent, {})
+            agents.append(
+                {"step": step, "agent": agent, "reward": reward}
+                | _amounts(info)
+                | _amounts(info.get(STATE, {}))
+            )
+    return steps, agents
 
 
 def evaluation_seeds(n: int, start: int = 1_000_000) -> list[int]:

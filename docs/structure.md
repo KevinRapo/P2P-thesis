@@ -60,7 +60,7 @@ flowchart TD
   renvs --> r2["probes.py · toy.py · spread.py · shapes.py"]:::done
 
   core --> runnercore["runner/"]
-  runnercore --> ru1["spec.py · launch.py · registry.py · slurm.py<br/>targets.py · remote.py · __main__.py"]:::done
+  runnercore --> ru1["spec.py · launch.py · registry.py · results.py<br/>slurm.py · targets.py · remote.py · __main__.py"]:::done
 
   root --> exps["experiments/"]
   exps --> ex1["smoke.json · sac_alpha.json<br/>market_3x3.json"]:::data
@@ -81,15 +81,15 @@ flowchart TD
   notebooks --> nr["rl/"]
   nr --> nr1["probe_paradigms · probe_playground<br/>simple_spread · benchmark_speed"]:::done
   notebooks --> nu["runner/"]
-  nu --> nu1["targets_demo.ipynb"]:::done
+  nu --> nu1["targets_demo.ipynb · results.ipynb"]:::done
 
   root --> tests["tests/"]
   tests --> tm["market/"]
   tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py · test_fees_timing.py"]:::done
   tests --> tr["rl/"]
-  tr --> x2["test_0 to test_7 · probe_helpers.py · conftest.py"]:::done
+  tr --> x2["test_0 to test_7 · test_training_metrics.py<br/>test_evaluation_tables.py · probe_helpers.py · conftest.py"]:::done
   tests --> tru["runner/"]
-  tru --> x3["test_runner.py · test_run_service.py<br/>test_slurm.py · test_targets.py · test_remote.py"]:::done
+  tru --> x3["test_runner.py · test_run_service.py · test_results.py<br/>test_results_service.py · test_slurm.py · test_targets.py · test_remote.py"]:::done
 
   root --> runs["runs/ (local results, not in git)"]:::data
 
@@ -97,13 +97,13 @@ flowchart TD
   studio --> t1["app.py · layout.py · navigation.py<br/>state.py · theme.py · static/"]:::done
   studio --> pages["pages/"]
   pages --> pg1["inspect.py · settings.py"]:::done
-  pages --> pg2["grid_participants.py · market_dso.py<br/>summary.py · step.py · runs.py"]:::done
+  pages --> pg2["grid_participants.py · market_dso.py<br/>summary.py · step.py · runs.py · results.py"]:::done
   studio --> comps["components/"]
   comps --> k1["network.py · profiles.py · charts.py · cards.py<br/>tables.py · labels.py · day_profiles.py"]:::done
   studio --> adapters["adapters/"]
   adapters --> v1["container.py · workspace.py · models.py"]:::done
   adapters --> v2["grid_catalog_service.py · profile_service.py<br/>profile_classes.py"]:::done
-  adapters --> v3["scenario_service.py · market_service.py<br/>run_service.py"]:::done
+  adapters --> v3["scenario_service.py · market_service.py<br/>run_service.py · results_service.py"]:::done
 
   classDef done fill:#dcfce7,stroke:#15803d,color:#111
   classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
@@ -188,7 +188,7 @@ original code and its annotations live on the `clean` branch.
 | [`grouping.py`](../core/rl/grouping.py) | `GroupedEnv` (CTCE: joint observations and actions, summed reward); `CentralStateEnv` (CTDE: own observation plus the global state, own reward) | done |
 | [`ctde_modules.py`](../core/rl/ctde_modules.py) | CTDE: one RLlib module per agent, actor on its own observation, critic on the global state | done |
 | [`config.py`](../core/rl/config.py) | Algorithms, paradigms and configuration (`build_config`, `SETTINGS`; modules declared in agent order); `build_algo` builds the algorithm with its replay buffer seeded too | done |
-| [`policy.py`](../core/rl/policy.py) | Policy actions, baselines, rollout and evaluation | done |
+| [`policy.py`](../core/rl/policy.py) | Policy actions, baselines, rollout (with reset options, e.g. the day) and evaluation: `evaluation` keeps every episode per agent and per episode, and chosen episodes step by step, read from the infos' layout (amounts, `state`, `shared`, `shared_state`); `evaluate` its summary | done |
 | [`train.py`](../core/rl/train.py) | `train(Run(...))`: training budgets, metrics (idle polls omitted; sampling/learner timers and training throughput), run records (stage timings) and saved policies; `load_policy` | done |
 | [`benchmark.py`](../core/rl/benchmark.py) | Build, training and sampling timings | done |
 | [`envs/probes.py`](../core/rl/envs/probes.py) | Five probe tasks with known answers | done |
@@ -229,6 +229,7 @@ describes restart, sync and the inspected execution evidence.
 | [`launch.py`](../core/runner/launch.py) | `prepare` (the experiment's folder, with `scenario.json`, and queued runs; refuses a spec or scenario that differs from the saved `experiment.json` before writing anything), `start` (prepare, detached worker), `work` (the worker loop), `job` (train, held-out evaluation, status), `job_environment` (what every job process runs with, `PYTHONHASHSEED` fixed so a seed repeats a run), `stop` (kill worker and process trees, checked by pid and start time), `mark_stopped` | done |
 | [`slurm.py`](../core/runner/slurm.py) | The cluster side, for use where `sbatch` exists: `start` (prepare, then one submitit job array, `slurm.json` and each run's `slurm_job`), `states` (one `sacct` call, parsed to a task map), `stop` (`scancel` first: if it fails the error carries its message and no run is marked; then mark the runs) | implemented; short TalTech runs recorded (see evidence below) |
 | [`registry.py`](../core/runner/registry.py) | Read-only view of `runs/`: `experiments()`, `runs(experiment)` with a `RunState` per run (state, progress, ETA, last and held-out score, SLURM state, host); detects `lost` runs, for SLURM runs from the task map it is given instead of a pid | done |
+| [`results.py`](../core/runner/results.py) | The results of runs from their saved files, for the Results page and the notebooks: `find_runs` (this PC and each cluster's mirror, by target, experiment and run), `load_runs` (settings, state, tables read when asked for), `overview`, `learning_curves`, `training_curves`, `heldout_days` (paired per test day), `participant_days`, `seed_groups` (over training seeds, with the settings that differ), `differing_settings` (on the full saved settings: the scenario's contents, every day, training settings, model; `RunResult.labels` shortens them for display only); no Ray, no market, no cluster | done |
 | [`targets.py`](../core/runner/targets.py) | `Target` (`check` returns the one readiness report `{target, ok, problems, local_commit, cluster_commit, active}`; `start` calls it and refuses with its problems; a spec is a file or an `Experiment`; `start_new` (a new experiment, dated if its name is taken), `restart` (again from the folder's saved settings); `overview` is the one read path, `runs`, `stop`, `sync`, `close`), `LocalTarget`, `SlurmTarget` (on the cluster), `RemoteTarget` (the same cluster from the PC: every call is the runner's CLI on the login node, `start` sends the experiment with its scenario as JSON on standard input, `sync` replaces the mirror `runs/@taltech/<experiment>` with a fresh copy, `local_runs` reads it), `get(name)` from `hpc/targets.toml` | implemented; remote workflow used for short TalTech runs |
 | [`remote.py`](../core/runner/remote.py) | `Remote`: one SSH connection (asyncssh, `pip install asyncssh` in the `marlem` env; the cluster does not need it) on a private event-loop thread behind synchronous methods, so it works from the CLI, Jupyter and the Studio's threads; `execute`, `runner` (`python -m core.runner ... --json` in the cluster's checkout, optionally with standard input: the experiment of `start -`), `head`, `uncommitted`, `pull` (a fresh copy of the folder, without checkpoints and `slurm/`, into a temporary folder that replaces the mirror only when complete); no retries: a failed operation closes the connection and raises `RemoteError` ("<operation> failed on <host>: <reason>") | implemented; results mirrors inspected |
 | [`__main__.py`](../core/runner/__main__.py) | `python -m core.runner start / status / stop / sync / check`, each with `--target` and `--json` (the JSON is then the only output), `start` with `--profile full / test`, `status --json` (every experiment with its runs and spec in one answer), `check [spec]` (the readiness report, exit 1 when not ready); plus the internal `work` and `job` | done |
@@ -260,6 +261,7 @@ only when more than one place uses it.
 | [`pages/market_dso.py`](../studio/pages/market_dso.py) | Pricing mechanism, bounds, preferred partners, ledger; the bidding rule; the DSO's tariffs | done |
 | [`pages/summary.py`](../studio/pages/summary.py) | Summary before running: readiness checks; tab Settings (every grid, market, DSO and battery setting once, the participants' day, the network) and tab Day profiles | done |
 | [`pages/runs.py`](../studio/pages/runs.py) | Runs: the training experiments on every target of `hpc/targets.toml`, one tab each (This PC, TalTech). One card per experiment (newest first): runs per state, worker alive or not (this PC), Stop experiment (with confirmation); a table of its runs with state badge, progress bar, env steps / budget, elapsed, ETA, last evaluation and held-out return, a Stop button per queued or running run, and the error of a failed run in a tooltip. This PC is read every 2 s. A cluster is read every 20 s over SSH, and only while its tab is shown (nothing connects before it is opened); its tab starts with one line from the runner's `check` ("Ready", or the problems, the two commits, the experiments queued or running) and a Check button, then "updated hh:mm:ss" and Refresh now, SLURM state and node in the table, and a Sync results button on each card (results are copied only when asked). A read that fails is not a notification: a line says why and when the data shown was last read, and goes away with the next good read. Start, Stop and Sync show their errors as notifications. The Start experiment button opens a dialog: a spec from `experiments/` as the template, its JSON in an editor, checked on every edit with the runs it makes or what is wrong; Test and Full presets that rewrite the run size settings in the editor (the template's test version or its own values; other edits stay) and pick the target; the target; Start starts the edited experiment as a new one (dated if its name is taken on the target), and for a cluster the target is checked when the dialog opens and the target changes (Check again re-runs it), with Start disabled until there are no problems and while its request runs. Restart failed runs, on a card with failed, stopped or lost runs and none queued or running, starts the experiment again from the settings saved in its folder | implemented; adapter tests present, full manual UI acceptance not established here |
+| [`pages/results.py`](../studio/pages/results.py) | Results: every run of this PC and the synced clusters in one table (test runs can be hidden; tick runs, or every run of an experiment). Compare: every setting that differs (full saved values), evaluation return over environment steps with each run's own baselines (team or per participant, optionally the training return), every held-out day as trained minus each baseline, and each configuration over its seeds; runs of more than one target keep the target in their names. Inspect a run: its settings, test days, participants × days (a chosen outcome, trained minus a baseline, the largest differences or a filter for many participants), market and grid per day, and with detailed results the traced days step by step, read when opened. Read once; Refresh reads again and redraws both tabs | implemented; checked in NiceGUI's user simulation, not in a browser |
 | [`pages/step.py`](../studio/pages/step.py) | One click per part of a step (orders, the three stages, settle and power flow): order book, network with trades and voltages, trades, participants, the day so far | done |
 | [`components/network.py`](../studio/components/network.py) | Network picker with filters, summary, topology plot, element table, profile inspector | done |
 | [`components/profiles.py`](../studio/components/profiles.py), `charts.py`, `cards.py`, `tables.py` | Profile class tiles, Plotly figures (also the day's curves), cards, tables | done |
@@ -288,6 +290,7 @@ their setup cell finds the repository root from wherever they run. Runs go to
 | [`rl/simple_spread.ipynb`](../notebooks/rl/simple_spread.ipynb) | MPE2 `simple_spread`, the second test after the probes | done |
 | [`rl/benchmark_speed.ipynb`](../notebooks/rl/benchmark_speed.ipynb) | Compare RL timing with `notebooks/market/results/market_step.csv` | done |
 | [`runner/targets_demo.ipynb`](../notebooks/runner/targets_demo.ipynb) | The workflow on a target: start the smoke experiment (test profile) locally and watch it, then the same on the cluster from the PC (`check`, `start`, watch, `sync`, the synced runs as a table), `stop` as an example, closing the connection | implemented; execution not established by this inventory |
+| [`runner/results.ipynb`](../notebooks/runner/results.ipynb) | Compare finished runs with `core/runner/results.py`: the runs, learning curves, held-out days against the baselines, participants × days, and the configurations over their seeds | done |
 
 ## tests/: market and RL checks
 
@@ -302,11 +305,13 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`market/test_powerflow_recycle.py`](../tests/market/test_powerflow_recycle.py) | pandapower's `recycle` in the step power flow gives the same grid results | done |
 | [`rl/test_0_every_probe.py`](../tests/rl/test_0_every_probe.py) to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
 | [`rl/test_6_ctde_structure.py`](../tests/rl/test_6_ctde_structure.py) | The CTDE modules' structure: what the actor and the critic read | done |
-| [`rl/test_training_metrics.py`](../tests/rl/test_training_metrics.py) | Idle reports omitted, learner-only progress preserved, non-finite metrics still fail, timing fields and total training-call time retained | done |
+| [`rl/test_training_metrics.py`](../tests/rl/test_training_metrics.py) | Idle reports omitted, learner-only progress preserved, non-finite metrics still fail, timing fields and total training-call time retained; learner metrics over the modules (mean, min, max); every evaluation kept per episode and agent, appended per evaluation point | done |
+| [`rl/test_evaluation_tables.py`](../tests/rl/test_evaluation_tables.py) | `evaluation` on a two-agent environment: the summary as before, one row per policy, episode and agent (amounts summed, reset fields copied), one per episode (shared amounts once), and only the traced episodes step by step | done |
 | [`rl/test_7_same_seed_same_run.py`](../tests/rl/test_7_same_seed_same_run.py) | The same seed gives the same run: initial weights independent of Python's set order, and two runs in the runner's job processes (PPO DTDE and CTDE, SAC DTDE past its warm-up) bit for bit the same after training | done |
 | [`rl/probe_helpers.py`](../tests/rl/probe_helpers.py), [`rl/conftest.py`](../tests/rl/conftest.py) | Shared assertions and readable test output (each test's docstring is printed) | done |
 | [`runner/test_runner.py`](../tests/runner/test_runner.py) | Experiment specs (grid names, budgets, variants, date ranges, resources, `to_dict` round trip, the test version, validation errors), the registry's run states (queued, running, lost, completed, failed, legacy, progress and ETA, SLURM runs) and `launch.prepare`; no training | done |
 | [`runner/test_run_service.py`](../tests/runner/test_run_service.py) | The Studio's `RunService` over a temporary `runs/` (`MARLEM_RUNS`): this PC's overview newest first with its runs, stopping queued runs, local check always ready; over fake targets: names and labels from `targets.toml`, a target made once and closed, overview newest first, check (with and without a spec), start, `start_new`, `restart`, stop and sync handed to the target asked, the specs of `experiments/` (all load; a broken one says why), `describe` of an edited experiment text (a changed copy, a file without a name, invalid JSON and specs), and the presets (the template's test version and back, other edits kept, twice the same; `PRESET_KEYS` cover what the test version changes; errors) | done |
+| [`runner/test_results.py`](../tests/runner/test_results.py), [`runner/test_results_service.py`](../tests/runner/test_results_service.py) | The results reader over hand-written run folders: every run once (a mirror under its cluster's name), settings from the saved files, overview and curves, paired held-out days and older runs' means, participants × days, spread over seeds and the settings that differ (full values, not labels); the Studio's `ResultsService` passes the tables on and reads again after `refresh`; the page's labels across targets, the bounded participant selection and per-run baselines | done |
 | [`runner/test_slurm.py`](../tests/runner/test_slurm.py) | The SLURM backend without a cluster: `sacct` lines and array ranges parsed, `start` against a fake submitit (parameters, partition, `slurm.json`, resubmitting, refusing while tasks are alive), `stop` against a fake `scancel` (a failed `scancel` raises and marks nothing) | done |
 | [`runner/test_targets.py`](../tests/runner/test_targets.py) | `hpc/targets.toml`, `LocalTarget` and `SlurmTarget` over a temporary `runs/`, `RemoteTarget` against a fake `Remote` (the check report for each problem, `start` refusing with the check's problems, overview and status parsing, stop, sync), and the command line (`status --json`, errors as `error: ...` or `{"error": ...}` with exit 2, `check [spec]`, `stop`, `sync`, `start --profile`, `start -` from standard input) | done |
 | [`runner/test_remote.py`](../tests/runner/test_remote.py) | `Remote` without a network: the commands it builds (quoting, `~`), the runner's JSON answers and errors, `pull` as a fresh copy (replaces the mirror, keeps it when the copy fails), the connection against a fake asyncssh connection (one connection, closed on failure and reopened by the next call, errors as `RemoteError`, closing) | done |
@@ -326,6 +331,7 @@ market or pandapower directly.
 | [`models.py`](../studio/adapters/models.py) | The data types only the Studio needs: profile classes, profile types, chart series, a day's element profiles | done |
 | [`scenario_service.py`](../studio/adapters/scenario_service.py) | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants; lists, reads and opens scenario files | done |
 | [`run_service.py`](../studio/adapters/run_service.py) | The experiments of a target (this PC, or a cluster over SSH) as the runner reports them (the target's entries with `RunState`), newest first; one target object per name, kept for the life of the Studio (a cluster keeps its connection) and closed on shutdown; `overview`, `check(target, spec)`, `start`, `start_new`, `restart`, `stop` and `sync` (returns the folder and the number of files copied) go to the target asked (a spec is a file or an `Experiment`), `target_names` gives the labels of `targets.toml`, `spec_files` the specs of `experiments/` with their text, runs, budget and resources (or why one does not load), `describe` an experiment text edited in the start dialog (the `Experiment` to start, or why it does not load), `apply_preset` the Test or Full preset to it | done |
+| [`results_service.py`](../studio/adapters/results_service.py) | The Results page's runs (`core/runner/results.py`), read once until `refresh`, and the reader's tables for the runs named by key, as they are | done |
 | [`market_service.py`](../studio/adapters/market_service.py) | Builds and holds the `LocalEnergyMarket` the Step page plays; build, next part, step, run to the end, clear (when another scenario is opened) | done |
 
 ## Around the code

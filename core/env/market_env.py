@@ -55,13 +55,45 @@ participant in any step of any day in ``days``; ``reward_scale`` defaults to
 ``p_utility · E``, the bill for E kWh bought from the DSO, so a reward of −1 is
 one such purchase.
 
-Episodes. ``reset`` draws a day from ``days`` and rebuilds the market (changing
-the day and resetting is cheap; the first reset of a process loads the SimBench
-network). The day ends the episode: ``terminateds`` is True for every agent and
+Episodes. ``reset`` draws a day from ``days`` (or plays ``options["day"]``, one
+of them: the held-out evaluation plays each test day once) and rebuilds the market
+(changing the day and resetting is cheap; the first reset of a process loads the
+SimBench network). The day ends the episode: ``terminateds`` is True for every agent and
 ``__all__`` after the last step, ``truncateds`` is always False. The end of the
 day is not a cut in an endless task but the real end, and the hour is in the
 observation, so the value of a state near the end is learnable and no bootstrap
 is needed.
+
+Infos, per agent and step, in the layout ``core/rl/policy.py`` reads (amounts
+are summed over an episode, states only kept step by step; kWh and the scenario's
+money unit):
+
+    profit, bill                   the step's profit (eq. 14) and the net bill of
+                                   the reward, before scaling
+    bought_kwh, sold_kwh           traded energy, peers and DSO together
+    deferred_demand_kwh            demand drawn untraded from the upstream grid
+    deferred_supply_kwh            surplus spilled untraded
+    state: order_kwh               the order placed, as the market took it after
+                                   validation: + sell, − buy, 0 none
+           order_price             its price (NaN without an order)
+           soc                     battery state of charge after the step, 0 to 1
+                                   (NaN without a battery)
+           reputation              reputation after the step (eq. 12)
+    shared: p2p_kwh                energy traded between participants
+            sold_to_dso_kwh        energy participants sold to the DSO (stage 3)
+            bought_from_dso_kwh    energy participants bought from the DSO
+            trade_losses_kwh       transmission losses of the trades (eq. 18)
+            fees                   grid fees of the trades (eq. 8)
+            grid_import_kwh        energy the network drew from the upstream grid
+            grid_export_kwh        energy it fed into the upstream grid
+            grid_losses_kwh        line and transformer losses of the power flow
+            grid_violations        voltage and loading limits the flow broke
+            not_converged          1 if the power flow did not converge
+    shared_state: clearing_price   the step's clearing price
+                  min_voltage_pu, max_voltage_pu, max_line_loading_percent
+
+The grid amounts are the AC power flow's (the whole network, background
+included); a flow that did not converge counts 0 for them.
 
 Baselines (``zero_policy``, ``net_position_policy``) map an observation dict to
 an action dict, for a reference return and for tests.
@@ -70,7 +102,7 @@ an action dict, for a reference return and for tests.
 
     scenario      path to a scenario JSON (required)
     days          days ``"YYYY-MM-DD"`` to draw from at each reset (default: the
-                  scenario's day)
+                  scenario's day; ``reset(options={"day": ...})`` plays one of them)
     energy_scale  E in kWh (default: computed from ``days``)
     reward_scale  default ``p_utility · E``
     seed          seed of the day draw for the first reset
@@ -87,6 +119,7 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepRecord
+from core.market.order import Order
 
 # --------------------------------------------------------------------------------------
 # What the agents see
@@ -164,11 +197,15 @@ class MarketEnv(MultiAgentEnv):
 
     # --- Episodes --------------------------------------------------------------------
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
-        """Draw a day, rebuild the market for it, return the first observations
-        and ``{"day": day}`` per agent."""
+        """Draw a day (or play ``options["day"]``), rebuild the market for it,
+        return the first observations and ``{"day": day}`` per agent."""
         if seed is not None:
             self.rng = np.random.default_rng(seed)
-        day = self.days[int(self.rng.integers(len(self.days)))]
+        day = (options or {}).get("day")
+        if day is None:
+            day = self.days[int(self.rng.integers(len(self.days)))]
+        elif day not in self.days:
+            raise ValueError(f"day {day} is not one of the environment's days")
         self.market.scenario.grid.day = day
         self.market.reset()
         self.last_record = None
@@ -186,11 +223,15 @@ class MarketEnv(MultiAgentEnv):
         record = self.market.step(intents)
         self.last_record = record
 
+        shared, shared_state = _market_infos(record)
+        orders = {order.agent_id: order for order in record.orders}
         rewards, infos = {}, {}
         for pid in self.agents_id:
             o = record.participants[pid]
             bill = o.profit - self.utility_price * o.deferred_demand_kwh
             rewards[pid] = bill / self.reward_scale
+            order = orders.get(pid)
+            battery = self.market.participants[pid].battery
             infos[pid] = {
                 "profit": float(o.profit),
                 "bill": float(bill),
@@ -198,9 +239,14 @@ class MarketEnv(MultiAgentEnv):
                 "sold_kwh": float(o.sold_kwh),
                 "deferred_demand_kwh": float(o.deferred_demand_kwh),
                 "deferred_supply_kwh": float(o.deferred_supply_kwh),
-                "p2p_kwh": float(record.p2p_kwh),
-                "dso_kwh": float(record.dso_kwh),
-                "clearing_price": float(record.clearing_price),
+                "state": {
+                    "order_kwh": _order_kwh(order),
+                    "order_price": float(order.price) if order else float("nan"),
+                    "soc": float(battery.soc) if battery else float("nan"),
+                    "reputation": float(self.market.participants[pid].reputation),
+                },
+                "shared": shared,
+                "shared_state": shared_state,
             }
         n = len(self.agents_id)
         scale = self.energy_scale * n
@@ -291,6 +337,46 @@ class MarketEnv(MultiAgentEnv):
                 np.array(values, dtype=np.float32), -_OBS_LIMIT, _OBS_LIMIT
             )
         return out
+
+
+# --------------------------------------------------------------------------------------
+# What a step reports (the infos)
+# --------------------------------------------------------------------------------------
+def _order_kwh(order: Optional[Order]) -> float:
+    """The order's quantity, + selling and − buying (0 without an order)."""
+    if order is None:
+        return 0.0
+    return -float(order.quantity) if order.is_buy else float(order.quantity)
+
+
+def _number(value: Optional[float]) -> float:
+    return float("nan") if value is None else float(value)
+
+
+def _market_infos(record: StepRecord) -> tuple[dict, dict]:
+    """The step's market and grid amounts and states (see the module)."""
+    grid = record.grid
+    exchange = grid.external_grid_kwh if grid.converged else None
+    exchange = exchange or 0.0
+    shared = {
+        "p2p_kwh": float(record.p2p_kwh),
+        "sold_to_dso_kwh": float(record.dso.bought_kwh),
+        "bought_from_dso_kwh": float(record.dso.sold_kwh),
+        "trade_losses_kwh": float(record.losses_kwh),
+        "fees": float(record.fees),
+        "grid_import_kwh": float(max(exchange, 0.0)),
+        "grid_export_kwh": float(max(-exchange, 0.0)),
+        "grid_losses_kwh": float(grid.losses_kwh or 0.0) if grid.converged else 0.0,
+        "grid_violations": float(len(grid.violations)) if grid.converged else 0.0,
+        "not_converged": 0.0 if grid.converged else 1.0,
+    }
+    state = {
+        "clearing_price": float(record.clearing_price),
+        "min_voltage_pu": _number(grid.min_voltage_pu),
+        "max_voltage_pu": _number(grid.max_voltage_pu),
+        "max_line_loading_percent": _number(grid.max_line_loading_percent),
+    }
+    return shared, state
 
 
 # --------------------------------------------------------------------------------------

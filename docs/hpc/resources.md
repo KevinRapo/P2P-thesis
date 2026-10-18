@@ -108,7 +108,8 @@ For `market_3x3`:
 
 The test profile keeps algorithms, paradigms, variants and settings (including
 `num_env_runners`), and takes the
-first seed, one evaluation episode and one held-out seed. Its budget per algorithm
+first seed, one evaluation episode and one test day (played once, as every test
+day is). Its budget per algorithm
 is one training batch (`train_batch_size_per_learner`, else 100), or the warm-up
 plus 100 steps where learning starts after a warm-up (SAC: the spec's 1,000, else
 RLlib's 1,500), the largest over the variants, so every test run really updates

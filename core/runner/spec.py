@@ -25,8 +25,10 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "eval_points": 4,                 number of evaluations, eval_every =
                                         budget // eval_points (give one of the two)
       "eval_episodes": 10,
-      "heldout_seeds": 14,              a count (seeds 2000, 2001, ...) or a list;
-                                        default: one per test day
+      "results_detail": "standard",     or "detailed": also the held-out
+                                        evaluation step by step on trace_days
+      "trace_days": 3,                  with "detailed": the first 3 test days, or
+                                        a list of test days
       "training": {"sac": {...}},       overrides per algorithm; a variant's
                                         overrides are merged on top
       "model": {},                      network overrides
@@ -44,16 +46,22 @@ the evaluations in between (``eval_points`` counts the final one: 4 points on a
 budget of 24000 evaluate at 6000, 12000, 18000 and 24000). Neither: only at the
 end.
 
+Held-out evaluation: after training, the trained policy and the baselines play every
+test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...). Its
+results are kept per day and participant (``launch.py``); with ``results_detail``
+``"detailed"`` the days of ``trace_days`` are also kept step by step.
+
 Test profile: ``Experiment.test_version()`` is the smallest version of the same
 experiment, to prove the pipeline (start, train, evaluate, write the results), not
 to train. It keeps the scenario, environment, algorithms, paradigms, variants and
 settings, and takes the first seed, the first train day and test day, a budget that
 reaches learning (``Experiment.test_budget``: one training batch, and for SAC also its
 warm-up, so the test run really updates the networks), only the final evaluation (one
-episode, one held-out seed), 15 minutes per run and the name ``<name>--test``. The ``test`` block changes any of these: ``seeds`` (a
-list), ``train_days`` and ``test_days`` (a number of days), ``budget`` (an int or
-``{algorithm: int}``), ``eval_episodes``, ``heldout_seeds`` and ``resources``
-(merged over the test defaults).
+episode; the held-out evaluation on its one test day), 15 minutes per run and the name
+``<name>--test``. The ``test`` block changes any of these: ``seeds`` (a list),
+``train_days`` and ``test_days`` (a number of days), ``budget`` (an int or
+``{algorithm: int}``), ``eval_episodes`` and ``resources`` (merged over the test
+defaults). Traced days that the test version has no longer are left out.
 
 Inputs of a started experiment: an experiment is started as ``resolve`` gives it, with
 the scenario file read into ``scenario`` (``Experiment.inline_scenario``). The
@@ -85,6 +93,8 @@ PARADIGMS = ("ctce", "ctde", "dtde")
 MARKET_ENVS = ("market", "core.env:MarketEnv", "core.env.market_env:MarketEnv")
 HELDOUT_SEED_START = 2000
 PROFILES = ("full", "test")
+RESULTS_DETAILS = ("standard", "detailed")
+TRACE_DAYS = 3  # the default of ``trace_days``
 # The scenario of a started experiment, in its folder (see the module).
 SCENARIO_FILE = "scenario.json"
 # Per run on a SLURM cluster; ``resources`` in the spec overrides these.
@@ -102,8 +112,11 @@ TEST_KEYS = (
     "test_days",
     "budget",
     "eval_episodes",
-    "heldout_seeds",
     "resources",
+)
+_GONE = (
+    "'heldout_seeds' is gone: the held-out evaluation plays every test day once "
+    "(seeds 2000, 2001, ...); remove it"
 )
 
 
@@ -197,7 +210,8 @@ class Experiment:
     eval_every: int | dict[str, int] | None = None
     eval_points: int | dict[str, int] | None = None
     eval_episodes: int = 10
-    heldout_seeds: int | list[int] | None = None
+    results_detail: str = "standard"
+    trace_days: int | list[str] = TRACE_DAYS
     training: dict[str, dict] = field(default_factory=dict)
     model: dict = field(default_factory=dict)
     max_parallel: int = 3
@@ -226,6 +240,8 @@ class Experiment:
     ) -> "Experiment":
         if not isinstance(data, dict):
             raise SpecError("an experiment file holds one JSON object")
+        if "heldout_seeds" in data or "heldout_seeds" in (data.get("test") or {}):
+            raise SpecError(_GONE)
         known = set(cls.__dataclass_fields__)
         unknown = sorted(set(data) - known)
         if unknown:
@@ -318,7 +334,22 @@ class Experiment:
         if self.env not in MARKET_ENVS and ":" not in self.env:
             raise SpecError(f"env {self.env!r} must be 'market' or 'module:Class'")
         _check_resources(self.resources, "resources")
+        self._validate_results()
         self._validate_test_block()
+
+    def _validate_results(self) -> None:
+        if self.results_detail not in RESULTS_DETAILS:
+            raise SpecError(
+                f"'results_detail' is one of {list(RESULTS_DETAILS)}, "
+                f"not {self.results_detail!r}"
+            )
+        days = self.trace_days
+        if isinstance(days, list):
+            missing = [d for d in days if d not in self.test_days]
+            if missing:
+                raise SpecError(f"'trace_days' {missing} are not test days")
+        elif isinstance(days, bool) or not isinstance(days, int) or days < 1:
+            raise SpecError("'trace_days' is a number of test days (>= 1) or a list")
 
     def _validate_test_block(self) -> None:
         test = self.test
@@ -377,13 +408,19 @@ class Experiment:
         the spec's ``resources`` over the defaults."""
         return RESOURCE_DEFAULTS | self.resources
 
-    def heldout_seed_list(self) -> list[int]:
-        """Seeds of the held-out evaluation: a given list, a count from 2000, or one
-        per test day."""
-        if isinstance(self.heldout_seeds, list):
-            return [int(s) for s in self.heldout_seeds]
-        count = self.heldout_seeds or len(self.test_days) or 14
-        return list(range(HELDOUT_SEED_START, HELDOUT_SEED_START + int(count)))
+    def heldout_episodes(self) -> list[tuple[int, str]]:
+        """The held-out evaluation's episodes: every test day once, in order, each
+        with its seed (2000, 2001, ...)."""
+        return [(HELDOUT_SEED_START + i, day) for i, day in enumerate(self.test_days)]
+
+    def traced_days(self) -> list[str]:
+        """The test days kept step by step (none unless ``results_detail`` is
+        ``"detailed"``)."""
+        if self.results_detail != "detailed":
+            return []
+        if isinstance(self.trace_days, list):
+            return [d for d in self.test_days if d in self.trace_days]
+        return self.test_days[: self.trace_days]
 
     def heldout_config(self, exp_dir: Optional[Path] = None) -> dict:
         """The environment config of the held-out evaluation (test days); ``exp_dir``
@@ -467,6 +504,10 @@ class Experiment:
         resources = (
             self.run_resources | {"minutes": TEST_MINUTES} | test.get("resources", {})
         )
+        test_days = self.test_days[: test.get("test_days", 1)]
+        trace_days = self.trace_days
+        if isinstance(trace_days, list):  # those the test version still has
+            trace_days = [d for d in trace_days if d in test_days] or 1
         description = f"Test version of {self.name}"
         if self.description:
             description += f": {self.description}"
@@ -475,12 +516,12 @@ class Experiment:
             name=f"{self.name}--test",
             seeds=list(test.get("seeds", self.seeds[:1])),
             train_days=self.train_days[: test.get("train_days", 1)],
-            test_days=self.test_days[: test.get("test_days", 1)],
+            test_days=test_days,
             budget=budget,
             eval_every=None,
             eval_points=None,
             eval_episodes=test.get("eval_episodes", 1),
-            heldout_seeds=test.get("heldout_seeds", 1),
+            trace_days=trace_days,
             resources=dict(resources),
             test={},
             description=description,

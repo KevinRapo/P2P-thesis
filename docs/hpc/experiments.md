@@ -10,8 +10,11 @@ runs on a target; the CLI, Python and the Studio's Runs page call the same runne
 | Profile | `full`: the spec as written. `test`: its smallest version, named `<name>--test` ([what it keeps](resources.md#full-and-test-profiles)) |
 | Target | `local` (this PC: a detached worker) or `taltech` (one SLURM job array, a task per run, via submitit), from [hpc/targets.toml](../../hpc/targets.toml) with your account and host from `.env` ([setup](setup.md#this-machines-settings-env)) |
 
-Every run ends with a held-out evaluation (`heldout.csv`: the trained policy and
-the baselines on the test days).
+Every run ends with a held-out evaluation: the trained policy and the baselines
+play **every test day once** (seeds 2000, 2001, ...), and the results are kept per
+day and per participant ([Files](#files)). With `"results_detail": "detailed"` in the
+spec the days of `trace_days` (default: the first 3 test days, or a list of them) are
+also kept step by step. The [Results](#results) page compares the runs.
 
 ## Commands
 
@@ -92,7 +95,7 @@ JSON in an editor: change anything (the fields are those of [an experiment
 file](../../core/runner/spec.py)). Every edit is checked as a start would check it,
 and the dialog shows the runs it makes, or what is wrong. The template file is
 never changed. Two presets rewrite the editor's run size settings (name,
-description, seeds, train and test days, budget, evaluation, held-out seeds,
+description, seeds, train and test days, budget, evaluation, traced days,
 resources) and leave every other edit: **Test preset** makes them the template's
 [test version](resources.md#full-and-test-profiles) (`<name>--test`) and picks this
 PC, **Full preset** puts back the template's values and picks the cluster. The
@@ -120,13 +123,44 @@ state:
 | `slurm.json`, `slurm/` | Cluster: the array and submitit's scripts and task logs |
 | `<run>/status.json` | The run's state, times, error, process or SLURM task |
 | `<run>/run.json` | Training settings, versions, commit and outcome |
-| `<run>/metrics.csv`, `evaluation.csv` | Training iterations; evaluations during training |
-| `<run>/heldout.csv` | The held-out evaluation |
+| `<run>/metrics.csv` | Training iterations: environment steps, training return, learner metrics per module and their mean, min and max over the modules (`modules/<metric>_mean`, ...), timing |
+| `<run>/evaluation.csv` | Evaluations during training: one row per evaluation point and policy (means) |
+| `<run>/evaluation_agents.csv`, `evaluation_episodes.csv` | The same evaluations per episode and participant, and per episode (with its day) |
+| `<run>/heldout.csv` | The held-out evaluation: one row per policy (means over the test days) |
+| `<run>/heldout_episodes.csv` | One row per policy and test day: team return, P2P and DSO energy, trade losses, fees, the power flow's grid import, export, losses, violations and non-converged steps |
+| `<run>/heldout_agents.csv` | One row per policy, test day and participant: return, profit, bill, bought, sold, deferred demand and supply |
+| `<run>/heldout_trace_steps.csv`, `heldout_trace_agents.csv` | Only with `"results_detail": "detailed"`: the traced test days per step (market, grid, clearing price, voltages) and per step and participant (order, trades, battery state of charge, reputation, reward) |
 | `<run>/checkpoint/` | The policy at the end of training |
 | `<run>/log.txt` | This PC: the job's output (on the cluster it is in `slurm/`) |
 
 `run.json` covers training; `status.json` the whole job, held-out evaluation
-included.
+included. Amounts are in kWh and the scenario's money unit, summed over a day; the
+fields are defined in [market_env.py](../../core/env/market_env.py) (its infos).
+The tables grow in rows, not columns, with the number of participants.
+
+## Results
+
+The Studio's **Results** page and the notebook
+[results.ipynb](../../notebooks/runner/results.ipynb) read the same saved files
+through [results.py](../../core/runner/results.py): this PC's runs and a cluster's
+**after Sync results** (`runs/@taltech/`, listed under the cluster's name, never
+twice). Nothing is trained, no market is built and nothing connects to the cluster.
+
+| Question | What is shown |
+|---|---|
+| Did it learn? | The trained policy's evaluation return over environment steps, per run, with each run's own baselines at step 0 (one line when they are the same); team or per participant; optionally the training return |
+| How good is the final policy? | Every held-out test day: the trained policy minus each baseline on the same day |
+| How consistent is it? | Each configuration (experiment, algorithm, paradigm, variant) over its training seeds: mean, spread over seeds, seeds done, and the settings that differ inside a group |
+| One run in detail | Its settings, test days, participants × days (an outcome: return, profit, bill, energy; trained minus a baseline; with many participants the 30 with the largest difference, or those a filter names), the market and grid per day, and the traced days step by step (read when opened) |
+
+Runs are compared on their full saved settings (the scenario's contents, every
+train and test day, budget, training settings, model, results detail, commit):
+the page lists every one that differs. Runs from more than one target keep the
+target in their names.
+
+An evaluation day and a training seed are different units: the spread over seeds
+comes from separate runs, never from the days or participants of one run. Runs from
+before the per-day tables show their means only.
 
 ## Limits
 

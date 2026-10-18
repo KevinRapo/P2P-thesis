@@ -171,15 +171,43 @@ def test_dated_adds_the_date_and_time_to_the_name():
     assert experiment.name == "x" and dated.budget == experiment.budget
 
 
-def test_heldout_seeds_default_to_one_per_test_day():
+def test_the_heldout_evaluation_plays_every_test_day_once():
     experiment = Experiment.from_dict(spec(), "x")
-    assert experiment.heldout_seed_list() == [2000, 2001]
-    assert Experiment.from_dict(spec(heldout_seeds=3), "x").heldout_seed_list() == [
-        2000,
-        2001,
-        2002,
+    assert experiment.heldout_episodes() == [
+        (2000, "2016-07-01"),
+        (2001, "2016-07-02"),
     ]
-    assert Experiment.from_dict(spec(heldout_seeds=[5]), "x").heldout_seed_list() == [5]
+    for gone in (spec(heldout_seeds=3), spec(test={"heldout_seeds": 1})):
+        with pytest.raises(SpecError, match="'heldout_seeds' is gone"):
+            Experiment.from_dict(gone, "x")
+
+
+def test_traced_days_only_with_detailed_results():
+    days = {"from": "2016-07-01", "to": "2016-07-05"}
+    assert Experiment.from_dict(spec(test_days=days), "x").traced_days() == []
+    detailed = Experiment.from_dict(
+        spec(test_days=days, results_detail="detailed"), "x"
+    )
+    assert detailed.traced_days() == ["2016-07-01", "2016-07-02", "2016-07-03"]
+    chosen = spec(
+        test_days=days,
+        results_detail="detailed",
+        trace_days=["2016-07-04", "2016-07-02"],
+    )
+    assert Experiment.from_dict(chosen, "x").traced_days() == [
+        "2016-07-02",  # in the order of the test days
+        "2016-07-04",
+    ]
+    version = Experiment.from_dict(chosen, "x").test_version()
+    assert version.test_days == ["2016-07-01"] and version.trace_days == 1
+    assert version.traced_days() == ["2016-07-01"]  # its one day instead
+    for bad, message in (
+        ({"results_detail": "all"}, "results_detail"),
+        ({"trace_days": 0}, "trace_days"),
+        ({"trace_days": ["2016-08-01"]}, "not test days"),
+    ):
+        with pytest.raises(SpecError, match=message):
+            Experiment.from_dict(spec(**bad), "x")
 
 
 def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
@@ -296,7 +324,7 @@ def test_test_version_is_the_smallest_version():
     assert version.budget == {"ppo": 2400, "sac": 1600}  # a batch; SAC: warm-up + 100
     assert (version.eval_every, version.eval_points) == (None, None)
     assert version.eval_episodes == 1
-    assert version.heldout_seed_list() == [2000]
+    assert version.heldout_episodes() == [(2000, "2016-07-01")]
     assert version.run_resources == {"cpus": 8, "mem_gb": 16, "minutes": 15}
     assert version.test == {}
     assert version.description == "Test version of big: Everything"
@@ -363,7 +391,6 @@ def test_test_block_overrides_the_defaults():
         "test_days": 5,
         "budget": 300,
         "eval_episodes": 2,
-        "heldout_seeds": [5, 6],
         "resources": {"minutes": 30, "cpus": 2},
     }
     version = Experiment.from_dict(spec(test=test), "x").test_version()
@@ -372,16 +399,15 @@ def test_test_block_overrides_the_defaults():
     assert version.test_days == ["2016-07-01", "2016-07-02"]  # only two exist
     assert version.budget == 300
     assert version.eval_episodes == 2
-    assert version.heldout_seed_list() == [5, 6]
+    assert len(version.heldout_episodes()) == 2  # one per test day
     assert version.run_resources == {"cpus": 2, "mem_gb": 4, "minutes": 30}
     assert version.test == {}
 
 
-def test_test_block_budget_per_algorithm_and_heldout_count():
-    data = spec(test={"budget": {"ppo": 50, "sac": 60}, "heldout_seeds": 3})
+def test_test_block_budget_per_algorithm():
+    data = spec(test={"budget": {"ppo": 50, "sac": 60}})
     version = Experiment.from_dict(data, "x").test_version()
     assert version.budget == {"ppo": 50, "sac": 60}
-    assert version.heldout_seed_list() == [2000, 2001, 2002]
 
 
 def test_profiles():

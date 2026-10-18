@@ -15,6 +15,12 @@ to run the same runs as a SLURM job array. State lives in files only (see
     runs/<experiment>/<run>/status.json  queued -> running -> completed | failed
     runs/<experiment>/<run>/log.txt      the job's output
     runs/<experiment>/<run>/heldout.csv  trained policy and baselines on test days
+    runs/<experiment>/<run>/heldout_agents.csv, heldout_episodes.csv
+                                         the same per test day and participant, and
+                                         per test day (``core/rl/policy.py``)
+    runs/<experiment>/<run>/heldout_trace_agents.csv, heldout_trace_steps.csv
+                                         with ``results_detail`` "detailed": the
+                                         traced test days step by step
 
 Jobs are not killed when the worker dies: they run on to the end and write their
 own status, but nothing starts the queued runs behind them until ``start`` is run
@@ -54,7 +60,19 @@ POLL_S = 5.0
 STAGGER_S = 10.0
 PYTHON = sys.executable
 # Files a re-queued run must not keep from its earlier attempt.
-STALE = ("run.json", "metrics.csv", "evaluation.csv", "heldout.csv", "log.txt")
+STALE = (
+    "run.json",
+    "metrics.csv",
+    "evaluation.csv",
+    "evaluation_agents.csv",
+    "evaluation_episodes.csv",
+    "heldout.csv",
+    "heldout_agents.csv",
+    "heldout_episodes.csv",
+    "heldout_trace_agents.csv",
+    "heldout_trace_steps.csv",
+    "log.txt",
+)
 # Python orders sets of strings differently in every process unless its hash seed
 # is fixed, and RLlib keeps agent ids in sets: without this, the same run seed gives
 # a different multi-agent run each time (tests/rl/test_7_same_seed_same_run.py).
@@ -337,9 +355,10 @@ def job(run_dir: str | Path) -> None:
 
 
 def _heldout(experiment: Experiment, run, run_dir: Path) -> None:
-    """The trained policy against the baselines on the test days -> heldout.csv."""
+    """The trained policy against the baselines on every test day once ->
+    ``heldout*.csv`` (see the module)."""
     from core.env import net_position_policy, zero_policy
-    from core.rl import evaluate, load_policy
+    from core.rl import evaluation, load_policy
 
     config = experiment.heldout_config(run_dir.parent)
     env = run.env_class(config)
@@ -348,8 +367,25 @@ def _heldout(experiment: Experiment, run, run_dir: Path) -> None:
         "zero": zero_policy(env),
         "net_position": net_position_policy(env),
     }
-    frame = evaluate(run.env_class, config, policies, experiment.heldout_seed_list())
-    frame.to_csv(run_dir / "heldout.csv", index=False)
+    episodes = experiment.heldout_episodes()
+    traced = set(experiment.traced_days())
+    found = evaluation(
+        run.env_class,
+        config,
+        policies,
+        [seed for seed, _ in episodes],
+        options=[{"day": day} for _, day in episodes],
+        trace=[i for i, (_, day) in enumerate(episodes) if day in traced],
+    )
+    for name, frame in (
+        ("heldout", found.summary),
+        ("heldout_agents", found.agents),
+        ("heldout_episodes", found.episodes),
+        ("heldout_trace_agents", found.trace_agents),
+        ("heldout_trace_steps", found.trace_steps),
+    ):
+        if frame is not None:
+            frame.to_csv(run_dir / f"{name}.csv", index=False)
 
 
 # --------------------------------------------------------------------------------------

@@ -13,7 +13,7 @@ fixes is in its docstring; the issue IDs are those of the validation document
 """
 
 from core.rl.config import Algorithm, Paradigm, build_config
-from core.rl.policy import Policy, evaluate, rollout
+from core.rl.policy import Evaluation, Policy, evaluate, evaluation, rollout
 from core.rl.train import Run, load_policy, train
 
 __all__ = [
@@ -22,7 +22,9 @@ __all__ = [
     "Policy",
     "Run",
     "build_config",
+    "Evaluation",
     "evaluate",
+    "evaluation",
     "load_policy",
     "rollout",
     "train",

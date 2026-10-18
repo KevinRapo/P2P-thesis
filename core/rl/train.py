@@ -6,9 +6,14 @@ steps. Everything around it is written to the run's folder:
     run.json         what was run: settings, environment, seed, versions, git
                      commit, status, final scores (fixes I-64's missing record)
     metrics.csv      one row per progress report: environment steps, team
-                     return, learner metrics and timing (idle polls omitted)
+                     return, learner metrics per module and their mean, min and
+                     max over the modules (``modules/<metric>_mean`` ...), timing
+                     (idle polls omitted)
     evaluation.csv   the policy and the baselines on held-out seeds, at fixed
                      environment-step counts (fixes I-64's missing baselines)
+    evaluation_agents.csv, evaluation_episodes.csv
+                     the same evaluations kept per episode and agent, and per
+                     episode (``core/rl/policy.py``, ``evaluation``)
     checkpoint/      the algorithm at the end of the budget
 
 What it fixes:
@@ -61,7 +66,7 @@ from ray.rllib.utils.metrics import (
 )
 
 from core.rl.config import SETTINGS, Algorithm, build_algo, build_config
-from core.rl.policy import Policy, baselines, evaluate, evaluation_seeds
+from core.rl.policy import Policy, baselines, evaluation, evaluation_seeds
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -192,6 +197,18 @@ def _settings_keys(run: Run) -> set[str]:
     }
 
 
+def _append_csv(path: Path, frame: pd.DataFrame, written: dict) -> None:
+    """Add ``frame``'s rows to the CSV at ``path``: the first time (no entry in
+    ``written``) the file is replaced and its columns kept; later rows are written in
+    those columns, so an evaluation point costs its own rows, not the history."""
+    columns = written.get(path.name)
+    if columns is None:
+        written[path.name] = list(frame.columns)
+        frame.to_csv(path, index=False)
+    else:
+        frame.reindex(columns=columns).to_csv(path, mode="a", header=False, index=False)
+
+
 def _write_json(path: Path, data: dict) -> None:
     path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
 
@@ -237,12 +254,18 @@ def _iteration_row(iteration: int, result: dict) -> dict[str, Any]:
         ),
         learner_env_steps=learner.get("num_env_steps_trained_lifetime", 0),
     )
+    per_metric: dict[str, list[float]] = {}
     for module_id, metrics in result.get(LEARNER_RESULTS, {}).items():
         if not isinstance(metrics, dict) or module_id == "__all_modules__":
             continue
         for name in LEARNER_METRICS:
             if name in metrics:
                 row[f"{module_id}/{name}"] = metrics[name]
+                per_metric.setdefault(name, []).append(float(metrics[name]))
+    for name, values in per_metric.items():  # readable at any number of modules
+        row[f"modules/{name}_mean"] = float(np.mean(values))
+        row[f"modules/{name}_min"] = float(np.min(values))
+        row[f"modules/{name}_max"] = float(np.max(values))
     return row
 
 
@@ -294,16 +317,24 @@ def train(run: Run) -> dict[str, Any]:
     timings["ray_init_s"] = time.perf_counter() - stage_start
     algo, start = None, time.time()
     rows, evaluations = [], []
+    written: dict[str, list[str]] = {}  # the columns of each evaluation CSV
     seeds = evaluation_seeds(run.eval_episodes)
     env = run.env_class(run.env_config)
 
     def evaluate_now(env_steps: int, extra: Optional[dict] = None) -> None:
         evaluation_start = time.perf_counter()
         policies = {"trained": Policy(learner_modules(algo), run.paradigm, env)}
-        frame = evaluate(run.env_class, run.env_config, policies | (extra or {}), seeds)
-        frame.insert(0, "env_steps", env_steps)
-        evaluations.append(frame)
-        pd.concat(evaluations).to_csv(out / "evaluation.csv", index=False)
+        found = evaluation(
+            run.env_class, run.env_config, policies | (extra or {}), seeds
+        )
+        evaluations.append(found.summary)
+        for frame, name in (
+            (found.summary, "evaluation.csv"),
+            (found.agents, "evaluation_agents.csv"),
+            (found.episodes, "evaluation_episodes.csv"),
+        ):
+            frame.insert(0, "env_steps", env_steps)
+            _append_csv(out / name, frame, written)
         timings["evaluation_s"] += time.perf_counter() - evaluation_start
 
     try:

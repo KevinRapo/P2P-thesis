@@ -131,6 +131,13 @@ def test_zero_actions_submit_no_orders(env):
             break
 
 
+def test_reset_plays_the_day_asked_for(env):
+    _, infos = env.reset(seed=0, options={"day": DAYS[-1]})
+    assert infos["P1"]["day"] == DAYS[-1]
+    with pytest.raises(ValueError, match="not one of the environment's days"):
+        env.reset(options={"day": "2016-12-31"})
+
+
 def test_reward_is_the_scaled_net_bill(env):
     """On random actions every agent's reward is ``(profit - utility * deferred
     demand) / reward_scale``, read from the market's own record; this is the
@@ -145,7 +152,18 @@ def test_reward_is_the_scaled_net_bill(env):
             assert rewards[a] == pytest.approx(bill / env.reward_scale)
             assert infos[a]["bill"] == pytest.approx(bill)
             assert infos[a]["profit"] == pytest.approx(o.profit)
-            assert all(isinstance(v, float) for v in infos[a].values())
+            nested = {"state", "shared", "shared_state"}  # core/rl/policy.py
+            assert set(infos[a]) >= nested
+            assert all(
+                isinstance(v, float) for k, v in infos[a].items() if k not in nested
+            )
+            for part in nested:
+                assert all(isinstance(v, float) for v in infos[a][part].values())
+            shared = infos[a]["shared"]
+            assert shared["p2p_kwh"] == pytest.approx(env.last_record.p2p_kwh)
+            assert shared["bought_from_dso_kwh"] == pytest.approx(
+                env.last_record.dso.sold_kwh
+            )
 
 
 # --------------------------------------------------------------------------------------

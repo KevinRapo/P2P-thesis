@@ -9,7 +9,6 @@
   "budget": 2000,
   "eval_points": 2,
   "eval_episodes": 3,
-  "heldout_seeds": 3,
   "training": {
     "ppo": {"train_batch_size_per_learner": 500, "minibatch_size": 100}
   }
