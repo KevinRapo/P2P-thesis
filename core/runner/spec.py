@@ -13,7 +13,8 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "name": "sac_alpha",              default: the file's name
       "description": "free text",
       "env": "market",                  or "module:Class"
-      "scenario": "scenarios/validate_market.json",   relative to the repo root
+      "scenario": "scenarios/validate_market.json",   relative to the repo root,
+                                        or the scenario itself (a JSON object)
       "train_days": {"from": "2016-06-01", "to": "2016-06-30"},   or a list
       "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
       "env_config": {},                 extra environment settings
@@ -53,6 +54,14 @@ episode, one held-out seed), 15 minutes per run and the name ``<name>--test``. T
 list), ``train_days`` and ``test_days`` (a number of days), ``budget`` (an int or
 ``{algorithm: int}``), ``eval_episodes``, ``heldout_seeds`` and ``resources``
 (merged over the test defaults).
+
+Inputs of a started experiment: an experiment is started as ``resolve`` gives it, with
+the scenario file read into ``scenario`` (``Experiment.inline_scenario``). The
+``experiment.json`` of its folder then holds every input of its runs, the scenario
+included, and the runs read the copy ``scenario.json`` next to it (``SCENARIO_FILE``),
+not the file in ``scenarios/``. So an experiment can be sent to a cluster as one JSON
+object, without its files being in the cluster's checkout, and a later change to
+the scenario file does not change an experiment already started.
 """
 
 from __future__ import annotations
@@ -76,6 +85,8 @@ PARADIGMS = ("ctce", "ctde", "dtde")
 MARKET_ENVS = ("market", "core.env:MarketEnv", "core.env.market_env:MarketEnv")
 HELDOUT_SEED_START = 2000
 PROFILES = ("full", "test")
+# The scenario of a started experiment, in its folder (see the module).
+SCENARIO_FILE = "scenario.json"
 # Per run on a SLURM cluster; ``resources`` in the spec overrides these.
 RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120}
 # What the test profile uses where the ``test`` block says nothing.
@@ -177,7 +188,7 @@ class Experiment:
     paradigms: list[str]
     seeds: list[int]
     budget: int | dict[str, int]
-    scenario: Optional[str] = None
+    scenario: str | dict | None = None
     env: str = "market"
     train_days: list[str] = field(default_factory=list)
     test_days: list[str] = field(default_factory=list)
@@ -289,8 +300,17 @@ class Experiment:
         if type(self.num_env_runners) is not int or self.num_env_runners < 0:
             raise SpecError("num_env_runners must be an integer >= 0")
         if self.is_market and not self.scenario:
-            raise SpecError("the market environment needs a 'scenario' file")
-        if self.scenario and check_files and not self.scenario_path.is_file():
+            raise SpecError("the market environment needs a 'scenario'")
+        if self.scenario is not None and not isinstance(self.scenario, (str, dict)):
+            raise SpecError(
+                "'scenario' is a file relative to the repository root, or the "
+                "scenario itself (a JSON object)"
+            )
+        if (
+            isinstance(self.scenario, str)
+            and check_files
+            and not self.scenario_path.is_file()
+        ):
             raise SpecError(
                 f"scenario file not found: {self.scenario_path} "
                 "('scenario' is relative to the repository root)"
@@ -337,7 +357,19 @@ class Experiment:
 
     @property
     def scenario_path(self) -> Path:
+        """The scenario file that ``scenario`` names (when it is a file name)."""
         return (REPO / self.scenario).resolve()
+
+    def folder(self, exp_dir: Optional[Path] = None) -> Path:
+        """The experiment's folder: ``exp_dir``, default ``<runs root>/<name>``."""
+        return Path(exp_dir) if exp_dir else runs_root() / self.name
+
+    def scenario_file(self, exp_dir: Optional[Path] = None) -> Path:
+        """The scenario file the runs read: ``SCENARIO_FILE`` in the experiment's
+        folder when ``scenario`` is the scenario itself, else the file it names."""
+        if isinstance(self.scenario, dict):
+            return self.folder(exp_dir) / SCENARIO_FILE
+        return self.scenario_path
 
     @property
     def run_resources(self) -> dict:
@@ -353,9 +385,12 @@ class Experiment:
         count = self.heldout_seeds or len(self.test_days) or 14
         return list(range(HELDOUT_SEED_START, HELDOUT_SEED_START + int(count)))
 
-    def heldout_config(self) -> dict:
-        """The environment config of the held-out evaluation (test days)."""
-        config: dict = {"scenario": str(self.scenario_path), "days": self.test_days}
+    def heldout_config(self, exp_dir: Optional[Path] = None) -> dict:
+        """The environment config of the held-out evaluation (test days); ``exp_dir``
+        as in ``expand``."""
+        config: dict = {"days": self.test_days}
+        if self.scenario:
+            config["scenario"] = str(self.scenario_file(exp_dir))
         return config | self.env_config
 
     # --- Writing and profiles ---------------------------------------------------------
@@ -363,6 +398,25 @@ class Experiment:
         """The experiment as a JSON-serialisable dict that ``from_dict`` loads back to
         an equal ``Experiment``; days are written out as lists of ISO dates."""
         return asdict(self)
+
+    def inline_scenario(self) -> "Experiment":
+        """This experiment with its scenario file read into ``scenario``, so that it
+        holds every input of its runs (itself if ``scenario`` is no file name)."""
+        if not isinstance(self.scenario, str):
+            return self
+        path = self.scenario_path
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            raise SpecError(
+                f"scenario file not found: {path} "
+                "('scenario' is relative to the repository root)"
+            ) from None
+        except json.JSONDecodeError as error:
+            raise SpecError(f"{path}: not valid JSON ({error})") from None
+        if not isinstance(data, dict):
+            raise SpecError(f"{path}: a scenario file holds one JSON object")
+        return replace(copy.deepcopy(self), scenario=data)
 
     def with_profile(self, profile: str) -> "Experiment":
         """The experiment as it runs in a profile: ``"full"`` (as written) or
@@ -433,7 +487,7 @@ class Experiment:
     def expand(self, exp_dir: Optional[Path] = None) -> list[RunSpec]:
         """One ``RunSpec`` per run of the grid; run folders are inside ``exp_dir``
         (default: ``<runs root>/<name>``)."""
-        exp_dir = Path(exp_dir) if exp_dir else runs_root() / self.name
+        exp_dir = self.folder(exp_dir)
         variants = self.variants or {None: {}}
         specs: list[RunSpec] = []
         for algorithm in self.algorithms:
@@ -458,7 +512,7 @@ class Experiment:
                                 seed=seed,
                                 variant=variant,
                                 env=self.env,
-                                env_config=self._env_config(seed),
+                                env_config=self._env_config(seed, exp_dir),
                                 budget=budget,
                                 eval_every=every,
                                 eval_episodes=self.eval_episodes,
@@ -472,14 +526,22 @@ class Experiment:
                         )
         return specs
 
-    def _env_config(self, seed: int) -> dict:
+    def _env_config(self, seed: int, exp_dir: Path) -> dict:
         config: dict = {}
         if self.scenario:
-            config["scenario"] = str(self.scenario_path)
+            config["scenario"] = str(self.scenario_file(exp_dir))
         if self.train_days:
             config["days"] = list(self.train_days)
         config["seed"] = seed
         return config | self.env_config
+
+
+def resolve(spec: str | Path | Experiment, profile: str = "full") -> Experiment:
+    """The experiment as it is started: ``spec`` (an experiment file or an
+    ``Experiment``) with its scenario read in (``Experiment.inline_scenario``), in
+    ``profile`` (``Experiment.with_profile``)."""
+    experiment = spec if isinstance(spec, Experiment) else Experiment.load(spec)
+    return experiment.inline_scenario().with_profile(profile)
 
 
 # --------------------------------------------------------------------------------------

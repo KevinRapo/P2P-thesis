@@ -19,7 +19,15 @@ import psutil
 import pytest
 
 from core.runner import registry
-from core.runner.spec import ALGORITHMS, PARADIGMS, REPO, Experiment, SpecError
+from core.runner.spec import (
+    ALGORITHMS,
+    PARADIGMS,
+    REPO,
+    SCENARIO_FILE,
+    Experiment,
+    SpecError,
+    resolve,
+)
 
 SCENARIO = "scenarios/validate_market.json"
 
@@ -112,6 +120,47 @@ def test_env_config_and_date_ranges():
     }
     assert experiment.test_days == ["2016-07-01", "2016-07-02"]
     assert experiment.heldout_config()["days"] == ["2016-07-01", "2016-07-02"]
+
+
+def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):
+    path = tmp_path / "x.json"
+    path.write_text(json.dumps(spec()), encoding="utf-8")
+    scenario = json.loads((REPO / SCENARIO).read_text(encoding="utf-8"))
+    experiment = resolve(path)
+    assert experiment.scenario == scenario and experiment.name == "x"
+    assert resolve(path, "test").scenario == scenario
+    assert resolve(experiment) == experiment  # already holds it
+    assert resolve(Experiment.load(path)) == experiment  # an Experiment, not a file
+    assert Experiment.from_dict(json.loads(json.dumps(experiment.to_dict()))) == (
+        experiment
+    )
+
+
+def test_an_experiment_with_its_scenario_reads_the_copy_in_its_folder(tmp_path):
+    experiment = Experiment.from_dict(spec(scenario={"name": "s"}), "x")
+    run = experiment.expand(tmp_path / "x")[0]
+    assert run.env_config["scenario"] == str(tmp_path / "x" / SCENARIO_FILE)
+    held_out = experiment.heldout_config(tmp_path / "x")
+    assert held_out["scenario"] == str(tmp_path / "x" / SCENARIO_FILE)
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [("{half", "not valid JSON"), ("[1]", "holds one JSON object")],
+)
+def test_resolve_refuses_a_scenario_file_that_is_no_scenario(
+    tmp_path, content, message
+):
+    scenario = tmp_path / "s.json"
+    scenario.write_text(content, encoding="utf-8")
+    experiment = Experiment.from_dict(spec(scenario=str(scenario)), "x")
+    with pytest.raises(SpecError, match=message):
+        resolve(experiment)
+    scenario.unlink()
+    with pytest.raises(SpecError, match="scenario file not found"):
+        resolve(experiment)
+    with pytest.raises(SpecError, match="'scenario' is a file"):
+        Experiment.from_dict(spec(scenario=[1]), "x")
 
 
 def test_heldout_seeds_default_to_one_per_test_day():
@@ -666,6 +715,39 @@ def test_prepare_compares_an_older_experiment_json_by_its_content(root):
         with pytest.raises(SpecError, match="changed since it was started"):
             launch.prepare(experiment, exp_dir)
         assert snapshot(exp_dir) == before
+
+
+def test_prepare_keeps_the_scenario_of_the_experiment_in_its_folder(root, tmp_path):
+    from core.runner import launch
+
+    scenario = tmp_path / "s.json"
+    scenario.write_text('{"name": "one"}', encoding="utf-8")
+    data = spec(algorithms=["ppo"], paradigms=["dtde"], scenario=str(scenario))
+    exp_dir = root / "kept"
+    launch.prepare(resolve(Experiment.from_dict(data, "kept")), exp_dir)
+    assert registry.read_json(exp_dir / SCENARIO_FILE) == {"name": "one"}
+    saved = registry.read_json(exp_dir / "experiment.json")
+    assert saved["scenario"] == {"name": "one"}
+    launch.prepare(resolve(Experiment.from_dict(data, "kept")), exp_dir)  # resumes
+    scenario.write_text('{"name": "two"}', encoding="utf-8")
+    with pytest.raises(SpecError, match="changed since it was started"):
+        launch.prepare(resolve(Experiment.from_dict(data, "kept")), exp_dir)
+    assert registry.read_json(exp_dir / SCENARIO_FILE) == {"name": "one"}
+
+
+def test_prepare_resumes_a_folder_started_with_a_scenario_file(root, tmp_path):
+    from core.runner import launch
+
+    scenario = tmp_path / "s.json"
+    scenario.write_text('{"name": "one"}', encoding="utf-8")
+    data = spec(algorithms=["ppo"], paradigms=["dtde"], scenario=str(scenario))
+    experiment = Experiment.from_dict(data, "older")
+    exp_dir = root / "older"
+    launch.prepare(experiment, exp_dir)  # as before: experiment.json names the file
+    assert registry.read_json(exp_dir / "experiment.json")["scenario"] == str(scenario)
+    assert not (exp_dir / SCENARIO_FILE).exists()
+    launch.prepare(resolve(experiment), exp_dir)  # the same scenario: accepted
+    assert registry.read_json(exp_dir / SCENARIO_FILE) == {"name": "one"}
 
 
 def test_prepare_writes_the_test_version_under_its_own_name(root):

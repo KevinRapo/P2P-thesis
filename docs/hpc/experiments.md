@@ -34,9 +34,19 @@ the cluster.
 
 **`check`** says whether a start would work: `ready`, or the problems (the cluster
 does not answer, this PC and the cluster are at different commits, the cluster's
-checkout has changes, the spec or its scenario is not committed), with both
-commits and the experiments queued or running there. `start` runs the same check
-and refuses with its problems. Exit code 1 when not ready.
+checkout has changes, the spec or its scenario does not load), with both commits
+and the experiments queued or running there. `start` runs the same check and
+refuses with its problems. Exit code 1 when not ready.
+
+**What a start sends.** The spec and its scenario go with the start: this PC reads
+both, applies the profile and sends the experiment as one JSON object over SSH
+(`python -m core.runner start -` on the cluster, reading standard input). The
+cluster saves it in the experiment's folder and its runs read only that copy. So
+a spec or scenario changed here, committed or not, starts on the cluster as it is
+here, with no commit and no `git shipc`. Only the **code** must be the same on both
+machines: that is still what `check` compares. The same holds on this PC: every
+start saves the spec with its scenario in `runs/<experiment>/`, so editing
+`scenarios/` later does not change an experiment already started.
 
 **`sync`** copies the experiment's results to `runs/@taltech/<experiment>`,
 without checkpoints and `slurm/`. The copy goes to a temporary folder that replaces
@@ -45,7 +55,8 @@ files removed on the cluster disappear here too. Nothing is copied unless asked.
 
 **Restarting:** `start` on an existing experiment keeps its completed runs and
 starts failed, stopped and lost ones again, **from scratch** (there is no
-checkpoint resume). A changed spec is refused: use a new name.
+checkpoint resume). A changed spec, or a changed scenario, is refused: use a new
+name.
 
 ## Python and the Studio
 
@@ -78,7 +89,8 @@ state:
 
 | File | What |
 |---|---|
-| `experiment.json` | The spec as started (a later start must match it) |
+| `experiment.json` | The spec as started, with its scenario in it (a later start must match it) |
+| `scenario.json` | The scenario the runs read (a copy of the one in `experiment.json`) |
 | `worker.json`, `worker.log` | This PC: the worker that keeps `max_parallel` runs going |
 | `slurm.json`, `slurm/` | Cluster: the array and submitit's scripts and task logs |
 | `<run>/status.json` | The run's state, times, error, process or SLURM task |
@@ -96,8 +108,9 @@ included.
 1. **Leave the cluster's checkout alone while its experiments are queued or
    running** (`git shipc`, `git pull`, edits): each task reads the checkout when it
    starts, so a queued task would run the newer code. `check` lists them.
-2. **Changes to code or to a scenario file are not detected**, only changes to the
-   spec: use a new experiment name for them too.
+2. **Changes to the code are not detected**, only changes to the spec and its
+   scenario: use a new experiment name for them too. `run.json` records the commit
+   each run trained with.
 3. **One start at a time** across the CLI and the Studio; nothing stops two
    starts from two places at once.
 4. **Each run starts its own Ray instance.** Keep `resources.cpus` at 4 or more so

@@ -42,7 +42,7 @@ Without a job, files can also be browsed at <https://ondemand.hpc.taltech.ee>
 | Kernel dies | `-t` limit reached, or out of memory (`seff <jobid>`) |
 | Old code runs | Pull on the cluster (when no experiment uses the checkout) and restart the kernel |
 | `git pull` refuses | Files changed on the cluster: `git status` there |
-| `check` reports problems | Commit and `git shipc`, so both sides are at the same clean commit |
+| `check` reports problems | For the commits: commit and `git shipc`, so both sides are at the same clean commit (specs and scenarios need no commit: they are sent with the start) |
 | `tput: No value for $TERM` | Harmless |
 | Many `Failed to connect to GCS`, `Resource temporarily unavailable` | Thread limit: too many Ray instances on the node. Use the shared Ray (notebook) or fewer runs per node |
 | Notebook runs stay `running` in `run.json` with no process | They died before recording it; run the cell again. Runner experiments show such runs as `lost`; `start` runs them again |

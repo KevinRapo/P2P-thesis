@@ -1,7 +1,9 @@
 """Command line of the runner: ``python -m core.runner <command>``.
 
 start experiments/x.json   queue the runs and start them on a target (--target, default
-                           local; --profile test: the experiment's small test version)
+                           local; --profile test: the experiment's small test version);
+                           "start -" reads the experiment as JSON from standard input
+                           (how this PC starts one on a cluster)
 status [experiment]        one line per experiment, or the table of one (--json: the
                            same as one JSON object, with the runs and spec)
 stop <experiment> [run]    kill the worker and jobs (or cancel the SLURM tasks)
@@ -26,7 +28,7 @@ import sys
 
 from core.runner import launch, targets
 from core.runner.registry import RunState
-from core.runner.spec import PROFILES, SpecError
+from core.runner.spec import PROFILES, Experiment, SpecError
 
 
 def _duration(seconds) -> str:
@@ -105,6 +107,18 @@ def _folder(target: targets.Target, name: str) -> str:
     return str(target.root / name)
 
 
+def _spec(text: str) -> str | Experiment:
+    """The spec of ``start``: a file, or with ``-`` the experiment on standard
+    input."""
+    if text != "-":
+        return text
+    try:
+        data = json.loads(sys.stdin.read())
+    except json.JSONDecodeError as error:
+        raise SpecError(f"standard input: not valid JSON ({error})") from None
+    return Experiment.from_dict(data)
+
+
 def _add_target(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--target",
@@ -118,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m core.runner", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     start = commands.add_parser("start")
-    start.add_argument("spec", help="experiments/<name>.json")
+    start.add_argument("spec", help="experiments/<name>.json, or - (standard input)")
     start.add_argument("--profile", choices=PROFILES, default="full")
     status = commands.add_parser("status")
     status.add_argument("experiment", nargs="?")
@@ -141,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command not in ("work", "job"):
             target = targets.get(args.target)
         if args.command == "start":
-            name = target.start(args.spec, args.profile)
+            name = target.start(_spec(args.spec), args.profile)
             if args.json:
                 answer = {"target": target.name, "experiment": name}
                 print(json.dumps(answer | {"folder": _folder(target, name)}))

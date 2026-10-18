@@ -7,7 +7,9 @@ run and evaluates it on the test days. ``slurm.py`` reuses ``prepare`` and ``job
 to run the same runs as a SLURM job array. State lives in files only (see
 ``registry.py``):
 
-    runs/<experiment>/experiment.json    the spec, as ``Experiment.to_dict`` writes it
+    runs/<experiment>/experiment.json    the spec, as ``Experiment.to_dict`` writes it,
+                                         with the scenario in it (``spec.resolve``)
+    runs/<experiment>/scenario.json      the scenario the runs read
     runs/<experiment>/worker.json        worker pid and start time
     runs/<experiment>/worker.log         the worker's output
     runs/<experiment>/<run>/status.json  queued -> running -> completed | failed
@@ -36,7 +38,15 @@ from typing import Optional
 import psutil
 
 from core.runner import registry
-from core.runner.spec import REPO, Experiment, RunSpec, SpecError, runs_root
+from core.runner.spec import (
+    REPO,
+    SCENARIO_FILE,
+    Experiment,
+    RunSpec,
+    SpecError,
+    resolve,
+    runs_root,
+)
 
 POLL_S = 5.0
 # Gap between two job starts: Ray's start-up fails more often when several nodes
@@ -125,8 +135,9 @@ def prepare(
 
     An experiment folder keeps the spec it was started with: if ``experiment.json``
     exists and differs from ``experiment``, ``SpecError`` is raised before anything is
-    written or reset. Otherwise ``experiment.json`` is written from the experiment and
-    every run that is not completed or running is reset to ``queued``. ``slurm`` is
+    written or reset. Otherwise ``experiment.json`` is written from the experiment,
+    ``scenario.json`` from its scenario when the experiment holds it (``spec.resolve``),
+    and every run that is not completed or running is reset to ``queued``. ``slurm`` is
     the SLURM state of each task (see ``registry``) for runs that were submitted to a
     cluster.
 
@@ -138,6 +149,8 @@ def prepare(
     specs = experiment.expand(exp_dir)
     exp_dir.mkdir(parents=True, exist_ok=True)
     write_json(exp_dir / "experiment.json", experiment.to_dict())
+    if isinstance(experiment.scenario, dict):
+        write_json(exp_dir / SCENARIO_FILE, experiment.scenario)
     for spec in specs:
         state = registry.current_state(spec.out_dir, slurm=slurm)
         if state not in ("completed", "running"):
@@ -147,17 +160,20 @@ def prepare(
 
 def _refuse_changed_spec(experiment: Experiment, exp_dir: Path) -> None:
     """Runs of one folder must come from one spec, or the results would mix settings.
-    Changes to the code or to the scenario's contents are not detected."""
+    The scenario is compared by its contents; a folder started before experiments
+    held their scenario is compared with its scenario file as it is now. Changes to
+    the code are not detected."""
     path = exp_dir / "experiment.json"
     if not path.exists():
         return
     try:  # a file that cannot be read back is refused like a changed one
         saved = Experiment.from_dict(
             registry.read_json(path), experiment.name, check_files=False
-        )
+        ).inline_scenario()
+        changed = saved.to_dict() != experiment.inline_scenario().to_dict()
     except SpecError:
-        saved = None
-    if saved is None or saved.to_dict() != experiment.to_dict():
+        changed = True
+    if changed:
         raise SpecError(
             f"the spec of '{experiment.name}' changed since it was started: "
             "start it under a new experiment name"
@@ -165,7 +181,7 @@ def _refuse_changed_spec(experiment: Experiment, exp_dir: Path) -> None:
 
 
 def start(
-    spec_path: str | Path, root: Optional[Path] = None, profile: str = "full"
+    spec: str | Path | Experiment, root: Optional[Path] = None, profile: str = "full"
 ) -> Path:
     """Queue an experiment and start its worker; returns at once.
 
@@ -174,7 +190,7 @@ def start(
     The spec must be the one it was started with (see ``prepare``).
 
     Args:
-        spec_path: The experiment file.
+        spec: The experiment file, or the ``Experiment`` itself (``spec.resolve``).
         root: The folder with the experiments (default: the runs root).
         profile: ``"full"``, or ``"test"`` for the experiment's test version
             (``Experiment.test_version``), which has a folder of its own.
@@ -182,7 +198,7 @@ def start(
     Returns:
         The experiment's folder.
     """
-    experiment = Experiment.load(spec_path).with_profile(profile)
+    experiment = resolve(spec, profile)
     exp_dir = (Path(root) if root else runs_root()) / experiment.name
     if registry.worker_alive(exp_dir):
         raise RuntimeError(
@@ -325,7 +341,7 @@ def _heldout(experiment: Experiment, run, run_dir: Path) -> None:
     from core.env import net_position_policy, zero_policy
     from core.rl import evaluate, load_policy
 
-    config = experiment.heldout_config()
+    config = experiment.heldout_config(run_dir.parent)
     env = run.env_class(config)
     policies = {
         "trained": load_policy(run_dir)[0],

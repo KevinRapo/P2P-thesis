@@ -27,6 +27,10 @@ or where the runs happen:
 refuses with the problems of the report, so what is shown before a start and what stops
 it are the same list.
 
+A ``spec`` is an experiment file or an ``Experiment`` (``spec.resolve``): one built or
+changed in a notebook or the Studio starts like a file. A target is given the
+experiment with its scenario in it, so a cluster needs neither file in its checkout.
+
 ``local`` and a ``slurm`` target on the cluster read ``runs/`` directly
 (``DirectTarget``); they differ in how runs are started and stopped, and in asking
 SLURM for the state of the tasks. A ``RemoteTarget`` reads the cluster through its
@@ -37,6 +41,7 @@ from __future__ import annotations
 
 import dataclasses
 import importlib.metadata
+import json
 import shutil
 import subprocess
 import tomllib
@@ -47,12 +52,13 @@ from typing import TYPE_CHECKING, Any, Optional
 from core import settings as machine
 from core.runner import launch, registry
 from core.runner.registry import RunState
-from core.runner.spec import REPO, Experiment, SpecError, runs_root
+from core.runner.spec import REPO, Experiment, SpecError, resolve, runs_root
 
 if TYPE_CHECKING:  # remote.py loads asyncssh: imported only where a Remote is built
     from core.runner.remote import Remote
 
 TARGETS_FILE = REPO / "hpc" / "targets.toml"
+Spec = str | Path | Experiment  # an experiment file, or the experiment itself
 _SHIP = 'commit, then run `git shipc "message"` (it pushes and updates the cluster)'
 
 
@@ -85,33 +91,33 @@ class Target(ABC):
 
     @abstractmethod
     def check(
-        self, spec_path: str | Path | None = None, allow_uncommitted: bool = False
+        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
     ) -> dict:
-        """Whether the target is ready, as the report in the module. With ``spec_path``
-        it also covers that experiment. ``allow_uncommitted`` leaves out the problems
+        """Whether the target is ready, as the report in the module. With ``spec`` it
+        also covers that experiment. ``allow_uncommitted`` leaves out the problems
         about code that is not committed or not the cluster's (development only)."""
 
     def start(
         self,
-        spec_path: str | Path,
+        spec: Spec,
         profile: str = "full",
         allow_uncommitted: bool = False,
     ) -> str:
-        """Queue the experiment in ``spec_path`` (``profile`` ``"full"`` or
-        ``"test"``) and start it; returns the experiment's name.
+        """Queue the experiment ``spec`` (``profile`` ``"full"`` or ``"test"``) and
+        start it; returns the experiment's name.
 
         Refuses with ``TargetError`` listing the problems if ``check`` finds any.
         ``allow_uncommitted=True`` is for development only: the cluster then runs
         whatever its checkout holds, which may not be what is here.
         """
-        report = self.check(spec_path, allow_uncommitted=allow_uncommitted)
+        report = self.check(spec, allow_uncommitted=allow_uncommitted)
         if not report["ok"]:
             problems = "; ".join(report["problems"])
             raise TargetError(f"cannot start on {self.name}: {problems}")
-        return self._start(spec_path, profile)
+        return self._start(spec, profile)
 
     @abstractmethod
-    def _start(self, spec_path: str | Path, profile: str) -> str:
+    def _start(self, spec: Spec, profile: str) -> str:
         """Queue and start, once ``check`` has passed."""
 
     @abstractmethod
@@ -193,12 +199,12 @@ class LocalTarget(DirectTarget):
         super().__init__("local", root)
 
     def check(
-        self, spec_path: str | Path | None = None, allow_uncommitted: bool = False
+        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
     ) -> dict:
         return _report(self.name, [])
 
-    def _start(self, spec_path: str | Path, profile: str) -> str:
-        return launch.start(spec_path, self.root, profile).name
+    def _start(self, spec: Spec, profile: str) -> str:
+        return launch.start(spec, self.root, profile).name
 
     def stop(self, experiment: str, run: Optional[str] = None) -> dict:
         return launch.stop(experiment, run, self.root)
@@ -229,7 +235,7 @@ class SlurmTarget(DirectTarget):
         return slurm.states(self.root / experiment)
 
     def check(
-        self, spec_path: str | Path | None = None, allow_uncommitted: bool = False
+        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
     ) -> dict:
         """Whether jobs can be submitted from here. The commit is this checkout's:
         a queued task runs the checkout as it is when the task starts, so ``active``
@@ -256,11 +262,11 @@ class SlurmTarget(DirectTarget):
             active=active,
         )
 
-    def _start(self, spec_path: str | Path, profile: str) -> str:
+    def _start(self, spec: Spec, profile: str) -> str:
         from core.runner import slurm
 
         exp_dir = slurm.start(
-            spec_path,
+            spec,
             account=self._setting("account"),
             partitions=self._setting("partitions"),
             root=self.root,
@@ -313,27 +319,17 @@ def _plain_name(name: str) -> str:
     return name
 
 
-def _repo_relative(spec_path: str | Path) -> Optional[str]:
-    """The spec's path relative to the repository, with forward slashes (None if it
-    is outside)."""
-    path = Path(spec_path)
-    if not path.is_absolute() and not path.is_file():
-        path = REPO / path  # as the notebooks write it: relative to the root
-    try:
-        return path.resolve().relative_to(REPO.resolve()).as_posix()
-    except ValueError:
-        return None
-
-
 class RemoteTarget(Target):
     """A SLURM cluster used from another machine: every call runs the runner's CLI on
     the cluster's login node over SSH (``remote.py``) and reads its JSON, so the
     cluster does exactly what it does when used from there. Results are copied back
     by ``sync`` into ``mirror/<experiment>``; ``local_runs`` reads that copy.
 
-    The cluster runs its own checkout of the repository, not the files here, so a
-    start needs the spec and its scenario committed here, both machines at one commit
-    and the cluster's checkout clean (``check`` lists what is not).
+    A start sends the experiment, with its scenario, as JSON on the runner's standard
+    input (``start -``); the cluster saves it in the experiment's folder, so neither
+    file needs to be in its checkout. The code is the cluster's own checkout, so both
+    machines must be at one commit and that checkout clean (``check`` lists what is
+    not).
 
     Args:
         name: The target's name in ``targets.toml``.
@@ -372,11 +368,11 @@ class RemoteTarget(Target):
 
     # --- Ready? -----------------------------------------------------------------------
     def check(
-        self, spec_path: str | Path | None = None, allow_uncommitted: bool = False
+        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
     ) -> dict:
         """Whether an experiment can start on the cluster: it answers and its own
         ``check`` passes, its checkout is at this machine's commit and has no changes
-        and, with ``spec_path``, the spec and its scenario are committed here.
+        and, with ``spec``, the experiment and its scenario load here.
 
         Never raises for a connection problem: it is a problem of the report."""
         from core.runner.remote import RemoteError
@@ -407,40 +403,30 @@ class RemoteTarget(Target):
                 unshipped.append(
                     "the cluster's checkout has uncommitted changes: clean it there"
                 )
-        if spec_path is not None:
-            spec_problems, spec_unshipped = self._check_spec(spec_path)
-            problems += spec_problems
-            unshipped += spec_unshipped
+        if spec is not None:
+            problems += self._check_spec(spec)
         problems += [] if allow_uncommitted else unshipped
         return found | {"problems": problems, "ok": not problems}
 
     @staticmethod
-    def _check_spec(spec_path: str | Path) -> tuple[list[str], list[str]]:
-        """The problems of the spec and its scenario as files of the repository:
-        ``(always, unshipped)``."""
-        relative = _repo_relative(spec_path)
-        if relative is None:
-            return [
-                f"{spec_path} is not inside the repository {REPO}: the cluster runs "
-                "its own checkout, so the spec must be a file of it"
-            ], []
+    def _check_spec(spec: Spec) -> list[str]:
+        """Why the experiment cannot be sent: it or its scenario does not load."""
         try:
-            scenario = Experiment.load(REPO / relative, check_files=False).scenario
+            resolve(spec)
         except SpecError as error:
-            return [f"{relative}: {error}"], []
-        unshipped = []
-        for path in [relative, *([Path(scenario).as_posix()] if scenario else [])]:
-            if _git("ls-files", "--error-unmatch", "--", path) is None:
-                unshipped.append(f"{path} is not tracked by git: {_SHIP}")
-            elif _git("status", "--porcelain", "--", path):
-                unshipped.append(f"{path} has uncommitted changes here: {_SHIP}")
-        return [], unshipped
+            where = "" if isinstance(spec, Experiment) else f"{Path(spec).name}: "
+            return [f"{where}{error}"]
+        return []
 
     # --- Start and stop ---------------------------------------------------------------
-    def _start(self, spec_path: str | Path, profile: str) -> str:
-        relative = _repo_relative(spec_path)  # inside the repository: check said so
+    def _start(self, spec: Spec, profile: str) -> str:
+        experiment = resolve(spec, profile)  # the cluster starts it as it is
         answer = self.remote.runner(
-            "start", relative, "--target", self.name, "--profile", profile
+            "start",
+            "-",
+            "--target",
+            self.name,
+            input=json.dumps(experiment.to_dict()),
         )
         return answer["experiment"]
 

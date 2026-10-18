@@ -29,7 +29,7 @@ from typing import Iterator, Optional
 import submitit
 
 from core.runner import launch, registry
-from core.runner.spec import REPO, Experiment, SpecError, runs_root
+from core.runner.spec import REPO, Experiment, SpecError, resolve, runs_root
 
 SACCT_TIMEOUT_S = 30
 TERMINAL = registry.SLURM_TERMINAL
@@ -116,7 +116,7 @@ def choose_partition(partitions: list[dict], minutes: int) -> dict:
 
 
 def start(
-    spec_path: str | Path,
+    spec: str | Path | Experiment,
     *,
     account: str,
     partitions: list[dict],
@@ -130,7 +130,7 @@ def start(
     experiment still has tasks queued or running.
 
     Args:
-        spec_path: The experiment file.
+        spec: The experiment file, or the ``Experiment`` itself (``spec.resolve``).
         account: The SLURM account to charge.
         partitions: ``[{"name", "max_minutes"}, ...]`` in order of preference; the
             first that allows the runs' ``resources.minutes`` is used.
@@ -140,7 +140,7 @@ def start(
     Returns:
         The experiment's folder.
     """
-    experiment = Experiment.load(spec_path).with_profile(profile)
+    experiment = resolve(spec, profile)
     exp_dir = (Path(root) if root else runs_root()) / experiment.name
     resources = experiment.run_resources
     partition = choose_partition(partitions, resources["minutes"])

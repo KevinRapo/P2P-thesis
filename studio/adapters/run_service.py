@@ -74,16 +74,16 @@ class RunService:
             entries, key=lambda entry: entry.get("modified", 0.0), reverse=True
         )
 
-    def check(self, target: str, spec_path: str | Path | None = None) -> dict:
-        """Whether the target is ready (with ``spec_path``: to start that spec), as the
-        report of ``Target.check``."""
-        return self.target(target).check(spec_path)
+    def check(self, target: str, spec: Optional[targets.Spec] = None) -> dict:
+        """Whether the target is ready (with ``spec``, a file or an ``Experiment``: to
+        start that experiment), as the report of ``Target.check``."""
+        return self.target(target).check(spec)
 
-    def start(self, target: str, spec_path: str | Path, profile: str = "full") -> str:
-        """Queue and start the experiment in ``spec_path`` (``profile`` ``"full"`` or
-        ``"test"``); returns its name. It checks first and raises ``TargetError`` with
-        the problems if the target is not ready."""
-        return self.target(target).start(spec_path, profile)
+    def start(self, target: str, spec: targets.Spec, profile: str = "full") -> str:
+        """Queue and start the experiment ``spec`` (a file or an ``Experiment``;
+        ``profile`` ``"full"`` or ``"test"``); returns its name. It checks first and
+        raises ``TargetError`` with the problems if the target is not ready."""
+        return self.target(target).start(spec, profile)
 
     def stop(self, target: str, experiment: str, run: Optional[str] = None) -> dict:
         """Stop a whole experiment, or one run of it (see ``Target.stop``). Kills

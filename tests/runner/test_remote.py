@@ -256,6 +256,15 @@ def test_runner_sends_the_command_and_reads_the_json(cluster, connections):
     )
 
 
+def test_runner_sends_its_input_to_standard_input(cluster, connections):
+    conn = FakeConnection([(0, '{"experiment": "x"}', ""), (0, "{}", "")])
+    connections.queue = [conn]
+    assert cluster.runner("start", "-", input='{"name": "x"}') == {"experiment": "x"}
+    assert conn.run_options[0]["input"] == '{"name": "x"}'
+    cluster.runner("status")
+    assert conn.run_options[1]["input"] is None
+
+
 def test_a_failure_with_a_json_error_becomes_that_error(cluster, connections):
     out = '{"error": "no experiment \'x\' in runs"}'
     connections.queue = [FakeConnection([(2, out, "")])]

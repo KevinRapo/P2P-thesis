@@ -182,20 +182,26 @@ class Remote:
         self.close()
 
     # --- Commands ---------------------------------------------------------------------
-    def execute(self, command: str, what: str = "command") -> tuple[int, str, str]:
+    def execute(
+        self, command: str, what: str = "command", input: Optional[str] = None
+    ) -> tuple[int, str, str]:
         """Run a shell command on the cluster: ``(exit status, stdout, stderr)``.
-        ``what`` names the operation in the error message."""
+        ``what`` names the operation in the error message; ``input`` is sent to the
+        command's standard input."""
 
         async def operation(conn: asyncssh.SSHClientConnection):
-            done = await conn.run(command, check=False, errors="replace")
+            done = await conn.run(command, input=input, check=False, errors="replace")
             code = done.returncode if done.returncode is not None else -1
             return code, str(done.stdout or ""), str(done.stderr or "")
 
         return self._call(what, operation, self.command_timeout_s)
 
-    def runner(self, *args: str, accept: Sequence[int] = (0,)) -> dict:
+    def runner(
+        self, *args: str, accept: Sequence[int] = (0,), input: Optional[str] = None
+    ) -> dict:
         """Run ``python -m core.runner <args> --json`` in the cluster's checkout and
-        return the JSON object it prints.
+        return the JSON object it prints; ``input`` goes to its standard input (the
+        experiment of ``start -``).
 
         ``accept`` are the exit statuses that carry an answer (``check`` exits 1 with
         its report when the target is not ready). Any other status is a
@@ -204,7 +210,7 @@ class Remote:
         """
         what = f"runner {args[0]}"
         command = runner_command(self.repo, self.python, args)
-        status, out, err = self.execute(command, what)
+        status, out, err = self.execute(command, what, input)
         try:
             data = json.loads(out)
         except ValueError:

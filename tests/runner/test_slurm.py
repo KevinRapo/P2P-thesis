@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from core.runner import launch, registry, slurm
-from core.runner.spec import Experiment, SpecError
+from core.runner.spec import Experiment, SpecError, resolve
 
 SCENARIO = "scenarios/validate_market.json"
 ARRAY = "1042700"
@@ -248,7 +248,7 @@ def test_start_submits_one_array_task_per_run(tmp_path, cluster):
     for i, name in enumerate(names):
         status = registry.read_json(exp_dir / name / "status.json")
         assert (status["state"], status["slurm_job"]) == ("queued", f"{ARRAY}_{i}")
-    assert Experiment.load(exp_dir / "experiment.json") == Experiment.load(path)
+    assert Experiment.load(exp_dir / "experiment.json") == resolve(path)
     assert {s.state for s in registry.runs("exp", root)} == {"queued"}
 
 

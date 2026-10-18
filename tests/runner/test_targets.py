@@ -10,6 +10,7 @@ Run with ``python -m pytest tests/runner -q`` in the ``marlem`` conda env.
 from __future__ import annotations
 
 import importlib.metadata
+import io
 import json
 import os
 import subprocess
@@ -23,7 +24,7 @@ from core.runner import launch, slurm, targets
 from core.runner.__main__ import main
 from core.runner.registry import RunState
 from core.runner.remote import Remote, RemoteError
-from core.runner.spec import REPO
+from core.runner.spec import REPO, Experiment, resolve
 
 ARRAY = "1042700"
 CLUSTER = {
@@ -381,13 +382,15 @@ class FakeRemote:
         self.head_answer, self.dirty_answer = head, dirty
         self.calls: list[tuple] = []
         self.accepted: list = []
+        self.inputs: list = []  # what each runner call sent to standard input
         self.pulled: list = []
         self.pull_result: int | Exception = 2
         self.closed = False
 
-    def runner(self, *args, accept=(0,)):
+    def runner(self, *args, accept=(0,), input=None):
         self.calls.append(args)
         self.accepted.append(accept)
+        self.inputs.append(input)
         answer = self.answers[args[0]]
         if isinstance(answer, Exception):
             raise answer
@@ -441,12 +444,13 @@ def git(root: Path, *args: str) -> str:
 
 @pytest.fixture()
 def repo(tmp_path, monkeypatch) -> Path:
-    """A small git repository standing in for the project: a committed spec with its
-    scenario. ``targets.REPO`` points at it."""
+    """A small git repository standing in for the project, with a committed spec and
+    its scenario; ``targets.REPO`` points at it. The spec names its scenario by its
+    absolute path, so it loads without the real repository."""
     root = tmp_path / "repo"
     write(root / "scenarios" / "s.json", {"s": 1})
     spec = {
-        "scenario": "scenarios/s.json",
+        "scenario": str(root / "scenarios" / "s.json"),
         "algorithms": ["ppo"],
         "paradigms": ["dtde"],
         "seeds": [0],
@@ -536,80 +540,76 @@ def test_remote_check_never_raises_for_a_connection_problem(tmp_path, repo):
     assert target.check()["problems"] == ["connection lost"]
 
 
-def test_remote_check_with_a_committed_spec_is_ready(tmp_path, repo):
+def test_remote_check_with_a_spec_that_loads_is_ready(tmp_path, repo):
     target, _ = remote_target(tmp_path, head=head_of(repo))
-    assert target.check("experiments/x.json")["problems"] == []
-    assert target.check(repo / "experiments" / "x.json")["ok"] is True  # absolute
+    assert target.check(repo / "experiments" / "x.json")["problems"] == []
+    experiment = Experiment.load(repo / "experiments" / "x.json")
+    assert target.check(experiment)["ok"] is True  # an experiment, not a file
 
 
-def test_remote_check_reports_an_untracked_or_modified_spec(tmp_path, repo):
+def test_remote_check_does_not_need_the_spec_or_scenario_committed(tmp_path, repo):
     target, _ = remote_target(tmp_path, head=head_of(repo))
-    write(repo / "experiments" / "new.json", spec_of(repo))
-    (problem,) = target.check("experiments/new.json")["problems"]
-    assert "experiments/new.json is not tracked" in problem
+    outside = tmp_path / "elsewhere" / "new.json"  # untracked, outside the repository
+    write(outside, spec_of(repo) | {"budget": 200})
+    write(repo / "scenarios" / "s.json", {"s": 2})  # changed, not committed
+    assert target.check(outside)["problems"] == []
+    assert target.check(repo / "experiments" / "x.json")["problems"] == []
+
+
+def test_remote_check_reports_a_spec_or_scenario_that_does_not_load(tmp_path, repo):
+    target, _ = remote_target(tmp_path, head=head_of(repo))
+    bad = repo / "experiments" / "bad.json"
+    bad.write_text('{"budget": 1}', encoding="utf-8")
+    (problem,) = target.check(bad)["problems"]
+    assert problem.startswith("bad.json: missing field")
+    (repo / "scenarios" / "s.json").unlink()
     path = repo / "experiments" / "x.json"
-    path.write_text(path.read_text(encoding="utf-8") + "\n\n", encoding="utf-8")
-    (problem,) = target.check("experiments/x.json")["problems"]
-    assert "experiments/x.json has uncommitted changes" in problem
-
-
-def test_remote_check_reports_a_modified_or_untracked_scenario(tmp_path, repo):
-    target, _ = remote_target(tmp_path, head=head_of(repo))
-    write(repo / "scenarios" / "s.json", {"s": 2})
-    (problem,) = target.check("experiments/x.json")["problems"]
-    assert "scenarios/s.json has uncommitted changes" in problem
-    git(repo, "rm", "--cached", "-q", "scenarios/s.json")
-    (problem,) = target.check("experiments/x.json")["problems"]
-    assert "scenarios/s.json is not tracked" in problem
-
-
-def test_remote_check_reports_a_spec_outside_the_repository_or_invalid(tmp_path, repo):
-    target, _ = remote_target(tmp_path, head=head_of(repo))
-    other = tmp_path / "other.json"
-    other.write_text("{}", encoding="utf-8")
-    (problem,) = target.check(other)["problems"]
-    assert "not inside the repository" in problem
-    (repo / "experiments" / "bad.json").write_text('{"budget": 1}', encoding="utf-8")
-    (problem,) = target.check("experiments/bad.json")["problems"]
-    assert problem.startswith("experiments/bad.json: missing field")
+    (problem,) = target.check(path)["problems"]
+    assert problem.startswith("x.json: scenario file not found")
+    (problem,) = target.check(path, allow_uncommitted=True)["problems"]
+    assert "scenario file not found" in problem  # not a development shortcut
 
 
 def test_remote_check_collects_every_problem(tmp_path, repo):
     target, _ = remote_target(tmp_path, head="f" * 40, dirty=True)
-    write(repo / "scenarios" / "s.json", {"s": 2})
-    assert len(target.check("experiments/x.json")["problems"]) == 3
+    (repo / "scenarios" / "s.json").unlink()
+    assert len(target.check(repo / "experiments" / "x.json")["problems"]) == 3
 
 
 def test_allow_uncommitted_drops_the_commit_problems_only(tmp_path, repo):
     target, fake = remote_target(tmp_path, head="f" * 40, dirty=True)
-    write(repo / "experiments" / "wip.json", spec_of(repo))  # untracked
-    report = target.check("experiments/wip.json", allow_uncommitted=True)
+    report = target.check(repo / "experiments" / "x.json", allow_uncommitted=True)
     assert report["ok"] is True and report["problems"] == []
     assert report["cluster_commit"] == "f" * 40  # still reported
     fake.answers["check"] = CLUSTER_OK | {"problems": ["sbatch not found"]}
     assert target.check(allow_uncommitted=True)["ok"] is False
-    other = tmp_path / "other.json"
-    other.write_text("{}", encoding="utf-8")
-    assert target.check(other, allow_uncommitted=True)["ok"] is False
 
 
 # --- start ------------------------------------------------------------------------------
-def test_remote_start_checks_then_sends_the_spec(tmp_path, repo):
+def test_remote_start_sends_the_experiment_with_its_scenario(tmp_path, repo):
     target, fake = remote_target(tmp_path, head=head_of(repo))
     fake.answers["start"] = {"experiment": "x--test", "folder": "/cluster/runs/x--test"}
-    assert target.start("experiments/x.json", "test") == "x--test"
+    path = repo / "experiments" / "x.json"
+    assert target.start(path, "test") == "x--test"
     assert fake.calls == [
         ("check", "--target", "taltech"),
-        ("start", "experiments/x.json", "--target", "taltech", "--profile", "test"),
+        ("start", "-", "--target", "taltech"),  # the profile is applied here
     ]
-    assert target.start(repo / "experiments" / "x.json") == "x--test"  # absolute
-    assert fake.calls[-1][-1] == "full"
+    sent = json.loads(fake.inputs[-1])
+    assert sent["name"] == "x--test" and sent["scenario"] == {"s": 1}
+    assert Experiment.from_dict(sent) == resolve(path, "test")
+    write(repo / "scenarios" / "s.json", {"s": 2})  # what is here now is sent
+    changed = Experiment.load(path)
+    changed.budget = 300  # an experiment changed in memory, as the Studio would
+    target.start(changed)
+    sent = json.loads(fake.inputs[-1])
+    assert (sent["name"], sent["budget"], sent["scenario"]) == ("x", 300, {"s": 2})
 
 
 def test_remote_start_refuses_with_the_problems_of_the_check(tmp_path, repo):
     target, fake = remote_target(tmp_path, head="f" * 40, dirty=True)
     with pytest.raises(targets.TargetError) as error:
-        target.start("experiments/x.json")
+        target.start(repo / "experiments" / "x.json")
     message = str(error.value)
     assert message.startswith("cannot start on taltech: ")
     assert "ffffffff" in message and "uncommitted changes" in message
@@ -617,15 +617,11 @@ def test_remote_start_refuses_with_the_problems_of_the_check(tmp_path, repo):
     assert fake.calls == [("check", "--target", "taltech")]  # nothing was started
 
 
-def test_remote_start_refuses_an_untracked_spec_and_one_outside(tmp_path, repo):
+def test_remote_start_refuses_a_spec_that_does_not_load(tmp_path, repo):
     target, fake = remote_target(tmp_path, head=head_of(repo))
-    write(repo / "experiments" / "new.json", spec_of(repo))
-    with pytest.raises(targets.TargetError, match="new.json is not tracked"):
-        target.start("experiments/new.json")
-    other = tmp_path / "other.json"
-    other.write_text("{}", encoding="utf-8")
-    with pytest.raises(targets.TargetError, match="not inside the repository"):
-        target.start(other, allow_uncommitted=True)  # not even for development
+    (repo / "scenarios" / "s.json").unlink()
+    with pytest.raises(targets.TargetError, match="scenario file not found"):
+        target.start(repo / "experiments" / "x.json", allow_uncommitted=True)
     assert not [call for call in fake.calls if call[0] == "start"]
 
 
@@ -633,22 +629,21 @@ def test_remote_start_when_the_cluster_is_unreachable(tmp_path, repo):
     down = RemoteError("runner check failed on taltech: no route (is the VPN on?)")
     target, fake = remote_target(tmp_path, answers={"check": down})
     with pytest.raises(targets.TargetError, match=r"cannot start on taltech.*VPN"):
-        target.start("experiments/x.json")
+        target.start(repo / "experiments" / "x.json")
 
 
 def test_allow_uncommitted_starts_what_the_check_would_refuse(tmp_path, repo):
     target, fake = remote_target(tmp_path, head="f" * 40, dirty=True)
     fake.answers["start"] = {"experiment": "x"}
-    write(repo / "experiments" / "wip.json", spec_of(repo))  # untracked
-    assert target.start("experiments/wip.json", allow_uncommitted=True) == "x"
-    assert fake.calls[-1][:2] == ("start", "experiments/wip.json")
+    assert target.start(repo / "experiments" / "x.json", allow_uncommitted=True) == "x"
+    assert fake.calls[-1] == ("start", "-", "--target", "taltech")
 
 
 def test_remote_errors_come_out_of_start_unchanged(tmp_path, repo):
     target, fake = remote_target(tmp_path, head=head_of(repo))
     fake.answers["start"] = RemoteError("the spec of 'x' changed: use a new name")
     with pytest.raises(RemoteError, match="the spec of 'x' changed"):
-        target.start("experiments/x.json")
+        target.start(repo / "experiments" / "x.json")
 
 
 # --- reading ----------------------------------------------------------------------------
@@ -943,6 +938,36 @@ def test_start_goes_to_the_target_with_the_profile(populated, capsys, monkeypatc
         main(["start", "experiments/smoke.json", "--profile", "tiny"])
 
 
+def test_start_dash_reads_the_experiment_from_standard_input(
+    populated, capsys, monkeypatch
+):
+    calls = []
+
+    def fake_start(self, spec, profile="full", allow_uncommitted=False):
+        calls.append((spec, profile))
+        return spec.name
+
+    monkeypatch.setattr(targets.LocalTarget, "start", fake_start)
+    sent = {
+        "name": "sent",
+        "scenario": {"s": 1},
+        "algorithms": ["ppo"],
+        "paradigms": ["dtde"],
+        "seeds": [0],
+        "budget": 100,
+    }
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps(sent)))
+    code, out, _ = run_cli(capsys, "start", "-", "--json")
+    assert code == 0 and json.loads(out)["experiment"] == "sent"
+    ((experiment, profile),) = calls
+    assert experiment == Experiment.from_dict(sent) and profile == "full"
+    for text, message in (("{half", "not valid JSON"), ('{"budget": 1}', "missing")):
+        monkeypatch.setattr(sys, "stdin", io.StringIO(text))
+        code, out, _ = run_cli(capsys, "start", "-", "--json")
+        assert code == 2 and message in json.loads(out)["error"]
+    assert len(calls) == 1  # nothing else was started
+
+
 def test_status_json_is_the_only_output_of_a_real_process(populated):
     done = subprocess.run(
         [sys.executable, "-m", "core.runner", "status", "new", "--json"],
@@ -1013,7 +1038,7 @@ def test_cli_start_through_a_remote_target(remote_cli, tmp_path, capsys, monkeyp
     target, fake = remote_cli
     monkeypatch.setattr(targets.RemoteTarget, "_start", lambda self, spec, profile: "s")
     monkeypatch.setattr(
-        targets.RemoteTarget, "_check_spec", staticmethod(lambda spec: ([], []))
+        targets.RemoteTarget, "_check_spec", staticmethod(lambda spec: [])
     )
     monkeypatch.setattr(
         targets, "_git", lambda *args: COMMIT if args[0] == "rev-parse" else ""
