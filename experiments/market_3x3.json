@@ -30,5 +30,5 @@
     }
   },
   "max_parallel": 3,
-  "num_env_runners": 3
+  "num_env_runners": 1
 }
