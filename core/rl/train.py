@@ -5,8 +5,8 @@ steps. Everything around it is written to the run's folder:
 
     run.json         what was run: settings, environment, seed, versions, git
                      commit, status, final scores (fixes I-64's missing record)
-    metrics.csv      one row per training iteration: environment steps, team
-                     return, the learner's losses, entropy, KL, ...
+    metrics.csv      one row per progress report: environment steps, team
+                     return, learner metrics and timing (idle polls omitted)
     evaluation.csv   the policy and the baselines on held-out seeds, at fixed
                      environment-step counts (fixes I-64's missing baselines)
     checkpoint/      the algorithm at the end of the budget
@@ -229,6 +229,19 @@ def _iteration_row(iteration: int, result: dict) -> dict[str, Any]:
         "env_steps": env.get(NUM_ENV_STEPS_SAMPLED_LIFETIME, 0),
         "team_return_mean": env.get(EPISODE_RETURN_MEAN, float("nan")),
     }
+    timers = result.get("timers", {})
+    learner = result.get(LEARNER_RESULTS, {}).get("__all_modules__", {})
+    # RLlib timers are smoothed means in seconds, not additive stage totals.
+    # APPO's learner call enqueues work; its thread timer measures actual updates.
+    row.update(
+        sampler_sample_s_mean=env.get("sample", float("nan")),
+        sampling_s_mean=timers.get("env_runner_sampling_timer", float("nan")),
+        learner_call_s_mean=timers.get("learner_update_timer", float("nan")),
+        async_learner_update_s_mean=learner.get(
+            "learner_thread_update_timer", float("nan")
+        ),
+        learner_env_steps=learner.get("num_env_steps_trained_lifetime", 0),
+    )
     for module_id, metrics in result.get(LEARNER_RESULTS, {}).items():
         if not isinstance(metrics, dict) or module_id == "__all_modules__":
             continue
@@ -272,6 +285,8 @@ def train(run: Run) -> dict[str, Any]:
     record = _record(run, config) | {"out_dir": str(out)}
     _write_json(out / "run.json", record)
 
+    timings = {"evaluation_s": 0.0, "train_calls_s": 0.0}
+    stage_start = time.perf_counter()
     started_ray = not ray.is_initialized()
     if started_ray and os.environ.get("RAY_ADDRESS"):
         ray.init()  # join the shared instance; Ray refuses resources when joining
@@ -281,32 +296,55 @@ def train(run: Run) -> dict[str, Any]:
             num_gpus=run.num_gpus,
             include_dashboard=False,
         )
+    timings["ray_init_s"] = time.perf_counter() - stage_start
     algo, start = None, time.time()
     rows, evaluations = [], []
     seeds = evaluation_seeds(run.eval_episodes)
     env = run.env_class(run.env_config)
 
     def evaluate_now(env_steps: int, extra: Optional[dict] = None) -> None:
+        evaluation_start = time.perf_counter()
         policies = {"trained": Policy(learner_modules(algo), run.paradigm, env)}
         frame = evaluate(run.env_class, run.env_config, policies | (extra or {}), seeds)
         frame.insert(0, "env_steps", env_steps)
         evaluations.append(frame)
         pd.concat(evaluations).to_csv(out / "evaluation.csv", index=False)
+        timings["evaluation_s"] += time.perf_counter() - evaluation_start
 
     try:
+        stage_start = time.perf_counter()
         algo = build_algo(config)
+        timings["build_s"] = time.perf_counter() - stage_start
         # Step 0: the untrained policy and the baselines, on the same seeds.
         evaluate_now(0, baselines(run.env_class, run.env_config, run.seed))
         env_steps, iteration = 0, 0
+        learner_steps = 0
+        loop_start = time.perf_counter()
         next_eval = run.eval_every or run.budget
         while env_steps < run.budget:
+            call_start = time.perf_counter()
             result = algo.train()
+            call_s = time.perf_counter() - call_start
+            timings["train_calls_s"] += call_s
             iteration += 1
             row = _iteration_row(iteration, result)
-            env_steps = row["env_steps"]
-            rows.append(row)
-            pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
+            progressed = (
+                row["env_steps"] > env_steps or row["learner_env_steps"] > learner_steps
+            )
+            env_steps = max(env_steps, row["env_steps"])
+            learner_steps = max(learner_steps, row["learner_env_steps"])
             bad = _nonfinite(result.get(LEARNER_RESULTS, {}))
+            if progressed or bad:
+                row.update(
+                    env_steps=env_steps,
+                    learner_env_steps=learner_steps,
+                    train_call_s=call_s,
+                    train_calls_s_total=timings["train_calls_s"],
+                    elapsed_s=time.perf_counter() - loop_start,
+                    sampled_steps_per_train_s=env_steps / timings["train_calls_s"],
+                )
+                rows.append(row)
+                pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
             if bad:
                 raise FloatingPointError(
                     f"Non-finite learner metrics at iteration {iteration} "
@@ -316,7 +354,9 @@ def train(run: Run) -> dict[str, Any]:
                 evaluate_now(env_steps)
                 next_eval += run.eval_every
         evaluate_now(env_steps)
+        stage_start = time.perf_counter()
         algo.save_to_path(str((out / "checkpoint").resolve()))
+        timings["checkpoint_s"] = time.perf_counter() - stage_start
         final = evaluations[-1].set_index("policy").loc["trained"].to_dict()
         record |= {
             "status": "completed",
@@ -332,6 +372,7 @@ def train(run: Run) -> dict[str, Any]:
         }
         raise
     finally:
+        record["timings"] = {k: round(v, 6) for k, v in timings.items()}
         record["duration_s"] = round(time.time() - start, 1)
         record["finished"] = datetime.now().isoformat(timespec="seconds")
         _write_json(out / "run.json", record)

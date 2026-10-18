@@ -138,3 +138,34 @@ notebook's ([sizing](performance.md#sizing)).
 
 Before longer runs, measure a short one with `seff <jobid>` (CPU efficiency, peak
 memory) and size from that: five agents say little about fifty.
+
+## Comparing sampling and learning time
+
+`metrics.csv` records reports that advance sampled environment steps or lifetime
+learner environment steps. Idle APPO polls are omitted; non-finite learner metrics
+still stop the run and are recorded. `iteration` remains the number of calls to
+`algo.train()`, so gaps in that column are expected and are not missing updates.
+
+| Column | Meaning |
+|---|---|
+| `sampler_sample_s_mean` | RLlib's mean sample-call duration on the environment runners, aggregated across runners |
+| `sampling_s_mean` | RLlib's driver sampling timer (PPO/SAC), including waiting for samples |
+| `learner_call_s_mean` | RLlib's driver learner-call timer; for APPO this queues work, not the background update duration |
+| `async_learner_update_s_mean` | APPO's background learner update timer |
+| `learner_env_steps` | Lifetime environment steps processed by the learner; replay and reuse can count data repeatedly |
+| `train_call_s` | Wall time of the reported `algo.train()` call |
+| `train_calls_s_total` | Cumulative wall time of all training calls, including omitted idle polls |
+| `sampled_steps_per_train_s` | Collected environment steps divided by cumulative training-call time; includes learning/communication, so this is not pure rollout throughput |
+| `elapsed_s` | Wall time since the training loop began, including intermediate evaluation and reporting |
+
+RLlib timers are smoothed means in seconds, not cumulative times. Missing timers
+are blank in the CSV. Do not sum these columns to derive total runtime, or divide
+the whole run's step count by a mean sample-call duration. Asynchronous sampling
+and learning can overlap, and timer values may reflect earlier completed work.
+
+`run.json` also records `timings`: `ray_init_s`, `build_s`, `train_calls_s`,
+`evaluation_s` (including evaluation CSV writes) and `checkpoint_s`. These help
+separate initialization from sustained training. They exclude the runner's later
+held-out evaluation and do not constitute a complete breakdown of job wall time.
+Compare longer runs on the same code and settings; a one-iteration test is mainly
+a startup and pipeline check.
