@@ -822,3 +822,18 @@ def test_mark_stopped_without_kill_leaves_the_process_alone(root):
         launch.mark_stopped(exp, "x")
     with pytest.raises(FileNotFoundError, match="no experiment"):
         launch.experiment_dir("nope", root)
+
+
+def test_a_row_still_being_written_is_not_read(tmp_path):
+    path = tmp_path / "metrics.csv"
+    path.write_text("iteration,env_steps\n1,100\n2,2", encoding="utf-8")
+    assert registry._last_row(path) == {"iteration": "1", "env_steps": "100"}
+    path.write_text("iteration,env_steps\n1,100\n2,200\n", encoding="utf-8")
+    assert registry._last_row(path)["env_steps"] == "200"
+    path.write_text("iteration,env", encoding="utf-8")  # the header, half written
+    assert registry._last_row(path) is None
+    evaluation = tmp_path / "evaluation.csv"
+    evaluation.write_text(
+        "policy,team_return_mean\ntrained,-7.5\ntrained,-6", encoding="utf-8"
+    )
+    assert registry._trained_return(evaluation, last=True) == -7.5

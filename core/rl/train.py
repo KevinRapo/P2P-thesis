@@ -197,6 +197,30 @@ def _settings_keys(run: Run) -> set[str]:
     }
 
 
+def _replace(path: Path, write) -> None:
+    """Write the file at ``path`` in one step: ``write(tmp)`` writes it beside
+    ``path``, which it then replaces, so a reader (the runner's status, read while
+    the run trains) never sees half of it."""
+    tmp = path.with_name(path.name + ".tmp")
+    write(tmp)
+    for attempt in range(20):  # Windows refuses while a reader has the file open
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 19:
+                raise
+            time.sleep(0.05)
+
+
+def _append(path: Path, frame: pd.DataFrame) -> None:
+    """Add ``frame``'s rows (in the file's columns) to the end of a CSV in one write,
+    so a reader sees whole rows."""
+    text = frame.to_csv(index=False, header=False)
+    with open(path, "a", encoding="utf-8", newline="") as handle:
+        handle.write(text)
+
+
 def _append_csv(path: Path, frame: pd.DataFrame, written: dict) -> None:
     """Add ``frame``'s rows to the CSV at ``path``: the first time (no entry in
     ``written``) the file is replaced and its columns kept; later rows are written in
@@ -204,13 +228,31 @@ def _append_csv(path: Path, frame: pd.DataFrame, written: dict) -> None:
     columns = written.get(path.name)
     if columns is None:
         written[path.name] = list(frame.columns)
-        frame.to_csv(path, index=False)
+        _replace(path, lambda tmp: frame.to_csv(tmp, index=False))
     else:
-        frame.reindex(columns=columns).to_csv(path, mode="a", header=False, index=False)
+        _append(path, frame.reindex(columns=columns))
+
+
+def _append_metrics(path: Path, rows: list[dict], columns: list[str]) -> None:
+    """Add the last of ``rows`` to ``metrics.csv``. Its columns are those of every
+    row so far (``columns``, kept by the caller): a row that brings new ones (the
+    learner metrics, once learning starts) replaces the file once with all rows in
+    the wider columns; every other row is appended, so a report costs one row, not
+    the history."""
+    new = [key for key in rows[-1] if key not in columns]
+    if new:
+        columns.extend(new)
+        _replace(
+            path,
+            lambda tmp: pd.DataFrame(rows, columns=columns).to_csv(tmp, index=False),
+        )
+    else:
+        _append(path, pd.DataFrame(rows[-1:], columns=columns))
 
 
 def _write_json(path: Path, data: dict) -> None:
-    path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+    text = json.dumps(data, indent=2, default=str)
+    _replace(path, lambda tmp: tmp.write_text(text, encoding="utf-8"))
 
 
 # --------------------------------------------------------------------------------------
@@ -317,6 +359,7 @@ def train(run: Run) -> dict[str, Any]:
     timings["ray_init_s"] = time.perf_counter() - stage_start
     algo, start = None, time.time()
     rows, evaluations = [], []
+    metric_columns: list[str] = []  # of metrics.csv, as its rows bring them
     written: dict[str, list[str]] = {}  # the columns of each evaluation CSV
     seeds = evaluation_seeds(run.eval_episodes)
     env = run.env_class(run.env_config)
@@ -370,7 +413,7 @@ def train(run: Run) -> dict[str, Any]:
                     sampled_steps_per_train_s=env_steps / timings["train_calls_s"],
                 )
                 rows.append(row)
-                pd.DataFrame(rows).to_csv(out / "metrics.csv", index=False)
+                _append_metrics(out / "metrics.csv", rows, metric_columns)
             if bad:
                 raise FloatingPointError(
                     f"Non-finite learner metrics at iteration {iteration} "

@@ -155,15 +155,24 @@ def _legacy_state(record: Optional[dict]) -> Optional[str]:
     return state if state in ("completed", "failed") else "unknown"
 
 
+def _complete(text: str) -> list[str]:
+    """The lines of ``text`` without a last one still being written (no line end)."""
+    lines = text.splitlines()
+    if lines and not text.endswith("\n"):
+        lines.pop()
+    return lines
+
+
 def _last_row(path: Path) -> Optional[dict]:
-    """The last row of a CSV as a dict, reading only its first and last line."""
+    """The last complete row of a CSV as a dict, reading only its first line and
+    its end."""
     try:
         with open(path, "rb") as handle:
             header = handle.readline().decode("utf-8").strip()
             handle.seek(0, 2)
             size = handle.tell()
             handle.seek(max(0, size - 8192))
-            tail = handle.read().decode("utf-8", errors="replace").splitlines()
+            tail = _complete(handle.read().decode("utf-8", errors="replace"))
     except OSError:
         return None
     lines = [line for line in tail if line.strip()]
@@ -180,10 +189,10 @@ def _trained_return(path: Path, last: bool) -> Optional[float]:
     """Team return of the policy ``trained`` in an evaluation CSV (latest row, or
     the only one)."""
     try:
-        with open(path, newline="", encoding="utf-8") as handle:
-            rows = [r for r in csv.DictReader(handle) if r.get("policy") == "trained"]
-    except OSError:
+        lines = _complete(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
         return None
+    rows = [r for r in csv.DictReader(lines) if r.get("policy") == "trained"]
     if not rows:
         return None
     try:

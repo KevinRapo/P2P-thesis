@@ -120,3 +120,22 @@ def test_missing_timers_are_unknown_not_zero():
     row = training._iteration_row(1, {})
     assert pd.isna(row["sampling_s_mean"])
     assert pd.isna(row["async_learner_update_s_mean"])
+
+
+def test_metrics_rows_are_appended_and_new_columns_widen_the_file_once(
+    monkeypatch, tmp_path
+):
+    path, rows, columns = tmp_path / "metrics.csv", [], []
+    replaced = []
+    original = training._replace
+    monkeypatch.setattr(
+        training, "_replace", lambda p, write: (replaced.append(p), original(p, write))
+    )
+    for row in ({"a": 1}, {"a": 2}, {"a": 3, "loss": 0.5}, {"a": 4, "loss": 0.4}):
+        rows.append(row)
+        training._append_metrics(path, rows, columns)
+    frame = pd.read_csv(path)
+    assert frame.a.tolist() == [1, 2, 3, 4]
+    assert pd.isna(frame.loss.iloc[0]) and frame.loss.tolist()[2:] == [0.5, 0.4]
+    assert len(replaced) == 2  # the first row and the row with the new column
+    assert not (tmp_path / "metrics.csv.tmp").exists()
