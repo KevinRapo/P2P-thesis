@@ -339,7 +339,8 @@ market or pandapower directly.
 | Path | What it is |
 |---|---|
 | `docs/` | This documentation (Markdown); `docs/networks.py` generates the network catalogue |
-| `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets |
+| `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets; [`export_drawio.py`](../docs_site/export_drawio.py) exports the `.drawio` diagrams under `docs/` to the SVGs the pages show |
+| [`docs/experiments/`](experiments/grid-methods.md) | The thesis's experiments: the grid-method comparison (proposal) with its diagram (`diagrams/grid_methods.drawio`, exported to `grid-methods.svg`) |
 | `run_studio.py` | Starts the Studio with auto-reload |
 | [`run_all.py`](../run_all.py) | Starts this checkout's docs and Studio in separate windows using the current Python; `docs` and `studio` select one |
 | `AGENTS.md` | Rules for working in this repository |

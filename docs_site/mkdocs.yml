@@ -149,6 +149,9 @@ nav:
           - simbench/README.md
           - Network catalogue: simbench/networks.md
           - Profiles: simbench/profiles.md
+  # What the thesis compares, and how.
+  - Experiments:
+      - Grid-method comparison: experiments/grid-methods.md
   # Running on the TalTech cluster.
   - HPC:
       - Overview: hpc.md

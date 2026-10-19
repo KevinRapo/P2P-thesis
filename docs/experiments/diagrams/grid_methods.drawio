@@ -1,0 +1,118 @@
+<mxfile host="marlem-v1">
+  <diagram name="Grid-method experiment" id="grid-methods">
+    <mxGraphModel dx="1600" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1480" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="&lt;b&gt;Grid-method experiment: where each input of the DSO fees comes from&lt;/b&gt;" style="text;html=1;fontSize=20;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1520" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="same" value="&lt;b&gt;Identical in both arms&lt;/b&gt;&lt;br&gt;SimBench network and its lines · participants and their buses · profiles · train and test days · seeds · algorithm, paradigm and hyperparameters · fee formulas and factors · settlement" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#f5f5f5;strokeColor=#666666;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="75" width="1520" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="agents" value="&lt;b&gt;RL agents&lt;/b&gt; (PPO / APPO / SAC in CTCE, DTDE, CTDE)&lt;br&gt;observe their own profile, battery, reputation, the price and last step&#x27;s market totals: &lt;i&gt;no grid state&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="165" width="480" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="market" value="&lt;b&gt;Market step t&lt;/b&gt; &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;actions → orders → three-stage clearing → settlement and battery dispatch" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="560" y="165" width="480" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="inj" value="&lt;b&gt;Physical injections&lt;/b&gt; P&lt;sub&gt;i&lt;/sub&gt; at each participant&#x27;s bus&lt;br&gt;what it did: generation, demand, battery (never its trades)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="290" width="480" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="trades" value="&lt;b&gt;Trades of the step&lt;/b&gt; T&lt;sub&gt;t&lt;/sub&gt;: buyer, seller, q&lt;sub&gt;ij&lt;/sub&gt;, p&lt;sub&gt;ij&lt;/sub&gt;, stage&lt;br&gt;peer-to-peer and with the DSO" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="560" y="290" width="480" height="75" as="geometry"/>
+        </mxCell>
+        <mxCell id="hA" value="Arm A · Power flow (pandapower AC)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="395" width="480" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="hM" value="Shared by both arms" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="560" y="395" width="480" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="hG" value="Arm B · Graph model (Salazar, P1 §3.5)" style="rounded=0;whiteSpace=wrap;html=1;fontSize=16;fontStyle=1;align=center;verticalAlign=middle;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="395" width="480" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="pf" value="&lt;b&gt;AC power flow, every step&lt;/b&gt; &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;in: P&lt;sub&gt;i&lt;/sub&gt; at the participants&#x27; buses + SimBench profiles of the network&#x27;s own loads and generators&lt;br&gt;out: loading of every line (%), bus voltages V (pu), line and transformer losses, limit violations" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="455" width="480" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="topo" value="&lt;b&gt;Topology&lt;/b&gt; &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;graph of the SimBench lines, weight = length (km); transformers and switches 0&lt;br&gt;d&lt;sub&gt;ij&lt;/sub&gt; = shortest-path length · L&lt;sub&gt;ij&lt;/sub&gt; = lines on that path&lt;br&gt;zones = feeders · a DSO trade runs from the participant to the transformer busbar (M-31)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="560" y="455" width="480" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow" value="&lt;b&gt;Edge flows, every step&lt;/b&gt; &lt;font color=&quot;#d79b00&quot;&gt;&lt;b&gt;[to build]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;F&lt;sub&gt;e&lt;/sub&gt; = Σ q&lt;sub&gt;ij&lt;/sub&gt; / Δt over the trades whose path L&lt;sub&gt;ij&lt;/sub&gt; uses line e&lt;br&gt;from 0 each step (M-35), all three stages (M-36), DSO trades to the transformer (M-31)&lt;br&gt;opposite trades add up, as in P1 §3.5.3; untraded energy and the network&#x27;s own loads are not seen" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;dashPattern=8 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="455" width="480" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="cap" value="&lt;b&gt;Edge capacity&lt;/b&gt; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[decision]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;P1: C&lt;sub&gt;e&lt;/sub&gt; = C&lt;sub&gt;tot&lt;/sub&gt; · (1/ℓ&lt;sub&gt;e&lt;/sub&gt;) / Σ&lt;sub&gt;k&lt;/sub&gt; (1/ℓ&lt;sub&gt;k&lt;/sub&gt;), ℓ = line length&lt;br&gt;C&lt;sub&gt;tot&lt;/sub&gt; = Σ line ratings (P1 gives none; the release uses 1e6 kW)&lt;br&gt;variant: C&lt;sub&gt;e&lt;/sub&gt; = rating of line e" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;dashPattern=8 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="635" width="480" height="115" as="geometry"/>
+        </mxCell>
+        <mxCell id="inA" value="&lt;b&gt;What arm A gives the fees&lt;/b&gt;&lt;br&gt;C&lt;sub&gt;t&lt;/sub&gt; = max over e ∈ L&lt;sub&gt;ij&lt;/sub&gt; of loading&lt;sub&gt;e&lt;/sub&gt; / 100, capped at 1 &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;V&lt;sub&gt;drop&lt;/sub&gt; = |V&lt;sub&gt;a&lt;/sub&gt; − V&lt;sub&gt;b&lt;/sub&gt;| measured between the trade&#x27;s two buses; a DSO trade: participant&#x27;s bus vs transformer busbar &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[proposed]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;i&gt;now: f&lt;sub&gt;volt&lt;/sub&gt; · d&lt;sub&gt;ij&lt;/sub&gt;, as in arm B&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="780" width="480" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="inM" value="&lt;b&gt;What both arms give the fees&lt;/b&gt;&lt;br&gt;l&lt;sub&gt;ij&lt;/sub&gt; = κ · d&lt;sub&gt;ij&lt;/sub&gt; · q&lt;sub&gt;ij&lt;/sub&gt; (P1 eq. 18), κ = 0.03 per km &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[decision]&lt;/b&gt;&lt;/font&gt; (M-41); recorded, not deducted from the delivered energy&lt;br&gt;&lt;br&gt;same zone: both ends on one feeder (M-33, M-34)&lt;br&gt;B&lt;sub&gt;grid&lt;/sub&gt;: offered minus asked energy before stage 3 (P1 eq. 20), for the imbalance fee of DSO trades (M-30)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="560" y="780" width="480" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="inG" value="&lt;b&gt;What arm B gives the fees&lt;/b&gt;&lt;br&gt;C&lt;sub&gt;t&lt;/sub&gt; = max over e ∈ L&lt;sub&gt;ij&lt;/sub&gt; of F&lt;sub&gt;e&lt;/sub&gt; / C&lt;sub&gt;e&lt;/sub&gt;, capped at 1 (P1 eq. 19) &lt;font color=&quot;#d79b00&quot;&gt;&lt;b&gt;[to build]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;V&lt;sub&gt;drop&lt;/sub&gt; = f&lt;sub&gt;volt&lt;/sub&gt; · d&lt;sub&gt;ij&lt;/sub&gt; (P1 eq. 8f), f&lt;sub&gt;volt&lt;/sub&gt; = 0.15 per km &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;independent of load and of the measured voltages" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#ffe6cc;strokeColor=#d79b00;dashed=1;dashPattern=8 4;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="780" width="480" height="175" as="geometry"/>
+        </mxCell>
+        <mxCell id="fees" value="&lt;b&gt;DSO fees per trade, P1 eq. 8&lt;/b&gt; &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt; (same formulas and factors in both arms; only C&lt;sub&gt;t&lt;/sub&gt; and V&lt;sub&gt;drop&lt;/sub&gt; come from the arm)&lt;br&gt;F&lt;sub&gt;cong&lt;/sub&gt; = 0.5 · (C&lt;sub&gt;t&lt;/sub&gt; − 0.8) · q · p if C&lt;sub&gt;t&lt;/sub&gt; &amp;gt; 0.8 &amp;nbsp;·&amp;nbsp; F&lt;sub&gt;thermal&lt;/sub&gt; = min((C&lt;sub&gt;t&lt;/sub&gt; − 0.2) / 0.8, 0.3) · q · p if C&lt;sub&gt;t&lt;/sub&gt; &amp;gt; 0.2 (M-32)&lt;br&gt;F&lt;sub&gt;volt&lt;/sub&gt; = min(V&lt;sub&gt;drop&lt;/sub&gt;, 0.05) · q · p &amp;nbsp;·&amp;nbsp; F&lt;sub&gt;trans&lt;/sub&gt; = l&lt;sub&gt;ij&lt;/sub&gt; · p (M-28) &amp;nbsp;·&amp;nbsp; F&lt;sub&gt;zone&lt;/sub&gt; = −0.15 · q · p in one zone &amp;nbsp;·&amp;nbsp; F&lt;sub&gt;imb&lt;/sub&gt; for DSO trades that worsen B&lt;sub&gt;grid&lt;/sub&gt;&lt;br&gt;peer trades: split 50/50 between buyer and seller; DSO trades: paid by the participant" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1000" width="1520" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="reward" value="&lt;b&gt;Reward&lt;/b&gt; &lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt;&lt;br&gt;r&lt;sub&gt;i&lt;/sub&gt; = (profit&lt;sub&gt;i&lt;/sub&gt; − p&lt;sub&gt;utility&lt;/sub&gt; · deferred demand&lt;sub&gt;i&lt;/sub&gt;) / scale&lt;br&gt;profit includes the participant&#x27;s fees: the &lt;i&gt;only&lt;/i&gt; way the grid method reaches learning" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="560" y="1160" width="480" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="measure" value="&lt;b&gt;Measurement, both arms&lt;/b&gt; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[proposed]&lt;/b&gt;&lt;/font&gt;: the AC power flow of arm A runs in arm B too and is recorded there, but sets no fee&lt;br&gt;grid: peak line loading, overload hours, voltage-band violations, line and transformer losses, import / export · market: fees per part, peer-to-peer share, prices, profits&lt;br&gt;arm B only: its C&lt;sub&gt;t&lt;/sub&gt; next to the measured loading of the same lines (how well the paper&#x27;s signal follows the physics)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;fillColor=#eef3fb;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1300" width="1520" height="95" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend" value="&lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt; in marlem-v1 &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#d79b00&quot;&gt;&lt;b&gt;[to build]&lt;/b&gt;&lt;/font&gt; dashed border: not in the code yet &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[decision]&lt;/b&gt;&lt;/font&gt; a value or rule still to choose &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[proposed]&lt;/b&gt;&lt;/font&gt; suggested, not agreed &amp;nbsp;&amp;nbsp; blue: arm A · orange: arm B · grey: shared · green: fees · purple: learning" style="text;html=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1415" width="1520" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="e0" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;exitX=1;exitY=0.5;entryX=0;entryY=0.4;" edge="1" parent="1" source="agents" target="market">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;exitX=0;exitY=0.92;entryX=0.8;entryY=0;" edge="1" parent="1" source="market" target="inj">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="market" target="trades">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;exitX=0.8;exitY=1;entryX=0.8;entryY=0;" edge="1" parent="1" source="inj" target="pf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;exitX=1;exitY=0.5;entryX=0.9;entryY=0;" edge="1" parent="1" source="trades" target="flow">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;" edge="1" parent="1" source="topo" target="flow">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;" edge="1" parent="1" source="topo" target="pf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="flow" target="cap">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="pf" target="inA">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="topo" target="inM">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e10" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="cap" target="inG">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e11" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="inA" target="fees">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e12" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="inM" target="fees">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e13" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="inG" target="fees">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e14" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;" edge="1" parent="1" source="fees" target="reward">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e15" value="learning" style="endArrow=block;endFill=1;html=1;fontSize=13;exitX=0;exitY=0.5;entryX=0;entryY=0.5;edgeStyle=orthogonalEdgeStyle;rounded=1;dashed=1;strokeColor=#9673a6;strokeWidth=2;" edge="1" parent="1" source="reward" target="agents">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
