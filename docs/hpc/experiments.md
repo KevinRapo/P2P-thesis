@@ -172,9 +172,11 @@ before the per-day tables show their means only.
    each run trained with.
 3. **One start at a time** across the CLI and the Studio; nothing stops two
    starts from two places at once.
-4. **Each run starts its own Ray instance.** Keep `resources.cpus` at 4 or more so
-   few runs share a node: TalTech allows 4096 threads per user per node
-   ([why](performance.md#parallel-training)).
+4. **Each run starts its own Ray instance**, of 550–760 threads, and TalTech
+   allows 4096 threads per user per node. SLURM packs runs onto one node by CPU
+   and does not know this limit: with `num_env_runners: 3`, more than five runs
+   on a node crash at start. Size `max_parallel` and `resources.cpus` from
+   [how many runs fit](resources.md#how-many-runs-fit-at-once).
 5. **No retries over SSH.** A failed call raises its error and the next call
    reconnects; after a lost answer to `start`, look at `status` before starting
    again.

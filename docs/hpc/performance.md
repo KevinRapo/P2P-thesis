@@ -17,7 +17,9 @@ runner's own settings are in [resources](resources.md).
   asks for that node. `sinfo` shows what is free.
 - SLURM counts hyper-threads: `-c 78` is 39 physical cores.
 - **4096 processes and threads per user per node** (`ulimit -u`). This limits
-  parallel training before cores or memory do.
+  parallel training before cores or memory do
+  ([how many runs fit](resources.md#how-many-runs-fit-at-once)).
+- No per-user cap on jobs, CPUs or submits (`normal` QOS, checked 19 Oct).
 - Compute nodes have internet; install on `base` anyway.
 - Prices used below: 0.008 EUR per CPU-hour, 0.62 EUR per GPU-hour. TalTech's
   [billing table](https://docs.hpc.taltech.ee/billing.html) bills per CPU *core*

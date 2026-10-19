@@ -31,6 +31,103 @@ flowchart TD
 Both call the same [`launch.job`](../../core/runner/launch.py). A slot refills as
 soon as its run ends. `max_parallel` is per experiment, not across experiments.
 
+## How many runs fit at once
+
+On TalTech the limit on runs at once is **threads per node**, not CPUs, memory or
+an account quota. Checked on 19 October 2026 (`sinfo`, `sacctmgr`, `ulimit`):
+
+| Limit | Value | Limits the runner? |
+|---|---|---|
+| Jobs, CPUs or submits per user | None: the `normal` QOS sets no per-user cap | No |
+| CPUs per green node | 78 (hyper-threads) | Rarely: 13 runs at 6 CPUs |
+| Memory per green node | 95 GB | Rarely: 15 runs at 6 GB |
+| Wall time | `short` 4 h, `common` 8 days, per run | Per run, not per experiment |
+| **Threads and processes per user per node** | **4096** (`ulimit -u`) | **Yes** |
+
+### Threads per run
+
+Each run starts its own Ray instance, and Ray sizes its gRPC and worker thread
+pools by the node's 80 hardware threads, not by the CPUs SLURM gave the run.
+Measured on green31 (SLURM job 1043952, test profile of
+[market_3x3.json](../../experiments/market_3x3.json), DTDE, 6 CPUs), the most
+threads one run held at any moment:
+
+| `num_env_runners` | One run alone | One run in a runner job | Runs per green node |
+|---:|---:|---:|---:|
+| 0 | 485 | about 550 | **7** |
+| 1 | 560 | about 625 | **6** |
+| 3 | 705 | about 760 | **5** |
+
+- About **550 + 75 × `num_env_runners`** per run; PPO, APPO and SAC differ by
+  fewer than 5 threads.
+- "In a runner job" comes from the five runs of `market_3x3_3envRuns` that kept
+  going on 19 October: 3815 threads together, 763 each. The extra (about 60 per
+  run) was not broken down; the other rows add it as an estimate.
+- Runs per node is 4096 divided by the per-run count, rounded down, with a little
+  room left. Your own other jobs on the node (a Jupyter session, a second
+  experiment) count against the same 4096.
+
+### Where SLURM puts the runs
+
+`max_parallel` limits runs at once over the whole cluster; **SLURM chooses the
+nodes, and it packs tasks onto as few as fit by CPU and memory**. SLURM does not
+know the thread limit: tasks over it are not held in the queue, they start and
+crash in `ray.init` with `pthread_create failed: Resource temporarily unavailable`
+and `Failed to register worker to Raylet`, and the Studio shows them as `lost`.
+
+That happened on 19 October: `market_3x3_3envRuns` with `max_parallel: 9`,
+`num_env_runners: 3` and 6 CPUs per run put all nine tasks on green31 (54 of 78
+CPUs). Four failed in their first minute; five ran.
+
+On `short`, a task can also land on blackwell1, amp or ada (128–512 hardware
+threads). More tasks fit there by CPU, and Ray starts more threads per run (about
+1000 at zero samplers on blackwell1, [measurements](performance.md#parallel-training)),
+so the table above does not hold there. `common` is green nodes only.
+
+### Sizing an experiment
+
+Pick one of two settings, with $k$ = `num_env_runners` and $n$ = the runs per
+green node from the table:
+
+1. **Everything on one node:** `max_parallel` ≤ $n$. Always safe, whatever the
+   CPUs per run. More runs than $n$ wait for a free slot.
+2. **More at once, spread over nodes:** ask for so many CPUs per run that at most
+   $n$ fit on a green node by CPU, and keep the runs on green nodes:
+   `resources.cpus` more than 78 / ($n$ + 1), and `resources.minutes` above
+   240, which selects `common`. Then `max_parallel` has no thread limit.
+
+| `num_env_runners` | 1. `max_parallel` at most | 2. `resources.cpus` at least |
+|---:|---:|---:|
+| 0 | 7 | 10 |
+| 1 | 6 | 12 |
+| 3 | 5 | 14 |
+
+Setting 2 reserves CPUs a run does not use: they count towards billing, and a
+large request can wait longer in the queue. At the prices in
+[measurements](performance.md#the-cluster), nine runs × 14 CPUs × 4 h is about
+4 EUR. Memory still has to fit: $n$ × `mem_gb` ≤ 95.
+
+For `market_3x3_3envRuns` (nine runs, $k = 3$):
+
+```json
+"max_parallel": 5,
+"resources": {"cpus": 6, "mem_gb": 6, "minutes": 240}
+```
+
+runs five, then four, in about twice the time of the longest run;
+
+```json
+"max_parallel": 9,
+"resources": {"cpus": 14, "mem_gb": 6, "minutes": 300}
+```
+
+runs all nine at once on at least two green nodes in `common`.
+
+Not done yet: limiting Ray's thread pools to the run's CPUs, or sharing one Ray
+instance between runs as the probe notebook does
+([measurements](performance.md#parallel-training)). Either would fit more runs on
+a node; until then, size with the table.
+
 ## What a run gets
 
 Defaults in [spec.py](../../core/runner/spec.py), the same for every run of an
@@ -67,7 +164,8 @@ With [`build_config`](../../core/rl/config.py):
 
 At zero runners, one run is essentially one busy core (APPO adds learner threads). Raising
 `resources.cpus` alone does not make it faster; 4 is an allowance for Ray's own
-threads and processes. The five market participants are agents inside the one
+threads and processes. A larger request does spread runs over more nodes
+([how many runs fit](#how-many-runs-fit-at-once)). The five market participants are agents inside the one
 environment, not processes; training days are what an episode draws from, not
 parallel environments. `budget` counts environment steps (one market step for all
 agents) and is checked after each training iteration, so a run can overshoot it
