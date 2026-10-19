@@ -92,7 +92,9 @@ its time.
 
 *Start experiment* takes a spec from `experiments/` as a **template** and shows its
 JSON in an editor: change anything (the fields are those of [an experiment
-file](../../core/runner/spec.py)). Every edit is checked as a start would check it,
+file](../../core/runner/spec.py)). The editor writes out `resources` in full,
+with the [defaults](resources.md#what-a-run-gets) where the template gives none, so
+the cluster allocation can be edited at once. Every edit is checked as a start would check it,
 and the dialog shows the runs it makes, or what is wrong. The template file is
 never changed. Two presets rewrite the editor's run size settings (name,
 description, seeds, train and test days, budget, evaluation, traced days,

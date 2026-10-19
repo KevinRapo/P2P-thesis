@@ -20,7 +20,7 @@ from typing import Optional
 from core.runner import targets
 import json
 
-from core.runner.spec import REPO, Experiment, SpecError, resolve
+from core.runner.spec import RESOURCE_DEFAULTS, REPO, Experiment, SpecError, resolve
 
 # The settings a preset of the start dialog replaces: those the test version changes
 # (``Experiment.test_version``); the test block itself stays, so it can be edited.
@@ -154,6 +154,10 @@ class RunService:
         """The editor's text with a preset applied (``apply_preset``)."""
         return apply_preset(text, preset, template_text, default_name)
 
+    def editable(self, text: str) -> str:
+        """A template's text as the start dialog edits it (``editable``)."""
+        return editable(text)
+
     def describe(self, text: str, default_name: str = "experiment") -> dict:
         """An experiment file's text, as edited in the start dialog: the record of
         ``spec_files`` (without ``path`` and ``text``), with ``experiment``, the
@@ -192,6 +196,23 @@ def apply_preset(
         test_data = test.test_version().to_dict()
         values = {key: test_data[key] for key in PRESET_KEYS}
     return json.dumps(_replaced(data, values), indent=2)
+
+
+def editable(text: str) -> str:
+    """An experiment text with ``resources`` written out in full, the defaults
+    (``RESOURCE_DEFAULTS``) where it gives none, so they can be edited at once. Text
+    that is not an experiment object, or whose ``resources`` is not an object, is
+    returned as it is, for ``describe`` to say what is wrong."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+    if not isinstance(data, dict) or not isinstance(data.get("resources", {}), dict):
+        return text
+    resources = RESOURCE_DEFAULTS | data.get("resources", {})
+    if data.get("resources") == resources:
+        return text
+    return json.dumps(_replaced(data, {"resources": resources}), indent=2)
 
 
 def _json_object(text: str) -> dict:

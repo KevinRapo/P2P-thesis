@@ -628,7 +628,9 @@ class StartDialog:
     def _template_changed(self) -> None:
         """Put the chosen template's text in the editor."""
         template = self.templates.get(self.template.value)
-        self.editor.set_value(template["text"] if template else "")
+        self.editor.set_value(
+            self.service.editable(template["text"]) if template else ""
+        )
         self._changed()
 
     def _apply_preset(self, preset: str) -> None:
@@ -641,7 +643,7 @@ class StartDialog:
             text = self.service.apply_preset(
                 self.editor.value or "",
                 preset,
-                template["text"],
+                self.service.editable(template["text"]),  # full keeps the resources
                 Path(self.template.value).stem,
             )
         except ValueError as error:
