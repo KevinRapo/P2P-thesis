@@ -325,8 +325,10 @@ def test_the_editable_text_writes_out_the_resources():
         text = editable(template)
         data = json.loads(text)
         assert data["resources"] == record["resources"]  # the defaults filled in
+        assert data["ray_thread_caps"] is record["experiment"].ray_thread_caps
         same = Experiment.from_dict(data | {"resources": {}}, name)
         assert same == replace(record["experiment"], resources={})  # nothing else
+        assert list(data)[-2:] == ["ray_thread_caps", "resources"]
         assert editable(text) == text  # twice
         assert json.loads(apply_preset(text, "full", text, name)) == data
         test = json.loads(apply_preset(text, "test", text, name))

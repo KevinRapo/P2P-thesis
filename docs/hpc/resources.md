@@ -120,9 +120,10 @@ one I/O thread, Ray's log pipes) has no setting. The caps do not slow training
 | SAC, 1,632 steps, capped | 244, 240 | 166 s, 171 s |
 
 At zero samplers PPO sampled 41 steps/s capped against 34 default (job 1044587).
-The runner does **not** set the caps yet: `JOB_ENV` in
-[launch.py](../../core/runner/launch.py) is where they would go. Until it does,
-size with the default columns.
+The runner sets them in every job by default (20 October 2026):
+`RAY_THREAD_CAPS` in [launch.py](../../core/runner/launch.py), applied by
+`launch.job` before Ray starts. `"ray_thread_caps": false` in the spec leaves Ray's
+own sizes; the start dialog shows the setting.
 
 ### Where SLURM puts the runs
 
@@ -138,13 +139,11 @@ CPUs). Four failed in their first minute; five ran.
 
 On `short`, a task can also land on blackwell1, amp or ada (128–512 hardware
 threads). More tasks fit there by CPU, and Ray starts more threads per run (about
-1000 at zero samplers on blackwell1, [measurements](performance.md#parallel-training)),
-so the tables above do not hold there. `common` is green nodes only.
-
-### Sizing an experiment
+1000 at zero samplers on blackwell1, [measurements](per### Sizing an experiment
 
 Pick one of two settings, with $k$ = `num_env_runners` and $n$ = the runs per
-green node from the table above (the default column, until the runner sets the caps):
+green node from the table above (the capped column; the default column with
+`"ray_thread_caps": false`):
 
 1. **Everything on one node:** `max_parallel` ≤ $n$. Always safe, whatever the
    CPUs per run. More runs than $n$ wait for a free slot.
@@ -153,37 +152,31 @@ green node from the table above (the default column, until the runner sets the c
    `resources.cpus` more than 78 / ($n$ + 1), and `resources.minutes` above
    240, which selects `common`. Then `max_parallel` has no thread limit.
 
-| `num_env_runners` | 1. `max_parallel` at most | 2. `resources.cpus` at least |
+| `num_env_runners` | 1. `max_parallel` at most, capped (default) | 2. `resources.cpus` at least, capped (default) |
 |---:|---:|---:|
-| 0 | 7 | 10 |
-| 1 | 6 | 12 |
-| 3 | 5 | 14 |
+| 0 | 16 (7) | 5 (10) |
+| 1 | 15 (6) | 5 (12) |
+| 3 | 12 (5) | 7 (14) |
+| 6 | 10 (3) | 8 (20) |
 
 Setting 2 reserves CPUs a run does not use: they count towards billing, and a
-large request can wait longer in the queue. At the prices in
-[measurements](performance.md#the-cluster), nine runs × 14 CPUs × 4 h is about
-4 EUR. Memory still has to fit: $n$ × `mem_gb` ≤ 95.
+large request can wait longer in the queue. Memory has to fit as well: $n$ ×
+`mem_gb` ≤ 95, so 16 runs on a node take at most 5 GB each.
 
-For `market_3x3_3envRuns` (nine runs, $k = 3$):
-
-```json
-"max_parallel": 5,
-"resources": {"cpus": 6, "mem_gb": 6, "minutes": 240}
-```
-
-runs five, then four, in about twice the time of the longest run;
+For `market_3x3_3envRuns` (nine runs, $k = 3$, capped), all nine fit on one node:
 
 ```json
 "max_parallel": 9,
-"resources": {"cpus": 14, "mem_gb": 6, "minutes": 300}
+"resources": {"cpus": 4, "mem_gb": 6, "minutes": 240}
 ```
 
-runs all nine at once on at least two green nodes in `common`.
+Without the caps the same nine needed `max_parallel: 5` (five, then four), or
+`cpus: 14` with `minutes` above 240 to spread them over two nodes. Sharing one Ray
+instance between the runs of a node, as the probe notebook does
+([measurements](performance.md#parallel-training)), would make CPUs the limit
+again; that is not built.
 
-With the caps in the runner ([above](#capping-rays-thread-pools)) the same nine
-runs fit on one green node at 4 CPUs each (12 per node at $k = 3$), without CPUs
-held only to spread them. Sharing one Ray instance between the runs of a node, as
-the probe notebook does ([measurements](performance.md#parallel-training)), would
+measurements](performance.md#parallel-training)), would
 make CPUs the limit again; that is not built.
 
 ## What a run gets
@@ -199,6 +192,7 @@ experiment:
 | `resources.minutes` | 120 | Wall time per run, evaluation and saving included |
 | `torch_threads` | 1 | `torch.set_num_threads` in each run |
 | `num_env_runners` | 0 | Remote sampling processes per run; zero samples locally |
+| `ray_thread_caps` | true | Ray's thread pools at one thread each ([why](#capping-rays-thread-pools)) |
 
 At the defaults three runs take 12 CPUs and 12 GB. On this PC `resources` is
 ignored (no reservation, no time limit); `max_parallel`, `torch_threads` and
@@ -279,6 +273,7 @@ and resources.
 | Runs and how many at once | grid fields, `max_parallel` | |
 | Cluster allocation per run | `resources` | |
 | PyTorch threads | `torch_threads` | |
+| Ray's thread pools | `ray_thread_caps` | |
 | Training and network settings | `training`, `model`, `variants` | |
 | Sampler processes | `num_env_runners` | Also `Run(num_env_runners=...)` in Python |
 | GPU | no | `Run(num_gpus=...)` in Python, on a GPU node |

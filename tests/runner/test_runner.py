@@ -234,6 +234,8 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
         ({"trainning": {}}, "unknown field"),
         ({"variants": {"a b": {}}}, "plain word"),
         ({"max_parallel": 0}, "max_parallel"),
+        ({"ray_thread_caps": "yes"}, "ray_thread_caps"),
+        ({"ray_thread_caps": 1}, "ray_thread_caps"),
         ({"resources": {"gpus": 1}}, "unknown 'resources' key"),
         ({"resources": {"cpus": 0}}, "'resources.cpus' must be a positive integer"),
         ({"resources": {"cpus": 1.5}}, "'resources.cpus' must be a positive integer"),

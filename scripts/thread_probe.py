@@ -35,21 +35,14 @@ from pathlib import Path
 import psutil
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))  # run as a script from the repository root
+
+from core.runner.launch import RAY_THREAD_CAPS  # noqa: E402
+
 TICK = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100  # Linux only
 
-# Ray's thread pools at one thread each; Ray sizes them by the node's hardware
-# threads otherwise. Metrics collection off; one OpenMP/MKL thread per process.
-CAPS = {
-    "RAY_num_server_call_thread": "1",
-    "RAY_worker_num_grpc_internal_threads": "1",
-    "RAY_num_grpc_internal_threads": "1",
-    "RAY_gcs_server_rpc_server_thread_num": "1",
-    "RAY_gcs_server_rpc_client_thread_num": "1",
-    "RAY_object_manager_rpc_threads_num": "1",
-    "RAY_enable_metrics_collection": "0",
-    "OMP_NUM_THREADS": "1",
-    "MKL_NUM_THREADS": "1",
-}
+# Ray's thread pools at one thread each, as the runner sets them.
+CAPS = RAY_THREAD_CAPS
 
 BASE = {
     "algorithm": "ppo",

@@ -22,6 +22,8 @@ import json
 
 from core.runner.spec import RESOURCE_DEFAULTS, REPO, Experiment, SpecError, resolve
 
+THREAD_CAPS_DEFAULT = Experiment.__dataclass_fields__["ray_thread_caps"].default
+
 # The settings a preset of the start dialog replaces: those the test version changes
 # (``Experiment.test_version``); the test block itself stays, so it can be edited.
 PRESET_KEYS = (
@@ -199,20 +201,23 @@ def apply_preset(
 
 
 def editable(text: str) -> str:
-    """An experiment text with ``resources`` written out in full, the defaults
-    (``RESOURCE_DEFAULTS``) where it gives none, so they can be edited at once. Text
-    that is not an experiment object, or whose ``resources`` is not an object, is
-    returned as it is, for ``describe`` to say what is wrong."""
+    """An experiment text with ``ray_thread_caps`` and ``resources`` written out in
+    full, the defaults (``RESOURCE_DEFAULTS``) where it gives none, so they can be
+    edited at once. Text that is not an experiment object, or whose ``resources`` is
+    not an object, is returned as it is, for ``describe`` to say what is wrong."""
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
         return text
     if not isinstance(data, dict) or not isinstance(data.get("resources", {}), dict):
         return text
-    resources = RESOURCE_DEFAULTS | data.get("resources", {})
-    if data.get("resources") == resources:
+    values = {
+        "ray_thread_caps": data.get("ray_thread_caps", THREAD_CAPS_DEFAULT),
+        "resources": RESOURCE_DEFAULTS | data.get("resources", {}),
+    }
+    if all(data.get(key) == value for key, value in values.items()):
         return text
-    return json.dumps(_replaced(data, {"resources": resources}), indent=2)
+    return json.dumps(_replaced(data, values), indent=2)
 
 
 def _json_object(text: str) -> dict:

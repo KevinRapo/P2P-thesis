@@ -77,6 +77,23 @@ STALE = (
 # is fixed, and RLlib keeps agent ids in sets: without this, the same run seed gives
 # a different multi-agent run each time (tests/rl/test_7_same_seed_same_run.py).
 JOB_ENV = {"PYTHONHASHSEED": "0", "PYTHONUNBUFFERED": "1"}
+# Ray sizes several thread pools in each of its processes by the machine's hardware
+# threads (80 on a TalTech green node), and TalTech allows 4096 threads per user per
+# node: these set them to one thread each, about 165 + 24 per sampler threads a run
+# instead of 480 + 75, without slowing training (docs/hpc/resources.md, threads per
+# run). Ray reads them in every process it starts; a job sets them before ray.init
+# when its experiment's ``ray_thread_caps`` is true.
+RAY_THREAD_CAPS = {
+    "RAY_num_server_call_thread": "1",
+    "RAY_worker_num_grpc_internal_threads": "1",
+    "RAY_num_grpc_internal_threads": "1",
+    "RAY_gcs_server_rpc_server_thread_num": "1",
+    "RAY_gcs_server_rpc_client_thread_num": "1",
+    "RAY_object_manager_rpc_threads_num": "1",
+    "RAY_enable_metrics_collection": "0",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+}
 
 
 def job_environment() -> dict[str, str]:
@@ -320,6 +337,8 @@ def job(run_dir: str | Path) -> None:
         spec = next(
             s for s in experiment.expand(run_dir.parent) if s.name == run_dir.name
         )
+        if experiment.ray_thread_caps:  # before torch and Ray start their threads
+            os.environ.update(RAY_THREAD_CAPS)
         import torch
 
         torch.set_num_threads(experiment.torch_threads)

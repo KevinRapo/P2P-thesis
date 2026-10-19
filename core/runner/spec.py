@@ -34,6 +34,9 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "model": {},                      network overrides
       "max_parallel": 3, "torch_threads": 1,
       "num_env_runners": 0,             remote samplers per run; 0 samples locally
+      "ray_thread_caps": true,          Ray's thread pools at one thread each
+                                        (launch.RAY_THREAD_CAPS); false: Ray's
+                                        own sizes, from the node's hardware
       "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120},
                                         per run on a SLURM cluster (the defaults
                                         shown; unknown keys are refused)
@@ -217,6 +220,7 @@ class Experiment:
     max_parallel: int = 3
     torch_threads: int = 1
     num_env_runners: int = 0
+    ray_thread_caps: bool = True
     resources: dict = field(default_factory=dict)
     test: dict = field(default_factory=dict)
     description: str = ""
@@ -315,6 +319,8 @@ class Experiment:
             raise SpecError("max_parallel, torch_threads, eval_episodes must be >= 1")
         if type(self.num_env_runners) is not int or self.num_env_runners < 0:
             raise SpecError("num_env_runners must be an integer >= 0")
+        if type(self.ray_thread_caps) is not bool:
+            raise SpecError("ray_thread_caps must be true or false")
         if self.is_market and not self.scenario:
             raise SpecError("the market environment needs a 'scenario'")
         if self.scenario is not None and not isinstance(self.scenario, (str, dict)):
