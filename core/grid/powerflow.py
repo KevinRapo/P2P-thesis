@@ -9,6 +9,7 @@ Ported from the refactor branch's step-time model.
 
 from __future__ import annotations
 
+import math
 from typing import Any, Sequence
 
 from core.config.scenario import GridSetup
@@ -175,7 +176,7 @@ class SimBenchGrid:
         graph = self._topology()
         a = self._bus_index[bus]
         if not self._roots:
-            return GridPath(0.0, (), self._zones[a], self._zones[a])
+            return GridPath(0.0, (), self._zones[a], self._zones[a], bus, bus)
         _, nodes = nx.multi_source_dijkstra(graph, self._roots, a, weight="weight")
         return self._along(graph, nodes[::-1])
 
@@ -187,7 +188,31 @@ class SimBenchGrid:
             if graph.edges[u, v]["line"]
         )
         km = sum(graph.edges[u, v]["weight"] for u, v in zip(nodes, nodes[1:]))
-        return GridPath(float(km), lines, self._zones[nodes[0]], self._zones[nodes[-1]])
+        names = simbench._bus_ids(self._net)
+        return GridPath(
+            float(km),
+            lines,
+            self._zones[nodes[0]],
+            self._zones[nodes[-1]],
+            names[nodes[0]],
+            names[nodes[-1]],
+        )
+
+    def line_table(self) -> dict[str, tuple[float, float]]:
+        """Every line by the IDs of ``GridAssessment.line_loading_percent``: its
+        length (km) and its rating (kW): √3 · rated voltage of its bus · I_max."""
+        if self._net is None:
+            self.reset()
+        net = self._net
+        out = {}
+        for i, row in net.line.iterrows():
+            kv = float(net.bus.at[row.from_bus, "vn_kv"])
+            rating = math.sqrt(3) * kv * float(row.max_i_ka) * 1000.0
+            out[simbench._branch_name(net.line, i, "line")] = (
+                float(row.length_km),
+                rating,
+            )
+        return out
 
     def _topology(self) -> Any:
         """The network as a weighted graph (built once per reset): lines weigh

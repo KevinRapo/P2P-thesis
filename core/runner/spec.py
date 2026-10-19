@@ -19,7 +19,11 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
       "env_config": {},                 extra environment settings
       "algorithms": ["sac"], "paradigms": ["dtde"], "seeds": [0],
-      "variants": {"a1": {"initial_alpha": 1.0}},   name -> training overrides
+      "variants": {"a1": {"initial_alpha": 1.0}},   name -> training overrides;
+                                        "env_config" in a variant: environment
+                                        settings of its runs (also held out), e.g.
+                                        {"graph": {"env_config": {"grid":
+                                        {"method": "graph"}}}}
       "budget": 24000,                  environment steps; int or {algorithm: int}
       "eval_every": 6000,               int or {algorithm: int}, or instead
       "eval_points": 4,                 number of evaluations, eval_every =
@@ -295,6 +299,10 @@ class Experiment:
             isinstance(v, dict) for v in self.variants.values()
         ):
             raise SpecError("'variants' maps a name to a dict of training overrides")
+        if not all(
+            isinstance(v.get("env_config", {}), dict) for v in self.variants.values()
+        ):
+            raise SpecError("a variant's 'env_config' must be a dict")
         for variant in self.variants:
             if not variant or any(c in variant for c in '/\\:*?"<>| '):
                 raise SpecError(f"variant name {variant!r} must be a plain word")
@@ -428,13 +436,21 @@ class Experiment:
             return [d for d in self.test_days if d in self.trace_days]
         return self.test_days[: self.trace_days]
 
-    def heldout_config(self, exp_dir: Optional[Path] = None) -> dict:
-        """The environment config of the held-out evaluation (test days); ``exp_dir``
-        as in ``expand``."""
+    def heldout_config(
+        self, exp_dir: Optional[Path] = None, variant: Optional[str] = None
+    ) -> dict:
+        """The environment config of the held-out evaluation (test days) of a run of
+        ``variant``; ``exp_dir`` as in ``expand``."""
         config: dict = {"days": self.test_days}
         if self.scenario:
             config["scenario"] = str(self.scenario_file(exp_dir))
-        return config | self.env_config
+        return config | self.env_config | self._variant_env(variant)
+
+    def _variant_env(self, variant: Optional[str]) -> dict:
+        """The environment settings a variant adds (its ``env_config``)."""
+        if variant is None:
+            return {}
+        return dict(self.variants.get(variant, {}).get("env_config", {}))
 
     # --- Writing and profiles ---------------------------------------------------------
     def to_dict(self) -> dict:
@@ -491,7 +507,7 @@ class Experiment:
         default_warmup = RLLIB_SAC_WARMUP if algorithm == "sac" else 0
         budgets = []
         for overrides in list(self.variants.values()) or [{}]:
-            settings = base | overrides
+            settings = base | _training(overrides)
             batch = settings.get("train_batch_size_per_learner") or TEST_DEFAULT_BUDGET
             warmup = settings.get(
                 "num_steps_sampled_before_learning_starts", default_warmup
@@ -564,12 +580,13 @@ class Experiment:
                                 seed=seed,
                                 variant=variant,
                                 env=self.env,
-                                env_config=self._env_config(seed, exp_dir),
+                                env_config=self._env_config(seed, exp_dir)
+                                | self._variant_env(variant),
                                 budget=budget,
                                 eval_every=every,
                                 eval_episodes=self.eval_episodes,
                                 training=dict(self.training.get(algorithm, {}))
-                                | dict(overrides),
+                                | _training(overrides),
                                 model=dict(self.model),
                                 out_dir=exp_dir / name,
                                 index=len(specs),
@@ -586,6 +603,11 @@ class Experiment:
             config["days"] = list(self.train_days)
         config["seed"] = seed
         return config | self.env_config
+
+
+def _training(overrides: dict) -> dict:
+    """A variant's training overrides: all but its ``env_config``."""
+    return {k: v for k, v in overrides.items() if k != "env_config"}
 
 
 def resolve(spec: str | Path | Experiment, profile: str = "full") -> Experiment:

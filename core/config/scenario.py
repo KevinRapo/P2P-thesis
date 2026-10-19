@@ -26,6 +26,15 @@ class GridSetup:
         v_min_pu: Lowest allowed voltage.
         v_max_pu: Highest allowed voltage.
         line_max_percent: Line loading limit.
+        method: Where the DSO's fees read the line loading from: ``"powerflow"``
+            (the AC power flow) or ``"graph"`` ([P1] §3.5: the step's trades along
+            their paths, over a capacity per line). The power flow runs either way
+            and is recorded; with ``"graph"`` it sets no fee.
+        graph_capacity: The graph model's capacity per line: ``"paper"`` (a total
+            spread over the lines in inverse proportion to their length, as the
+            original's ``GridNetwork``) or ``"ratings"`` (each line's own rating).
+        graph_total_kw: The total of ``"paper"``; ``None``: the sum of the line
+            ratings ([P1] gives no value; the original uses 1e6 kW).
     """
 
     code: str = "1-LV-rural1--0-sw"
@@ -35,6 +44,9 @@ class GridSetup:
     v_min_pu: float = 0.95
     v_max_pu: float = 1.05
     line_max_percent: float = 100.0
+    method: str = "powerflow"
+    graph_capacity: str = "paper"
+    graph_total_kw: Optional[float] = None
 
 
 # --------------------------------------------------------------------------------------
@@ -166,6 +178,9 @@ class DsoSetup:
         thermal_cap: f_threshold of [P1] eq. 8d.
         imbalance_factor: f_imb of [P1] eq. 8b.
         zone_factor: f_zone of [P1] eq. 8e, the same-zone bonus.
+        voltage_drop: V_drop of [P1] eq. 8c: ``"distance"`` (eq. 8f, f_volt ·
+            d_ij) or ``"measured"`` (|V_a − V_b| between the trade's two buses in
+            the step's power flow).
     """
 
     feed_in_tariff: float = 0.08
@@ -181,6 +196,7 @@ class DsoSetup:
     thermal_cap: float = 0.3
     imbalance_factor: float = 0.15
     zone_factor: float = 0.15
+    voltage_drop: str = "distance"
 
     def problems(self) -> list[str]:
         """Tariffs that break p_FiT < p_P2P < p_utility ([P1] §3.3.2), so peers
@@ -194,6 +210,8 @@ class DsoSetup:
             found.append("Fee buyer share is not in 0-1.")
         if not 0 <= self.thermal_threshold < 1:
             found.append("Thermal threshold is not in 0-1 (1 excluded).")
+        if self.voltage_drop not in ("distance", "measured"):
+            found.append("Voltage drop is not 'distance' or 'measured'.")
         return found
 
 

@@ -91,9 +91,13 @@ money unit):
             not_converged          1 if the power flow did not converge
     shared_state: clearing_price   the step's clearing price
                   min_voltage_pu, max_voltage_pu, max_line_loading_percent
+                  fee_max_line_loading_percent: the highest line loading the
+                  fees were charged on (the graph model's with ``grid.method =
+                  "graph"``, else the power flow's)
 
 The grid amounts are the AC power flow's (the whole network, background
-included); a flow that did not converge counts 0 for them.
+included), whatever ``grid.method``; a flow that did not converge counts 0 for
+them.
 
 Baselines (``zero_policy``, ``net_position_policy``) map an observation dict to
 an action dict, for a reference return and for tests.
@@ -106,10 +110,14 @@ an action dict, for a reference return and for tests.
     energy_scale  E in kWh (default: computed from ``days``)
     reward_scale  default ``p_utility · E``
     seed          seed of the day draw for the first reset
+    grid, dso     settings that replace the scenario's (``GridSetup``, ``DsoSetup``
+                  fields), e.g. ``{"grid": {"method": "graph"}}``: the arms of an
+                  experiment as variants of one scenario
 """
 
 from __future__ import annotations
 
+from dataclasses import fields
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -155,7 +163,7 @@ class MarketEnv(MultiAgentEnv):
 
     Args:
         env_config: ``scenario`` (path, required), ``days``, ``energy_scale``,
-            ``reward_scale``, ``seed``.
+            ``reward_scale``, ``seed``, ``grid``, ``dso``.
     """
 
     def __init__(self, env_config: Optional[dict[str, Any]] = None) -> None:
@@ -164,6 +172,8 @@ class MarketEnv(MultiAgentEnv):
         if "scenario" not in config:
             raise ValueError("env_config needs 'scenario': the path of a scenario JSON")
         scenario = store.load(Path(config["scenario"]))
+        _override(scenario.grid, config.get("grid"), "grid")
+        _override(scenario.dso, config.get("dso"), "dso")
         self.market = LocalEnergyMarket(scenario)
         self.days: list[str] = list(config.get("days") or [scenario.grid.day])
         self.agents_id: list[str] = [p.id for p in scenario.participants]
@@ -353,6 +363,15 @@ def _number(value: Optional[float]) -> float:
     return float("nan") if value is None else float(value)
 
 
+def _override(setup: Any, values: Optional[dict], name: str) -> None:
+    """Replace fields of a scenario part (``env_config["grid"]`` or ``["dso"]``)."""
+    known = {f.name for f in fields(setup)}
+    for key, value in (values or {}).items():
+        if key not in known:
+            raise ValueError(f"env_config[{name!r}]: {setup.__class__.__name__} has no {key!r}")
+        setattr(setup, key, value)
+
+
 def _market_infos(record: StepRecord) -> tuple[dict, dict]:
     """The step's market and grid amounts and states (see the module)."""
     grid = record.grid
@@ -375,6 +394,9 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
         "min_voltage_pu": _number(grid.min_voltage_pu),
         "max_voltage_pu": _number(grid.max_voltage_pu),
         "max_line_loading_percent": _number(grid.max_line_loading_percent),
+        "fee_max_line_loading_percent": _number(
+            (record.signal or grid).max_line_loading_percent
+        ),
     }
     return shared, state
 

@@ -34,6 +34,7 @@ flowchart TD
   grid --> g1["contract.py"]:::done
   grid --> g2["simbench.py"]:::done
   grid --> g3["powerflow.py"]:::done
+  grid --> g4["graph.py"]:::done
 
   core --> market["market/"]
   market --> m1["lem.py"]:::done
@@ -63,7 +64,7 @@ flowchart TD
   runnercore --> ru1["spec.py · launch.py · registry.py · results.py<br/>slurm.py · targets.py · remote.py · __main__.py"]:::done
 
   root --> exps["experiments/"]
-  exps --> ex1["smoke.json · sac_alpha.json<br/>market_3x3.json"]:::data
+  exps --> ex1["smoke.json · sac_alpha.json<br/>market_3x3.json · grid_methods.json"]:::data
 
   root --> hpc["hpc/"]
   hpc --> hp1["targets.toml"]:::data
@@ -78,6 +79,7 @@ flowchart TD
   notebooks --> nm["market/"]
   nm --> n1["validate_market.ipynb"]:::done
   nm --> n3["benchmark_market_step.ipynb<br/>results/market_step.csv"]:::done
+  nm --> n4["grid_methods.ipynb"]:::done
   notebooks --> nr["rl/"]
   nr --> nr1["probe_paradigms · probe_playground<br/>simple_spread · benchmark_speed"]:::done
   notebooks --> nu["runner/"]
@@ -85,7 +87,7 @@ flowchart TD
 
   root --> tests["tests/"]
   tests --> tm["market/"]
-  tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py · test_fees_timing.py"]:::done
+  tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_powerflow_recycle.py · test_fees_timing.py<br/>test_grid_methods.py"]:::done
   tests --> tr["rl/"]
   tr --> x2["test_0 to test_7 · test_training_metrics.py<br/>test_evaluation_tables.py · probe_helpers.py · conftest.py"]:::done
   tests --> tru["runner/"]
@@ -142,6 +144,7 @@ never pandapower objects.
 | [`contract.py`](../core/grid/contract.py) | The plain records that cross the grid seam: networks, topology, elements, profiles, power-flow results, the path between two buses (`GridPath`) | done |
 | [`simbench.py`](../core/grid/simbench.py) | Lists, loads and caches networks; topology, elements, profiles, the profile catalogue; a one-hour power flow | done |
 | [`powerflow.py`](../core/grid/powerflow.py) | `SimBenchGrid`: one power flow per market step; owned elements switched off, each participant's net injection at its bus; the path between two buses (distance, lines, zones = feeders) | done |
+| [`graph.py`](../core/grid/graph.py) | `GraphGrid`: the paper's grid model ([P1] §3.5) on the SimBench lines, for `grid.method = "graph"`: each step's trades along their paths (`SimBenchGrid.path`, `path_upstream`), over a capacity per line (`"paper"`: a total spread by inverse length; `"ratings"`: each line's own), as the line loading the DSO's fees read. The power flow still runs and is recorded ([grid-method comparison](experiments/grid-methods.md)) | built on the `marlem-slurm` branch for review; tested (`tests/market/test_grid_methods.py`) |
 
 ## core/market/: the MARLEM market
 
@@ -244,6 +247,7 @@ It comes from saved pre-migration results, not a new full-suite or UI test.
 | [`smoke.json`](../experiments/smoke.json) | Two tiny PPO-DTDE runs, to check the runner end to end (a few minutes) | done |
 | [`sac_alpha.json`](../experiments/sac_alpha.json) | SAC-DTDE on the market with initial temperatures 1, 0.1 and 0.01 | test profile: two TalTech runs completed, one stopped; full profile not established here |
 | [`market_3x3.json`](../experiments/market_3x3.json) | Three algorithms x three paradigms on the market, one seed | all nine test runs completed locally and on TalTech; full profile not established here |
+| [`grid_methods.json`](../experiments/grid_methods.json) | PPO-CTDE with three seeds in three arms (variants): fees from the power flow, from the paper's graph model, and from the graph model with real line ratings ([grid-method comparison](experiments/grid-methods.md)) | test profile run locally; full profile not started |
 
 ## studio/: the user interface
 
@@ -285,6 +289,7 @@ their setup cell finds the repository root from wherever they run. Runs go to
 | [`market/validate_market.ipynb`](../notebooks/market/validate_market.ipynb) | Scenario, inputs per step, one step part by part, the whole day, rule checks, experiments side by side | done |
 | [`market/benchmark_market_step.ipynb`](../notebooks/market/benchmark_market_step.ipynb) | Time per market step on SimBench LV networks of 13 to 118 participants (random orders), split into market logic, grid preparation and the power flow; the floor under a training run on the market | done |
 | [`market/results/market_step.csv`](../notebooks/market/results/market_step.csv) | That notebook's summary, read by the RL speed benchmark (`notebooks/rl/benchmark_speed.ipynb`) | done |
+| [`market/grid_methods.ipynb`](../notebooks/market/grid_methods.ipynb) | The grid-method arms on `validate_market.json`, 14 test days, with the net-position baseline (no learning): same physics in every arm; fees per part; the loading the fees saw against the measured loading; losses of eq. 18 against the power flow | done |
 | [`rl/probe_paradigms.ipynb`](../notebooks/rl/probe_paradigms.ipynb) | The probe environments on every combination of algorithm and paradigm: run these first after any change to `core/rl/` | done |
 | [`rl/probe_playground.ipynb`](../notebooks/rl/probe_playground.ipynb) | Inspect learning iteration by iteration | done |
 | [`rl/simple_spread.ipynb`](../notebooks/rl/simple_spread.ipynb) | MPE2 `simple_spread`, the second test after the probes | done |
@@ -303,6 +308,7 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`market/test_market_env.py`](../tests/market/test_market_env.py) | `MarketEnv` on `validate_market.json`: spaces, a zero-action day, the reward as the scaled net bill, action decoding (quantity, price, dead zone), reproducible day draw, `net_position_policy` against `zero_policy`, RLlib's multi-agent environment check | done |
 | [`market/test_fees_timing.py`](../tests/market/test_fees_timing.py) | Grid fees priced on the same step's power flow (congestion and thermal parts), the first step charged like any other | done |
 | [`market/test_powerflow_recycle.py`](../tests/market/test_powerflow_recycle.py) | pandapower's `recycle` in the step power flow gives the same grid results | done |
+| [`market/test_grid_methods.py`](../tests/market/test_grid_methods.py) | The graph model's capacity rules and flows; a graph-mode day charges its thermal fees from the graph loading while `record.grid` stays the power flow; the same physics in both arms for a policy that ignores fees; the measured voltage drop | done |
 | [`rl/test_0_every_probe.py`](../tests/rl/test_0_every_probe.py) to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
 | [`rl/test_6_ctde_structure.py`](../tests/rl/test_6_ctde_structure.py) | The CTDE modules' structure: what the actor and the critic read | done |
 | [`rl/test_training_metrics.py`](../tests/rl/test_training_metrics.py) | Idle reports omitted, learner-only progress preserved, non-finite metrics still fail, timing fields and total training-call time retained; learner metrics over the modules (mean, min, max); every evaluation kept per episode and agent, appended per evaluation point | done |
