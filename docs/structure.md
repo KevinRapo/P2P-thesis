@@ -69,7 +69,7 @@ flowchart TD
   hpc --> hp1["targets.toml"]:::data
 
   root --> scripts["scripts/"]
-  scripts --> hs["hpc.ps1 / hpc.cmd<br/>jupyter.slurm"]:::done
+  scripts --> hs["hpc.ps1 / hpc.cmd<br/>jupyter.slurm<br/>thread_probe.py"]:::done
 
   root --> scen["scenarios/"]
   scen --> s1["validate_market.json"]:::done
@@ -346,7 +346,7 @@ market or pandapower directly.
 | `AGENTS.md` | Rules for working in this repository |
 | `pytest.ini` | Discover the market and RL tests together from the root (`tests/`) |
 | [`environment.yml`](../environment.yml) | The `marlem` conda environment, with the package versions in use (this PC and the cluster) |
-| [`scripts/`](../scripts/) | The Jupyter job on the cluster: the Windows helper [`hpc.ps1`](../scripts/hpc.ps1) (and [`hpc.cmd`](../scripts/hpc.cmd)), which reads `.env`, and the job script [`jupyter.slurm`](../scripts/jupyter.slurm); [setup and PATH](hpc/setup.md#the-hpc-helper) |
+| [`scripts/`](../scripts/) | The Jupyter job on the cluster: the Windows helper [`hpc.ps1`](../scripts/hpc.ps1) (and [`hpc.cmd`](../scripts/hpc.cmd)), which reads `.env`, and the job script [`jupyter.slurm`](../scripts/jupyter.slurm); [setup and PATH](hpc/setup.md#the-hpc-helper). [`thread_probe.py`](../scripts/thread_probe.py) measures the threads of one training run on a compute node ([threads per run](hpc/resources.md#threads-per-run)) |
 | [`.env.example`](../.env.example), `.env` | This machine's settings (`core/settings.py`): the example lists every key and is tracked; `.env` holds your values and is git-ignored ([setup](hpc/setup.md#this-machines-settings-env)) |
 | `hpc/` | Where experiments run: `targets.toml` names the targets (`local`, and the `taltech` SLURM cluster with its partitions, and as `${KEY}` settings from `.env` its account and, for use from the PC, the SSH host, the code folder and Python on the cluster; the mirror of the results); each has a `label`, the name the Studio's Runs page shows (This PC, TalTech); how to use the cluster is in [hpc.md](hpc.md) |
 | `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, scenario.json, worker.json, worker.log, <run>/{status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}`; on a SLURM target no worker, instead `slurm.json` and `slurm/` (submitit's batch script, pickles and task logs), and `status.json` of each run has a `slurm_job` |

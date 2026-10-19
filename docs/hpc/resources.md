@@ -46,26 +46,83 @@ an account quota. Checked on 19 October 2026 (`sinfo`, `sacctmgr`, `ulimit`):
 
 ### Threads per run
 
-Each run starts its own Ray instance, and Ray sizes its gRPC and worker thread
-pools by the node's 80 hardware threads, not by the CPUs SLURM gave the run.
-Measured on green31 (SLURM job 1043952, test profile of
-[market_3x3.json](../../experiments/market_3x3.json), DTDE, 6 CPUs), the most
-threads one run held at any moment:
+Each run starts its own Ray instance: Ray's services (control server, raylet), the
+driver/learner process and one process per sampler. Ray sizes several gRPC thread
+pools in **each** of these processes by the node's hardware threads (80 on green),
+not by the CPUs SLURM gave the run. Almost all of those threads sleep: in every
+measurement below 7–13 threads used more than 1 s of CPU, the main threads of the
+samplers and the driver. The 4096 limit counts every thread that exists, asleep or
+not, so only the peak matters for sizing.
 
-| `num_env_runners` | One run alone | One run in a runner job | Runs per green node |
-|---:|---:|---:|---:|
-| 0 | 485 | about 550 | **7** |
-| 1 | 560 | about 625 | **6** |
-| 3 | 705 | about 760 | **5** |
+Measured with [scripts/thread_probe.py](../../scripts/thread_probe.py) on green
+nodes (SLURM jobs 1043952, 1044568, 1044587–1044591; 19–20 October 2026): one run
+of the test profile of [market_3x3.json](../../experiments/market_3x3.json) with
+one setting changed (base: PPO, DTDE, 5 agents), counting the threads of the run's
+own process tree once a second. "Capped" sets Ray's pools to one thread
+([below](#capping-rays-thread-pools)).
 
-- About **550 + 75 × `num_env_runners`** per run; PPO, APPO and SAC differ by
-  fewer than 5 threads.
-- "In a runner job" comes from the five runs of `market_3x3_3envRuns` that kept
-  going on 19 October: 3815 threads together, 763 each. The extra (about 60 per
-  run) was not broken down; the other rows add it as an estimate.
-- Runs per node is 4096 divided by the per-run count, rounded down, with a little
-  room left. Your own other jobs on the node (a Jupyter session, a second
-  experiment) count against the same 4096.
+| What changes | Value | Peak, default | Peak, capped |
+|---|---|---:|---:|
+| `num_env_runners` | 0 | 480 | 169 |
+| | 1 | 556 | 191 |
+| | 3 | 700–707 | 236–244 |
+| | 6 | | 309 |
+| Algorithm ($k = 3$) | PPO / APPO / SAC | 706 / 706 / 707 | 240 / 236 / 242 |
+| Paradigm ($k = 3$) | CTCE / CTDE / DTDE | | 237 / 236 / 240 |
+| Agents ($k = 3$) | 5 / 13 / 40 | | 240 / 236 / 236 |
+| CPUs allocated ($k = 3$) | 4 / 6 / 8 | 706 / 705 / 700 | |
+| Length (SAC, $k = 3$) | 1,100 / 3,000 steps | | 242 / 239 |
+
+- **Only the number of processes counts**: about **480 + 75 $k$** threads by
+  default and **165 + 24 $k$** capped, with $k$ = `num_env_runners`.
+- Algorithm, paradigm, the number of agents (40 agents: the same 236 threads),
+  the CPUs allocated and the length of the run change nothing. The networks and
+  the market live inside the same processes; the count holds steady through a
+  run (median within 2 % of the peak at 3,000 SAC steps).
+- A run in a runner job has about **60 more** (the SLURM step and submitit):
+  the five runs of `market_3x3_3envRuns` that kept going on 19 October held 3815
+  threads, 763 each, against 705 measured alone.
+- Your own other jobs on the node (a Jupyter session, a second experiment) count
+  against the same 4096.
+
+Runs per green node, from 4096 less about 200 for other processes:
+
+| `num_env_runners` | Per runner job, default | Runs per node, default | Per runner job, capped | Runs per node, capped |
+|---:|---:|---:|---:|---:|
+| 0 | ~540 | **7** | ~230 | **16** |
+| 1 | ~615 | **6** | ~250 | **15** |
+| 3 | ~760 | **5** | ~300 | **12** |
+| 6 | ~980 | **3** | ~370 | **10** |
+
+### Capping Ray's thread pools
+
+Ray reads its settings from `RAY_<name>` environment variables in every process
+it starts. These set the pools that scale with the hardware to one thread:
+
+| Variable | What it sizes |
+|---|---|
+| `RAY_num_server_call_thread` | Incoming gRPC calls in each Ray process |
+| `RAY_worker_num_grpc_internal_threads`, `RAY_num_grpc_internal_threads` | gRPC's own threads in workers and the other processes |
+| `RAY_gcs_server_rpc_server_thread_num`, `RAY_gcs_server_rpc_client_thread_num` | The control server's gRPC server and client |
+| `RAY_object_manager_rpc_threads_num` | The object manager's gRPC threads |
+| `RAY_enable_metrics_collection=0` | The metrics exporter, off |
+| `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1` | Math-library threads per process |
+
+What is left (about 24 per process: gRPC's `event_engine` and polling threads,
+one I/O thread, Ray's log pipes) has no setting. The caps do not slow training
+(4 CPUs, $k = 3$, DTDE, job 1044568, two runs each):
+
+| | Threads | Training time |
+|---|---:|---:|
+| PPO, 7,200 steps, default | 706, 707 | 154 s, 157 s |
+| PPO, 7,200 steps, capped | 243, 243 | 143 s, 146 s |
+| SAC, 1,632 steps, default | 707, 707 | 167 s, 171 s |
+| SAC, 1,632 steps, capped | 244, 240 | 166 s, 171 s |
+
+At zero samplers PPO sampled 41 steps/s capped against 34 default (job 1044587).
+The runner does **not** set the caps yet: `JOB_ENV` in
+[launch.py](../../core/runner/launch.py) is where they would go. Until it does,
+size with the default columns.
 
 ### Where SLURM puts the runs
 
@@ -82,12 +139,12 @@ CPUs). Four failed in their first minute; five ran.
 On `short`, a task can also land on blackwell1, amp or ada (128–512 hardware
 threads). More tasks fit there by CPU, and Ray starts more threads per run (about
 1000 at zero samplers on blackwell1, [measurements](performance.md#parallel-training)),
-so the table above does not hold there. `common` is green nodes only.
+so the tables above do not hold there. `common` is green nodes only.
 
 ### Sizing an experiment
 
 Pick one of two settings, with $k$ = `num_env_runners` and $n$ = the runs per
-green node from the table:
+green node from the table above (the default column, until the runner sets the caps):
 
 1. **Everything on one node:** `max_parallel` ≤ $n$. Always safe, whatever the
    CPUs per run. More runs than $n$ wait for a free slot.
@@ -123,10 +180,11 @@ runs five, then four, in about twice the time of the longest run;
 
 runs all nine at once on at least two green nodes in `common`.
 
-Not done yet: limiting Ray's thread pools to the run's CPUs, or sharing one Ray
-instance between runs as the probe notebook does
-([measurements](performance.md#parallel-training)). Either would fit more runs on
-a node; until then, size with the table.
+With the caps in the runner ([above](#capping-rays-thread-pools)) the same nine
+runs fit on one green node at 4 CPUs each (12 per node at $k = 3$), without CPUs
+held only to spread them. Sharing one Ray instance between the runs of a node, as
+the probe notebook does ([measurements](performance.md#parallel-training)), would
+make CPUs the limit again; that is not built.
 
 ## What a run gets
 
