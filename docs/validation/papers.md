@@ -175,12 +175,12 @@ $$
   0**, and the reward is just $R_{\text{base}}$ minus the penalties.
 - **The code's bonus is small on paper but large in practice.** With both factors
   in [0, 1] it reaches at most 14 % of $R_{\text{base}}$. But the code's $f_{\text{coop}}$ is not in
-  [0, 1]: it is about 1811 in a traced episode (register I-41, below). With
+  [0, 1]: it is about 1811 in a traced episode (register E-13, below). With
   $f_{\text{contrib}} = 0.5$ the bonus is then $\ln(1 + 906) / 5 \approx 1.36$, which more than
   doubles $R_{\text{base}}$.
 - **[P2] states a far stronger bonus,** up to 100 % of $R_{\text{base}}$, and calls it "the
   core contribution of this work regarding implicit cooperation". [P2]'s experiments
-  ran on the code (register I-42), so the bonus the trained agents saw was the
+  ran on the code (register E-14), so the bonus the trained agents saw was the
   code's, not [P2]'s.
 
 ### Contribution factor $f_{\text{contrib}}$: [P1] matches the code, [P2] does not
@@ -222,11 +222,11 @@ with `_w_grid = 0.5`, `_w_price = 0.2`, `_w_local = 0.3`
   neutral point, the share of P2P trades, the price deviation.
 - **[P2]'s marginal contribution $-\partial \lvert B_{\text{grid}} \rvert / \partial a_i$ exists nowhere.** The code scores
   only whether the agent's net trade has the right sign and how large it is
-  against the balance (register I-79). Neither paper shows how a derivative with
+  against the balance (register E-22). Neither paper shows how a derivative with
   respect to an action could be taken in an auction-cleared market.
 - **The grid part is constant in practice.** It reads `matching.grid_balance`,
-  which is the DSO balance and always 0 (register I-24). The `if` never runs, so
-  the grid part is always 0.5 (register I-44).
+  which is the DSO balance and always 0 (register M-24). The `if` never runs, so
+  the grid part is always 0.5 (register E-16).
 
 ### DSO penalty $\gamma_{\text{DSO}}$: [P2] matches the code, [P1] does not
 
@@ -262,11 +262,11 @@ if not agent_trades:
   $\times\ p_{\text{dso}} \times \lvert \text{imbalance} \rvert / \text{capacity}$. [P1]'s "$p_{\text{dso}} = 15.0$" is only the factor
   inside it.
 - **In practice there is no DSO penalty.** The imbalance used is `dso.balance`,
-  always 0 (register I-24), so the penalty is always 0.
-- **$\gamma_{\text{UD}}$ uses $p_{\text{dso}}$, not [P1]'s $p_{\text{no_trades}} = 5$** (register I-46). It runs only
-  when `is_terminal` is true, which never happens (register I-02).
+  always 0 (register M-24), so the penalty is always 0.
+- **$\gamma_{\text{UD}}$ uses $p_{\text{dso}}$, not [P1]'s $p_{\text{no_trades}} = 5$** (register E-18). It runs only
+  when `is_terminal` is true, which never happens (register E-01).
 - **$p_{\text{no_trades}}$ does something else:** it is the fixed reward −4.46 returned to an
-  agent that made no trade at all, before any other term (register I-47).
+  agent that made no trade at all, before any other term (register E-19).
 
 ### Trading reward: [P1] matches the code's accident, [P2] its intent
 
@@ -295,7 +295,7 @@ return (self._w_local * local_quantity_ratio) + (self._w_dso * dso_quantity_rati
 **What this shows.** One attribute name, `_w_local`, is used for two different
 weights. The trading reward's local weight (0.7, "higher weight for local trades")
 is overwritten fifteen lines later by $f_{\text{contrib}}$'s local weight (0.3). The trading
-reward therefore runs as 0.3 / 0.3 (register I-45).
+reward therefore runs as 0.3 / 0.3 (register E-17).
 
 - **[P1] printed the result of the accident,** 0.3 / 0.3.
 - **[P2] describes the intent,** a higher P2P weight, which is what the code's
@@ -313,7 +313,7 @@ Both describe $f_{\text{coop}}$ as a weighted sum of normalised system KPIs. Onl
 the formula and weights (eq. 5, total weight 56). The code
 ([L176-L198](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L170-L192))
 computes it as [P1] eq. 5 but feeds it raw, unnormalised KPIs, so $f_{\text{coop}}$ is
-nowhere near [0, 1]: about 1811 in a traced episode (register I-41, I-75). Neither
+nowhere near [0, 1]: about 1811 in a traced episode (register E-13, E-20). Neither
 paper gives the normalisation ranges.
 
 ## 4. KPIs
@@ -339,15 +339,15 @@ They agree, but they share the same problems, so [P2] does not resolve them:
 
 - **Social welfare** is described as "the sum of consumer and producer surplus" but
   written as $\sum p \cdot q$, which is turnover. In true welfare, payments between agents
-  cancel (register I-36).
+  cancel (register E-09).
 - **Imbalance** over *trades* is always 0, because every trade has one buyer and
   one seller. It means something only over orders or physical positions, and
-  neither paper says which (register I-68). The coordination score, [P2]'s headline
+  neither paper says which (register E-11). The coordination score, [P2]'s headline
   metric, is $1 - \text{Imbalance}$.
 - **Spread** is $\mathbb{E}[p_{\text{ask}}] - \mathbb{E}[p_{\text{bid}}]$, which is negative whenever bids exceed asks,
   that is, whenever there is anything to trade.
 - **"DER self-consumption"** measures the P2P share of traded energy, not
-  self-consumption (register I-69).
+  self-consumption (register E-12).
 
 ## 5. Training paradigms and algorithms
 
@@ -367,14 +367,14 @@ Population-Based Training.
 One addition in [P2] matters for comparing the paradigms: eq. 17 sums the reward
 over all agents for CTCE, while CTDE and DTDE optimise each agent's own return
 (eq. 19). Returns of the three paradigms are therefore on different scales
-(register I-73). [P1] does not say how CTCE's reward is formed.
+(register L-03). [P1] does not say how CTCE's reward is formed.
 
 ## 6. Only in one paper
 
 | Only in [P1] | Only in [P2] |
 |---|---|
 | The market: orders and validation (eq. 2, 15), three-stage clearing, pricing mechanisms (eq. 9-11) | Algorithm objectives (eq. 11-15) and paradigm formulas (eq. 16-20) |
-| The DSO: balance (eq. 7), fees (eq. 8a-8h) | The **Grid Balance Index $B_{\text{index}}$** (§4.3): "incorporates transmission losses and external grid reliance". Used as an evaluation metric, never defined, and absent from [P1] and from the code (register I-80) |
+| The DSO: balance (eq. 7), fees (eq. 8a-8h) | The **Grid Balance Index $B_{\text{index}}$** (§4.3): "incorporates transmission losses and external grid reliance". Used as an evaluation metric, never defined, and absent from [P1] and from the code (register D-05) |
 | Reputation (eq. 12) and the ledger | Agent responsiveness (§4.3): correlation between system signals and actions |
 | Agent balance and profit (eq. 13-14), battery (eq. 16), profiles (eq. 17) | |
 | Losses (eq. 18), zones, the grid update | |
@@ -396,7 +396,7 @@ here only so that numbers from one are not read as the other's:
 | Batteries | Ratio 0.5-1.2, $\eta$ 95 % | Ratio 0.5-1.0, $\eta$ 95 %, SoC 5-95 % |
 
 The price units differ by a factor of 1000 between the papers (\$/MWh vs "\$/kWh"),
-on top of the unit problems inside the code (register I-56).
+on top of the unit problems inside the code (register M-03).
 
 ## What the rebuild follows
 

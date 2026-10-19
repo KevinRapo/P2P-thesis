@@ -13,17 +13,17 @@ DTDE and CTDE optimise the same individual objective and differ only in what the
 critic sees, so a difference between them is the central critic's.
 
 Every paradigm uses the same network settings (RLlib's defaults: 2 x 256 tanh,
-separate actor and critic), which fixes R-03.
+separate actor and critic), which fixes L-04.
 
 The hyperparameters start from the original's (``SETTINGS``, [P2] Table 8), with
 the defects removed:
 
-- PPO: ``use_kl_loss=False``, so the KL term is not computed at all (fixes R-02;
+- PPO: ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07;
   the original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from
   RLlib's 10: RLlib caps the squared value error there, so an error above about
   3.2 would give the critic no gradient at all. Rewards should still be scaled by
   the environment to returns of order 1-10.
-- APPO: no ``lambda_``; RLlib's V-trace has no lambda (fixes R-06).
+- APPO: no ``lambda_``; RLlib's V-trace has no lambda (fixes L-13).
 - SAC: ``target_entropy="auto"`` (the negative action size of each module: the
   agent's in DTDE and CTDE, the group's in CTCE, as the original intended), a
   uniform replay buffer of 1000 steps for every paradigm. Episodes are sampled
@@ -31,11 +31,11 @@ the defects removed:
   in that mode RLlib 2.51 resets the environment with the run's seed at every
   sample call, so with a seed every SAC training step would replay the same
   episode.
-- No population-based training and no Ray Tune (fixes I-49 and part of I-62):
+- No population-based training and no Ray Tune (fixes L-10 and part of L-11):
   one run has fixed hyperparameters and one seed; tuning and seeds are loops
   around ``core/rl/train.py``.
 - Iterations are not tied to wall-clock time (``min_time_s_per_iteration=0``),
-  and the budget is counted in environment steps by the trainer (fixes I-50).
+  and the budget is counted in environment steps by the trainer (fixes L-14).
 """
 
 from __future__ import annotations
@@ -152,7 +152,7 @@ def build_config(
             (e.g. ``lr=3e-4``, ``train_batch_size_per_learner=1000``).
         num_env_runners: Sampling processes besides the driver (0: sample in the
             driver). Learning always runs in the driver; nothing else starts
-            processes (fixes the doubled CPU count of I-62).
+            processes (fixes the doubled CPU count of L-11).
         num_gpus: GPUs for the learner (0 or 1).
         model: Overrides of the network settings ``MODEL`` (the same for every
             paradigm).

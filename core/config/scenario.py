@@ -105,7 +105,7 @@ class MarketSetup:
         reputation_decay: Share of the old reputation kept per hour ([P1]
             §3.3.4 names a decay factor without a value). Applied per step as
             ``reputation_decay ** step_hours``, so the memory lasts the same time
-            with hourly and quarter-hourly steps (I-38b): 0.8 halves the old
+            with hourly and quarter-hourly steps (M-43): 0.8 halves the old
             reputation in about 3.1 hours.
     """
 

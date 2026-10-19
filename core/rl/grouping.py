@@ -13,7 +13,7 @@ observation joined: ``[o_i, o_1, ..., o_N]``. The CTDE modules
 (``core/rl/ctde_modules.py``) let the actor read only ``o_i`` and the critic
 read all of it, so the critic is central and the actor decentralised.
 
-Fixes I-59: the original put the agents' spaces in sorted name order and their
+Fixes L-05: the original put the agents' spaces in sorted name order and their
 data in environment order. Here both follow ``env.agents_id``, and each agent
 keeps its own action bounds in its slice of the joint ``Box``, so RLlib rescales
 every agent's action to that agent's bounds.

@@ -5,12 +5,12 @@ environment (never the grouped one), and returns are computed from its raw
 per-agent rewards, so all nine combinations and the baselines are scored the
 same way.
 
-- Fixes I-61: a ``Policy`` acts as RLlib does in training: the module's action
+- Fixes L-15: a ``Policy`` acts as RLlib does in training: the module's action
   distribution, then RLlib's own ``unsquash_action`` from ``[-1, 1]`` to each
   agent's bounds. Infos are returned per agent, as the environment gives them.
-- Fixes I-73: the team score is the sum over agents of the episode return, from
+- Fixes L-03: the team score is the sum over agents of the episode return, from
   the raw rewards; per-agent returns are reported next to it.
-- Fixes I-64 and I-72 (the capability): random, constant and untrained policies
+- Fixes L-16 and L-17 (the capability): random, constant and untrained policies
   on the same seeds, and evaluation seeds that training never uses.
 
 ``evaluation`` keeps every episode, not only the means: one row per policy, episode

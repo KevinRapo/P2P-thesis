@@ -16,7 +16,7 @@ actor's encoder is replaced by the encoder RLlib's catalog builds for the agent'
 own observation, applied to its slice. The policy head, the critic, the losses,
 ``rsample``, target networks, log-std clipping and tanh squashing stay RLlib's.
 
-Fixes I-48 (the networks the loss trains are the networks that act) and the
+Fixes L-01 (the networks the loss trains are the networks that act) and the
 deviations from standard multi-agent PPO of the earlier grouped CTDE: rewards,
 advantages and the PPO clip are per agent. Known deviation from MADDPG / MASAC:
 the SAC critic ``Q_i(s, a_i)`` does not take the other agents' actions.

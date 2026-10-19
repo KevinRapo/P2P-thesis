@@ -216,7 +216,7 @@ the other paradigms are measured against.
     Linear(2 × $\dim a_i$). Acting (data collection, evaluation, inference) uses
     `pi_heads`, each on its own agent's observation; the loss is computed from the
     central `pi`. That split is the defect
-    [I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act).
+    [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act).
 
 ## 3. Algorithms ([P1] §3.7.2, [P2] §3.3)
 
@@ -343,7 +343,7 @@ trials." Which hyperparameters, over which ranges and how often are not given.
     The mutation ranges are in
     [train.py L178-L198](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L178-L198).
     How they relate to the starting values is
-    [I-49](../validation/rl.md#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10).
+    [L-10](../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10).
 
 ## 6. The training run ([P2] §4.2)
 
@@ -448,7 +448,7 @@ The papers do not describe how a trained policy is run outside training.
     it to the action bounds and steps the environment, collecting episode rewards
     and market metrics. DTDE runs on the market environment, CTCE and CTDE on the
     grouped one. How this differs from training's actions is
-    [I-61](../validation/rl.md#i-61-standalone-inference-does-not-act-like-training).
+    [L-15](../validation/rl.md#l-15-standalone-inference-does-not-act-like-training).
 
 ## 9. Points the papers leave unspecified
 

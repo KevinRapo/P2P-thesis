@@ -24,7 +24,7 @@ with RLlib's own functions (`unsquash_action`); the rest is arithmetic on them.
 
 Three agents, listed by the environment in the order `agent_2, agent_10, agent_1`
 (alphabetically `agent_1, agent_10, agent_2`, the case that broke the original,
-[I-59](../validation/rl.md#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
+[L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
 Each observes 2 numbers and sets 2 actions: a quantity (kWh, negative = sell) and
 a price (€/kWh). The quantity bound is each agent's own capacity.
 
@@ -104,7 +104,7 @@ the bounds must belong to the right agent. The original put the bounds in sorted
 name order (`agent_1, agent_10, agent_2`) but the data in this order, so positions
 1-2 carried `agent_1`'s bounds and positions 5-6 `agent_2`'s: `agent_2` would have
 bid $-2 + 1.907 \times 2 = 1.81$ kWh instead of 4.53, and `agent_1` would have been
-clipped at −5 instead of −2, beyond its own capacity (I-59). `agent_10` happens to
+clipped at −5 instead of −2, beyond its own capacity (L-05). `agent_10` happens to
 sit in the middle of both orders and would have been right. In CTDE and DTDE the
 question does not arise: each module has its own agent's space.
 
@@ -173,7 +173,7 @@ evaluation), but the learner sees only 1.25. $\hat A$ is computed from $R$, so
 although here `agent_10` lost money and `agent_2` earned it. Telling the agents'
 contributions apart is left to the averaging over many steps (the
 credit-assignment cost,
-[I-60](../validation/rl.md#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
+[L-02](../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
 
 **CTDE and DTDE.** `agent_10`'s loss of 0.50 lowers only `agent_10`'s advantage.
 CTDE's critic sees the whole state, so it can learn, for example, that `agent_10`
@@ -239,7 +239,7 @@ worse: `agent_10`'s means move away from its sampled action, the others' toward
 theirs. In CTCE the six numbers would all carry the group's one advantage.
 
 In the original, these gradients went to a central actor and the acting heads got
-none ([I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act)).
+none ([L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act)).
 
 ## 6. The settings we choose
 
@@ -254,7 +254,7 @@ the cycle:
 | `clip_param` | 0.2 | the band $[0.8, 1.2]$ of section 5 |
 | `entropy_coeff` | 0.01 | the constant push to widen $\sigma$ (C5) |
 | `grad_clip` | 0.5 | gradient norm capped at 0.5 (C9) |
-| `use_kl_loss` | False | the KL term is not computed at all (C6 disappears; fixes [R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
+| `use_kl_loss` | False | the KL term is not computed at all (C6 disappears; fixes [L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
 | `vf_clip_param` | $10^6$ | the value loss is not capped (C4) |
 | `vf_share_layers` | False | actor and critic have separate encoders: the value loss does not train the actor's layers (C8) |
 | SAC `target_entropy` | `"auto"` | $-\dim A$ of each module: **−2** per agent in CTDE and DTDE, **−6** for the group in CTCE |
@@ -288,7 +288,7 @@ actions are squashed by tanh, so its most likely action is $\tanh m$; RLlib's ow
 deterministic SAC action skips the tanh in Ray 2.51.1, so `_deterministic`
 ([L39-L51](../../core/rl/policy.py#L39-L51)) applies it. The original's inference
 used the mean without rescaling, so `agent_10` would have bid −0.60 kWh
-([I-61](../validation/rl.md#i-61-standalone-inference-does-not-act-like-training)).
+([L-15](../validation/rl.md#l-15-standalone-inference-does-not-act-like-training)).
 
 **Baselines** ([L140-L174](../../core/rl/policy.py#L140-L174)). "Random" draws each
 action uniformly within its bounds. "Zero" sends 0 in the environment's units,
@@ -311,7 +311,7 @@ per-agent rewards. Over a 3-step episode:
 Team score $= 2.10 + 0.90 + 0.55 = 3.55$, reported with the three returns. The
 same number for CTCE, CTDE and DTDE, computed the same way, so the nine
 combinations and the baselines can be ranked on one scale
-([I-73](../validation/rl.md#i-73-returns-of-the-paradigms-are-compared-across-different-scales)).
+([L-03](../validation/rl.md#l-03-returns-of-the-paradigms-are-compared-across-different-scales)).
 Evaluation episodes use seeds from 1 000 000 on, which training never reaches
 (`evaluation_seeds`, [L248-L252](../../core/rl/policy.py#L248-L252)); the runner's
 held-out evaluation uses test days that training never sees.
@@ -344,4 +344,4 @@ it finds `agent_10/policy_loss` and `agent_10/entropy` and stops the run with an
 error, which `run.json` records. The throughput is skipped on purpose: RLlib
 reports it as NaN in the first iteration. The original carried on with zeroed
 gradients
-([R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).
+([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).

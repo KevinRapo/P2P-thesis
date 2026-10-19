@@ -132,10 +132,10 @@ So CTDE's actor is the same network as DTDE's: it never sees the global state.
 The value $V_\phi$ is not computed while collecting; PPO needs it only in B3.
 
 **The original** used custom networks in CTCE and CTDE (2 × 128 ReLU, no clip on
-$\ell$, [R-03](../validation/rl.md#r-03-the-paradigms-train-different-networks),
-[R-01](../validation/rl.md#r-01-the-ctce-and-ctde-action-spread-has-no-limit)), and
+$\ell$, [L-04](../validation/rl.md#l-04-the-paradigms-train-different-networks),
+[L-06](../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit)), and
 in CTDE acted with per-agent heads that were never trained
-([I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act)).
+([L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act)).
 
 ### A3. Sample the action and its log-probability
 
@@ -166,7 +166,7 @@ $u_k$. Every agent's dimensions are rescaled with its own bounds: in CTDE and DT
 its module's own space, in CTCE its slice of the joined space, which keeps the
 agents in the environment's order. The original put the grouped bounds in sorted
 name order, so a slice could carry another agent's bounds
-([I-59](../validation/rl.md#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
+([L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
 
 ### A5. Environment step
 
@@ -274,7 +274,7 @@ The same networks as in A2 and B3, now with the weights as they are at this step
 $[m', \ell'] = \pi_\theta(\cdot)$ and $V_\phi(\cdot)$ for the 128 rows. In CTDE the
 actor is agent $i$'s own network on $o_{i,t}$, the same one that sampled the action
 in A2. In the original it was a central actor, not the heads that had acted
-([I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act)).
+([L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act)).
 
 ### C2. Probability ratio
 
@@ -321,7 +321,7 @@ a constant push to widen every action dimension. $\ell$ is clipped to $[-20, 20]
 (A2), so where the reward does not depend on the action the spread grows only to
 that bound. In the original's CTCE and CTDE $\ell$ was unclipped and could grow
 until it overflowed
-([R-01](../validation/rl.md#r-01-the-ctce-and-ctde-action-spread-has-no-limit)).
+([L-06](../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit)).
 
 ### C6. KL between the collecting and the current policy
 
@@ -329,7 +329,7 @@ Not computed: `use_kl_loss=False`. The original kept the KL term on with
 coefficient $\beta = 0$, so it computed
 $\mathrm{KL}_t(\mu \,\|\, \pi_\theta) = \sum_k \big[\ell'_k - \ell_k + \frac{e^{2\ell_k} + (m_k - m'_k)^2}{2\, e^{2\ell'_k}} - \frac12\big]$
 for every row, and an infinite KL turned $\beta \cdot \mathrm{KL}$ into NaN
-([R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).
+([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).
 
 ### C7. Total loss
 
@@ -350,7 +350,7 @@ depends on.
 
 The actor and the critic are trained by separate terms, so a large value loss does
 not overwrite what the actor's layers learn. In the original's CTDE the acting
-heads received no gradient at all (I-48).
+heads received no gradient at all (L-01).
 
 ### C9. Clip the gradient norm
 
@@ -400,7 +400,7 @@ policy and the baselines when the budget of environment steps reaches the next
 evaluation point. Hyperparameters stay fixed during a run. In the original,
 population-based training could replace a trial's weights with a better trial's and
 resample its learning rate, entropy coefficient and $\lambda$
-([I-49](../validation/rl.md#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10)).
+([L-10](../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10)).
 
 ## APPO: the same cycle, what changes
 
@@ -412,7 +412,7 @@ little older than the policy, and V-trace corrects for it
 |---|---|
 | A. Collect | A1-A5 are the same. The env runners never stop: they send pieces of 50 steps to the learner as they fill and keep acting, so $\mu$ can be a few updates behind $\pi_\theta$. |
 | B. Targets | No GAE, no standardisation. The pieces are gathered into batches of 500 steps, kept in a circular buffer of 4 batches; each batch is trained on at most twice. Targets are computed inside the loss (C), with the current critic. |
-| C. Update | One gradient step per 500-step batch. In it: (1) $V_\phi$ for every step; (2) truncated weights $\rho_t = c_t = \min(1, \bar\pi(u_t \mid o_t) / \mu(u_t \mid o_t))$ against a **target policy** $\bar\pi$; (3) V-trace targets backwards in time, $v_t = V_\phi(o_t) + \rho_t \delta_t + \gamma (1 - d_t) c_t (v_{t+1} - V_\phi(o_{t+1}))$; (4) advantage $A_t = \rho_t (r_t + \gamma (1 - d_t) v_{t+1} - V_\phi(o_t))$; (5) the clipped surrogate on $\pi_\theta / \bar\pi$ with clip 0.4, value loss $0.5 \cdot \frac12 (V_\phi - v_t)^2$ (no cap), entropy 0.01, no KL term; (6) gradient-norm clip 0.5, Adam step, learning rate $10^{-5}$. There is no λ, so none is set; the original's `lambda_` had no effect ([R-06](../validation/rl.md#r-06-appos-lambda_-has-no-effect)). |
+| C. Update | One gradient step per 500-step batch. In it: (1) $V_\phi$ for every step; (2) truncated weights $\rho_t = c_t = \min(1, \bar\pi(u_t \mid o_t) / \mu(u_t \mid o_t))$ against a **target policy** $\bar\pi$; (3) V-trace targets backwards in time, $v_t = V_\phi(o_t) + \rho_t \delta_t + \gamma (1 - d_t) c_t (v_{t+1} - V_\phi(o_{t+1}))$; (4) advantage $A_t = \rho_t (r_t + \gamma (1 - d_t) v_{t+1} - V_\phi(o_t))$; (5) the clipped surrogate on $\pi_\theta / \bar\pi$ with clip 0.4, value loss $0.5 \cdot \frac12 (V_\phi - v_t)^2$ (no cap), entropy 0.01, no KL term; (6) gradient-norm clip 0.5, Adam step, learning rate $10^{-5}$. There is no λ, so none is set; the original's `lambda_` had no effect ([L-13](../validation/rl.md#l-13-appos-lambda_-has-no-effect)). |
 | D. After | The target policy is overwritten with $\pi_\theta$ every 8000 trained steps. New weights go to the env runners while they keep sampling. An iteration ends after one training step (`min_time_s_per_iteration=0`); the original waited at least 10 s, so its steps per iteration depended on the machine. |
 
 The paradigm differences of A1, A2, B3, B5 and C8 hold as for PPO: in CTDE each
@@ -429,9 +429,9 @@ CTDE and DTDE each agent's module has its own.
 
 | Stage | What changes from PPO |
 |---|---|
-| A. Collect | A1-A3 as in PPO, but every paradigm uses RLlib's SAC module, which squashes the sample, $\tanh(u) \in (-1, 1)$, before A4's rescaling. Steps are collected in episode fragments (RLlib's default), about 256 environment steps per gradient step, and each step $(o, a, r, o', d)$ goes into a buffer of 1000 steps, the oldest dropped first. Training starts after 1500 steps. The original's CTCE and CTDE used the plain Gaussian of A3, clipped in A4 ([R-04](../validation/rl.md#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian)), and collected whole episodes. |
+| A. Collect | A1-A3 as in PPO, but every paradigm uses RLlib's SAC module, which squashes the sample, $\tanh(u) \in (-1, 1)$, before A4's rescaling. Steps are collected in episode fragments (RLlib's default), about 256 environment steps per gradient step, and each step $(o, a, r, o', d)$ goes into a buffer of 1000 steps, the oldest dropped first. Training starts after 1500 steps. The original's CTCE and CTDE used the plain Gaussian of A3, clipped in A4 ([L-08](../validation/rl.md#l-08-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian)), and collected whole episodes. |
 | B. Targets | A random batch of 256 steps from the buffer, old and new. For each: a next action $a' \sim \pi_\theta(\cdot \mid o')$ and the target $y = r + \gamma (1 - d)[\min_j \bar Q_j(o', a') - \alpha \log\pi_\theta(a' \mid o')]$. In the original's CTCE and CTDE, $a'$ came from a target copy of the actor instead. |
-| C. Update | Three losses on the same batch, each with its own Adam optimiser: critics $L_Q = \sum_j \text{Huber}(Q_{\psi_j}(o, a) - y)$, learning rate $10^{-5}$; actor $L_\pi = \alpha \log\pi_\theta(\tilde a \mid o) - \min_j Q_{\psi_j}(o, \tilde a)$ with a reparameterised $\tilde a = \tanh(m + \sigma\varepsilon)$, so the actor's gradient runs through $\partial Q / \partial \tilde a$, learning rate $10^{-5}$; temperature $L_\alpha = -\log\alpha\, (\log\pi_\theta(\tilde a \mid o) + \bar{\mathcal{H}})$ with target $\bar{\mathcal{H}} = -\dim A$ (`"auto"`), learning rate $3 \cdot 10^{-4}$. In the original's CTCE and CTDE, $\tilde a$ was drawn with `sample()`, so the actor got no gradient from the critic ([R-05](../validation/rl.md#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic)). |
+| C. Update | Three losses on the same batch, each with its own Adam optimiser: critics $L_Q = \sum_j \text{Huber}(Q_{\psi_j}(o, a) - y)$, learning rate $10^{-5}$; actor $L_\pi = \alpha \log\pi_\theta(\tilde a \mid o) - \min_j Q_{\psi_j}(o, \tilde a)$ with a reparameterised $\tilde a = \tanh(m + \sigma\varepsilon)$, so the actor's gradient runs through $\partial Q / \partial \tilde a$, learning rate $10^{-5}$; temperature $L_\alpha = -\log\alpha\, (\log\pi_\theta(\tilde a \mid o) + \bar{\mathcal{H}})$ with target $\bar{\mathcal{H}} = -\dim A$ (`"auto"`), learning rate $3 \cdot 10^{-4}$. In the original's CTCE and CTDE, $\tilde a$ was drawn with `sample()`, so the actor got no gradient from the critic ([L-09](../validation/rl.md#l-09-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic)). |
 | D. After | After every gradient step the critic copies follow: $\bar\psi_j \leftarrow 0.005\, \psi_j + 0.995\, \bar\psi_j$. Weights go to the env runners; the buffer is kept, so a step is trained on about once while it stays in the 1000-step buffer. |
 
 | | CTCE | CTDE | DTDE |
@@ -443,13 +443,13 @@ CTDE and DTDE each agent's module has its own.
 
 | Step | What the original does | Recorded as |
 |---|---|---|
-| A2, C1, C8 | CTDE acts with heads $g_i$ that receive no gradient; the loss trains a central actor | [I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act) |
-| A5, B4, B5 | CTDE learns from the summed reward $R_t$ with one advantage for the group, as CTCE | [I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act) |
-| A2, B3 | CTCE and CTDE: custom 2 × 128 ReLU networks with a shared encoder; DTDE: RLlib's default | [R-03](../validation/rl.md#r-03-the-paradigms-train-different-networks) |
-| A2, C5 | CTCE and CTDE: $\ell$ unclipped, so the entropy bonus can grow it until it overflows | [R-01](../validation/rl.md#r-01-the-ctce-and-ctde-action-spread-has-no-limit) |
-| A4 | CTCE and CTDE: an agent's slice can be rescaled with another agent's bounds | [I-59](../validation/rl.md#i-59-grouped-spaces-are-in-name-order-grouped-data-in-environment-order) |
-| C6, C7, C9 | $\beta = 0$ still computes the KL; an infinite KL makes the loss NaN, and the NaN gradient is zeroed silently | [R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
-| D3 | Population-based training raises the learning rate 10-1000× and the entropy coefficient up to 10 | [I-49](../validation/rl.md#i-49-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10) |
-| APPO, C | `lambda_` is set and tuned, but V-trace has no λ | [R-06](../validation/rl.md#r-06-appos-lambda_-has-no-effect) |
-| SAC, A | CTCE and CTDE: unsquashed Gaussian, clipped | [R-04](../validation/rl.md#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian) |
-| SAC, C | CTCE and CTDE: the actor's sample is not reparameterised, so no gradient through the critic | [R-05](../validation/rl.md#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic) |
+| A2, C1, C8 | CTDE acts with heads $g_i$ that receive no gradient; the loss trains a central actor | [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
+| A5, B4, B5 | CTDE learns from the summed reward $R_t$ with one advantage for the group, as CTCE | [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
+| A2, B3 | CTCE and CTDE: custom 2 × 128 ReLU networks with a shared encoder; DTDE: RLlib's default | [L-04](../validation/rl.md#l-04-the-paradigms-train-different-networks) |
+| A2, C5 | CTCE and CTDE: $\ell$ unclipped, so the entropy bonus can grow it until it overflows | [L-06](../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit) |
+| A4 | CTCE and CTDE: an agent's slice can be rescaled with another agent's bounds | [L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order) |
+| C6, C7, C9 | $\beta = 0$ still computes the KL; an infinite KL makes the loss NaN, and the NaN gradient is zeroed silently | [L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
+| D3 | Population-based training raises the learning rate 10-1000× and the entropy coefficient up to 10 | [L-10](../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10) |
+| APPO, C | `lambda_` is set and tuned, but V-trace has no λ | [L-13](../validation/rl.md#l-13-appos-lambda_-has-no-effect) |
+| SAC, A | CTCE and CTDE: unsquashed Gaussian, clipped | [L-08](../validation/rl.md#l-08-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian) |
+| SAC, C | CTCE and CTDE: the actor's sample is not reparameterised, so no gradient through the critic | [L-09](../validation/rl.md#l-09-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic) |

@@ -124,7 +124,7 @@ $$L = -\min\big(\rho_t \hat A_t,\; \text{clip}(\rho_t, 1 - \epsilon, 1 + \epsilo
 | clipped surrogate | $\epsilon = 0.2$ | raise the probability of actions with $\hat A > 0$, but stop once $\rho$ leaves $[0.8, 1.2]$ |
 | value loss | $c_v = 1$, cap $c_{\max} = 10^6$ (`vf_clip_param`) | fit $V_\phi$ to $G^\lambda$; the cap is lifted from RLlib's 10, which gives **no** gradient for an error above $\sqrt{10} \approx 3.2$ |
 | entropy bonus | $c_H = 0.01$ | keep exploring |
-| KL penalty | off (`use_kl_loss=False`) | not computed at all; the original set $\beta = 0$ and kept computing it, so $0 \cdot \infty$ = NaN ([R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
+| KL penalty | off (`use_kl_loss=False`) | not computed at all; the original set $\beta = 0$ and kept computing it, so $0 \cdot \infty$ = NaN ([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
 
 **Gradient steps.** 30 epochs over the 4000 steps in shuffled minibatches of 128:
 $30 \times 4000 / 128 \approx 940$ Adam steps, learning rate $10^{-5}$. In the first
@@ -164,7 +164,7 @@ With $\bar\pi = \mu$ this is the $n$-step return; the weights only cut off what 
 older data can no longer vouch for. There is **no λ** in it: RLlib's V-trace takes
 none, so `core/rl/` sets no `lambda_` for APPO (the original's `lambda_=0.95`, and
 its population-based training of it, changed nothing,
-[R-06](../validation/rl.md#r-06-appos-lambda_-has-no-effect)). Advantages are not
+[L-13](../validation/rl.md#l-13-appos-lambda_-has-no-effect)). Advantages are not
 standardised.
 
 **Loss.**
@@ -219,7 +219,7 @@ $$L_\alpha = -\log\alpha \,\big(\log \pi_\theta(\tilde a \mid o) + \bar{\mathcal
   so $\partial L_\pi / \partial\theta$ runs through $\partial Q / \partial \tilde a$:
   the actor moves its actions uphill on the critic. Without it the actor only
   maximises entropy, as in the original's CTCE and CTDE
-  ([R-05](../validation/rl.md#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic)).
+  ([L-09](../validation/rl.md#l-09-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic)).
 - **The temperature** $\alpha$ (starting at 1) rises when the entropy is below the
   target $\bar{\mathcal H} = -\dim A$ (`target_entropy="auto"`) and falls when
   above.
@@ -262,7 +262,7 @@ So PPO clips the **product** of the agents' ratios, one advantage from the summe
 reward weights every agent's action, and the entropy bonus is $N$ times larger
 than one agent's. The learning signal for $a_i$ carries every other agent's reward
 noise: the credit-assignment cost that makes CTCE learn more slowly
-([I-60](../validation/rl.md#i-60-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
+([L-02](../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
 CTCE answers what one controller of all agents would achieve: the social planner,
 maximising the summed return.
 
@@ -306,7 +306,7 @@ difference between the two is the central critic's effect.
 
 **The original** trained a central actor while the agents acted with per-agent
 heads that never changed
-([I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act)), and
+([L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act)), and
 trained CTDE on the summed reward $R$.
 
 ### DTDE
@@ -323,9 +323,9 @@ what the original code computes instead.
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| **PPO** | $\prod_i \rho_i$, GAE on $R$ with $V_\phi(s)$ | per agent: $\rho_i$, GAE on $r_i$ with $V_{\phi_i}(o_i, s)$ → central actor trained on $R$, heads act (I-48) | per agent: $\rho_i$, GAE on $r_i$ with $V_{\phi_i}(o_i)$ |
-| **APPO** | V-trace on $R$, joint ratio | per agent: V-trace on $r_i$ with $V_{\phi_i}(o_i, s)$ → I-48 | per agent: V-trace on $r_i$ |
-| **SAC** | $Q_\psi(s, \mathbf{a})$, gradient through $\tilde{\mathbf{a}}$, squashed → no gradient through $\tilde{\mathbf{a}}$ (R-05), unsquashed (R-04) | per agent: $Q_{\psi_i}(o_i, s, a_i)$, gradient through $\tilde a_i$ → I-48, R-05, R-04 | per agent: $Q_{\psi_i}(o_i, a_i)$, squashed |
+| **PPO** | $\prod_i \rho_i$, GAE on $R$ with $V_\phi(s)$ | per agent: $\rho_i$, GAE on $r_i$ with $V_{\phi_i}(o_i, s)$ → central actor trained on $R$, heads act (L-01) | per agent: $\rho_i$, GAE on $r_i$ with $V_{\phi_i}(o_i)$ |
+| **APPO** | V-trace on $R$, joint ratio | per agent: V-trace on $r_i$ with $V_{\phi_i}(o_i, s)$ → L-01 | per agent: V-trace on $r_i$ |
+| **SAC** | $Q_\psi(s, \mathbf{a})$, gradient through $\tilde{\mathbf{a}}$, squashed → no gradient through $\tilde{\mathbf{a}}$ (L-09), unsquashed (L-08) | per agent: $Q_{\psi_i}(o_i, s, a_i)$, gradient through $\tilde a_i$ → L-01, L-08, L-09 | per agent: $Q_{\psi_i}(o_i, a_i)$, squashed |
 
 ## 7. Steps per iteration, and comparing runs
 
@@ -356,22 +356,22 @@ the same number of samples per network, for a problem $N$ times larger.
 **What makes runs comparable.**
 
 - **A budget in environment steps**, the same for all nine combinations, not
-  iterations ([I-50](../validation/rl.md#i-50-the-budget-is-counted-in-iterations-the-paper-in-episodes)).
+  iterations ([L-14](../validation/rl.md#l-14-the-budget-is-counted-in-iterations-the-paper-in-episodes)).
 - **Report the gradient steps** alongside: at the same budget PPO takes about 60
   times more gradient steps than APPO or SAC, by design.
 - **Evaluate at the same environment-step counts**, with the same seeds, on the
-  same team score ([I-73](../validation/rl.md#i-73-returns-of-the-paradigms-are-compared-across-different-scales)).
+  same team score ([L-03](../validation/rl.md#l-03-returns-of-the-paradigms-are-compared-across-different-scales)).
 
 ## 8. Where the original code differs
 
 | What | Section | Where it is recorded |
 |---|---|---|
-| CTDE's loss trains a central actor; the acting heads never change; CTDE learns from the summed reward | 5, 6 | [I-48](../validation/rl.md#i-48-ctde-never-trains-the-policies-that-act) |
-| The paradigms train different networks: custom 2 × 128 ReLU with a shared encoder in CTCE and CTDE, RLlib's default in DTDE | 5 | [R-03](../validation/rl.md#r-03-the-paradigms-train-different-networks) |
-| CTCE and CTDE: $\log\sigma$ unbounded, entropy can overflow | 2 | [R-01](../validation/rl.md#r-01-the-ctce-and-ctde-action-spread-has-no-limit) |
-| `kl_coeff = 0` still computes the KL; NaN loss is skipped silently | 2 | [R-02](../validation/rl.md#r-02-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
-| SAC in CTCE and CTDE uses an unsquashed Gaussian | 4 | [R-04](../validation/rl.md#r-04-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian) |
-| SAC in CTCE and CTDE: the actor's sample $\tilde{\mathbf{a}}$ is drawn with `sample()`, not `rsample()`, so $L_\pi$ has no gradient through the critic and the actor only maximises entropy ([`ctce.py` L136](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L136), [`ctde.py` L147](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L147)) | 4 | [R-05](../validation/rl.md#r-05-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic) |
+| CTDE's loss trains a central actor; the acting heads never change; CTDE learns from the summed reward | 5, 6 | [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
+| The paradigms train different networks: custom 2 × 128 ReLU with a shared encoder in CTCE and CTDE, RLlib's default in DTDE | 5 | [L-04](../validation/rl.md#l-04-the-paradigms-train-different-networks) |
+| CTCE and CTDE: $\log\sigma$ unbounded, entropy can overflow | 2 | [L-06](../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit) |
+| `kl_coeff = 0` still computes the KL; NaN loss is skipped silently | 2 | [L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
+| SAC in CTCE and CTDE uses an unsquashed Gaussian | 4 | [L-08](../validation/rl.md#l-08-sac-in-ctce-and-ctde-uses-an-unsquashed-gaussian) |
+| SAC in CTCE and CTDE: the actor's sample $\tilde{\mathbf{a}}$ is drawn with `sample()`, not `rsample()`, so $L_\pi$ has no gradient through the critic and the actor only maximises entropy ([`ctce.py` L136](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctce.py#L136), [`ctde.py` L147](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/ctde.py#L147)) | 4 | [L-09](../validation/rl.md#l-09-sacs-actor-in-ctce-and-ctde-gets-no-gradient-from-the-critic) |
 | SAC in CTCE and CTDE: $a'$ comes from a target copy of the actor, not the current one; the critic is not frozen while $L_\pi$ is computed, as RLlib's module does | 4 | not recorded: deviations from RLlib's SAC whose effect is not established |
-| APPO: `lambda_` is set and tuned but V-trace has no λ | 3 | [R-06](../validation/rl.md#r-06-appos-lambda_-has-no-effect) |
+| APPO: `lambda_` is set and tuned but V-trace has no λ | 3 | [L-13](../validation/rl.md#l-13-appos-lambda_-has-no-effect) |
 | Value-loss cap at RLlib's 10 | 2 | a setting, not an issue |

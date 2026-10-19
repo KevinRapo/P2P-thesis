@@ -30,8 +30,8 @@ market.
 **Sources.**
 
 - **IDs** are those of the [issue register](register.md), the single list of
-  every issue in the original; this page gives the detail for the RL layer.
-  **IDs `R-xx`** are findings made on the RL test bench.
+  every issue in the original; this page gives the detail for the RL layer
+  (`L-xx`), in the register's order.
 - **The RL folder** (`RL/` at commit `bbef313` of the `clean` branch) holds the
   copied RL code, test environments, test bench and notebooks. Links below to the
   copied code and its notebooks point into it on GitHub, pinned to that commit.
@@ -78,8 +78,9 @@ none changes how training works.
 
 **In the code.** In `RL/core/rl/` (on the `clean` branch) every issue below is marked above the
 lines at fault in `core/rl/`: `FAULT <ID>:` for a defect, `DECIDE <ID>:` for a
-*Judgment* issue, so the document and the code can be read side by side. The comments are the only
-change; the line numbers in the links below are those of the original. I-52 is not
+*Judgment* issue, so the document and the code can be read side by side. The markers use the
+IDs from before October 2026 ([Earlier identifiers](register.md#earlier-identifiers)). The comments are the only
+change; the line numbers in the links below are those of the original. L-18 is not
 marked: the original's test file is not copied to the RL branch.
 
 ## Summary
@@ -95,25 +96,25 @@ marked: the original's test file is not copied to the RL branch.
 
 The most consequential ones:
 
-- **CTDE never trains the policies that act (I-48).** The loss trains a central
+- **CTDE never trains the policies that act (L-01).** The loss trains a central
   actor; the agents act with per-agent networks that stay at their random initial
   weights for any algorithm and any training length. Confirmed by test: the acting
   networks change by exactly 0.
-- **CTCE and CTDE policies can diverge to NaN and keep "training" (R-01, R-02).**
+- **CTCE and CTDE policies can diverge to NaN and keep "training" (L-06, L-07).**
   Their action spread has no upper limit, so where the reward does not depend on
   the action the entropy bonus drives it to overflow. The KL term then becomes
   infinite, `kl_coeff = 0` turns that into a NaN loss, and RLlib silently zeroes
   the NaN gradients and carries on. Confirmed by test.
-- **SAC's actor in CTCE and CTDE never learns from the critic (R-05).** It samples
+- **SAC's actor in CTCE and CTDE never learns from the critic (L-09).** It samples
   its action without the reparameterisation gradient, so it is trained only to
   raise its entropy.
-- **The paradigms are not compared like for like (R-03, I-60, I-73).** DTDE uses
+- **The paradigms are not compared like for like (L-02 to L-04).** DTDE uses
   RLlib's standard network, CTCE and CTDE a smaller custom one without its
   safeguards; CTCE is trained on the sum of all rewards and learns more slowly.
-- **Inference does not act like training (I-61).** It skips RLlib's rescaling of
+- **Inference does not act like training (L-15).** It skips RLlib's rescaling of
   actions to the action bounds and reads the market metrics from the wrong place.
-- **Nothing in the original checks that anything learns (I-52, I-64).** The
-  trainer's test runs 5 iterations and asserts nothing, so I-48 passes it.
+- **Nothing in the original checks that anything learns (L-16, L-18).** The
+  trainer's test runs 5 iterations and asserts nothing, so L-01 passes it.
 
 ## How to read an issue
 
@@ -199,7 +200,7 @@ tested yet.
 | Probe | DTDE | CTCE | CTDE |
 |---|---|---|---|
 | 1 Constant | pass | pass (3.04 for 3) | pass (2.98 for 3) |
-| 2 Observation | pass | pass, but the loss went NaN (R-02) | pass |
+| 2 Observation | pass | pass, but the loss went NaN (L-07) | pass |
 | 3 Discount | pass | pass | pass |
 | 4 Action | pass | **fail**: −0.80, 0.01, 0.73 | **fail**: −0.01, 0.19, 0.11 |
 | 5 Obs → action | pass | **fail**: largest error 0.18 | **fail**: largest error 0.67 |
@@ -224,7 +225,7 @@ Not every check found a problem. These parts behave correctly in every paradigm:
 
 ## 1. Training paradigms
 
-### I-48: CTDE never trains the policies that act
+### L-01: CTDE never trains the policies that act
 
 **Fidelity · Tested**
 
@@ -311,7 +312,7 @@ CTDE combinations are affected. Inference acts through the same heads.
   the loss's path) agree. The defect is confirmed and fully explained. Only PPO was
   run; APPO and SAC follow from the code, not from a test.
 
-### I-60: CTCE is a centralised-information baseline, not an upper bound
+### L-02: CTCE is a centralised-information baseline, not an upper bound
 
 **Paper · Tested**
 
@@ -353,11 +354,11 @@ motivation. With a finite budget, CTCE can end below the decentralised paradigms
   prepared and has not been run yet. Either way, [P2]'s percentages "of the CTCE
   benchmark" depend on how long CTCE was trained, not only on the paradigms.
 
-### I-73: returns of the paradigms are compared across different scales
+### L-03: returns of the paradigms are compared across different scales
 
 **Paper · Judgment**
 
-Same lines as I-60.
+Same lines as L-02.
 
 **Why it is wrong.** CTCE and CTDE optimise the sum of all agents' rewards
 ([P2] eq. 17); DTDE optimises each agent's own return (eq. 19). [P2] Table 9 ranks
@@ -370,7 +371,7 @@ stated team score, computed from the raw rewards the same way for every paradigm
 **How to settle it.** Decide the team score (sum or mean over agents, from raw
 environment rewards) and report it alongside per-agent returns for every paradigm.
 
-### R-03: the paradigms train different networks
+### L-04: the paradigms train different networks
 
 **Code · Read**
 
@@ -397,7 +398,7 @@ return torch.nn.Sequential(torch.nn.Linear(input_dim, embedding_dim, bias=bias),
 **Why it is wrong.** DTDE uses RLlib's default network: two hidden layers of 256,
 tanh, and a limit on the action spread. CTCE and CTDE use a custom network: two
 layers of 128, ReLU (CTDE's acting heads add a third), and no limit on the spread
-(R-01). A difference in results between paradigms is therefore
+(L-06). A difference in results between paradigms is therefore
 partly a difference in network size, activation and safeguards. [P2] attributes
 its 3 × 3 differences to the paradigms and algorithms alone.
 
@@ -406,7 +407,7 @@ the difference as part of the paradigm), then repeat the comparison.
 
 ## 2. Grouping the agents
 
-### I-59: grouped spaces are in name order, grouped data in environment order
+### L-05: grouped spaces are in name order, grouped data in environment order
 
 **Code · Read**
 
@@ -447,7 +448,7 @@ bounds shows as a wrong answer.
 
 ## 3. Policy networks and loss
 
-### R-01: the CTCE and CTDE action spread has no limit
+### L-06: the CTCE and CTDE action spread has no limit
 
 **Code · Tested**
 
@@ -494,10 +495,10 @@ exactly this condition.
 - *What it tells us.* The missing clip is confirmed, and RLlib's clip is the
   exact difference. The speed depends on the learning rate and the entropy
   coefficient, both of which the original's population-based training raises
-  (I-49). In CTDE the network that diverged is the central actor, which never acts
-  (I-48); once the heads are trained, they have the same unbounded output.
+  (L-10). In CTDE the network that diverged is the central actor, which never acts
+  (L-01); once the heads are trained, they have the same unbounded output.
 
-### R-02: `kl_coeff = 0` does not switch off the KL term, and a NaN loss goes unnoticed
+### L-07: `kl_coeff = 0` does not switch off the KL term, and a NaN loss goes unnoticed
 
 **Code · Tested**
 
@@ -518,7 +519,7 @@ return (PPOConfig()
 **Why it is wrong.** Setting `kl_coeff=0.0` looks like it removes PPO's KL penalty.
 In RLlib it does not: `use_kl_loss` stays on by default, so the learner still
 computes the KL between the old and new policy and adds $0 \cdot \text{KL}$ to the
-loss. When the KL is infinite (R-01), $0 \cdot \infty$ is NaN in floating point,
+loss. When the KL is infinite (L-06), $0 \cdot \infty$ is NaN in floating point,
 and the whole loss is NaN. RLlib's default response (`torch_skip_nan_gradients =
 False`) is to replace NaN gradients with zero, log a warning and step on, warning
 itself that this "can corrupt the internal state of the optimizer". Training
@@ -540,7 +541,7 @@ healthy.
   run instead degrades it silently. Any run of the original should be checked for
   NaN losses before its results are read.
 
-### R-04: SAC in CTCE and CTDE uses an unsquashed Gaussian
+### L-08: SAC in CTCE and CTDE uses an unsquashed Gaussian
 
 **Code · Read**
 
@@ -567,7 +568,7 @@ CTDE … failing in DTDE") to the paradigms.
 **How to test it.** Probes 1-6 with SAC in each paradigm. SAC has no value
 function, so its value probes check the Q-values instead.
 
-### R-05: SAC's actor in CTCE and CTDE gets no gradient from the critic
+### L-09: SAC's actor in CTCE and CTDE gets no gradient from the critic
 
 **Code · Read**
 
@@ -600,7 +601,7 @@ metrics look healthy.
 
 So SAC-DTDE (RLlib's module) is SAC, but SAC-CTCE and SAC-CTDE are not: their
 policies drift toward maximum spread regardless of the reward. In CTDE this adds to
-I-48 (the trained actor does not even act). [P2] reports SAC as "excellent in CTCE
+L-01 (the trained actor does not even act). [P2] reports SAC as "excellent in CTCE
 and CTDE … failing in DTDE".
 
 **How to test it.** Probe 4 with SAC-CTCE: the action means should stay where they
@@ -610,7 +611,7 @@ gradient from the $Q$ term (zero now).
 
 ## 4. Trainer and hyperparameters
 
-### I-49: population-based training jumps the learning rate and reaches entropy 10
+### L-10: population-based training jumps the learning rate and reaches entropy 10
 
 **Code · Read**
 
@@ -626,16 +627,16 @@ if self.algorithm == RLAlgorithm.PPO:
 **Why it is wrong.** Training starts at `lr=1e-5` (L216), but the mutation domain
 starts at 1e-4, so the first resample jumps the learning rate by 10-1000×. The
 entropy coefficient can reach 10, a thousand times its starting value; at that
-size the entropy bonus outweighs the reward in the loss. Together with R-01, the
+size the entropy bonus outweighs the reward in the loss. Together with L-06, the
 search space contains exactly the settings that make CTCE and CTDE diverge, and with
-R-02 those trials keep running with a NaN loss. [P2] ran 10 trials per combination
+L-07 those trials keep running with a NaN loss. [P2] ran 10 trials per combination
 with these mutations (§4.2).
 
 **How to test it.** Probe 2 with CTCE and CTDE at entropy coefficients across the
 domain (0.01, 0.1, 1, 10): the iteration at which the KL becomes infinite should
 fall as the coefficient rises.
 
-### I-62: training configuration defects
+### L-11: training configuration defects
 
 **Code · Read**
 
@@ -682,7 +683,7 @@ ray.shutdown()
 `evaluation_duration=5`; count the worker processes of a run; run a trial that
 raises and check whether Ray is still up.
 
-### R-06: APPO's `lambda_` has no effect
+### L-13: APPO's `lambda_` has no effect
 
 **Code · Read**
 
@@ -714,7 +715,7 @@ mention λ for APPO.
 **How to test it.** Two APPO runs with the same seed and `lambda_` 0.8 and 0.99:
 their losses should match step for step.
 
-### I-50: the budget is counted in iterations, the paper in episodes
+### L-14: the budget is counted in iterations, the paper in episodes
 
 **Paper · Judgment**
 
@@ -729,14 +730,14 @@ trainer stops after a number of *training iterations*, each of which collects a
 batch of environment steps (4000 by default for PPO, 166 market days of 24 steps).
 10 000 iterations and 10 000 episodes differ by two orders of magnitude, and the
 papers do not say which was meant. Budgets also matter for the paradigm comparison
-(I-60): CTCE needs more data than DTDE to reach the same policy.
+(L-02): CTCE needs more data than DTDE to reach the same policy.
 
 **How to settle it.** State the budget in environment steps, the same for every
 paradigm and algorithm.
 
 ## 5. Inference, evaluation and tests
 
-### I-61: standalone inference does not act like training
+### L-15: standalone inference does not act like training
 
 **Code · Read**
 
@@ -778,12 +779,12 @@ infos = {agent_id: self.info for agent_id in self.agents_id}
 - **The market metrics are always 0.** The environment returns one info dict per
   agent, so `info.get("market_price")` never finds the key, and the mean price,
   volume and grid balance reported by inference are 0.
-- **CTDE inference acts with the untrained heads** (I-48).
+- **CTDE inference acts with the untrained heads** (L-01).
 
 **How to test it.** Run a trained DTDE probe policy through `RLInference` and
 through RLlib's own evaluation, and compare the actions sent to the environment.
 
-### I-64: no baselines, no seeds, no record of a run
+### L-16: no baselines, no seeds, no record of a run
 
 **Code · Read**
 
@@ -791,13 +792,13 @@ through RLlib's own evaluation, and compare the actions sent to the environment.
 on the same scenario, runs one seed per trial, and saves no manifest of versions
 and settings. A result such as "SAC-CTDE reaches 3158" cannot be compared with
 what an untrained policy reaches, which is exactly the comparison that would have
-exposed I-48. The probe notebooks report each result against fixed baselines (best,
+exposed L-01. The probe notebooks report each result against fixed baselines (best,
 always 0, random) for this reason.
 
 **How to test it.** Not a test: a capability to add (random and untrained
 baselines on held-out seeds, several training seeds, a run manifest).
 
-### I-72: [P2]'s evaluation protocol cannot show generalisation or variance
+### L-17: [P2]'s evaluation protocol cannot show generalisation or variance
 
 **Paper · Judgment**
 
@@ -814,7 +815,7 @@ seed luck.
 several training seeds per combination, and a score that is not the training
 reward alone.
 
-### I-52: the trainer's test checks that it runs, not that it learns
+### L-18: the trainer's test checks that it runs, not that it learns
 
 **Code · Read**
 
@@ -837,8 +838,8 @@ test_trainer(algo="ppo",  # ppo, appo, sac
 **Why it is wrong.** The test trains 5 iterations and prints the metrics; it
 asserts nothing about learning, and by default it runs only PPO-DTDE. A smoke test
 like this cannot catch a learning defect: a CTDE run executes without errors, logs
-moving losses (the central actor *is* being trained) and saves checkpoints. I-48
-passes it. The register's I-52 covers the whole test suite; this is its RL part.
+moving losses (the central actor *is* being trained) and saves checkpoints. L-01
+passes it. The register's L-18 covers the whole test suite; this is its RL part.
 
 **What replaces it.** The probe notebooks are the first learning tests: each probe
 has an exact answer, and the parameter-change check fails a frozen actor. They are
@@ -853,12 +854,12 @@ decision.
 
 | Topic | The problem in [P1] / [P2] | Issues |
 |---|---|---|
-| CTCE as upper bound | Called a theoretical upper bound, but trained by the same approximate learner on the summed reward; it learns more slowly | I-60 |
-| Comparing returns | One "mean episode reward" across paradigms whose objectives are a group sum (eq. 17) and per-agent returns (eq. 19); the score is not defined | I-73 |
-| CTDE critic | Eq. 18 uses a joint-action critic $Q_\phi(s, \mathbf{a})$; PPO and APPO learn a state-value critic $V(s)$. "CTDE" names a family, not one method | I-48 |
-| Budget | "10 000 episodes"; the code counts iterations | I-50 |
-| Evaluation | One seed, evaluation on the training scenario, ranking by the training reward | I-72 |
-| Network design | Not described; the paradigms use different networks (R-03) and the custom ones lack RLlib's safeguards (R-01, R-04) | R-03 |
+| CTCE as upper bound | Called a theoretical upper bound, but trained by the same approximate learner on the summed reward; it learns more slowly | L-02 |
+| Comparing returns | One "mean episode reward" across paradigms whose objectives are a group sum (eq. 17) and per-agent returns (eq. 19); the score is not defined | L-03 |
+| CTDE critic | Eq. 18 uses a joint-action critic $Q_\phi(s, \mathbf{a})$; PPO and APPO learn a state-value critic $V(s)$. "CTDE" names a family, not one method | L-01 |
+| Budget | "10 000 episodes"; the code counts iterations | L-14 |
+| Evaluation | One seed, evaluation on the training scenario, ranking by the training reward | L-17 |
+| Network design | Not described; the paradigms use different networks (L-04) and the custom ones lack RLlib's safeguards (L-06, L-08) | L-04 |
 
 ## What this means for the published results
 
@@ -872,24 +873,24 @@ entropy 0.01, clip 0.2, gradient clip 0.5, minibatch 128, buffer 1000) are the
 original code's. If its runs used this code, which cannot be confirmed
 independently:
 
-- **Every CTDE result comes from untrained policies (I-48).** PPO-CTDE (mean
+- **Every CTDE result comes from untrained policies (L-01).** PPO-CTDE (mean
   3004.8), APPO-CTDE and SAC-CTDE (mean 3158.2) acted with the heads' initial
   weights. [P2] reads SAC-CTDE's low standard deviation (42.5) as "the centralized
   critic successfully guided the local actors"; a policy that never changes also
   varies little. That untrained policies score close to CTCE (3099-3144) also says
   the reward hardly separates trained from untrained behaviour, a question for the
   connection document.
-- **CTCE and CTDE trials may have run with NaN losses (R-01, R-02, I-49).** With
+- **CTCE and CTDE trials may have run with NaN losses (L-06, L-07, L-10).** With
   population-based training raising the entropy coefficient toward 10, trials of
   the grouped paradigms are exactly the ones whose spread can diverge, and the
   original would keep reporting them.
-- **SAC-CTCE and SAC-CTDE policies were never steered by their critics (R-05).**
+- **SAC-CTCE and SAC-CTDE policies were never steered by their critics (L-09).**
   Their actors only gained entropy, so [P2]'s SAC results in the grouped
   paradigms ("excellent in CTCE and CTDE") come from policies that did not learn
   from the reward.
-- **APPO's λ search found nothing (R-06)**: `lambda_` has no effect in APPO.
-- **The ranking mixes paradigm with network (R-03, R-04)** and with training
-  length (I-60), on one seed (I-72).
+- **APPO's λ search found nothing (L-13)**: `lambda_` has no effect in APPO.
+- **The ranking mixes paradigm with network (L-04, L-08)** and with training
+  length (L-02), on one seed (L-17).
 
 So [P2]'s conclusions about CTDE ("a robust middle ground", "the optimal choice"
 for SAC) are **not supported** by the original code, and its comparisons between
@@ -902,24 +903,24 @@ all nine combinations of algorithm and paradigm ([v1.md §5](../v1.md#5-validati
 
 | What | Why it matters | Issues |
 |---|---|---|
-| CTCE trained longer on probes 4 and 5 | Decides "slow, not broken" | I-60 |
-| APPO and SAC on the probes | I-48 and R-01 follow from the code for them; SAC's distribution differs (R-04) | I-48, R-04 |
-| SAC-CTCE on probe 4; the actor's gradient from the Q term | Confirms that SAC's grouped actors never learn from the critic | R-05 |
-| Two APPO runs differing only in `lambda_` | Confirms the setting is ignored | R-06 |
-| Probe 6 with different action bounds per agent | The only way to show the wrong action scaling | I-59 |
-| The Ray Tune path (`RLTrainer.train`) | Population-based training, evaluation workers and checkpoints have not run; the bench uses `build_local` | I-49, I-62 |
-| `RLInference` | Its action scaling and metrics | I-61 |
+| CTCE trained longer on probes 4 and 5 | Decides "slow, not broken" | L-02 |
+| APPO and SAC on the probes | L-01 and L-06 follow from the code for them; SAC's distribution differs (L-08) | L-01, L-08 |
+| SAC-CTCE on probe 4; the actor's gradient from the Q term | Confirms that SAC's grouped actors never learn from the critic | L-09 |
+| Two APPO runs differing only in `lambda_` | Confirms the setting is ignored | L-13 |
+| Probe 6 with different action bounds per agent | The only way to show the wrong action scaling | L-05 |
+| The Ray Tune path (`RLTrainer.train`) | Population-based training, evaluation workers and checkpoints have not run; the bench uses `build_local` | L-10, L-11 |
+| `RLInference` | Its action scaling and metrics | L-15 |
 | Longer episodes and truncation | The probes are 1-2 steps long; the market has 24 or 96 | — |
 
 ## Outside this document
 
 How the market and the RL layer connect is not covered here; its issues are listed
 in the [register, part B](register.md#b-environment-and-cooperation). marlem-v1's
-choices for the environment (objective, reward, action, days; I-10, I-39, I-72) are
+choices for the environment (objective, reward, action, days; E-04, E-05, L-17) are
 in [v1.md §3](../v1.md#3-the-market-as-an-environment).
 
-- **Actions and observations:** I-10, I-39, I-40, I-58
-- **Reward:** I-02, I-41 to I-47, I-75, I-76, I-79
-- **KPIs:** I-35 to I-37, I-65, I-68, I-69
-- **Experiments and reproducibility:** I-03, I-04, I-51, I-63, I-80
-- **Docs:** I-67
+- **Actions and observations:** E-04 to E-07
+- **Reward:** E-01, E-13 to E-22
+- **KPIs:** E-08 to E-12, D-03
+- **Experiments and reproducibility:** E-02, E-03, D-01, D-02, D-05
+- **Docs:** D-04

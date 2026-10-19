@@ -4,13 +4,13 @@ A run is one algorithm, one paradigm, one seed and one budget of environment
 steps. Everything around it is written to the run's folder:
 
     run.json         what was run: settings, environment, seed, versions, git
-                     commit, status, final scores (fixes I-64's missing record)
+                     commit, status, final scores (fixes L-16's missing record)
     metrics.csv      one row per progress report: environment steps, team
                      return, learner metrics per module and their mean, min and
                      max over the modules (``modules/<metric>_mean`` ...), timing
                      (idle polls omitted)
     evaluation.csv   the policy and the baselines on held-out seeds, at fixed
-                     environment-step counts (fixes I-64's missing baselines)
+                     environment-step counts (fixes L-16's missing baselines)
     evaluation_agents.csv, evaluation_episodes.csv
                      the same evaluations kept per episode and agent, and per
                      episode (``core/rl/policy.py``, ``evaluation``)
@@ -18,13 +18,13 @@ steps. Everything around it is written to the run's folder:
 
 What it fixes:
 
-- I-50: the budget is counted in environment steps, the same for every
+- L-14: the budget is counted in environment steps, the same for every
   algorithm and paradigm; iterations are only how often metrics are written.
-- R-02: training stops with an error as soon as a loss or metric is NaN or
+- L-07: training stops with an error as soon as a loss or metric is NaN or
   infinite, instead of zeroing the gradients and continuing.
-- I-62: no evaluation workers, no doubled CPU count, no population-based
+- L-11: no evaluation workers, no doubled CPU count, no population-based
   training; the algorithm is stopped and Ray shut down even when a run fails.
-- I-61: ``load_policy`` acts with the trained module exactly as training does
+- L-15: ``load_policy`` acts with the trained module exactly as training does
   (``core/rl/policy.py``).
 
 Each run starts its own Ray instance, unless ``RAY_ADDRESS`` names one that is
