@@ -609,7 +609,7 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
     all that can be set. The runs it makes are those of ``data``.
 
     Besides the experiment's own fields (``Experiment``) that is ``training`` per
-    algorithm with the RL layer's defaults (``core.rl.defaults.SETTINGS``) under the
+    algorithm with the RL layer's defaults (``core.rl_defaults.SETTINGS``) under the
     overrides, ``model`` with the network settings (``NETWORK``), ``resources``
     with ``RESOURCE_DEFAULTS`` and, for the market, ``env_config`` with
     ``MARKET_ENV_CONFIG``. ``eval_every`` and ``eval_points`` are both written, the
@@ -620,7 +620,7 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
     ``SpecError`` if ``data`` is not an experiment (``Experiment.from_dict``, without
     looking for the scenario file). Writing out twice changes nothing.
     """
-    from core.rl.defaults import NETWORK, SETTINGS
+    from core.rl_defaults import NETWORK, SETTINGS
 
     experiment = Experiment.from_dict(data, default_name, check_files=False)
     e = experiment

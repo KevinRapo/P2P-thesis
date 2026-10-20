@@ -102,8 +102,8 @@ is the one below; the Studio's start dialog shows every template this way
 | `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs; a variant is a name with `training` overrides on top | |
 | `budget`, `eval_every` or `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training (give one of `eval_every` and `eval_points`; the other stays null) | |
 | `results_detail`, `trace_days` | `"standard"`: held-out results per day and participant; `"detailed"`: also step by step on the first `trace_days` test days (or a list) | |
-| `training` | Per algorithm, RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's `training()` can be added (e.g. `tau`, `n_step`) and has RLlib's default until it is | [defaults.py](../../core/rl/defaults.py) `SETTINGS` |
-| `model` | The network, the same for every paradigm | [defaults.py](../../core/rl/defaults.py) `NETWORK` |
+| `training` | Per algorithm, RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's `training()` can be added (e.g. `tau`, `n_step`) and has RLlib's default until it is | [rl_defaults.py](../../core/rl_defaults.py) `SETTINGS` |
+| `model` | The network, the same for every paradigm | [rl_defaults.py](../../core/rl_defaults.py) `NETWORK` |
 | `max_parallel`, `torch_threads`, `num_env_runners`, `ray_thread_caps`, `resources` | How runs share this PC or a cluster node ([Resources and parallelism](resources.md)) | [spec.py](../../core/runner/spec.py) `RESOURCE_DEFAULTS` |
 | `test` | Changes to the [test profile](resources.md#full-and-test-profiles) | |
 

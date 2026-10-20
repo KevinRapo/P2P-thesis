@@ -16,7 +16,7 @@ statement about it was read in its installed source, linked at tag
 implementation is `core/rl/` in this repository: the paradigms in
 [grouping.py](../../core/rl/grouping.py) and
 [ctde_modules.py](../../core/rl/ctde_modules.py), the settings in
-[defaults.py](../../core/rl/defaults.py). The settings below are its `SETTINGS`: the
+[rl_defaults.py](../../core/rl_defaults.py). The settings below are its `SETTINGS`: the
 original's starting values ([P2] Table 8,
 [`train.py` L215-L259](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L215-L259))
 without the defective ones, completed with RLlib's defaults. An experiment can
@@ -237,7 +237,7 @@ $\alpha$ settling; the entropy near its target.
 The algorithm's math stays the same; the paradigm decides **what counts as one
 agent** for RLlib, what its module sees and which reward it learns from. Every
 module is RLlib's default network (2 × 256 tanh) with separate actor and critic
-encoders (`vf_share_layers=False`, [`NETWORK`](../../core/rl/defaults.py#L57-L66)), so
+encoders (`vf_share_layers=False`, [`NETWORK`](../../core/rl_defaults.py#L57-L66)), so
 the paradigms differ in inputs and rewards, not in network design.
 
 | | CTCE | CTDE | DTDE |

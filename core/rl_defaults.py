@@ -1,6 +1,6 @@
 """The RL layer's default settings, without importing Ray or torch.
 
-``config.py`` builds every run from these; the runner reads them to write an
+``core/rl/config.py`` builds every run from these; the runner reads them to write an
 experiment out in full (``core.runner.spec.written_out``), so the Studio can show
 every setting with its value without loading Ray.
 

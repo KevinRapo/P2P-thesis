@@ -289,7 +289,7 @@ def test_the_rl_defaults_are_those_the_trainer_uses():
     from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 
     from core.rl.config import MODEL
-    from core.rl.defaults import NETWORK
+    from core.rl_defaults import NETWORK
 
     rllib = dataclasses.asdict(DefaultModelConfig())
     assert {k: v for k, v in NETWORK.items() if k != "vf_share_layers"} == {
@@ -299,7 +299,7 @@ def test_the_rl_defaults_are_those_the_trainer_uses():
 
 
 def test_written_out_shows_every_setting_and_makes_the_same_runs():
-    from core.rl.defaults import NETWORK, SETTINGS
+    from core.rl_defaults import NETWORK, SETTINGS
 
     for path in sorted((REPO / "experiments").glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -314,8 +314,11 @@ def test_written_out_shows_every_setting_and_makes_the_same_runs():
             assert SETTINGS[a.algorithm] | a.training == b.training
             assert NETWORK | a.model == b.model
             # null in env_config: computed by the environment, as when absent
-            given = {k: v for k, v in b.env_config.items() if v is not None}
-            assert given == a.env_config
+            given = [
+                {k: v for k, v in run.env_config.items() if v is not None}
+                for run in (a, b)
+            ]
+            assert given[0] == given[1]
             plain = dict(training={}, model={}, env_config={})
             assert replace(a, **plain) == replace(b, **plain)
 

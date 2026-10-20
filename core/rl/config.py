@@ -15,7 +15,7 @@ critic sees, so a difference between them is the central critic's.
 Every paradigm uses the same network settings (RLlib's defaults: 2 x 256 tanh,
 separate actor and critic), which fixes L-04.
 
-The hyperparameters start from the original's (``SETTINGS`` in ``defaults.py``,
+The hyperparameters start from the original's (``SETTINGS`` in ``core/rl_defaults.py``,
 [P2] Table 8), with the defects removed:
 
 - PPO: ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07;
@@ -55,7 +55,7 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv
 from core.rl.ctde_modules import CTDE_MODULES
-from core.rl.defaults import NETWORK, SETTINGS
+from core.rl_defaults import NETWORK, SETTINGS
 
 
 class Algorithm(str, Enum):
@@ -76,7 +76,7 @@ CONFIGS = {
     Algorithm.SAC: SACConfig,
 }
 
-# The settings themselves are in ``defaults.py`` (no Ray there, so the runner and the
+# The settings themselves are in ``core/rl_defaults.py`` (no Ray there, so the runner and the
 # Studio can read them).
 MODEL = dataclasses.asdict(DefaultModelConfig()) | NETWORK
 

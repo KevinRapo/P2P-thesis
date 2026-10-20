@@ -313,9 +313,8 @@ def test_the_presets_rewrite_the_run_size_and_keep_every_other_edit():
         assert test == expected, record["path"]  # the template's test version
         assert apply_preset(test_text, "test", template, name) == test_text  # twice
         full_text = apply_preset(test_text, "full", template, name)
-        assert json.loads(full_text) == json.loads(template) | {
-            "training": edited["training"]
-        }
+        given = {k: v for k, v in json.loads(template).items() if v is not None}
+        assert json.loads(full_text) == given | {"training": edited["training"]}
 
 
 def test_the_editable_text_writes_out_every_setting():

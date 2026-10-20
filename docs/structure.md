@@ -23,7 +23,7 @@ flowchart TD
 
   root --> core["core/"]
 
-  core --> cs["settings.py"]:::done
+  core --> cs["settings.py · rl_defaults.py"]:::done
 
   core --> config["config/"]
   config --> c1["scenario.py"]:::data
@@ -63,7 +63,7 @@ flowchart TD
   runnercore --> ru1["spec.py · launch.py · registry.py · results.py<br/>slurm.py · targets.py · remote.py · __main__.py"]:::done
 
   root --> exps["experiments/"]
-  exps --> ex1["smoke.json · sac_alpha.json<br/>market_3x3.json"]:::data
+  exps --> ex1["smoke.json · sac_alpha.json<br/>market_3x3.json · market_3x3_detailed.json"]:::data
 
   root --> hpc["hpc/"]
   hpc --> hp1["targets.toml"]:::data
@@ -187,7 +187,7 @@ original code and its annotations live on the `clean` branch.
 |---|---|---|
 | [`grouping.py`](../core/rl/grouping.py) | `GroupedEnv` (CTCE: joint observations and actions, summed reward); `CentralStateEnv` (CTDE: own observation plus the global state, own reward) | done |
 | [`ctde_modules.py`](../core/rl/ctde_modules.py) | CTDE: one RLlib module per agent, actor on its own observation, critic on the global state | done |
-| [`defaults.py`](../core/rl/defaults.py) | The default hyperparameters per algorithm (`SETTINGS`) and network settings (`NETWORK`), without Ray, so the runner and the Studio can write an experiment out in full | done |
+| [`../rl_defaults.py`](../core/rl_defaults.py) | The default hyperparameters per algorithm (`SETTINGS`) and network settings (`NETWORK`), without Ray, so the runner and the Studio can write an experiment out in full. It sits in `core/`, outside the package: importing anything under `core/rl/` loads Ray | done |
 | [`config.py`](../core/rl/config.py) | Algorithms, paradigms and configuration (`build_config` from `SETTINGS` and `MODEL`; modules declared in agent order); `build_algo` builds the algorithm with its replay buffer seeded too | done |
 | [`policy.py`](../core/rl/policy.py) | Policy actions, baselines, rollout (with reset options, e.g. the day) and evaluation: `evaluation` keeps every episode per agent and per episode, and chosen episodes step by step, read from the infos' layout (amounts, `state`, `shared`, `shared_state`); `evaluate` its summary | done |
 | [`train.py`](../core/rl/train.py) | `train(Run(...))`: training budgets, metrics (idle polls omitted; sampling/learner timers and training throughput), run records (stage timings) and saved policies; `load_policy` | done |
@@ -244,6 +244,7 @@ It comes from saved pre-migration results, not a new full-suite or UI test.
 |---|---|---|
 | [`smoke.json`](../experiments/smoke.json) | Two tiny PPO-DTDE runs, to check the runner end to end (a few minutes) | done |
 | [`sac_alpha.json`](../experiments/sac_alpha.json) | SAC-DTDE on the market with initial temperatures 1, 0.1 and 0.01 | test profile: two TalTech runs completed, one stopped; full profile not established here |
+| [`market_3x3_detailed.json`](../experiments/market_3x3_detailed.json) | All three algorithms x paradigms on the market with short budgets (SAC 3000, PPO and APPO 8000 steps) and `"results_detail": "detailed"`, written out in full | first TalTech start failed on the `core.rl.train` name clash (fixed); not run since |
 | [`market_3x3.json`](../experiments/market_3x3.json) | Three algorithms x three paradigms on the market, one seed | all nine test runs completed locally and on TalTech; full profile not established here |
 
 ## studio/: the user interface
@@ -309,6 +310,7 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`rl/test_training_metrics.py`](../tests/rl/test_training_metrics.py) | Idle reports omitted, learner-only progress preserved, non-finite metrics still fail, timing fields and total training-call time retained; learner metrics over the modules (mean, min, max); every evaluation kept per episode and agent, appended per evaluation point | done |
 | [`rl/test_evaluation_tables.py`](../tests/rl/test_evaluation_tables.py) | `evaluation` on a two-agent environment: the summary as before, one row per policy, episode and agent (amounts summed, reset fields copied), one per episode (shared amounts once), and only the traced episodes step by step | done |
 | [`rl/test_7_same_seed_same_run.py`](../tests/rl/test_7_same_seed_same_run.py) | The same seed gives the same run: initial weights independent of Python's set order, and two runs in the runner's job processes (PPO DTDE and CTDE, SAC DTDE past its warm-up) bit for bit the same after training | done |
+| [`rl/test_package_names.py`](../tests/rl/test_package_names.py) | `from core.rl import train` gives the function even after the module `core.rl.train` was imported (as the runner's jobs do) | done |
 | [`rl/probe_helpers.py`](../tests/rl/probe_helpers.py), [`rl/conftest.py`](../tests/rl/conftest.py) | Shared assertions and readable test output (each test's docstring is printed) | done |
 | [`runner/test_runner.py`](../tests/runner/test_runner.py) | Experiment specs (grid names, budgets, variants, date ranges, resources, `to_dict` round trip, the test version, validation errors), the registry's run states (queued, running, lost, completed, failed, legacy, progress and ETA, SLURM runs) and `launch.prepare`; no training | done |
 | [`runner/test_run_service.py`](../tests/runner/test_run_service.py) | The Studio's `RunService` over a temporary `runs/` (`MARLEM_RUNS`): this PC's overview newest first with its runs, stopping queued runs, local check always ready; over fake targets: names and labels from `targets.toml`, a target made once and closed, overview newest first, check (with and without a spec), start, `start_new`, `restart`, stop and sync handed to the target asked, the specs of `experiments/` (all load; a broken one says why), `describe` of an edited experiment text (a changed copy, a file without a name, invalid JSON and specs), the editable text (every setting written out, twice the same), and the presets (the template's test version and back, other edits kept, twice the same; `PRESET_KEYS` cover what the test version changes; errors) | done |

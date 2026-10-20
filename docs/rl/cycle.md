@@ -15,7 +15,7 @@
 its installed source and linked at tag
 [`ray-2.51.1`](https://github.com/ray-project/ray/tree/ray-2.51.1/rllib); the
 implementation is `core/rl/` in this repository, with the settings of its
-[`SETTINGS`](../../core/rl/defaults.py#L21-L55) (the original's starting values,
+[`SETTINGS`](../../core/rl_defaults.py#L21-L55) (the original's starting values,
 [P2] Table 8, without the defective ones), completed with RLlib's defaults. The
 step labels (A1 to D3) are kept as they are for the original code
 ([`15d6715`](https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment)),
