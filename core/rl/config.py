@@ -15,8 +15,8 @@ critic sees, so a difference between them is the central critic's.
 Every paradigm uses the same network settings (RLlib's defaults: 2 x 256 tanh,
 separate actor and critic), which fixes L-04.
 
-The hyperparameters start from the original's (``SETTINGS``, [P2] Table 8), with
-the defects removed:
+The hyperparameters start from the original's (``SETTINGS`` in ``defaults.py``,
+[P2] Table 8), with the defects removed:
 
 - PPO: ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07;
   the original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from
@@ -55,6 +55,7 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv
 from core.rl.ctde_modules import CTDE_MODULES
+from core.rl.defaults import NETWORK, SETTINGS
 
 
 class Algorithm(str, Enum):
@@ -75,43 +76,9 @@ CONFIGS = {
     Algorithm.SAC: SACConfig,
 }
 
-# The original's starting hyperparameters ([P2] Table 8), less the defective ones.
-SETTINGS: dict[Algorithm, dict[str, Any]] = {
-    Algorithm.PPO: {
-        "lr": 1e-5,
-        "gamma": 0.99,
-        "lambda_": 0.95,
-        "num_epochs": 30,
-        "minibatch_size": 128,
-        "entropy_coeff": 0.01,
-        "clip_param": 0.2,
-        "grad_clip": 0.5,
-        "use_kl_loss": False,
-        "vf_clip_param": 1e6,
-    },
-    Algorithm.APPO: {
-        "lr": 1e-5,
-        "gamma": 0.99,
-        "entropy_coeff": 0.01,
-        "grad_clip": 0.5,
-        "use_kl_loss": False,
-    },
-    Algorithm.SAC: {
-        "actor_lr": 1e-5,
-        "critic_lr": 1e-5,
-        "gamma": 0.99,
-        "twin_q": True,
-        "grad_clip": 0.5,
-        "target_entropy": "auto",
-        "replay_buffer_config": {
-            "type": "MultiAgentEpisodeReplayBuffer",
-            "capacity": 1000,
-        },
-    },
-}
-
-# RLlib's default network for every paradigm, actor and critic separate.
-MODEL = dataclasses.asdict(DefaultModelConfig()) | {"vf_share_layers": False}
+# The settings themselves are in ``defaults.py`` (no Ray there, so the runner and the
+# Studio can read them).
+MODEL = dataclasses.asdict(DefaultModelConfig()) | NETWORK
 
 
 def env_spec(

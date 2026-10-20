@@ -16,6 +16,102 @@ day and per participant ([Files](#files)). With `"results_detail": "detailed"` i
 spec the days of `trace_days` (default: the first 3 test days, or a list of them) are
 also kept step by step. The [Results](#results) page compares the runs.
 
+## The experiment file
+
+A spec gives only what differs from the defaults. Written out in full, with every
+setting at the value its runs use, [market_3x3.json](../../experiments/market_3x3.json)
+is the one below; the Studio's start dialog shows every template this way
+([`written_out`](../../core/runner/spec.py), the same runs as the file):
+
+```json
+{
+  "name": "market_3x3_3envRuns",
+  "description": "All three algorithms x all three paradigms on the market.",
+  "env": "market",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "env_config": {"energy_scale": null, "reward_scale": null},
+  "algorithms": ["sac", "ppo", "appo"],
+  "paradigms": ["ctce", "ctde", "dtde"],
+  "seeds": [0],
+  "variants": {},
+  "budget": {"sac": 24000, "ppo": 240000, "appo": 240000},
+  "eval_every": null,
+  "eval_points": 10,
+  "eval_episodes": 10,
+  "results_detail": "standard",
+  "trace_days": 3,
+  "training": {
+    "sac": {
+      "actor_lr": 0.0003,
+      "critic_lr": 0.0003,
+      "gamma": 0.99,
+      "twin_q": true,
+      "grad_clip": 0.5,
+      "target_entropy": "auto",
+      "replay_buffer_config": {"type": "MultiAgentEpisodeReplayBuffer", "capacity": 50000},
+      "num_steps_sampled_before_learning_starts": 1000,
+      "initial_alpha": 0.01
+    },
+    "ppo": {
+      "lr": 0.0003,
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "num_epochs": 10,
+      "minibatch_size": 240,
+      "entropy_coeff": 0.01,
+      "clip_param": 0.2,
+      "grad_clip": 0.5,
+      "use_kl_loss": false,
+      "vf_clip_param": 1000000.0,
+      "train_batch_size_per_learner": 2400
+    },
+    "appo": {
+      "lr": 0.0003,
+      "gamma": 0.99,
+      "entropy_coeff": 0.01,
+      "grad_clip": 0.5,
+      "use_kl_loss": false,
+      "train_batch_size_per_learner": 480
+    }
+  },
+  "model": {
+    "fcnet_hiddens": [256, 256],
+    "fcnet_activation": "tanh",
+    "head_fcnet_hiddens": [],
+    "head_fcnet_activation": "relu",
+    "free_log_std": false,
+    "log_std_clip_param": 20.0,
+    "vf_share_layers": false
+  },
+  "max_parallel": 3,
+  "torch_threads": 1,
+  "num_env_runners": 3,
+  "ray_thread_caps": true,
+  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120},
+  "test": {}
+}
+```
+
+| Settings | What they set | Defaults from |
+|---|---|---|
+| `name`, `description` | The experiment's folder name (default: the file's name) and free text | |
+| `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's `energy_scale` and `reward_scale` (null: computed, [market_env.py](../../core/env/market_env.py)) | [spec.py](../../core/runner/spec.py) `MARKET_ENV_CONFIG` |
+| `train_days`, `test_days` | Days drawn from in training, and the held-out days (`{"from", "to"}` or a list) | |
+| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs; a variant is a name with `training` overrides on top | |
+| `budget`, `eval_every` or `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training (give one of `eval_every` and `eval_points`; the other stays null) | |
+| `results_detail`, `trace_days` | `"standard"`: held-out results per day and participant; `"detailed"`: also step by step on the first `trace_days` test days (or a list) | |
+| `training` | Per algorithm, RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's `training()` can be added (e.g. `tau`, `n_step`) and has RLlib's default until it is | [defaults.py](../../core/rl/defaults.py) `SETTINGS` |
+| `model` | The network, the same for every paradigm | [defaults.py](../../core/rl/defaults.py) `NETWORK` |
+| `max_parallel`, `torch_threads`, `num_env_runners`, `ray_thread_caps`, `resources` | How runs share this PC or a cluster node ([Resources and parallelism](resources.md)) | [spec.py](../../core/runner/spec.py) `RESOURCE_DEFAULTS` |
+| `test` | Changes to the [test profile](resources.md#full-and-test-profiles) | |
+
+What is not in the experiment: the market itself (network, participants, market
+and DSO rules) is the scenario's, edited in the Studio's other pages and saved in
+[scenarios/](../../scenarios/); the agents' observation and action design is
+[MarketEnv](../../core/env/market_env.py)'s.
+
 ## Commands
 
 From the `marlem-v1` root, in the `marlem` environment:
@@ -91,10 +187,10 @@ results* button. When the cluster cannot be read, the page keeps the last data w
 its time.
 
 *Start experiment* takes a spec from `experiments/` as a **template** and shows its
-JSON in an editor: change anything (the fields are those of [an experiment
-file](../../core/runner/spec.py)). The editor writes out `resources` in full,
-with the [defaults](resources.md#what-a-run-gets) where the template gives none, so
-the cluster allocation can be edited at once. Every edit is checked as a start would check it,
+JSON in an editor: change anything. The editor writes out every setting, each at
+its default where the template gives none ([The experiment
+file](#the-experiment-file)), so all that can be set is in front of you. Every
+edit is checked as a start would check it,
 and the dialog shows the runs it makes, or what is wrong. The template file is
 never changed. Two presets rewrite the editor's run size settings (name,
 description, seeds, train and test days, budget, evaluation, traced days,

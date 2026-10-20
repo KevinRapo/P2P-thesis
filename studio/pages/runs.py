@@ -595,15 +595,16 @@ class StartDialog:
                     f"in the editor with {purpose}; other edits stay"
                 )
         ui.label(
-            "Edit the experiment as JSON; the fields are those of an experiment file "
-            "(docs: Training experiments). What the editor holds is what starts. If "
+            "Edit the experiment as JSON: every setting is written out, with its "
+            "default where the template gives none (docs: Training experiments, The "
+            "experiment file). What the editor holds is what starts. If "
             "the target has an experiment of this name, the start adds the date and "
             "time to it."
         ).classes("mls-card-caption")
         self.editor = (
             ui.textarea(on_change=self._changed)
             .classes("w-full mls-mono")
-            .props("outlined rows=18")
+            .props("outlined rows=24")
         )
         self.details = ui.column().classes("w-full gap-1")
         self.target = ui.select(
@@ -628,9 +629,11 @@ class StartDialog:
     def _template_changed(self) -> None:
         """Put the chosen template's text in the editor."""
         template = self.templates.get(self.template.value)
-        self.editor.set_value(
-            self.service.editable(template["text"]) if template else ""
-        )
+        if template is None:
+            self.editor.set_value("")
+        else:
+            name = Path(self.template.value).stem
+            self.editor.set_value(self.service.editable(template["text"], name))
         self._changed()
 
     def _apply_preset(self, preset: str) -> None:
@@ -639,12 +642,13 @@ class StartDialog:
         template = self.templates.get(self.template.value)
         if template is None:
             return
+        name = Path(self.template.value).stem
         try:
             text = self.service.apply_preset(
                 self.editor.value or "",
                 preset,
-                self.service.editable(template["text"]),  # full keeps the resources
-                Path(self.template.value).stem,
+                self.service.editable(template["text"], name),  # written out
+                name,
             )
         except ValueError as error:
             _fail(f"Cannot apply the {preset} preset: {error}")

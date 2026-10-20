@@ -12,6 +12,7 @@ import json
 import subprocess
 import sys
 import time
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -27,6 +28,8 @@ from core.runner.spec import (
     Experiment,
     SpecError,
     resolve,
+    to_text,
+    written_out,
 )
 
 SCENARIO = "scenarios/validate_market.json"
@@ -278,6 +281,43 @@ def test_axis_names_match_the_trainer():
 
     assert ALGORITHMS == tuple(a.value for a in Algorithm)
     assert PARADIGMS == tuple(p.value for p in Paradigm)
+
+
+def test_the_rl_defaults_are_those_the_trainer_uses():
+    import dataclasses
+
+    from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
+
+    from core.rl.config import MODEL
+    from core.rl.defaults import NETWORK
+
+    rllib = dataclasses.asdict(DefaultModelConfig())
+    assert {k: v for k, v in NETWORK.items() if k != "vf_share_layers"} == {
+        k: rllib[k] for k in NETWORK if k != "vf_share_layers"
+    }
+    assert MODEL == rllib | {"vf_share_layers": False}
+
+
+def test_written_out_shows_every_setting_and_makes_the_same_runs():
+    from core.rl.defaults import NETWORK, SETTINGS
+
+    for path in sorted((REPO / "experiments").glob("*.json")):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        full = written_out(data, path.stem)
+        assert written_out(full, path.stem) == full, path  # twice: the same
+        assert json.loads(to_text(full)) == full
+        assert set(full) >= set(Experiment.__dataclass_fields__) - {"name"}
+        before = Experiment.from_dict(data, path.stem).expand()
+        after = Experiment.from_dict(full, path.stem).expand()
+        assert len(before) == len(after)
+        for a, b in zip(before, after):
+            assert SETTINGS[a.algorithm] | a.training == b.training
+            assert NETWORK | a.model == b.model
+            # null in env_config: computed by the environment, as when absent
+            given = {k: v for k, v in b.env_config.items() if v is not None}
+            assert given == a.env_config
+            plain = dict(training={}, model={}, env_config={})
+            assert replace(a, **plain) == replace(b, **plain)
 
 
 # --------------------------------------------------------------------------------------

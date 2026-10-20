@@ -16,7 +16,7 @@ statement about it was read in its installed source, linked at tag
 implementation is `core/rl/` in this repository: the paradigms in
 [grouping.py](../../core/rl/grouping.py) and
 [ctde_modules.py](../../core/rl/ctde_modules.py), the settings in
-[config.py](../../core/rl/config.py). The settings below are its `SETTINGS`: the
+[defaults.py](../../core/rl/defaults.py). The settings below are its `SETTINGS`: the
 original's starting values ([P2] Table 8,
 [`train.py` L215-L259](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L215-L259))
 without the defective ones, completed with RLlib's defaults. An experiment can
@@ -69,7 +69,7 @@ flowchart LR
    rescales it from $[-1, 1]$ to the action's bounds (`normalize_actions=True`),
    and records $o, a, r, d$, $\log\mu(a \mid o)$ and the distribution's inputs.
 2. **Wrap** (CTCE, CTDE). The environment the algorithm sees
-   ([`env_spec`](../../core/rl/config.py#L116-L126)):
+   ([`env_spec`](../../core/rl/config.py#L84-L94)):
    - CTCE: [`GroupedEnv`](../../core/rl/grouping.py#L68-L137) turns the $N$ agents
      into one: observation $s_t$, action $\mathbf{a}_t$, reward $R_t$, one done
      flag;
@@ -237,7 +237,7 @@ $\alpha$ settling; the entropy near its target.
 The algorithm's math stays the same; the paradigm decides **what counts as one
 agent** for RLlib, what its module sees and which reward it learns from. Every
 module is RLlib's default network (2 × 256 tanh) with separate actor and critic
-encoders (`vf_share_layers=False`, [`MODEL`](../../core/rl/config.py#L113)), so
+encoders (`vf_share_layers=False`, [`NETWORK`](../../core/rl/defaults.py#L57-L66)), so
 the paradigms differ in inputs and rewards, not in network design.
 
 | | CTCE | CTDE | DTDE |
@@ -330,7 +330,7 @@ what the original code computes instead.
 ## 7. Steps per iteration, and comparing runs
 
 An **iteration** is one call of RLlib's training step. `core/rl/` sets
-`min_time_s_per_iteration=0` ([config.py](../../core/rl/config.py#L129-L193)), so
+`min_time_s_per_iteration=0` ([config.py](../../core/rl/config.py#L97-L163)), so
 an iteration does not wait for the clock; what it holds still differs by algorithm:
 
 | Per iteration | PPO | APPO | SAC |

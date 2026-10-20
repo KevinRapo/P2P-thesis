@@ -109,6 +109,10 @@ TEST_DEFAULT_BUDGET = 100
 # installed version: SAC samples this many steps before its first update.
 RLLIB_SAC_WARMUP = 1500
 TEST_WARMUP_MARGIN = 100  # steps beyond the warm-up, so learning happens
+# The settings of the market environment an experiment may give in ``env_config``
+# (``core/env/market_env.py``), written out with ``written_out``; None: computed by
+# the environment. ``scenario``, ``days`` and ``seed`` come from the experiment.
+MARKET_ENV_CONFIG = {"energy_scale": None, "reward_scale": None}
 TEST_KEYS = (
     "seeds",
     "train_days",
@@ -594,6 +598,92 @@ def resolve(spec: str | Path | Experiment, profile: str = "full") -> Experiment:
     ``profile`` (``Experiment.with_profile``)."""
     experiment = spec if isinstance(spec, Experiment) else Experiment.load(spec)
     return experiment.inline_scenario().with_profile(profile)
+
+
+# --------------------------------------------------------------------------------------
+# Written out: every setting of an experiment with the value it runs with
+# --------------------------------------------------------------------------------------
+def written_out(data: dict, default_name: str = "experiment") -> dict:
+    """An experiment file's JSON with every setting written out: what ``data``
+    gives, as it gives it, and every other setting at its default, so a reader sees
+    all that can be set. The runs it makes are those of ``data``.
+
+    Besides the experiment's own fields (``Experiment``) that is ``training`` per
+    algorithm with the RL layer's defaults (``core.rl.defaults.SETTINGS``) under the
+    overrides, ``model`` with the network settings (``NETWORK``), ``resources``
+    with ``RESOURCE_DEFAULTS`` and, for the market, ``env_config`` with
+    ``MARKET_ENV_CONFIG``. ``eval_every`` and ``eval_points`` are both written, the
+    one not given as null. Days, the scenario, the budget and the ``test`` block
+    stay as written. Other RLlib ``training`` keys may still be added; they have
+    RLlib's defaults until they are.
+
+    ``SpecError`` if ``data`` is not an experiment (``Experiment.from_dict``, without
+    looking for the scenario file). Writing out twice changes nothing.
+    """
+    from core.rl.defaults import NETWORK, SETTINGS
+
+    experiment = Experiment.from_dict(data, default_name, check_files=False)
+    e = experiment
+    training = {a: SETTINGS[a] | e.training.get(a, {}) for a in e.algorithms}
+    training |= {a: v for a, v in e.training.items() if a not in training}
+    filled = {
+        "name": data.get("name"),
+        "description": e.description,
+        "env": e.env,
+        "scenario": e.scenario,
+        "train_days": data.get("train_days", []),
+        "test_days": data.get("test_days", []),
+        "env_config": (MARKET_ENV_CONFIG if e.is_market else {}) | e.env_config,
+        "algorithms": e.algorithms,
+        "paradigms": e.paradigms,
+        "seeds": e.seeds,
+        "variants": e.variants,
+        "budget": e.budget,
+        "eval_every": e.eval_every,
+        "eval_points": e.eval_points,
+        "eval_episodes": e.eval_episodes,
+        "results_detail": e.results_detail,
+        "trace_days": e.trace_days,
+        "training": training,
+        "model": NETWORK | e.model,
+        "max_parallel": e.max_parallel,
+        "torch_threads": e.torch_threads,
+        "num_env_runners": e.num_env_runners,
+        "ray_thread_caps": e.ray_thread_caps,
+        "resources": e.run_resources,
+        "test": e.test,
+    }
+    if filled["name"] is None:  # the file's name, as ``load`` gives it
+        del filled["name"]
+    return copy.deepcopy(filled)
+
+
+def to_text(data: dict) -> str:
+    """An experiment as the JSON text of a file: two spaces per level, and a list or
+    object of plain values on one line when it fits in ``_INLINE`` characters."""
+    return _json(data, 0)
+
+
+_INLINE = 72
+
+
+def _json(value, level: int) -> str:
+    one_line = json.dumps(value)
+    plain = isinstance(value, (list, dict)) and not any(
+        isinstance(v, (list, dict))
+        for v in (value.values() if isinstance(value, dict) else value)
+    )
+    if not isinstance(value, (list, dict)) or (plain and len(one_line) <= _INLINE):
+        return one_line
+    inner = "  " * (level + 1)
+    if isinstance(value, dict):
+        items = [f"{json.dumps(k)}: {_json(v, level + 1)}" for k, v in value.items()]
+        opening, closing = "{", "}"
+    else:
+        items = [_json(v, level + 1) for v in value]
+        opening, closing = "[", "]"
+    lines = ",\n".join(inner + item for item in items)
+    return f"{opening}\n{lines}\n{'  ' * level}{closing}"
 
 
 # --------------------------------------------------------------------------------------

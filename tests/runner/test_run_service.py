@@ -10,14 +10,13 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from core.runner import targets
 from core.runner.registry import RunState
-from core.runner.spec import REPO, Experiment
+from core.runner.spec import REPO, Experiment, written_out
 from studio.adapters.run_service import (
     PRESET_KEYS,
     RunService,
@@ -319,28 +318,22 @@ def test_the_presets_rewrite_the_run_size_and_keep_every_other_edit():
         }
 
 
-def test_the_editable_text_writes_out_the_resources():
+def test_the_editable_text_writes_out_every_setting():
     for record in RunService().spec_files():
         name, template = record["path"].stem, record["text"]
-        text = editable(template)
+        text = editable(template, name)
         data = json.loads(text)
+        assert data == written_out(json.loads(template), name)
         assert data["resources"] == record["resources"]  # the defaults filled in
-        assert data["ray_thread_caps"] is record["experiment"].ray_thread_caps
-        same = Experiment.from_dict(data | {"resources": {}}, name)
-        assert same == replace(record["experiment"], resources={})  # nothing else
-        assert list(data)[-2:] == ["ray_thread_caps", "resources"]
-        assert editable(text) == text  # twice
-        assert json.loads(apply_preset(text, "full", text, name)) == data
+        assert {"results_detail", "trace_days", "model", "training"} <= set(data)
+        assert editable(text, name) == text  # twice
+        assert json.loads(apply_preset(text, "full", text, name)) == {
+            k: v for k, v in data.items() if v is not None
+        }
         test = json.loads(apply_preset(text, "test", text, name))
         assert test["resources"]["minutes"] == 15
-    partial = json.dumps({"resources": {"cpus": 14}})
-    assert json.loads(editable(partial))["resources"] == {
-        "cpus": 14,
-        "mem_gb": 4,
-        "minutes": 120,
-    }
-    for text in ("{half", "[1]", '{"resources": 3}'):
-        assert editable(text) == text
+    for text in ("{half", "[1]", '{"resources": 3}', '{"resources": {"cpus": 14}}'):
+        assert editable(text) == text  # not an experiment: describe says why
 
 
 def test_preset_keys_are_the_settings_the_test_version_changes():

@@ -243,7 +243,7 @@ none ([L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act)).
 
 ## 6. The settings we choose
 
-[`SETTINGS` and `MODEL`](../../core/rl/config.py#L78-L113), and what each changes in
+[`SETTINGS` and `NETWORK`](../../core/rl/defaults.py#L21-L66), and what each changes in
 the cycle:
 
 | Setting | Value | What it does in the cycle |
