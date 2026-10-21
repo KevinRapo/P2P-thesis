@@ -4,9 +4,9 @@ as one command (run it first after any change to ``core/rl/``).
 
 From the repository root::
 
-    python scripts/probe_ppo.py                 # probes 1-6, CTCE, CTDE, DTDE
-    python scripts/probe_ppo.py --probes 6 --workers 3
-    python scripts/probe_ppo.py --probes 4 5 6 --budget-scale 2   # twice the steps
+    python core/rl/scripts/probe_ppo.py                 # probes 1-6, CTCE, CTDE, DTDE
+    python core/rl/scripts/probe_ppo.py --probes 6 --workers 3
+    python core/rl/scripts/probe_ppo.py --probes 4 5 6 --budget-scale 2   # twice the steps
 
 Probes 1-5 are the Box probes; probe 6 (``MixedActionProbe``) has a categorical
 and a continuous action part with known optima. Each run trains with the fast
@@ -35,7 +35,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]  # core/rl/scripts -> root
 sys.path.insert(0, str(ROOT))
 os.environ["PYTHONPATH"] = os.pathsep.join(
     filter(None, [str(ROOT), os.environ.get("PYTHONPATH", "")])

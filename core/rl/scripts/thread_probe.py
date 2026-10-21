@@ -3,14 +3,14 @@
 TalTech allows 4096 threads per user per node (docs/hpc/resources.md), so the threads
 of one run decide how many runs share a node. Each case trains one short run as the
 runner does (``core.rl.train`` in its own process and Ray instance), from the test
-profile of ``experiments/market_3x3.json`` with one setting changed, and samples the
+profile of ``config/experiments/market_ppo.json`` with one setting changed, and samples the
 threads of that process tree every second. A thread counts as "working" when it used
 more than 1 s of CPU.
 
 On a compute node, from the ``marlem-v2`` root::
 
     sbatch -p short -c 8 --mem=16G -t 120 --constraint=skylake \
-        --wrap "python scripts/thread_probe.py --group k"
+        --wrap "python core/rl/scripts/thread_probe.py --group k"
 
 Groups: ``all``, ``k``, ``paradigm``, ``agents``, ``long``. One line per
 case goes to standard output and to ``runs/thread_probe/<group>-<job>.csv``.
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import psutil
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[3]  # core/rl/scripts -> root
 sys.path.insert(0, str(REPO))  # run as a script from the repository root
 
 from core.runner.launch import RAY_THREAD_CAPS  # noqa: E402
@@ -119,7 +119,7 @@ def train_one(case: dict, out: str) -> None:
     from core.rl import train
     from core.runner.spec import Experiment
 
-    experiment = Experiment.load(REPO / "experiments" / "market_3x3.json")
+    experiment = Experiment.load(REPO / "config" / "experiments" / "market_ppo.json")
     experiment = experiment.with_profile("test")
     template = json.loads(experiment.scenario_path.read_text(encoding="utf-8"))
     changes = {

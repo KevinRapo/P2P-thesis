@@ -1,5 +1,5 @@
 #!/bin/bash
-# Jupyter Lab as a SLURM job, for VS Code through an SSH tunnel (scripts/hpc.ps1).
+# Jupyter Lab as a SLURM job, for VS Code through an SSH tunnel (hpc/hpc.ps1).
 # `hpc start` submits it with the account from .env and REPO / PORT exported:
 #   sbatch --account=<account> --export=ALL,REPO=<checkout>,PORT=<port> jupyter.slurm
 # Options on the sbatch line override the lines below.

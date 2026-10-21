@@ -18,7 +18,7 @@ from core.config import store
 from core.grid.powerflow import RECYCLE, SimBenchGrid
 from core.market.lem import LocalEnergyMarket, OrderIntent
 
-SCENARIO = Path(__file__).resolve().parents[2] / "scenarios/validate_market.json"
+SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 TOL = 1e-8
 
 

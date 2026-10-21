@@ -24,16 +24,17 @@ core/        the MARLEM functionality: everything a notebook can call
   market/      orders, matching, pricing, DSO, agents, reputation; LocalEnergyMarket
   env/         MarketEnv: the market as an RLlib multi-agent environment
   rl/          the RL layer (paradigms on RLlib), with envs/ (test environments)
+               and scripts/ (probe check, benchmark, thread probe)
   runner/      experiments: start, watch, stop and sync training runs
   settings.py  this machine's settings (.env)
-experiments/ experiment specs (JSON, tracked): which runs to train
-scenarios/   saved scenarios (JSON, the Studio's format)
+config/      experiments/: experiment specs (JSON, tracked), which runs to train;
+             scenarios/: saved scenarios (JSON, the Studio's format)
 notebooks/   call core/ only: market/, rl/, runner/
 tests/       market/, rl/, runner/
 studio/      the NiceGUI Studio: pages/ and components/ on top of adapters/
 docs/        the documentation (Markdown); docs_site/ builds the website from it
-hpc/         targets.toml: where experiments run (local, TalTech)
-scripts/     the Jupyter job on the cluster
+hpc/         targets.toml: where experiments run (local, TalTech); the Jupyter job
+             on the cluster (hpc.ps1 / hpc.cmd, jupyter.slurm)
 runs/        training runs and results (git-ignored); the runner's one source of truth
 ```
 
@@ -111,8 +112,9 @@ The paper's graph grid model is to be added as a second grid method on the same
 SimBench network (see the top-level `AGENTS.md`). Until it exists, do not delete
 original-paper grid or market functionality, or anything it could use, only
 because nothing calls it today (e.g. `electrical_distance`, the paths and zones of
-`core/grid/powerflow.py`, the ledger, the reputation helpers,
-`core/market/profile/`). When unsure, keep it and ask.
+`core/grid/powerflow.py`, the ledger, the reputation helpers). The original's
+profile generators (`core/market/profile/`) were removed in V2; they are on the
+`main` and `clean` branches. When unsure, keep it and ask.
 
 ## RL layer
 
@@ -138,7 +140,7 @@ because nothing calls it today (e.g. `electrical_distance`, the paths and zones 
   chosen partner goes to `OrderIntent.partner_id` unchanged. Do not change the
   clearing (`core/market/clearing.py`) to suit the RL layer.
 - **Run the probes first after any change to `core/rl/` or its test environments**:
-  `python scripts/probe_ppo.py` (probes 1-6, PPO, all three paradigms), then
+  `python core/rl/scripts/probe_ppo.py` (probes 1-6, PPO, all three paradigms), then
   `tests/rl/`. The probes follow Andy Jones's guide
   (https://andyljones.com/posts/rl-debugging.html); each has an exact answer.
   Probe 6 has a mixed (categorical and continuous) action.

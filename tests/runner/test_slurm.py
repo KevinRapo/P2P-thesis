@@ -16,7 +16,7 @@ import pytest
 from core.runner import launch, registry, slurm
 from core.runner.spec import Experiment, SpecError, resolve
 
-SCENARIO = "scenarios/validate_market.json"
+SCENARIO = "config/scenarios/validate_market.json"
 ARRAY = "1042700"
 
 

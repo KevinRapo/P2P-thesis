@@ -22,7 +22,7 @@ import pytest
 from core.env import SCALE_KEYS, MarketEnv, zero_policy
 from core.market.dso.dso import DSO_ID
 
-SCENARIO = Path(__file__).resolve().parents[2] / "scenarios/validate_market.json"
+SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAY = "2016-06-15"
 AGENTS = ["P1", "P2", "P3", "P4", "P5"]
 
@@ -227,7 +227,7 @@ def test_heldout_config_uses_the_runs_training_scales(tmp_path):
 
     experiment = Experiment.from_dict(
         {
-            "scenario": "scenarios/validate_market.json",
+            "scenario": "config/scenarios/validate_market.json",
             "train_days": ["2016-06-15"],
             "test_days": ["2016-01-10"],
             "algorithms": ["ppo"],

@@ -145,7 +145,7 @@ def test_stop_marks_queued_runs_stopped(runs_root):
 
 
 def test_this_pc_is_always_ready():
-    report = RunService().check("local", "experiments/smoke.json")
+    report = RunService().check("local", "config/experiments/smoke.json")
     assert report["ok"] and report["problems"] == []
 
 
@@ -230,7 +230,7 @@ def test_check_start_stop_and_sync_go_to_the_target_asked(fakes):
 # --------------------------------------------------------------------------------------
 def test_the_experiments_folder_specs_all_load():
     found = RunService().spec_files()
-    paths = sorted((REPO / "experiments").glob("*.json"))
+    paths = sorted((REPO / "config" / "experiments").glob("*.json"))
     assert [r["path"] for r in found] == paths and paths
     for record in found:
         assert record["error"] is None, record
@@ -250,14 +250,14 @@ def test_the_smoke_spec_in_numbers():
 
 
 def test_a_spec_that_does_not_load_says_why(tmp_path):
-    good = json.loads((REPO / "experiments" / "smoke.json").read_text("utf-8"))
+    good = json.loads((REPO / "config" / "experiments" / "smoke.json").read_text("utf-8"))
     (tmp_path / "a_good.json").write_text(json.dumps(good), encoding="utf-8")
     (tmp_path / "b_not_json.json").write_text("{not json", encoding="utf-8")
     (tmp_path / "c_unknown.json").write_text(
         json.dumps(good | {"colour": "red"}), encoding="utf-8"
     )
     (tmp_path / "d_no_scenario.json").write_text(
-        json.dumps(good | {"scenario": "scenarios/missing.json"}), encoding="utf-8"
+        json.dumps(good | {"scenario": "config/scenarios/missing.json"}), encoding="utf-8"
     )
     (tmp_path / "notes.txt").write_text("not a spec", encoding="utf-8")
 
@@ -278,7 +278,7 @@ def test_a_spec_that_does_not_load_says_why(tmp_path):
 
 def test_start_new_and_restart_go_to_the_target_asked(fakes):
     service = RunService()
-    experiment = Experiment.load(REPO / "experiments" / "smoke.json")
+    experiment = Experiment.load(REPO / "config" / "experiments" / "smoke.json")
     assert service.start_new("taltech", experiment, "test") == "x-20261018-120000"
     assert service.restart("local", "x") == "x"
     assert fakes["taltech"].calls == [("start_new", experiment, "test")]
@@ -301,7 +301,7 @@ def test_describe_turns_edited_text_into_the_experiment():
     for change, message in (
         ({"seeds": []}, "seeds"),
         ({"colour": "red"}, "colour"),
-        ({"scenario": "scenarios/missing.json"}, "not found"),
+        ({"scenario": "config/scenarios/missing.json"}, "not found"),
     ):
         record = RunService().describe(json.dumps(json.loads(smoke["text"]) | change))
         assert message in record["error"] and record["experiment"] is None
@@ -356,7 +356,7 @@ def test_preset_keys_are_the_settings_the_test_version_changes():
 
 
 def test_a_preset_on_text_that_is_no_experiment_says_why():
-    template = (REPO / "experiments" / "smoke.json").read_text(encoding="utf-8")
+    template = (REPO / "config" / "experiments" / "smoke.json").read_text(encoding="utf-8")
     for text, message in (("{half", "not valid JSON"), ("[1]", "one JSON object")):
         with pytest.raises(ValueError, match=message):
             apply_preset(text, "test", template, "smoke")
@@ -373,7 +373,7 @@ def test_quick_settings_read_and_rewrite_the_editors_json():
     workers and cluster resources are read from the editor's JSON and written back
     into it, every other setting keeping its edit; None removes a setting (its
     default then applies), and the result is still an experiment."""
-    text = editable((REPO / "experiments" / "market_ppo.json").read_text("utf-8"))
+    text = editable((REPO / "config" / "experiments" / "market_ppo.json").read_text("utf-8"))
     values = quick_settings(text)
     assert values["paradigms"] == ["ctce", "ctde", "dtde"]
     assert values["lr"] == 0.0003 and values["num_env_runners"] == 3

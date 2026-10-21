@@ -38,7 +38,7 @@ conda run -n marlem mkdocs serve -f docs_site/mkdocs.yml
 The generated `site/` folder is ignored.
 
 The HPC guide keeps `hpc.md` as its overview and old public entry point, with
-subpages under `docs/hpc/`. Windows helper source lives in `scripts/` alongside
+subpages under `docs/hpc/`. Windows helper source lives in `hpc/` alongside
 the code; setup instructions live in [the HPC setup page](hpc/setup.md).
 
 ## The API reference

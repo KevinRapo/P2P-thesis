@@ -22,7 +22,7 @@ from core.grid.contract import GridAssessment, GridPath
 from core.grid.graph import GraphGrid, capacities
 from core.market.dso.dso import Dso
 
-SCENARIO = Path(__file__).resolve().parents[2] / "scenarios/validate_market.json"
+SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAY = "2016-07-01"
 LINES = {"a": (0.1, 100.0), "b": (0.2, 50.0), "c": (0.4, 200.0)}
 

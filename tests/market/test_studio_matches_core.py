@@ -19,7 +19,7 @@ from core.market.lem import LocalEnergyMarket  # noqa: E402
 from studio.adapters.market_service import MarketService  # noqa: E402
 from studio.adapters.scenario_service import ScenarioService  # noqa: E402
 
-SCENARIO_FILE = ROOT / "scenarios" / "validate_market.json"
+SCENARIO_FILE = ROOT / "config" / "scenarios" / "validate_market.json"
 
 
 def test_studio_matches_core(tmp_path: Path) -> None:

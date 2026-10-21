@@ -1,6 +1,6 @@
 {
   "description": "Quick check that the runner works end to end: two tiny PPO runs.",
-  "scenario": "scenarios/validate_market.json",
+  "scenario": "config/scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-07"},
   "test_days": {"from": "2016-07-01", "to": "2016-07-03"},
   "algorithms": ["ppo"],

@@ -9,8 +9,8 @@ resources are requested separately.
 
 An experiment expands to algorithms × paradigms × seeds × variants, each one an
 independent run with its own model, seed, replay buffer, metrics and checkpoint.
-[market_ppo.json](../../experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
-[grid_methods.json](../../experiments/grid_methods.json) 1 × 1 × 3 seeds × 3
+[market_ppo.json](../../config/experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
+[grid_methods.json](../../config/experiments/grid_methods.json) 1 × 1 × 3 seeds × 3
 variants = 9. Five seeds would make `market_ppo` 15 runs. (The measurements below
 were taken in V1 with `market_3x3`, three algorithms × three paradigms; they
 describe one PPO run's resources the same way.)
@@ -56,9 +56,9 @@ measurement below 7–13 threads used more than 1 s of CPU, the main threads of 
 samplers and the driver. The 4096 limit counts every thread that exists, asleep or
 not, so only the peak matters for sizing.
 
-Measured with [scripts/thread_probe.py](../../scripts/thread_probe.py) on green
+Measured with [core/rl/scripts/thread_probe.py](../../core/rl/scripts/thread_probe.py) on green
 nodes (SLURM jobs 1043952, 1044568, 1044587–1044591; 19–20 October 2026): one run
-of the test profile of [market_3x3.json](../../experiments/market_3x3.json) with
+of the test profile of [market_3x3.json](../../config/experiments/market_3x3.json) with
 one setting changed (base: PPO, DTDE, 5 agents), counting the threads of the run's
 own process tree once a second. "Capped" sets Ray's pools to one thread
 ([below](#capping-rays-thread-pools)).

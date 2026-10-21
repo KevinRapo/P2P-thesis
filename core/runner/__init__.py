@@ -2,7 +2,7 @@
 
 The one place that knows both ``core.env`` (the market as an environment) and
 ``core.rl`` (the training); both are imported only when a job trains, so reading
-status stays fast. An experiment is a JSON file in ``experiments/``; everything
+status stays fast. An experiment is a JSON file in ``config/experiments/``; everything
 it produces is under ``runs/<experiment>/`` and survives closing the terminal,
 the Studio or the Claude session.
 

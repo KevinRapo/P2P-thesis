@@ -1,6 +1,6 @@
 """Command line of the runner: ``python -m core.runner <command>``.
 
-start experiments/x.json   queue the runs and start them on a target (--target, default
+start config/experiments/x.json   queue the runs and start them on a target (--target, default
                            local; --profile test: the experiment's small test version);
                            "start -" reads the experiment as JSON from standard input
                            (how this PC starts one on a cluster)
@@ -132,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m core.runner", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     start = commands.add_parser("start")
-    start.add_argument("spec", help="experiments/<name>.json, or - (standard input)")
+    start.add_argument("spec", help="config/experiments/<name>.json, or - (standard input)")
     start.add_argument("--profile", choices=PROFILES, default="full")
     status = commands.add_parser("status")
     status.add_argument("experiment", nargs="?")
@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     sync = commands.add_parser("sync")
     sync.add_argument("experiment")
     check = commands.add_parser("check")
-    check.add_argument("spec", nargs="?", help="experiments/<name>.json")
+    check.add_argument("spec", nargs="?", help="config/experiments/<name>.json")
     for command in (start, status, stop, sync, check):
         command.add_argument("--json", action="store_true")
         _add_target(command)

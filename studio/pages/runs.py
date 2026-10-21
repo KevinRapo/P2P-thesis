@@ -16,7 +16,7 @@ runner's ``check`` found: "Ready", or the problems that stop a start. A read tha
 is not a notification: a line says why and when the data shown was last updated, and
 goes away with the next read that works. Start, Stop and Sync show their errors as
 notifications. The "Start experiment" button starts an experiment on either target,
-with an experiment file from ``experiments/`` as the template, its JSON edited before
+with an experiment file from ``config/experiments/`` as the template, its JSON edited before
 the start (``StartDialog``), with the paradigms, seeds, budget, PPO settings,
 workers and cluster resources also offered as fields that rewrite the JSON;
 "Restart failed runs" starts an experiment again from the settings saved in its
@@ -44,7 +44,7 @@ LOCAL_REFRESH_S = 2.0
 REMOTE_REFRESH_S = 10.0  # every read of a cluster is a round trip over SSH
 START_HINT = (
     "Start an experiment with the button above, or "
-    "`python -m core.runner start experiments/<name>.json [--target taltech]`"
+    "`python -m core.runner start config/experiments/<name>.json [--target taltech]`"
 )
 # preset -> (button, icon, what it is for)
 PRESET_BUTTONS = {
@@ -561,7 +561,7 @@ def _resources(resources: dict) -> str:
 
 class StartDialog:
     """The dialog that starts an experiment on a target. An experiment file from
-    ``experiments/`` is the template: its JSON is shown in an editor, and every edit is
+    ``config/experiments/`` is the template: its JSON is shown in an editor, and every edit is
     checked as a start would check it (``RunService.describe``), with the runs it
     makes or what is wrong. The file itself is never changed. The Test and Full
     presets rewrite the run size settings in the editor (``RunService.apply_preset``)

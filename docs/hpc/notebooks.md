@@ -39,9 +39,9 @@ your account (`MARLEM_SLURM_ACCOUNT` in `.env`):
 
 | Command | Job |
 |---|---|
-| `sbatch --account=<account> scripts/jupyter.slurm` | The script's own settings: 4 CPUs, 8 GB, 2 h, partition `short` |
-| `sbatch --account=<account> -c 20 --mem=16G -t 03:00:00 scripts/jupyter.slurm` | One probe's 9 runs at once |
-| `sbatch --account=<account> -c 78 --mem=60G -t 01:30:00 scripts/jupyter.slurm` | A green node's worth (SLURM picks the node) |
+| `sbatch --account=<account> hpc/jupyter.slurm` | The script's own settings: 4 CPUs, 8 GB, 2 h, partition `short` |
+| `sbatch --account=<account> -c 20 --mem=16G -t 03:00:00 hpc/jupyter.slurm` | One probe's 9 runs at once |
+| `sbatch --account=<account> -c 78 --mem=60G -t 01:30:00 hpc/jupyter.slurm` | A green node's worth (SLURM picks the node) |
 
 Options on the command line override the `#SBATCH` lines. Jupyter listens on port
 9437, or `PORT` when exported (`--export=ALL,PORT=...`). Wait for `ST` = `R`
@@ -83,5 +83,5 @@ forgotten job ends at its `-t` limit.
 | Account | `--account=project_xxx` | Or permanently: `MARLEM_SLURM_ACCOUNT` in `.env` |
 
 One-off changes go on the `sbatch` line (or after `hpc start`); permanent ones in
-[scripts/jupyter.slurm](../../scripts/jupyter.slurm), committed and pulled like
+[hpc/jupyter.slurm](../../hpc/jupyter.slurm), committed and pulled like
 any code.

@@ -8,7 +8,7 @@ They are read from, in this order:
 3. the default the caller gives.
 
 ``.env`` holds one ``KEY=VALUE`` per line; blank lines and lines starting with ``#``
-are skipped, and quotes around a value are removed. ``scripts/hpc.ps1`` reads the
+are skipped, and quotes around a value are removed. ``hpc/hpc.ps1`` reads the
 same file. Files such as ``hpc/targets.toml`` refer to a setting as ``${KEY}``, or
 ``${KEY:-default}`` with a default (``expand``).
 """

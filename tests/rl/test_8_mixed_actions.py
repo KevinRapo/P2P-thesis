@@ -4,7 +4,7 @@ The market's action is a ``Dict`` of categorical and continuous parts; probe 6,
 ``MixedActionProbe``, is the smallest environment with the same kind of action
 (``choice``: Discrete(3), ``level``: Box(1)). These tests check, on built modules
 and constructed batches (nothing is trained to convergence here; the training
-check is ``scripts/probe_ppo.py``):
+check is ``core/rl/scripts/probe_ppo.py``):
 
 - the probe's optima and its reward routing;
 - CTCE: the group's ``Tuple`` action goes back to each agent unchanged, in agent

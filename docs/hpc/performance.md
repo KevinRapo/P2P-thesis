@@ -80,7 +80,7 @@ and DTDE (one network per agent); CTCE has one network.
 
 ### Per run
 
-PPO, 240,000 steps as in [market_3x3.json](../../experiments/market_3x3.json). The
+PPO, 240,000 steps as in [market_3x3.json](../../config/experiments/market_3x3.json). The
 earlier 5-agent market runs on this PC took about twice the sum of the benchmarks
 (evaluation, runs sharing a 6-core PC), so the table uses a factor 1.5. The euro
 column assumes 2 CPUs per run; the runner's default is 4, which doubles it.
@@ -131,9 +131,9 @@ booked CPUs at start-up and in the tail.
 
 ## Node types on the market
 
-Measured 20–21 October 2026 with [benchmark.py](../../core/rl/benchmark.py) on
+Measured 20–21 October 2026 with [benchmark.py](../../core/rl/scripts/benchmark.py) on
 `MarketEnv` (`validate_market`, first week of June), the PPO and SAC settings of
-[market_3x3.json](../../experiments/market_3x3.json), one torch thread, no
+[market_3x3.json](../../config/experiments/market_3x3.json), one torch thread, no
 remote samplers. Seconds per 1000 environment steps; one measurement each.
 
 ### Blackwell1 against a green node

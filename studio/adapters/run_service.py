@@ -78,7 +78,7 @@ class RunService:
     Args:
         root: The folder with this PC's experiments; default ``$MARLEM_RUNS`` or
             ``<repo>/runs``.
-        specs: The folder with the experiment specs; default ``<repo>/experiments``.
+        specs: The folder with the experiment specs; default ``<repo>/config/experiments``.
     """
 
     def __init__(
@@ -87,7 +87,7 @@ class RunService:
         specs: Optional[Path] = None,
     ) -> None:
         self._root = Path(root) if root else None
-        self._specs = Path(specs) if specs else REPO / "experiments"
+        self._specs = Path(specs) if specs else REPO / "config" / "experiments"
         self._targets: dict[str, targets.Target] = {}
         self._made = threading.Lock()  # a target is made once, from whichever thread
         self._syncing = threading.Lock()  # one copy at a time: ``copied`` is per target

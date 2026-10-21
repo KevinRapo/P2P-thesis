@@ -19,7 +19,7 @@ import pytest
 
 from core.env import OBS_NAMES, MarketEnv, net_position_policy, zero_policy
 
-SCENARIO = Path(__file__).resolve().parents[2] / "scenarios/validate_market.json"
+SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAYS = ["2016-06-15", "2016-01-10"]
 AGENTS = ["P1", "P2", "P3", "P4", "P5"]
 

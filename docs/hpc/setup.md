@@ -16,7 +16,7 @@ repository root: git-ignored, one `KEY=VALUE` per line.
 [.env.example](../../.env.example) lists every key with its default; copy it to
 `.env` and fill in. An environment variable of the same name takes precedence.
 [core/settings.py](../../core/settings.py) reads it for the Python code, and
-[hpc.ps1](../../scripts/hpc.ps1) reads the same file.
+[hpc.ps1](../../hpc/hpc.ps1) reads the same file.
 
 | Key | Default | Used by |
 |---|---|---|
@@ -43,7 +43,7 @@ one to submit, so put a `.env` there too (`~/marlem-v2/.env`, at least
 | Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v2`, a clone of branch `marlem-v2` (V1: `~/marlem-v1`) |
 | Results (`runs/`) | Cluster: `~/marlem-v2/runs/`; synced experiments on this PC in the V2 worktree's `runs/@taltech/` (V1's stay in V1's) |
 | Python environment | Cluster: `~/miniforge3/envs/marlem` |
-| Jupyter job script | [scripts/jupyter.slurm](../../scripts/jupyter.slurm), in the cluster's checkout |
+| Jupyter job script | [hpc/jupyter.slurm](../../hpc/jupyter.slurm), in the cluster's checkout |
 | Jupyter token, logs | Cluster: `~/.jupyter_token`, `~/jupyter-<jobid>.out` |
 
 A notebook cell runs as sent from VS Code; a change to `core/`, a spec or a
@@ -51,12 +51,12 @@ scenario reaches the cluster only by a push and a pull there (`git shipc`).
 
 ## The `hpc` helper
 
-[scripts/hpc.ps1](../../scripts/hpc.ps1) drives the Jupyter job;
-[hpc.cmd](../../scripts/hpc.cmd) makes `hpc` work in cmd too.
+[hpc/hpc.ps1](../../hpc/hpc.ps1) drives the Jupyter job;
+[hpc.cmd](../../hpc/hpc.cmd) makes `hpc` work in cmd too.
 
 | Command | Does |
 |---|---|
-| `hpc start [sbatch options]` | Submit `scripts/jupyter.slurm` with the account from `.env`, wait for Jupyter, open the tunnel. E.g. `hpc start -c 78 --mem=60G -t 01:30:00` |
+| `hpc start [sbatch options]` | Submit `hpc/jupyter.slurm` with the account from `.env`, wait for Jupyter, open the tunnel. E.g. `hpc start -c 78 --mem=60G -t 01:30:00` |
 | `hpc tunnel` | Reopen the tunnel to the running job |
 | `hpc status` | Your jobs and the end of the Jupyter log |
 | `hpc log` | The last 30 lines of the Jupyter log |
@@ -65,13 +65,13 @@ scenario reaches the cluster only by a push and a pull there (`git shipc`).
 
 - One `jupyter` job at a time: `hpc start` refuses a second.
 - The job runs in the cluster folder named after the branch checked out here
-  (`marlem-v2` → `~/marlem-v2`), so that checkout must have `scripts/jupyter.slurm`.
+  (`marlem-v2` → `~/marlem-v2`), so that checkout must have `hpc/jupyter.slurm`.
 - sbatch options given to `hpc start` override the script's `#SBATCH` lines.
 
-**Install:** add `marlem-v1\scripts` to the user PATH, from the repository root:
+**Install:** add `marlem-v2\hpc` to the user PATH, from the repository root:
 
 ```powershell
-$helperDirectory = (Resolve-Path .\scripts).Path
+$helperDirectory = (Resolve-Path .\hpc).Path
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 $pathEntries = @($userPath -split ';' | Where-Object { $_ })
 if ($helperDirectory -notin $pathEntries) {

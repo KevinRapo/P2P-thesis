@@ -1,6 +1,6 @@
 # Training experiments
 
-An experiment is defined once, as a spec in [experiments/](../../experiments/), and
+An experiment is defined once, as a spec in [config/experiments/](../../config/experiments/), and
 runs on a target; the CLI, Python and the Studio's Runs page call the same runner,
 [core/runner/](../../core/runner/) ([API](../api/runner/index.md)).
 
@@ -19,7 +19,7 @@ also kept step by step. The [Results](#results) page compares the runs.
 ## The experiment file
 
 A spec gives only what differs from the defaults. Written out in full, with every
-setting at the value its runs use, [market_ppo.json](../../experiments/market_ppo.json)
+setting at the value its runs use, [market_ppo.json](../../config/experiments/market_ppo.json)
 is the one below; the Studio's start dialog shows every template this way
 ([`written_out`](../../core/runner/spec.py), the same runs as the file), with the
 paradigms, seeds, budget, PPO settings, workers and cluster resources also as
@@ -30,7 +30,7 @@ fields that rewrite the JSON:
   "name": "market_ppo",
   "description": "PPO in the three paradigms (CTCE, CTDE, DTDE) on the market with the mixed action.",
   "env": "market",
-  "scenario": "scenarios/validate_market.json",
+  "scenario": "config/scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
   "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
   "env_config": {"energy_scale": null, "reward_scale": null},
@@ -92,7 +92,7 @@ fields that rewrite the JSON:
 
 What is not in the experiment: the market itself (network, participants, market
 and DSO rules) is the scenario's, edited in the Studio's other pages and saved in
-[scenarios/](../../scenarios/); the agents' observation and action design is
+[config/scenarios/](../../config/scenarios/); the agents' observation and action design is
 [MarketEnv](../../core/env/market_env.py)'s ([v2.md](../v2.md)).
 
 ## Commands
@@ -100,8 +100,8 @@ and DSO rules) is the scenario's, edited in the Studio's other pages and saved i
 From the `marlem-v2` root, in the `marlem` environment:
 
 ```powershell
-python -m core.runner check experiments/smoke.json --target taltech
-python -m core.runner start experiments/smoke.json --profile test --target taltech
+python -m core.runner check config/experiments/smoke.json --target taltech
+python -m core.runner start config/experiments/smoke.json --profile test --target taltech
 python -m core.runner status --target taltech
 python -m core.runner status smoke--test --target taltech
 python -m core.runner sync smoke--test --target taltech
@@ -128,7 +128,7 @@ a spec or scenario changed here, committed or not, starts on the cluster as it i
 here, with no commit and no `git shipc`. Only the **code** must be the same on both
 machines: that is still what `check` compares. The same holds on this PC: every
 start saves the spec with its scenario in `runs/<experiment>/`, so editing
-`scenarios/` later does not change an experiment already started.
+`config/scenarios/` later does not change an experiment already started.
 
 **`sync`** copies the experiment's results to `runs/@taltech/<experiment>`,
 without checkpoints and `slurm/`. The copy goes to a temporary folder that replaces
@@ -148,10 +148,10 @@ from core.runner.spec import Experiment
 
 target = targets.get("taltech")
 try:
-    print(target.check("experiments/smoke.json"))
-    # name = target.start("experiments/smoke.json", profile="test")
+    print(target.check("config/experiments/smoke.json"))
+    # name = target.start("config/experiments/smoke.json", profile="test")
     # A changed copy, as the Studio's start dialog makes it; a taken name is dated:
-    # experiment = Experiment.load("experiments/smoke.json")
+    # experiment = Experiment.load("config/experiments/smoke.json")
     # experiment.seeds = [0, 1, 2]
     # name = target.start_new(experiment, profile="test")
     # target.restart(name)  # again from its saved settings
@@ -169,7 +169,7 @@ shows the `check` line with a Check button, and each experiment has a *Sync
 results* button. When the cluster cannot be read, the page keeps the last data with
 its time.
 
-*Start experiment* takes a spec from `experiments/` as a **template** and shows its
+*Start experiment* takes a spec from `config/experiments/` as a **template** and shows its
 JSON in an editor: change anything. The editor writes out every setting, each at
 its default where the template gives none ([The experiment
 file](#the-experiment-file)), so all that can be set is in front of you. Every

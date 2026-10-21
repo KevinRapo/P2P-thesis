@@ -2,7 +2,7 @@
 TalTech HPC helper: start, connect to, watch and stop the Jupyter job.
 Reference: docs/hpc/notebooks.md (https://kevinrapo.github.io/P2P-thesis/hpc/notebooks/)
 
-  hpc start [sbatch options]   submit scripts/jupyter.slurm, wait until Jupyter runs, open the tunnel
+  hpc start [sbatch options]   submit hpc/jupyter.slurm, wait until Jupyter runs, open the tunnel
                                e.g. hpc start -c 78 --mem=60G -t 01:30:00
                                (Jupyter runs in ~/<current git branch> on the cluster)
   hpc tunnel                   (re)open the tunnel to the running job
@@ -86,7 +86,7 @@ function Start-Jupyter([string[]]$SbatchArgs) {
         return
     }
     $repo = "$clusterHome/$branch"
-    $script = "$repo/scripts/jupyter.slurm"
+    $script = "$repo/hpc/jupyter.slurm"
     if (-not (Remote "test -f $script && echo yes")) {
         Write-Host "No $script on the cluster. Push and pull the code there (git pushc), or clone it (docs/hpc/setup.md)."
         return

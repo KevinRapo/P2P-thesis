@@ -1,6 +1,6 @@
 """An experiment: a JSON file that says which runs to train.
 
-``experiments/<name>.json`` describes a grid of runs (algorithms x paradigms x
+``config/experiments/<name>.json`` describes a grid of runs (algorithms x paradigms x
 seeds x variants) on one environment. ``Experiment.expand()`` turns it into one
 ``RunSpec`` per run; ``RunSpec.run()`` builds the ``core.rl.Run`` to train.
 
@@ -13,7 +13,7 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "name": "market_ppo",             default: the file's name
       "description": "free text",
       "env": "market",                  or "module:Class"
-      "scenario": "scenarios/validate_market.json",   relative to the repo root,
+      "scenario": "config/scenarios/validate_market.json",   relative to the repo root,
                                         or the scenario itself (a JSON object)
       "train_days": {"from": "2016-06-01", "to": "2016-06-30"},   or a list
       "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
@@ -76,7 +76,7 @@ Inputs of a started experiment: an experiment is started as ``resolve`` gives it
 the scenario file read into ``scenario`` (``Experiment.inline_scenario``). The
 ``experiment.json`` of its folder then holds every input of its runs, the scenario
 included, and the runs read the copy ``scenario.json`` next to it (``SCENARIO_FILE``),
-not the file in ``scenarios/``. So an experiment can be sent to a cluster as one JSON
+not the file in ``config/scenarios/``. So an experiment can be sent to a cluster as one JSON
 object, without its files being in the cluster's checkout, and a later change to
 the scenario file does not change an experiment already started.
 """
@@ -205,7 +205,7 @@ class RunSpec:
 # --------------------------------------------------------------------------------------
 @dataclass
 class Experiment:
-    """An experiment as written in ``experiments/<name>.json`` (see the module)."""
+    """An experiment as written in ``config/experiments/<name>.json`` (see the module)."""
 
     name: str
     algorithms: list[str]

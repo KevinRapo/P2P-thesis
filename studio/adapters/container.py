@@ -22,8 +22,8 @@ from studio.adapters.results_service import ResultsService
 from studio.adapters.run_service import RunService
 from studio.adapters.scenario_service import ScenarioService
 
-# The scenario files the Studio offers to open: the repository's scenarios/ folder.
-SCENARIO_LIBRARY = Path(__file__).resolve().parents[2] / "scenarios"
+# The scenario files the Studio offers to open: the repository's config/scenarios/.
+SCENARIO_LIBRARY = Path(__file__).resolve().parents[2] / "config" / "scenarios"
 
 
 @dataclass(frozen=True)

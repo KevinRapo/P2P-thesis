@@ -308,9 +308,9 @@ def test_local_target_start_passes_the_profile(populated, monkeypatch):
 
     monkeypatch.setattr(launch, "start", fake_start)
     target = targets.LocalTarget()
-    assert target.start("experiments/smoke.json", "test") == "smoke--test"
-    assert calls == [("experiments/smoke.json", populated, "test")]
-    target.start("experiments/smoke.json")
+    assert target.start("config/experiments/smoke.json", "test") == "smoke--test"
+    assert calls == [("config/experiments/smoke.json", populated, "test")]
+    target.start("config/experiments/smoke.json")
     assert calls[-1][2] == "full"
 
 
@@ -367,10 +367,10 @@ def test_slurm_target_start_and_stop_go_through_slurm(root, monkeypatch):
     monkeypatch.setattr(slurm, "start", fake_start)
     monkeypatch.setattr(slurm, "stop", fake_stop)
     target = targets.SlurmTarget("taltech", CLUSTER)
-    assert target.start("experiments/smoke.json", "test") == "smoke--test"
+    assert target.start("config/experiments/smoke.json", "test") == "smoke--test"
     assert calls[0] == (
         "start",
-        "experiments/smoke.json",
+        "config/experiments/smoke.json",
         {
             "account": "acc",
             "partitions": CLUSTER["partitions"],
@@ -383,10 +383,10 @@ def test_slurm_target_start_and_stop_go_through_slurm(root, monkeypatch):
     with pytest.raises(targets.TargetError, match="x.json: "):  # does not load
         targets.SlurmTarget("t", {"kind": "slurm"}).start("x.json")
     with pytest.raises(targets.TargetError, match="has no 'partitions'"):
-        targets.SlurmTarget("t", {"kind": "slurm"}).start("experiments/smoke.json")
+        targets.SlurmTarget("t", {"kind": "slurm"}).start("config/experiments/smoke.json")
     no_account = {"kind": "slurm", "partitions": CLUSTER["partitions"]}
     with pytest.raises(targets.TargetError, match="no 'account'"):
-        targets.SlurmTarget("t", no_account).start("experiments/smoke.json")
+        targets.SlurmTarget("t", no_account).start("config/experiments/smoke.json")
 
 
 def test_slurm_target_check_is_ready_with_sbatch_and_submitit(root, monkeypatch):
@@ -423,7 +423,7 @@ def test_slurm_target_start_refuses_with_the_problems(root, monkeypatch):
     monkeypatch.setattr(slurm, "start", lambda *a, **k: started.append(a))
     target = targets.SlurmTarget("taltech", CLUSTER)
     with pytest.raises(targets.TargetError, match="cannot start on taltech: sbatch"):
-        target.start("experiments/smoke.json")
+        target.start("config/experiments/smoke.json")
     assert started == []
 
 
@@ -1021,17 +1021,17 @@ def test_start_goes_to_the_target_with_the_profile(populated, capsys, monkeypatc
 
     monkeypatch.setattr(targets.LocalTarget, "start", fake_start)
     code, out, _ = run_cli(
-        capsys, "start", "experiments/smoke.json", "--profile", "test"
+        capsys, "start", "config/experiments/smoke.json", "--profile", "test"
     )
-    assert code == 0 and calls == [("local", "experiments/smoke.json", "test")]
+    assert code == 0 and calls == [("local", "config/experiments/smoke.json", "test")]
     assert out.splitlines()[0] == "started smoke--test on local"
     assert (
         out.splitlines()[-1] == "watch with: python -m core.runner status smoke--test"
     )
-    run_cli(capsys, "start", "experiments/smoke.json")
+    run_cli(capsys, "start", "config/experiments/smoke.json")
     assert calls[-1][2] == "full"
     with pytest.raises(SystemExit):  # argparse: not a profile
-        main(["start", "experiments/smoke.json", "--profile", "tiny"])
+        main(["start", "config/experiments/smoke.json", "--profile", "tiny"])
 
 
 def test_start_dash_reads_the_experiment_from_standard_input(
@@ -1138,7 +1138,7 @@ def test_cli_start_through_a_remote_target(remote_cli, tmp_path, capsys, monkeyp
         targets, "_git", lambda *args: COMMIT if args[0] == "rev-parse" else ""
     )
     code, out, _ = run_cli(
-        capsys, "start", "experiments/smoke.json", "--target", "taltech"
+        capsys, "start", "config/experiments/smoke.json", "--target", "taltech"
     )
     assert code == 0
     assert out.splitlines()[0] == "started s on taltech"

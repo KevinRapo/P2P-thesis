@@ -32,7 +32,7 @@ from core.runner.spec import (
     written_out,
 )
 
-SCENARIO = "scenarios/validate_market.json"
+SCENARIO = "config/scenarios/validate_market.json"
 
 
 def spec(**changes) -> dict:
@@ -252,7 +252,7 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
         ({"algorithms": ["sac"]}, "unknown algorithms"),
         ({"algorithms": ["appo"]}, "unknown algorithms"),
         ({"paradigms": ["ctxe"]}, "unknown paradigms"),
-        ({"scenario": "scenarios/nope.json"}, "scenario file not found"),
+        ({"scenario": "config/scenarios/nope.json"}, "scenario file not found"),
         ({"scenario": None}, "needs a 'scenario'"),
         ({"budget": {"sac": 10}}, "no entry for algorithm 'ppo'"),
         ({"eval_every": 10}, "not both"),
@@ -302,7 +302,7 @@ def test_missing_file_and_bad_json(tmp_path):
 
 
 def test_experiments_folder_files_are_valid():
-    for path in sorted((REPO / "experiments").glob("*.json")):
+    for path in sorted((REPO / "config" / "experiments").glob("*.json")):
         assert Experiment.load(path).expand(), path
 
 
@@ -331,7 +331,7 @@ def test_the_rl_defaults_are_those_the_trainer_uses():
 def test_written_out_shows_every_setting_and_makes_the_same_runs():
     from core.rl_defaults import NETWORK, SETTINGS
 
-    for path in sorted((REPO / "experiments").glob("*.json")):
+    for path in sorted((REPO / "config" / "experiments").glob("*.json")):
         data = json.loads(path.read_text(encoding="utf-8"))
         full = written_out(data, path.stem)
         assert written_out(full, path.stem) == full, path  # twice: the same
@@ -365,7 +365,7 @@ def test_run_resources_default_and_override():
 
 
 def test_to_dict_round_trips_every_experiments_file():
-    for path in sorted((REPO / "experiments").glob("*.json")):
+    for path in sorted((REPO / "config" / "experiments").glob("*.json")):
         experiment = Experiment.load(path)
         data = json.loads(json.dumps(experiment.to_dict()))  # plain JSON
         assert Experiment.from_dict(data) == experiment, path
@@ -496,7 +496,7 @@ def test_profiles():
 
 
 def test_experiments_folder_files_have_a_valid_test_version():
-    for path in sorted((REPO / "experiments").glob("*.json")):
+    for path in sorted((REPO / "config" / "experiments").glob("*.json")):
         experiment = Experiment.load(path)
         version = experiment.test_version()
         assert version.name == f"{experiment.name}--test", path
