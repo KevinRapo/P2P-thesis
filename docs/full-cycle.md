@@ -1,37 +1,117 @@
-# One market step, phase by phase
+# The full cycle: training, environment step, market step
 
-> Everything that happens in one market step, in the order the code does it, and
-> where each quantity is calculated. The page follows the spine of the code:
-> [`LocalEnergyMarket.start_step`](../core/market/lem.py#L292-L310) and
-> [`advance`](../core/market/lem.py#L312-L346), about 50 lines that call every
-> phase in turn. One section per phase, each with the same card: what it
-> **reads**, what it **computes**, what it **writes**, the **code**, the
-> **paper** equations and the **decisions** of the
-> [issue register](validation/register.md) behind it.
+> Everything that happens from one training iteration down to one fee, on one page,
+> in the order the code runs it. Three loops nest inside each other: a **training
+> iteration** collects many **environment steps**, and each environment step plays
+> one **market step**. The master diagram shows all three; the sections below open
+> them one level at a time. Every phase has the same card: what it **reads**,
+> **computes** and **writes**, the **code**, the **paper** equations and the
+> **decisions** of the [issue register](validation/register.md) behind it.
 
-**How to read it.** Start with [the outline](#the-outline): eight phases on one
-screen. Open a phase only when you need it. To find where one quantity comes from,
-use [Where is it calculated](#where-is-it-calculated) at the end. What the rebuild
-decided differently from the paper is in the cards' *Decisions* line, with the
-reasons on the register's detail pages.
+**How to read it.** Start with [the master diagram](#the-master-diagram). Open a
+section only when you need it. To find where one quantity comes from, use
+[Where is it calculated](#where-is-it-calculated) at the end. The learning side in
+full detail, with every tensor and every paradigm, is
+[One training iteration](rl/cycle.md); this page keeps it to the outline and joins
+it to the market.
 
-**Keeping it true.** Each phase is one method, or a few, of
-`core/market/lem.py`. When a phase's method changes, its card changes; when
-`advance` changes, the outline changes. Line links point at branch `marlem-v1`.
+**Keeping it true.** The market sections follow
+[`LocalEnergyMarket.start_step`](../core/market/lem.py#L292-L310) and
+[`advance`](../core/market/lem.py#L312-L346), the environment section
+[`MarketEnv.step`](../core/env/market_env.py#L226-L276), the training section
+[`train`](../core/rl/train.py#L319-L452). When one of them changes, its section
+changes. Line links point at branch `marlem-v1`.
 
-## The outline
+## The master diagram
+
+![The full cycle: training iteration, environment step and market step](diagrams/full-cycle.svg)
+
+[Open the diagram full size](diagrams/full-cycle.svg). Purple is learning, blue the
+environment step and the grid, grey the market, green the fees. Read it from the
+top left: an episode starts (one day), the agents observe and act (A1 to A4), and
+the environment step (A5) plays one market step (phases 1 to 8) between decoding
+the actions and returning rewards and observations. That repeats for the 24 steps
+of a day and over as many days as the batch needs; then the learner computes
+targets (B) and updates the networks (C), and the new weights go back (D). Its
+source is [`diagrams/full_cycle.drawio`](diagrams/full_cycle.drawio): edit it in
+VS Code's Draw.io extension, then run `python docs_site/export_drawio.py`.
+
+### How the loops nest
+
+| Loop | One round is | Repeats | Code | Details |
+|---|---|---|---|---|
+| Training | one iteration: collect, targets, update | until `budget` environment steps | [`train`](../core/rl/train.py#L393-L395) → RLlib `algo.train()` | [One training iteration](rl/cycle.md) |
+| Collect (A) | one environment step for every agent | until the batch is full (`train_batch_size_per_learner`) | RLlib env runners | [A1-A5](rl/cycle.md#a-collect-from-observation-to-environment-step) |
+| Episode | one day | 24 steps (96 with quarter hours) | [`MarketEnv.reset`](../core/env/market_env.py#L209-L224) | [0. Before the day](#0-before-the-day-reset) |
+| Environment step (A5) | decode, market step, reward, observation | once per collect step | [`MarketEnv.step`](../core/env/market_env.py#L226-L276) | [The environment step](#the-environment-step) |
+| Market step | phases 1 to 8 | once per environment step | [`LocalEnergyMarket.step`](../core/market/lem.py#L348-L355) | [The market step](#the-market-step) |
+
+The paradigms (CTCE, CTDE, DTDE) change only A1 to A4 and the update: what each
+network receives and who learns from which reward
+([Training cycle](rl/training.md)). The environment step and the market step are
+the same for all of them.
+
+## The training iteration
+
+In outline; every calculation is in [One training iteration](rl/cycle.md).
+
+| Part | What happens | Code |
+|---|---|---|
+| A · Collect | the agents observe, act and step the environment with the current policy $\mu$, until the batch holds `train_batch_size_per_learner` steps; nothing is learned | RLlib env runners on [`MarketEnv`](../core/env/market_env.py), wrapped by [`GroupedEnv`](../core/rl/grouping.py#L68-L132) (CTCE) or [`CentralStateEnv`](../core/rl/grouping.py#L147-L194) (CTDE) |
+| B · Targets | the critic values every step; λ-returns and advantages | RLlib learner |
+| C · Update | the losses (PPO clip, value, entropy; or SAC's), gradient steps over epochs and minibatches | RLlib learner, [CTDE modules](../core/rl/ctde_modules.py) |
+| D · After | new weights to the env runners; every `eval_every` steps an evaluation against the baselines; metrics, NaN check, checkpoint | [`train`](../core/rl/train.py#L319-L452), [`evaluation`](../core/rl/policy.py#L278-L309) |
+
+## The environment step
+
+[`MarketEnv.step`](../core/env/market_env.py#L226-L276): the agents' actions in,
+observations and rewards out, one market step in the middle.
+
+**E1. Decode.** [`decode`](../core/env/market_env.py#L279-L297), per agent. The
+action $a = (a_0, a_1) \in [-1, 1]^2$ becomes
+
+$$
+q = \frac{|a_0| - 0.05}{0.95}\, q_\text{max}, \qquad p = p_\text{FiT} + \frac{a_1 + 1}{2}\,(p_\text{utility} - p_\text{FiT})
+$$
+
+where $a_0 > 0$ sells and $a_0 < 0$ buys, $q_\text{max}$ is eq. 15a or 15b, and
+$|a_0| < 0.05$ places no order.
+
+**Then the market step**, phases 1 to 8 below, with these intents as phase 2a.
+
+**E2. Reward.** Per agent, from its `ParticipantOutcome`:
+
+$$
+r_i = \frac{\text{profit}_i - p_\text{utility} \cdot \text{deferred demand}_i}{\text{scale}}, \qquad \text{scale} = p_\text{utility} \cdot E
+$$
+
+where profit is eq. 14 net of fees, deferred demand is what its trades and battery
+left uncovered (drawn untraded from the upstream grid, charged at the utility
+price), and $E$ is the `energy_scale`.
+
+**E3. Observation.** [`_observe`](../core/env/market_env.py#L300-L345): 16 numbers
+per agent for the step about to be played: the hour (sin, cos); its own $G$, $D$,
+$G - D$; its battery (has one, state of charge, chargeable, dischargeable); its
+reputation; $p_\text{ref}$; and from the step just played the market's peer and
+DSO volumes, $B_\text{grid}$, its own reward and its own net purchase. No other
+agent's profile or order, and no grid state. `done` when the day is over.
+
+| | |
+|---|---|
+| **Reads** | the actions; the `StepRecord` of the market step |
+| **Computes** | intents; rewards; next observations; the step's metrics (`infos`) |
+| **Writes** | `last_record`; the memory of the last step for the next observation |
+| **Code** | above; metrics: [`_market_infos`](../core/env/market_env.py) |
+| **Paper** | [P1] §3.9 phases 5 (reward) and 7 (observation); eq. 2 (the action) |
+| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); no forecast error (E-05) |
+
+## The market step
 
 ```mermaid
-flowchart TD
-    R["0 Before the day: reset"] --> P1
-    P1["1 Inputs: G, D, tariffs"] --> P2["2 Orders: intents → validated → orders"]
-    P2 --> P3["3 Clearing: stage 1 preferences → 2 double auction → 3 DSO"]
-    P3 --> P4["4 Settlement: balance, battery, profit"]
-    P4 --> P5["5 Grid: power flow (+ the fee signal)"]
-    P5 --> P6["6 Fees: eq. 8 per trade, paid"]
-    P6 --> P7["7 Record: clearing price, DSO, StepRecord"]
-    P7 --> P8["8 Reputation and advance"]
-    P8 -->|"next step t + 1"| P1
+flowchart LR
+    M0["0 reset<br/>(start of the day)"] -.-> M1
+    M1["1 inputs"] --> M2["2 orders"] --> M3["3 clearing"] --> M4["4 settlement"]
+    M4 --> M5["5 grid"] --> M6["6 fees"] --> M7["7 record"] --> M8["8 reputation, advance"]
 ```
 
 | # | Phase | Method | Produces | [P1] §3.9 phase |
@@ -46,17 +126,13 @@ flowchart TD
 | 7 | Record | [`advance`](../core/market/lem.py#L332-L343) | `StepRecord` | 6 |
 | 8 | Reputation and advance | [`_update_reputation`](../core/market/lem.py#L620-L630), [`_advance`](../core/market/lem.py#L632-L643) | new reputations, next $p_\text{ref}$, ledger block, history | 6, 8 |
 
-Phases 5 (reward, KPIs) and 7 (observation) of [P1] §3.9 belong to learning and
-live in [`MarketEnv`](../core/env/market_env.py), outside the market (see
-[The RL step around it](#the-rl-step-around-it)).
+Phases 5 (reward, KPIs) and 7 (observation) of [P1] §3.9 are the environment
+step's E2 and E3. Without the RL agents, the market runs on its own bidding rule
+([`step`](../core/market/lem.py#L348-L355) with no intents), and the Studio's Step
+page plays it one part at a time: `start_step`, then `advance` five times (three
+stages, then the rest).
 
-A step can run at once ([`step`](../core/market/lem.py#L348-L355)) or one part at
-a time: `start_step`, then `advance` five times (three stages, then the rest), which
-is what the Studio's Step page does.
-
----
-
-## 0. Before the day: reset
+### 0. Before the day: reset
 
 | | |
 |---|---|
@@ -67,7 +143,7 @@ is what the Studio's Step page does.
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
 | **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs constant over the day |
 
-## 1. Inputs
+### 1. Inputs
 
 | | |
 |---|---|
@@ -78,7 +154,7 @@ is what the Studio's Step page does.
 | **Paper** | $G_t$, $D_t$, $p_\text{FiT}$, $p_\text{utility}$ (§3.3.1, §3.4) |
 | **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03) |
 
-## 2. Orders
+### 2. Orders
 
 Three sub-steps, all inside [`start_step`](../core/market/lem.py#L292-L310).
 
@@ -130,7 +206,7 @@ order), the double auction's last tie-break.
 | **Paper** | eq. 2 (the action $\langle p, q, \alpha, \beta \rangle$), eq. 15a-b, §3.2.3, §3.4 |
 | **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09) |
 
-## 3. Clearing
+### 3. Clearing
 
 `advance` runs one stage per call, each on the orders the previous one left open
 ([`clearing.py`](../core/market/clearing.py)). The stages work on copies: the
@@ -171,7 +247,7 @@ $$
 | **Paper** | §3.3.2 (three stages, Algorithm 1), §3.3.3 and eq. 9-11 (prices), eq. 18 (loss), §3.5.1 (distance) |
 | **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41) |
 
-## 4. Settlement
+### 4. Settlement
 
 [`_settle`](../core/market/lem.py#L553-L560) → for every participant
 [`Participant.settle`](../core/market/agent/der.py#L226-L260):
@@ -194,7 +270,7 @@ $$
 | **Paper** | eq. 13, 14, 16; §3.4.1 (demand satisfied) |
 | **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23) |
 
-## 5. Grid
+### 5. Grid
 
 **5a. Power flow, always.** [`_assess_grid`](../core/market/lem.py#L562-L572):
 each participant's net power at its bus from what it physically did,
@@ -220,7 +296,7 @@ trade's $q/\Delta t$ added to each line of its path, divided by the line's capac
 | **Paper** | §3.5.3 (replaced by the power flow; kept as the graph method) |
 | **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38) |
 
-## 6. Fees
+### 6. Fees
 
 **6a. The DSO looks at the grid.**
 [`Dso.observe(signal, measured=grid)`](../core/market/dso/dso.py#L130-L138): it
@@ -265,7 +341,7 @@ trade's fee comes off the step's profit and the running profit.
 | **Paper** | eq. 8, 8a-8h |
 | **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34) |
 
-## 7. Record
+### 7. Record
 
 In [`advance`](../core/market/lem.py#L327-L343), once the fees are known (the record itself at [L332-L343](../core/market/lem.py#L332-L343)):
 
@@ -288,7 +364,7 @@ In [`advance`](../core/market/lem.py#L327-L343), once the fees are known (the re
 | **Paper** | eq. 7; UpdateMarketState of Algorithm 1 |
 | **Decisions** | clearing price from peer trades only (M-15); the DSO's balance kept per step and over the day (M-24, M-25) |
 
-## 8. Reputation and advance
+### 8. Reputation and advance
 
 **8a. Reputation.** [`_update_reputation`](../core/market/lem.py#L620-L630) →
 [`ReputationHandler.update_reputation`](../core/market/reputation.py#L119-L142),
@@ -326,14 +402,15 @@ ledger is on; the record joins `history`, so `current_step` moves on.
 | **Paper** | eq. 12 and §3.3.4 (reputation, decay, ValidateBlock); §3.9 phases 6 and 8 |
 | **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); the block (M-46) |
 
----
-
 ## Where is it calculated
 
-Every quantity of the step, with the phase that makes it and where it ends up.
+Every quantity of the environment step and the market step, with the phase that makes it and where it ends up.
 
 | Quantity | Symbol | Phase | Code | Kept in |
 |---|---|---|---|---|
+| Action → intent | $a_t$ | E1 | [`MarketEnv.decode`](../core/env/market_env.py#L279-L297) | `PendingStep.intents` |
+| Reward | $r_t$ | E2 | [`MarketEnv.step`](../core/env/market_env.py#L226-L276) | `rewards`, `infos` |
+| Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../core/env/market_env.py#L300-L345) | – |
 | Generation, demand of a step | $G_t$, $D_t$ | 0, 1 | [`profiles_from_elements`](../core/market/agent/der.py#L88-L115), [`_inputs`](../core/market/lem.py#L407-L417) | `StepInputs`, `ParticipantOutcome` |
 | Tariffs | $p_\text{FiT}$, $p_\text{utility}$ | 1 | `DsoSetup` | `StepInputs` |
 | Chargeable, dischargeable energy | $E_\text{ch}$, $E_\text{dis}$ | 2 | [`Battery`](../core/market/agent/battery.py#L107-L118) | – |
@@ -361,16 +438,3 @@ Every quantity of the step, with the phase that makes it and where it ends up.
 | DSO balance, revenue, fees | $B_\text{DSO}$ | 7 | [`Dso.settle`](../core/market/dso/dso.py#L286-L304) | `StepRecord.dso` |
 | Reputation components, score, reputation | $\delta$, $s$, $r$ | 8 | [`ReputationHandler`](../core/market/reputation.py#L119-L293) | `StepRecord.reputation`, `Participant.reputation` |
 | Ledger block | | 8 | [`Validator`](../core/market/validation.py) | the ledger |
-
-## The RL step around it
-
-[`MarketEnv.step`](../core/env/market_env.py#L226-L276) wraps the whole market step
-as one call:
-
-1. **decode**: each agent's action → an intent ([`decode`](../core/env/market_env.py#L279-L297)), phase 2a above;
-2. **market step**: `self.market.step(intents)`, phases 1 to 8;
-3. **reward**: per agent, the step's net bill, $(\text{profit} - p_\text{utility} \cdot \text{deferred demand}) / \text{scale}$, from `ParticipantOutcome`;
-4. **observation**: for the next step, from the participant's next $G$, $D$, battery, reputation, $p_\text{ref}$ and the market totals of this record.
-
-The training loop around that, from observation to network update, is
-[One training iteration](rl/cycle.md); this step is its A5.

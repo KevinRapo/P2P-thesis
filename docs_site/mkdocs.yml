@@ -137,16 +137,15 @@ nav:
           - Market layer: validation/market.md
           - RL layer: validation/rl.md
           - The two papers: validation/papers.md
-      - Reinforcement learning:
-          - Training cycle (3 × 3): rl/training.md
-          - One iteration, step by step: rl/cycle.md
-          - Worked examples (our code): rl/examples.md
   # This thesis's implementation.
   - Implementation:
       - marlem-v1: v1.md
       - Code structure: structure.md
-      - Walkthroughs:
-          - One market step: market-step.md
+      - The full cycle: full-cycle.md
+      - Reinforcement learning:
+          - Training cycle (3 × 3): rl/training.md
+          - One iteration, step by step: rl/cycle.md
+          - Worked examples (our code): rl/examples.md
       - SimBench:
           - simbench/README.md
           - Network catalogue: simbench/networks.md
