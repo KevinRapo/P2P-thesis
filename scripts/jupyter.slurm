@@ -14,7 +14,7 @@
 PORT="${PORT:-9437}"
 source ~/miniforge3/etc/profile.d/conda.sh
 conda activate marlem
-cd "${REPO:-$HOME/marlem-v1}"
+cd "${REPO:-$HOME/marlem-v2}"
 echo "Jupyter on node $(hostname), port $PORT"
 jupyter lab --no-browser --ip=0.0.0.0 --port="$PORT" --ServerApp.port_retries=0 \
     --IdentityProvider.token="$(cat ~/.jupyter_token)"

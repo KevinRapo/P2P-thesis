@@ -19,24 +19,23 @@ picked up while it runs.
 What the site does differently from the Markdown files happens at build time in
 `docs_site/hooks.py`: it generates the API pages, and turns links to code and
 other non-Markdown files into links to the repository on GitHub, keeping `#L` line
-anchors. Those links point at the `marlem-v1` branch, so they work once it is pushed.
+anchors. Those links point at the `marlem-v2` branch, so they work once it is pushed.
 
 ## Publishing
 
-The active source is branch `marlem-v1`. Commit and push documentation and any
-referenced code there before deploying, so GitHub source links resolve:
+These are the V2 documents (branch `marlem-v2`). They are **not published**: the
+public site <https://kevinrapo.github.io/P2P-thesis/> that the thesis cites is
+built from `marlem-v1` only, onto `gh-pages`. V2's `docs_site/mkdocs.yml` sets
+`remote_branch: gh-pages-v2-unpublished`, so a `gh-deploy` from here cannot
+overwrite the cited site. Until a destination for V2 is chosen, build and read
+the site locally:
 
 ```powershell
-git push origin marlem-v1
-$sourceCommit = git rev-parse --short HEAD
-conda run -n marlem mkdocs gh-deploy -f docs_site/mkdocs.yml -m "Deploy docs from marlem-v1 $sourceCommit"
+conda run -n marlem mkdocs build -f docs_site/mkdocs.yml --strict
+conda run -n marlem mkdocs serve -f docs_site/mkdocs.yml
 ```
 
-`gh-deploy` builds and updates `gh-pages`; do not check out or edit that branch
-manually. Check the changed pages at the published site after deployment.
-The generated `site/` folder is ignored. Use
-`mkdocs build -f docs_site/mkdocs.yml --strict` before publishing to catch broken
-internal links and API documentation warnings.
+The generated `site/` folder is ignored.
 
 The HPC guide keeps `hpc.md` as its overview and old public entry point, with
 subpages under `docs/hpc/`. Windows helper source lives in `scripts/` alongside

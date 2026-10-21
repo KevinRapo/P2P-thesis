@@ -7,7 +7,7 @@ profile of ``experiments/market_3x3.json`` with one setting changed, and samples
 threads of that process tree every second. A thread counts as "working" when it used
 more than 1 s of CPU.
 
-On a compute node, from the ``marlem-v1`` root::
+On a compute node, from the ``marlem-v2`` root::
 
     sbatch -p short -c 8 --mem=16G -t 120 --constraint=skylake \
         --wrap "python scripts/thread_probe.py --group k"

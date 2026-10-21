@@ -1,4 +1,10 @@
-# AGENTS.md: implementation guide for MARLEM v1
+# AGENTS.md: implementation guide for MARLEM v2
+
+Branch `marlem-v2`, built from `marlem-v1` (9cdca93, 21 Oct 2026): the same market,
+grid, Studio and runner, with the RL layer narrowed to RLlib's PPO and the paper's
+mixed market action (continuous price and quantity, categorical side and partner).
+What changed and why is in [docs/v2.md](docs/v2.md). On the cluster this branch is
+its own checkout, `~/marlem-v2`, with its own `runs/`.
 
 Where things are in this repository and the rules for changing them. What the
 thesis is about, where the work stands and what comes next are in the workspace's

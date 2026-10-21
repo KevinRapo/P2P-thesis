@@ -77,9 +77,9 @@ function Start-Jupyter([string[]]$SbatchArgs) {
         return
     }
     # The cluster folder of the code is named after the branch checked out here
-    # (marlem-v1 -> ~/marlem-v1); the job script starts Jupyter in $REPO.
+    # (marlem-v2 -> ~/marlem-v2); the job script starts Jupyter in $REPO.
     $branch = (git rev-parse --abbrev-ref HEAD 2>$null)
-    if (-not $branch) { $branch = "marlem-v1" }
+    if (-not $branch) { $branch = "marlem-v2" }
     $clusterHome = "$(Remote 'echo $HOME' | Select-Object -Last 1)".Trim()
     if (-not $clusterHome) {
         Write-Host "No answer from '$HostAlias' (VPN? ssh $HostAlias)."
