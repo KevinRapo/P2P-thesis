@@ -2,7 +2,7 @@
 
 CTDE keeps one module per agent. The actor must read only the agent's own
 observation (decentralised execution); the critic reads the global state too
-(centralised training). These tests build the three CTDE modules and probe them.
+(centralised training). These tests build the CTDE PPO modules and probe them.
 """
 
 import numpy as np
@@ -17,11 +17,7 @@ from core.rl.grouping import CentralStateEnv, central_obs
 from core.rl.train import learner_modules
 
 CONFIG = {"n_agents": 3, "scramble_ids": True}
-SMALL = {
-    "ppo": {"train_batch_size_per_learner": 64, "minibatch_size": 32, "num_epochs": 1},
-    "appo": {"train_batch_size_per_learner": 64},
-    "sac": {"train_batch_size_per_learner": 32},
-}
+SMALL = {"train_batch_size_per_learner": 64, "minibatch_size": 32, "num_epochs": 1}
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -49,13 +45,10 @@ def test_central_state_layout():
     assert all(r == pytest.approx(1.0) for r in rewards.values()), rewards
 
 
-@pytest.mark.parametrize("algorithm", ["ppo", "appo", "sac"])
-def test_actor_is_local_critic_is_central(algorithm):
+def test_actor_is_local_critic_is_central():
     """One CTDE module per agent; its action output ignores the global-state part
-    of the input, and (PPO, APPO) its value depends on it."""
-    algo = build_config(
-        algorithm, "ctde", ActionProbe, CONFIG, training=SMALL[algorithm]
-    ).build_algo()
+    of the input, and its value depends on it."""
+    algo = build_config("ppo", "ctde", ActionProbe, CONFIG, training=SMALL).build_algo()
     try:
         modules = learner_modules(algo)
         agents = ActionProbe(CONFIG).agents_id
@@ -76,10 +69,9 @@ def test_actor_is_local_critic_is_central(algorithm):
 
         assert torch.equal(actor(base), actor(other)), "actor reads the global state"
         assert not torch.equal(actor(base), actor(own)), "actor ignores its own obs"
-        if algorithm != "sac":
-            with torch.no_grad():
-                v0 = module.compute_values({Columns.OBS: base})
-                v1 = module.compute_values({Columns.OBS: other})
-            assert not torch.equal(v0, v1), "critic ignores the global state"
+        with torch.no_grad():
+            v0 = module.compute_values({Columns.OBS: base})
+            v1 = module.compute_values({Columns.OBS: other})
+        assert not torch.equal(v0, v1), "critic ignores the global state"
     finally:
         algo.stop()

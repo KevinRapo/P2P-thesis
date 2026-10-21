@@ -1,13 +1,14 @@
-"""The algorithm configuration of one combination of algorithm and paradigm.
+"""The PPO configuration of one paradigm.
 
-Only RLlib's algorithms and modules are used; what changes between paradigms is
-the environment the algorithm sees and, for CTDE, what the actor reads:
+V2 uses RLlib's PPO only (APPO and SAC are not part of V2; V1 keeps them). Only
+RLlib's algorithm, loss, modules and distributions are used; what changes between
+paradigms is the environment PPO sees and, for CTDE, what the actor reads:
 
 | Paradigm | Environment | Modules | Objective |
 |---|---|---|---|
 | DTDE | the multi-agent environment | one per agent, RLlib's default | own reward |
 | CTDE | ``CentralStateEnv``: o_i plus the global state | one per agent, actor on o_i, critic on everything (``ctde_modules.py``) | own reward |
-| CTCE | ``GroupedEnv``: one agent, joint ``Box`` spaces | one, RLlib's default | summed reward (social planner) |
+| CTCE | ``GroupedEnv``: one agent, joined observations, the agents' actions as one ``Tuple`` | one, RLlib's default | summed reward (social planner) |
 
 DTDE and CTDE optimise the same individual objective and differ only in what the
 critic sees, so a difference between them is the central critic's.
@@ -15,22 +16,14 @@ critic sees, so a difference between them is the central critic's.
 Every paradigm uses the same network settings (RLlib's defaults: 2 x 256 tanh,
 separate actor and critic), which fixes L-04.
 
-The hyperparameters start from the original's (``SETTINGS`` in ``core/rl_defaults.py``,
-[P2] Table 8), with the defects removed:
+The hyperparameters start from the original's (``SETTINGS`` in
+``core/rl_defaults.py``, [P2] Table 8), with the defects removed:
 
-- PPO: ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07;
-  the original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from
-  RLlib's 10: RLlib caps the squared value error there, so an error above about
-  3.2 would give the critic no gradient at all. Rewards should still be scaled by
-  the environment to returns of order 1-10.
-- APPO: no ``lambda_``; RLlib's V-trace has no lambda (fixes L-13).
-- SAC: ``target_entropy="auto"`` (the negative action size of each module: the
-  agent's in DTDE and CTDE, the group's in CTCE, as the original intended), a
-  uniform replay buffer of 1000 steps for every paradigm. Episodes are sampled
-  in fragments (RLlib's default), not ``complete_episodes`` as in the original:
-  in that mode RLlib 2.51 resets the environment with the run's seed at every
-  sample call, so with a seed every SAC training step would replay the same
-  episode.
+- ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07; the
+  original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from RLlib's
+  10: RLlib caps the squared value error there, so an error above about 3.2 would
+  give the critic no gradient at all. Rewards should still be scaled by the
+  environment to returns of order 1-10.
 - No population-based training and no Ray Tune (fixes L-10 and part of L-11):
   one run has fixed hyperparameters and one seed; tuning and seeds are loops
   around ``core/rl/train.py``.
@@ -44,24 +37,22 @@ import dataclasses
 from enum import Enum
 from typing import Any, Optional
 
-import numpy as np
 from ray.rllib.algorithms.algorithm_config import AlgorithmConfig
-from ray.rllib.algorithms.appo import APPOConfig
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.algorithms.sac import SACConfig
 from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv
-from core.rl.ctde_modules import CTDE_MODULES
+from core.rl.ctde_modules import CTDEPPOModule
 from core.rl_defaults import NETWORK, SETTINGS
 
 
 class Algorithm(str, Enum):
+    """The algorithms of V2: RLlib's PPO only (kept as a name, so runs and
+    experiment files keep their ``algorithm`` field)."""
+
     PPO = "ppo"
-    APPO = "appo"
-    SAC = "sac"
 
 
 class Paradigm(str, Enum):
@@ -70,11 +61,7 @@ class Paradigm(str, Enum):
     DTDE = "dtde"
 
 
-CONFIGS = {
-    Algorithm.PPO: PPOConfig,
-    Algorithm.APPO: APPOConfig,
-    Algorithm.SAC: SACConfig,
-}
+CONFIGS = {Algorithm.PPO: PPOConfig}
 
 # The settings themselves are in ``core/rl_defaults.py`` (no Ray there, so the runner and the
 # Studio can read them).
@@ -109,10 +96,12 @@ def build_config(
     """The RLlib configuration of one run.
 
     Args:
-        algorithm: PPO, APPO or SAC.
+        algorithm: ``"ppo"`` (the only one in V2).
         paradigm: CTCE, CTDE or DTDE.
         env_class: A multi-agent environment built as ``env_class(env_config)``,
-            with ``agents_id`` and one ``Box`` per agent.
+            with ``agents_id``, a flat ``Box`` observation and any action space
+            RLlib's catalog gives a distribution for (``Box``, ``Discrete`` and
+            ``Dict`` / ``Tuple`` of them) per agent.
         env_config: Its config.
         seed: Seed of RLlib (network initialisation, sampling, environment seeds).
         training: Overrides of ``SETTINGS``, passed to ``AlgorithmConfig.training``
@@ -145,14 +134,13 @@ def build_config(
             policy_mapping_fn=lambda agent_id, episode, **kwargs: agent_id,
         )
     )
-    # The algorithm adds its own keys (e.g. SAC's twin_q) to config.model_config.
     config = config.rl_module(model_config=model_config)
 
     if paradigm == Paradigm.CTDE:
         central = CentralStateEnv(config_for_env)
         specs = {
             mid: RLModuleSpec(
-                module_class=CTDE_MODULES[algorithm.value],
+                module_class=CTDEPPOModule,
                 model_config=config.model_config
                 | {"own_obs_dim": central.own_dims[mid]},
             )
@@ -164,16 +152,7 @@ def build_config(
 
 
 def build_algo(config: AlgorithmConfig):
-    """``config.build_algo()``, with every random generator following the seed.
-
-    RLlib's ``debugging(seed=...)`` seeds Python, NumPy and torch, the networks and
-    the environments, but RLlib 2.51 gives the episode replay buffer its own
-    generator from OS entropy (``np.random.default_rng(seed=None)``), so SAC drew
-    different replay batches in every run of the same seed. The buffer's generator
-    is seeded here from the run's seed.
-    """
-    algo = config.build_algo()
-    buffer = getattr(algo, "local_replay_buffer", None)
-    if buffer is not None and hasattr(buffer, "rng"):
-        buffer.rng = np.random.default_rng(config.seed)
-    return algo
+    """``config.build_algo()``: the one place runs are built, so anything a run
+    needs besides RLlib's own build is added here. RLlib's ``debugging(seed=...)``
+    seeds Python, NumPy and torch, the networks and the environments."""
+    return config.build_algo()

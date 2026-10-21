@@ -4,10 +4,11 @@
 experiment out in full (``core.runner.spec.written_out``), so the Studio can show
 every setting with its value without loading Ray.
 
-- ``SETTINGS``: the hyperparameters per algorithm, passed to
+- ``SETTINGS``: the hyperparameters per algorithm (V2: PPO only), passed to
   ``AlgorithmConfig.training``; an experiment's ``training`` overrides them. Any
   other key of RLlib's ``training()`` may be given too and then has RLlib's default
-  until it is.
+  until it is. The record of a run (``run.json``) holds every PPO setting with the
+  value it ran with, given or default (``core/rl/train.py``).
 - ``NETWORK``: the network settings that apply to the fully connected modules every
   paradigm uses, with RLlib's default values (a test compares them) except
   ``vf_share_layers``. ``config.MODEL`` is RLlib's ``DefaultModelConfig`` with these
@@ -32,25 +33,6 @@ SETTINGS: dict[str, dict[str, Any]] = {
         "grad_clip": 0.5,
         "use_kl_loss": False,
         "vf_clip_param": 1e6,
-    },
-    "appo": {
-        "lr": 1e-5,
-        "gamma": 0.99,
-        "entropy_coeff": 0.01,
-        "grad_clip": 0.5,
-        "use_kl_loss": False,
-    },
-    "sac": {
-        "actor_lr": 1e-5,
-        "critic_lr": 1e-5,
-        "gamma": 0.99,
-        "twin_q": True,
-        "grad_clip": 0.5,
-        "target_entropy": "auto",
-        "replay_buffer_config": {
-            "type": "MultiAgentEpisodeReplayBuffer",
-            "capacity": 1000,
-        },
     },
 }
 

@@ -45,7 +45,7 @@ def fake_training(monkeypatch, tmp_path, results):
         ),
     )
     return training.Run(
-        "appo", "dtde", lambda config: None, budget=100, out_dir=tmp_path
+        "ppo", "dtde", lambda config: None, budget=100, out_dir=tmp_path
     )
 
 

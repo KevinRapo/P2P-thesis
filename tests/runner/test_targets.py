@@ -127,7 +127,7 @@ def test_get_a_slurm_target_is_direct_on_the_cluster_and_remote_elsewhere(
     target = targets.get("taltech")
     assert isinstance(target, targets.RemoteTarget) and target.name == "taltech"
     assert isinstance(target.remote, Remote)
-    assert (target.remote.host, target.remote.repo) == ("taltech", "~/marlem-v1")
+    assert (target.remote.host, target.remote.repo) == ("taltech", "~/marlem-v2")
     assert target.remote.python == "~/miniforge3/envs/marlem/bin/python"
     assert target.remote._thread is None  # getting a target connects to nothing
     assert target.mirror == REPO / "runs" / "@taltech"
@@ -138,7 +138,7 @@ def test_target_settings_come_from_this_machine(monkeypatch, tmp_path):
     machine_settings(monkeypatch, MARLEM_SSH_HOST="other", MARLEM_SLURM_ACCOUNT="acc")
     cluster = targets.settings()["taltech"]
     assert (cluster["host"], cluster["account"]) == ("other", "acc")
-    assert cluster["repo"] == "~/marlem-v1"  # the default in targets.toml
+    assert cluster["repo"] == "~/marlem-v2"  # the default in targets.toml
     assert cluster["partitions"][0]["name"] == "short"  # not a setting: unchanged
 
 

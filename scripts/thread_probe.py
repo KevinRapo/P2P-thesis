@@ -12,7 +12,7 @@ On a compute node, from the ``marlem-v2`` root::
     sbatch -p short -c 8 --mem=16G -t 120 --constraint=skylake \
         --wrap "python scripts/thread_probe.py --group k"
 
-Groups: ``all``, ``k``, ``algorithm``, ``paradigm``, ``agents``, ``long``. One line per
+Groups: ``all``, ``k``, ``paradigm``, ``agents``, ``long``. One line per
 case goes to standard output and to ``runs/thread_probe/<group>-<job>.csv``.
 """
 
@@ -61,10 +61,9 @@ GROUPS = {
         {"runners": 3},
         {"runners": 6},
     ],
-    "algorithm": [{"algorithm": "appo"}, {"algorithm": "sac"}],
     "paradigm": [{"paradigm": "ctce"}, {"paradigm": "ctde"}],
     "agents": [{"agents": 13}, {"agents": 40}],
-    "long": [{"algorithm": "sac", "budget": 3000}],
+    "long": [{"budget": 3000}],
 }
 GROUPS["all"] = [case for cases in GROUPS.values() for case in cases]
 

@@ -39,8 +39,6 @@ import numpy as np
 import pandas as pd
 import torch
 from ray.rllib.core.columns import Columns
-from ray.rllib.core.distribution.torch.torch_distribution import TorchSquashedGaussian
-from ray.rllib.core.rl_module.apis import ValueFunctionAPI
 from ray.rllib.utils.spaces.space_utils import unsquash_action
 
 from core.rl.config import Paradigm
@@ -55,17 +53,8 @@ STATE, SHARED, SHARED_STATE = "state", "shared", "shared_state"
 # Policy: a trained module acting in the multi-agent environment
 # --------------------------------------------------------------------------------------
 def _deterministic(dist) -> torch.Tensor:
-    """The distribution's most likely action, in the network's ``[-1, 1]`` units.
-
-    RLlib's ``TorchSquashedGaussian.to_deterministic`` returns the mean *before*
-    the tanh (Ray 2.51.1), so SAC's evaluation in RLlib would act with an
-    unsquashed mean; squash it here as sampling does.
-    """
-    if isinstance(dist, TorchSquashedGaussian):
-        unit = (torch.tanh(torch.as_tensor(dist.loc)) + 1.0) / 2.0
-        return torch.clamp(
-            dist.low + unit * (dist.high - dist.low), dist.low, dist.high
-        )
+    """The distribution's most likely action, in the network's units: the mean of a
+    Gaussian, the most likely category of a categorical."""
     return dist.to_deterministic().sample()
 
 
@@ -135,20 +124,13 @@ class Policy:
         return self.act(obs)
 
     def values(self, obs: dict) -> dict[str, float]:
-        """Each module's value of the state: ``V`` (PPO, APPO) or, for SAC, the
-        smaller twin ``Q`` at the policy's most likely action: per agent in DTDE and
+        """Each module's value of the state, PPO's ``V``: per agent in DTDE and
         CTDE (each agent's own return), the group's in CTCE (the summed return)."""
-        unit = self._unit_actions(obs, explore=False)
         out = {}
         with torch.no_grad():
             for mid, x in self._inputs(obs).items():
-                module = self.modules[mid]
                 batch = {Columns.OBS: torch.as_tensor(x).reshape(1, -1)}
-                if isinstance(module, ValueFunctionAPI):
-                    out[mid] = float(module.compute_values(batch)[0])
-                else:
-                    batch[Columns.ACTIONS] = torch.as_tensor(unit[mid]).reshape(1, -1)
-                    out[mid] = float(module.compute_q_values(batch)[0])
+                out[mid] = float(self.modules[mid].compute_values(batch)[0])
         return out
 
 

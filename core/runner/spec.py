@@ -10,7 +10,7 @@ class and ``core.rl`` are imported only when a run is built.
 Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
 
     {
-      "name": "sac_alpha",              default: the file's name
+      "name": "market_ppo",             default: the file's name
       "description": "free text",
       "env": "market",                  or "module:Class"
       "scenario": "scenarios/validate_market.json",   relative to the repo root,
@@ -18,8 +18,8 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "train_days": {"from": "2016-06-01", "to": "2016-06-30"},   or a list
       "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
       "env_config": {},                 extra environment settings
-      "algorithms": ["sac"], "paradigms": ["dtde"], "seeds": [0],
-      "variants": {"a1": {"initial_alpha": 1.0}},   name -> training overrides;
+      "algorithms": ["ppo"], "paradigms": ["dtde"], "seeds": [0],
+      "variants": {"lr3": {"lr": 0.001}},   name -> training overrides;
                                         "env_config" in a variant: environment
                                         settings of its runs (also held out), e.g.
                                         {"graph": {"env_config": {"grid":
@@ -33,7 +33,7 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
                                         evaluation step by step on trace_days
       "trace_days": 3,                  with "detailed": the first 3 test days, or
                                         a list of test days
-      "training": {"sac": {...}},       overrides per algorithm; a variant's
+      "training": {"ppo": {...}},       overrides per algorithm; a variant's
                                         overrides are merged on top
       "model": {},                      network overrides
       "max_parallel": 3, "torch_threads": 1,
@@ -64,8 +64,8 @@ Test profile: ``Experiment.test_version()`` is the smallest version of the same
 experiment, to prove the pipeline (start, train, evaluate, write the results), not
 to train. It keeps the scenario, environment, algorithms, paradigms, variants and
 settings, and takes the first seed, the first train day and test day, a budget that
-reaches learning (``Experiment.test_budget``: one training batch, and for SAC also its
-warm-up, so the test run really updates the networks), only the final evaluation (one
+reaches learning (``Experiment.test_budget``: one training batch, so the test run
+really updates the networks), only the final evaluation (one
 episode; the held-out evaluation on its one test day), 15 minutes per run and the name
 ``<name>--test``. The ``test`` block changes any of these: ``seeds`` (a list),
 ``train_days`` and ``test_days`` (a number of days), ``budget`` (an int or
@@ -97,7 +97,7 @@ REPO = Path(__file__).resolve().parents[2]
 
 # Kept in step with core.rl.config (a test compares them): importing the enums from
 # there would load Ray and torch just to read a status.
-ALGORITHMS = ("ppo", "appo", "sac")
+ALGORITHMS = ("ppo",)  # V2: PPO only
 PARADIGMS = ("ctce", "ctde", "dtde")
 MARKET_ENVS = ("market", "core.env:MarketEnv", "core.env.market_env:MarketEnv")
 HELDOUT_SEED_START = 2000
@@ -111,10 +111,6 @@ RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
 # What the test profile uses where the ``test`` block says nothing.
 TEST_MINUTES = 15
 TEST_DEFAULT_BUDGET = 100
-# RLlib's own default of ``num_steps_sampled_before_learning_starts`` for SAC in the
-# installed version: SAC samples this many steps before its first update.
-RLLIB_SAC_WARMUP = 1500
-TEST_WARMUP_MARGIN = 100  # steps beyond the warm-up, so learning happens
 # The settings of the market environment an experiment may give in ``env_config``
 # (``core/env/market_env.py``), written out with ``written_out``; None: computed by
 # the environment. ``scenario``, ``days`` and ``seed`` come from the experiment.
@@ -503,22 +499,16 @@ class Experiment:
 
         For each variant (or the algorithm's ``training`` settings alone, without
         variants) the settings are merged as in ``expand``; the budget is one training
-        batch (``train_batch_size_per_learner``, else ``TEST_DEFAULT_BUDGET``), or, if
-        the algorithm has a warm-up before it learns, the warm-up plus
-        ``TEST_WARMUP_MARGIN``. The warm-up is
-        ``num_steps_sampled_before_learning_starts``, by default ``RLLIB_SAC_WARMUP``
-        for SAC and none for the others. The largest over the variants wins.
+        batch (``train_batch_size_per_learner``, else ``TEST_DEFAULT_BUDGET``). The
+        largest over the variants wins.
         """
         base = self.training.get(algorithm, {})
-        default_warmup = RLLIB_SAC_WARMUP if algorithm == "sac" else 0
         budgets = []
         for overrides in list(self.variants.values()) or [{}]:
             settings = base | _training(overrides)
-            batch = settings.get("train_batch_size_per_learner") or TEST_DEFAULT_BUDGET
-            warmup = settings.get(
-                "num_steps_sampled_before_learning_starts", default_warmup
+            budgets.append(
+                settings.get("train_batch_size_per_learner") or TEST_DEFAULT_BUDGET
             )
-            budgets.append(max(batch, warmup + TEST_WARMUP_MARGIN) if warmup else batch)
         return max(budgets)
 
     def test_version(self) -> "Experiment":

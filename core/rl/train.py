@@ -1,7 +1,6 @@
 """Train one run, record it, and load its policy again.
 
-A run is one algorithm, one paradigm, one seed and one budget of environment
-steps. Everything around it is written to the run's folder:
+A run is PPO in one paradigm, one seed and one budget of environment steps. Everything around it is written to the run's folder:
 
     run.json         what was run: settings, environment, seed, versions, git
                      commit, status, final scores (fixes L-16's missing record)
@@ -78,8 +77,6 @@ LEARNER_METRICS = [
     "vf_explained_var",
     "entropy",
     "mean_kl_loss",
-    "qf_loss",
-    "alpha_value",
     "num_module_steps_trained",
 ]
 
@@ -89,7 +86,7 @@ class Run:
     """One training run.
 
     Attributes:
-        algorithm: ``"ppo"``, ``"appo"`` or ``"sac"``.
+        algorithm: ``"ppo"`` (the only one in V2).
         paradigm: ``"ctce"``, ``"ctde"`` or ``"dtde"``.
         env_class: The multi-agent environment class.
         env_config: Its config.
@@ -191,10 +188,7 @@ def _record(run: Run, config) -> dict[str, Any]:
 
 def _settings_keys(run: Run) -> set[str]:
     keys = set(SETTINGS[Algorithm(run.algorithm)]) | set(run.training)
-    return keys | {
-        "train_batch_size_per_learner",
-        "num_steps_sampled_before_learning_starts",
-    }
+    return keys | {"train_batch_size_per_learner"}
 
 
 def _replace(path: Path, write) -> None:
@@ -259,7 +253,7 @@ def _write_json(path: Path, data: dict) -> None:
 # Training
 # --------------------------------------------------------------------------------------
 def _nonfinite(results: dict, prefix: str = "") -> list[str]:
-    """Names of the NaN or infinite losses, entropies and temperatures in the
+    """Names of the NaN or infinite losses and entropies in the
     learner's (nested) results. Other metrics are left out: RLlib reports e.g.
     throughputs as NaN in the first iteration."""
     bad = []
@@ -268,7 +262,7 @@ def _nonfinite(results: dict, prefix: str = "") -> list[str]:
         if isinstance(value, dict):
             bad += _nonfinite(value, f"{name}/")
         elif (
-            ("loss" in str(key) or key in ("entropy", "alpha_value"))
+            ("loss" in str(key) or key == "entropy")
             and isinstance(value, (float, int, np.floating))
             and not math.isfinite(value)
         ):
@@ -286,7 +280,6 @@ def _iteration_row(iteration: int, result: dict) -> dict[str, Any]:
     timers = result.get("timers", {})
     learner = result.get(LEARNER_RESULTS, {}).get("__all_modules__", {})
     # RLlib timers are smoothed means in seconds, not additive stage totals.
-    # APPO's learner call enqueues work; its thread timer measures actual updates.
     row.update(
         sampler_sample_s_mean=env.get("sample", float("nan")),
         sampling_s_mean=timers.get("env_runner_sampling_timer", float("nan")),

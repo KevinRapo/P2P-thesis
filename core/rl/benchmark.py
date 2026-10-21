@@ -1,14 +1,11 @@
-"""Time one algorithm and paradigm at one problem size.
+"""Time PPO in one paradigm at one problem size.
 
 Not a training run: no evaluation, no checkpoint. It builds the configuration
 ``build_config`` would train with, then measures, in this order:
 
     build     building the algorithm (networks, optimisers, the sampler)
     warm-up   iterations until the learner has reported its first update
-              (PPO: one batch; SAC: ``num_steps_sampled_before_learning_starts``;
-              APPO: its first report, which can come thousands of steps after
-              its first update) and at least ``warmup_iterations``; not counted
-              below
+              (one batch) and at least ``warmup_iterations``; not counted below
     timed     iterations until ``timed_env_steps`` environment steps (or
               ``max_seconds``): seconds per 1000 environment steps, gradient
               steps, samples trained
@@ -17,7 +14,7 @@ Not a training run: no evaluation, no checkpoint. It builds the configuration
               the timed phase is learning
 
 Every setting that decides the cost is written out in the record (batch,
-minibatch, epochs, warm-up, replay), with RLlib's defaults filled in, so a
+minibatch, epochs), with RLlib's defaults filled in, so a
 result says exactly what was measured.
 """
 
@@ -34,6 +31,7 @@ from typing import Any, Optional
 
 import psutil
 import ray
+from gymnasium import spaces
 import torch
 from ray.rllib.utils.metrics import (
     ENV_RUNNER_RESULTS,
@@ -52,7 +50,7 @@ class Bench:
     """One benchmark.
 
     Attributes:
-        algorithm: ``"ppo"``, ``"appo"`` or ``"sac"``.
+        algorithm: ``"ppo"`` (the only one in V2).
         paradigm: ``"ctce"``, ``"ctde"`` or ``"dtde"``.
         env_class: The multi-agent environment class.
         env_config: Its config.
@@ -92,30 +90,15 @@ def settings(config, algorithm: Algorithm) -> dict[str, Any]:
         "rollout_fragment_length": config.get_rollout_fragment_length(),
         "fcnet_hiddens": config.model_config.get("fcnet_hiddens"),
     }
-    if algorithm == Algorithm.SAC:
-        out |= {
-            "num_steps_sampled_before_learning_starts": (
-                config.num_steps_sampled_before_learning_starts
-            ),
-            "training_intensity": config.training_intensity,
-            "replay_capacity": config.replay_buffer_config.get("capacity"),
-            "actor_lr": config.actor_lr,
-            "critic_lr": config.critic_lr,
-        }
-    else:
-        out |= {
-            "minibatch_size": config.minibatch_size,
-            "num_epochs": config.num_epochs,
-            "lr": config.lr,
-        }
-    return out
+    return out | {
+        "minibatch_size": config.minibatch_size,
+        "num_epochs": config.num_epochs,
+        "lr": config.lr,
+    }
 
 
 def gradient_batch(config, algorithm: Algorithm) -> int:
-    """Samples per gradient step: PPO's and APPO's minibatch (the whole batch
-    when unset), SAC's training batch."""
-    if algorithm == Algorithm.SAC:
-        return config.train_batch_size_per_learner
+    """Samples per gradient step: PPO's minibatch (the whole batch when unset)."""
     return config.minibatch_size or config.train_batch_size_per_learner
 
 
@@ -127,7 +110,7 @@ def _shapes(algo) -> dict[str, Any]:
     return {
         "n_modules": len(modules.keys()),
         "module_obs_dim": int(module.observation_space.shape[0]),
-        "module_act_dim": int(module.action_space.shape[0]),
+        "module_act_dim": int(spaces.flatdim(module.action_space)),
         "parameters": sum(
             p.numel() for mid in modules.keys() for p in modules[mid].parameters()
         ),
@@ -221,7 +204,6 @@ def benchmark(bench: Bench) -> dict[str, Any]:
             if steps - steps0 >= bench.timed_env_steps or elapsed > bench.max_seconds:
                 break
         env_steps, samples = steps - steps0, trained - trained0
-        # APPO's learner reports its counters only now and then: no count then.
         grad_steps = samples / record["gradient_batch"] if samples else math.nan
         record["timed"] = {
             "iterations": iterations,

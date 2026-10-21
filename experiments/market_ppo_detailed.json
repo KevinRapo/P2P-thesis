@@ -1,0 +1,26 @@
+{
+  "name": "market_ppo_detailed",
+  "description": "PPO in the three paradigms on the market, short budget, held-out results step by step (partners and preference-stage trades in the traces).",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["ppo"],
+  "paradigms": ["ctce", "ctde", "dtde"],
+  "seeds": [0],
+  "budget": 8000,
+  "eval_points": 4,
+  "eval_episodes": 10,
+  "results_detail": "detailed",
+  "trace_days": 3,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "train_batch_size_per_learner": 2000,
+      "minibatch_size": 240,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 3,
+  "num_env_runners": 3,
+  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 30}
+}

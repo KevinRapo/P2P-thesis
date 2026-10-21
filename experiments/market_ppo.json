@@ -1,0 +1,23 @@
+{
+  "name": "market_ppo",
+  "description": "PPO in the three paradigms (CTCE, CTDE, DTDE) on the market with the mixed action.",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["ppo"],
+  "paradigms": ["ctce", "ctde", "dtde"],
+  "seeds": [0],
+  "budget": 240000,
+  "eval_points": 10,
+  "eval_episodes": 10,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "train_batch_size_per_learner": 2400,
+      "minibatch_size": 240,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 3,
+  "num_env_runners": 3
+}

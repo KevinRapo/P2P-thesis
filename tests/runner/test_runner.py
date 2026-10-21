@@ -40,10 +40,10 @@ def spec(**changes) -> dict:
         "scenario": SCENARIO,
         "train_days": {"from": "2016-06-01", "to": "2016-06-03"},
         "test_days": ["2016-07-01", "2016-07-02"],
-        "algorithms": ["ppo", "sac"],
+        "algorithms": ["ppo"],
         "paradigms": ["dtde", "ctde"],
         "seeds": [0, 1],
-        "budget": {"ppo": 2000, "sac": 500},
+        "budget": {"ppo": 2000},
         "eval_points": 4,
     }
     return base | changes
@@ -54,7 +54,7 @@ def spec(**changes) -> dict:
 # --------------------------------------------------------------------------------------
 def test_names_in_the_order_of_the_grid():
     runs = Experiment.from_dict(spec(), "x").expand(Path("out"))
-    assert len(runs) == 2 * 2 * 2
+    assert len(runs) == 1 * 2 * 2
     assert runs[0].name == "ppo_dtde_s0"
     assert [r.name for r in runs[:4]] == [
         "ppo_dtde_s0",
@@ -62,7 +62,7 @@ def test_names_in_the_order_of_the_grid():
         "ppo_ctde_s0",
         "ppo_ctde_s1",
     ]
-    assert [r.index for r in runs] == list(range(8))
+    assert [r.index for r in runs] == list(range(4))
     assert runs[0].out_dir == Path("out") / "ppo_dtde_s0"
 
 
@@ -91,24 +91,25 @@ def test_env_runners_must_be_a_nonnegative_integer(value):
 def test_budget_and_eval_every_per_algorithm():
     runs = {r.algorithm: r for r in Experiment.from_dict(spec(), "x").expand()}
     assert (runs["ppo"].budget, runs["ppo"].eval_every) == (2000, 500)
-    assert (runs["sac"].budget, runs["sac"].eval_every) == (500, 125)
-    data = spec(eval_points=None, eval_every={"ppo": 700, "sac": 0})
+    data = spec(eval_points=None, eval_every={"ppo": 700})
     runs = {r.algorithm: r for r in Experiment.from_dict(data, "x").expand()}
-    assert (runs["ppo"].eval_every, runs["sac"].eval_every) == (700, 0)
+    assert runs["ppo"].eval_every == 700
+    data = spec(eval_points=None, budget=900, eval_every=300)
+    runs = Experiment.from_dict(data, "x").expand()
+    assert {(r.budget, r.eval_every) for r in runs} == {(900, 300)}
 
 
 def test_variants_merge_over_the_algorithm_settings():
     data = spec(
-        algorithms=["sac"],
         paradigms=["dtde"],
         seeds=[3],
-        variants={"a1": {"initial_alpha": 1.0}, "a0.1": {"actor_lr": 0.1}},
-        training={"sac": {"actor_lr": 0.0003, "initial_alpha": 0.5}},
+        variants={"e1": {"entropy_coeff": 0.1}, "lr1": {"lr": 0.1}},
+        training={"ppo": {"lr": 0.0003, "entropy_coeff": 0.01}},
     )
     runs = Experiment.from_dict(data, "x").expand()
-    assert [r.name for r in runs] == ["sac_dtde_s3_a1", "sac_dtde_s3_a0.1"]
-    assert runs[0].training == {"actor_lr": 0.0003, "initial_alpha": 1.0}
-    assert runs[1].training == {"actor_lr": 0.1, "initial_alpha": 0.5}
+    assert [r.name for r in runs] == ["ppo_dtde_s3_e1", "ppo_dtde_s3_lr1"]
+    assert runs[0].training == {"lr": 0.0003, "entropy_coeff": 0.1}
+    assert runs[1].training == {"lr": 0.1, "entropy_coeff": 0.01}
 
 
 def test_env_config_and_date_ranges():
@@ -128,10 +129,9 @@ def test_env_config_and_date_ranges():
 def test_a_variants_env_config_reaches_its_runs_and_held_out_evaluation():
     graph = {"grid": {"method": "graph"}}
     data = spec(
-        algorithms=["sac"],
         paradigms=["dtde"],
         seeds=[0],
-        variants={"ac": {}, "graph": {"env_config": graph, "actor_lr": 0.1}},
+        variants={"ac": {}, "graph": {"env_config": graph, "lr": 0.1}},
         env_config={"energy_scale": 7.0},
     )
     experiment = Experiment.from_dict(data, "x")
@@ -139,7 +139,7 @@ def test_a_variants_env_config_reaches_its_runs_and_held_out_evaluation():
     assert "grid" not in ac.env_config
     assert gr.env_config["grid"] == graph["grid"]
     assert gr.env_config["energy_scale"] == 7.0
-    assert "env_config" not in gr.training and gr.training["actor_lr"] == 0.1
+    assert "env_config" not in gr.training and gr.training["lr"] == 0.1
     assert "grid" not in experiment.heldout_config(variant="ac")
     assert experiment.heldout_config(variant="graph")["grid"] == graph["grid"]
 
@@ -249,10 +249,12 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
     "changes, message",
     [
         ({"algorithms": ["ppo", "dqn"]}, "unknown algorithms"),
+        ({"algorithms": ["sac"]}, "unknown algorithms"),
+        ({"algorithms": ["appo"]}, "unknown algorithms"),
         ({"paradigms": ["ctxe"]}, "unknown paradigms"),
         ({"scenario": "scenarios/nope.json"}, "scenario file not found"),
         ({"scenario": None}, "needs a 'scenario'"),
-        ({"budget": {"ppo": 10}}, "no entry for algorithm 'sac'"),
+        ({"budget": {"sac": 10}}, "no entry for algorithm 'ppo'"),
         ({"eval_every": 10}, "not both"),
         ({"seeds": []}, "seeds"),
         ({"seeds": [0, 0]}, "seeds"),
@@ -280,8 +282,8 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
         ({"test": {"seeds": 3}}, "'test.seeds' is a list"),
         ({"test": {"seeds": [1, 1]}}, "'test' block: .*seeds"),
         (
-            {"test": {"budget": {"ppo": 10}}},
-            "'test' block: .*no entry for algorithm 'sac'",
+            {"test": {"budget": {"sac": 10}}},
+            "'test' block: .*no entry for algorithm 'ppo'",
         ),
         ({"test": {"resources": {"cpus": 0}}}, "'test.resources.cpus' must be"),
     ],
@@ -394,7 +396,7 @@ def test_test_version_is_the_smallest_version():
     assert version.seeds == [0]
     assert version.train_days == ["2016-06-01"]
     assert version.test_days == ["2016-07-01"]
-    assert version.budget == {"ppo": 2400, "sac": 1600}  # a batch; SAC: warm-up + 100
+    assert version.budget == {"ppo": 2400}  # one batch
     assert (version.eval_every, version.eval_points) == (None, None)
     assert version.eval_episodes == 1
     assert version.heldout_episodes() == [(2000, "2016-07-01")]
@@ -419,9 +421,9 @@ def test_test_version_is_the_smallest_version():
         assert getattr(version, key) == getattr(experiment, key), key
     # the original is untouched
     assert (experiment.name, experiment.seeds) == ("big", [0, 1])
-    assert experiment.budget == {"ppo": 2000, "sac": 500}
+    assert experiment.budget == {"ppo": 2000}
     runs = version.expand(Path("out"))
-    assert len(runs) == 2 * 2 * 1 * 1  # algorithms x paradigms x seeds x variants
+    assert len(runs) == 1 * 2 * 1 * 1  # algorithms x paradigms x seeds x variants
     assert {r.eval_every for r in runs} == {0}  # only the final evaluation
     assert {r.budget for r in runs if r.algorithm == "ppo"} == {2400}
 
@@ -429,7 +431,7 @@ def test_test_version_is_the_smallest_version():
 def test_test_version_without_a_description_or_batch_size():
     version = Experiment.from_dict(spec(), "x").test_version()
     assert version.description == "Test version of x"
-    assert version.budget == {"ppo": 100, "sac": 1600}  # RLlib's SAC warm-up is 1500
+    assert version.budget == {"ppo": 100}
     assert version.run_resources["minutes"] == 15
 
 
@@ -438,27 +440,19 @@ def budgets(**changes) -> dict:
 
 
 def test_test_budget_comes_from_the_effective_settings():
-    sac = {"sac": {"num_steps_sampled_before_learning_starts": 400}}
-    assert budgets(training=sac) == {"ppo": 100, "sac": 500}
-    batch = {"sac": {"train_batch_size_per_learner": 3000}, "ppo": {"lr": 1e-4}}
-    assert budgets(training=batch) == {"ppo": 100, "sac": 3000}  # batch > warm-up
-    no_warmup = {"sac": {"num_steps_sampled_before_learning_starts": 0}}
-    assert budgets(training=no_warmup)["sac"] == 100  # explicit 0: no warm-up
-    ppo_warmup = {"ppo": {"num_steps_sampled_before_learning_starts": 50}}
-    assert budgets(training=ppo_warmup)["ppo"] == 150
+    assert budgets(training={"ppo": {"lr": 1e-4}}) == {"ppo": 100}
+    batch = {"ppo": {"train_batch_size_per_learner": 3000}}
+    assert budgets(training=batch) == {"ppo": 3000}
 
 
 def test_test_budget_is_the_largest_over_the_variants():
     variants = {
-        "short": {"num_steps_sampled_before_learning_starts": 200},
-        "long": {"num_steps_sampled_before_learning_starts": 2500},
+        "small": {"train_batch_size_per_learner": 200},
         "batch": {"train_batch_size_per_learner": 4000},
     }
-    assert budgets(variants=variants) == {"ppo": 4000, "sac": 4000}
-    del variants["batch"]  # the variants' warm-up reaches PPO too: they merge in
-    assert budgets(variants=variants) == {"ppo": 2600, "sac": 2600}
+    assert budgets(variants=variants) == {"ppo": 4000}
     only = {"v": {"train_batch_size_per_learner": 64}}
-    assert budgets(variants=only) == {"ppo": 64, "sac": 1600}
+    assert budgets(variants=only) == {"ppo": 64}
     assert budgets(test={"budget": 7}) == 7  # an explicit test budget wins
 
 
@@ -488,9 +482,9 @@ def test_test_block_overrides_the_defaults():
 
 
 def test_test_block_budget_per_algorithm():
-    data = spec(test={"budget": {"ppo": 50, "sac": 60}})
+    data = spec(test={"budget": {"ppo": 50}})
     version = Experiment.from_dict(data, "x").test_version()
-    assert version.budget == {"ppo": 50, "sac": 60}
+    assert version.budget == {"ppo": 50}
 
 
 def test_profiles():
