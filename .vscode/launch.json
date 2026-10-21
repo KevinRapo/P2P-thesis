@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Studio (port 8090)",
+            "name": "Studio (port 8091)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/run_studio.py",
@@ -11,7 +11,7 @@
             "justMyCode": true
         },
         {
-            "name": "Docs and Studio (8001, 8090)",
+            "name": "Docs and Studio (8001, 8091)",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/run_all.py",

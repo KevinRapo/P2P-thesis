@@ -1,4 +1,9 @@
-# MARLEM v1
+# MARLEM v2
+
+> V2 (branch `marlem-v2`): V1's market, grid methods, Studio and runner, with the RL
+> layer narrowed to RLlib's PPO and the paper's mixed market action. What changed
+> and why: [marlem-v2](v2.md). These V2 pages are not published; the public site
+> the thesis cites is V1's.
 
 MARLEM rebuilt step by step on SimBench networks: configure a local energy market,
 then step through it by hand and watch the network's power flow. The market and
@@ -9,7 +14,8 @@ extends MARLEM; it is not a claim of replicating the published learning results.
 
 | Section | Start with |
 |---|---|
-| **marlem-v1** | [The working solution](v1.md): the market and the RL layer wired together, what changed, how to train, and the validation results. |
+| **marlem-v2** | [PPO with the mixed market action](v2.md): the action and partner contract, the paradigms, scales and run records, Studio and SLURM, and V2's validation. |
+| **marlem-v1** | [The working solution](v1.md): the market and the RL layer wired together, what changed, how to train, and the validation results (V1: PPO, APPO and SAC with a two-number action). |
 | **Code structure** | [Every folder and script](structure.md): what it does and how far it is built. |
 | **MARLEM** | [Methodology](marlem/methodology.md): the market as the paper states it (clearing, pricing, DSO fees, reputation, agents, batteries, grid, one market step), without the reinforcement-learning parts. [Learning layer](marlem/learning.md): observation, action, paradigms, algorithms, hyperparameters, population-based training and the 3 × 3 experiment as the papers state them, with the original code's settings where the papers are silent. |
 | **RL** | [Code and running instructions](structure.md#corerl-the-reinforcement-learning-layer). [Training cycle](rl/training.md): the math of one training iteration for PPO, APPO and SAC in each paradigm (CTCE, CTDE, DTDE), and how many steps each takes. [One iteration, step by step](rl/cycle.md): every calculation from the agents' observation to the weight update, with what each paradigm changes. [Worked examples](rl/examples.md): the same cycle with numbers, for the parts our own code defines (what each paradigm's modules receive, CTDE's local actor and central critic, per-agent clipping, settings, evaluation). |

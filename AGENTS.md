@@ -116,20 +116,32 @@ because nothing calls it today (e.g. `electrical_distance`, the paths and zones 
 
 ## RL layer
 
-- RLlib's own PPO, APPO and SAC with RLlib's own modules: no custom losses,
-  distributions or training loops. Only the environment (grouping, central state)
-  and, for CTDE, what the actor reads differ between paradigms. Same network
-  settings for every paradigm.
-- Objectives: DTDE and CTDE learn from each agent's own reward; CTCE is one
-  controller on the summed reward.
+- RLlib's own PPO with RLlib's own modules and distributions: no custom losses,
+  distributions or training loops. APPO and SAC are not part of V2 (V1 keeps them).
+  Only the environment (grouping, central state) and, for CTDE, what the actor
+  reads differ between paradigms. Same network settings for every paradigm.
+- Objectives: DTDE and CTDE learn from each agent's own reward, with one module,
+  one critic and one PPO ratio per agent; CTCE is one controller on the summed
+  reward, with one joint ratio.
 - An environment the trainer can use is a `MultiAgentEnv` built as
-  `Env(env_config)`, with `agents_id`, `observation_spaces` and `action_spaces`
-  (one `Box` per agent) and `"__all__"` in `terminateds` and `truncateds`.
-  `MarketEnv` and the test environments in `core/rl/envs/` provide this.
-- **Run the probes first after any change to `core/rl/` or its test environments**
-  (`tests/rl/`, `notebooks/rl/probe_paradigms.ipynb`). The probes follow Andy
-  Jones's guide (https://andyljones.com/posts/rl-debugging.html); each has an
-  exact answer.
+  `Env(env_config)`, with `agents_id`, a flat `Box` observation per agent, an
+  action space per agent that RLlib's catalog gives a distribution for (`Box`,
+  `Discrete`, and `Dict` / `Tuple` of them; the market's is a `Dict`), and
+  `"__all__"` in `terminateds` and `truncateds`. Optional hooks, read by duck
+  typing so `core/rl` imports no market module: `resolved_config()` (the config
+  with what the environment computed, e.g. the market's scales; a run records and
+  reuses it), `contract()` (what observations and actions mean, for `run.json`)
+  and `baseline_policies(seed)`. `MarketEnv` and the test environments in
+  `core/rl/envs/` provide this.
+- The market action's semantics (side, quantity share and no-order threshold,
+  price range, partner candidates) live in `core/env/market_env.py` only; the
+  chosen partner goes to `OrderIntent.partner_id` unchanged. Do not change the
+  clearing (`core/market/clearing.py`) to suit the RL layer.
+- **Run the probes first after any change to `core/rl/` or its test environments**:
+  `python scripts/probe_ppo.py` (probes 1-6, PPO, all three paradigms), then
+  `tests/rl/`. The probes follow Andy Jones's guide
+  (https://andyljones.com/posts/rl-debugging.html); each has an exact answer.
+  Probe 6 has a mixed (categorical and continuous) action.
 - The original RL code with its `FAULT`, `DECIDE` and `DEVIATION` annotations is
   on the `clean` branch, under `RL/core/rl/`.
 
@@ -138,8 +150,7 @@ because nothing calls it today (e.g. `electrical_distance`, the paths and zones 
 - Start training experiments with `python -m core.runner`, not from a notebook
   cell, so they outlive the session.
 - A seed repeats a run only with `PYTHONHASHSEED` fixed (the runner's jobs do
-  this) and with algorithms built by `core.rl.config.build_algo`, not
-  `config.build_algo()`, so the replay buffer follows the seed.
+  this); build algorithms with `core.rl.config.build_algo`.
 - RL notebooks put the repository root on `PYTHONPATH` before Ray starts, so
   worker processes can import `core.rl`.
 - Several processes that each load torch (parallel runs, or environment runners

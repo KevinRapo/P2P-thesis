@@ -1,5 +1,11 @@
 # Worked examples: the parts we define
 
+> **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
+> two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
+> (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
+> is in [v2.md](../v2.md). Code links follow branch `marlem-v2`, so a line anchor may
+> point near, not at, the V1 code described.
+
 > The training cycle with numbers, limited to what our own code decides: what each
 > paradigm's modules receive, how CTDE's local actor and central critic are put
 > together, the settings we choose, and how a trained policy is evaluated.

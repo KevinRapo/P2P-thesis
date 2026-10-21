@@ -1,5 +1,11 @@
 # The full cycle: training, environment step, market step
 
+> **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
+> two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
+> (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
+> is in [v2.md](v2.md). Code links follow branch `marlem-v2`, so a line anchor may
+> point near, not at, the V1 code described.
+
 > Everything that happens from one training iteration down to one fee, on one page,
 > in the order the code runs it. Three loops nest inside each other: a **training
 > iteration** collects many **environment steps**, and each environment step plays
@@ -20,7 +26,7 @@ it to the market.
 [`advance`](../core/market/lem.py#L312-L346), the environment section
 [`MarketEnv.step`](../core/env/market_env.py#L226-L276), the training section
 [`train`](../core/rl/train.py#L319-L452). When one of them changes, its section
-changes. Line links point at branch `marlem-v1`.
+changes. Line links point at branch `marlem-v2` (see the V2 note above).
 
 ## The master diagram
 

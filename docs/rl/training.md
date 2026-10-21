@@ -1,5 +1,11 @@
 # The training cycle: 3 algorithms × 3 paradigms
 
+> **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
+> two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
+> (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
+> is in [v2.md](../v2.md). Code links follow branch `marlem-v2`, so a line anchor may
+> point near, not at, the V1 code described.
+
 > The math that has to happen in one training iteration of each of the nine
 > combinations: PPO, APPO and SAC, each trained as CTCE, CTDE and DTDE, as
 > `core/rl/` implements them. First the common skeleton, then each algorithm

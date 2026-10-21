@@ -35,10 +35,10 @@ from studio.state import services  # noqa: E402
 # --------------------------------------------------------------------------------------
 # Settings and routes
 # --------------------------------------------------------------------------------------
-# Port 8090, so it can run beside other local servers. The settings
-# MARLEM_STUDIO_PORT and MARLEM_STUDIO_SHOW=0 (.env or the environment) let a test run
-# on its own port without opening a tab.
-PORT = int(machine.get("MARLEM_STUDIO_PORT", "8090"))
+# Port 8091 (V2; V1's Studio uses 8090), so both can run beside other local servers.
+# The settings MARLEM_STUDIO_PORT and MARLEM_STUDIO_SHOW=0 (.env or the environment)
+# let a test run on its own port without opening a tab.
+PORT = int(machine.get("MARLEM_STUDIO_PORT", "8091"))
 SHOW = machine.get("MARLEM_STUDIO_SHOW", "1") == "1"
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -9,9 +9,11 @@ resources are requested separately.
 
 An experiment expands to algorithms × paradigms × seeds × variants, each one an
 independent run with its own model, seed, replay buffer, metrics and checkpoint.
-[market_3x3.json](../../experiments/market_3x3.json) is 3 × 3 × 1 = 9 runs;
-[sac_alpha.json](../../experiments/sac_alpha.json) 1 × 1 × 1 × 3 variants = 3.
-Five seeds would make `market_3x3` 45 runs.
+[market_ppo.json](../../experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
+[grid_methods.json](../../experiments/grid_methods.json) 1 × 1 × 3 seeds × 3
+variants = 9. Five seeds would make `market_ppo` 15 runs. (The measurements below
+were taken in V1 with `market_3x3`, three algorithms × three paradigms; they
+describe one PPO run's resources the same way.)
 
 ```mermaid
 flowchart TD

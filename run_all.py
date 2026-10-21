@@ -4,7 +4,7 @@
     python run_all.py docs       # only the documentation preview
 
     docs     this checkout   MkDocs live preview   http://127.0.0.1:8001
-    studio   this checkout   Studio                http://localhost:8090
+    studio   this checkout   Studio                http://localhost:8091
 
 Each server gets its own window, so its log stays readable, Ctrl+C there stops
 only that server, and the Studios' auto-reload works. Close a window to stop it.

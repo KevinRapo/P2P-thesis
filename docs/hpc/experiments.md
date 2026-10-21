@@ -19,41 +19,32 @@ also kept step by step. The [Results](#results) page compares the runs.
 ## The experiment file
 
 A spec gives only what differs from the defaults. Written out in full, with every
-setting at the value its runs use, [market_3x3.json](../../experiments/market_3x3.json)
+setting at the value its runs use, [market_ppo.json](../../experiments/market_ppo.json)
 is the one below; the Studio's start dialog shows every template this way
-([`written_out`](../../core/runner/spec.py), the same runs as the file):
+([`written_out`](../../core/runner/spec.py), the same runs as the file), with the
+paradigms, seeds, budget, PPO settings, workers and cluster resources also as
+fields that rewrite the JSON:
 
 ```json
 {
-  "name": "market_3x3_3envRuns",
-  "description": "All three algorithms x all three paradigms on the market.",
+  "name": "market_ppo",
+  "description": "PPO in the three paradigms (CTCE, CTDE, DTDE) on the market with the mixed action.",
   "env": "market",
   "scenario": "scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
   "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
   "env_config": {"energy_scale": null, "reward_scale": null},
-  "algorithms": ["sac", "ppo", "appo"],
+  "algorithms": ["ppo"],
   "paradigms": ["ctce", "ctde", "dtde"],
   "seeds": [0],
   "variants": {},
-  "budget": {"sac": 24000, "ppo": 240000, "appo": 240000},
+  "budget": 240000,
   "eval_every": null,
   "eval_points": 10,
   "eval_episodes": 10,
   "results_detail": "standard",
   "trace_days": 3,
   "training": {
-    "sac": {
-      "actor_lr": 0.0003,
-      "critic_lr": 0.0003,
-      "gamma": 0.99,
-      "twin_q": true,
-      "grad_clip": 0.5,
-      "target_entropy": "auto",
-      "replay_buffer_config": {"type": "MultiAgentEpisodeReplayBuffer", "capacity": 50000},
-      "num_steps_sampled_before_learning_starts": 1000,
-      "initial_alpha": 0.01
-    },
     "ppo": {
       "lr": 0.0003,
       "gamma": 0.99,
@@ -66,14 +57,6 @@ is the one below; the Studio's start dialog shows every template this way
       "use_kl_loss": false,
       "vf_clip_param": 1000000.0,
       "train_batch_size_per_learner": 2400
-    },
-    "appo": {
-      "lr": 0.0003,
-      "gamma": 0.99,
-      "entropy_coeff": 0.01,
-      "grad_clip": 0.5,
-      "use_kl_loss": false,
-      "train_batch_size_per_learner": 480
     }
   },
   "model": {
@@ -97,12 +80,12 @@ is the one below; the Studio's start dialog shows every template this way
 | Settings | What they set | Defaults from |
 |---|---|---|
 | `name`, `description` | The experiment's folder name (default: the file's name) and free text | |
-| `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's `energy_scale` and `reward_scale` (null: computed, [market_env.py](../../core/env/market_env.py)) | [spec.py](../../core/runner/spec.py) `MARKET_ENV_CONFIG` |
+| `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's `energy_scale` and `reward_scale` (null: computed on the training days, recorded in each run's `run.json` and reused for its held-out days, [market_env.py](../../core/env/market_env.py)) | [spec.py](../../core/runner/spec.py) `MARKET_ENV_CONFIG` |
 | `train_days`, `test_days` | Days drawn from in training, and the held-out days (`{"from", "to"}` or a list) | |
-| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs; a variant is a name with `training` overrides on top | |
+| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (V2: `algorithms` is `["ppo"]`); a variant is a name with `training` overrides on top | |
 | `budget`, `eval_every` or `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training (give one of `eval_every` and `eval_points`; the other stays null) | |
 | `results_detail`, `trace_days` | `"standard"`: held-out results per day and participant; `"detailed"`: also step by step on the first `trace_days` test days (or a list) | |
-| `training` | Per algorithm, RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's `training()` can be added (e.g. `tau`, `n_step`) and has RLlib's default until it is | [rl_defaults.py](../../core/rl_defaults.py) `SETTINGS` |
+| `training` | Per algorithm (`ppo`), RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's PPO `training()` can be added (e.g. `vf_loss_coeff`) and has RLlib's default until it is; `run.json` records every PPO setting with the value it ran with (`settings_effective`) | [rl_defaults.py](../../core/rl_defaults.py) `SETTINGS` |
 | `model` | The network, the same for every paradigm | [rl_defaults.py](../../core/rl_defaults.py) `NETWORK` |
 | `max_parallel`, `torch_threads`, `num_env_runners`, `ray_thread_caps`, `resources` | How runs share this PC or a cluster node ([Resources and parallelism](resources.md)) | [spec.py](../../core/runner/spec.py) `RESOURCE_DEFAULTS` |
 | `test` | Changes to the [test profile](resources.md#full-and-test-profiles) | |
@@ -110,11 +93,11 @@ is the one below; the Studio's start dialog shows every template this way
 What is not in the experiment: the market itself (network, participants, market
 and DSO rules) is the scenario's, edited in the Studio's other pages and saved in
 [scenarios/](../../scenarios/); the agents' observation and action design is
-[MarketEnv](../../core/env/market_env.py)'s.
+[MarketEnv](../../core/env/market_env.py)'s ([v2.md](../v2.md)).
 
 ## Commands
 
-From the `marlem-v1` root, in the `marlem` environment:
+From the `marlem-v2` root, in the `marlem` environment:
 
 ```powershell
 python -m core.runner check experiments/smoke.json --target taltech
@@ -282,8 +265,9 @@ before the per-day tables show their means only.
 
 ## Existing execution evidence
 
-Test-profile runs, inspected on 17 October 2026 in the former `marlem-slurm`
-worktree (results not in git):
+V1 evidence (APPO and SAC are not in V2): test-profile runs, inspected on 17
+October 2026 in the former `marlem-slurm` worktree (results not in git). V2's own
+runs are in [v2.md](../v2.md#7-validation):
 
 | Workload | Outcome |
 |---|---|

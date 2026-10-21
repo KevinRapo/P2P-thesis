@@ -6,7 +6,7 @@ no Jupyter job.
 
 ## The loop
 
-On this PC, in `marlem-v1`:
+On this PC, in `marlem-v2`:
 
 ```powershell
 git shipc "what changed"
@@ -31,10 +31,10 @@ What `hpc start` does, step by step.
 pull on the cluster), or by hand after a plain push (VS Code's Sync button):
 
 ```powershell
-ssh taltech "cd ~/marlem-v1 && git pull --ff-only"
+ssh taltech "cd ~/marlem-v2 && git pull --ff-only"
 ```
 
-**2. Submit the job**, on the cluster (`ssh taltech`, then `cd ~/marlem-v1`), with
+**2. Submit the job**, on the cluster (`ssh taltech`, then `cd ~/marlem-v2`), with
 your account (`MARLEM_SLURM_ACCOUNT` in `.env`):
 
 | Command | Job |

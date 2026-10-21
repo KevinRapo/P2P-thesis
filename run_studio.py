@@ -1,4 +1,4 @@
-"""Start the Studio on http://localhost:8090 with auto-reload (Run Python File in
+"""Start the Studio on http://localhost:8091 with auto-reload (Run Python File in
 VS Code works)."""
 
 import sys

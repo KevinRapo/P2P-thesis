@@ -1,5 +1,11 @@
 # One training iteration, from observation to update
 
+> **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
+> two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
+> (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
+> is in [v2.md](../v2.md). Code links follow branch `marlem-v2`, so a line anchor may
+> point near, not at, the V1 code described.
+
 > Every calculation in one training iteration, in the order it happens: the
 > agents observe, act and collect a batch of steps; the batch is turned into
 > targets; the losses are computed and the networks updated; the new weights go

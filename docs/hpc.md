@@ -7,8 +7,9 @@ The TalTech cluster is used in two ways:
 | A notebook on a compute node | `hpc start` submits a Jupyter job and opens a tunnel; VS Code runs the cells there | [Notebook sessions](hpc/notebooks.md) |
 | Training experiments | `python -m core.runner ... --target taltech` or the Studio's Runs page: one SLURM job array per experiment | [Training experiments](hpc/experiments.md) |
 
-Both run the cluster's own checkout, `~/marlem-v1`, at the commit pushed from this
-PC (`git shipc`), in the conda environment of [environment.yml](../environment.yml).
+Both run the cluster's own checkout of this branch, `~/marlem-v2` (V1 keeps its own,
+`~/marlem-v1`, with its own `runs/`), at the commit pushed from this PC
+(`git shipc`), in the conda environment of [environment.yml](../environment.yml).
 Your own values (account, SSH host, port) are in a git-ignored `.env`
 ([.env.example](../.env.example)).
 
