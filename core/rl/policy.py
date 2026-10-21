@@ -6,8 +6,12 @@ per-agent rewards, so all nine combinations and the baselines are scored the
 same way.
 
 - Fixes L-15: a ``Policy`` acts as RLlib does in training: the module's action
-  distribution, then RLlib's own ``unsquash_action`` from ``[-1, 1]`` to each
-  agent's bounds. Infos are returned per agent, as the environment gives them.
+  distribution, then RLlib's own ``unsquash_action``, which rescales the
+  continuous parts from ``[-1, 1]`` to each agent's bounds and leaves the
+  categorical ones as they are (the market's mixed ``Dict`` action, the group's
+  ``Tuple`` of them in CTCE). Without exploration the action is each part's most
+  likely value: a Gaussian's mean, a categorical's most likely category. Infos are
+  returned per agent, as the environment gives them.
 - Fixes L-03: the team score is the sum over agents of the episode return, from
   the raw rewards; per-agent returns are reported next to it.
 - Fixes L-16 and L-17 (the capability): random, constant and untrained policies
@@ -20,7 +24,9 @@ follow it; one that does not still gets its returns):
 
     infos[agent] = {
         <name>: amount over the step, of this agent    summed over the episode
-        "state": {<name>: value at the step}           in the step rows only
+        "state": {<name>: value at the step}           in the step rows only (a
+                                                       number, or a label such
+                                                       as the market's partner)
         "shared": {<name>: amount over the step}       the same for every agent:
                                                        summed into the episode row
         "shared_state": {<name>: value at the step}    in the step rows only
@@ -38,11 +44,16 @@ from typing import Any, Callable, Optional, Sequence
 import numpy as np
 import pandas as pd
 import torch
+import tree
+from gymnasium import spaces
 from ray.rllib.core.columns import Columns
-from ray.rllib.utils.spaces.space_utils import unsquash_action
+from ray.rllib.utils.spaces.space_utils import (
+    get_base_struct_from_space,
+    unsquash_action,
+)
 
 from core.rl.config import Paradigm
-from core.rl.grouping import GROUP, central_obs, join, join_spaces, split
+from core.rl.grouping import GROUP, central_obs, join, ungroup
 
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
 # The nested parts of an agent's infos (see the module).
@@ -52,6 +63,23 @@ STATE, SHARED, SHARED_STATE = "state", "shared", "shared_state"
 # --------------------------------------------------------------------------------------
 # Policy: a trained module acting in the multi-agent environment
 # --------------------------------------------------------------------------------------
+def to_env(action, space: spaces.Space):
+    """A module's action (one sample, numpy leaves) as the environment takes it:
+    RLlib's ``unsquash_action`` (continuous parts from ``[-1, 1]`` to their bounds,
+    clipped, as RLlib's samplers do with ``normalize_actions``), then each
+    categorical part as an ``int`` and each continuous part as a float32 array of
+    its space's shape."""
+    struct = get_base_struct_from_space(space)
+    action = unsquash_action(action, struct)
+
+    def leaf(value, part):
+        if isinstance(part, spaces.Discrete):
+            return int(np.asarray(value).reshape(-1)[0])
+        return np.asarray(value, dtype=np.float32).reshape(part.shape)
+
+    return tree.map_structure(leaf, action, struct)
+
+
 def _deterministic(dist) -> torch.Tensor:
     """The distribution's most likely action, in the network's units: the mean of a
     Gaussian, the most likely category of a categorical."""
@@ -73,8 +101,6 @@ class Policy:
         self.paradigm = Paradigm(paradigm)
         self.agents = list(env.agents_id)
         self.act_spaces = {a: env.action_spaces[a] for a in self.agents}
-        self.act_dims = [int(np.prod(self.act_spaces[a].shape)) for a in self.agents]
-        self.joint_space = join_spaces([self.act_spaces[a] for a in self.agents])
 
     def _inputs(self, obs: dict) -> dict[str, np.ndarray]:
         """Each module's input: the agent's observation (DTDE), extended with the
@@ -85,8 +111,9 @@ class Policy:
             return central_obs(obs, self.agents)
         return {GROUP: join(obs, self.agents)}
 
-    def _unit_actions(self, obs: dict, explore: bool) -> dict[str, np.ndarray]:
-        """Each module's action in the network's units (before rescaling)."""
+    def _unit_actions(self, obs: dict, explore: bool) -> dict[str, Any]:
+        """Each module's action in the network's units (before rescaling): an
+        array, or a structure of them for a composite action."""
         out = {}
         with torch.no_grad():
             for mid, x in self._inputs(obs).items():
@@ -100,10 +127,10 @@ class Policy:
                     dist_cls = module.get_inference_action_dist_cls()
                 dist = dist_cls.from_logits(logits[Columns.ACTION_DIST_INPUTS])
                 action = dist.sample() if explore else _deterministic(dist)
-                out[mid] = action[0].numpy()
+                out[mid] = tree.map_structure(lambda t: t[0].numpy(), action)
         return out
 
-    def act(self, obs: dict, explore: bool = False) -> dict[str, np.ndarray]:
+    def act(self, obs: dict, explore: bool = False) -> dict[str, Any]:
         """Each agent's action, in the environment's units.
 
         Args:
@@ -112,15 +139,11 @@ class Policy:
                 most likely action.
         """
         unit = self._unit_actions(obs, explore)
-        if self.paradigm != Paradigm.CTCE:
-            return {
-                a: np.asarray(unsquash_action(unit[a], self.act_spaces[a]), np.float32)
-                for a in self.agents
-            }
-        joint = np.asarray(unsquash_action(unit[GROUP], self.joint_space), np.float32)
-        return split(joint, self.agents, self.act_dims)
+        if self.paradigm == Paradigm.CTCE:
+            unit = ungroup(unit[GROUP], self.agents)
+        return {a: to_env(unit[a], self.act_spaces[a]) for a in self.agents}
 
-    def __call__(self, obs: dict) -> dict[str, np.ndarray]:
+    def __call__(self, obs: dict) -> dict[str, Any]:
         return self.act(obs)
 
     def values(self, obs: dict) -> dict[str, float]:
@@ -137,14 +160,27 @@ class Policy:
 # --------------------------------------------------------------------------------------
 # Baselines
 # --------------------------------------------------------------------------------------
+def _each_part(space: spaces.Space, box, discrete):
+    """An action of ``space`` with ``box(part)`` for each continuous part and
+    ``discrete(part)`` for each categorical one."""
+    struct = get_base_struct_from_space(space)
+    return tree.map_structure(
+        lambda part: discrete(part) if isinstance(part, spaces.Discrete) else box(part),
+        struct,
+    )
+
+
 def random_policy(env, seed: int = 0) -> ActFn:
-    """Uniform random actions within each agent's bounds."""
+    """Uniform random actions: each continuous part within its bounds, each
+    categorical part any of its values."""
     rng = np.random.default_rng(seed)
 
     def act(obs):
         return {
-            a: rng.uniform(env.action_spaces[a].low, env.action_spaces[a].high).astype(
-                np.float32
+            a: _each_part(
+                env.action_spaces[a],
+                lambda b: rng.uniform(b.low, b.high).astype(np.float32),
+                lambda d: int(d.start + rng.integers(d.n)),
             )
             for a in env.agents_id
         }
@@ -153,14 +189,17 @@ def random_policy(env, seed: int = 0) -> ActFn:
 
 
 def constant_policy(env, value: float = 0.0) -> ActFn:
-    """The same action ``value`` for every agent and dimension, within bounds."""
+    """The same action for every agent: ``value`` in every continuous part (within
+    bounds), the first value of every categorical part."""
 
     def act(obs):
         return {
-            a: np.clip(
-                np.full(env.action_spaces[a].shape, value, dtype=np.float32),
-                env.action_spaces[a].low,
-                env.action_spaces[a].high,
+            a: _each_part(
+                env.action_spaces[a],
+                lambda b: np.clip(
+                    np.full(b.shape, value, dtype=np.float32), b.low, b.high
+                ),
+                lambda d: int(d.start),
             )
             for a in env.agents_id
         }
@@ -316,6 +355,15 @@ def _amounts(info: dict) -> dict[str, float]:
     }
 
 
+def _states(info: dict) -> dict[str, Any]:
+    """The values of an agent's ``state``: numbers and labels (strings)."""
+    return {
+        k: v if isinstance(v, str) else float(v)
+        for k, v in info.items()
+        if isinstance(v, (int, float, str)) and not isinstance(v, bool)
+    }
+
+
 def _step_infos(episode: Episode) -> list[dict]:
     """Each step's infos (those of ``reset`` left out)."""
     return episode.infos[1:]
@@ -357,19 +405,27 @@ def _trace_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
             agents.append(
                 {"step": step, "agent": agent, "reward": reward}
                 | _amounts(info)
-                | _amounts(info.get(STATE, {}))
+                | _states(info.get(STATE, {}))
             )
     return steps, agents
 
 
 def evaluation_seeds(n: int, start: int = 1_000_000) -> list[int]:
-    """Seeds for evaluation episodes. Training resets with RLlib's run seed only
-    once per sampler and lets the environment's generator run on, so seeds from
-    ``start`` on are episodes training has not seen."""
+    """Seeds for the periodic evaluation episodes. Training resets with RLlib's run
+    seed only once per sampler and lets the environment's generator run on, so
+    seeds from ``start`` on are episodes training has not seen. They are played on
+    the training configuration (for the market: training days drawn with an
+    unseen seed), so this is not a held-out evaluation; the runner's held-out
+    evaluation plays the test days (``core/runner/launch.py``)."""
     return list(range(start, start + n))
 
 
 def baselines(env_class: type, env_config: dict, seed: int = 0) -> dict[str, ActFn]:
-    """The policies every run is compared with: random and always 0."""
+    """The policies every run is compared with: random, and the environment's own
+    baselines (``env.baseline_policies(seed)``, e.g. the market's ``zero`` and
+    ``net_position``) or, without them, the constant 0 action (``zero``)."""
     env = env_class(env_config)
-    return {"random": random_policy(env, seed), "zero": constant_policy(env, 0.0)}
+    found = {"random": random_policy(env, seed)}
+    if hasattr(env, "baseline_policies"):
+        return found | env.baseline_policies(seed)
+    return found | {"zero": constant_policy(env, 0.0)}

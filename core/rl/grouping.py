@@ -2,10 +2,15 @@
 central state (CTDE).
 
 ``GroupedEnv`` (CTCE): all agents as one agent, ``"group"``. It observes every
-agent's observation and outputs every agent's action, each joined into one flat
-``Box`` in the environment's agent order, and receives the sum of the agents'
-rewards: one controller maximising the total (the social planner). RLlib's own
-modules and algorithms train it as an ordinary single agent.
+agent's observation joined into one flat ``Box``, outputs every agent's action as
+one ``Tuple`` of the agents' own action spaces, both in the environment's agent
+order, and receives the sum of the agents' rewards: one controller maximising the
+total (the social planner). RLlib's own modules and PPO train it as an ordinary
+single agent. The ``Tuple`` keeps each agent's action as it is, nested and mixed
+(the market's ``Dict`` of categorical and continuous parts): RLlib's catalog gives
+the group one composite distribution with a part per agent and component, so its
+log-probability is the sum over all of them and PPO clips one ratio, the joint
+controller's. Nothing categorical is flattened into, or decoded from, a ``Box``.
 
 ``CentralStateEnv`` (CTDE): the agents stay separate, each with its own reward,
 but each agent's observation is extended with the global state, every agent's
@@ -15,8 +20,8 @@ read all of it, so the critic is central and the actor decentralised.
 
 Fixes L-05: the original put the agents' spaces in sorted name order and their
 data in environment order. Here both follow ``env.agents_id``, and each agent
-keeps its own action bounds in its slice of the joint ``Box``, so RLlib rescales
-every agent's action to that agent's bounds.
+keeps its own action space (and bounds) at its place in the ``Tuple``, so RLlib
+rescales every continuous part to that agent's bounds.
 """
 
 from __future__ import annotations
@@ -40,22 +45,14 @@ def join_spaces(boxes: list[spaces.Box]) -> spaces.Box:
     )
 
 
-def split_space(box: spaces.Box, dims: list[int]) -> list[spaces.Box]:
-    """Cut a joint ``Box`` back into one ``Box`` per agent."""
-    edges = np.cumsum([0, *dims])
-    return [
-        spaces.Box(box.low[a:b], box.high[a:b], dtype=np.float32)
-        for a, b in zip(edges[:-1], edges[1:])
-    ]
-
-
-def split(joint: np.ndarray, agents: list[str], dims: list[int]) -> dict:
-    """Cut a joint vector into each agent's part, in ``agents`` order."""
-    edges = np.cumsum([0, *dims])
-    return {
-        agent: np.asarray(joint[..., a:b], dtype=np.float32)
-        for agent, a, b in zip(agents, edges[:-1], edges[1:])
-    }
+def ungroup(joint, agents: list[str]) -> dict:
+    """The group's ``Tuple`` action as each agent's own action, in ``agents``
+    order."""
+    if len(joint) != len(agents):
+        raise ValueError(
+            f"group action has {len(joint)} parts for {len(agents)} agents"
+        )
+    return {agent: part for agent, part in zip(agents, joint)}
 
 
 def join(values: dict, agents: list[str]) -> np.ndarray:
@@ -69,9 +66,9 @@ class GroupedEnv(MultiAgentEnv):
     """The agents of ``env_class`` as one agent, ``"group"``.
 
     The wrapped environment must have every agent act at every step (as the
-    market does): ``agents_id``, one ``Box`` per agent in ``observation_spaces``
-    and ``action_spaces``, and ``"__all__"`` in ``terminateds`` and
-    ``truncateds``.
+    market does): ``agents_id``, one flat ``Box`` per agent in
+    ``observation_spaces``, any action space per agent in ``action_spaces``, and
+    ``"__all__"`` in ``terminateds`` and ``truncateds``.
 
     env_config keys:
         env_class: The multi-agent environment class.
@@ -90,15 +87,12 @@ class GroupedEnv(MultiAgentEnv):
         self.obs_dims = [
             int(np.prod(self.env.observation_spaces[a].shape)) for a in self.agents_id
         ]
-        self.act_dims = [
-            int(np.prod(self.env.action_spaces[a].shape)) for a in self.agents_id
-        ]
         self.agents = self.possible_agents = [GROUP]
         self.observation_spaces = {
             GROUP: join_spaces([self.env.observation_spaces[a] for a in self.agents_id])
         }
         self.action_spaces = {
-            GROUP: join_spaces([self.env.action_spaces[a] for a in self.agents_id])
+            GROUP: spaces.Tuple([self.env.action_spaces[a] for a in self.agents_id])
         }
 
     def reset(
@@ -112,7 +106,7 @@ class GroupedEnv(MultiAgentEnv):
     ) -> tuple[
         MultiAgentDict, MultiAgentDict, MultiAgentDict, MultiAgentDict, MultiAgentDict
     ]:
-        actions = split(action_dict[GROUP], self.agents_id, self.act_dims)
+        actions = ungroup(action_dict[GROUP], self.agents_id)
         obs, rewards, terminateds, truncateds, infos = self.env.step(actions)
         missing = set(self.agents_id) - set(rewards)
         if missing:

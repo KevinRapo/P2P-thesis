@@ -6,7 +6,9 @@ one target object per name for the life of the Studio (a cluster's target keeps 
 connection open) and passes the calls on: ``overview``, ``check``, ``start``,
 ``start_new``, ``restart``, ``stop``, ``sync``. The start dialog edits an experiment
 file's text; ``apply_preset`` rewrites the text as the test or the full experiment,
-and ``describe`` turns it into the ``Experiment`` to start. The runner's records (the target's entries and report) are returned as they
+``quick_settings`` / ``apply_settings`` read and write the settings the dialog
+offers as fields (paradigms, seeds, budget, PPO, workers, cluster resources), and
+``describe`` turns it into the ``Experiment`` to start. The runner's records (the target's entries and report) are returned as they
 are; every method is synchronous and may take seconds on a cluster, so the pages call
 them through ``run.io_bound``.
 """
@@ -45,6 +47,26 @@ PRESET_KEYS = (
     "resources",
 )
 PRESETS = ("test", "full")
+# The settings the start dialog offers as fields, by their path in the JSON (V2:
+# PPO's settings under training.ppo); the rest is edited in the JSON itself.
+QUICK_SETTINGS: dict[str, tuple[str, ...]] = {
+    "paradigms": ("paradigms",),
+    "seeds": ("seeds",),
+    "budget": ("budget",),
+    "lr": ("training", "ppo", "lr"),
+    "train_batch_size_per_learner": ("training", "ppo", "train_batch_size_per_learner"),
+    "minibatch_size": ("training", "ppo", "minibatch_size"),
+    "num_epochs": ("training", "ppo", "num_epochs"),
+    "entropy_coeff": ("training", "ppo", "entropy_coeff"),
+    "clip_param": ("training", "ppo", "clip_param"),
+    "gamma": ("training", "ppo", "gamma"),
+    "num_env_runners": ("num_env_runners",),
+    "max_parallel": ("max_parallel",),
+    "torch_threads": ("torch_threads",),
+    "cpus": ("resources", "cpus"),
+    "mem_gb": ("resources", "mem_gb"),
+    "minutes": ("resources", "minutes"),
+}
 
 
 # --------------------------------------------------------------------------------------
@@ -170,6 +192,14 @@ class RunService:
         (``editable``)."""
         return editable(apply_preset(text, preset, template_text, default_name))
 
+    def quick_settings(self, text: str) -> dict:
+        """The editor's values of ``QUICK_SETTINGS`` (``quick_settings``)."""
+        return quick_settings(text)
+
+    def apply_settings(self, text: str, values: dict) -> str:
+        """The editor's text with quick settings changed (``apply_settings``)."""
+        return apply_settings(text, values)
+
     def editable(self, text: str, default_name: str = "experiment") -> str:
         """A template's text as the start dialog edits it (``editable``)."""
         return editable(text, default_name)
@@ -212,6 +242,49 @@ def apply_preset(
         test_data = test.test_version().to_dict()
         values = {key: test_data[key] for key in PRESET_KEYS}
     return to_text(_replaced(data, values))
+
+
+def quick_settings(text: str) -> dict:
+    """The values of ``QUICK_SETTINGS`` in an experiment text (a setting it does
+    not give is None; a budget per algorithm gives PPO's). ``{}`` if the text is
+    not a JSON object."""
+    try:
+        data = _json_object(text)
+    except (ValueError, SpecError):
+        return {}
+    found = {}
+    for name, path in QUICK_SETTINGS.items():
+        value: object = data
+        for key in path:
+            value = value.get(key) if isinstance(value, dict) else None
+        if name == "budget" and isinstance(value, dict):
+            value = value.get("ppo")
+        found[name] = value
+    return found
+
+
+def apply_settings(text: str, values: dict) -> str:
+    """An experiment text with the given ``QUICK_SETTINGS`` set (a value of None
+    removes the setting, so it has its default); every other setting keeps its
+    edit and its place. A budget given per algorithm stays a dict (PPO's entry is
+    set). ``ValueError`` if the text is not a JSON object or a name is unknown."""
+    data = _json_object(text)
+    for name, value in values.items():
+        if name not in QUICK_SETTINGS:
+            raise ValueError(f"unknown quick setting {name!r}")
+        *parents, last = QUICK_SETTINGS[name]
+        node = data
+        for key in parents:
+            if not isinstance(node.get(key), dict):
+                node[key] = {}
+            node = node[key]
+        if name == "budget" and isinstance(node.get(last), dict):
+            node, last = node[last], "ppo"
+        if value is None:
+            node.pop(last, None)
+        else:
+            node[last] = value
+    return to_text(data)
 
 
 def editable(text: str, default_name: str = "experiment") -> str:

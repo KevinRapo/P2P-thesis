@@ -21,7 +21,9 @@ from studio.adapters.run_service import (
     PRESET_KEYS,
     RunService,
     apply_preset,
+    apply_settings,
     editable,
+    quick_settings,
 )
 
 
@@ -364,3 +366,45 @@ def test_a_preset_on_text_that_is_no_experiment_says_why():
     with pytest.raises(ValueError, match="colour"):
         apply_preset(bad, "test", template, "smoke")
     assert "colour" in apply_preset(bad, "full", template, "smoke")  # nothing to check
+
+
+def test_quick_settings_read_and_rewrite_the_editors_json():
+    """The start dialog's fields: the paradigms, seeds, budget, PPO settings,
+    workers and cluster resources are read from the editor's JSON and written back
+    into it, every other setting keeping its edit; None removes a setting (its
+    default then applies), and the result is still an experiment."""
+    text = editable((REPO / "experiments" / "market_ppo.json").read_text("utf-8"))
+    values = quick_settings(text)
+    assert values["paradigms"] == ["ctce", "ctde", "dtde"]
+    assert values["lr"] == 0.0003 and values["num_env_runners"] == 3
+    changed = apply_settings(
+        text,
+        {
+            "paradigms": ["ctde"],
+            "seeds": [0, 1],
+            "budget": 4800,
+            "lr": 0.001,
+            "num_env_runners": 2,
+            "cpus": 6,
+            "clip_param": None,
+        },
+    )
+    data = json.loads(changed)
+    assert data["paradigms"] == ["ctde"] and data["seeds"] == [0, 1]
+    assert data["budget"] == 4800 and data["num_env_runners"] == 2
+    assert data["training"]["ppo"]["lr"] == 0.001
+    assert "clip_param" not in data["training"]["ppo"]
+    assert data["resources"]["cpus"] == 6
+    assert data["test_days"] == json.loads(text)["test_days"]  # untouched
+    experiment = Experiment.from_dict(data, "x")
+    assert [r.name for r in experiment.expand()] == ["ppo_ctde_s0", "ppo_ctde_s1"]
+    per_algorithm = apply_settings(to_text_budget(text), {"budget": 900})
+    assert json.loads(per_algorithm)["budget"] == {"ppo": 900}
+    with pytest.raises(ValueError, match="unknown quick setting"):
+        apply_settings(text, {"sac_alpha": 1})
+
+
+def to_text_budget(text: str) -> str:
+    data = json.loads(text)
+    data["budget"] = {"ppo": 100}
+    return json.dumps(data)

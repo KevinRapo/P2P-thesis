@@ -113,7 +113,9 @@ TEST_MINUTES = 15
 TEST_DEFAULT_BUDGET = 100
 # The settings of the market environment an experiment may give in ``env_config``
 # (``core/env/market_env.py``), written out with ``written_out``; None: computed by
-# the environment. ``scenario``, ``days`` and ``seed`` come from the experiment.
+# the environment from the training days, recorded in the run's run.json and reused
+# for its held-out evaluation. ``scenario``, ``days`` and ``seed`` come from the
+# experiment.
 MARKET_ENV_CONFIG = {"energy_scale": None, "reward_scale": None}
 TEST_KEYS = (
     "seeds",

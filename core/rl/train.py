@@ -2,14 +2,21 @@
 
 A run is PPO in one paradigm, one seed and one budget of environment steps. Everything around it is written to the run's folder:
 
-    run.json         what was run: settings, environment, seed, versions, git
-                     commit, status, final scores (fixes L-16's missing record)
+    run.json         what was run: the environment config with the scales it
+                     resolved, the environment's contract (observation names,
+                     action components, partner mapping, scales), each agent's
+                     spaces, every PPO and network setting with its value, seed,
+                     versions, git commit, status, final scores (fixes L-16's
+                     missing record)
     metrics.csv      one row per progress report: environment steps, team
                      return, learner metrics per module and their mean, min and
                      max over the modules (``modules/<metric>_mean`` ...), timing
                      (idle polls omitted)
-    evaluation.csv   the policy and the baselines on held-out seeds, at fixed
-                     environment-step counts (fixes L-16's missing baselines)
+    evaluation.csv   periodic evaluation: the policy and the baselines on seeds
+                     training does not use, but on the training configuration
+                     (the market's training days), at fixed environment-step
+                     counts (fixes L-16's missing baselines). Not held out: the
+                     runner's ``heldout*.csv`` play the test days
     evaluation_agents.csv, evaluation_episodes.csv
                      the same evaluations kept per episode and agent, and per
                      episode (``core/rl/policy.py``, ``evaluation``)
@@ -25,6 +32,12 @@ What it fixes:
   training; the algorithm is stopped and Ray shut down even when a run fails.
 - L-15: ``load_policy`` acts with the trained module exactly as training does
   (``core/rl/policy.py``).
+
+The environment is built once before training. If it has ``resolved_config()``
+(the market: its energy and reward scales, computed from the training days), the
+run trains, evaluates and records with that config, so every later environment of
+the run (periodic evaluation, the held-out days, ``load_policy``) reuses the
+training scales unchanged.
 
 Each run starts its own Ray instance, unless ``RAY_ADDRESS`` names one that is
 already running: then the run joins it, so many runs in parallel share one Ray
@@ -153,21 +166,84 @@ def _git() -> dict[str, Any]:
         return {"commit": None, "uncommitted_changes": None}
 
 
-def _record(run: Run, config) -> dict[str, Any]:
-    algo_settings = {
-        k: v for k, v in config.to_dict().items() if k in _settings_keys(run)
-    }
+# Every PPO setting that decides what a run learns, recorded with its value whether
+# it was given or RLlib's default (``settings_effective`` in run.json).
+PPO_SETTINGS = (
+    "lr",
+    "gamma",
+    "lambda_",
+    "use_gae",
+    "use_critic",
+    "clip_param",
+    "vf_clip_param",
+    "vf_loss_coeff",
+    "entropy_coeff",
+    "use_kl_loss",
+    "kl_coeff",
+    "kl_target",
+    "num_epochs",
+    "minibatch_size",
+    "train_batch_size_per_learner",
+    "shuffle_batch_per_epoch",
+    "grad_clip",
+    "grad_clip_by",
+    "normalize_actions",
+    "clip_actions",
+)
+
+
+def resolve_env_config(env_class: type, env_config: dict) -> tuple[Any, dict]:
+    """The environment and the config every part of a run uses: the given one, or
+    the environment's ``resolved_config()`` (with what it computed, e.g. the
+    market's scales)."""
+    env = env_class(env_config)
+    resolve = getattr(env, "resolved_config", None)
+    return env, (resolve() if callable(resolve) else dict(env_config))
+
+
+def _env_record(env) -> dict[str, Any]:
+    """The environment's contract and each agent's spaces, for the record."""
+    found: dict[str, Any] = {}
+    contract = getattr(env, "contract", None)
+    if callable(contract):
+        found["env_contract"] = contract()
+    agents = list(getattr(env, "agents_id", []) or [])
+    if agents:
+        found["agents"] = agents
+        found["spaces"] = {
+            a: {
+                "observation": str(env.observation_spaces[a]),
+                "action": str(env.action_spaces[a]),
+            }
+            for a in agents
+        }
+    return found
+
+
+def _record(run: Run, config, env, env_config: dict) -> dict[str, Any]:
+    # Read from the config object: ``to_dict`` names some keys differently
+    # (``lambda``) or not at all (``train_batch_size_per_learner``).
+    algo_settings = {k: _value(config, k) for k in sorted(_settings_keys(run))}
     return {
         "algorithm": run.algorithm,
         "paradigm": run.paradigm,
         "env_class": _class_path(run.env_class),
-        "env_config": run.env_config,
+        "env_config": env_config,
+        "env_config_given": run.env_config,
+        **_env_record(env),
         "budget_env_steps": run.budget,
         "seed": run.seed,
         "eval_every": run.eval_every,
         "eval_seeds": evaluation_seeds(run.eval_episodes),
+        "periodic_evaluation": (
+            "evaluation*.csv: the training env_config (training days) on seeds "
+            "training does not use; not held out"
+        ),
         "settings": algo_settings,
+        "settings_effective": {k: _value(config, k) for k in PPO_SETTINGS}
+        | {"rollout_fragment_length": config.get_rollout_fragment_length()},
         "model": run.model,
+        "model_effective": dict(config.model_config),
         "num_env_runners": run.num_env_runners,
         "num_gpus": run.num_gpus,
         # None: Python's set order changed with the process, so the same seed does
@@ -184,6 +260,16 @@ def _record(run: Run, config) -> dict[str, Any]:
         "started": datetime.now().isoformat(timespec="seconds"),
         "status": "running",
     }
+
+
+def _value(config, key: str) -> Any:
+    """A setting of the algorithm config as it will run (JSON-friendly)."""
+    value = getattr(config, key, None)
+    return (
+        value
+        if isinstance(value, (int, float, str, bool, list, dict))
+        else (None if value is None else str(value))
+    )
 
 
 def _settings_keys(run: Run) -> set[str]:
@@ -324,18 +410,19 @@ def train(run: Run) -> dict[str, Any]:
         )
     )
     out.mkdir(parents=True, exist_ok=True)
+    env, env_config = resolve_env_config(run.env_class, run.env_config)
     config = build_config(
         run.algorithm,
         run.paradigm,
         run.env_class,
-        run.env_config,
+        env_config,
         seed=run.seed,
         training=run.training,
         num_env_runners=run.num_env_runners,
         num_gpus=run.num_gpus,
         model=run.model,
     )
-    record = _record(run, config) | {"out_dir": str(out)}
+    record = _record(run, config, env, env_config) | {"out_dir": str(out)}
     _write_json(out / "run.json", record)
 
     timings = {"evaluation_s": 0.0, "train_calls_s": 0.0}
@@ -355,14 +442,11 @@ def train(run: Run) -> dict[str, Any]:
     metric_columns: list[str] = []  # of metrics.csv, as its rows bring them
     written: dict[str, list[str]] = {}  # the columns of each evaluation CSV
     seeds = evaluation_seeds(run.eval_episodes)
-    env = run.env_class(run.env_config)
 
     def evaluate_now(env_steps: int, extra: Optional[dict] = None) -> None:
         evaluation_start = time.perf_counter()
         policies = {"trained": Policy(learner_modules(algo), run.paradigm, env)}
-        found = evaluation(
-            run.env_class, run.env_config, policies | (extra or {}), seeds
-        )
+        found = evaluation(run.env_class, env_config, policies | (extra or {}), seeds)
         evaluations.append(found.summary)
         for frame, name in (
             (found.summary, "evaluation.csv"),
@@ -378,7 +462,7 @@ def train(run: Run) -> dict[str, Any]:
         algo = build_algo(config)
         timings["build_s"] = time.perf_counter() - stage_start
         # Step 0: the untrained policy and the baselines, on the same seeds.
-        evaluate_now(0, baselines(run.env_class, run.env_config, run.seed))
+        evaluate_now(0, baselines(run.env_class, env_config, run.seed))
         env_steps, iteration = 0, 0
         learner_steps = 0
         loop_start = time.perf_counter()
@@ -452,7 +536,8 @@ def load_policy(run_dir: str | Path) -> tuple[Policy, dict[str, Any]]:
     """The trained policy of a finished run, and its record.
 
     The policy acts in the run's multi-agent environment as in training; no
-    algorithm or Ray is needed.
+    algorithm or Ray is needed. The environment is built from the recorded
+    ``env_config``, which holds the scales training resolved.
     """
     run_dir = Path(run_dir)
     record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))

@@ -373,18 +373,35 @@ def job(run_dir: str | Path) -> None:
         sys.exit(1)
 
 
+def heldout_env_config(
+    experiment: Experiment, exp_dir: Path, variant: Optional[str], record: dict
+) -> dict:
+    """The environment config of a run's held-out evaluation: the test days
+    (``Experiment.heldout_config``) with the energy and reward scales the run
+    resolved on its training days (``record``, its run.json), never scales
+    computed from the test days."""
+    from core.env import SCALE_KEYS
+
+    trained = record.get("env_config", {})
+    config = experiment.heldout_config(exp_dir, variant)
+    return config | {key: trained[key] for key in SCALE_KEYS if trained.get(key)}
+
+
 def _heldout(
     experiment: Experiment, run, run_dir: Path, variant: Optional[str] = None
 ) -> None:
     """The trained policy against the baselines on every test day once ->
-    ``heldout*.csv`` (see the module)."""
+    ``heldout*.csv`` (see the module). The test days are played with the scales
+    the run resolved on its training days (``run.json``), not ones computed from
+    the test days, so observations and rewards mean what they meant in training."""
     from core.env import net_position_policy, zero_policy
     from core.rl import evaluation, load_policy
 
-    config = experiment.heldout_config(run_dir.parent, variant)
+    policy, record = load_policy(run_dir)
+    config = heldout_env_config(experiment, run_dir.parent, variant, record)
     env = run.env_class(config)
     policies = {
-        "trained": load_policy(run_dir)[0],
+        "trained": policy,
         "zero": zero_policy(env),
         "net_position": net_position_policy(env),
     }

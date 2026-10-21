@@ -17,8 +17,10 @@ is not a notification: a line says why and when the data shown was last updated,
 goes away with the next read that works. Start, Stop and Sync show their errors as
 notifications. The "Start experiment" button starts an experiment on either target,
 with an experiment file from ``experiments/`` as the template, its JSON edited before
-the start (``StartDialog``); "Restart failed runs" starts an experiment
-again from the settings saved in its folder.
+the start (``StartDialog``), with the paradigms, seeds, budget, PPO settings,
+workers and cluster resources also offered as fields that rewrite the JSON;
+"Restart failed runs" starts an experiment again from the settings saved in its
+folder.
 """
 
 from __future__ import annotations
@@ -48,6 +50,34 @@ START_HINT = (
 PRESET_BUTTONS = {
     "test": ("Test preset", "science", "the smallest version, to check the pipeline"),
     "full": ("Full preset", "rocket_launch", "the template's run size"),
+}
+
+PARADIGM_CHOICES = {"ctce": "CTCE", "ctde": "CTDE", "dtde": "DTDE"}
+# The start dialog's fields (``RunService.QUICK_SETTINGS``): name -> (label, kind),
+# in groups; "int" and "float" are numbers, the others are their own kind.
+QUICK_GROUPS = {
+    "Runs": {
+        "paradigms": ("Paradigms", "paradigms"),
+        "seeds": ("Seeds (comma-separated)", "seeds"),
+        "budget": ("Budget (env steps per run)", "int"),
+    },
+    "PPO": {
+        "lr": ("Learning rate", "float"),
+        "train_batch_size_per_learner": ("Batch (env steps)", "int"),
+        "minibatch_size": ("Minibatch", "int"),
+        "num_epochs": ("Epochs", "int"),
+        "entropy_coeff": ("Entropy coefficient", "float"),
+        "clip_param": ("Clip", "float"),
+        "gamma": ("Discount γ", "float"),
+    },
+    "Workers and cluster resources (per run)": {
+        "num_env_runners": ("Environment runners", "int"),
+        "max_parallel": ("Runs in parallel (this PC)", "int"),
+        "torch_threads": ("Torch threads", "int"),
+        "cpus": ("CPUs (SLURM)", "int"),
+        "mem_gb": ("Memory GB (SLURM)", "float"),
+        "minutes": ("Minutes (SLURM)", "int"),
+    },
 }
 
 # state -> (Quasar colour of the badge, colour of its text)
@@ -564,6 +594,8 @@ class StartDialog:
         self.report: Optional[dict] = None  # the check of the chosen cluster
         self.fit: list[str] = []  # what that cluster cannot give the experiment
         self.starting = False  # a start request is running: one at a time
+        self.quick: dict[str, Any] = {}  # the fields of the quick settings
+        self._filling = False  # the fields are being set from the editor
         with ui.dialog() as self.dialog:
             with ui.card().classes("w-[760px] max-w-full gap-3"):
                 self.body = ui.column().classes("w-full gap-3")  # filled by ``show``
@@ -596,6 +628,10 @@ class StartDialog:
                     f"Overwrite name, seeds, days, budget, evaluation and resources "
                     f"in the editor with {purpose}; other edits stay"
                 )
+        with ui.expansion(
+            "Paradigms, PPO and resources", icon="tune", value=True
+        ).classes("w-full"):
+            self._build_quick()
         ui.label(
             "Edit the experiment as JSON: every setting is written out, with its "
             "default where the template gives none (docs: Training experiments, The "
@@ -621,6 +657,63 @@ class StartDialog:
             self.start = ui.button(
                 "Start", icon="play_arrow", on_click=self._start
             ).props("unelevated no-caps")
+
+    def _build_quick(self) -> None:
+        """The quick settings: each field rewrites its setting in the JSON."""
+        for group, fields in QUICK_GROUPS.items():
+            ui.label(group).classes("mls-card-caption")
+            with ui.row().classes("w-full gap-2"):
+                for name, (label, kind) in fields.items():
+                    if kind == "paradigms":
+                        field = ui.select(
+                            PARADIGM_CHOICES, multiple=True, label=label
+                        ).props("use-chips dense")
+                        field.classes("min-w-[260px]")
+                    elif kind == "seeds":
+                        field = ui.input(label).props("dense").classes("w-40")
+                    else:
+                        field = ui.number(label).props("dense").classes("w-40")
+                    field.on_value_change(lambda e, n=name: self._quick_changed(n))
+                    self.quick[name] = field
+
+    def _fill_quick(self) -> None:
+        """Show the editor's values in the quick settings."""
+        values = self.service.quick_settings(self.editor.value or "")
+        self._filling = True
+        try:
+            for name, field in self.quick.items():
+                value = values.get(name)
+                if name == "seeds":
+                    value = ", ".join(str(s) for s in value) if value else ""
+                elif name == "paradigms":
+                    value = list(value or [])
+                if field.value != value:
+                    field.set_value(value)
+        finally:
+            self._filling = False
+
+    def _quick_changed(self, name: str) -> None:
+        """A quick setting was edited: write it into the editor's JSON."""
+        if self._filling:
+            return
+        kind = next(
+            k for g in QUICK_GROUPS.values() for n, (_, k) in g.items() if n == name
+        )
+        value = self.quick[name].value
+        try:
+            if kind == "seeds":
+                value = [
+                    int(s) for s in str(value or "").replace(" ", "").split(",") if s
+                ]
+            elif kind == "int" and value is not None:
+                value = int(value)
+            elif kind == "float" and value is not None:
+                value = float(value)
+            text = self.service.apply_settings(self.editor.value or "", {name: value})
+        except ValueError as error:
+            _fail(f"Cannot set {name}: {error}")
+            return
+        self.editor.set_value(text)  # checked again by ``_changed``
 
     def _default_target(self, preset: str) -> str:
         """A test runs on this PC; a full experiment on the first cluster, if any."""
@@ -666,6 +759,7 @@ class StartDialog:
         else:
             name = Path(self.template.value).stem  # as for a file without a name
             self.record = self.service.describe(self.editor.value or "", name)
+        self._fill_quick()
         self._refit()
 
     def _refit(self) -> None:

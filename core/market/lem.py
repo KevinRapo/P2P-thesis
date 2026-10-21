@@ -462,6 +462,15 @@ class LocalEnergyMarket:
             out[pid] = OrderIntent(pid, i.is_buy, i.price, i.quantity_kwh, partner)
         return out
 
+    def distance_km(self, a: str, b: str) -> float:
+        """The grid distance d_ij ([P1] §3.5.1) between participants ``a`` and ``b``,
+        km along the lines; with ``b`` the DSO (``DSO_ID``), to the transformer's
+        busbar (the route of a trade with the DSO). Topology only: the same on
+        every day. Needs the network, so the market must have been ``reset``."""
+        if b == DSO_ID:
+            return self._upstream(a).distance_km
+        return self._path(a, b).distance_km
+
     def _path(self, a: str, b: str) -> GridPath:
         """The grid path between two participants' buses (cached): distance d_ij
         ([P1] §3.5.1), lines and zones."""

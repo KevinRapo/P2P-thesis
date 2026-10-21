@@ -46,7 +46,16 @@ def play(env: MarketEnv, policy, day: str):
 
 
 def random_actions(env: MarketEnv, rng: np.random.Generator) -> dict:
-    return {a: rng.uniform(-1, 1, 2).astype(np.float32) for a in env.agents_id}
+    """A random mixed action per agent: side, quantity, price and partner."""
+    return {
+        a: {
+            "side": int(rng.integers(2)),
+            "quantity": rng.uniform(-1, 1, 1).astype(np.float32),
+            "price": rng.uniform(-1, 1, 1).astype(np.float32),
+            "partner": int(rng.integers(len(AGENTS) + 1)),
+        }
+        for a in env.agents_id
+    }
 
 
 def first_step_where(env: MarketEnv, side: str):
@@ -70,15 +79,23 @@ def first_step_where(env: MarketEnv, side: str):
 # Spaces
 # --------------------------------------------------------------------------------------
 def test_spaces_and_observations(env):
-    """One agent per participant in scenario order, observation of 16 numbers
-    (``OBS_NAMES``), action of 2; observations stay finite and inside the space
-    after the reset and after steps (the policy network expects both)."""
+    """One agent per participant in scenario order. The observation: V1's 16
+    numbers (``OBS_NAMES``) first, then the partner block: last_preference, the
+    N − 1 peers' reputations, their distances and the distance to the DSO (16 + 1
+    + 4 + 5 = 26 with five agents). The action: the four parts of [P1] eq. 2,
+    side Discrete(2), quantity and price Box(1), partner Discrete(N + 1).
+    Observations stay finite and inside the space after the reset and after steps
+    (the policy network expects both)."""
     assert env.agents_id == AGENTS
     assert env.agents == env.possible_agents == AGENTS
     assert len(OBS_NAMES) == 16
+    assert env.obs_names[:16] == OBS_NAMES and len(env.obs_names) == 26
     for a in AGENTS:
-        assert env.observation_spaces[a].shape == (16,)
-        assert env.action_spaces[a].shape == (2,)
+        assert env.observation_spaces[a].shape == (26,)
+        space = env.action_spaces[a]
+        assert set(space.spaces) == {"side", "quantity", "price", "partner"}
+        assert space["side"].n == 2 and space["partner"].n == len(AGENTS) + 1
+        assert space["quantity"].shape == space["price"].shape == (1,)
 
     rng = np.random.default_rng(0)
     obs, infos = env.reset(seed=0)
@@ -114,7 +131,8 @@ def test_zero_episode_lasts_one_day(env):
 
 
 def test_zero_actions_submit_no_orders(env):
-    """The zero action is inside the dead zone: no order at all. Each agent's
+    """The zero policy's quantity share is 0, below the no-order threshold: no
+    order at all. Each agent's
     reward is then only what it had to import untraded, ``-utility * deferred /
     reward_scale`` (it earns nothing, and the import is charged)."""
     zero = zero_policy(env)
@@ -157,8 +175,12 @@ def test_reward_is_the_scaled_net_bill(env):
             assert all(
                 isinstance(v, float) for k, v in infos[a].items() if k not in nested
             )
+            labels = {"side", "partner"}  # the trace's labels; the rest numbers
             for part in nested:
-                assert all(isinstance(v, float) for v in infos[a][part].values())
+                assert all(
+                    isinstance(v, str if k in labels else float)
+                    for k, v in infos[a][part].items()
+                )
             shared = infos[a]["shared"]
             assert shared["p2p_kwh"] == pytest.approx(env.last_record.p2p_kwh)
             assert shared["bought_from_dso_kwh"] == pytest.approx(
@@ -169,19 +191,29 @@ def test_reward_is_the_scaled_net_bill(env):
 # --------------------------------------------------------------------------------------
 # Action decoding
 # --------------------------------------------------------------------------------------
+def action(side: int, quantity: float, price: float, partner: int) -> dict:
+    return {
+        "side": side,
+        "quantity": np.array([quantity], dtype=np.float32),
+        "price": np.array([price], dtype=np.float32),
+        "partner": partner,
+    }
+
+
 def test_action_decoding_sell(env):
-    """a0 = 1 offers everything the agent may sell (eq. 15a), up to the market's
-    maximum order size; a1 = -1 asks the feed-in tariff and a1 = 1 the utility
-    price. Checked on the orders as submitted, before any clearing. A value in the
-    dead zone places no order."""
+    """side 0 sells; quantity 1 offers everything the agent may sell (eq. 15a), up
+    to the market's maximum order size; price -1 asks the feed-in tariff and +1
+    the utility price. Checked on the orders as submitted, before any clearing. A
+    quantity share below the no-order threshold places no order."""
     pid = first_step_where(env, "sell")
     t = env.market.current_step
     bound = env.market.participants[pid].max_sell_kwh(t)
     expected = min(bound, env.market.scenario.market.max_quantity)
     fit, utility = env.feed_in_tariff, env.utility_price
+    none = len(AGENTS)  # the last partner index: no preference
 
-    def order_for(a0: float, a1: float):
-        env.step({pid: np.array([a0, a1], dtype=np.float32)})
+    def order_for(q: float, p: float):
+        env.step({pid: action(0, q, p, none)})
         return [o for o in env.last_record.orders if o.agent_id == pid]
 
     # one order per step: the same agent is tried again at the next step
@@ -198,25 +230,33 @@ def test_action_decoding_sell(env):
     assert high.quantity == pytest.approx(min(bound, 100.0), rel=1e-6)
     assert high.price == pytest.approx(utility)
 
-    assert order_for(0.049, 0.0) == []
+    # share (q + 1) / 2 = 0.049 is below the threshold 0.05: no order
+    assert order_for(2 * 0.049 - 1, 0.0) == []
 
 
 def test_action_decoding_buy(env):
-    """a0 = -1 asks for everything the agent may buy (eq. 15b), a0 = -0.525 half of
-    it (the dead zone is rescaled away: (0.525 - 0.05) / 0.95 = 0.5)."""
+    """side 1 buys; quantity 1 asks for everything the agent may buy (eq. 15b);
+    share (q + 1) / 2 = 0.525 is half of it (the threshold is rescaled away:
+    (0.525 - 0.05) / 0.95 = 0.5)."""
     pid = first_step_where(env, "buy")
     p = env.market.participants[pid]
     t = env.market.current_step
     bound = p.max_buy_kwh(t)
-    intent = env.decode(pid, np.array([-1.0, 0.0], dtype=np.float32))
+    intent = env.decode(pid, action(1, 1.0, 0.0, 0))
     assert intent.is_buy and intent.quantity_kwh == pytest.approx(bound)
     assert intent.price == pytest.approx((env.feed_in_tariff + env.utility_price) / 2)
-    half = env.decode(pid, np.array([-0.525, 0.0], dtype=np.float32))
+    half = env.decode(pid, action(1, 2 * 0.525 - 1, 0.0, 0))
     assert half.quantity_kwh == pytest.approx(bound / 2)
-    # clipped to [-1, 1] first
-    big = env.decode(pid, np.array([-5.0, 9.0], dtype=np.float32))
+    # continuous parts are clipped to [-1, 1] first
+    big = env.decode(pid, action(1, 5.0, 9.0, 0))
     assert big.quantity_kwh == pytest.approx(bound)
     assert big.price == pytest.approx(env.utility_price)
+    # encode is decode's inverse for baselines and tests
+    again = env.decode(pid, env.encode(pid, "buy", 0.5, 1.0))
+    assert again.quantity_kwh == pytest.approx(bound / 2, rel=1e-5)
+    assert again.price == pytest.approx(env.utility_price)
+    with pytest.raises(ValueError, match="outside its space"):
+        env.decode(pid, action(2, 1.0, 0.0, 0))
 
 
 # --------------------------------------------------------------------------------------
@@ -247,8 +287,9 @@ def test_same_seed_same_day_and_observations(env):
 # Baselines
 # --------------------------------------------------------------------------------------
 def test_net_position_beats_zero(env):
-    """The market's own bidding rule, read from the observation, gives actions in
-    [-1, 1] and a total reward at least the zero policy's on both days: trading
+    """The market's own bidding rule, read from the observation, gives actions
+    inside the action space and a total reward at least the zero policy's on both
+    days: trading
     must beat spilling the surplus and paying the utility price for every import
     (otherwise the reward does not teach trading)."""
     for day in DAYS:
@@ -256,8 +297,8 @@ def test_net_position_beats_zero(env):
 
         policy = net_position_policy(env)
         obs, _ = env.reset(seed=0)
-        for a in policy(obs).values():
-            assert a.shape == (2,) and (np.abs(a) <= 1.0).all()
+        for a, act in policy(obs).items():
+            assert env.action_spaces[a].contains(act)
         net_total, records = play(env, policy, day)
         net_total = net_total.sum()
         print(f"{day}: zero {zero_total:.3f}, net position {net_total:.3f}")
@@ -280,21 +321,23 @@ def test_passes_rllib_environment_check(env):
 
 def test_paradigm_wrappers_over_the_market(env):
     """The CTDE and CTCE wrappers see the market as the RL layer expects: under
-    CentralStateEnv each agent observes its own 16 values followed by all agents'
-    and keeps its own reward; under GroupedEnv one agent observes everything and
-    receives the sum of the rewards."""
+    CentralStateEnv each agent observes its own values followed by all agents'
+    and keeps its own reward and its own mixed action; under GroupedEnv one agent
+    observes everything, acts with a ``Tuple`` of the agents' ``Dict`` actions in
+    agent order, and receives the sum of the rewards."""
     from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv
 
     config = {
         "env_class": MarketEnv,
         "env_config": {"scenario": str(SCENARIO), "days": DAYS},
     }
-    n, d = len(env.agents_id), len(OBS_NAMES)
+    n, d = len(env.agents_id), len(env.obs_names)
 
     central = CentralStateEnv(config)
     obs, _ = central.reset(seed=1)
     assert all(o.shape == (d + n * d,) for o in obs.values())
-    actions = {a: np.array([0.5, 0.0], np.float32) for a in central.agents_id}
+    assert central.action_spaces == env.action_spaces
+    actions = {a: action(0, 0.5, 0.0, n) for a in central.agents_id}
     obs, rewards, term, _, _ = central.step(actions)
     assert set(rewards) == set(central.agents_id)
     first = central.agents_id[0]
@@ -303,6 +346,9 @@ def test_paradigm_wrappers_over_the_market(env):
     grouped = GroupedEnv(config)
     obs, _ = grouped.reset(seed=1)
     assert obs[GROUP].shape == (n * d,)
-    joint = np.tile(np.array([0.5, 0.0], np.float32), n)
+    space = grouped.action_spaces[GROUP]
+    assert list(space.spaces) == [env.action_spaces[a] for a in env.agents_id]
+    joint = tuple(action(0, 0.5, 0.0, n) for _ in range(n))
+    assert space.contains(joint)
     _, rewards, _, _, infos = grouped.step({GROUP: joint})
     assert rewards[GROUP] == pytest.approx(sum(infos[GROUP]["rewards"].values()))

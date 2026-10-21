@@ -7,7 +7,8 @@ lists every run; test-profile runs (``<name>--test``) can be hidden. The runs ti
 there are compared in the first tab, and one of them is looked into in the second.
 
 Compare: the settings that differ between the runs (their full saved values), the
-evaluation return over environment steps with each run's own baselines (and its
+periodic evaluation return over environment steps, played on the training days
+with seeds training did not use (not held out), with each run's own baselines (and its
 training return, if asked), every held-out test day (the trained policy minus each
 baseline on the same day), and each configuration over its training seeds. A run
 is named by its experiment and run, and also by its target when the runs come from
@@ -16,7 +17,9 @@ more than one.
 Inspect: one run's settings, test days, participants (a chosen outcome, trained
 minus a baseline, per day and participant; with many participants those with the
 largest difference, or those a filter names), the market and the grid per day, and,
-with detailed results, the traced days step by step (read only when opened).
+with detailed results, the traced days step by step (read only when opened):
+the market, and per participant its orders, the partner it named, whether the
+choice was mutual and what it traded in the preference stage (stage 1).
 
 Nothing is read again until Refresh: a new run or a new sync shows after it, in both
 tabs.
@@ -65,6 +68,19 @@ EPISODE_COLUMNS = [
     ("grid_violations", "Violations"),
     ("not_converged", "Not converged"),
 ]
+# A participant's orders and partner choice in a traced day (``heldout_trace_agents``).
+TRACE_COLUMNS = [
+    ("step", "Step"),
+    ("side", "Side"),
+    ("order_kwh", "Order kWh"),
+    ("order_price", "Price"),
+    ("partner", "Partner"),
+    ("partner_mutual", "Mutual"),
+    ("preference_kwh", "Stage 1 kWh"),
+    ("bought_kwh", "Bought kWh"),
+    ("sold_kwh", "Sold kWh"),
+    ("reward", "Reward"),
+]
 # The participant outcomes of ``heldout_agents.csv`` the Participants view offers.
 OUTCOMES = {
     "return": "Return",
@@ -72,6 +88,7 @@ OUTCOMES = {
     "bill": "Bill",
     "bought_kwh": "Bought kWh",
     "sold_kwh": "Sold kWh",
+    "preference_kwh": "Stage 1 (preference) kWh",
     "deferred_demand_kwh": "Deferred demand kWh",
     "deferred_supply_kwh": "Deferred supply kWh",
 }
@@ -436,9 +453,11 @@ class ResultsView:
                     ).classes("mls-card-caption")
             with section(
                 "Did it learn?",
-                "Each run's trained policy on the evaluation episodes during "
-                "training; its baselines at step 0, dashed in its colour (one grey "
-                "line when every run's is the same).",
+                "Each run's trained policy on the periodic evaluation episodes "
+                "during training: the training days, on seeds training did not "
+                "use (the held-out test days are below); its baselines at step 0, "
+                "dashed in its colour (one grey line when every run's is the "
+                "same).",
                 "show_chart",
             ):
                 if curves.empty:
@@ -670,8 +689,13 @@ class ResultsView:
                 ui.plotly(
                     _steps_figure(
                         one,
-                        ["p2p_kwh", "bought_from_dso_kwh", "sold_to_dso_kwh"],
-                        "market kWh",
+                        [
+                            "p2p_kwh",
+                            "preference_kwh",
+                            "bought_from_dso_kwh",
+                            "sold_to_dso_kwh",
+                        ],
+                        "market kWh (preference_kwh: stage 1, part of p2p)",
                     )
                 ).classes("w-full")
                 ui.plotly(
@@ -685,6 +709,25 @@ class ResultsView:
                 ui.plotly(
                     _steps_figure(person, ["soc", "reward"], "battery and reward")
                 ).classes("w-full")
+                shown = [(f, label) for f, label in TRACE_COLUMNS if f in person]
+                if "partner" in person:
+                    ui.label(
+                        "Orders and partners: the partner named (a participant, DSO "
+                        "or none), whether it named this participant back on the "
+                        "other side (1/0), and the energy traded in stage 1"
+                    ).classes("mls-card-caption")
+                    ui.table(
+                        columns=[
+                            {"name": f, "label": label, "field": f, "align": "left"}
+                            for f, label in shown
+                        ],
+                        rows=person[[f for f, _ in shown]]
+                        .round(4)
+                        .astype(object)
+                        .where(person[[f for f, _ in shown]].notna(), "")
+                        .to_dict("records"),
+                        row_key="step",
+                    ).props("dense flat").classes("w-full")
 
         for field in (day, policy, agent):
             field.on_value_change(draw)
