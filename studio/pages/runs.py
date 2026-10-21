@@ -522,10 +522,11 @@ def _budget(budget: int | dict) -> str:
 
 
 def _resources(resources: dict) -> str:
-    return (
+    text = (
         f"{resources['cpus']} cpus, {resources['mem_gb']:g} GB, "
         f"{resources['minutes']} min"
     )
+    return f"{text}, node {resources['node']}" if resources.get("node") else text
 
 
 class StartDialog:

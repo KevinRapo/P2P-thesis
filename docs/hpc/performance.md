@@ -129,6 +129,45 @@ booked CPUs at start-up and in the tail.
    replace the factor 1.5.
 3. Then refill the tables above.
 
+## Node types on the market
+
+Measured 20–21 October 2026 with [benchmark.py](../../core/rl/benchmark.py) on
+`MarketEnv` (`validate_market`, first week of June), the PPO and SAC settings of
+[market_3x3.json](../../experiments/market_3x3.json), one torch thread, no
+remote samplers. Seconds per 1000 environment steps; one measurement each.
+
+### Blackwell1 against a green node
+
+Both jobs at the same time, 4 CPUs each.
+
+| | green24 (Xeon Gold 6148) | blackwell1 (EPYC 9755) | Speed-up |
+|---|---|---|---|
+| PPO CTCE | 29.7 | 10.1 | 2.96 × |
+| PPO CTDE | 32.6 | 12.1 | 2.69 × |
+| PPO DTDE | 34.0 | 12.7 | 2.69 × |
+| SAC CTCE | 148.2 | 68.0 | 2.18 × |
+| SAC DTDE | 528.2 | 243.1 | 2.17 × |
+
+- The market and power flow take about 10 s on blackwell1 and 24–32 s on green
+  (about 3 ×); SAC's learner gains about 2 ×.
+- TalTech bills per core-hour at the same price on every node, so a run on
+  blackwell1 costs about half as much. It is only in `short` (4 h), and it is one
+  node: choose it with `resources.node` ([resources](resources.md#what-a-run-gets)).
+
+### GPU against CPU
+
+amp1, one A100, the same job for both:
+
+| | CPU | GPU | CPU learning | GPU learning |
+|---|---|---|---|---|
+| PPO CTCE | 21.0 | 18.8 | 0.65 | 0.74 |
+| PPO CTDE | 23.6 | 23.6 | 2.25 | 2.68 |
+| PPO DTDE | 23.4 | 23.4 | 2.18 | 2.58 |
+| SAC CTCE | 116.0 | 114.6 | 97.1 | 93.7 |
+
+No gain: PPO's step is about 90 % market, and SAC's networks are too small for the
+GPU (learning 3 % faster). The market is CPU bound; use CPU nodes.
+
 ## Sizing
 
 For the probe notebook in one Jupyter job with shared Ray (the runner's arrays

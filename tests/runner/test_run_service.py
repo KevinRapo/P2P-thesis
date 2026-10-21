@@ -234,7 +234,7 @@ def test_the_smoke_spec_in_numbers():
     (smoke,) = [r for r in RunService().spec_files() if r["name"] == "smoke"]
     assert smoke["runs"] == 2  # two seeds
     assert smoke["budget"] == 2000
-    assert smoke["resources"] == {"cpus": 4, "mem_gb": 4, "minutes": 120}
+    assert smoke["resources"] == {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
 
 
 def test_a_spec_that_does_not_load_says_why(tmp_path):

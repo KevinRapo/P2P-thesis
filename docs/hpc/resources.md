@@ -190,6 +190,7 @@ experiment:
 | `resources.cpus` | 4 | SLURM CPUs per run; creates no extra samplers |
 | `resources.mem_gb` | 4 | Memory per run (not per CPU) |
 | `resources.minutes` | 120 | Wall time per run, evaluation and saving included |
+| `resources.node` | null | One node by name (`"blackwell1"`, `"green24"`); null: any node of the partition |
 | `torch_threads` | 1 | `torch.set_num_threads` in each run |
 | `num_env_runners` | 0 | Remote sampling processes per run; zero samples locally |
 | `ray_thread_caps` | true | Ray's thread pools at one thread each ([why](#capping-rays-thread-pools)) |
@@ -199,6 +200,11 @@ ignored (no reservation, no time limit); `max_parallel`, `torch_threads` and
 `num_env_runners` apply.
 On the cluster the runner takes the first partition in `targets.toml` whose limit
 allows `minutes`: `short` up to 240, then `common` up to 11,520; longer is refused.
+With `node`, only the partitions that contain that node count (asked of `sinfo` at
+submission): `blackwell1` is only in `short`, so its runs must fit in 240 minutes.
+All runs of the experiment then wait for that one node. Per run, blackwell1 was
+2.2–3 × faster than a green node at the same price per core-hour
+([measurements](performance.md#blackwell1-against-a-green-node)).
 
 ## Inside one run
 

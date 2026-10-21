@@ -242,7 +242,8 @@ def test_start_submits_one_array_task_per_run(tmp_path, cluster):
     record = registry.read_json(exp_dir / "slurm.json")
     assert record["array_id"] == ARRAY
     assert record["partition"] == "short" and record["account"] == "acc"
-    assert record["resources"] == {"cpus": 2, "mem_gb": 3, "minutes": 90}
+    assert parameters["slurm_nodelist"] is None  # any node of the partition
+    assert record["resources"] == {"cpus": 2, "mem_gb": 3, "minutes": 90, "node": None}
     assert record["tasks"] == {name: f"{ARRAY}_{i}" for i, name in enumerate(names)}
     assert record["submitted"]
     for i, name in enumerate(names):
@@ -283,6 +284,48 @@ def test_choose_partition():
         slurm.choose_partition(PARTITIONS, 20000)
     with pytest.raises(SpecError, match="no partition"):
         slurm.choose_partition([], 10)
+
+
+@pytest.fixture()
+def sinfo(monkeypatch):
+    """``sinfo`` knows blackwell1 (in ``short`` and ``gpu``) and green24 (in ``short``
+    and ``common``); records what it is asked."""
+    known = {"blackwell1": "short\ngpu\n", "green24": "short\ncommon\n"}
+    calls: list = []
+
+    def run(command, **options):
+        calls.append(command)
+        out = known.get(command[command.index("-n") + 1], "")
+        return subprocess.CompletedProcess(command, 0, stdout=out)
+
+    monkeypatch.setattr(slurm.subprocess, "run", run)
+    return calls
+
+
+def test_start_on_one_node_asks_for_it(tmp_path, cluster, sinfo):
+    root, _ = cluster
+    path = spec_file(tmp_path, resources={"minutes": 90, "node": "blackwell1"})
+    slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+    parameters = FakeExecutor.created[0].parameters
+    assert parameters["slurm_nodelist"] == "blackwell1"
+    assert parameters["slurm_partition"] == "short"
+    record = registry.read_json(root / "exp" / "slurm.json")
+    assert record["resources"]["node"] == "blackwell1"
+
+
+def test_a_node_takes_only_its_own_partitions(sinfo):
+    long = {"minutes": 600, "node": "green24"}
+    assert slurm.runs_partition(PARTITIONS, long)["name"] == "common"
+    with pytest.raises(SpecError, match="on node 'blackwell1': no partition allows"):
+        slurm.runs_partition(PARTITIONS, long | {"node": "blackwell1"})
+    with pytest.raises(SpecError, match="none of which the target lists"):
+        slurm.runs_partition(PARTITIONS[1:], {"minutes": 9, "node": "blackwell1"})
+    with pytest.raises(SpecError, match="SLURM knows no node 'nope'"):
+        slurm.runs_partition(PARTITIONS, {"minutes": 9, "node": "nope"})
+    sinfo.clear()
+    any_node = {"minutes": 9, "node": None}
+    assert slurm.runs_partition(PARTITIONS, any_node) == PARTITIONS[0]
+    assert sinfo == []  # no node: sinfo is not asked
 
 
 def test_start_with_no_fitting_partition_changes_nothing(tmp_path, cluster):

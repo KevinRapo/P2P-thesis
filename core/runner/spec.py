@@ -37,9 +37,11 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "ray_thread_caps": true,          Ray's thread pools at one thread each
                                         (launch.RAY_THREAD_CAPS); false: Ray's
                                         own sizes, from the node's hardware
-      "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120},
+      "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": null},
                                         per run on a SLURM cluster (the defaults
-                                        shown; unknown keys are refused)
+                                        shown; unknown keys are refused); "node":
+                                        one node by name ("blackwell1"), null:
+                                        any node of the partition
       "test": {"budget": 500}           changes to the test profile, see below
     }
 
@@ -101,7 +103,7 @@ TRACE_DAYS = 3  # the default of ``trace_days``
 # The scenario of a started experiment, in its folder (see the module).
 SCENARIO_FILE = "scenario.json"
 # Per run on a SLURM cluster; ``resources`` in the spec overrides these.
-RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120}
+RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
 # What the test profile uses where the ``test`` block says nothing.
 TEST_MINUTES = 15
 TEST_DEFAULT_BUDGET = 100
@@ -414,8 +416,8 @@ class Experiment:
 
     @property
     def run_resources(self) -> dict:
-        """What one run asks of a SLURM cluster: ``cpus``, ``mem_gb`` and ``minutes``,
-        the spec's ``resources`` over the defaults."""
+        """What one run asks of a SLURM cluster: ``cpus``, ``mem_gb``, ``minutes``
+        and ``node``, the spec's ``resources`` over the defaults."""
         return RESOURCE_DEFAULTS | self.resources
 
     def heldout_episodes(self) -> list[tuple[int, str]]:
@@ -691,7 +693,7 @@ def _json(value, level: int) -> str:
 # --------------------------------------------------------------------------------------
 def _check_resources(value, where: str) -> None:
     """``value`` maps some of ``cpus``, ``mem_gb`` and ``minutes`` to positive numbers
-    (``cpus`` and ``minutes`` whole)."""
+    (``cpus`` and ``minutes`` whole), and ``node`` to one node's name or None."""
     if not isinstance(value, dict):
         raise SpecError(f"'{where}' maps {sorted(RESOURCE_DEFAULTS)} to numbers")
     unknown = sorted(set(value) - set(RESOURCE_DEFAULTS))
@@ -699,7 +701,16 @@ def _check_resources(value, where: str) -> None:
         raise SpecError(
             f"unknown '{where}' key(s) {unknown}; use {sorted(RESOURCE_DEFAULTS)}"
         )
+    node = value.get("node")
+    if node is not None and (
+        not isinstance(node, str) or not node or any(c in node for c in " ,[]")
+    ):
+        raise SpecError(
+            f"'{where}.node' is one node's name (e.g. 'blackwell1') or null"
+        )
     for key, number in value.items():
+        if key == "node":
+            continue
         kinds = (int, float) if key == "mem_gb" else int
         if isinstance(number, bool) or not isinstance(number, kinds) or number <= 0:
             raise SpecError(

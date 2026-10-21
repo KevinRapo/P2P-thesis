@@ -115,6 +115,43 @@ def choose_partition(partitions: list[dict], minutes: int) -> dict:
     )
 
 
+def node_partitions(node: str) -> set[str]:
+    """The partitions that contain ``node``, as ``sinfo`` lists them (``SpecError``
+    when SLURM knows no such node)."""
+    command = ["sinfo", "-h", "-N", "-n", node, "-o", "%R"]
+    try:
+        done = subprocess.run(
+            command, capture_output=True, text=True, timeout=SACCT_TIMEOUT_S
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise RuntimeError(f"sinfo failed: {error}") from None
+    found = set(done.stdout.split()) if done.returncode == 0 else set()
+    if not found:
+        raise SpecError(
+            f"SLURM knows no node {node!r} ('resources.node'); `sinfo -N` lists them"
+        )
+    return found
+
+
+def runs_partition(partitions: list[dict], resources: dict) -> dict:
+    """The partition for runs with these ``resources``: the first of ``partitions``
+    that allows ``minutes`` and, with a ``node``, contains that node."""
+    node = resources.get("node")
+    if not node:
+        return choose_partition(partitions, resources["minutes"])
+    on_node = node_partitions(node)
+    usable = [p for p in partitions if p["name"] in on_node]
+    if not usable:
+        raise SpecError(
+            f"node {node!r} is in partition(s) {sorted(on_node)}, none of which the "
+            f"target lists ({[p['name'] for p in partitions]})"
+        )
+    try:
+        return choose_partition(usable, resources["minutes"])
+    except SpecError as error:
+        raise SpecError(f"on node {node!r}: {error}") from None
+
+
 def start(
     spec: str | Path | Experiment,
     *,
@@ -133,7 +170,8 @@ def start(
         spec: The experiment file, or the ``Experiment`` itself (``spec.resolve``).
         account: The SLURM account to charge.
         partitions: ``[{"name", "max_minutes"}, ...]`` in order of preference; the
-            first that allows the runs' ``resources.minutes`` is used.
+            first that allows the runs' ``resources.minutes`` (and contains
+            ``resources.node``, when given) is used.
         root: The folder with the experiments (default: the runs root).
         profile: ``"full"`` or ``"test"`` (``Experiment.test_version``).
 
@@ -143,12 +181,12 @@ def start(
     experiment = resolve(spec, profile)
     exp_dir = (Path(root) if root else runs_root()) / experiment.name
     resources = experiment.run_resources
-    partition = choose_partition(partitions, resources["minutes"])
     if shutil.which("sbatch") is None:
         raise RuntimeError(
             "sbatch not found: run this on the cluster (its login node), or use a "
             "target that drives the cluster from here"
         )
+    partition = runs_partition(partitions, resources)
     tasks = _refuse_while_alive(experiment.name, exp_dir)
     specs = launch.prepare(experiment, exp_dir, slurm=tasks)
     queued = [s for s in specs if registry.current_state(s.out_dir) == "queued"]
@@ -162,6 +200,7 @@ def start(
         mem_gb=resources["mem_gb"],
         slurm_partition=partition["name"],
         slurm_account=account,
+        slurm_nodelist=resources["node"],  # None: any node of the partition
         slurm_array_parallelism=experiment.max_parallel,
         slurm_setup=[
             f"export PYTHONPATH={shlex.quote(str(REPO))}",

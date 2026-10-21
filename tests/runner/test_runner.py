@@ -246,6 +246,9 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
         ({"resources": {"mem_gb": 0}}, "'resources.mem_gb' must be a positive number"),
         ({"resources": {"minutes": -5}}, "'resources.minutes' must be a positive"),
         ({"resources": [4]}, "'resources' maps"),
+        ({"resources": {"node": ""}}, "'resources.node' is one node's name"),
+        ({"resources": {"node": "green[1-3]"}}, "'resources.node' is one node"),
+        ({"resources": {"node": 1}}, "'resources.node' is one node's name"),
         ({"test": {"budgets": 1}}, "unknown 'test' key"),
         ({"test": ["seeds"]}, "'test' maps"),
         ({"test": {"train_days": 0}}, "'test.train_days' is a number of days"),
@@ -327,7 +330,7 @@ def test_written_out_shows_every_setting_and_makes_the_same_runs():
 # Resources, writing a spec back, and the test profile
 # --------------------------------------------------------------------------------------
 def test_run_resources_default_and_override():
-    default = {"cpus": 4, "mem_gb": 4, "minutes": 120}
+    default = {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
     assert Experiment.from_dict(spec(), "x").run_resources == default
     experiment = Experiment.from_dict(spec(resources={"mem_gb": 8.5}), "x")
     assert experiment.run_resources == default | {"mem_gb": 8.5}
@@ -370,7 +373,12 @@ def test_test_version_is_the_smallest_version():
     assert (version.eval_every, version.eval_points) == (None, None)
     assert version.eval_episodes == 1
     assert version.heldout_episodes() == [(2000, "2016-07-01")]
-    assert version.run_resources == {"cpus": 8, "mem_gb": 16, "minutes": 15}
+    assert version.run_resources == {
+        "cpus": 8,
+        "mem_gb": 16,
+        "minutes": 15,
+        "node": None,
+    }
     assert version.test == {}
     assert version.description == "Test version of big: Everything"
     for key in (
@@ -445,7 +453,12 @@ def test_test_block_overrides_the_defaults():
     assert version.budget == 300
     assert version.eval_episodes == 2
     assert len(version.heldout_episodes()) == 2  # one per test day
-    assert version.run_resources == {"cpus": 2, "mem_gb": 4, "minutes": 30}
+    assert version.run_resources == {
+        "cpus": 2,
+        "mem_gb": 4,
+        "minutes": 30,
+        "node": None,
+    }
     assert version.test == {}
 
 

@@ -63,6 +63,6 @@
   "torch_threads": 1,
   "num_env_runners": 3,
   "ray_thread_caps": true,
-  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 30},
+  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 30, "node": null},
   "test": {}
 }

@@ -143,7 +143,7 @@ class RunService:
         """The specs in the specs folder, by file name, with what the start dialog
         shows. Each: ``path``, ``name``, ``description``, ``runs``, ``budget``
         (environment steps per run, an int or one per algorithm), ``resources`` (cpus,
-        mem_gb and minutes per run on a cluster), ``text`` (the file as it is
+        mem_gb, minutes and node per run on a cluster), ``text`` (the file as it is
         written), ``experiment`` (the ``Experiment``) and ``error``: why the file does
         not load (the other fields but ``text`` are then None)."""
         found = []

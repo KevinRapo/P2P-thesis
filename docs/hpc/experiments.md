@@ -89,7 +89,7 @@ is the one below; the Studio's start dialog shows every template this way
   "torch_threads": 1,
   "num_env_runners": 3,
   "ray_thread_caps": true,
-  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120},
+  "resources": {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": null},
   "test": {}
 }
 ```
