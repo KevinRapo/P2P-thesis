@@ -145,6 +145,8 @@ nav:
   - Implementation:
       - marlem-v1: v1.md
       - Code structure: structure.md
+      - Walkthroughs:
+          - One market step: market-step.md
       - SimBench:
           - simbench/README.md
           - Network catalogue: simbench/networks.md

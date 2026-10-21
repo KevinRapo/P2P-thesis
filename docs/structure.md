@@ -350,6 +350,7 @@ market or pandapower directly.
 | `docs/` | This documentation (Markdown); `docs/networks.py` generates the network catalogue |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets; [`export_drawio.py`](../docs_site/export_drawio.py) exports the `.drawio` diagrams under `docs/` to the SVGs the pages show |
 | [`docs/experiments/`](experiments/grid-methods.md) | The thesis's experiments: the grid-method comparison (proposal) with its diagram (`diagrams/grid_methods.drawio`, exported to `grid-methods.svg`) |
+| [`docs/market-step.md`](market-step.md) | One market step, phase by phase: the outline of `LocalEnergyMarket.advance`, one card per phase (reads, computes, writes, code, paper, decisions) and where every quantity is calculated |
 | `run_studio.py` | Starts the Studio with auto-reload |
 | [`run_all.py`](../run_all.py) | Starts this checkout's docs and Studio in separate windows using the current Python; `docs` and `studio` select one |
 | `AGENTS.md` | Rules for working in this repository |
