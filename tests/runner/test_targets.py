@@ -33,7 +33,15 @@ CLUSTER = {
     "account": "acc",
     "partitions": [{"name": "short", "max_minutes": 240}],
 }
-REPORT_KEYS = ["target", "ok", "problems", "local_commit", "cluster_commit", "active"]
+REPORT_KEYS = [
+    "target",
+    "ok",
+    "problems",
+    "local_commit",
+    "cluster_commit",
+    "active",
+    "nodes",
+]
 
 
 def write(path: Path, data: dict) -> None:
@@ -372,8 +380,13 @@ def test_slurm_target_start_and_stop_go_through_slurm(root, monkeypatch):
     )
     assert target.stop("smoke--test", "a") == {"cancelled": [ARRAY], "stopped": ["a"]}
     assert calls[1] == ("stop", "smoke--test", "a", root)
-    with pytest.raises(targets.TargetError, match="no 'account'"):
+    with pytest.raises(targets.TargetError, match="x.json: "):  # does not load
         targets.SlurmTarget("t", {"kind": "slurm"}).start("x.json")
+    with pytest.raises(targets.TargetError, match="has no 'partitions'"):
+        targets.SlurmTarget("t", {"kind": "slurm"}).start("experiments/smoke.json")
+    no_account = {"kind": "slurm", "partitions": CLUSTER["partitions"]}
+    with pytest.raises(targets.TargetError, match="no 'account'"):
+        targets.SlurmTarget("t", no_account).start("experiments/smoke.json")
 
 
 def test_slurm_target_check_is_ready_with_sbatch_and_submitit(root, monkeypatch):
@@ -419,7 +432,13 @@ def test_slurm_target_start_refuses_with_the_problems(root, monkeypatch):
 # --------------------------------------------------------------------------------------
 COMMIT = "0123456789abcdef0123456789abcdef01234567"
 RUN_JSON = {"name": "a", "state": "running", "progress": 0.5, "env_steps": 10}
-SSH_SETTINGS = {"kind": "slurm", "host": "h", "repo": "~/r", "python": "py"}
+SSH_SETTINGS = {
+    "kind": "slurm",
+    "host": "h",
+    "repo": "~/r",
+    "python": "py",
+    "partitions": [{"name": "short", "max_minutes": 240}],
+}
 REMOTE_SETTINGS = SSH_SETTINGS | {"mirror": "runs/@h"}
 CLUSTER_OK = {"target": "taltech", "ok": True, "problems": [], "active": []}
 
@@ -597,6 +616,31 @@ def test_remote_check_with_a_spec_that_loads_is_ready(tmp_path, repo):
     assert target.check(repo / "experiments" / "x.json")["problems"] == []
     experiment = Experiment.load(repo / "experiments" / "x.json")
     assert target.check(experiment)["ok"] is True  # an experiment, not a file
+
+
+def test_remote_check_reports_a_node_or_time_the_cluster_cannot_give(tmp_path, repo):
+    target, fake = remote_target(tmp_path, head=head_of(repo))
+    nodes = {"blackwell1": ["short"], "green24": ["common", "short"]}
+    fake.answers["check"] = CLUSTER_OK | {"nodes": nodes}
+    path = tmp_path / "node.json"
+    write(path, spec_of(repo) | {"resources": {"node": "blackwell13"}})
+    report = target.check(path)
+    assert report["nodes"] == nodes  # the cluster's, for the Studio
+    (problem,) = report["problems"]
+    assert "no node 'blackwell13'" in problem and "'blackwell1'" in problem
+    write(path, spec_of(repo) | {"resources": {"node": "green24", "minutes": 600}})
+    (problem,) = target.check(path)["problems"]
+    assert "no partition allows 600 minutes" in problem  # the target lists short only
+    assert target.check(path, profile="test")["problems"] == []  # 15 minutes
+    # What the Studio calls on each edit: the same, without asking the cluster.
+    calls = len(fake.calls)
+    assert target.fit_problems(path, nodes, "test") == []
+    assert "did not list its nodes" in target.fit_problems(path, None)[0]
+    assert len(fake.calls) == calls
+
+
+def test_this_pc_ignores_resources():
+    assert targets.LocalTarget().fit_problems("any.json", None) == []
 
 
 def test_remote_check_does_not_need_the_spec_or_scenario_committed(tmp_path, repo):
@@ -907,7 +951,7 @@ def test_errors_exit_2_as_text_or_as_json(populated, capsys, monkeypatch, tmp_pa
 def test_a_refused_start_is_an_error_on_stdout_with_json(root, capsys, monkeypatch):
     has_sbatch(monkeypatch, True)
 
-    def not_ready(self, spec_path=None, allow_uncommitted=False):
+    def not_ready(self, spec_path=None, allow_uncommitted=False, profile="full"):
         return targets._report(self.name, ["sbatch not found"])
 
     monkeypatch.setattr(targets.SlurmTarget, "check", not_ready)
@@ -1089,9 +1133,7 @@ def remote_cli(tmp_path, monkeypatch):
 def test_cli_start_through_a_remote_target(remote_cli, tmp_path, capsys, monkeypatch):
     target, fake = remote_cli
     monkeypatch.setattr(targets.RemoteTarget, "_start", lambda self, spec, profile: "s")
-    monkeypatch.setattr(
-        targets.RemoteTarget, "_check_spec", staticmethod(lambda spec: [])
-    )
+    monkeypatch.setattr(targets, "_spec_problems", lambda spec, profile: [])
     monkeypatch.setattr(
         targets, "_git", lambda *args: COMMIT if args[0] == "rev-parse" else ""
     )

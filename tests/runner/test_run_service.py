@@ -56,6 +56,10 @@ class FakeTarget:
         self.calls.append(("check", spec_path))
         return {"target": self.name, "ok": True}
 
+    def fit_problems(self, spec, nodes, profile="full"):
+        self.calls.append(("fit_problems", spec, nodes))
+        return ["no node"] if nodes == {} else []
+
     def start(self, spec_path, profile="full"):
         self.calls.append(("start", spec_path, profile))
         return "x--test" if profile == "test" else "x"
@@ -187,6 +191,12 @@ def test_overview_is_the_targets_newest_first(fakes):
     assert RunService().overview("taltech") == [new, old]
     assert fakes["taltech"].calls == [("overview",)]
     assert fakes["local"].calls == []
+
+
+def test_fit_problems_go_to_the_target_with_the_nodes_of_its_check(fakes):
+    service = RunService()
+    assert service.fit_problems("taltech", "experiments/x.json", {}) == ["no node"]
+    assert fakes["taltech"].calls == [("fit_problems", "experiments/x.json", {})]
 
 
 def test_check_start_stop_and_sync_go_to_the_target_asked(fakes):

@@ -286,20 +286,38 @@ def test_choose_partition():
         slurm.choose_partition([], 10)
 
 
+# `sinfo -h -N -o "%N %R"`: a node once per partition it is in.
+SINFO = "blackwell1 short\nblackwell1 gpu\ngreen24 short\ngreen24 common\n"
+NODES = {"blackwell1": ["gpu", "short"], "green24": ["common", "short"]}
+
+
 @pytest.fixture()
 def sinfo(monkeypatch):
-    """``sinfo`` knows blackwell1 (in ``short`` and ``gpu``) and green24 (in ``short``
-    and ``common``); records what it is asked."""
-    known = {"blackwell1": "short\ngpu\n", "green24": "short\ncommon\n"}
+    """``sinfo`` lists ``SINFO``; records what it is asked."""
     calls: list = []
 
     def run(command, **options):
         calls.append(command)
-        out = known.get(command[command.index("-n") + 1], "")
-        return subprocess.CompletedProcess(command, 0, stdout=out)
+        return subprocess.CompletedProcess(command, 0, stdout=SINFO)
 
     monkeypatch.setattr(slurm.subprocess, "run", run)
     return calls
+
+
+def test_parse_sinfo_groups_the_partitions_by_node():
+    assert slurm.parse_sinfo(SINFO + "\nnoise\n") == NODES
+    assert slurm.parse_sinfo("") == {}
+
+
+def test_cluster_nodes_asks_sinfo_once(sinfo, monkeypatch):
+    assert slurm.cluster_nodes() == NODES
+    assert sinfo == [["sinfo", "-h", "-N", "-o", "%N %R"]]
+
+    def missing(command, **options):
+        raise FileNotFoundError("sinfo")
+
+    monkeypatch.setattr(slurm.subprocess, "run", missing)
+    assert slurm.cluster_nodes() is None
 
 
 def test_start_on_one_node_asks_for_it(tmp_path, cluster, sinfo):
@@ -313,19 +331,30 @@ def test_start_on_one_node_asks_for_it(tmp_path, cluster, sinfo):
     assert record["resources"]["node"] == "blackwell1"
 
 
-def test_a_node_takes_only_its_own_partitions(sinfo):
+def test_start_on_a_node_the_cluster_lacks_submits_nothing(tmp_path, cluster, sinfo):
+    root, _ = cluster
+    path = spec_file(tmp_path, resources={"node": "blackwell13"})
+    with pytest.raises(SpecError, match="did you mean 'blackwell1'"):
+        slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+    assert FakeExecutor.created == []
+
+
+def test_a_node_takes_only_its_own_partitions():
     long = {"minutes": 600, "node": "green24"}
-    assert slurm.runs_partition(PARTITIONS, long)["name"] == "common"
+    assert slurm.runs_partition(PARTITIONS, long, NODES)["name"] == "common"
     with pytest.raises(SpecError, match="on node 'blackwell1': no partition allows"):
-        slurm.runs_partition(PARTITIONS, long | {"node": "blackwell1"})
+        slurm.runs_partition(PARTITIONS, long | {"node": "blackwell1"}, NODES)
+    short = {"minutes": 9, "node": "blackwell1"}
     with pytest.raises(SpecError, match="none of which the target lists"):
-        slurm.runs_partition(PARTITIONS[1:], {"minutes": 9, "node": "blackwell1"})
-    with pytest.raises(SpecError, match="SLURM knows no node 'nope'"):
-        slurm.runs_partition(PARTITIONS, {"minutes": 9, "node": "nope"})
-    sinfo.clear()
+        slurm.runs_partition(PARTITIONS[1:], short, NODES)
+    with pytest.raises(SpecError, match="no node 'blackwell13'.*'blackwell1'"):
+        slurm.runs_partition(PARTITIONS, short | {"node": "blackwell13"}, NODES)
+    with pytest.raises(SpecError, match="its nodes: blackwell1, green24"):
+        slurm.runs_partition(PARTITIONS, short | {"node": "xyz"}, NODES)
+    with pytest.raises(SpecError, match="did not list its nodes"):
+        slurm.runs_partition(PARTITIONS, short, None)
     any_node = {"minutes": 9, "node": None}
-    assert slurm.runs_partition(PARTITIONS, any_node) == PARTITIONS[0]
-    assert sinfo == []  # no node: sinfo is not asked
+    assert slurm.runs_partition(PARTITIONS, any_node, None) == PARTITIONS[0]
 
 
 def test_start_with_no_fitting_partition_changes_nothing(tmp_path, cluster):

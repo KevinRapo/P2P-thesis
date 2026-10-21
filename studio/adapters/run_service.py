@@ -109,6 +109,14 @@ class RunService:
         start that experiment), as the report of ``Target.check``."""
         return self.target(target).check(spec)
 
+    def fit_problems(
+        self, target: str, spec: targets.Spec, nodes: Optional[dict]
+    ) -> list[str]:
+        """What the experiment asks that the target cannot give, on the ``nodes`` of
+        its last check (``Target.fit_problems``): no connection, so it can run on
+        every edit."""
+        return self.target(target).fit_problems(spec, nodes)
+
     def start(self, target: str, spec: targets.Spec, profile: str = "full") -> str:
         """Queue and start the experiment ``spec`` (a file or an ``Experiment``;
         ``profile`` ``"full"`` or ``"test"``); returns its name. It checks first and

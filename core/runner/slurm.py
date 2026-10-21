@@ -19,6 +19,7 @@ call) and tells from it whether a run is alive.
 
 from __future__ import annotations
 
+import difflib
 import re
 import shlex
 import shutil
@@ -115,31 +116,55 @@ def choose_partition(partitions: list[dict], minutes: int) -> dict:
     )
 
 
-def node_partitions(node: str) -> set[str]:
-    """The partitions that contain ``node``, as ``sinfo`` lists them (``SpecError``
-    when SLURM knows no such node)."""
-    command = ["sinfo", "-h", "-N", "-n", node, "-o", "%R"]
+def parse_sinfo(text: str) -> dict[str, list[str]]:
+    """The nodes in the output of ``sinfo -h -N -o "%N %R"``: ``{node: [partitions it
+    is in]}``, sorted."""
+    nodes: dict[str, set[str]] = {}
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) == 2:
+            nodes.setdefault(fields[0], set()).add(fields[1])
+    return {node: sorted(nodes[node]) for node in sorted(nodes)}
+
+
+def cluster_nodes() -> Optional[dict[str, list[str]]]:
+    """Every node of the cluster with its partitions (``parse_sinfo``): one ``sinfo``
+    call. None when ``sinfo`` is missing or fails."""
+    command = ["sinfo", "-h", "-N", "-o", "%N %R"]
     try:
         done = subprocess.run(
             command, capture_output=True, text=True, timeout=SACCT_TIMEOUT_S
         )
-    except (OSError, subprocess.SubprocessError) as error:
-        raise RuntimeError(f"sinfo failed: {error}") from None
-    found = set(done.stdout.split()) if done.returncode == 0 else set()
-    if not found:
-        raise SpecError(
-            f"SLURM knows no node {node!r} ('resources.node'); `sinfo -N` lists them"
-        )
-    return found
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return parse_sinfo(done.stdout) if done.returncode == 0 else None
 
 
-def runs_partition(partitions: list[dict], resources: dict) -> dict:
+def runs_partition(
+    partitions: list[dict],
+    resources: dict,
+    nodes: Optional[dict[str, list[str]]],
+) -> dict:
     """The partition for runs with these ``resources``: the first of ``partitions``
-    that allows ``minutes`` and, with a ``node``, contains that node."""
+    that allows ``minutes`` and, with a ``node``, contains that node. ``nodes`` is
+    the cluster's (``cluster_nodes``), needed only with a node. ``SpecError`` says
+    why there is none."""
     node = resources.get("node")
     if not node:
         return choose_partition(partitions, resources["minutes"])
-    on_node = node_partitions(node)
+    if nodes is None:
+        raise SpecError(
+            f"cannot check 'resources.node' {node!r}: the cluster did not list its "
+            "nodes (sinfo)"
+        )
+    if node not in nodes:
+        close = difflib.get_close_matches(node, list(nodes), n=3)
+        if close:
+            known = f"did you mean {' or '.join(map(repr, close))}?"
+        else:
+            known = f"its nodes: {', '.join(nodes)}"
+        raise SpecError(f"the cluster has no node {node!r} ('resources.node'); {known}")
+    on_node = set(nodes[node])
     usable = [p for p in partitions if p["name"] in on_node]
     if not usable:
         raise SpecError(
@@ -186,7 +211,8 @@ def start(
             "sbatch not found: run this on the cluster (its login node), or use a "
             "target that drives the cluster from here"
         )
-    partition = runs_partition(partitions, resources)
+    nodes = cluster_nodes() if resources["node"] else None
+    partition = runs_partition(partitions, resources, nodes)
     tasks = _refuse_while_alive(experiment.name, exp_dir)
     specs = launch.prepare(experiment, exp_dir, slurm=tasks)
     queued = [s for s in specs if registry.current_state(s.out_dir) == "queued"]

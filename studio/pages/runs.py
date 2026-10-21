@@ -562,6 +562,7 @@ class StartDialog:
         self.templates: dict[str, dict] = {}  # the experiment files, by path
         self.record: Optional[dict] = None  # ``describe`` of the editor's text
         self.report: Optional[dict] = None  # the check of the chosen cluster
+        self.fit: list[str] = []  # what that cluster cannot give the experiment
         self.starting = False  # a start request is running: one at a time
         with ui.dialog() as self.dialog:
             with ui.card().classes("w-[760px] max-w-full gap-3"):
@@ -665,11 +666,23 @@ class StartDialog:
         else:
             name = Path(self.template.value).stem  # as for a file without a name
             self.record = self.service.describe(self.editor.value or "", name)
+        self._refit()
+
+    def _refit(self) -> None:
+        """Check the experiment against the chosen cluster's last report (what it
+        asks that the cluster cannot give, e.g. a node it does not have), then show
+        the details and update Start."""
+        experiment = self.record["experiment"] if self.record else None
+        self.fit = []
+        if experiment is not None and self.report is not None:
+            nodes = self.report.get("nodes")
+            self.fit = self.service.fit_problems(self.target.value, experiment, nodes)
         self._show_details()
         self._update_start()
 
     def _show_details(self) -> None:
-        """The runs the experiment makes, or what is wrong."""
+        """The runs the experiment makes, or what is wrong; and what the chosen
+        cluster cannot give."""
         self.details.clear()
         record = self.record
         if record is None:
@@ -688,6 +701,13 @@ class StartDialog:
                     "Cluster resources per run": _resources(record["resources"]),
                 }
             )
+            label = self.targets.get(self.target.value, self.target.value)
+            for problem in self.fit:
+                with ui.row().classes("items-start gap-2 no-wrap"):
+                    ui.icon("error_outline", size="20px", color="negative")
+                    ui.label(f"On {label}: {problem}").classes(
+                        "text-body2 text-negative"
+                    )
 
     # --- Checking and starting -------------------------------------------------------
     async def _check(self) -> None:
@@ -697,7 +717,7 @@ class StartDialog:
         asked = self.target.value
         self.report = None
         self.check_box.clear()
-        self._update_start()
+        self._refit()
         if asked == LOCAL:
             return
         with self.check_box:
@@ -712,13 +732,14 @@ class StartDialog:
             ui.button("Check again", icon="refresh", on_click=self._check).props(
                 "flat no-caps dense"
             )
-        self._update_start()
+        self._refit()
 
     def _update_start(self) -> None:
-        """Start needs an experiment that loads, for a cluster a report that is ok,
-        and no start that is still running."""
+        """Start needs an experiment that loads, for a cluster a report that is ok
+        and nothing the cluster cannot give, and no start that is still running."""
         ready = bool(self.record and self.record["experiment"]) and (
-            self.target.value == LOCAL or bool(self.report and self.report["ok"])
+            self.target.value == LOCAL
+            or bool(self.report and self.report["ok"] and not self.fit)
         )
         self.start.set_enabled(ready and not self.starting)
 

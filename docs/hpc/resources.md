@@ -200,9 +200,18 @@ ignored (no reservation, no time limit); `max_parallel`, `torch_threads` and
 `num_env_runners` apply.
 On the cluster the runner takes the first partition in `targets.toml` whose limit
 allows `minutes`: `short` up to 240, then `common` up to 11,520; longer is refused.
-With `node`, only the partitions that contain that node count (asked of `sinfo` at
-submission): `blackwell1` is only in `short`, so its runs must fit in 240 minutes.
-All runs of the experiment then wait for that one node. Per run, blackwell1 was
+With `node`, only the partitions that contain that node count: `blackwell1` is only
+in `short`, so its runs must fit in 240 minutes. All runs of the experiment then
+wait for that one node.
+
+The target's `check` lists the cluster's nodes and their partitions (`sinfo`, in
+the report's `nodes`), and a check with an experiment refuses one the cluster
+cannot give: a node it does not have (with the closest names: "no node
+'blackwell13'; did you mean 'blackwell1'?"), or more minutes than the node's
+partitions, or any listed partition, allow. `start` runs the same check, so nothing
+is submitted. The Studio's start dialog checks every edit against the nodes of the
+last check, and keeps Start disabled while a problem is shown. On this PC
+`resources` is ignored, so nothing is checked there. Per run, blackwell1 was
 2.2–3 × faster than a green node at the same price per core-hour
 ([measurements](performance.md#blackwell1-against-a-green-node)).
 

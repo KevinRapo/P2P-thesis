@@ -23,9 +23,14 @@ or where the runs happen:
 
     {"target": name, "ok": bool, "problems": [str, ...],
      "local_commit": this checkout's commit, "cluster_commit": the cluster's,
-     "active": [experiments with queued or running runs]}
+     "active": [experiments with queued or running runs],
+     "nodes": {node: [partitions]} of a SLURM cluster (``sinfo``)}
 
-``ok`` is true when there are no problems; keys that do not apply are None. ``start``
+``ok`` is true when there are no problems; keys that do not apply are None. With an
+experiment, the problems include what it asks that the target cannot give
+(``fit_problems``: a ``resources.node`` the cluster does not have, more minutes than
+its partitions allow); the Studio checks each edit against the report's ``nodes``
+with ``fit_problems``, without asking the cluster again. ``start``
 refuses with the problems of the report, so what is shown before a start and what stops
 it are the same list.
 
@@ -79,6 +84,7 @@ def _report(target: str, problems: list[str], **fields: Any) -> dict:
         "local_commit": None,
         "cluster_commit": None,
         "active": None,
+        "nodes": None,
     }
     return found | fields
 
@@ -94,11 +100,27 @@ class Target(ABC):
 
     @abstractmethod
     def check(
-        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
+        self,
+        spec: Optional[Spec] = None,
+        allow_uncommitted: bool = False,
+        profile: str = "full",
     ) -> dict:
         """Whether the target is ready, as the report in the module. With ``spec`` it
-        also covers that experiment. ``allow_uncommitted`` leaves out the problems
-        about code that is not committed or not the cluster's (development only)."""
+        also covers that experiment in ``profile``: that it loads and that the
+        target can give what it asks (``fit_problems``). ``allow_uncommitted`` leaves
+        out the problems about code that is not committed or not the cluster's
+        (development only)."""
+
+    def fit_problems(
+        self,
+        spec: Spec,
+        nodes: Optional[dict[str, list[str]]],
+        profile: str = "full",
+    ) -> list[str]:
+        """What the experiment asks that this target cannot give, given its nodes
+        (the report's ``nodes``). Fast: no connection, so the Studio calls it on
+        every edit. Here: nothing (this PC ignores ``resources``)."""
+        return []
 
     def start(
         self,
@@ -113,7 +135,7 @@ class Target(ABC):
         ``allow_uncommitted=True`` is for development only: the cluster then runs
         whatever its checkout holds, which may not be what is here.
         """
-        report = self.check(spec, allow_uncommitted=allow_uncommitted)
+        report = self.check(spec, allow_uncommitted, profile)
         if not report["ok"]:
             problems = "; ".join(report["problems"])
             raise TargetError(f"cannot start on {self.name}: {problems}")
@@ -229,7 +251,10 @@ class LocalTarget(DirectTarget):
         super().__init__("local", root)
 
     def check(
-        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
+        self,
+        spec: Optional[Spec] = None,
+        allow_uncommitted: bool = False,
+        profile: str = "full",
     ) -> dict:
         return _report(self.name, [])
 
@@ -265,12 +290,19 @@ class SlurmTarget(DirectTarget):
         return slurm.states(self.root / experiment)
 
     def check(
-        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
+        self,
+        spec: Optional[Spec] = None,
+        allow_uncommitted: bool = False,
+        profile: str = "full",
     ) -> dict:
         """Whether jobs can be submitted from here. The commit is this checkout's:
         a queued task runs the checkout as it is when the task starts, so ``active``
-        lists the experiments for which it must not be updated or edited."""
+        lists the experiments for which it must not be updated or edited. ``nodes``
+        is the cluster's, from ``sinfo``."""
+        from core.runner import slurm
+
         problems = []
+        nodes = slurm.cluster_nodes()
         if shutil.which("sbatch") is None:
             problems.append("sbatch not found: this is not a cluster's login node")
         try:
@@ -284,13 +316,25 @@ class SlurmTarget(DirectTarget):
             for entry in self.overview()
             if busy & set(entry["summary"]["counts"])
         ]
+        if spec is not None:
+            problems += _spec_problems(spec, profile)
+            problems += self.fit_problems(spec, nodes, profile) if not problems else []
         return _report(
             self.name,
             problems,
             local_commit=commit,
             cluster_commit=commit,
             active=active,
+            nodes=nodes,
         )
+
+    def fit_problems(
+        self,
+        spec: Spec,
+        nodes: Optional[dict[str, list[str]]],
+        profile: str = "full",
+    ) -> list[str]:
+        return _slurm_fit(self.name, self.settings, spec, nodes, profile)
 
     def _start(self, spec: Spec, profile: str) -> str:
         from core.runner import slurm
@@ -308,6 +352,41 @@ class SlurmTarget(DirectTarget):
         from core.runner import slurm
 
         return slurm.stop(experiment, run, self.root)
+
+
+def _spec_problems(spec: Spec, profile: str = "full") -> list[str]:
+    """Why the experiment cannot be started: it or its scenario does not load."""
+    try:
+        resolve(spec, profile)
+    except SpecError as error:
+        where = "" if isinstance(spec, Experiment) else f"{Path(spec).name}: "
+        return [f"{where}{error}"]
+    return []
+
+
+def _slurm_fit(
+    name: str,
+    settings: dict[str, Any],
+    spec: Spec,
+    nodes: Optional[dict[str, list[str]]],
+    profile: str,
+) -> list[str]:
+    """What the experiment asks that the SLURM target ``name`` cannot give: no
+    partition of the target allows its ``resources.minutes``, or its
+    ``resources.node`` is not a node of the cluster or not in such a partition
+    (``slurm.runs_partition``). An experiment that does not load: nothing here
+    (``_spec_problems`` says why)."""
+    from core.runner import slurm
+
+    try:
+        resources = resolve(spec, profile).run_resources
+    except SpecError:
+        return []
+    try:
+        slurm.runs_partition(_setting(name, settings, "partitions"), resources, nodes)
+    except (SpecError, TargetError) as error:
+        return [str(error)]
+    return []
 
 
 def _setting(name: str, settings: dict[str, Any], key: str) -> Any:
@@ -398,11 +477,15 @@ class RemoteTarget(Target):
 
     # --- Ready? -----------------------------------------------------------------------
     def check(
-        self, spec: Optional[Spec] = None, allow_uncommitted: bool = False
+        self,
+        spec: Optional[Spec] = None,
+        allow_uncommitted: bool = False,
+        profile: str = "full",
     ) -> dict:
         """Whether an experiment can start on the cluster: it answers and its own
         ``check`` passes, its checkout is at this machine's commit and has no changes
-        and, with ``spec``, the experiment and its scenario load here.
+        and, with ``spec``, the experiment and its scenario load here and the
+        cluster can give what it asks (``fit_problems``, on the cluster's nodes).
 
         Never raises for a connection problem: it is a problem of the report."""
         from core.runner.remote import RemoteError
@@ -419,7 +502,11 @@ class RemoteTarget(Target):
             problems.append(str(error))
         else:
             problems += [f"on the cluster: {text}" for text in cluster["problems"]]
-            found |= {"cluster_commit": commit, "active": cluster["active"]}
+            found |= {
+                "cluster_commit": commit,
+                "active": cluster["active"],
+                "nodes": cluster.get("nodes"),
+            }
             if local is None:
                 unshipped.append(
                     "cannot read this machine's commit (is it a git repository?)"
@@ -434,19 +521,18 @@ class RemoteTarget(Target):
                     "the cluster's checkout has uncommitted changes: clean it there"
                 )
         if spec is not None:
-            problems += self._check_spec(spec)
+            loads = _spec_problems(spec, profile)
+            problems += loads or self.fit_problems(spec, found["nodes"], profile)
         problems += [] if allow_uncommitted else unshipped
         return found | {"problems": problems, "ok": not problems}
 
-    @staticmethod
-    def _check_spec(spec: Spec) -> list[str]:
-        """Why the experiment cannot be sent: it or its scenario does not load."""
-        try:
-            resolve(spec)
-        except SpecError as error:
-            where = "" if isinstance(spec, Experiment) else f"{Path(spec).name}: "
-            return [f"{where}{error}"]
-        return []
+    def fit_problems(
+        self,
+        spec: Spec,
+        nodes: Optional[dict[str, list[str]]],
+        profile: str = "full",
+    ) -> list[str]:
+        return _slurm_fit(self.name, self.settings, spec, nodes, profile)
 
     # --- Start and stop ---------------------------------------------------------------
     def _start(self, spec: Spec, profile: str) -> str:
