@@ -19,7 +19,7 @@ What belongs to the DSO and nobody else:
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Callable, Mapping, Sequence
+from typing import Callable, Mapping, Optional, Sequence
 
 from core.grid.contract import GridAssessment, GridPath
 from core.market.order import GridFees, Order, Trade
@@ -66,6 +66,8 @@ class Dso:
         thermal_cap: f_threshold of eq. 8d.
         imbalance_factor: f_imb of eq. 8b.
         zone_factor: f_zone of eq. 8e.
+        voltage_drop: V_drop of eq. 8c: ``"distance"`` (eq. 8f) or ``"measured"``
+            (between the path's two buses in the step's power flow).
         id: The DSO's ID in trades and partner preferences.
     """
 
@@ -84,8 +86,11 @@ class Dso:
         thermal_cap: float = 0.3,
         imbalance_factor: float = 0.15,
         zone_factor: float = 0.15,
+        voltage_drop: str = "distance",
         id: str = DSO_ID,
     ) -> None:
+        if voltage_drop not in ("distance", "measured"):
+            raise ValueError("voltage_drop must be 'distance' or 'measured'")
         self.feed_in_tariff = feed_in_tariff
         self.utility_price = utility_price
         self.fees_charged = fees_charged
@@ -99,8 +104,10 @@ class Dso:
         self.thermal_cap = thermal_cap
         self.imbalance_factor = imbalance_factor
         self.zone_factor = zone_factor
+        self.voltage_drop = voltage_drop
         self.id = id
         self.line_loading_percent: Mapping[str, float] = {}
+        self.bus_voltage_pu: Mapping[str, float] = {}
         self.balance_kwh = 0.0
         self.profit = 0.0
         self.fees = 0.0
@@ -108,6 +115,7 @@ class Dso:
     def reset(self) -> None:
         """Back to the start of the day: nothing seen of the grid, balance 0."""
         self.line_loading_percent = {}
+        self.bus_voltage_pu = {}
         self.balance_kwh = 0.0
         self.profit = 0.0
         self.fees = 0.0
@@ -119,10 +127,24 @@ class Dso:
         return (self.feed_in_tariff + self.utility_price) / 2
 
     # --- The grid it operates --------------------------------------------------------
-    def observe(self, grid: GridAssessment) -> None:
-        """Remember the lines' loading of the power flow just run: the congestion
-        the same step's fees see ([P1] §3.5.3)."""
+    def observe(
+        self, grid: GridAssessment, measured: Optional[GridAssessment] = None
+    ) -> None:
+        """Remember the lines' loading of the step (``grid``: the power flow just
+        run, or the graph model's): the congestion the same step's fees see ([P1]
+        §3.5.3); and the bus voltages of the power flow (``measured``, default
+        ``grid``) for a measured voltage drop."""
         self.line_loading_percent = dict(grid.line_loading_percent)
+        self.bus_voltage_pu = dict((measured or grid).bus_voltage_pu)
+
+    def voltage_drop_of(self, path: GridPath) -> float:
+        """V_drop of a trade ([P1] eq. 8c): f_volt · d_ij (eq. 8f), or the measured
+        |V_a − V_b| between the path's two buses (0 when not known)."""
+        if self.voltage_drop == "distance":
+            return self.voltage_factor * path.distance_km
+        a = self.bus_voltage_pu.get(path.bus_a)
+        b = self.bus_voltage_pu.get(path.bus_b)
+        return abs(a - b) if a is not None and b is not None else 0.0
 
     def congestion(self, lines: Sequence[str]) -> float:
         """C_t of a trade ([P1] eq. 8a): the highest loading on its path in the
@@ -153,7 +175,7 @@ class Dso:
         if c > self.thermal_threshold:  # 8g, 8d
             f_thermal = (c - self.thermal_threshold) / (1 - self.thermal_threshold)
             thermal = min(f_thermal, self.thermal_cap) * value
-        v_drop = self.voltage_factor * path.distance_km  # 8f
+        v_drop = self.voltage_drop_of(path)  # 8f, or measured
         return GridFees(
             congestion=congestion,
             transmission=loss_kwh * price,

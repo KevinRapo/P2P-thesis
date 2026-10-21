@@ -217,12 +217,16 @@ class GridPath:
         zone_a: Zone of the first bus: the feeder it hangs on, named by the first
             bus after the transformer (or the external grid) on its way there.
         zone_b: Zone of the second bus.
+        bus_a: The first bus (for the voltages at the path's ends).
+        bus_b: The second bus; for the way upstream, the transformer's busbar.
     """
 
     distance_km: float = 0.0
     lines: tuple[str, ...] = ()
     zone_a: str = ""
     zone_b: str = ""
+    bus_a: str = ""
+    bus_b: str = ""
 
     @property
     def same_zone(self) -> bool:

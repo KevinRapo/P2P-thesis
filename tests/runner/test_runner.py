@@ -125,6 +125,31 @@ def test_env_config_and_date_ranges():
     assert experiment.heldout_config()["days"] == ["2016-07-01", "2016-07-02"]
 
 
+def test_a_variants_env_config_reaches_its_runs_and_held_out_evaluation():
+    graph = {"grid": {"method": "graph"}}
+    data = spec(
+        algorithms=["sac"],
+        paradigms=["dtde"],
+        seeds=[0],
+        variants={"ac": {}, "graph": {"env_config": graph, "actor_lr": 0.1}},
+        env_config={"energy_scale": 7.0},
+    )
+    experiment = Experiment.from_dict(data, "x")
+    ac, gr = experiment.expand()
+    assert "grid" not in ac.env_config
+    assert gr.env_config["grid"] == graph["grid"]
+    assert gr.env_config["energy_scale"] == 7.0
+    assert "env_config" not in gr.training and gr.training["actor_lr"] == 0.1
+    assert "grid" not in experiment.heldout_config(variant="ac")
+    assert experiment.heldout_config(variant="graph")["grid"] == graph["grid"]
+
+
+def test_a_variants_env_config_must_be_a_dict():
+    data = spec(variants={"graph": {"env_config": ["grid"]}})
+    with pytest.raises(SpecError, match="env_config"):
+        Experiment.from_dict(data, "x")
+
+
 def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):
     path = tmp_path / "x.json"
     path.write_text(json.dumps(spec()), encoding="utf-8")

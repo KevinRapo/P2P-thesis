@@ -354,7 +354,7 @@ def job(run_dir: str | Path) -> None:
         run = spec.run()
         train(run)
         if experiment.test_days and experiment.is_market:
-            _heldout(experiment, run, run_dir)
+            _heldout(experiment, run, run_dir, spec.variant)
         write_status(
             run_dir,
             state="completed",
@@ -373,13 +373,15 @@ def job(run_dir: str | Path) -> None:
         sys.exit(1)
 
 
-def _heldout(experiment: Experiment, run, run_dir: Path) -> None:
+def _heldout(
+    experiment: Experiment, run, run_dir: Path, variant: Optional[str] = None
+) -> None:
     """The trained policy against the baselines on every test day once ->
     ``heldout*.csv`` (see the module)."""
     from core.env import net_position_policy, zero_policy
     from core.rl import evaluation, load_policy
 
-    config = experiment.heldout_config(run_dir.parent)
+    config = experiment.heldout_config(run_dir.parent, variant)
     env = run.env_class(config)
     policies = {
         "trained": load_policy(run_dir)[0],

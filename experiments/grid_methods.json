@@ -1,0 +1,29 @@
+{
+  "name": "grid_methods",
+  "description": "The grid-method comparison (docs/experiments/grid-methods.md): PPO-CTDE with the fees from the power flow, the paper's graph model, and the graph model with real line ratings. The power flow is recorded in every arm.",
+  "scenario": "scenarios/validate_market.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["ppo"],
+  "paradigms": ["ctde"],
+  "seeds": [0, 1, 2],
+  "variants": {
+    "ac": {},
+    "graph": {"env_config": {"grid": {"method": "graph"}}},
+    "graph_ratings": {
+      "env_config": {"grid": {"method": "graph", "graph_capacity": "ratings"}}
+    }
+  },
+  "budget": 240000,
+  "eval_points": 10,
+  "eval_episodes": 10,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "train_batch_size_per_learner": 2400,
+      "minibatch_size": 240,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 3
+}

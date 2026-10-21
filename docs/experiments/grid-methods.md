@@ -1,8 +1,9 @@
 # Grid-method comparison
 
-> **Status: proposal.** Nothing on this page is in the code yet unless it is marked
-> *built*. It describes how the comparison would be implemented, so the design can
-> be assessed before it is built.
+> **Status: built on the `marlem-slurm` branch, for review.** The two arms, their
+> settings, the experiment and a first comparison without learning are in the code
+> there (see [Implementation](#implementation)). The diagram's *to build* tags
+> describe the state before that branch.
 
 The thesis compares two ways of letting the grid into the market, on the **same
 SimBench network** with the same participants, profiles, days, seeds and learning
@@ -48,25 +49,22 @@ and longer trades over a line raise its fee, while everything that is not traded
 
 ## Implementation
 
-1. **Graph model** in `core/grid/` behind the existing
-   [`GridModel`](../../core/grid/contract.py#L271) protocol, reusing the topology,
-   paths and zones of [`SimBenchGrid`](../../core/grid/powerflow.py). Each step it
-   builds the edge flows from the step's trades and reports them in the same form
-   as the power flow's line loading, so the DSO's fee code does not change.
-2. **A scenario setting** `grid.method` (`"powerflow"` or `"graph"`) with the graph
-   model's own parameters (capacity rule, total capacity). `LocalEnergyMarket`
-   picks the model that sets the fees from it.
-3. **Measurement in both arms.** The AC power flow runs in arm B too and its result
-   is recorded with the step, next to the graph model's loading, but it sets no
-   fee.
-4. **One experiment, both arms.** Experiment variants may override scenario fields
-   as well as training settings, e.g.
-   `"variants": {"ac": {}, "graph": {"scenario": {"grid": {"method": "graph"}}}}`,
-   so both arms share seeds and days and appear side by side on the Results page.
-5. **Order of work.** Settle the fee-related market points first (M-28, M-31,
-   M-32, M-33, M-34, M-41), since the fees are the only route the comparison runs
-   through; then compare the two arms with the baseline policies, which ignore
-   fees, so any difference in their fees is the method alone; then train.
+Where each part of the diagram lives in the code:
+
+| Part | Code |
+|---|---|
+| Settings | `GridSetup.method` (`"powerflow"`, `"graph"`), `graph_capacity` (`"paper"`, `"ratings"`), `graph_total_kw`; `DsoSetup.voltage_drop` (`"distance"`, `"measured"`) in [scenario.py](../../core/config/scenario.py). Old scenario files load with the defaults: the current behaviour |
+| Graph model | [`GraphGrid`](../../core/grid/graph.py): capacity per line (`capacities`), and `assess(step, flows)`, which adds each trade's kW to every line of its path and returns the loading in the power flow's own record (`GridAssessment.line_loading_percent`), so the DSO's fee code reads it unchanged |
+| Lines and path ends | [`SimBenchGrid.line_table`](../../core/grid/powerflow.py): length and rating of every line. `GridPath.bus_a` and `bus_b` ([contract.py](../../core/grid/contract.py)): the buses at the path's ends, for the measured voltage drop |
+| The step | [`LocalEnergyMarket.advance`](../../core/market/lem.py): power flow (always) → `_grid_signal` (the power flow itself, or `GraphGrid.assess` on the step's trades along the paths their fees use) → `_charge_fees`. `StepRecord.grid` is always the power flow; `StepRecord.signal` holds the graph model's loading in arm B |
+| Fees | [`Dso.observe(signal, measured=grid)`](../../core/market/dso/dso.py) and `Dso.voltage_drop_of`: the only change to the fees is where $C_t$ and $V_	ext{drop}$ come from |
+| Environment | [`MarketEnv`](../../core/env/market_env.py) takes `grid` and `dso` in `env_config`, which replace the scenario's fields; the state `fee_max_line_loading_percent` is the loading the fees saw |
+| Experiments | A variant may carry `env_config` ([spec.py](../../core/runner/spec.py)), merged into its runs' and their held-out evaluation's environment ([launch.py](../../core/runner/launch.py)). [`experiments/grid_methods.json`](../../experiments/grid_methods.json): PPO-CTDE, seeds 0-2, arms `ac`, `graph`, `graph_ratings` |
+| Checks | [`tests/market/test_grid_methods.py`](../../tests/market/test_grid_methods.py), runner tests in [`tests/runner/test_runner.py`](../../tests/runner/test_runner.py); [`notebooks/market/grid_methods.ipynb`](../../notebooks/market/grid_methods.ipynb): the arms with the net-position baseline (no learning) |
+
+Order of work from here: settle the fee-related market points (M-28, M-31, M-32,
+M-33, M-34, M-41), since the fees are the only route the comparison runs through;
+then train.
 
 ## Open decisions
 
@@ -81,7 +79,9 @@ and longer trades over a line raise its fee, while everything that is not traded
 
 ## A first check
 
-A scratch comparison on `validate_market.json` (`1-LV-rural1`, 5 participants, 13
+[`notebooks/market/grid_methods.ipynb`](../../notebooks/market/grid_methods.ipynb)
+reproduces these numbers with the implemented arms (the measured voltage drop gives
+a voltage fee of 1.3 instead of 24.5). A comparison on `validate_market.json` (`1-LV-rural1`, 5 participants, 13
 lines), 14 held-out July days with the net-position baseline (1,467 trades, 944
 with the DSO), gives a first idea of the size of the differences. Baseline
 behaviour only, one small network: an indication, not a result.
