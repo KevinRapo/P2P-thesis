@@ -57,7 +57,7 @@ flowchart TD
   rlcore --> renvs["envs/"]
   renvs --> r2["probes.py · toy.py · spread.py · shapes.py"]:::done
   rlcore --> rscripts["scripts/"]
-  rscripts --> r3["probe_ppo.py · benchmark.py · thread_probe.py"]:::done
+  rscripts --> r3["probe_check.py · probe_ppo.py<br/>benchmark.py · thread_probe.py"]:::done
 
   core --> runnercore["runner/"]
   runnercore --> ru1["spec.py · launch.py · registry.py · results.py<br/>slurm.py · targets.py · remote.py · __main__.py"]:::done
@@ -194,9 +194,10 @@ original code and its annotations live on the `clean` branch.
 | [`policy.py`](../core/rl/policy.py) | Policy actions for any action space RLlib's catalog handles (`to_env`: continuous parts unsquashed as RLlib's samplers do, categorical parts as indices; CTCE's group action back to each agent), baselines (random and constant per action part, or the environment's `baseline_policies`), rollout (with reset options, e.g. the day) and evaluation: `evaluation` keeps every episode per agent and per episode, and chosen episodes step by step, read from the infos' layout (amounts, `state` with numbers and labels, `shared`, `shared_state`); `evaluate` its summary | done |
 | [`train.py`](../core/rl/train.py) | `train(Run(...))`: the environment's resolved config (training scales) used for the whole run, training budgets, metrics (idle polls omitted; sampling/learner timers and training throughput), run records (resolved and given env config, the environment's contract, each agent's spaces, every PPO and network setting with its value, stage timings) and saved policies; periodic evaluation on the training configuration; `load_policy` | done |
 | [`scripts/benchmark.py`](../core/rl/scripts/benchmark.py) | Build, training and sampling timings (`benchmark_speed.ipynb`) | done |
-| [`scripts/probe_ppo.py`](../core/rl/scripts/probe_ppo.py) | Trains PPO on probes 1-6 in the three paradigms and scores each network against the exact answers (run it first after a change to `core/rl/`) | done |
+| [`scripts/probe_check.py`](../core/rl/scripts/probe_check.py) | The probe check: probes 1-10 with their budgets and presets (`fast`, `thorough`), training in one pool (on a SLURM job with one shared Ray instance and one worker per physical core), scoring each network against the exact answers, `escalate` (failures again at larger budgets). Used by `probe_ppo.py` and `probe_paradigms.ipynb` | done |
+| [`scripts/probe_ppo.py`](../core/rl/scripts/probe_ppo.py) | The probe check as one command (`--probes`, `--preset`, `--budget-scale`, `--escalate`); run it first after a change to `core/rl/` | done |
 | [`scripts/thread_probe.py`](../core/rl/scripts/thread_probe.py) | Measures the threads of one training run on a compute node ([threads per run](hpc/resources.md#threads-per-run)) | done |
-| [`envs/probes.py`](../core/rl/envs/probes.py) | Five probe tasks with known answers, and probe 6, `MixedActionProbe`: a categorical and a continuous action part with known optima per agent | done |
+| [`envs/probes.py`](../core/rl/envs/probes.py) | Five probe tasks with known answers; probe 6, `MixedActionProbe`: a categorical and a continuous action part with known optima per agent; probes 7-10, one market feature each: `GatedActionProbe` (a gate decides whether the choice counts), `MutualChoiceProbe` (pairs paid only for mutual naming, with a safe DSO option), `ConditionalPartProbe` (the best level depends on the side), `LongEpisodeProbe` (24 steps, reward at the end) | done |
 | [`envs/toy.py`](../core/rl/envs/toy.py) | Individual and team toy tasks | done |
 | [`envs/spread.py`](../core/rl/envs/spread.py) | MPE2 simple_spread and visualisation helpers | done |
 | [`envs/shapes.py`](../core/rl/envs/shapes.py) | Cheap environment with the original market's observation and action sizes (42 and 4; `MarketEnv` has 16 and 2) | done |
@@ -292,7 +293,7 @@ their setup cell finds the repository root from wherever they run. Runs go to
 | [`market/benchmark_market_step.ipynb`](../notebooks/market/benchmark_market_step.ipynb) | Time per market step on SimBench LV networks of 13 to 118 participants (random orders), split into market logic, grid preparation and the power flow; the floor under a training run on the market | done |
 | [`market/results/market_step.csv`](../notebooks/market/results/market_step.csv) | That notebook's summary, read by the RL speed benchmark (`notebooks/rl/benchmark_speed.ipynb`) | done |
 | [`market/grid_methods.ipynb`](../notebooks/market/grid_methods.ipynb) | The grid-method arms on `validate_market.json`, 14 test days, with the net-position baseline (no learning): same physics in every arm; fees per part; the loading the fees saw against the measured loading; losses of eq. 18 against the power flow | done |
-| [`rl/probe_paradigms.ipynb`](../notebooks/rl/probe_paradigms.ipynb) | The probe environments on every combination of algorithm and paradigm: run these first after any change to `core/rl/` | done |
+| [`rl/probe_paradigms.ipynb`](../notebooks/rl/probe_paradigms.ipynb) | The probe check (`probe_check.py`) for PPO in the three paradigms, probes 1-10: train in one pool, read each probe's outputs against the answers, learner health, longer budgets for failures. Runs here or in the cluster's Jupyter job | done |
 | [`rl/probe_playground.ipynb`](../notebooks/rl/probe_playground.ipynb) | Inspect learning iteration by iteration | done |
 | [`rl/simple_spread.ipynb`](../notebooks/rl/simple_spread.ipynb) | MPE2 `simple_spread`, the second test after the probes | done |
 | [`rl/benchmark_speed.ipynb`](../notebooks/rl/benchmark_speed.ipynb) | Compare RL timing with `notebooks/market/results/market_step.csv` | done |

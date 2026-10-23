@@ -34,7 +34,7 @@ order so that each stage rests only on the stages before it.
 | # | Stage | Question it answers | Size | Status |
 |---|---|---|---|---|
 | 1 | The decision problem | Is the market, as the agents see it, the problem we mean? | M | not started |
-| 2 | The learner on known answers | Does PPO with a mixed action learn what it should, in each paradigm? | M | not started |
+| 2 | The learner on known answers | Does PPO with a mixed action learn what it should, in each paradigm? | M | in progress (since 23 Oct) |
 | 3 | PPO design choices | Which settings follow from the method, before any tuning? | M | not started |
 | 4 | Diagnostics | What must a run report so that a failure can be explained? | S | not started |
 | 5 | First learning on the market | Does it learn the market, and which action part is the obstacle? | L | not started |
@@ -85,26 +85,30 @@ the paper's action belongs to.
 what it should, in each paradigm, on problems whose answer is known?
 
 **Read.** [probes.py](../../core/rl/envs/probes.py),
-[probe_ppo.py](../../core/rl/scripts/probe_ppo.py), the results in
-[v2.md §7](../v2.md); Andy Jones, *Debugging RL, Without the Agonizing Pain*
-(the probe method).
+[probe_check.py](../../core/rl/scripts/probe_check.py) (the procedure, used by
+[probe_ppo.py](../../core/rl/scripts/probe_ppo.py) and
+[probe_paradigms.ipynb](../../notebooks/rl/probe_paradigms.ipynb), here or on the
+cluster), the results in [v2.md §7](../v2.md); Andy Jones, *Debugging RL, Without
+the Agonizing Pain* (the probe method).
 
 **What exists.** Probes 1-6 pass in every paradigm, apart from a few continuous
-means just outside the 0.15 tolerance (V1 behaves identically).
-
-**What the market needs that the probes do not test yet** (new probes, each with
-an exact answer):
+means just outside the 0.15 tolerance (V1 behaves identically). Probes 7-10 (built
+23 Oct 2026), one market feature each, every one with an exact answer:
 
 | Probe | What it isolates | Why the market needs it |
 |---|---|---|
-| 7 Gated action | A continuous gate (the quantity) decides whether the categorical parts matter at all | The no-order region: side, price and partner get gradient from steps where they had no effect |
-| 8 Mutual choice | Two agents are rewarded only when they name each other on opposite sides | Stage 1 of the clearing in miniature: coordination of the partner choice, DTDE vs CTDE vs CTCE |
-| 9 Conditional part | The best partner depends on the sampled side | The limit of the factorised policy: the best factorised policy is known and lower than the best joint one |
-| 10 Long episode | 24 steps, reward at the end, known value per step | The market's horizon (the probes have 1-2 steps) |
+| 7 Gated action | A continuous gate decides whether a categorical choice counts; a closed gate pays a small safe reward | The no-order region: side, price and partner get gradient from steps where they had no effect, and "never order" is a local optimum |
+| 8 Mutual choice | Pairs are paid only when both name each other on opposite sides; naming the DSO is a safe outside option (a stag hunt) | Stage 1 of the clearing in miniature: coordination of the partner choice, DTDE vs CTDE vs CTCE |
+| 9 Conditional part | The best level depends on the side | The factorised policy samples price and quantity independently of the side: while the side is undecided they are one compromise for both |
+| 10 Long episode | 24 steps, reward at the end, value γ^(23−t) | The market's horizon (probes 1-6 have 1-2 steps) |
 
-**Done when** probes 7-10 exist with their exact answers, and the result of every
-probe in every paradigm is in the decision log with a one-line reading. Probe 9 is expected
-to *show* the factorisation limit, not to pass.
+Probes 7 and 8 are built with the market's local optima on purpose. A failure at
+the fast budget measures how hard the market's version is; `escalate` (2×, 4×,
+8× the budget) separates "slow" from "broken". Probe 9's answer is reachable by a
+factorised policy once the side is decided; it tests that the level follows.
+
+**Done when** the result of every probe in every paradigm, with the budget it
+passed at, is in the decision log with a one-line reading.
 
 **Decisions.** RP-2a. The tolerance for continuous means (0.15) and the budget rule
 (pass at 1× or 2×). RP-2b. Whether the factorised policy is kept (V2: yes) given

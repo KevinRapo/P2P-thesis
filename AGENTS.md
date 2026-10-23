@@ -159,10 +159,14 @@ branches, the ledger also on `marlem-v1`. When unsure, keep it and ask.
   chosen partner goes to `OrderIntent.partner_id` unchanged. Do not change the
   clearing (`core/market/clearing.py`) to suit the RL layer.
 - **Run the probes first after any change to `core/rl/` or its test environments**:
-  `python core/rl/scripts/probe_ppo.py` (probes 1-6, PPO, all three paradigms), then
+  `python core/rl/scripts/probe_ppo.py` (probes 1-10, PPO, all three paradigms;
+  the same procedure as `notebooks/rl/probe_paradigms.ipynb`, which also runs on
+  the cluster: `core/rl/scripts/probe_check.py`), then
   `tests/rl/`. The probes follow Andy Jones's guide
   (https://andyljones.com/posts/rl-debugging.html); each has an exact answer.
-  Probe 6 has a mixed (categorical and continuous) action.
+  Probe 6 has a mixed (categorical and continuous) action; probes 7-10 each
+  isolate one feature of the market (a gated choice, mutual partner choice, a
+  side-dependent part, the 24-step day).
 - The original RL code with its `FAULT`, `DECIDE` and `DEVIATION` annotations is
   on the `clean` branch, under `RL/core/rl/`.
 

@@ -21,7 +21,7 @@ hpc stop
 
 Skip `git shipc` when only notebook cells changed. Size the job to the work
 ([sizing](performance.md#sizing)): `-c 78 --mem=60G` is a whole green node, for
-the probe notebook's 38 parallel runs.
+the probe notebook's 30 runs (probes 1-10 in the three paradigms) at once; `escalate` then fills the node with the longer budgets.
 
 ## By hand
 
@@ -40,7 +40,7 @@ your account (`MARLEM_SLURM_ACCOUNT` in `.env`):
 | Command | Job |
 |---|---|
 | `sbatch --account=<account> hpc/jupyter.slurm` | The script's own settings: 4 CPUs, 8 GB, 2 h, partition `short` |
-| `sbatch --account=<account> -c 20 --mem=16G -t 03:00:00 hpc/jupyter.slurm` | One probe's 9 runs at once |
+| `sbatch --account=<account> -c 20 --mem=16G -t 03:00:00 hpc/jupyter.slurm` | 9 probe runs at once |
 | `sbatch --account=<account> -c 78 --mem=60G -t 01:30:00 hpc/jupyter.slurm` | A green node's worth (SLURM picks the node) |
 
 Options on the command line override the `#SBATCH` lines. Jupyter listens on port
