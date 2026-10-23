@@ -106,6 +106,10 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   names its `MP-` or `RP-` ID from the [decision log](docs/plan/decisions.md).
   How the plans, the decision log and the full cycle fit together:
   [docs/plan/index.md](docs/plan/index.md).
+- **Markers.** Four comment markers, listed in the workspace's `.vscode/settings.json`
+  (Todo Tree): `FAULT` (still broken), `BUG` (a bug to fix), `DEVIATION` (our own choice,
+  differing from the paper or the original) and `OPEN` (not decided: say what is open,
+  with its register or plan ID, and the choice used for now). Nothing else is marked.
 - New Python files: Black style, 88-character lines.
 - Never `git stash` in these worktrees.
 

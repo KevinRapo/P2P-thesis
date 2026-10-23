@@ -114,6 +114,109 @@ error ([P2] Table 7).
     to the networks **as they are**: neither the environment nor the trainer
     normalises them.
 
+#### The 42 signals as MARLEM defines them
+
+The papers name the 32 market and agent signals but give no formula for them. The
+definitions below come from the original code, the order is that of [P1]
+Table 2. Only the KPIs have equations in the papers ([P1] eq. 19-27); for them the
+paper's and the code's versions are shown side by side.
+
+Notation: $t$ is the current step and $T$ the number of steps in the episode.
+$\mathcal{T}_t$ is the set of trades of step $t$ (peers and DSO), and
+$\mathcal{T}^{\text{P2P}}_t \subseteq \mathcal{T}_t$ the trades between agents.
+$\mathcal{O}_t$ is the set of orders of step $t$, and $\mathcal{I}$ the set of
+agents. Each trade has a price $p$ and a quantity $q$. $G_{i,t}$ and $D_{i,t}$ are
+agent $i$'s generation and demand, and $b_{i,t}$ and $s_{i,t}$ the energy it bought
+and sold. $p_{\text{FiT},t}$ and $p_{\text{util},t}$ are the DSO's feed-in tariff
+and utility price, and $V^{\text{buy}}_t$ and $V^{\text{sell}}_t$ the energy the DSO
+bought and sold in step $t$.
+
+**Market signals** (public;
+[observation.py L280-L297](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/observation.py#L280-L297),
+computed in
+[matching.py L447-L502](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L447-L502)
+and
+[dso.py L266-L269](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L266-L269))
+
+| # | Signal | Definition in the original code |
+|---|---|---|
+| 1 | Step | $t$ |
+| 2 | Time of day | $(t \bmod T) / T$ |
+| 3 | Clearing price | $\sum_{\mathcal{T}_t} p\,q \,/\, \sum_{\mathcal{T}_t} q$, the DSO's trades included (M-15); the tariffs' midpoint without trades |
+| 4 | Clearing volume | $\sum_{\mathcal{T}_t} q$ |
+| 5 | Grid balance | $B_{\text{grid},t}$ ([P1] eq. 20) |
+| 6 | DSO buy volume | $V^{\text{buy}}_t$ |
+| 7 | DSO sell volume | $V^{\text{sell}}_t$ |
+| 8 | DSO total volume | $V^{\text{buy}}_t + V^{\text{sell}}_t$ |
+| 9 | P2P volume | $V^{\text{P2P}}_t = \sum_{\mathcal{T}^{\text{P2P}}_t} q$ |
+| 10 | DSO trade ratio | $(V^{\text{buy}}_t + V^{\text{sell}}_t) / \sum_{\mathcal{T}_t} q$; 0 without trades |
+| 11 | Net grid import | $V^{\text{sell}}_t - V^{\text{buy}}_t$ |
+| 12 | DSO buy price | $p_{\text{FiT},t}$ |
+| 13 | DSO sell price | $p_{\text{util},t}$ |
+| 14 | Mean local price | $\bar{p}^{\text{P2P}}_t = \sum_{\mathcal{T}^{\text{P2P}}_t} p\,q \,/\, V^{\text{P2P}}_t$; 0 without peer trades |
+| 15 | Price spread | $p_{\text{util},t} - p_{\text{FiT},t}$ |
+| 16 | Local price advantage | $\tfrac{1}{2}(p_{\text{FiT},t} + p_{\text{util},t}) - \bar{p}^{\text{P2P}}_t$; 0 without peer trades |
+
+**Agent signals** (private, for agent $i$;
+[observation.py L333-L350](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/observation.py#L333-L350),
+computed in
+[der.py L236-L366](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/der.py#L236-L366)
+and
+[battery.py L189-L203](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/battery.py#L189-L203)).
+The sums over $\tau$ run over the steps played so far.
+
+| # | Signal | Definition in the original code |
+|---|---|---|
+| 1 | Generation | $G_{i,t}$, the true value; [P2] Table 7 gives forecasts a 30 % error (E-05) |
+| 2 | Demand | $D_{i,t}$, likewise |
+| 3 | Cumulative demand satisfied | $\sum_\tau \min(D_{i,\tau},\, G_{i,\tau} + b_{i,\tau})$ |
+| 4 | Cumulative demand deferred | $\sum_\tau \max(0,\, D_{i,\tau} - G_{i,\tau} - b_{i,\tau})$ |
+| 5 | Remaining demand | $\sum_{\tau = t}^{T-1} D_{i,\tau}$ |
+| 6 | Cumulative supply satisfied | $\sum_\tau \min\!\big(G_{i,\tau},\, \min(D_{i,\tau}, G_{i,\tau}) + s_{i,\tau}\big)$ |
+| 7 | Cumulative supply deferred | $\sum_\tau \max\!\big(0,\, G_{i,\tau} - \min(D_{i,\tau}, G_{i,\tau}) - s_{i,\tau}\big)$ |
+| 8 | Remaining supply | $\sum_{\tau = t}^{T-1} G_{i,\tau}$ |
+| 9 | Mean profit | the agent's profit **summed** over the episode so far (`agent.profit`); [P1] Table 2 says mean |
+| 10 | Reputation | $r_i$ ([P1] eq. 12) |
+| 11 | Battery energy | $E_i$ |
+| 12 | State of charge | $E_i / C_i$, $C_i$ the nominal capacity |
+| 13 | Available charge | what the battery can still take ([P1] eq. 15d) |
+| 14 | Available discharge | what the battery can still give ([P1] eq. 15c) |
+| 15 | Cumulative charge | energy charged over the episode so far |
+| 16 | Cumulative discharge | energy discharged over the episode so far |
+
+The battery enters neither rows 3-4 (its discharge) nor rows 6-7 (its charge),
+although the code's comments say it does. An agent without a battery gets 0 for
+rows 11-16.
+
+**Implicit-cooperation KPIs** (shared; [P1] §3.6.2;
+[implicit_cooperation.py L82-L225](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/coordination/implicit_cooperation.py#L82-L225)).
+The code computes them over the trades and orders of the current step, except the
+two that use the history. $C_{\text{grid}}$ is the grid capacity the code is
+constructed with.
+
+| # | KPI | [P1] | Original code |
+|---|---|---|---|
+| 1 | Social welfare | eq. 21: $\sum_{\text{trades}} p\,q$ | $\sum_{\mathcal{T}_t} p\,\lvert q \rvert$ |
+| 2 | Market liquidity | eq. 22: $\sum_{\text{trades}} q$ | $\sum_{\mathcal{T}_t} \lvert q \rvert$ |
+| 3 | Mean bid-ask spread | eq. 23: $\mathbb{E}[p_{\text{ask}}] - \mathbb{E}[p_{\text{bid}}]$ | $\operatorname{mean}_{\mathcal{O}_t}(p \mid \text{buy}) - \operatorname{mean}_{\mathcal{O}_t}(p \mid \text{sell})$; 0 if a side is empty |
+| 4 | Price volatility | text: std of the clearing price over a window | std of every clearing price so far above 0; 0 with fewer than two (E-10) |
+| 5 | Supply-demand imbalance | eq. 24: $\lvert \sum q_{\text{buy}} - \sum q_{\text{sell}} \rvert / C_{\text{grid}}$ | $\min\!\big(1,\, \lvert \sum_{\mathcal{T}_t} q \rvert / C_{\text{grid}}\big)$ (E-08) |
+| 6 | Grid congestion | eq. 19: mean of $F_e / \max(C_e)$ over the lines | the DSO's congestion level, clipped to $[0, 1]$ |
+| 7 | Coordination score | eq. 27: $1 - \text{Imbalance}$ | $\min\!\big(1, \max(0,\, 1 - \lvert \sum_{\mathcal{T}_t} q \rvert / C_{\text{grid}})\big)$ |
+| 8 | Coordination convergence | text: "calculated similarly to the price volatility" | $1 - \min(1,\, \sigma / \mu)$ of the last three clearing volumes; 0 before the third step |
+| 9 | DER self-consumption | eq. 25: $\sum q_{\text{P2P}} / \sum (q_{\text{P2P}} + q_{\text{DSO}})$ | $V^{\text{P2P}}_t / \sum_{\mathcal{T}_t} q$; 0 without trades (E-12) |
+| 10 | Flexibility utilization | eq. 26: $\sum q_{\text{P2P}} / \sum q_{\text{available}}$ | $V^{\text{P2P}}_t / \sum_{i \in \mathcal{I}} \big[\max(0, G_{i,t} - D_{i,t} + A^{\text{dis}}_i) + \max(0, D_{i,t} - G_{i,t} + A^{\text{ch}}_i)\big]$ |
+
+In row 10, $A^{\text{ch}}_i$ and $A^{\text{dis}}_i$ are the battery's available
+charge and discharge.
+
+Row 3 has the opposite sign of eq. 23. The code names the sell orders' prices
+`bids` and the buy orders' prices `asks`, so it computes the mean bid minus the
+mean ask.
+
+Every value the code cannot compute (no trades, no peer trades, too little
+history) becomes 0, the same number as a real zero.
+
 ### 1.3 Reward ([P1] eq. 3-6, [P2] eq. 3)
 
 Every agent gets its own reward each step: a base reward of five weighted parts

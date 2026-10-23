@@ -42,6 +42,7 @@ flowchart TD
   market --> m4["clearing_price.py"]:::done
   market --> m2["order.py"]:::done
   market --> m5["reputation.py"]:::done
+  market --> m9["kpis.py"]:::done
   market --> agent["agent/"]
   agent --> a1["der.py"]:::done
   agent --> a2["battery.py"]:::done
@@ -160,6 +161,7 @@ the remaining original files (profiles) are the reference.
 | [`clearing_price.py`](../core/market/clearing_price.py) | `ClearingMechanism` enum: six pricing calculations with one fixed signature (fixes the seller price) | done |
 | [`order.py`](../core/market/order.py) | `Order`, `Trade` (stage, distance, loss, fee and who pays it) and `GridFees` (the parts of eq. 8) | done |
 | [`reputation.py`](../core/market/reputation.py) | The original's `ReputationHandler`, all reputation dials in one place (weights, decay): eq. 12 from reliability, price fairness and grid contribution, blended with the decay; reads a `StepRecord`; fixed where it disagreed with [P1] (see its docstring); `ReputationScore` | done |
+| [`kpis.py`](../core/market/kpis.py) | The paper's ten implicit-cooperation KPIs ([P1] eq. 19-27), each a function of the records of the steps it is given, in one registry (`KPIS`, `compute`); the definitions the papers leave open are marked `# OPEN` | done, open definitions provisional |
 | [`agent/der.py`](../core/market/agent/der.py) | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice by reputation and distance, settlement (eq. 13, 14 less its fees, battery eq. 16), its reputation (decay blend), its bus injection; `ParticipantOutcome` | done |
 | [`agent/battery.py`](../core/market/agent/battery.py) | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the market only calls it | done |
 | [`agent/rule_based_bid.py`](../core/market/agent/rule_based_bid.py) | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
@@ -312,6 +314,7 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`market/test_fees_timing.py`](../tests/market/test_fees_timing.py) | Grid fees priced on the same step's power flow (congestion and thermal parts), the first step charged like any other | done |
 | [`market/test_powerflow_recycle.py`](../tests/market/test_powerflow_recycle.py) | pandapower's `recycle` in the step power flow gives the same grid results | done |
 | [`market/test_grid_methods.py`](../tests/market/test_grid_methods.py) | The graph model's capacity rules and flows; a graph-mode day charges its thermal fees from the graph loading while `record.grid` stays the power flow; the same physics in both arms for a policy that ignores fees; the measured voltage drop | done |
+| [`market/test_kpis.py`](../tests/market/test_kpis.py) | Each KPI against numbers worked out by hand, the empty cases (NaN, not 0), the registry, and one real day | done |
 | [`rl/test_0_every_probe.py`](../tests/rl/test_0_every_probe.py) to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
 | [`rl/test_6_ctde_structure.py`](../tests/rl/test_6_ctde_structure.py) | The CTDE modules' structure: what the actor and the critic read | done |
 | [`rl/test_training_metrics.py`](../tests/rl/test_training_metrics.py) | Idle reports omitted, learner-only progress preserved, non-finite metrics still fail, timing fields and total training-call time retained; learner metrics over the modules (mean, min, max); every evaluation kept per episode and agent, appended per evaluation point | done |

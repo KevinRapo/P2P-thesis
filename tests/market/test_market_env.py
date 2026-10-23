@@ -79,19 +79,18 @@ def first_step_where(env: MarketEnv, side: str):
 # Spaces
 # --------------------------------------------------------------------------------------
 def test_spaces_and_observations(env):
-    """One agent per participant in scenario order. The observation: V1's 16
-    numbers (``OBS_NAMES``) first, then the partner block: last_preference, the
-    N − 1 peers' reputations, their distances and the distance to the DSO (16 + 1
-    + 4 + 5 = 26 with five agents). The action: the four parts of [P1] eq. 2,
+    """One agent per participant in scenario order. The observation: the paper's
+    42 signals (``OBS_NAMES``: 16 market, 16 agent, 10 KPIs), then the N − 1 peers'
+    reputations (42 + 4 = 46 with five agents). The action: the four parts of [P1] eq. 2,
     side Discrete(2), quantity and price Box(1), partner Discrete(N + 1).
     Observations stay finite and inside the space after the reset and after steps
     (the policy network expects both)."""
     assert env.agents_id == AGENTS
     assert env.agents == env.possible_agents == AGENTS
-    assert len(OBS_NAMES) == 16
-    assert env.obs_names[:16] == OBS_NAMES and len(env.obs_names) == 26
+    assert len(OBS_NAMES) == 42
+    assert env.obs_names[:42] == OBS_NAMES and len(env.obs_names) == 46
     for a in AGENTS:
-        assert env.observation_spaces[a].shape == (26,)
+        assert env.observation_spaces[a].shape == (46,)
         space = env.action_spaces[a]
         assert set(space.spaces) == {"side", "quantity", "price", "partner"}
         assert space["side"].n == 2 and space["partner"].n == len(AGENTS) + 1

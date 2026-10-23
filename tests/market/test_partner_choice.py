@@ -170,15 +170,11 @@ def test_naming_the_dso_skips_the_peers(env, pair):
 # --------------------------------------------------------------------------------------
 def test_partner_observation_and_its_timing(env, pair):
     """The partner block holds, in candidate order, the peers' reputations as the
-    last step left them and the grid distances (peers, then the DSO) over the
-    network's largest; last_preference is the agent's own stage-1 energy of the
-    last step, 0 at the start of the day."""
-    obs, _ = env.reset(seed=0)
+    last step left them."""
+    env.reset(seed=0)
     names = list(env.obs_names)
-    for a in AGENTS:
-        assert obs[a][names.index("last_preference")] == 0.0
     _, s, b = pair
-    _, infos = play(env, pair, 0.2, 0.8, b, s)
+    play(env, pair, 0.2, 0.8, b, s)
     obs = env._observe()
     m = env.market
     for a in AGENTS:
@@ -187,15 +183,6 @@ def test_partner_observation_and_its_timing(env, pair):
         reps = [o[names.index(f"partner_rep_{k}")] for k in range(1, len(peers) + 1)]
         np.testing.assert_allclose(
             reps, [m.participants[c].reputation for c in peers], rtol=1e-6
-        )
-        dists = [o[names.index(f"partner_dist_{k}")] for k in range(1, len(peers) + 1)]
-        expected = [m.distance_km(a, c) / env.distance_scale for c in peers]
-        np.testing.assert_allclose(dists, expected, rtol=1e-6)
-        assert o[names.index("partner_dist_dso")] == pytest.approx(
-            m.distance_km(a, DSO_ID) / env.distance_scale, rel=1e-6
-        )
-        assert o[names.index("last_preference")] == pytest.approx(
-            infos[a]["preference_kwh"] / env.energy_scale, rel=1e-6
         )
 
 

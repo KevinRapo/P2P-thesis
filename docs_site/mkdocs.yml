@@ -150,9 +150,11 @@ nav:
           - RL plan: plan/rl.md
           - Decision log: plan/decisions.md
       - Reinforcement learning:
-          - Training cycle (3 × 3): rl/training.md
-          - One iteration, step by step: rl/cycle.md
-          - Worked examples (our code): rl/examples.md
+          - Observation: rl/observation.md
+          - RL helpers:
+              - Training cycle (3 × 3): rl/training.md
+              - One iteration, step by step: rl/cycle.md
+              - Worked examples (our code): rl/examples.md
       - SimBench:
           - simbench/README.md
           - Network catalogue: simbench/networks.md

@@ -7,37 +7,26 @@ the step, and turns the step's record back into observations and rewards. No
 market rule lives here (``core/market/`` stays the one place for those).
 
 Observation (``obs_names``, one vector per agent, values clipped to [-10, 10]),
-computed for the step about to be played, t = ``market.current_step``. E is
-``energy_scale`` (kWh) and N the number of agents. The first 16 entries are V1's
-(``OBS_NAMES``):
+computed for the step about to be played: the paper's 42 signals ([P1] Table 2,
+computed in ``core/market/signals.py``) in its three groups, then the other agents'
+reputations, which [P1] adds when partner preference is on:
 
-    time          hour_sin, hour_cos: sin and cos of 2π · t / n_steps
-    own profile   generation, demand, net: G_t / E, D_t / E, (G_t − D_t) / E
-    own battery   has_battery (1 or 0); soc: energy as a share of its usable range
-                  [min_soc, max_soc] · capacity (0 without a battery); chargeable,
-                  dischargeable: what it can still take or give ([P1] eq. 15c-d),
-                  divided by E
-    market        reputation: the agent's own (eq. 12); price_ref: the last
-                  clearing price, (p_ref − FiT) / (utility − FiT)
-    last step     last_p2p, last_dso, last_balance: energy traded between peers,
-                  with the DSO, and B_grid (eq. 20), divided by E · N;
-                  last_reward; last_traded: (bought − sold) / E. All 0 at t = 0
+    market (16, public)   ``MARKET_OBS``: hour_sin, hour_cos (sin and cos of the day
+                          gone by, in place of the signals step and time of day),
+                          then the market signals of the last step
+    agent (16, private)   ``AGENT_OBS``: the agent's own profile, outcomes so far,
+                          reputation and battery
+    KPIs (10, shared)     ``KPI_OBS``: the implicit-cooperation KPIs over the day so
+                          far
+    partner_rep_k         candidate k's reputation (eq. 12), for the N − 1 other
+                          participants, in the agent's candidate order (below)
 
-V2 adds what the partner choice needs (``PARTNER_OBS``), in the agent's candidate
-order (below):
-
-    last_preference      energy the agent traded in stage 1 (mutual preferences)
-                         in the last step, bought + sold, / E; 0 at t = 0. Its own
-                         outcome, known after that step.
-    partner_rep_k        candidate k's reputation (eq. 12) after the last step, for
-                         the N − 1 other participants. Public: the paper adds every
-                         agent's reputation to the observation when partner
-                         preference is on ([P1] Table 2), and the auction ranks by
-                         it.
-    partner_dist_k       grid distance d_ij to candidate k ([P1] §3.5.1, the market's
-                         ``distance_km``), and partner_dist_dso to the transformer,
-                         divided by the largest such distance in the network
-                         (``distance_scale``). Topology, the same on every day.
+Scaling (``_obs_scales``), with E = ``energy_scale``, N agents, T steps a day: prices
+as (p − FiT) / (utility − FiT), price differences / (utility − FiT); one step's
+energy / E (agent) or / (E · N) (market); energy over the day / (E · T) (agent) or
+/ (E · N · T) (KPIs); profit / ``reward_scale``, welfare / (``reward_scale`` · N ·
+T); shares, ratios, reputation and the state of charge as they are. A signal that is
+NaN (nothing to measure yet, e.g. before the first step) is 0 in the observation.
 
 The agent sees its own profile and battery for the step it is bidding on, the
 public reputations and the topology, but nothing of the other agents' profiles,
@@ -180,6 +169,7 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
+from core.market import signals
 from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepRecord
 from core.market.order import Order
@@ -187,25 +177,13 @@ from core.market.order import Order
 # --------------------------------------------------------------------------------------
 # What the agents see and do
 # --------------------------------------------------------------------------------------
-OBS_NAMES: tuple[str, ...] = (
-    "hour_sin",
-    "hour_cos",
-    "generation",
-    "demand",
-    "net",
-    "has_battery",
-    "soc",
-    "chargeable",
-    "dischargeable",
-    "reputation",
-    "price_ref",
-    "last_p2p",
-    "last_dso",
-    "last_balance",
-    "last_reward",
-    "last_traded",
+# The market signals with the step and time of day as one sin and cos pair.
+MARKET_OBS: tuple[str, ...] = ("hour_sin", "hour_cos") + tuple(
+    name for name in signals.MARKET_SIGNALS if name not in ("step", "time_of_day")
 )
-PARTNER_OBS = ("last_preference", "partner_rep_k", "partner_dist_k", "partner_dist_dso")
+AGENT_OBS: tuple[str, ...] = tuple(signals.AGENT_SIGNALS)
+KPI_OBS: tuple[str, ...] = tuple(signals.KPIS)
+OBS_NAMES: tuple[str, ...] = MARKET_OBS + AGENT_OBS + KPI_OBS
 ACTION_COMPONENTS = ("side", "quantity", "price", "partner")
 SIDES = ("sell", "buy")  # α: index 0 sells, 1 buys ([P1] eq. 2)
 NO_PREFERENCE = "none"  # the last partner candidate: no partner named
@@ -251,8 +229,10 @@ class MarketEnv(MultiAgentEnv):
             a: [b for b in self.agents_id if b != a] + [DSO_ID, None]
             for a in self.agents_id
         }
-        self._distances = self._partner_distances()
-        self.obs_names: tuple[str, ...] = OBS_NAMES + self._partner_names()
+        self.obs_names: tuple[str, ...] = OBS_NAMES + tuple(
+            f"partner_rep_{k}" for k in range(1, len(self.agents_id))
+        )
+        self._scales = self._obs_scales()
         obs_box = spaces.Box(
             -_OBS_LIMIT, _OBS_LIMIT, (len(self.obs_names),), np.float32
         )
@@ -260,7 +240,6 @@ class MarketEnv(MultiAgentEnv):
         self.action_spaces = {a: self._action_space() for a in self.agents_id}
         self.rng = np.random.default_rng(config.get("seed"))
         self.last_record: Optional[StepRecord] = None
-        self._clear_memory()
 
     def _largest_energy(self) -> float:
         """The largest generation or demand (kWh) of any participant in any step
@@ -291,32 +270,6 @@ class MarketEnv(MultiAgentEnv):
         action and of its partner observation: the other participants in scenario
         order, ``"DSO"``, then ``"none"`` (no preference)."""
         return [NO_PREFERENCE if c is None else c for c in self._candidates[pid]]
-
-    def _partner_distances(self) -> dict[str, np.ndarray]:
-        """Each agent's grid distance to its peer candidates and to the DSO, divided
-        by the largest of them in the network (``distance_scale``)."""
-        if not self.market.participants:  # the network is built by a reset
-            self.market.scenario.grid.day = self.days[0]
-            self.market.reset()
-        km = {
-            a: np.array(
-                [self.market.distance_km(a, c) for c in self._candidates[a][:-1]]
-            )
-            for a in self.agents_id
-        }
-        largest = max((float(d.max()) for d in km.values() if d.size), default=0.0)
-        self.distance_scale = largest if largest > 0 else 1.0
-        return {a: d / self.distance_scale for a, d in km.items()}
-
-    def _partner_names(self) -> tuple[str, ...]:
-        """The names of the partner observation (k counts the peer candidates)."""
-        peers = range(1, len(self.agents_id))
-        return (
-            ("last_preference",)
-            + tuple(f"partner_rep_{k}" for k in peers)
-            + tuple(f"partner_dist_{k}" for k in peers)
-            + ("partner_dist_dso",)
-        )
 
     # --- The environment's contract --------------------------------------------------
     def resolved_config(self) -> dict[str, Any]:
@@ -359,7 +312,6 @@ class MarketEnv(MultiAgentEnv):
             "scales": {
                 "energy_scale": self.energy_scale,
                 "reward_scale": self.reward_scale,
-                "distance_scale": self.distance_scale,
             },
         }
 
@@ -382,7 +334,6 @@ class MarketEnv(MultiAgentEnv):
         self.market.scenario.grid.day = day
         self.market.reset()
         self.last_record = None
-        self._clear_memory()
         infos = {a: {"day": day} for a in self.agents_id}
         return self._observe(), infos
 
@@ -428,22 +379,6 @@ class MarketEnv(MultiAgentEnv):
                 "shared": shared,
                 "shared_state": shared_state,
             }
-        n = len(self.agents_id)
-        scale = self.energy_scale * n
-        self._memory = {
-            "p2p": record.p2p_kwh / scale,
-            "dso": record.dso_kwh / scale,
-            "balance": record.grid_balance_kwh / scale,
-            "reward": dict(rewards),
-            "traded": {
-                pid: (o.bought_kwh - o.sold_kwh) / self.energy_scale
-                for pid, o in record.participants.items()
-            },
-            "preference": {
-                pid: preference.get(pid, 0.0) / self.energy_scale
-                for pid in self.agents_id
-            },
-        }
         done = self.market.done
         terminateds = {a: done for a in self.agents_id} | {"__all__": done}
         truncateds = {a: False for a in self.agents_id} | {"__all__": False}
@@ -503,60 +438,88 @@ class MarketEnv(MultiAgentEnv):
         }
 
     # --- Observations ----------------------------------------------------------------
-    def _clear_memory(self) -> None:
-        """Forget the last step: what the observation reports of it is 0 again."""
-        self._memory = {
-            "p2p": 0.0,
-            "dso": 0.0,
-            "balance": 0.0,
-            "reward": {a: 0.0 for a in self.agents_id},
-            "traded": {a: 0.0 for a in self.agents_id},
-            "preference": {a: 0.0 for a in self.agents_id},
+    def _obs_scales(self) -> dict[str, tuple[float, float]]:
+        """Each observed signal's (offset, divisor): it enters the observation as
+        (value − offset) / divisor (see the module docstring)."""
+        fit, spread = self.feed_in_tariff, self.utility_price - self.feed_in_tariff
+        e, n, t = self.energy_scale, len(self.agents_id), self.market.n_steps
+        price, difference = (fit, spread), (0.0, spread)
+        step, step_all = (0.0, e), (0.0, e * n)
+        day, day_all = (0.0, e * t), (0.0, e * n * t)
+        kinds = {
+            "clearing_price": price,
+            "dso_buy_price": price,
+            "dso_sell_price": price,
+            "mean_local_price": price,
+            "price_spread": difference,
+            "local_price_advantage": difference,
+            "bid_ask_spread": difference,
+            "price_volatility": difference,
+            **dict.fromkeys(
+                (
+                    "clearing_volume",
+                    "grid_balance",
+                    "dso_buy_volume",
+                    "dso_sell_volume",
+                    "dso_total_volume",
+                    "p2p_volume",
+                    "net_grid_import",
+                ),
+                step_all,
+            ),
+            **dict.fromkeys(
+                (
+                    "generation",
+                    "demand",
+                    "battery_energy",
+                    "available_charge",
+                    "available_discharge",
+                ),
+                step,
+            ),
+            **dict.fromkeys(
+                (
+                    "cumulative_demand_satisfied",
+                    "cumulative_demand_deferred",
+                    "remaining_demand",
+                    "cumulative_supply_satisfied",
+                    "cumulative_supply_deferred",
+                    "remaining_supply",
+                    "cumulative_charge",
+                    "cumulative_discharge",
+                ),
+                day,
+            ),
+            "liquidity": day_all,
+            "mean_profit": (0.0, self.reward_scale),
+            "social_welfare": (0.0, self.reward_scale * n * t),
         }
+        return {name: kinds.get(name, (0.0, 1.0)) for name in OBS_NAMES}
 
     def _observe(self) -> dict[str, np.ndarray]:
-        """Every agent's observation for the step about to be played. After the
-        last step it holds the last step's profiles with the hour at midnight
-        (the episode is over; RLlib wants a final observation)."""
+        """Every agent's observation for the step about to be played (see the module
+        docstring). After the last step the profile is the last step's and the hour
+        is midnight (the episode is over; RLlib wants a final observation)."""
         m = self.market
-        t = m.current_step
-        scale = self.energy_scale
-        angle = 2.0 * np.pi * t / m.n_steps
-        spread = self.utility_price - self.feed_in_tariff
-        price_ref = (m.clearing_price - self.feed_in_tariff) / spread
-        reputation = {pid: q.reputation for pid, q in m.participants.items()}
+        values = signals.market_signals(m)
+        angle = 2.0 * np.pi * values["time_of_day"]
+        values |= {"hour_sin": np.sin(angle), "hour_cos": np.cos(angle)}
+        # OPEN E-10: the KPIs over the day so far; the papers give no window.
+        values |= signals.kpis(m.history)
         out = {}
         for pid in self.agents_id:
-            p = m.participants[pid]
-            k = min(t, m.n_steps - 1)
-            g, d = p.generation_kwh[k], p.demand_kwh[k]
-            chargeable, dischargeable = p.battery_room()
-            b = p.battery
-            soc = (b.energy_kwh - b.min_kwh) / (b.max_kwh - b.min_kwh) if b else 0.0
-            values = (
-                np.sin(angle),
-                np.cos(angle),
-                g / scale,
-                d / scale,
-                (g - d) / scale,
-                1.0 if b else 0.0,
-                soc,
-                chargeable / scale,
-                dischargeable / scale,
-                p.reputation,
-                price_ref,
-                self._memory["p2p"],
-                self._memory["dso"],
-                self._memory["balance"],
-                self._memory["reward"][pid],
-                self._memory["traded"][pid],
-                self._memory["preference"][pid],
-                *(reputation[c] for c in self._candidates[pid][:-2]),
-                *self._distances[pid],
-            )
-            out[pid] = np.clip(
-                np.array(values, dtype=np.float32), -_OBS_LIMIT, _OBS_LIMIT
-            )
+            mine = values | signals.agent_signals(m, pid)
+            scaled = [
+                (mine[name] - offset) / divisor
+                for name, (offset, divisor) in self._scales.items()
+            ]
+            peers = [m.participants[c].reputation for c in self._candidates[pid][:-2]]
+            # OPEN E-07: a NaN signal (nothing to measure yet) enters as 0, as in
+            # MARLEM. For mean_local_price and local_price_advantage 0 is also a real
+            # value (a trade at the feed-in tariff, no advantage), so "no peer trade"
+            # cannot be told apart from it.
+            vector = np.nan_to_num(np.array(scaled + peers, dtype=np.float32), nan=0.0)
+            out[pid] = np.clip(vector, -_OBS_LIMIT, _OBS_LIMIT)
         return out
 
 
@@ -663,8 +626,8 @@ def zero_policy(env: MarketEnv) -> Callable[[dict[str, np.ndarray]], dict]:
 def net_position_policy(
     env: MarketEnv, margin: float = 0.3, battery_first: bool = True
 ) -> Callable[[dict[str, np.ndarray]], dict]:
-    """The market's own bidding rule (``core/market/agent/rule_based_bid.py``) read from the
-    observation: a surplus is offered at ``FiT + margin · spread``, a deficit asked
+    """The market's own bidding rule (``core/market/agent/rule_based_bid.py``) read
+    from the observation: a surplus is offered at ``FiT + margin · spread``, a deficit asked
     for at ``utility − margin · spread``, without the rule's jitter and without a
     partner preference.
 
@@ -680,9 +643,9 @@ def net_position_policy(
         actions = {}
         for pid in agents:
             o = obs[pid]
-            net = float(o[index["net"]])
-            chargeable = float(o[index["chargeable"]])
-            dischargeable = float(o[index["dischargeable"]])
+            net = float(o[index["generation"]] - o[index["demand"]])
+            chargeable = float(o[index["available_charge"]])
+            dischargeable = float(o[index["available_discharge"]])
             side, share, price = "sell", 0.0, margin
             if net > _MIN_ORDER_KWH:
                 kept = min(net, chargeable) if battery_first else 0.0
