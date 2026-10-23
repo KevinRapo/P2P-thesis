@@ -30,6 +30,7 @@ def page() -> None:
     the participant list below."""
     s = services()
     scenario = s.scenario.current()
+
     with shell(
         "grid",
         "Grid & Participants",
@@ -69,6 +70,7 @@ def page() -> None:
         """Show the picked network; offer to use it if it is not the scenario's."""
         state["shown"] = source.code
         apply_box.clear()
+
         if source.code != s.scenario.current().grid.code:
             count = len(s.scenario.current().participants)
             with apply_box:
@@ -82,12 +84,15 @@ def page() -> None:
                         f"Removes the {count} participants placed on "
                         f"{s.scenario.current().grid.code}."
                     ).classes("mls-card-caption text-warning")
+
         busy(plot_box, "Building topology …")
+
         try:
             state["topology"] = await run.io_bound(s.grid.topology, source)
         except Exception as e:  # noqa: BLE001  show the error on the page
             failed(plot_box, e)
             return
+
         redraw()
 
     def use(code: str) -> None:
@@ -98,11 +103,14 @@ def page() -> None:
 
     async def on_click(e) -> None:
         bus = clicked_bus(e)
+
         if not bus:
             return
+
         if state["shown"] != s.scenario.current().grid.code:
             ui.notify("Use this network first", type="warning")
             return
+
         message = await run.io_bound(s.scenario.toggle, bus)
         ui.notify(message)
         redraw()
@@ -113,6 +121,7 @@ def page() -> None:
         current = s.scenario.current()
         own = state["shown"] == current.grid.code
         plot_box.clear()
+
         if topology is not None:
             with plot_box:
                 marked = {p.bus for p in current.participants} if own else set()
@@ -120,9 +129,11 @@ def page() -> None:
                     topology_figure(topology, highlight=marked, height=480)
                 ).classes("w-full")
                 plot.on("plotly_click", on_click)
+
         if state["kinds_of"] != current.grid.code:  # the bus kinds of this network
             state["kinds_of"] = current.grid.code
             _placement_buttons(placement_box, redraw)
+
         _participant_table(table_box, redraw)
 
     with picker_box:
@@ -147,6 +158,7 @@ def _grid_settings() -> None:
         s.scenario.save()
 
     ui.separator()
+
     with ui.input("Day (2016)", value=g.day).classes("w-full") as day:
         with ui.menu().props("no-parent-event") as menu:
             with ui.date(value=g.day).props(
@@ -156,6 +168,7 @@ def _grid_settings() -> None:
                     ui.button("Close", on_click=menu.close).props("flat")
         with day.add_slot("append"):
             ui.icon("event").on("click", menu.open).classes("cursor-pointer")
+
     day.on_value_change(lambda e: save("day", e.value) if _is_2016(e.value) else None)
     ui.label(
         "SimBench's profiles cover 2016. A summer day has PV to trade; a winter "
@@ -177,6 +190,7 @@ def _grid_settings() -> None:
         "What the elements no participant owns do in the power flow: follow their "
         "profiles, or be switched off so only the market is seen."
     ).classes("mls-card-caption")
+
     with ui.row().classes("w-full gap-2 no-wrap"):
         for field, label in (
             ("v_min_pu", "V min (pu)"),
@@ -205,6 +219,7 @@ def _placement_buttons(box: ui.element, redraw) -> None:
     s = services()
     counts = s.scenario.kind_counts()
     box.clear()
+
     with box, ui.row().classes("w-full items-end gap-2"):
         kinds = (
             ui.select(
@@ -225,6 +240,7 @@ def _placement_buttons(box: ui.element, redraw) -> None:
             if not kinds.value:
                 ui.notify("Pick at least one bus kind", type="warning")
                 return
+
             n = await run.io_bound(
                 s.scenario.place_all,
                 list(kinds.value),
@@ -240,6 +256,7 @@ def _placement_buttons(box: ui.element, redraw) -> None:
             icon="delete",
             on_click=lambda: (s.scenario.clear(), redraw()),
         ).props("flat no-caps color=negative")
+
     with box:
         ui.label(
             "A bus kind is what the bus carries (load, pv, gen = other generator, "
@@ -255,13 +272,16 @@ def _participant_table(box: ui.element, redraw) -> None:
     s = services()
     current = s.scenario.current()
     box.clear()
+
     with box:
         if not current.participants:
             ui.label(
                 "No participants yet: click buses on the network or use the buttons."
             ).classes("mls-card-caption")
             return
+
         rows = []
+
         for p in current.participants:
             rows.append(
                 {
@@ -281,6 +301,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                     ),
                 }
             )
+
         table = data_table(
             rows,
             [
@@ -297,13 +318,16 @@ def _participant_table(box: ui.element, redraw) -> None:
 
         def edit(e) -> None:
             editor.clear()
+
             if not e.selection:
                 return
+
             pid = e.selection[0]["id"]
             p = next(x for x in current.participants if x.id == pid)
             storage = s.scenario.storage_of(pid)
             battery = p.battery or storage
             presets = s.scenario.battery_presets()
+
             with editor, ui.row().classes("w-full items-end gap-2"):
                 ui.label(f"{pid} battery").classes("text-body2 text-weight-medium")
                 size = ui.select(
@@ -340,6 +364,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                         power.value = presets[e.value].max_power_kw
 
                 size.on_value_change(use_preset)
+
                 if storage is not None:  # the storage unit's size is fixed
                     for field in (size, cap, power):
                         field.disable()
@@ -368,6 +393,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                 ui.button("Save", icon="check", on_click=apply).props(
                     "unelevated no-caps"
                 )
+
             with editor:
                 ui.label(
                     f"{pid} took over SimBench storage: its capacity and power are "

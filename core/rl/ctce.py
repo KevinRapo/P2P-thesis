@@ -90,11 +90,14 @@ class CTCEEnv(MultiAgentEnv):
         actions = ungroup(action_dict[GROUP], self.agents_id)
         obs, rewards, terminateds, truncateds, infos = self.env.step(actions)
         missing = set(self.agents_id) - set(rewards)
+
         if missing:
             raise ValueError(
                 f"CTCEEnv needs every agent at every step; no reward for {missing}."
             )
+
         group_reward = float(sum(rewards[a] for a in self.agents_id))
+
         return (
             {GROUP: join(obs, self.agents_id)},
             {GROUP: group_reward},

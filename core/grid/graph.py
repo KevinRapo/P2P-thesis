@@ -56,13 +56,16 @@ class GraphGrid:
         of its path, divided by the line's capacity. Voltages and losses are not
         modelled; their fields stay empty."""
         flow = {line: 0.0 for line in self.capacity_kw}
+
         for path, kw in flows:
             for line in path.lines:
                 flow[line] += kw
+
         loading = {
             line: round(100.0 * f / self.capacity_kw[line], 2) if f else 0.0
             for line, f in flow.items()
         }
+
         return GridAssessment(
             step=step,
             converged=True,
@@ -89,7 +92,9 @@ def capacities(
     own rating. A line of zero length counts as 1 m."""
     if rule == "ratings":
         return {line: rating for line, (_, rating) in lines.items()}
+
     total = sum(r for _, r in lines.values()) if total_kw is None else total_kw
     inverse = {line: 1.0 / max(length, 1e-3) for line, (length, _) in lines.items()}
     norm = sum(inverse.values())
+
     return {line: total * w / norm for line, w in inverse.items()}

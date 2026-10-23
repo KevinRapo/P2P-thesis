@@ -73,6 +73,7 @@ def test_baselines_are_each_runs_own_unless_they_are_the_same():
 
     def curves(zero_a, zero_b):
         rows = []
+
         for key, zero in (("t/x/a", zero_a), ("t/x/b", zero_b)):
             rows += [
                 {
@@ -94,7 +95,9 @@ def test_baselines_are_each_runs_own_unless_they_are_the_same():
                     "team_return_mean": -3,
                 },
             ]
+
         frame = pd.DataFrame(rows)
+
         return frame.assign(per_participant=frame.team_return_mean / 2)
 
     labels = {"t/x/a": "x/a", "t/x/b": "x/b"}

@@ -32,16 +32,23 @@ def read_env_file(path: Path = ENV_FILE) -> dict[str, str]:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return {}
+
     found = {}
+
     for line in text.splitlines():
         line = line.strip()
+
         if not line or line.startswith("#") or "=" not in line:
             continue
+
         key, _, value = line.partition("=")
         value = value.strip()
+
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
+
         found[key.strip()] = value
+
     return found
 
 
@@ -66,4 +73,5 @@ def expand(text: str, missing: Callable[[str], object]) -> object:
         return found
 
     expanded = _REFERENCE.sub(value, text)
+
     return missing(unset[0]) if unset else expanded

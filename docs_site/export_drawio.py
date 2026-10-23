@@ -73,6 +73,7 @@ def ensure_viewer() -> None:
     CACHE.mkdir(exist_ok=True)
     (CACHE / ".gitignore").write_text("*\n")
     target = CACHE / "viewer-static.min.js"
+
     if not target.exists():
         print("downloading the draw.io viewer (once) ...")
         request = urllib.request.Request(VIEWER_URL, headers={"User-Agent": "Mozilla/5.0"})
@@ -88,6 +89,7 @@ def serve() -> http.server.ThreadingHTTPServer:
     handler = functools.partial(Quiet, directory=str(CACHE))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
+
     return server
 
 
@@ -98,6 +100,7 @@ def export_page(browser: str, port: int, diagram: ET.Element, folder: Path) -> N
     page = PAGE.format(config=html.escape(json.dumps(config), quote=True))
     work = CACHE / f"_{slug}.html"
     work.write_text(page, encoding="utf-8")
+
     try:
         dom = subprocess.run(
             [browser, "--headless", "--disable-gpu", "--window-size=2000,2400",
@@ -107,10 +110,13 @@ def export_page(browser: str, port: int, diagram: ET.Element, folder: Path) -> N
         ).stdout
     finally:
         work.unlink(missing_ok=True)
+
     found = re.search(r'<textarea id="out">(.*?)</textarea>', dom, re.S)
     text = html.unescape(found.group(1)) if found else ""
+
     if not text.startswith("<svg"):
         sys.exit(f"{diagram.get('name')}: the viewer drew nothing")
+
     svg = folder / f"{slug}.svg"
     svg.write_text(text, encoding="utf-8")
     print(f"  {diagram.get('name')}  ->  {svg.relative_to(DOCS)}")
@@ -121,6 +127,7 @@ def main() -> None:
     browser = find_browser()
     ensure_viewer()
     server = serve()
+
     try:
         for path in files:
             print(path.relative_to(DOCS))

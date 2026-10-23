@@ -26,6 +26,7 @@ def played():
     scenario.dso.thermal_threshold = 0.02
     market = LocalEnergyMarket(scenario)
     market.reset()
+
     return market, market.run_to_end()
 
 
@@ -33,6 +34,7 @@ def test_fees_see_the_same_steps_power_flow(played):
     market, records = played
     dso = market.dso
     assert any(t.fee_parts.thermal > 0 for r in records for t in r.trades)
+
     for record in records:
         loading = record.grid.line_loading_percent
         for t in record.trades:
@@ -41,12 +43,15 @@ def test_fees_see_the_same_steps_power_flow(played):
                 path = market._upstream(other)
             else:
                 path = market._path(t.buyer_id, t.seller_id)
+
             highest = max((loading.get(x, 0.0) for x in path.lines), default=0.0)
             c = min(1.0, highest / 100)
             expected = 0.0
+
             if c > dso.thermal_threshold:
                 f = (c - dso.thermal_threshold) / (1 - dso.thermal_threshold)
                 expected = min(f, dso.thermal_cap) * t.quantity * t.price
+
             assert t.fee_parts.thermal == pytest.approx(expected, abs=1e-12)
 
 

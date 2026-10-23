@@ -137,20 +137,27 @@ class MarketSetup:
     def problems(self) -> list[str]:
         """What makes these rules wrong or the peer market pointless."""
         found = []
+
         if self.bid_margin >= 0.5:
             found.append(
                 "Bid margin is 0.5 or more: peers will not trade with each other."
             )
+
         if self.min_price > self.max_price:
             found.append("Min price is above max price.")
+
         if self.min_quantity > self.max_quantity:
             found.append("Min quantity is above max quantity.")
+
         weights = (self.reliability_weight, self.fairness_weight, self.grid_weight)
+
         if any(w < 0 for w in weights) or abs(sum(weights) - 1) > 1e-9:
             found.append("Reputation weights are not shares that add up to 1.")
+
         for name in ("reputation_decay", "partner_reputation_weight"):
             if not 0 <= getattr(self, name) <= 1:
                 found.append(f"{name.replace('_', ' ').capitalize()} is not in 0-1.")
+
         return found
 
 
@@ -199,16 +206,21 @@ class DsoSetup:
         """Tariffs that break p_FiT < p_P2P < p_utility ([P1] §3.3.2), so peers
         gain nothing by trading with each other, and fee settings out of range."""
         found = []
+
         if self.feed_in_tariff >= self.utility_price:
             found.append(
                 "Feed-in tariff is not below the utility price: no gain from peers."
             )
+
         if not 0 <= self.fee_buyer_share <= 1:
             found.append("Fee buyer share is not in 0-1.")
+
         if not 0 <= self.thermal_threshold < 1:
             found.append("Thermal threshold is not in 0-1 (1 excluded).")
+
         if self.voltage_drop not in ("distance", "measured"):
             found.append("Voltage drop is not 'distance' or 'measured'.")
+
         return found
 
 
@@ -234,6 +246,7 @@ class Scenario:
                 over storage has a battery; skipped when ``None``.
         """
         found = []
+
         if not self.participants:
             found.append("No participants: place them on the Grid & Participants page.")
         elif element_types is not None and not any(
@@ -242,6 +255,7 @@ class Scenario:
             found.append(
                 "No participant owns a generator: nobody has anything to sell."
             )
+
         if element_types is not None:
             for p in self.participants:
                 storage = [e for e in p.owns if element_types.get(e) == "storage"]
@@ -250,4 +264,5 @@ class Scenario:
                         f"{p.id} takes over {', '.join(storage)} but has no "
                         "battery: the storage unit would disappear."
                     )
+
         return found + self.market.problems() + self.dso.problems()

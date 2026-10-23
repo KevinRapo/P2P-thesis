@@ -116,8 +116,10 @@ def current_state(
 
     ``slurm`` is the map from ``slurm.states``, for runs with a ``slurm_job``."""
     status = read_json(Path(run_dir) / "status.json")
+
     if status is None:
         return _legacy_state(read_json(Path(run_dir) / "run.json"))
+
     return _state_of(status, worker_dead, slurm)
 
 
@@ -125,26 +127,34 @@ def _slurm_state(status: dict, slurm: Optional[dict]) -> Optional[str]:
     """The SLURM state of the run's task (None: no task, or SLURM has not said)."""
     task = status.get("slurm_job")
     info = (slurm or {}).get(str(task)) if task else None
+
     return info.get("state") if info else None
 
 
 def _state_of(status: dict, worker_dead: bool, slurm: Optional[dict] = None) -> str:
     state = str(status.get("state", "unknown"))
+
     if status.get("slurm_job"):  # its process is on a node: ask SLURM, not psutil
         slurm_state = _slurm_state(status, slurm)
+
         if state == "running" and slurm_state in SLURM_TERMINAL:
             return "lost"
+
         if state == "queued":
             if slurm_state in SLURM_TERMINAL:
                 return "lost"
             return "running" if slurm_state in SLURM_RUNNING else "queued"
+
         return state
+
     if state == "running" and not process_alive(
         status.get("pid"), status.get("create_time")
     ):
         return "lost"
+
     if state == "queued" and worker_dead:
         return "lost"
+
     return state
 
 
@@ -158,8 +168,10 @@ def _legacy_state(record: Optional[dict]) -> Optional[str]:
 def _complete(text: str) -> list[str]:
     """The lines of ``text`` without a last one still being written (no line end)."""
     lines = text.splitlines()
+
     if lines and not text.endswith("\n"):
         lines.pop()
+
     return lines
 
 
@@ -175,9 +187,12 @@ def _last_row(path: Path) -> Optional[dict]:
             tail = _complete(handle.read().decode("utf-8", errors="replace"))
     except OSError:
         return None
+
     lines = [line for line in tail if line.strip()]
+
     if not lines or lines[-1].strip() == header:
         return None
+
     try:
         row = next(csv.reader([lines[-1]]))
         return dict(zip(next(csv.reader([header])), row))
@@ -192,9 +207,12 @@ def _trained_return(path: Path, last: bool) -> Optional[float]:
         lines = _complete(Path(path).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError):
         return None
+
     rows = [r for r in csv.DictReader(lines) if r.get("policy") == "trained"]
+
     if not rows:
         return None
+
     try:
         return float(rows[-1 if last else 0]["team_return_mean"])
     except (KeyError, ValueError):
@@ -211,20 +229,27 @@ def _parse_time(text: Any) -> Optional[datetime]:
 def _elapsed(run_dir: Path, state: str, status: dict, record: dict) -> Optional[float]:
     if status.get("duration_s") is not None:
         return float(status["duration_s"])
+
     started = _parse_time(status.get("started") or record.get("started"))
+
     if state == "running" and started:
         return max(0.0, (datetime.now() - started).total_seconds())
+
     if started is None:
         duration = record.get("duration_s")
         return float(duration) if duration is not None else None
+
     finished = _parse_time(status.get("finished") or record.get("finished"))
+
     if finished:
         return max(0.0, (finished - started).total_seconds())
+
     if state in ("lost", "failed", "stopped"):  # last sign of life
         try:
             return max(0.0, (run_dir / "log.txt").stat().st_mtime - started.timestamp())
         except OSError:
             return None
+
     return None
 
 
@@ -235,24 +260,32 @@ def run_state(
     run_dir = Path(run_dir)
     status = read_json(run_dir / "status.json")
     record = read_json(run_dir / "run.json") or {}
+
     if status is None and not record:
         return None
+
     state = _state_of(status, worker_dead, slurm) if status else _legacy_state(record)
     status = status or {}
     budget = status.get("budget") or record.get("budget_env_steps")
     last = _last_row(run_dir / "metrics.csv")
+
     try:
         env_steps = int(float(last["env_steps"])) if last else 0
     except (KeyError, ValueError, TypeError):
         env_steps = 0
+
     env_steps = max(env_steps, int(record.get("env_steps") or 0))
     progress = min(1.0, env_steps / budget) if budget else 0.0
+
     if state == "completed":
         progress = 1.0
+
     elapsed = _elapsed(run_dir, state, status, record) if state != "queued" else None
     eta = None
+
     if state == "running" and elapsed and 0 < progress < 1:
         eta = elapsed * (1 - progress) / progress
+
     return RunState(
         name=run_dir.name,
         state=state,
@@ -283,15 +316,19 @@ def _is_run_dir(path: Path) -> bool:
 def experiments(root: Optional[Path] = None) -> list[str]:
     """Names of the folders in ``runs/`` that hold runs, sorted."""
     root = Path(root) if root else runs_root()
+
     if not root.is_dir():
         return []
+
     found = []
+
     for folder in sorted(root.iterdir()):
         try:
             if folder.is_dir() and any(_is_run_dir(c) for c in folder.iterdir()):
                 found.append(folder.name)
         except OSError:
             continue
+
     return found
 
 
@@ -306,6 +343,7 @@ def runs(
     info = worker_info(exp_dir)
     worker_dead = bool(info) and not worker_alive(exp_dir)
     entries = []
+
     for folder in exp_dir.iterdir() if exp_dir.is_dir() else []:
         if not _is_run_dir(folder):
             continue
@@ -313,6 +351,7 @@ def runs(
         if state is not None:
             index = (read_json(folder / "status.json") or {}).get("index", 10**9)
             entries.append((index, folder.name, state))
+
     return [state for _, _, state in sorted(entries, key=lambda e: e[:2])]
 
 
@@ -328,9 +367,12 @@ def summarize(
 ) -> dict[str, Any]:
     """``summary`` of run states already read (``runs``)."""
     counts: dict[str, int] = {}
+
     for state in states:
         counts[state.state] = counts.get(state.state, 0) + 1
+
     exp_dir = (Path(root) if root else runs_root()) / experiment
+
     return {
         "runs": len(states),
         "counts": counts,

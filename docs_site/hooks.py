@@ -110,6 +110,7 @@ def _package(dotted: str, page_dir: str, repo: Path, links: dict) -> tuple:
     pages: dict[str, str] = {}
     nav: list = [f"{page_dir}/index.md"]
     rows = []
+
     for name in subpackages:
         sub_pages, sub_nav = _package(
             f"{dotted}.{name}", f"{page_dir}/{name}", repo, links
@@ -119,11 +120,13 @@ def _package(dotted: str, page_dir: str, repo: Path, links: dict) -> tuple:
         rows.append(
             (f"{name}/", f"{name}/index.md", _summary(folder / name / "__init__.py"))
         )
+
     for name in modules:
         path = f"{page_dir}/{name}.md"
         pages[path] = _module_page(f"{dotted}.{name}", repo, links)
         nav.append({name: path})
         rows.append((name, f"{name}.md", _summary(folder / f"{name}.py")))
+
     index = [
         f"# {dotted.rsplit('.', 1)[-1]}",
         "",
@@ -137,6 +140,7 @@ def _package(dotted: str, page_dir: str, repo: Path, links: dict) -> tuple:
         *_table(rows),
     ]
     pages[f"{page_dir}/index.md"] = "\n".join(index)
+
     return pages, nav
 
 
@@ -159,9 +163,11 @@ def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
         "| Section | Contents | Design |",
         "|---|---|---|",
     ]
+
     for title, slug, sources, doc in API_SECTIONS:
         root = f"api/{slug}"
         first = repo / Path(*sources[0].split("."))
+
         if len(sources) == 1 and first.is_dir():
             # The section is one package: its index page is the section page.
             sub_pages, section_nav = _package(sources[0], root, repo, links)
@@ -173,6 +179,7 @@ def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
         else:
             section_nav = [f"{root}/index.md"]
             rows = []
+
             for dotted in sources:
                 name = dotted.rsplit(".", 1)[-1]
                 if (repo / Path(*dotted.split("."))).is_dir():
@@ -185,15 +192,19 @@ def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
                     section_nav.append({name: f"{root}/{name}.md"})
                     link = f"{name}.md"
                 rows.append((dotted, link, _summary(_source(repo, dotted))))
+
             pages[f"{root}/index.md"] = "\n".join(
                 [f"# {title}", "", _design(doc, "../../"), ""] + _table(rows)
             )
+
         nav.append({title: section_nav})
         names = ", ".join(f"`{d}`" for d in sources)
         overview.append(
             f"| [{title}]({slug}/index.md) | {names} | {_design(doc, '../')} |"
         )
+
     pages["api/index.md"] = "\n".join(overview) + "\n"
+
     return pages, nav
 
 
@@ -205,9 +216,11 @@ def on_config(config):
     global _API_PAGES
     repo = Path(config.config_file_path).resolve().parent.parent
     _API_PAGES, api_nav = _api(repo, config["extra"]["code_links"])
+
     for i, item in enumerate(config["nav"]):
         if isinstance(item, dict) and API_NAV_TITLE in item:
             config["nav"][i] = {API_NAV_TITLE: api_nav}
+
     return config
 
 
@@ -220,8 +233,10 @@ def on_files(files, config):
 
 def on_page_markdown(markdown, page, config, files):
     markdown = markdown.replace("\r\n", "\n")
+
     if page.file.generated_by is not None:
         return markdown
+
     docs_dir = Path(config["docs_dir"]).resolve()
     repo = docs_dir.parent
     links = config["extra"]["code_links"]
@@ -229,25 +244,34 @@ def on_page_markdown(markdown, page, config, files):
 
     def rewrite(match: re.Match) -> str:
         target = match.group(1)
+
         if re.match(r"^[a-z]+:|^#", target):
             return match.group(0)
+
         path, _, anchor = target.partition("#")
         absolute = (page_dir / unquote(path)).resolve()
         inside = absolute.is_relative_to(docs_dir)
+
         if inside and absolute.is_file() and absolute.suffix.lower() in SERVED:
             return match.group(0)
+
         if not absolute.is_relative_to(repo):
             return match.group(0)
+
         kind = "tree" if absolute.is_dir() else "blob"
         rel = absolute.relative_to(repo).as_posix()
         url = f"{links['repo']}/{kind}/{links['ref']}/{rel}"
+
         return f"]({url}{'#' + anchor if anchor else ''})"
 
     # Leave fenced code blocks alone.
     parts, last = [], 0
+
     for fence in FENCE.finditer(markdown):
         parts.append(LINK.sub(rewrite, markdown[last : fence.start()]))
         parts.append(fence.group(0))
         last = fence.end()
+
     parts.append(LINK.sub(rewrite, markdown[last:]))
+
     return "".join(parts)

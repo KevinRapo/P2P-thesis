@@ -50,8 +50,10 @@ def storage_battery(elements: list[ElementRecord]) -> BatterySetup | None:
     """The battery of the SimBench storage units among ``elements``: their energy
     capacity and power limit added up; ``None`` when there is none."""
     units = [e for e in elements if e.element_type == "storage" and e.energy_kwh > 0]
+
     if not units:
         return None
+
     return BatterySetup(
         capacity_kwh=sum(e.energy_kwh for e in units),
         max_power_kw=sum(e.rated_kw for e in units),
@@ -65,8 +67,10 @@ def elements_by_bus(scenario: Scenario) -> dict[str, list[ElementRecord]]:
     """The scenario's network: its loads, generators and storage, grouped by bus."""
     ref = NetworkRef("simbench", scenario.grid.code)
     out: dict[str, list[ElementRecord]] = {}
+
     for e in simbench.elements(ref):
         out.setdefault(e.bus, []).append(e)
+
     return out
 
 
@@ -77,14 +81,19 @@ def toggle(scenario: Scenario, bus: str) -> str:
         What happened, for a notification.
     """
     here = [p for p in scenario.participants if p.bus == bus]
+
     if here:
         scenario.participants = [p for p in scenario.participants if p.bus != bus]
         return f"Removed {here[0].id} from {bus}"
+
     elements = elements_by_bus(scenario).get(bus, [])
+
     if not elements:
         return f"{bus} has no load or generator to take over"
+
     p = _new(scenario, bus, elements)
     scenario.participants.append(p)
+
     return f"Added {p.id} on {bus}"
 
 
@@ -98,8 +107,10 @@ def bus_kinds(scenario: Scenario) -> dict[str, str]:
 def kind_counts(scenario: Scenario) -> dict[str, int]:
     """How many buses of each kind the network has (``bus_kinds``), most first."""
     counts: dict[str, int] = {}
+
     for kind in bus_kinds(scenario).values():
         counts[kind] = counts.get(kind, 0) + 1
+
     return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
@@ -123,16 +134,21 @@ def place_all(
     wanted = {kinds} if isinstance(kinds, str) else set(kinds)
     kind = bus_kinds(scenario)
     scenario.participants = []
+
     for bus, elements in sorted(elements_by_bus(scenario).items()):
         if kind.get(bus) not in wanted:
             continue
+
         p = _new(scenario, bus, elements)
         generates = any(e.element_type == "sgen" for e in elements)
+
         if p.battery is None and battery_kwh > 0 and generates:
             p.battery = BatterySetup(
                 capacity_kwh=battery_kwh, max_power_kw=battery_power_kw
             )
+
         scenario.participants.append(p)
+
     return len(scenario.participants)
 
 
@@ -141,6 +157,7 @@ def participant_storage(scenario: Scenario, participant_id: str) -> BatterySetup
     power limit; ``storage_battery``); ``None`` when it took over none."""
     p = _participant(scenario, participant_id)
     owned = [e for e in elements_by_bus(scenario).get(p.bus, []) if e.id in p.owns]
+
     return storage_battery(owned)
 
 
@@ -162,6 +179,7 @@ def set_battery(
     """
     p = _participant(scenario, participant_id)
     storage = participant_storage(scenario, participant_id)
+
     if storage is not None and (
         battery is None
         or abs(battery.capacity_kwh - storage.capacity_kwh) > 1e-9
@@ -172,9 +190,12 @@ def set_battery(
             f"{storage.capacity_kwh:g} kWh, {storage.max_power_kw:g} kW: its "
             "capacity and power are fixed"
         )
+
     p.battery = battery
+
     if battery is None:
         return f"{participant_id}: battery removed"
+
     return f"{participant_id}: battery saved"
 
 
@@ -186,8 +207,10 @@ def clear(scenario: Scenario) -> None:
 def _new(scenario: Scenario, bus: str, elements: list[ElementRecord]):
     taken = {p.id for p in scenario.participants}
     n = 1
+
     while f"P{n}" in taken:
         n += 1
+
     return ParticipantSetup(
         f"P{n}", bus, [e.id for e in elements], battery=storage_battery(elements)
     )

@@ -206,9 +206,11 @@ def category(name: str, table: str) -> str:
     """Class of a SimBench profile from its table and name (``"other"`` if none)."""
     if table == "storage":
         return "storage"
+
     for profile_class, pattern in CLASSES:
         if pattern and re.match(pattern, name):
             return profile_class.key
+
     return "other"
 
 

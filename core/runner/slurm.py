@@ -61,22 +61,28 @@ def parse_sacct(text: str) -> dict[str, dict]:
         None}}``; a pending range such as ``1042700_[4-9%3]`` is one entry per task.
     """
     tasks: dict[str, dict] = {}
+
     for line in text.splitlines():
         fields = line.strip().split("|")
         match = _TASK.match(fields[0]) if len(fields) >= 3 else None
+
         if not match or not fields[1].split():
             continue
+
         node = fields[2].strip()
         info = {
             "state": fields[1].split()[0].rstrip("+"),
             "node": None if node in ("", "None assigned") else node,
         }
         array_id, one, many = match.groups()
+
         if one is None and many is None:  # a plain job
             tasks[array_id] = info
             continue
+
         for index in _indices(one or many):
             tasks[f"{array_id}_{index}"] = dict(info)
+
     return tasks
 
 
@@ -88,16 +94,20 @@ def states(exp_dir: Path) -> dict[str, dict]:
         experiment was never submitted or ``sacct`` is missing or fails.
     """
     info = registry.read_json(Path(exp_dir) / "slurm.json")
+
     if not info or not info.get("array_id"):
         return {}
+
     command = ["sacct", "-j", str(info["array_id"])]
     command += ["-n", "-P", "-X", "-o", "JobID,State,NodeList"]
+
     try:
         done = subprocess.run(
             command, capture_output=True, text=True, timeout=SACCT_TIMEOUT_S
         )
     except (OSError, subprocess.SubprocessError):
         return {}
+
     return parse_sacct(done.stdout) if done.returncode == 0 else {}
 
 
@@ -109,6 +119,7 @@ def choose_partition(partitions: list[dict], minutes: int) -> dict:
     for partition in partitions:
         if partition["max_minutes"] >= minutes:
             return partition
+
     longest = max((p["max_minutes"] for p in partitions), default=0)
     raise SpecError(
         f"no partition allows {minutes} minutes per run (the longest allows "
@@ -120,10 +131,12 @@ def parse_sinfo(text: str) -> dict[str, list[str]]:
     """The nodes in the output of ``sinfo -h -N -o "%N %R"``: ``{node: [partitions it
     is in]}``, sorted."""
     nodes: dict[str, set[str]] = {}
+
     for line in text.splitlines():
         fields = line.split()
         if len(fields) == 2:
             nodes.setdefault(fields[0], set()).add(fields[1])
+
     return {node: sorted(nodes[node]) for node in sorted(nodes)}
 
 
@@ -131,12 +144,14 @@ def cluster_nodes() -> Optional[dict[str, list[str]]]:
     """Every node of the cluster with its partitions (``parse_sinfo``): one ``sinfo``
     call. None when ``sinfo`` is missing or fails."""
     command = ["sinfo", "-h", "-N", "-o", "%N %R"]
+
     try:
         done = subprocess.run(
             command, capture_output=True, text=True, timeout=SACCT_TIMEOUT_S
         )
     except (OSError, subprocess.SubprocessError):
         return None
+
     return parse_sinfo(done.stdout) if done.returncode == 0 else None
 
 
@@ -150,13 +165,16 @@ def runs_partition(
     the cluster's (``cluster_nodes``), needed only with a node. ``SpecError`` says
     why there is none."""
     node = resources.get("node")
+
     if not node:
         return choose_partition(partitions, resources["minutes"])
+
     if nodes is None:
         raise SpecError(
             f"cannot check 'resources.node' {node!r}: the cluster did not list its "
             "nodes (sinfo)"
         )
+
     if node not in nodes:
         close = difflib.get_close_matches(node, list(nodes), n=3)
         if close:
@@ -164,13 +182,16 @@ def runs_partition(
         else:
             known = f"its nodes: {', '.join(nodes)}"
         raise SpecError(f"the cluster has no node {node!r} ('resources.node'); {known}")
+
     on_node = set(nodes[node])
     usable = [p for p in partitions if p["name"] in on_node]
+
     if not usable:
         raise SpecError(
             f"node {node!r} is in partition(s) {sorted(on_node)}, none of which the "
             f"target lists ({[p['name'] for p in partitions]})"
         )
+
     try:
         return choose_partition(usable, resources["minutes"])
     except SpecError as error:
@@ -206,18 +227,22 @@ def start(
     experiment = resolve(spec, profile)
     exp_dir = (Path(root) if root else runs_root()) / experiment.name
     resources = experiment.run_resources
+
     if shutil.which("sbatch") is None:
         raise RuntimeError(
             "sbatch not found: run this on the cluster (its login node), or use a "
             "target that drives the cluster from here"
         )
+
     nodes = cluster_nodes() if resources["node"] else None
     partition = runs_partition(partitions, resources, nodes)
     tasks = _refuse_while_alive(experiment.name, exp_dir)
     specs = launch.prepare(experiment, exp_dir, slurm=tasks)
     queued = [s for s in specs if registry.current_state(s.out_dir) == "queued"]
+
     if not queued:  # every run is completed or running
         return exp_dir
+
     executor = submitit.AutoExecutor(folder=exp_dir / "slurm", cluster="slurm")
     executor.update_parameters(
         name=f"marlem-{experiment.name}",
@@ -245,8 +270,10 @@ def start(
             "tasks": {s.name: job.job_id for s, job in zip(queued, jobs)},
         },
     )
+
     for spec, job in zip(queued, jobs):
         launch.write_status(spec.out_dir, slurm_job=job.job_id)
+
     return exp_dir
 
 
@@ -254,22 +281,28 @@ def _refuse_while_alive(name: str, exp_dir: Path) -> dict[str, dict]:
     """The SLURM states of the experiment's earlier array, if no task of it is still
     queued or running (``RuntimeError`` otherwise, so nothing runs twice)."""
     info = registry.read_json(exp_dir / "slurm.json")
+
     if info is None:  # never submitted
         return {}
+
     tasks = states(exp_dir)
+
     if not tasks:
         raise RuntimeError(
             f"cannot tell whether SLURM job {info.get('array_id')} of experiment "
             f"'{name}' is still running (sacct gave no answer); once it is not, "
             f"remove {exp_dir / 'slurm.json'} and start again"
         )
+
     alive = [t for t, found in tasks.items() if found["state"] not in TERMINAL]
+
     if alive:
         raise RuntimeError(
             f"experiment '{name}' still has {len(alive)} task(s) queued or running on "
             f"SLURM (job {info['array_id']}); stop it first with "
             f"`python -m core.runner stop {name}` (and the same --target)"
         )
+
     return tasks
 
 
@@ -290,12 +323,14 @@ def stop(
         now marked stopped]}``.
     """
     exp_dir = launch.experiment_dir(experiment, root)
+
     if run is None:
         info = registry.read_json(exp_dir / "slurm.json") or {}
         ids = [str(info["array_id"])] if info.get("array_id") else []
     else:
         status = registry.read_json(exp_dir / run / "status.json") or {}
         ids = [str(status["slurm_job"])] if status.get("slurm_job") else []
+
     if ids:
         done = subprocess.run(["scancel", *ids], capture_output=True, text=True)
         if done.returncode != 0:
@@ -303,5 +338,7 @@ def stop(
                 f"scancel {' '.join(ids)} failed (exit status {done.returncode}): "
                 f"{done.stderr.strip() or 'no message'}; nothing was marked stopped"
             )
+
     stopped = launch.mark_stopped(exp_dir, run, kill=False)["stopped"]
+
     return {"cancelled": ids, "stopped": stopped}

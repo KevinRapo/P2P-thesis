@@ -207,8 +207,10 @@ class MarketEnv(MultiAgentEnv):
     def __init__(self, env_config: Optional[dict[str, Any]] = None) -> None:
         super().__init__()
         config = env_config or {}
+
         if "scenario" not in config:
             raise ValueError("env_config needs 'scenario': the path of a scenario JSON")
+
         self.config = dict(config)
         scenario = store.load(Path(config["scenario"]))
         _override(scenario.grid, config.get("grid"), "grid")
@@ -245,11 +247,13 @@ class MarketEnv(MultiAgentEnv):
         """The largest generation or demand (kWh) of any participant in any step
         of any day in ``days``: the default ``energy_scale`` (at least 1e-6)."""
         largest = 0.0
+
         for day in self.days:
             self.market.scenario.grid.day = day
             self.market.reset()
             for p in self.market.participants.values():
                 largest = max(largest, max(p.generation_kwh), max(p.demand_kwh))
+
         return max(largest, 1e-6)
 
     def _action_space(self) -> spaces.Dict:
@@ -326,25 +330,31 @@ class MarketEnv(MultiAgentEnv):
         return the first observations and ``{"day": day}`` per agent."""
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+
         day = (options or {}).get("day")
+
         if day is None:
             day = self.days[int(self.rng.integers(len(self.days)))]
         elif day not in self.days:
             raise ValueError(f"day {day} is not one of the environment's days")
+
         self.market.scenario.grid.day = day
         self.market.reset()
         self.last_record = None
         infos = {a: {"day": day} for a in self.agents_id}
+
         return self._observe(), infos
 
     def step(self, action_dict: dict[str, Any]):
         """Play one market step with the agents' orders."""
         intents, chosen = {}, {}
+
         for pid, action in action_dict.items():
             chosen[pid] = int(np.asarray(action["partner"]).reshape(-1)[0])
             intent = self.decode(pid, action)
             if intent is not None:
                 intents[pid] = intent
+
         record = self.market.step(intents)
         self.last_record = record
 
@@ -352,6 +362,7 @@ class MarketEnv(MultiAgentEnv):
         orders = {order.agent_id: order for order in record.orders}
         preference = _preference_kwh(record)
         rewards, infos = {}, {}
+
         for pid in self.agents_id:
             o = record.participants[pid]
             bill = o.profit - self.utility_price * o.deferred_demand_kwh
@@ -379,9 +390,11 @@ class MarketEnv(MultiAgentEnv):
                 "shared": shared,
                 "shared_state": shared_state,
             }
+
         done = self.market.done
         terminateds = {a: done for a in self.agents_id} | {"__all__": done}
         truncateds = {a: False for a in self.agents_id} | {"__all__": False}
+
         return self._observe(), rewards, terminateds, truncateds, infos
 
     # --- Actions ---------------------------------------------------------------------
@@ -392,11 +405,15 @@ class MarketEnv(MultiAgentEnv):
         q = float(np.clip(np.asarray(action["quantity"]).reshape(-1)[0], -1.0, 1.0))
         p = float(np.clip(np.asarray(action["price"]).reshape(-1)[0], -1.0, 1.0))
         partner = int(np.asarray(action["partner"]).reshape(-1)[0])
+
         if side not in (0, 1) or not 0 <= partner < len(self._candidates[pid]):
             raise ValueError(f"{pid}: action {action} is outside its space")
+
         share = (q + 1.0) / 2.0
+
         if share < NO_ORDER_SHARE:
             return None
+
         share = (share - NO_ORDER_SHARE) / (1.0 - NO_ORDER_SHARE)
         is_buy = SIDES[side] == "buy"
         participant = self.market.participants[pid]
@@ -405,10 +422,13 @@ class MarketEnv(MultiAgentEnv):
             participant.max_buy_kwh(step) if is_buy else participant.max_sell_kwh(step)
         )
         quantity = share * most
+
         if quantity <= _MIN_ORDER_KWH:
             return None
+
         spread = self.utility_price - self.feed_in_tariff
         price = self.feed_in_tariff + (p + 1.0) / 2.0 * spread
+
         return OrderIntent(
             pid, is_buy, float(price), float(quantity), self._candidates[pid][partner]
         )
@@ -429,7 +449,9 @@ class MarketEnv(MultiAgentEnv):
             q = -1.0
         else:
             q = 2.0 * (NO_ORDER_SHARE + (1.0 - NO_ORDER_SHARE) * min(share, 1.0)) - 1.0
+
         names = self.partners(pid)
+
         return {
             "side": SIDES.index(side),
             "quantity": np.array([q], dtype=np.float32),
@@ -494,6 +516,7 @@ class MarketEnv(MultiAgentEnv):
             "mean_profit": (0.0, self.reward_scale),
             "social_welfare": (0.0, self.reward_scale * n * t),
         }
+
         return {name: kinds.get(name, (0.0, 1.0)) for name in OBS_NAMES}
 
     def _observe(self) -> dict[str, np.ndarray]:
@@ -507,6 +530,7 @@ class MarketEnv(MultiAgentEnv):
         # OPEN E-10: the KPIs over the day so far; the papers give no window.
         values |= signals.kpis(m.history)
         out = {}
+
         for pid in self.agents_id:
             mine = values | signals.agent_signals(m, pid)
             scaled = [
@@ -520,6 +544,7 @@ class MarketEnv(MultiAgentEnv):
             # cannot be told apart from it.
             vector = np.nan_to_num(np.array(scaled + peers, dtype=np.float32), nan=0.0)
             out[pid] = np.clip(vector, -_OBS_LIMIT, _OBS_LIMIT)
+
         return out
 
 
@@ -550,7 +575,9 @@ def _mutual(order: Optional[Order], orders: dict[str, Order]) -> float:
     condition of stage 1 besides the prices), 0 if not, NaN without a peer named."""
     if order is None or order.partner_id in (None, DSO_ID):
         return float("nan")
+
     other = orders.get(order.partner_id)
+
     return float(
         other is not None
         and other.partner_id == order.agent_id
@@ -561,10 +588,12 @@ def _mutual(order: Optional[Order], orders: dict[str, Order]) -> float:
 def _preference_kwh(record: StepRecord) -> dict[str, float]:
     """Energy each participant traded in stage 1, bought and sold."""
     out: dict[str, float] = {}
+
     for t in record.trades:
         if t.stage == 1:
             out[t.buyer_id] = out.get(t.buyer_id, 0.0) + t.quantity
             out[t.seller_id] = out.get(t.seller_id, 0.0) + t.quantity
+
     return out
 
 
@@ -610,6 +639,7 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
             (record.signal or grid).max_line_loading_percent
         ),
     }
+
     return shared, state
 
 
@@ -647,6 +677,7 @@ def net_position_policy(
             chargeable = float(o[index["available_charge"]])
             dischargeable = float(o[index["available_discharge"]])
             side, share, price = "sell", 0.0, margin
+
             if net > _MIN_ORDER_KWH:
                 kept = min(net, chargeable) if battery_first else 0.0
                 share = (net - kept) / (net + dischargeable)
@@ -654,8 +685,10 @@ def net_position_policy(
                 kept = min(-net, dischargeable) if battery_first else 0.0
                 side, price = "buy", 1.0 - margin
                 share = (-net - kept) / (-net + chargeable)
+
             if share <= _MIN_ORDER_KWH:
                 share = 0.0  # nothing left to trade: no order
+
             actions[pid] = env.encode(pid, side, share, price)
         return actions
 

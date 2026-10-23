@@ -31,6 +31,7 @@ def make_run(exp_dir, name, **status):
     run_dir = exp_dir / name
     run_dir.mkdir(parents=True)
     (run_dir / "status.json").write_text(json.dumps(status), encoding="utf-8")
+
     return run_dir
 
 
@@ -101,6 +102,7 @@ def fakes(monkeypatch):
 
     monkeypatch.setattr(targets, "get", get)
     found["made"] = made
+
     return found
 
 
@@ -140,6 +142,7 @@ def test_stop_marks_queued_runs_stopped(runs_root):
     assert states() == ["stopped", "queued"]
     assert service.stop("local", "x")["stopped"] == ["b"]
     assert set(states()) == {"stopped"}
+
     with pytest.raises(FileNotFoundError):
         service.stop("local", "missing")
 
@@ -182,6 +185,7 @@ def test_making_a_real_cluster_target_connects_to_nothing():
     assert isinstance(cluster, targets.Target) and cluster.name == "taltech"
     assert getattr(getattr(cluster, "remote", None), "_thread", None) is None
     service.close()
+
     with pytest.raises(targets.TargetError, match="unknown target 'nope'"):
         service.target("nope")
 
@@ -232,6 +236,7 @@ def test_the_experiments_folder_specs_all_load():
     found = RunService().spec_files()
     paths = sorted((REPO / "config" / "experiments").glob("*.json"))
     assert [r["path"] for r in found] == paths and paths
+
     for record in found:
         assert record["error"] is None, record
         experiment = Experiment.load(record["path"])
@@ -269,10 +274,12 @@ def test_a_spec_that_does_not_load_says_why(tmp_path):
         "d_no_scenario.json",
     ]
     assert found[0]["error"] is None and found[0]["name"] == "a_good"
+
     for record, message in zip(found[1:], ["not valid JSON", "colour", "not found"]):
         assert message in record["error"]
         assert record["runs"] is None and record["resources"] is None
         assert record["name"] == record["path"].stem
+
     assert RunService(specs=tmp_path / "nowhere").spec_files() == []
 
 
@@ -298,6 +305,7 @@ def test_describe_turns_edited_text_into_the_experiment():
     assert record["experiment"].name == "smoke_more"
     unnamed = RunService().describe(smoke["text"], "smoke")  # the file has no name
     assert unnamed["experiment"] == smoke["experiment"]
+
     for change, message in (
         ({"seeds": []}, "seeds"),
         ({"colour": "red"}, "colour"),
@@ -305,6 +313,7 @@ def test_describe_turns_edited_text_into_the_experiment():
     ):
         record = RunService().describe(json.dumps(json.loads(smoke["text"]) | change))
         assert message in record["error"] and record["experiment"] is None
+
     for text in ("{half", "", "[1]"):
         record = RunService().describe(text)
         assert record["error"] and record["experiment"] is None
@@ -357,14 +366,19 @@ def test_preset_keys_are_the_settings_the_test_version_changes():
 
 def test_a_preset_on_text_that_is_no_experiment_says_why():
     template = (REPO / "config" / "experiments" / "smoke.json").read_text(encoding="utf-8")
+
     for text, message in (("{half", "not valid JSON"), ("[1]", "one JSON object")):
         with pytest.raises(ValueError, match=message):
             apply_preset(text, "test", template, "smoke")
+
     with pytest.raises(ValueError, match="unknown preset"):
         apply_preset(template, "tiny", template, "smoke")
+
     bad = json.dumps(json.loads(template) | {"colour": "red"})
+
     with pytest.raises(ValueError, match="colour"):
         apply_preset(bad, "test", template, "smoke")
+
     assert "colour" in apply_preset(bad, "full", template, "smoke")  # nothing to check
 
 
@@ -400,6 +414,7 @@ def test_quick_settings_read_and_rewrite_the_editors_json():
     assert [r.name for r in experiment.expand()] == ["ppo_ctde_s0", "ppo_ctde_s1"]
     per_algorithm = apply_settings(to_text_budget(text), {"budget": 900})
     assert json.loads(per_algorithm)["budget"] == {"ppo": 900}
+
     with pytest.raises(ValueError, match="unknown quick setting"):
         apply_settings(text, {"sac_alpha": 1})
 

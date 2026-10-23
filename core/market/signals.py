@@ -75,6 +75,7 @@ def bid_ask_spread(history) -> float:
     """Mean ask price minus mean bid price."""
     asks = [o.price for r in history for o in r.orders if not o.is_buy]
     bids = [o.price for r in history for o in r.orders if o.is_buy]
+
     return statistics.fmean(asks) - statistics.fmean(bids) if asks and bids else NAN
 
 
@@ -210,6 +211,7 @@ def mean_local_price(market) -> float:
     r = _last(market)
     p2p = [t for t in r.trades if t.stage < 3] if r else []
     value = sum(t.price * t.quantity for t in p2p)
+
     return _ratio(value, sum(t.quantity for t in p2p))
 
 

@@ -98,9 +98,12 @@ def status(run: Run) -> str:
     """The run's status; a run whose process died (left "running") counts as not
     run, so it is trained again."""
     path = Path(run.out_dir) / "run.json"
+
     if not path.exists():
         return "not run"
+
     found = json.loads(path.read_text(encoding="utf-8"))["status"]
+
     return "not run" if found == "running" else found
 
 
@@ -110,6 +113,7 @@ def score(run: Run, probe: int) -> pd.DataFrame:
     policy, _ = load_policy(run.out_dir)
     env = env_class(run.env_config)
     rows = []
+
     for check in env.checks(gamma):
         if check.value is not None:
             got = policy.values(check.obs)
@@ -154,11 +158,13 @@ def score(run: Run, probe: int) -> pd.DataFrame:
                             TOLERANCE,
                         )
                     )
+
     frame = pd.DataFrame(
         rows, columns=["state", "output", "expected", "got", "tolerance"]
     )
     frame["error"] = (frame.got - frame.expected).abs()
     frame["ok"] = frame.error <= frame.tolerance + 1e-9
+
     return frame
 
 
@@ -179,11 +185,14 @@ def main() -> int:
         for probe in args.probes
         for paradigm in args.paradigms
     ]
+
     if args.retrain:
         for _, run in runs:
             shutil.rmtree(run.out_dir, ignore_errors=True)
+
     pending = [run for _, run in runs if status(run) != "completed"]
     start = time.time()
+
     if pending:
         with ProcessPoolExecutor(max_workers=min(args.workers, len(pending))) as pool:
             futures = {pool.submit(train, run): run for run in pending}
@@ -197,20 +206,25 @@ def main() -> int:
         print(f"{len(pending)} runs trained in {time.time() - start:.0f} s")
 
     summary, failed = [], False
+
     for probe, run in runs:
         name = PROBES[probe][0]
+
         if status(run) != "completed":
             summary.append((probe, name, run.paradigm, "NOT RUN", float("nan")))
             failed = True
             continue
+
         frame = score(run, probe)
         worst = float((frame.error / frame.tolerance.clip(lower=1e-9)).max())
         ok = bool(frame.ok.all())
         failed |= not ok
         summary.append((probe, name, run.paradigm, "PASS" if ok else "FAIL", worst))
+
         if not ok:
             print(f"\n{name} {run.paradigm.upper()} failed:")
             print(frame[~frame.ok].to_string(index=False))
+
     table = pd.DataFrame(
         summary,
         columns=["probe", "name", "paradigm", "result", "worst error / tolerance"],
@@ -220,6 +234,7 @@ def main() -> int:
     table.to_csv(RUNS_DIR / f"summary{suffix}.csv", index=False)
     print()
     print(table.pivot(index=["probe", "name"], columns="paradigm", values="result"))
+
     return 1 if failed else 0
 
 

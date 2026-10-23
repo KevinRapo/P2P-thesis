@@ -114,6 +114,11 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   differing from the paper or the original) and `OPEN` (not decided: say what is open,
   with its register or plan ID, and the choice used for now). Nothing else is marked.
 - New Python files: Black style, 88-character lines.
+- **Blank lines inside functions.** Separate a function's logical steps with one blank
+  line: before and after an `if`, `for`, `while`, `with`, `try` or `match` block that
+  has statements around it, and before a final `return` that follows several
+  statements. Not after the docstring, and not inside bodies of three statements or
+  fewer. Black keeps these lines but does not add them.
 - Never `git stash` in these worktrees.
 
 ## Keep the paper's grid functionality

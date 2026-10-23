@@ -81,6 +81,7 @@ def main(reload: bool = True) -> None:
     """
     for path, build in ROUTES.items():
         ui.page(path)(build)
+
     ui.page("/")(lambda: ui.navigate.to("/inspect"))
     ui.run(
         title="MARLEM Studio",

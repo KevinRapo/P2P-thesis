@@ -13,9 +13,11 @@ def test_observations_are_plus_or_minus_1():
     """Each agent sees +1 or -1, drawn at random on each reset."""
     env = ObservationProbe({"n_agents": 3})
     seen = set()
+
     for seed in range(20):
         obs, _ = env.reset(seed=seed)
         seen |= {float(o[0]) for o in obs.values()}
+
     print(f"values seen over 20 resets: {sorted(seen)}")
 
     assert seen == {-1.0, 1.0}

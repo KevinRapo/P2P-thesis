@@ -28,6 +28,7 @@ def _base(
     )
     fig.update_xaxes(title=x_title, gridcolor="rgba(148,163,184,0.18)", zeroline=False)
     fig.update_yaxes(title=y_title, gridcolor="rgba(148,163,184,0.18)", zeroline=False)
+
     return fig
 
 
@@ -50,6 +51,7 @@ def line_figure(
         kind: ``"line"`` or ``"bar"``.
     """
     fig = go.Figure()
+
     for i, (name, values) in enumerate(series.y.items()):
         color = SERIES[i % len(SERIES)]
         if kind == "bar":
@@ -64,6 +66,7 @@ def line_figure(
                     color=color, width=2, dash="dash" if name in dashed else "solid"
                 ),
             )
+
     return _base(fig, height, series.y_label, series.x_label)
 
 
@@ -94,6 +97,7 @@ def day_figure(
         faint: Draw dashed and light, for elements that are switched off.
     """
     fig = go.Figure()
+
     for kind in ("load", "sgen", "storage"):
         group = [e for e in elements if e.element_type == kind]
         if not group:
@@ -111,6 +115,7 @@ def day_figure(
             ),
             opacity=0.55 if faint else 1.0,
         )
+
     return _base(fig, height, "kW")
 
 
@@ -122,6 +127,7 @@ def element_figure(
 ) -> go.Figure:
     """One line per name, over the day (colours cycle through the series palette)."""
     fig = go.Figure()
+
     for i, (name, kw) in enumerate(lines.items()):
         fig.add_scatter(
             x=_clock(day),
@@ -130,6 +136,7 @@ def element_figure(
             mode="lines",
             line=dict(color=SERIES[i % len(SERIES)], width=2, shape="hv"),
         )
+
     return _base(fig, height, y_title)
 
 
@@ -151,19 +158,23 @@ def _bus_color(kind: str) -> str:
     """Marker colour for a bus kind; combined kinds fall back to their main element."""
     if kind in BUS_COLORS:
         return BUS_COLORS[kind]
+
     if "storage" in kind:
         return BUS_COLORS["storage"]
+
     return BUS_COLORS["load+pv"] if "pv" in kind else BUS_COLORS["load"]
 
 
 def _branch_trace(fig: go.Figure, pos: dict, branches: list, **line) -> None:
     """Draw branches as one line trace (``None`` breaks the line between segments)."""
     xs, ys = [], []
+
     for br in branches:
         if br.from_bus in pos and br.to_bus in pos:
             (x0, y0), (x1, y1) = pos[br.from_bus], pos[br.to_bus]
             xs += [x0, x1, None]
             ys += [y0, y1, None]
+
     if xs:
         fig.add_scatter(
             x=xs, y=ys, mode="lines", line=line, hoverinfo="skip", showlegend=False
@@ -216,8 +227,10 @@ def topology_figure(
     def hover(b: BusView) -> str:
         """Hover text: bus ID, kind, voltage level and, after a preview, the voltage."""
         text = f"{b.id}<br>{b.kind} · {b.vn_kv} kV"
+
         if voltages and b.id in voltages:
             text += f"<br>{voltages[b.id]:.3f} pu"
+
         return text
 
     def size(b: BusView) -> int:
@@ -231,6 +244,7 @@ def topology_figure(
         buses outside their voltage limits."""
         bad = [bool(violating) and b.id in violating for b in group]
         marked = [bool(highlight) and b.id in highlight for b in group]
+
         return dict(
             width=[3 if m or v else 0.5 for m, v in zip(marked, bad)],
             color=["#DC2626" if v else "#D97706" for v in bad],
@@ -278,8 +292,10 @@ def topology_figure(
                     line=outline(group),
                 ),
             )
+
     fig = _base(fig, height)
     fig.update_layout(hovermode="closest", legend=dict(orientation="h", y=-0.02))
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False, scaleanchor="x")
+
     return fig

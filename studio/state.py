@@ -11,8 +11,10 @@ _SERVICES: Services | None = None
 def services() -> Services:
     """The process-wide services, built on first use."""
     global _SERVICES
+
     if _SERVICES is None:
         _SERVICES = build_services()
+
     return _SERVICES
 
 

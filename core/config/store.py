@@ -25,12 +25,16 @@ def _known(cls: type, data: dict) -> dict:
 def from_dict(data: dict) -> Scenario:
     """A scenario from its JSON form."""
     participants = []
+
     for p in data.get("participants", []):
         values = _known(ParticipantSetup, p)
         battery = values.pop("battery", None)
+
         if battery:
             values["battery"] = BatterySetup(**_known(BatterySetup, battery))
+
         participants.append(ParticipantSetup(**values))
+
     return Scenario(
         name=data.get("name", "untitled"),
         grid=GridSetup(**_known(GridSetup, data.get("grid", {}))),

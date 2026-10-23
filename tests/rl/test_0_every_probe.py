@@ -37,6 +37,7 @@ def test_every_agent_gets_an_observation_inside_its_space():
 
         name = probe_class.__name__
         assert set(obs) == set(info) == set(env.agents_id), f"{name}: agent missing"
+
         for agent in env.agents_id:
             space = env.observation_spaces[agent]
             assert space.contains(
@@ -51,10 +52,12 @@ def test_episode_ends_after_its_length():
         env = probe_class({"n_agents": 3})
         env.reset(seed=42)
         ended = []
+
         for _ in range(env.length):
             *_, terminated, truncated, _ = env.step(same_action(env, 0.0))
             ended.append(terminated["__all__"])
             assert not truncated["__all__"], "probes end by termination"
+
         print(f"{probe_class.__name__:>16}  terminated after each step: {ended}")
 
         expected = [False] * (env.length - 1) + [True]

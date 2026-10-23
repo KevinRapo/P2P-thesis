@@ -41,12 +41,15 @@ def test_acting_on_another_agents_observation_costs_reward():
     """Agents with opposite observations that swap actions are each 1 off their
     best action: reward 1 - 1^2 = 0."""
     env = ObsActionProbe({"n_agents": 3, "scramble_ids": True})
+
     for seed in range(100):
         obs, _ = env.reset(seed=seed)
         plus = [a for a in env.agents_id if obs[a][0] > 0]
         minus = [a for a in env.agents_id if obs[a][0] < 0]
+
         if plus and minus:
             break
+
     a, b = plus[0], minus[0]
     actions = {agent: o / 2 for agent, o in obs.items()}
     actions[a], actions[b] = actions[b], actions[a]

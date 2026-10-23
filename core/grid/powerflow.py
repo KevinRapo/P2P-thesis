@@ -48,6 +48,7 @@ class SimBenchGrid:
     def __init__(self, setup: GridSetup, owned: dict[str, list[str]]) -> None:
         if setup.step_hours not in (1.0, 0.25):
             raise ValueError("step_hours must be 1.0 or 0.25")
+
         self.setup = setup
         self.owned = owned
         self.ref = NetworkRef("simbench", setup.code)
@@ -91,8 +92,10 @@ class SimBenchGrid:
     def _apply_background(self, step: int) -> None:
         """Every element at its value for ``step``; owned elements off."""
         net = self._net
+
         for (table, column), values in self._static.items():
             net[table][column] = values.copy()
+
         if simbench._has_profiles(net):
             if self.setup.step_hours == 1.0:
                 rows = list(simbench.profile_rows(self.setup.day, step % 24))
@@ -103,7 +106,9 @@ class SimBenchGrid:
                     continue
                 values = df.iloc[rows].mean()
                 net[table].loc[values.index, column] = values.values
+
         factor = 0.0 if self.setup.background == "off" else 1.0
+
         for table in ("load", "sgen", "storage"):
             if not len(net[table]):
                 continue
@@ -124,13 +129,17 @@ class SimBenchGrid:
 
         if self._net is None:
             self.reset()
+
         net = self._net
         self._apply_background(step)
+
         for inj in injections:
             if inj.bus_id not in self._bus_index:
                 raise ValueError(f"{inj.participant_id}: no bus {inj.bus_id!r}")
+
             p_mw = -inj.net_injection_kw / 1000.0  # a negative load injects
             index = self._loads.get(inj.participant_id)
+
             if index is None:
                 index = int(
                     pp.create_load(
@@ -142,12 +151,15 @@ class SimBenchGrid:
                     )
                 )
                 self._loads[inj.participant_id] = index
+
             net.load.loc[index, "p_mw"] = p_mw
             net.load.loc[index, "q_mvar"] = 0.0
+
         try:
             pp.runpp(net, algorithm="nr", recycle=self.recycle)
         except pp.LoadflowNotConverged:
             return simbench._not_converged(step, [])
+
         return simbench._assessment(net, step, self.setup.step_hours, [], self.limits)
 
     # --- Distances, paths and zones -------------------------------------------------
@@ -165,6 +177,7 @@ class SimBenchGrid:
         graph = self._topology()
         a, b = self._bus_index[bus_a], self._bus_index[bus_b]
         nodes = nx.shortest_path(graph, a, b, weight="weight")
+
         return self._along(graph, nodes)
 
     def path_upstream(self, bus: str) -> GridPath:
@@ -175,9 +188,12 @@ class SimBenchGrid:
 
         graph = self._topology()
         a = self._bus_index[bus]
+
         if not self._roots:
             return GridPath(0.0, (), self._zones[a], self._zones[a], bus, bus)
+
         _, nodes = nx.multi_source_dijkstra(graph, self._roots, a, weight="weight")
+
         return self._along(graph, nodes[::-1])
 
     def _along(self, graph: Any, nodes: list[int]) -> GridPath:
@@ -189,6 +205,7 @@ class SimBenchGrid:
         )
         km = sum(graph.edges[u, v]["weight"] for u, v in zip(nodes, nodes[1:]))
         names = simbench._bus_ids(self._net)
+
         return GridPath(
             float(km),
             lines,
@@ -203,8 +220,10 @@ class SimBenchGrid:
         length (km) and its rating (kW): √3 · rated voltage of its bus · I_max."""
         if self._net is None:
             self.reset()
+
         net = self._net
         out = {}
+
         for i, row in net.line.iterrows():
             kv = float(net.bus.at[row.from_bus, "vn_kv"])
             rating = math.sqrt(3) * kv * float(row.max_i_ka) * 1000.0
@@ -212,6 +231,7 @@ class SimBenchGrid:
                 float(row.length_km),
                 rating,
             )
+
         return out
 
     def _topology(self) -> Any:
@@ -221,11 +241,14 @@ class SimBenchGrid:
 
         if self._net is None:
             self.reset()
+
         if self._graph is not None:
             return self._graph
+
         net = self._net
         graph = nx.Graph()
         graph.add_nodes_from(int(i) for i in net.bus.index)
+
         for i, row in net.line.iterrows():
             graph.add_edge(
                 int(row.from_bus),
@@ -233,14 +256,19 @@ class SimBenchGrid:
                 weight=float(row.length_km),
                 line=simbench._branch_name(net.line, i, "line"),
             )
+
         for _, row in net.switch[net.switch.et == "b"].iterrows():
             graph.add_edge(int(row.bus), int(row.element), weight=0.0, line="")
+
         roots = {int(b) for b in net.trafo.lv_bus} or {int(b) for b in net.ext_grid.bus}
         self._roots = roots & set(graph.nodes)
         self._zones = self._feeders(graph)
+
         for _, row in net.trafo.iterrows():
             graph.add_edge(int(row.hv_bus), int(row.lv_bus), weight=0.0, line="")
+
         self._graph = graph
+
         return graph
 
     def _feeders(self, graph: Any) -> dict[int, str]:
@@ -251,16 +279,20 @@ class SimBenchGrid:
         import networkx as nx
 
         names = simbench._bus_ids(self._net)
+
         if not self._roots:
             return {int(b): "" for b in graph.nodes}
+
         _, paths = nx.multi_source_dijkstra(graph, self._roots, weight="weight")
         zones = {}
+
         for bus in graph.nodes:
             way = paths.get(bus)
             if way is None:
                 zones[bus] = names[bus]
             else:
                 zones[bus] = names[way[1]] if len(way) > 1 else names[way[0]]
+
         return zones
 
 

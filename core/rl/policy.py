@@ -109,27 +109,33 @@ class Policy:
         global state (CTDE), or all of them joined (CTCE)."""
         if self.paradigm == Paradigm.DTDE:
             return {a: np.asarray(obs[a], dtype=np.float32) for a in self.agents}
+
         if self.paradigm == Paradigm.CTDE:
             return central_obs(obs, self.agents)
+
         return {GROUP: join(obs, self.agents)}
 
     def _unit_actions(self, obs: dict, explore: bool) -> dict[str, Any]:
         """Each module's action in the network's units (before rescaling): an
         array, or a structure of them for a composite action."""
         out = {}
+
         with torch.no_grad():
             for mid, x in self._inputs(obs).items():
                 module = self.modules[mid]
                 batch = {Columns.OBS: torch.as_tensor(x).reshape(1, -1)}
+
                 if explore:
                     logits = module.forward_exploration(batch)
                     dist_cls = module.get_exploration_action_dist_cls()
                 else:
                     logits = module.forward_inference(batch)
                     dist_cls = module.get_inference_action_dist_cls()
+
                 dist = dist_cls.from_logits(logits[Columns.ACTION_DIST_INPUTS])
                 action = dist.sample() if explore else _deterministic(dist)
                 out[mid] = tree.map_structure(lambda t: t[0].numpy(), action)
+
         return out
 
     def act(self, obs: dict, explore: bool = False) -> dict[str, Any]:
@@ -141,8 +147,10 @@ class Policy:
                 most likely action.
         """
         unit = self._unit_actions(obs, explore)
+
         if self.paradigm == Paradigm.CTCE:
             unit = ungroup(unit[GROUP], self.agents)
+
         return {a: to_env(unit[a], self.act_spaces[a]) for a in self.agents}
 
     def __call__(self, obs: dict) -> dict[str, Any]:
@@ -152,10 +160,12 @@ class Policy:
         """Each module's value of the state, PPO's ``V``: per agent in DTDE and
         CTDE (each agent's own return), the group's in CTCE (the summed return)."""
         out = {}
+
         with torch.no_grad():
             for mid, x in self._inputs(obs).items():
                 batch = {Columns.OBS: torch.as_tensor(x).reshape(1, -1)}
                 out[mid] = float(self.modules[mid].compute_values(batch)[0])
+
         return out
 
 
@@ -249,16 +259,21 @@ def rollout(
     ``{"day": ...}``), one per seed."""
     env = env_class(env_config)
     episodes = []
+
     for seed, option in zip(seeds, options or [None] * len(seeds)):
         obs, infos = env.reset(seed=int(seed), options=option)
         episode = Episode(seed=int(seed), infos=[infos])
+
         for _ in range(max_steps):
             obs, rewards, terminateds, truncateds, infos = env.step(act(obs))
             episode.rewards.append({a: float(r) for a, r in rewards.items()})
             episode.infos.append(infos)
+
             if terminateds["__all__"] or truncateds["__all__"]:
                 break
+
         episodes.append(episode)
+
     return episodes
 
 
@@ -267,6 +282,7 @@ def summarize(episodes: list[Episode]) -> dict[str, float]:
     team = np.array([e.team_return() for e in episodes])
     returns = [e.returns() for e in episodes]
     per_agent = {a: float(np.mean([r[a] for r in returns])) for a in returns[0]}
+
     return {
         "team_return_mean": float(team.mean()),
         "team_return_std": float(team.std()),
@@ -310,6 +326,7 @@ def evaluation(
     ``reset`` options), keeping every episode; the episodes at the indices in
     ``trace`` are also kept step by step."""
     summary, agents, episodes, trace_agents, trace_steps = [], [], [], [], []
+
     for name, act in policies.items():
         played = rollout(env_class, env_config, act, seeds, options=options)
         summary.append({"policy": name, **summarize(played)})
@@ -318,11 +335,14 @@ def evaluation(
             head |= _reset_fields(episode)
             episodes.append(head | _episode_row(episode))
             agents.extend(head | row for row in _agent_rows(episode))
+
             if index in trace:
                 steps, per_agent = _trace_rows(episode)
                 trace_steps.extend(head | row for row in steps)
                 trace_agents.extend(head | row for row in per_agent)
+
     traced = bool(trace_steps)
+
     return Evaluation(
         pd.DataFrame(summary),
         pd.DataFrame(agents),
@@ -374,12 +394,14 @@ def _step_infos(episode: Episode) -> list[dict]:
 def _agent_rows(episode: Episode) -> list[dict[str, Any]]:
     returns = episode.returns()
     rows = []
+
     for agent, value in returns.items():
         sums: dict[str, float] = {}
         for infos in _step_infos(episode):
             for k, v in _amounts(infos.get(agent, {})).items():
                 sums[k] = sums.get(k, 0.0) + v
         rows.append({"agent": agent, "return": value, **sums})
+
     return rows
 
 
@@ -395,6 +417,7 @@ def _episode_row(episode: Episode) -> dict[str, Any]:
 def _trace_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
     """The rows of one episode step by step: ``(steps, agents)``."""
     steps, agents = [], []
+
     for step, (rewards, infos) in enumerate(zip(episode.rewards, _step_infos(episode))):
         first = next(iter(infos.values()), {})
         steps.append(
@@ -409,6 +432,7 @@ def _trace_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
                 | _amounts(info)
                 | _states(info.get(STATE, {}))
             )
+
     return steps, agents
 
 
@@ -428,6 +452,8 @@ def baselines(env_class: type, env_config: dict, seed: int = 0) -> dict[str, Act
     ``net_position``) or, without them, the constant 0 action (``zero``)."""
     env = env_class(env_config)
     found = {"random": random_policy(env, seed)}
+
     if hasattr(env, "baseline_policies"):
         return found | env.baseline_policies(seed)
+
     return found | {"zero": constant_policy(env, 0.0)}

@@ -93,11 +93,14 @@ def simbench_label(code: str) -> tuple[str, str]:
     base = kind.rstrip("0123456789")
     number = kind[len(base) :]
     name = SIMBENCH_TYPES.get(base, base) + (f" {number}" if number else "")
+
     if lv_part and lv_part != "all":
         name += f", LV {lv_part}"
     elif lv_part == "all":
         name += ", all LV"
+
     sw = "with switches" if switches == "sw" else "no switches"
+
     return f"{level} {name} · scenario {scenario} · {sw}", level
 
 
@@ -106,6 +109,7 @@ def simbench_facets(code: str) -> tuple[str, int, bool]:
     0, True)`` for ``1-LV-semiurb4--0-sw``."""
     parts = code.split("-")
     base = parts[2].rstrip("0123456789")
+
     return SIMBENCH_TYPES.get(base, base), int(parts[4]), parts[5] == "sw"
 
 
@@ -123,6 +127,7 @@ def _simbench_codes() -> tuple[str, ...]:
         if c.split("-")[1] not in EXCLUDED_SIMBENCH_LEVELS
     ]
     rank = {lvl: i for i, lvl in enumerate(LEVEL_ORDER)}
+
     return tuple(sorted(codes, key=lambda c: rank.get(c.split("-")[1], len(rank))))
 
 
@@ -131,33 +136,43 @@ def list_networks(
 ) -> list[NetworkInfo]:
     """Catalog entries. Counts are filled only for networks already loaded."""
     refs: list[tuple[NetworkRef, str, str]] = []
+
     if source_type in (None, "simbench"):
         for code in _simbench_codes():
             label, lvl = simbench_label(code)
             refs.append((NetworkRef("simbench", code), label, lvl))
+
     if source_type in (None, "pandapower_builtin"):
         for name, (label, lvl) in BUILTIN_NETWORKS.items():
             refs.append((NetworkRef("pandapower_builtin", name), label, lvl))
+
     out = []
+
     for ref, label, lvl in refs:
         if level and lvl != level:
             continue
+
         loaded = ref in _LOADED
         info = _info(ref, label, lvl) if loaded else NetworkInfo(ref, label, lvl)
+
         if ref.source_type == "simbench":
             category, scenario, switches = simbench_facets(ref.code)
             info = replace(
                 info, category=category, scenario=scenario, switches=switches
             )
+
         out.append(info)
+
     return out
 
 
 def voltage_levels(source_type: str) -> list[str]:
     """Distinct voltage levels offered for one source type, in catalog order."""
     seen: dict[str, None] = {}
+
     for n in list_networks(source_type):
         seen.setdefault(n.voltage_level, None)
+
     return list(seen)
 
 
@@ -185,30 +200,38 @@ def _cache_path(ref: NetworkRef) -> Path | None:
     """The cache file of a network; ``None`` without a cache or for user files."""
     if _CACHE_DIR is None or ref.source_type == "pandapower_file":
         return None
+
     import pandapower as pp
     import simbench as sb
 
     version = f"pandapower-{pp.__version__}_simbench-{sb.__version__}"
+
     return _CACHE_DIR / version / ref.source_type / f"{ref.code}.pkl"
 
 
 def _read_or_build(ref: NetworkRef) -> "pp.pandapowerNet":
     """The network from its cache file, or built and then written to the cache."""
     path = _cache_path(ref)
+
     if path is not None and path.exists():
         try:
             with path.open("rb") as f:
                 return pickle.load(f)
         except Exception:  # noqa: BLE001  a damaged file is rebuilt
             path.unlink(missing_ok=True)
+
     net = _build(ref)
+
     if path is not None:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")
+
         with tmp.open("wb") as f:
             pickle.dump(net, f, protocol=pickle.HIGHEST_PROTOCOL)
+
         with _CACHE_LOCK:
             os.replace(tmp, path)
+
     return net
 
 
@@ -216,7 +239,9 @@ def cache_status() -> tuple[str, int, int]:
     """(cache folder, networks cached, bytes); ``("", 0, 0)`` without a cache."""
     if _CACHE_DIR is None:
         return "", 0, 0
+
     files = list(_CACHE_DIR.rglob("*.pkl")) if _CACHE_DIR.exists() else []
+
     return str(_CACHE_DIR), len(files), sum(f.stat().st_size for f in files)
 
 
@@ -229,11 +254,14 @@ def cache_coverage() -> dict[str, tuple[int, int]]:
     """
     if _CACHE_DIR is None:
         return {}
+
     groups: dict[str, list[NetworkRef]] = {}
+
     for code in _simbench_codes():
         groups.setdefault(simbench_label(code)[1], []).append(
             NetworkRef("simbench", code)
         )
+
     groups["built-in"] = [NetworkRef("pandapower_builtin", n) for n in BUILTIN_NETWORKS]
     folder = _cache_path(NetworkRef("simbench", "x")).parents[1]
     cached = (
@@ -241,6 +269,7 @@ def cache_coverage() -> dict[str, tuple[int, int]]:
         if folder.exists()
         else set()
     )
+
     return {
         group: (sum((r.source_type, r.code) in cached for r in refs), len(refs))
         for group, refs in groups.items()
@@ -269,16 +298,19 @@ def warm_cache(
     """
     if _CACHE_DIR is None:
         return 0
+
     refs = [
         NetworkRef("simbench", c)
         for c in _simbench_codes()
         if simbench_label(c)[1] in set(levels)
     ]
     todo = [r for r in refs if not is_cached(r)]
+
     for i, ref in enumerate(todo, start=1):
         _read_or_build(ref)
         if progress:
             progress(i, len(todo))
+
     return len(todo)
 
 
@@ -343,6 +375,7 @@ def _build(ref: NetworkRef) -> "pp.pandapowerNet":
         net = pp.from_json(ref.code)
     else:
         raise ValueError(f"Unknown network source {ref.source_type!r}")
+
     return net
 
 
@@ -422,8 +455,10 @@ def summary(ref: NetworkRef) -> NetworkSummary:
 def _bus_ids(net: Any) -> dict[int, str]:
     """Stable string IDs: the bus name when names are unique, else ``bus <index>``."""
     names = net.bus["name"]
+
     if names.notna().all() and names.is_unique:
         return {int(i): str(n) for i, n in names.items()}
+
     return {int(i): f"bus {i}" for i in net.bus.index}
 
 
@@ -450,22 +485,29 @@ def _pull_upstream_buses(
     """
     on_lines = set(net.line.from_bus) | set(net.line.to_bus)
     partners: dict[int, list[int]] = {}
+
     for _, row in net.trafo.iterrows():
         hv, lv = int(row.hv_bus), int(row.lv_bus)
         partners.setdefault(hv, []).append(lv)
         partners.setdefault(lv, []).append(hv)
+
     ys = [y for _, y in coords.values()]
     offset = 0.04 * ((max(ys) - min(ys)) or 1.0)
     out = dict(coords)
+
     for bus, others in partners.items():
         if bus in on_lines or not others:
             continue
+
         others = [o for o in others if o in coords]
+
         if not others:
             continue
+
         x = sum(coords[o][0] for o in others) / len(others)
         y = max(coords[o][1] for o in others) + offset
         out[bus] = (x, y)
+
     return out
 
 
@@ -478,6 +520,7 @@ def _radial_layout(net: Any) -> dict[int, tuple[float, float]]:
     roots = [int(b) for b in net.ext_grid.bus] or [int(net.bus.index[0])]
     coords: dict[int, tuple[float, float]] = {}
     next_y = 0.0
+
     for component in nx.connected_components(graph):
         root = next((r for r in roots if r in component), min(component))
         tree = nx.bfs_tree(graph.subgraph(component), root)
@@ -485,18 +528,23 @@ def _radial_layout(net: Any) -> dict[int, tuple[float, float]]:
         def place(node: int, depth: int) -> float:
             nonlocal next_y
             children = list(tree.successors(node))
+
             if not children:
                 y = next_y
                 next_y += 1.0
             else:
                 y = sum(place(c, depth + 1) for c in children) / len(children)
+
             coords[int(node)] = (float(depth), y)
+
             return y
 
         place(root, 0)
         next_y += 2.0
+
     for b in net.bus.index:  # isolated buses
         coords.setdefault(int(b), (0.0, next_y))
+
     return coords
 
 
@@ -507,14 +555,18 @@ def _element_kinds(net: Any) -> dict[int, str]:
     """What is connected to each bus: load, pv, gen (any other static generator)
     and storage, joined by "+" in that order; "" for a bus without elements."""
     kinds: dict[int, set[str]] = {int(b): set() for b in net.bus.index}
+
     for b in net.load.bus:
         kinds[int(b)].add("load")
+
     for _, row in net.sgen.iterrows():
         kinds[int(row.bus)].add(
             "pv" if str(row.get("type", "")).upper() == "PV" else "gen"
         )
+
     for b in net.storage.bus:
         kinds[int(b)].add("storage")
+
     return {b: "+".join(k for k in BUS_KIND_ORDER if k in s) for b, s in kinds.items()}
 
 
@@ -537,6 +589,7 @@ def bus_kinds(ref: NetworkRef) -> dict[str, str]:
     """
     net = _load(ref)
     ids = _bus_ids(net)
+
     return {ids[b]: kind for b, kind in _element_kinds(net).items() if kind}
 
 
@@ -565,9 +618,11 @@ def topology_view(ref: NetworkRef) -> TopologyView:
         for b in net.bus.index
     )
     open_lines = set()
+
     if len(net.switch):
         mask = (net.switch.et == "l") & ~net.switch.closed.astype(bool)
         open_lines = {int(e) for e in net.switch.element[mask]}
+
     branches = [
         BranchView(
             id=str(row["name"]) if isinstance(row["name"], str) else f"line {i}",
@@ -588,6 +643,7 @@ def topology_view(ref: NetworkRef) -> TopologyView:
         )
         for i, row in net.trafo.iterrows()
     ]
+
     if len(net.switch):
         for i, row in net.switch[net.switch.et == "b"].iterrows():
             branches.append(
@@ -599,7 +655,9 @@ def topology_view(ref: NetworkRef) -> TopologyView:
                     closed=bool(row.closed),
                 )
             )
+
     ext = [ids[int(b)] for b in net.ext_grid.bus]
+
     return TopologyView(buses, tuple(branches), ext[0] if ext else None, how)
 
 
@@ -616,16 +674,19 @@ def elements(ref: NetworkRef, bus: str | None = None) -> list[ElementRecord]:
     net = _load(ref)
     ids = _bus_ids(net)
     out = []
+
     for table, kind in (("load", "load"), ("sgen", "sgen"), ("storage", "storage")):
         df = net[table]
         for i, row in df.iterrows():
             name = row.get("name")
             profile = row.get("profile") if "profile" in df else ""
             rated_mw = row.p_mw if kind == "load" else row.get("sn_mva", row.p_mw)
+
             if rated_mw is None or (
                 isinstance(rated_mw, float) and math.isnan(rated_mw)
             ):
                 rated_mw = row.p_mw
+
             out.append(
                 ElementRecord(
                     id=str(name) if isinstance(name, str) else f"{kind} {i}",
@@ -640,6 +701,7 @@ def elements(ref: NetworkRef, bus: str | None = None) -> list[ElementRecord]:
                     ),
                 )
             )
+
     return [e for e in out if bus is None or e.bus == bus]
 
 
@@ -674,7 +736,9 @@ def _profile_columns(source: Any) -> dict[tuple[str, str], dict[str, str]]:
         profiles = source
     else:
         profiles = getattr(source, "profiles", None)
+
     out: dict[tuple[str, str], dict[str, str]] = {}
+
     for table in PROFILE_TABLES:
         df = (profiles or {}).get(table)
         if df is None:
@@ -682,11 +746,15 @@ def _profile_columns(source: Any) -> dict[tuple[str, str], dict[str, str]]:
         for column in df.columns:
             if column == "time":
                 continue
+
             name, quantity = column, "p"
+
             for suffix, q in (("_pload", "p"), ("_qload", "q"), ("_pgen", "p")):
                 if column.endswith(suffix):
                     name, quantity = column[: -len(suffix)], q
+
             out.setdefault((table, name), {})[quantity] = column
+
     return out
 
 
@@ -697,6 +765,7 @@ def profile_catalog(ref: NetworkRef) -> list[ProfileRecord]:
     """
     net = _load(ref)
     out = []
+
     for (table, name), columns in _profile_columns(net).items():
         values = net.profiles[table][columns.get("p", next(iter(columns.values())))]
         users = getattr(net, PROFILE_USERS[table])
@@ -711,19 +780,24 @@ def profile_catalog(ref: NetworkRef) -> list[ProfileRecord]:
                 peak=round(float(values.max()), 4),
             )
         )
+
     return sorted(out, key=lambda r: (PROFILE_TABLES.index(r.table), r.name))
 
 
 def _window(start: str, days: int, resolution: str) -> tuple[date, int, int, int]:
     """(first day, first row, last row, rows per output value) of a time window."""
     d = date.fromisoformat(start)
+
     if d.year != SIMBENCH_YEAR:
         raise ValueError(f"SimBench profiles cover {SIMBENCH_YEAR}; got {start}")
+
     if resolution not in RESOLUTION_ROWS:
         raise ValueError(f"resolution must be one of {list(RESOLUTION_ROWS)}")
+
     year_days = (date(SIMBENCH_YEAR + 1, 1, 1) - date(SIMBENCH_YEAR, 1, 1)).days
     first = (d - date(SIMBENCH_YEAR, 1, 1)).days * 24 * ROWS_PER_HOUR
     last = min(first + days * 24 * ROWS_PER_HOUR, year_days * 24 * ROWS_PER_HOUR)
+
     return d, first, last, RESOLUTION_ROWS[resolution]
 
 
@@ -735,6 +809,7 @@ def _labels(d: date, count: int, step: int, resolution: str) -> list[str]:
     """
     begin = datetime(d.year, d.month, d.day)
     fmt = "%Y-%m-%d" if resolution == "daily" else "%Y-%m-%d %H:%M"
+
     return [
         (begin + timedelta(minutes=15 * step * i)).strftime(fmt) for i in range(count)
     ]
@@ -744,6 +819,7 @@ def _aggregate(values: Any, first: int, last: int, step: int) -> list[float]:
     """Mean of every ``step`` rows of a column between ``first`` and ``last``."""
     block = values.iloc[first:last]
     means = block.groupby([i // step for i in range(len(block))]).mean()
+
     return [float(v) for v in means]
 
 
@@ -784,11 +860,14 @@ def _series(
     d, first, last, step = _window(start, days, resolution)
     columns = _profile_columns(profiles)
     values: dict[str, list[float]] = {}
+
     for table, name in columns:
         if name in names and quantity in columns[(table, name)]:
             column = profiles[table][columns[(table, name)][quantity]]
             values[name] = [round(v, 4) for v in _aggregate(column, first, last, step)]
+
     count = len(next(iter(values.values()), []))
+
     return _labels(d, count, step, resolution), values
 
 
@@ -825,17 +904,23 @@ def profile_power(
     absolute = _absolute_profiles(ref)
     column = {"p": "p_mw", "q": "q_mvar"}[quantity]
     values: dict[str, list[float]] = {}
+
     for table, name in _profile_columns(net):
         if name not in names:
             continue
+
         element_table = PROFILE_USERS[table]
         frame = absolute.get((element_table, column))
         users = getattr(net, element_table)
+
         if frame is None or "profile" not in users:
             continue
+
         ids = [i for i in users.index[users["profile"] == name] if i in frame.columns]
+
         if not ids:
             continue
+
         if per_element:
             for i in ids:
                 kw = _aggregate(frame[i] * 1000, first, last, step)
@@ -843,7 +928,9 @@ def profile_power(
         else:
             kw = _aggregate(frame[ids].sum(axis=1) * 1000, first, last, step)
             values[f"{name} ({len(ids)})"] = [round(v, 3) for v in kw]
+
     count = len(next(iter(values.values()), []))
+
     return _labels(d, count, step, resolution), values
 
 
@@ -875,18 +962,23 @@ def element_power(
     count = math.ceil((last - first) / step)
     wanted = set(ids)
     values: dict[str, list[float]] = {}
+
     for table in ("load", "sgen", "storage"):
         frame = absolute.get((table, "p_mw"))
         for i, row in net[table].iterrows():
             name = row.get("name")
             element_id = str(name) if isinstance(name, str) else f"{table} {i}"
+
             if element_id not in wanted:
                 continue
+
             if frame is not None and i in frame.columns:
                 kw = _aggregate(frame[i] * 1000, first, last, step)
             else:
                 kw = [float(row.p_mw) * 1000] * count
+
             values[element_id] = [round(v, 3) for v in kw]
+
     return _labels(d, count, step, resolution), values
 
 
@@ -912,6 +1004,7 @@ def catalogue_profiles(scenario: int = 0) -> list[ProfileRecord]:
     """
     profiles = _catalogue(scenario)
     out = []
+
     for (table, name), columns in _profile_columns(profiles).items():
         values = profiles[table][columns.get("p", next(iter(columns.values())))]
         if values.empty:
@@ -926,6 +1019,7 @@ def catalogue_profiles(scenario: int = 0) -> list[ProfileRecord]:
                 peak=round(float(values.max()), 4),
             )
         )
+
     return sorted(out, key=lambda r: (PROFILE_TABLES.index(r.table), r.name))
 
 
@@ -950,12 +1044,16 @@ def profile_rows(day: str, hour: int) -> range:
     Hourly values: the four quarter-hour rows of each hour, averaged.
     """
     d = date.fromisoformat(day)
+
     if d.year != SIMBENCH_YEAR:
         raise ValueError(f"SimBench profiles cover {SIMBENCH_YEAR}; got {day}")
+
     if not 0 <= hour <= 23:
         raise ValueError(f"hour must be 0..23, got {hour}")
+
     start = (d - date(SIMBENCH_YEAR, 1, 1)).days * 24 * ROWS_PER_HOUR
     start += hour * ROWS_PER_HOUR
+
     return range(start, start + ROWS_PER_HOUR)
 
 
@@ -969,6 +1067,7 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
 
     net = _working_copy(ref)
     notes: list[str] = []
+
     if _has_profiles(net):
         rows = list(profile_rows(day, hour))
         for (table, column), df in _absolute_profiles(ref).items():
@@ -979,6 +1078,7 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
         notes.append(f"Profiles: {day}, hour {hour} (mean of 4 × 15 min).")
     else:
         notes.append("No profiles in this network: static element values.")
+
     if not _has_line_ratings(net):
         notes.append("No line ratings: line loading is not checked.")
 
@@ -986,6 +1086,7 @@ def preview_powerflow(ref: NetworkRef, day: str, hour: int) -> GridAssessment:
         pp.runpp(net)
     except pp.LoadflowNotConverged:
         return _not_converged(hour, notes)
+
     return _assessment(net, hour, 1.0, notes)
 
 
@@ -1019,6 +1120,7 @@ def _assessment(
     lo = net.bus.get("min_vm_pu", None)
     hi = net.bus.get("max_vm_pu", None)
     violations = []
+
     for b, v in vm.items():
         v_min = float(lo[b]) if lo is not None and not math.isnan(lo[b]) else None
         v_max = float(hi[b]) if hi is not None and not math.isnan(hi[b]) else None
@@ -1026,6 +1128,7 @@ def _assessment(
         v_max = limits.v_max_pu if limits.v_max_pu is not None else v_max
         v_min = DEFAULT_V_LIMITS[0] if v_min is None else v_min
         v_max = DEFAULT_V_LIMITS[1] if v_max is None else v_max
+
         if v < v_min:
             violations.append(
                 GridViolation("V_LOW", "bus", ids[int(b)], float(v), v_min)
@@ -1036,10 +1139,12 @@ def _assessment(
             )
 
     max_line = None
+
     if _has_line_ratings(net) and len(net.res_line):
         loading = net.res_line.loading_percent
         max_line = round(float(loading.max()), 2)
         line_limits = net.line.get("max_loading_percent")
+
         for i, value in loading.items():
             limit = limits.line_max_percent
             if limit is None:
@@ -1056,7 +1161,9 @@ def _assessment(
                         limit,
                     )
                 )
+
     max_trafo = None
+
     if len(net.res_trafo):
         max_trafo = round(float(net.res_trafo.loading_percent.max()), 2)
         for i, value in net.res_trafo.loading_percent.items():
@@ -1071,6 +1178,7 @@ def _assessment(
     losses_kw = 1000 * (
         float(net.res_line.pl_mw.sum()) + float(net.res_trafo.pl_mw.sum())
     )
+
     return GridAssessment(
         step=step,
         converged=True,

@@ -81,6 +81,7 @@ class ProfileOverview:
         self.picked: set[str] = set()
         self.counts: Counter[str] = Counter()
         self.box = ui.column().classes("w-full gap-2")
+
         with ui.row().classes("w-full items-start no-wrap gap-3"):
             self.hint = ui.column().classes("grow gap-0")
             self.clear = (
@@ -92,6 +93,7 @@ class ProfileOverview:
                 .props("flat dense no-caps")
                 .classes("shrink-0")
             )
+
         self._explain()
 
     def show(self, types: list[ProfileType]) -> None:
@@ -103,8 +105,10 @@ class ProfileOverview:
         """(Re)draw all panels; the selected tiles are highlighted."""
         self.box.clear()
         groups: dict[str, dict[str, list[ProfileClass]]] = {}
+
         for c in self.classes:
             groups.setdefault(c.group, {}).setdefault(c.subgroup, []).append(c)
+
         with self.box:
             with ui.row().classes("w-full gap-3 items-stretch"):
                 self._tile(
@@ -142,10 +146,13 @@ class ProfileOverview:
         """One clickable class tile: short label and number of profiles."""
         colour = CLASS_COLOURS.get(key or "", "var(--mls-muted)")
         classes = "mls-ptile"
+
         if (key in self.picked) if key else not self.picked:
             classes += " mls-ptile-active"
+
         if not count:
             classes += " mls-ptile-empty"
+
         with (
             ui.column()
             .classes(classes + " gap-0")
@@ -154,6 +161,7 @@ class ProfileOverview:
         ) as tile:
             ui.label(label).classes("mls-ptile-label")
             ui.label(str(count)).classes("mls-ptile-count")
+
         if count:
             tile.on("click", lambda key=key: self.pick(key))
 
@@ -165,6 +173,7 @@ class ProfileOverview:
             self.picked.clear()
         else:
             self.picked ^= {key}
+
         self._draw()
         self._explain()
         await self.on_pick(set(self.picked))
@@ -173,16 +182,19 @@ class ProfileOverview:
         """One line per selected class: where it sits, its count, what it is."""
         self.hint.clear()
         self.clear.set_visibility(bool(self.picked))
+
         with self.hint:
             if not self.picked:
                 ui.label(NO_PICK).classes("mls-card-caption")
                 return
+
             chosen = [c for c in self.classes if c.key in self.picked]
             total = sum(self.counts[c.key] for c in chosen)
             ui.label(
                 f"{total} profiles in {len(chosen)} "
                 f"class{'es' if len(chosen) > 1 else ''}:"
             ).classes("text-body2 text-weight-medium")
+
             for c in chosen:
                 where = " · ".join(p for p in (c.group, c.subgroup) if p)
                 ui.label(

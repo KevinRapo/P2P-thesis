@@ -69,9 +69,11 @@ class ScenarioService:
     def set_network(self, code: str) -> None:
         """Use another network; participants belong to the old one and are removed."""
         s = self.current()
+
         if s.grid.code != code:
             s.grid.code = code
             s.participants = []
+
         self.save()
 
     # --- Placing participants --------------------------------------------------------
@@ -80,6 +82,7 @@ class ScenarioService:
         """Add or remove a participant on ``bus``; returns what happened."""
         message = placement.toggle(self.current(), bus)
         self.save()
+
         return message
 
     def kind_counts(self) -> dict[str, int]:
@@ -97,6 +100,7 @@ class ScenarioService:
             self.current(), kinds, battery_kwh, battery_power_kw
         )
         self.save()
+
         return count
 
     def battery_presets(self) -> dict[str, BatterySetup]:
@@ -115,6 +119,7 @@ class ScenarioService:
         ``ValueError`` for a change to its SimBench storage)."""
         message = placement.set_battery(self.current(), participant_id, battery)
         self.save()
+
         return message
 
     def clear(self) -> None:

@@ -65,8 +65,10 @@ class ClearingMechanism(Enum):
                 buyer = max(0.0, buy.price - reference_price)
                 seller = max(0.0, reference_price - sell.price)
                 spread = buy.price - sell.price
+
                 if buyer + seller == 0 or spread <= 0:
                     return (buy.price + sell.price) / 2
+
                 return sell.price + buyer / (buyer + seller) * spread
 
 

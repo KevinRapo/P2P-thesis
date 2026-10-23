@@ -11,6 +11,7 @@ def replace_file(path: Path, write: Callable[[Path], None]) -> None:
     """Write beside ``path``, then replace it so readers never see half a file."""
     tmp = path.with_name(path.name + ".tmp")
     write(tmp)
+
     for attempt in range(20):  # Windows refuses while a reader has the file open
         try:
             os.replace(tmp, path)

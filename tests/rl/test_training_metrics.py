@@ -44,6 +44,7 @@ def fake_training(monkeypatch, tmp_path, results):
             episodes=pd.DataFrame([{"policy": "trained", "team_return": 1.0}]),
         ),
     )
+
     return training.Run(
         "ppo", "dtde", lambda config: None, budget=100, out_dir=tmp_path
     )
@@ -78,8 +79,10 @@ def test_idle_polls_are_omitted_but_learning_and_all_call_time_are_kept(
 
 def test_nonfinite_learner_metric_is_not_hidden_by_idle_sampling(monkeypatch, tmp_path):
     run = fake_training(monkeypatch, tmp_path, [result(0, total_loss=float("nan"))])
+
     with pytest.raises(FloatingPointError):
         training.train(run)
+
     rows = pd.read_csv(tmp_path / "metrics.csv")
     assert len(rows) == 1
     assert rows.env_steps.iloc[0] == 0
@@ -131,9 +134,11 @@ def test_metrics_rows_are_appended_and_new_columns_widen_the_file_once(
     monkeypatch.setattr(
         training, "_replace", lambda p, write: (replaced.append(p), original(p, write))
     )
+
     for row in ({"a": 1}, {"a": 2}, {"a": 3, "loss": 0.5}, {"a": 4, "loss": 0.4}):
         rows.append(row)
         training._append_metrics(path, rows, columns)
+
     frame = pd.read_csv(path)
     assert frame.a.tolist() == [1, 2, 3, 4]
     assert pd.isna(frame.loss.iloc[0]) and frame.loss.tolist()[2:] == [0.5, 0.4]

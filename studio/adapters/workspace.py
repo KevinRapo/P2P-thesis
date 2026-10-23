@@ -66,8 +66,10 @@ def default_home() -> Path:
     built-in default.
     """
     home = machine.get("MARLEM_HOME")
+
     if home:
         return Path(home).expanduser()
+
     return _saved_home() or built_in_home()
 
 
@@ -77,18 +79,23 @@ def set_home(home: str | Path | None) -> Path:
     The folder is created and must be writable. Existing files are not moved.
     """
     target = settings_path()
+
     if home is None or str(home).strip() == "":
         target.unlink(missing_ok=True)
         return built_in_home()
+
     path = Path(str(home).strip()).expanduser().resolve()
     path.mkdir(parents=True, exist_ok=True)
     probe = path / ".marlem-write-test"
+
     try:
         probe.write_text("ok", encoding="utf-8")
     finally:
         probe.unlink(missing_ok=True)
+
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps({"home": str(path)}, indent=2), encoding="utf-8")
+
     return path
 
 
@@ -96,9 +103,11 @@ def is_synced_folder(path: Path) -> bool:
     """True inside OneDrive (or a folder it syncs), where runs should not live."""
     resolved = Path(path).expanduser().resolve()
     roots = [os.environ.get(k) for k in ("OneDrive", "OneDriveConsumer")]
+
     for root in filter(None, roots):
         if resolved.is_relative_to(Path(root).resolve()):
             return True
+
     return any(
         part.lower() == "onedrive" or part.lower().startswith("onedrive - ")
         for part in resolved.parts

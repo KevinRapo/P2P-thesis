@@ -33,6 +33,7 @@ def page() -> None:
     network, and the day profiles."""
     s = services()
     scenario = s.scenario.current()
+
     with shell(
         "summary",
         "Summary",
@@ -75,6 +76,7 @@ def page() -> None:
 
     async def load() -> None:
         _checks(check_box, scenario, None)
+
         if not scenario.participants:
             for box in (day_box, network_box):
                 box.clear()
@@ -85,22 +87,31 @@ def page() -> None:
                     "groups",
                 )
             return
+
         for box in (day_box, profiles_box):
             busy(box, "Reading the profiles …")
+
         busy(network_box, "Building topology …")
+
         try:
             day = await run.io_bound(s.profiles.day_profiles, scenario)
         except Exception as e:  # noqa: BLE001  show the error on the page
             for box in (day_box, profiles_box, network_box):
                 failed(box, e)
             return
+
         day_box.clear()
+
         with day_box:
             ui.plotly(day_figure(day, day.owned())).classes("w-full")
+
         profiles_box.clear()
+
         with profiles_box:
             show_day_profiles(day, scenario)
+
         _checks(check_box, scenario, day)
+
         try:
             topology = await run.io_bound(
                 s.grid.topology, NetworkRef("simbench", scenario.grid.code)
@@ -108,7 +119,9 @@ def page() -> None:
         except Exception as e:  # noqa: BLE001  show the error on the page
             failed(network_box, e)
             return
+
         network_box.clear()
+
         with network_box:
             marked = {p.bus for p in scenario.participants}
             ui.plotly(topology_figure(topology, highlight=marked, height=300)).classes(
@@ -132,6 +145,7 @@ def _checks(box: ui.element, scenario: Scenario, day: DayProfiles | None) -> Non
     """The ready banner, or the list of problems, with the way to Step."""
     box.clear()
     problems = _problems(scenario, day)
+
     with box, ui.row().classes("mls-card w-full items-center gap-3 no-wrap"):
         ui.icon(
             "warning" if problems else "check_circle",
@@ -197,9 +211,11 @@ def _dso(scenario: Scenario) -> None:
 def _participants(scenario: Scenario) -> None:
     """Counts, the battery types grouped, and the full list on demand."""
     people = scenario.participants
+
     if not people:
         ui.label("None placed yet.").classes("mls-card-caption")
         return
+
     batteries = [p for p in people if p.battery]
     key_values(
         {
@@ -210,6 +226,7 @@ def _participants(scenario: Scenario) -> None:
         }
     )
     groups: dict[tuple, list[str]] = defaultdict(list)
+
     for p in batteries:
         b = p.battery
         groups[
@@ -223,6 +240,7 @@ def _participants(scenario: Scenario) -> None:
                 b.max_power_kw,
             )
         ].append(p.id)
+
     if groups:
         rows = [
             {
@@ -246,6 +264,7 @@ def _participants(scenario: Scenario) -> None:
             ],
             pagination=5,
         )
+
     with ui.expansion("All participants", icon="list").classes("w-full"):
         data_table(
             [

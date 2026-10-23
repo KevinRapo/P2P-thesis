@@ -91,6 +91,7 @@ class Dso:
     ) -> None:
         if voltage_drop not in ("distance", "measured"):
             raise ValueError("voltage_drop must be 'distance' or 'measured'")
+
         self.feed_in_tariff = feed_in_tariff
         self.utility_price = utility_price
         self.fees_charged = fees_charged
@@ -142,8 +143,10 @@ class Dso:
         |V_a − V_b| between the path's two buses (0 when not known)."""
         if self.voltage_drop == "distance":
             return self.voltage_factor * path.distance_km
+
         a = self.bus_voltage_pu.get(path.bus_a)
         b = self.bus_voltage_pu.get(path.bus_b)
+
         return abs(a - b) if a is not None and b is not None else 0.0
 
     def congestion(self, lines: Sequence[str]) -> float:
@@ -168,14 +171,19 @@ class Dso:
         value = quantity * price
         c = self.congestion(path.lines)
         congestion = 0.0
+
         if c > self.congestion_threshold:  # 8a
             congestion = self.congestion_factor * (c - self.congestion_threshold)
             congestion *= value
+
         thermal = 0.0
+
         if c > self.thermal_threshold:  # 8g, 8d
             f_thermal = (c - self.thermal_threshold) / (1 - self.thermal_threshold)
             thermal = min(f_thermal, self.thermal_cap) * value
+
         v_drop = self.voltage_drop_of(path)  # 8f, or measured
+
         return GridFees(
             congestion=congestion,
             transmission=loss_kwh * price,
@@ -191,12 +199,16 @@ class Dso:
         excess supply); a trade that helps pays nothing, as in the original."""
         if abs(grid_balance_kwh) < 1e-9:
             return GridFees()
+
         dso_buys = trade.buyer_id == self.id
         helps = dso_buys == (grid_balance_kwh > 0)
+
         if helps:
             return GridFees()
+
         impact = min(trade.quantity / abs(grid_balance_kwh), 1.0)
         value = trade.quantity * trade.price
+
         return GridFees(imbalance=self.imbalance_factor * impact * value)
 
     def _charged(self, trade: Trade, parts: GridFees) -> Trade:
@@ -204,6 +216,7 @@ class Dso:
         a peer-to-peer fee, the participant's whole fee with the DSO. Nothing is
         paid when the fees are not charged."""
         total = parts.total
+
         if not self.fees_charged:
             buyer = seller = 0.0
         elif trade.buyer_id == self.id:
@@ -213,6 +226,7 @@ class Dso:
         else:
             buyer = total * self.fee_buyer_share
             seller = total - buyer
+
         return replace(
             trade, fees=total, fee_parts=parts, buyer_fee=buyer, seller_fee=seller
         )
@@ -252,6 +266,7 @@ class Dso:
         pays the imbalance fee (eq. 8b) when it worsens the market's balance
         ``grid_balance_kwh`` (B_grid before stage 3, + excess supply)."""
         out = []
+
         for t in trades:
             parts = self.fees_of(
                 t.quantity,
@@ -263,9 +278,10 @@ class Dso:
                 imbalance = self.imbalance_fee(t, grid_balance_kwh).imbalance
                 parts = replace(parts, zone=0.0, imbalance=imbalance)
             out.append(self._charged(t, parts))
+
         return tuple(out)
 
-    # --- Stage 3 ---------------------------------------------------------------------
+    # --- Stage 3 - clearing-----------------------------------------------------------
     def clear(
         self,
         orders: Sequence[Order],
@@ -280,6 +296,7 @@ class Dso:
         trade. Its fees (eq. 8, with the imbalance fee) follow the step's power
         flow (``charge``)."""
         trades = []
+
         for o in orders:
             if o.is_buy:
                 buyer, seller, price = o.agent_id, self.id, self.utility_price
@@ -287,6 +304,7 @@ class Dso:
                 buyer, seller, price = self.id, o.agent_id, self.feed_in_tariff
             trade = Trade(buyer, seller, price, o.quantity, o.timestamp, stage=3)
             trades.append(self.assess(trade, upstream(o.agent_id)))
+
         return tuple(trades)
 
     # --- Balance (eq. 7) -------------------------------------------------------------
@@ -301,6 +319,7 @@ class Dso:
         self.balance_kwh += sold - bought
         self.profit += revenue + fees
         self.fees += fees
+
         return DsoOutcome(
             bought_kwh=bought,
             sold_kwh=sold,

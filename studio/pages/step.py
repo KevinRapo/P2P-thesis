@@ -61,6 +61,7 @@ def page() -> None:
     """Controls on top, order book and network side by side, participants and the
     day below."""
     s = services()
+
     with shell(
         "step",
         "Step",
@@ -69,6 +70,7 @@ def page() -> None:
     ):
         with section("Market step", icon="skip_next"):
             controls = ui.column().classes("w-full gap-2")
+
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Order book",
@@ -86,10 +88,13 @@ def page() -> None:
                 classes="grow basis-0",
             ):
                 network_box = ui.column().classes("w-full")
+
         with section("Trades", icon="swap_horiz"):
             trades_box = ui.column().classes("w-full")
+
         with section("Participants", icon="groups"):
             people_box = ui.column().classes("w-full")
+
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "The day so far",
@@ -110,10 +115,13 @@ def page() -> None:
 
     async def topology() -> None:
         m = s.market.manager
+
         if m is None or state["code"] == m.scenario.grid.code:
             return
+
         busy(network_box, "Building topology …")
         source = NetworkRef("simbench", m.scenario.grid.code)
+
         try:
             state["topology"] = await run.io_bound(s.grid.topology, source)
             state["code"] = source.code
@@ -124,13 +132,16 @@ def page() -> None:
         """Run ``work`` off the UI thread, then redraw."""
         if state["busy"]:
             return
+
         state["busy"] = True
+
         try:
             await run.io_bound(work)
         except Exception as e:  # noqa: BLE001  show the error on the page
             ui.notify(f"{label}: {e}", type="negative", multi_line=True)
         finally:
             state["busy"] = False
+
         await topology()
         render()
 
@@ -141,27 +152,35 @@ def page() -> None:
         m = s.market.manager
         _controls(controls, m, act, build)
         view = _view(m)
+
         for box in (book_box, network_box, trades_box, people_box, day_box, volt_box):
             box.clear()
+
         if m is None:
             return
+
         with book_box:
             if view["orders"]:
                 ui.plotly(_order_book(view)).classes("w-full")
             else:
                 ui.label("No orders yet.").classes("mls-card-caption")
+
         with network_box:
             if state["topology"] is not None:
                 ui.plotly(_network(state["topology"], m, view)).classes("w-full")
+
         with trades_box:
             _trades_table(view["trades"])
+
         with people_box:
             _people_table(m, view)
+
         with day_box:
             if m.history:
                 ui.plotly(_day_figure(m)).classes("w-full")
             else:
                 ui.label("No step played yet.").classes("mls-card-caption")
+
         with volt_box:
             if m.history:
                 ui.plotly(_voltage_figure(m)).classes("w-full")
@@ -187,6 +206,7 @@ def _clock(m: LocalEnergyMarket, step: int) -> str:
     h = m.scenario.grid.step_hours
     start, end = step * h, (step + 1) * h
     fmt = lambda x: f"{int(x) % 24:02d}:{int(round(x % 1 * 60)):02d}"  # noqa: E731
+
     return f"{fmt(start)}–{fmt(end)}"
 
 
@@ -200,18 +220,23 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
             ui.label(
                 f"{scenario.grid.code} · {scenario.grid.day} · {n} participants"
             ).classes("text-body2")
+
             if n == 0:
                 ui.label(
                     "Place participants on the Grid & Participants page first."
                 ).classes("text-warning text-caption")
+
             ui.button(
                 "Build the market",
                 icon="play_arrow",
                 on_click=lambda: act(build, "Build"),
             ).props("unelevated no-caps").set_enabled(n > 0)
+
             return
+
         pos = _position(m)
         shown = m.pending.step if m.pending else max(0, m.current_step - 1)
+
         with ui.row().classes("w-full items-center gap-3"):
             ui.label(f"Step {shown + 1} of {m.n_steps} · {_clock(m, shown)}").classes(
                 "text-h6"
@@ -220,6 +245,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
                 f"{m.scenario.grid.code} · {m.scenario.grid.day} · "
                 f"{len(m.participants)} participants · {m.scenario.market.mechanism}"
             ).classes("mls-card-caption")
+
         with ui.row().classes("w-full items-center gap-1"):
             for i, name in enumerate(PARTS):
                 done = i <= pos if pos >= 0 else False
@@ -231,7 +257,9 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
                 )
                 if i < len(PARTS) - 1:
                     ui.icon("chevron_right", size="18px").classes("text-grey")
+
         ui.label(EXPLAIN[pos]).classes("text-body2")
+
         with ui.row().classes("gap-2"):
             if m.done and m.pending is None:
                 label = "Day complete"
@@ -239,6 +267,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
                 label = "Collect orders" if pos == -1 else "Next step: collect orders"
             else:
                 label = NEXT[pos]
+
             ui.button(
                 label,
                 icon="arrow_forward",
@@ -259,6 +288,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
             ui.button(
                 "Reset", icon="restart_alt", on_click=lambda: act(build, "Reset")
             ).props("flat no-caps")
+
         ui.label(
             "Reset rebuilds the market from the current scenario and starts the day "
             "again; settings changed on the other pages apply from then on."
@@ -270,8 +300,10 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
 # --------------------------------------------------------------------------------------
 def _view(m: Optional[LocalEnergyMarket]) -> dict[str, Any]:
     empty = {"orders": (), "open": (), "trades": [], "record": None, "inputs": None}
+
     if m is None:
         return empty
+
     if m.pending is not None:
         p = m.pending
         return {
@@ -281,6 +313,7 @@ def _view(m: Optional[LocalEnergyMarket]) -> dict[str, Any]:
             "record": None,
             "inputs": p.inputs,
         }
+
     if m.history:
         r = m.history[-1]
         return {
@@ -290,6 +323,7 @@ def _view(m: Optional[LocalEnergyMarket]) -> dict[str, Any]:
             "record": r,
             "inputs": r.inputs,
         }
+
     return empty
 
 
@@ -304,18 +338,22 @@ def _curve(orders, buy: bool) -> tuple[list[float], list[float]]:
         key=lambda o: -o.price if buy else o.price,
     )
     xs, ys, total = [0.0], [], 0.0
+
     for o in side:
         total += o.quantity
         xs.append(total)
         ys.append(o.price)
+
     if ys:
         ys.append(ys[-1])
+
     return xs, ys
 
 
 def _order_book(view: dict) -> go.Figure:
     fig = go.Figure()
     inputs = view["inputs"]
+
     for orders, faint in ((view["orders"], True), (view["open"], False)):
         for buy, color, name in (
             (True, BUY, "Demand (bids)"),
@@ -337,6 +375,7 @@ def _order_book(view: dict) -> go.Figure:
                 ),
                 opacity=0.45 if faint else 1.0,
             )
+
     if inputs is not None:
         for price, name in (
             (inputs.feed_in_tariff, "Feed-in tariff"),
@@ -348,8 +387,10 @@ def _order_book(view: dict) -> go.Figure:
                 annotation_text=name,
                 annotation_position="top left",
             )
+
     fig = styled(fig, 360, "price per kWh", "cumulative kWh")
     fig.update_layout(hovermode="closest")
+
     return fig
 
 
@@ -381,8 +422,10 @@ def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
         for n, t in enumerate(trades):
             a = bus_of.get(t.seller_id, ext) if t.seller_id != DSO_ID else ext
             b = bus_of.get(t.buyer_id, ext) if t.buyer_id != DSO_ID else ext
+
             if a not in pos or b not in pos:
                 continue
+
             (x0, y0), (x1, y1) = pos[a], pos[b]
             fig.add_scatter(
                 x=[x0, x1],
@@ -400,6 +443,7 @@ def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
     trades = view["trades"]
     segment([t for t in trades if t.stage < 3], P2P, "solid", "Peer trade")
     segment([t for t in trades if t.stage == 3], DSO, "dash", "DSO trade")
+
     for buy, color, name in ((False, SELL, "Seller"), (True, BUY, "Buyer")):
         group = [o for o in view["orders"] if o.is_buy == buy and o.location in pos]
         if group:
@@ -418,6 +462,7 @@ def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
                     size=20, symbol="circle-open", color=color, line=dict(width=3)
                 ),
             )
+
     return fig
 
 
@@ -431,6 +476,7 @@ def _trades_table(trades: list[Trade]) -> None:
     if not trades:
         ui.label("No trades yet in this step.").classes("mls-card-caption")
         return
+
     rows = [
         {
             "n": n,
@@ -465,15 +511,18 @@ def _trades_table(trades: list[Trade]) -> None:
 
 def _people_table(m: LocalEnergyMarket, view: dict) -> None:
     inputs = view["inputs"]
+
     if inputs is None:
         ui.label(
             "Collect the orders of the first step to see the participants."
         ).classes("mls-card-caption")
         return
+
     orders = {o.agent_id: o for o in view["orders"]}
     record: Optional[StepRecord] = view["record"]
     trades = view["trades"]
     rows = []
+
     for pid, p in m.participants.items():
         o = orders.get(pid)
         out = record.participants.get(pid) if record else None
@@ -501,6 +550,7 @@ def _people_table(m: LocalEnergyMarket, view: dict) -> None:
                 "total": round(p.profit, 3),
             }
         )
+
     data_table(
         rows,
         [
@@ -552,6 +602,7 @@ def _day_figure(m: LocalEnergyMarket) -> go.Figure:
             title="price per kWh", overlaying="y", side="right", showgrid=False
         ),
     )
+
     return fig
 
 
@@ -573,6 +624,8 @@ def _voltage_figure(m: LocalEnergyMarket) -> go.Figure:
         mode="lines+markers",
         line=dict(color=BUY),
     )
+
     for v in (g.v_min_pu, g.v_max_pu):
         fig.add_hline(y=v, line=dict(color="#DC2626", dash="dash", width=1))
+
     return styled(fig, 300, "V (pu)")

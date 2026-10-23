@@ -61,19 +61,25 @@ class Battery:
         state-of-charge window, an efficiency outside (0, 1], a start outside the
         window, a power limit that is not positive."""
         problems = []
+
         if self.capacity_kwh <= 0:
             problems.append(f"capacity {self.capacity_kwh} kWh is not positive")
+
         if not 0 <= self.min_soc < self.max_soc <= 1:
             problems.append(
                 f"SoC window {self.min_soc}-{self.max_soc} is not inside 0-1"
             )
+
         for name in ("charge_efficiency", "discharge_efficiency"):
             if not 0 < getattr(self, name) <= 1:
                 problems.append(f"{name} {getattr(self, name)} is not in (0, 1]")
+
         if not self.min_soc <= self.initial_soc <= self.max_soc:
             problems.append(f"initial SoC {self.initial_soc} is outside the window")
+
         if self.max_power_kw is not None and self.max_power_kw <= 0:
             problems.append(f"power limit {self.max_power_kw} kW is not positive")
+
         if problems:
             raise ValueError("Battery: " + "; ".join(problems))
 
@@ -125,6 +131,7 @@ class Battery:
         self.energy_kwh = min(
             self.max_kwh, self.energy_kwh + taken * self.charge_efficiency
         )
+
         return taken
 
     def discharge(self, kwh: float) -> float:
@@ -134,4 +141,5 @@ class Battery:
         self.energy_kwh = max(
             self.min_kwh, self.energy_kwh - given / self.discharge_efficiency
         )
+
         return given

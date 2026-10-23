@@ -70,6 +70,7 @@ def collect() -> list[dict[str, Any]]:
 
     services = build_services()
     rows = []
+
     for source_type in ("simbench", "pandapower_builtin"):
         for info in services.grid.list_networks(source_type):
             print(info.ref.code, flush=True)
@@ -77,6 +78,7 @@ def collect() -> list[dict[str, Any]]:
                 rows.append(_facts(services, info.ref))
             except Exception as error:  # noqa: BLE001  report and continue
                 print(f"  skipped: {error}", flush=True)
+
     return rows
 
 
@@ -91,16 +93,21 @@ def _facts(services: Any, source: Any) -> dict[str, Any]:
     storage = [e for e in elements if e.element_type == "storage"]
     load_kw: Counter[str] = Counter()
     load_n: Counter[str] = Counter()
+
     for e in loads:
         category = types.get(e.profile_type, "other")
         load_kw[category] += e.rated_kw
         load_n[category] += 1
+
     gen_kw: Counter[str] = Counter()
+
     for e in sgens:
         gen_kw[types.get(e.profile_type, "other")] += e.rated_kw
+
     load_buses = {e.bus for e in loads}
     gen_buses = {e.bus for e in sgens}
     pv_buses = {e.bus for e in sgens if types.get(e.profile_type) == "pv"}
+
     return {
         "code": source.code,
         "type": source.source_type,
@@ -135,8 +142,10 @@ def _parse(code: str) -> dict[str, Any]:
     ``1-MVLV-rural-all-1-no_sw`` -> grid ``1-MVLV-rural-all``, scenario 1.
     """
     match = re.match(r"(.+?)-{1,2}(\d)-(no_sw|sw)$", code)
+
     if not match:
         return {"grid": code, "scenario": None, "switches": None}
+
     return {
         "grid": match.group(1),
         "scenario": int(match.group(2)),
@@ -177,14 +186,18 @@ def _merge_switch_variants(rows: list[dict]) -> list[dict]:
     """
     ignore = {"code", "switches", "label", "buses"}
     keyed: dict[tuple, dict] = {}
+
     for row in rows:
         row = {**row, **_parse(row["code"])}
+
         if row["scenario"] is None:
             keyed[(row["code"],)] = {**row, "bus_text": str(row["buses"])}
             continue
+
         key = (row["grid"], row["scenario"])
         facts = {k: v for k, v in row.items() if k not in ignore}
         other = keyed.get(key)
+
         if other and {k: v for k, v in other.items() if k in facts} == facts:
             sw, no_sw = (row, other) if row["switches"] else (other, row)
             other["bus_text"] = (
@@ -197,6 +210,7 @@ def _merge_switch_variants(rows: list[dict]) -> list[dict]:
             keyed[key + (row["code"],)] = {**row, "bus_text": str(row["buses"])}
         else:
             keyed[key] = {**row, "bus_text": str(row["buses"])}
+
     return list(keyed.values())
 
 
@@ -208,6 +222,7 @@ def _table(rows: list[dict], columns: list[tuple[str, Any]]) -> str:
     head = "| " + " | ".join(c for c, _ in columns) + " |"
     rule = "|" + "|".join("---" for _ in columns) + "|"
     body = ["| " + " | ".join(str(f(r)) for _, f in columns) + " |" for r in rows]
+
     return "\n".join([head, rule, *body])
 
 
@@ -254,6 +269,7 @@ def render_blocks(rows: list[dict]) -> dict[str, str]:
     levels = [lvl for lvl in LEVELS if any(r["level"] == lvl for r in simbench)]
     levels += sorted({r["level"] for r in simbench} - set(levels))
     overview = []
+
     for lvl in levels:
         group = [r for r in simbench if r["level"] == lvl]
         overview.append(
@@ -267,6 +283,7 @@ def render_blocks(rows: list[dict]) -> dict[str, str]:
                 "pv": f"{mean(100 * r['generation_kw_by_class'].get('pv', 0) / r['load_kw'] for r in group if r['load_kw']):.0f} %",
             }
         )
+
     blocks["overview"] = _table(
         overview,
         [
@@ -392,6 +409,7 @@ def render_blocks(rows: list[dict]) -> dict[str, str]:
         ),
     )
     scen_rows = []
+
     for g in grids:
         by = {r["scenario"]: r for r in simbench if r["grid"] == g}
         scen_rows.append({"grid": g, **{s: by.get(s) for s in (0, 1, 2)}})
@@ -415,6 +433,7 @@ def render_blocks(rows: list[dict]) -> dict[str, str]:
         f"merging the switch variants, {len(builtin)} pandapower built-ins), "
         f"from `docs/simbench/networks.json`."
     )
+
     return blocks
 
 
@@ -427,14 +446,17 @@ def write(check: bool = False) -> int:
     blocks = render_blocks(rows)
     text = PAGE.read_text(encoding="utf-8")
     new = BLOCK.sub(lambda m: m.group(1) + blocks[m.group(2)] + "\n" + m.group(3), text)
+
     if check:
         if new != text:
             print("simbench/networks.md is out of date; run python docs/networks.py")
             return 1
         return 0
+
     if new != text:
         PAGE.write_text(new, encoding="utf-8", newline="\n")
         print("updated: simbench/networks.md")
+
     return 0
 
 

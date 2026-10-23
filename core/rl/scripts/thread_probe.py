@@ -79,14 +79,17 @@ def scenario(agents: int, template: dict) -> dict:
     """The template scenario, or the same settings on a larger network."""
     if agents == len(template["participants"]):
         return template
+
     from core.grid.contract import NetworkRef
     from core.grid.simbench import elements
 
     code = NETWORKS[agents]
     owned = defaultdict(list)
+
     for element in elements(NetworkRef("simbench", code)):
         if element.element_type in ("load", "sgen"):
             owned[element.bus].append(element)
+
     buses = [
         b for b, found in owned.items() if any(e.element_type == "load" for e in found)
     ]
@@ -99,11 +102,14 @@ def scenario(agents: int, template: dict) -> dict:
         }
         for i, bus in enumerate(buses[:agents])
     ]
+
     if len(participants) < agents:
         raise SystemExit(f"{code} has {len(participants)} load buses, not {agents}")
+
     found = copy.deepcopy(template)
     found["grid"]["code"] = code
     found["participants"] = participants
+
     return found
 
 
@@ -128,8 +134,10 @@ def train_one(case: dict, out: str) -> None:
         "num_env_runners": case["runners"],
         "scenario": scenario(case["agents"], template),
     }
+
     if case["budget"]:
         changes["budget"] = case["budget"]
+
     experiment = dataclasses.replace(experiment, **changes)
     path = experiment.scenario_file(Path(out))  # where the runs read it
     path.write_text(json.dumps(changes["scenario"]), encoding="utf-8")
@@ -146,17 +154,21 @@ def threads(root: psutil.Process) -> dict:
         processes = [root, *root.children(recursive=True)]
     except psutil.NoSuchProcess:
         return {}
+
     found = {}
+
     for process in processes:
         try:
             for tid in os.listdir(f"/proc/{process.pid}/task"):
                 with open(f"/proc/{process.pid}/task/{tid}/stat") as f:
                     stat = f.read()
+
                 name = stat[stat.index("(") + 1 : stat.rindex(")")]
                 fields = stat[stat.rindex(")") + 2 :].split()
                 found[tid] = (name, (int(fields[11]) + int(fields[12])) / TICK)
         except (FileNotFoundError, ProcessLookupError, ValueError):
             continue
+
     return found
 
 
@@ -186,15 +198,20 @@ def measure(case: dict) -> dict:
     _, error = child.communicate()
     watcher.join()
     by_name = defaultdict(int)
+
     for name, _ in seen.values():
         by_name[name] += 1
+
     working = sorted((cpu, name) for name, cpu in seen.values() if cpu > 1.0)[::-1]
     record = {}
+
     for path in Path(out).rglob("run.json"):
         record = json.loads(path.read_text(encoding="utf-8"))
+
     timings = record.get("timings", {})
     steps = record.get("env_steps") or record.get("steps")
     train_s = timings.get("train_calls_s")
+
     return case | {
         "exit": child.returncode,
         "peak": max(counts, default=0),
@@ -221,9 +238,11 @@ def main() -> None:
     parser.add_argument("--group", default="all", choices=sorted(GROUPS))
     parser.add_argument("--child", nargs=2, help=argparse.SUPPRESS)
     args = parser.parse_args()
+
     if args.child:
         train_one(json.loads(args.child[0]), args.child[1])
         return
+
     job = os.environ.get("SLURM_JOB_ID", "local")
     out = REPO / "runs" / "thread_probe" / f"{args.group}-{job}.csv"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -233,10 +252,12 @@ def main() -> None:
         flush=True,
     )
     rows = []
+
     for case in GROUPS[args.group]:
         row = measure(BASE | case)
         rows.append(row)
         print(json.dumps(row), flush=True)
+
         with open(out, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=list(rows[0]))
             writer.writeheader()

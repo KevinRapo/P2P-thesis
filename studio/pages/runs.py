@@ -151,7 +151,9 @@ def _clock(seconds: Optional[float]) -> str:
     """``h:mm:ss`` (``-`` when not known)."""
     if seconds is None:
         return "-"
+
     hours, rest = divmod(int(seconds), 3600)
+
     return f"{hours}:{rest // 60:02d}:{rest % 60:02d}"
 
 
@@ -169,6 +171,7 @@ def _row(run_state: RunState) -> dict[str, Any]:
     """The table row of one run: every cell as the text it shows."""
     color, text_color = STATE_STYLE.get(run_state.state, STATE_STYLE["unknown"])
     budget = f"{run_state.budget:,}" if run_state.budget else "?"
+
     return {
         "name": run_state.name,
         "state": run_state.state,
@@ -213,16 +216,19 @@ class ExperimentCard:
         caption = (spec or {}).get("description") or (
             "" if spec else "Runs made without the runner (no experiment.json)"
         )
+
         with section(name, caption, "insights"):
             with ui.row().classes("w-full items-center gap-2"):
                 self.badges = ui.row().classes("items-center gap-2")
                 ui.space()
+
                 if monitor.remote:
                     ui.button(
                         "Sync results",
                         icon="sync",
                         on_click=lambda e: monitor.sync(name, e.sender),
                     ).props("outline no-caps dense")
+
                 self.restart = ui.button(
                     "Restart failed runs",
                     icon="replay",
@@ -237,6 +243,7 @@ class ExperimentCard:
                     icon="stop_circle",
                     on_click=lambda: monitor.confirm_stop(name),
                 ).props("outline no-caps dense color=negative")
+
             self.table = (
                 ui.table(
                     columns=_columns(monitor.remote),
@@ -258,11 +265,14 @@ class ExperimentCard:
         counts = Counter(state.state for state in runs)
         alive = entry["summary"]["worker_alive"]
         key = (alive, tuple(counts.items()))
+
         if key != self._badges_key:
             self._badges_key = key
             self.badges.clear()
+
             with self.badges:
                 self._build_badges(counts, alive)
+
             busy = any(counts[state] for state in STOPPABLE)
             self.stop.set_visibility(busy)
             self.restart.set_visibility(
@@ -270,6 +280,7 @@ class ExperimentCard:
                 and not busy
                 and any(counts[state] for state in RESTARTABLE)
             )
+
         if runs != self.runs:
             self.table.rows[:] = [_row(r) for r in runs]
             self.table.update()
@@ -324,8 +335,10 @@ def _show_report(report: dict) -> None:
             with ui.column().classes("gap-0"):
                 for problem in report["problems"]:
                     ui.label(problem).classes("text-body2")
+
     cluster, local = report["cluster_commit"], report["local_commit"]
     ui.label(f"cluster {_short(cluster)} · this PC {_short(local)}").classes("mls-mono")
+
     if report["active"]:
         ui.label(
             f"Queued or running: {', '.join(report['active'])}. Do not update or edit "
@@ -368,6 +381,7 @@ class RunsMonitor:
         self._built = False
         self._checked = False
         self._updated = ""  # when the data shown was read
+
         with panel:
             if self.remote:
                 with ui.row().classes("w-full items-start gap-3 no-wrap"):
@@ -375,6 +389,7 @@ class RunsMonitor:
                     ui.button(
                         "Check", icon="wifi_tethering", on_click=self.check
                     ).props("flat no-caps dense")
+
             with ui.row().classes("w-full items-center gap-2"):
                 self.note = ui.label()
                 if self.remote:
@@ -383,6 +398,7 @@ class RunsMonitor:
                         icon="refresh",
                         on_click=lambda: self.refresh(True),
                     ).props("flat no-caps dense")
+
             self.box = ui.column().classes("w-full gap-4")
             ui.timer(REMOTE_REFRESH_S if self.remote else LOCAL_REFRESH_S, self.refresh)
 
@@ -402,7 +418,9 @@ class RunsMonitor:
         the note, and the cards stay."""
         if self._busy or not (self.active or force):
             return
+
         self._busy = True
+
         try:
             data = await run.io_bound(self.service.overview, self.target)
         except (OSError, RuntimeError) as error:
@@ -410,10 +428,13 @@ class RunsMonitor:
             return
         finally:
             self._busy = False
+
         self._updated = f"{datetime.now():%H:%M:%S}"
         self._show_note()
+
         if not self._built or {e["name"] for e in data} != set(self.cards):
             self._build(data)
+
         for entry in data:
             self.cards[entry["name"]].update(entry)
 
@@ -427,6 +448,7 @@ class RunsMonitor:
                 text += f" Showing data last updated at {self._updated}."
         else:
             text = f"Updated {self._updated}" if self.remote else ""
+
         self.note.set_text(text)
         self.note.classes(
             add="text-negative" if error else "mls-card-caption",
@@ -438,6 +460,7 @@ class RunsMonitor:
         self.box.clear()
         self.cards = {}
         self._built = True
+
         with self.box:
             if not data:
                 placeholder(
@@ -452,10 +475,13 @@ class RunsMonitor:
         """Ask the cluster whether it is ready and show the report."""
         self._checked = True
         self.status.clear()
+
         with self.status:
             ui.label(f"Checking {self.label} ...").classes("mls-card-caption")
+
         report = await _check(self.service, self.target, None)
         self.status.clear()
+
         with self.status:
             _show_report(report)
 
@@ -502,6 +528,7 @@ class RunsMonitor:
             else "Kills the worker and every running run, and marks the queued ones "
             "stopped."
         )
+
         # Built in the tab's panel, not in a card: a card can be rebuilt meanwhile.
         with self.panel, ui.dialog() as dialog, ui.card().classes("w-[460px] gap-3"):
             ui.label(f"Stop experiment {experiment}?").classes("text-h6")
@@ -516,13 +543,16 @@ class RunsMonitor:
                 ui.button(
                     "Stop experiment", on_click=lambda: dialog.submit(True)
                 ).props("unelevated no-caps color=negative")
+
         confirmed = await dialog
         dialog.delete()
+
         if confirmed:
             await self._stop(experiment, None, experiment)
 
     async def _stop(self, experiment: str, name: Optional[str], label: str) -> None:
         ui.notify(f"Stopping {label} ...")
+
         try:
             result = await run.io_bound(
                 self.service.stop, self.target, experiment, name
@@ -530,6 +560,7 @@ class RunsMonitor:
         except (OSError, RuntimeError) as error:
             _fail(f"Could not stop {label}: {error}")
             return
+
         done = "cancelled" if "cancelled" in result else "killed"
         ui.notify(
             f"Stopped {label}: {len(result[done])} {done}, "
@@ -596,6 +627,7 @@ class StartDialog:
         self.starting = False  # a start request is running: one at a time
         self.quick: dict[str, Any] = {}  # the fields of the quick settings
         self._filling = False  # the fields are being set from the editor
+
         with ui.dialog() as self.dialog:
             with ui.card().classes("w-[760px] max-w-full gap-3"):
                 self.body = ui.column().classes("w-full gap-3")  # filled by ``show``
@@ -605,8 +637,10 @@ class StartDialog:
         records = await run.io_bound(self.service.spec_files)
         self.templates = {str(r["path"]): r for r in records}
         self.body.clear()
+
         with self.body:
             self._build()
+
         self.dialog.open()
         self._template_changed()
         await self._check()
@@ -620,6 +654,7 @@ class StartDialog:
             value=next(iter(self.templates), None),
             on_change=self._template_changed,
         ).classes("w-full")
+
         with ui.row().classes("w-full items-center gap-2"):
             for preset, (label, icon, purpose) in PRESET_BUTTONS.items():
                 ui.button(
@@ -628,10 +663,12 @@ class StartDialog:
                     f"Overwrite name, seeds, days, budget, evaluation and resources "
                     f"in the editor with {purpose}; other edits stay"
                 )
+
         with ui.expansion(
             "Paradigms, PPO and resources", icon="tune", value=True
         ).classes("w-full"):
             self._build_quick()
+
         ui.label(
             "Edit the experiment as JSON: every setting is written out, with its "
             "default where the template gives none (docs: Training experiments, The "
@@ -652,6 +689,7 @@ class StartDialog:
             on_change=self._check,
         ).classes("w-full")
         self.check_box = ui.column().classes("w-full gap-1")
+
         with ui.row().classes("w-full justify-end"):
             ui.button("Cancel", on_click=self.dialog.close).props("flat no-caps")
             self.start = ui.button(
@@ -680,6 +718,7 @@ class StartDialog:
         """Show the editor's values in the quick settings."""
         values = self.service.quick_settings(self.editor.value or "")
         self._filling = True
+
         try:
             for name, field in self.quick.items():
                 value = values.get(name)
@@ -696,10 +735,12 @@ class StartDialog:
         """A quick setting was edited: write it into the editor's JSON."""
         if self._filling:
             return
+
         kind = next(
             k for g in QUICK_GROUPS.values() for n, (_, k) in g.items() if n == name
         )
         value = self.quick[name].value
+
         try:
             if kind == "seeds":
                 value = [
@@ -713,6 +754,7 @@ class StartDialog:
         except ValueError as error:
             _fail(f"Cannot set {name}: {error}")
             return
+
         self.editor.set_value(text)  # checked again by ``_changed``
 
     def _default_target(self, preset: str) -> str:
@@ -724,20 +766,25 @@ class StartDialog:
     def _template_changed(self) -> None:
         """Put the chosen template's text in the editor."""
         template = self.templates.get(self.template.value)
+
         if template is None:
             self.editor.set_value("")
         else:
             name = Path(self.template.value).stem
             self.editor.set_value(self.service.editable(template["text"], name))
+
         self._changed()
 
     def _apply_preset(self, preset: str) -> None:
         """Rewrite the editor's run size settings as the preset's, and pick the
         target that suits it."""
         template = self.templates.get(self.template.value)
+
         if template is None:
             return
+
         name = Path(self.template.value).stem
+
         try:
             text = self.service.apply_preset(
                 self.editor.value or "",
@@ -748,17 +795,20 @@ class StartDialog:
         except ValueError as error:
             _fail(f"Cannot apply the {preset} preset: {error}")
             return
+
         self.editor.set_value(text)  # checked again by ``_changed``
         self.target.set_value(self._default_target(preset))
 
     def _changed(self) -> None:
         """Check the editor's text and show what it makes."""
         template = self.templates.get(self.template.value)
+
         if template is None:
             self.record = None
         else:
             name = Path(self.template.value).stem  # as for a file without a name
             self.record = self.service.describe(self.editor.value or "", name)
+
         self._fill_quick()
         self._refit()
 
@@ -768,9 +818,11 @@ class StartDialog:
         the details and update Start."""
         experiment = self.record["experiment"] if self.record else None
         self.fit = []
+
         if experiment is not None and self.report is not None:
             nodes = self.report.get("nodes")
             self.fit = self.service.fit_problems(self.target.value, experiment, nodes)
+
         self._show_details()
         self._update_start()
 
@@ -779,14 +831,17 @@ class StartDialog:
         cluster cannot give."""
         self.details.clear()
         record = self.record
+
         if record is None:
             return
+
         with self.details:
             if record["error"]:
                 with ui.row().classes("items-start gap-2 no-wrap"):
                     ui.icon("error_outline", size="20px", color="negative")
                     ui.label(record["error"]).classes("text-body2 text-negative")
                 return
+
             key_values(
                 {
                     "Starts as": record["name"],
@@ -796,6 +851,7 @@ class StartDialog:
                 }
             )
             label = self.targets.get(self.target.value, self.target.value)
+
             for problem in self.fit:
                 with ui.row().classes("items-start gap-2 no-wrap"):
                     ui.icon("error_outline", size="20px", color="negative")
@@ -812,20 +868,27 @@ class StartDialog:
         self.report = None
         self.check_box.clear()
         self._refit()
+
         if asked == LOCAL:
             return
+
         with self.check_box:
             ui.label(f"Checking {self.targets[asked]} ...").classes("mls-card-caption")
+
         report = await _check(self.service, asked, None)
+
         if asked != self.target.value:  # changed in the meantime
             return
+
         self.report = report
         self.check_box.clear()
+
         with self.check_box:
             _show_report(report)
             ui.button("Check again", icon="refresh", on_click=self._check).props(
                 "flat no-caps dense"
             )
+
         self._refit()
 
     def _update_start(self) -> None:
@@ -842,6 +905,7 @@ class StartDialog:
         experiment = self.record["experiment"]
         self.starting = True
         self._update_start()
+
         try:
             name = await run.io_bound(
                 self.service.start_new, target, experiment, "full"
@@ -850,7 +914,9 @@ class StartDialog:
             self.starting = False
             _fail(f"Could not start: {error}")
             await self._check()  # what was true a moment ago may not be now
+
             return
+
         self.starting = False
         ui.notify(f"started {name} on {label}", type="positive")
         self.dialog.close()
@@ -886,21 +952,26 @@ def page() -> None:
         except RuntimeError as error:  # hpc/targets.toml is not valid
             placeholder(f"The targets cannot be read: {error}", "error_outline")
             return
+
         ui.button(
             "Start experiment…", icon="play_arrow", on_click=lambda: dialog.show()
         ).props("unelevated no-caps")
+
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             for name, label in names:
                 icon = "computer" if name == LOCAL else "cloud"
                 ui.tab(name, label=label, icon=icon)
+
         first = names[0][0]
         monitors: dict[str, RunsMonitor] = {}
+
         with ui.tab_panels(tabs, value=first).classes("w-full bg-transparent"):
             for name, label in names:
                 with ui.tab_panel(name).classes("p-0 gap-4") as panel:
                     monitors[name] = RunsMonitor(
                         service, name, label, panel, active=name == first
                     )
+
         dialog = StartDialog(service, names, show_target)
         tabs.on_value_change(opened)
         ui.timer(0.05, monitors[first].show, once=True)

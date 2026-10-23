@@ -40,6 +40,7 @@ def make_run(exp_dir: Path, name: str, seed: int, trained: list[float], **record
         | record,
     )
     episodes = []
+
     for policy, scores in (
         ("trained", trained),
         ("zero", [-10, -10]),
@@ -55,6 +56,7 @@ def make_run(exp_dir: Path, name: str, seed: int, trained: list[float], **record
                     "team_return": score,
                 }
             )
+
     write(run / "heldout_episodes.csv", pd.DataFrame(episodes))
     summary = pd.DataFrame(episodes).groupby("policy", sort=False).team_return.mean()
     write(
@@ -96,6 +98,7 @@ def make_run(exp_dir: Path, name: str, seed: int, trained: list[float], **record
         run / "metrics.csv",
         pd.DataFrame({"env_steps": [50, 100], "team_return_mean": [-11, -9]}),
     )
+
     return run
 
 
@@ -127,6 +130,7 @@ def where(tmp_path) -> dict[str, Path]:
             {"policy": ["trained", "zero"], "team_return_mean": [-4.0, -10.0]}
         ),
     )
+
     return {"local": root, "cluster": mirror}
 
 

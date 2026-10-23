@@ -217,6 +217,7 @@ class LocalEnergyMarket:
     def __init__(self, scenario: Scenario) -> None:
         if not scenario.participants:
             raise ValueError("The scenario has no participants")
+
         scenario = self.scenario = deepcopy(scenario)
         self.grid = SimBenchGrid(
             scenario.grid, {p.id: list(p.owns) for p in scenario.participants}
@@ -278,16 +279,21 @@ class LocalEnergyMarket:
         The clearing stages follow with ``advance``."""
         if self.pending is not None:
             raise RuntimeError("A step is already being played")
+
         if self.done:
             raise RuntimeError("The day is over")
+
         step = self.current_step
         inputs = self._inputs(step)
+
         if intents is None:
             intents = self._rule_intents(inputs)
+
         valid, notes = self._validate(inputs, intents)
         self.pending = PendingStep(
             step, inputs, dict(intents), self._orders(valid), notes
         )
+
         return self.pending
 
     def advance(self) -> StageResult | StepRecord:
@@ -295,12 +301,15 @@ class LocalEnergyMarket:
         [P1] §3.3.2), or, after stage 3, settlement, power flow, fees and the
         record (phases 4 and 6, [P1] §3.9)."""
         p = self.pending
+
         if p is None:
             raise RuntimeError("No step is being played; call start_step")
+
         if len(p.stages) < len(clearing.STAGES):
             result = clearing.STAGES[len(p.stages)](p.open_orders, self._rules(p))
             p.stages.append(result)
             return result
+
         outcomes = self._settle(p.inputs, p.trades)
         grid = self._assess_grid(p.step, outcomes)
         signal = self._grid_signal(p, grid)
@@ -324,6 +333,7 @@ class LocalEnergyMarket:
         )
         record = self._update_reputation(record)
         self._advance(record)
+
         return record
 
     def step(self, intents: Optional[Mapping[str, OrderIntent]] = None) -> StepRecord:
@@ -339,8 +349,10 @@ class LocalEnergyMarket:
         """Play every remaining step of the day (phase 8 of [P1] §3.9: stop after
         the last period)."""
         played = []
+
         while not self.done:
             played.append(self.step())
+
         return played
 
     # --- Inputs ----------------------------------------------------------------------
@@ -355,6 +367,7 @@ class LocalEnergyMarket:
         resolution = "hourly" if g.step_hours == 1.0 else "15min"
         _, power = simbench.element_power(ref, owned, g.day, 1, resolution)
         out = {}
+
         for p in self.scenario.participants:
             generation, demand = profiles_from_elements(
                 p.owns, kinds, power, g.step_hours, self.n_steps
@@ -367,6 +380,7 @@ class LocalEnergyMarket:
                 demand_kwh=demand,
                 battery=self._battery(p.battery),
             )
+
         return out
 
     def _battery(self, b: Optional[BatterySetup]) -> Optional[Battery]:
@@ -410,8 +424,10 @@ class LocalEnergyMarket:
             pid: OrderIntent(pid, is_buy, price, quantity)
             for pid, (is_buy, price, quantity, _) in rule.items()
         }
+
         if self.scenario.market.partner_preference:
             intents = self._with_partners(intents)
+
         return intents
 
     def _with_partners(self, intents: dict[str, OrderIntent]) -> dict[str, OrderIntent]:
@@ -421,6 +437,7 @@ class LocalEnergyMarket:
         reputation = {pid: q.reputation for pid, q in self.participants.items()}
         weight = self.scenario.market.partner_reputation_weight
         out = {}
+
         for pid, i in intents.items():
             others = [
                 o.participant_id for o in intents.values() if o.is_buy != i.is_buy
@@ -432,6 +449,7 @@ class LocalEnergyMarket:
                 weight,
             )
             out[pid] = OrderIntent(pid, i.is_buy, i.price, i.quantity_kwh, partner)
+
         return out
 
     def distance_km(self, a: str, b: str) -> float:
@@ -447,10 +465,12 @@ class LocalEnergyMarket:
         """The grid path between two participants' buses (cached): distance d_ij
         ([P1] §3.5.1), lines and zones."""
         key = (a, b) if a < b else (b, a)
+
         if key not in self._paths:
             self._paths[key] = self.grid.path(
                 self.participants[key[0]].bus, self.participants[key[1]].bus
             )
+
         return self._paths[key]
 
     def _upstream(self, pid: str) -> GridPath:
@@ -470,23 +490,30 @@ class LocalEnergyMarket:
         eq. 15a-b)."""
         m = self.scenario.market
         valid, notes = {}, []
+
         for pid, i in intents.items():
             if pid not in self.participants:
                 notes.append(f"{pid}: not a participant, dropped")
                 continue
+
             p, step = self.participants[pid], inputs.step
             most = p.max_buy_kwh(step) if i.is_buy else p.max_sell_kwh(step)
             quantity = min(i.quantity_kwh, most, m.max_quantity)
             price = min(m.max_price, max(m.min_price, i.price))
+
             if quantity < i.quantity_kwh - 1e-9:
                 notes.append(
                     f"{pid}: {i.quantity_kwh:.2f} kWh limited to {quantity:.2f}"
                 )
+
             if price != i.price:
                 notes.append(f"{pid}: price {i.price:.3f} limited to {price:.3f}")
+
             if quantity <= max(m.min_quantity, 1e-9):
                 continue
+
             valid[pid] = OrderIntent(pid, i.is_buy, price, quantity, i.partner_id)
+
         return valid, notes
 
     def _orders(self, intents: Mapping[str, OrderIntent]) -> tuple[Order, ...]:
@@ -526,8 +553,10 @@ class LocalEnergyMarket:
         there were none. Next step's p_ref ([P1] eq. 11)."""
         p2p = [t for t in trades if t.stage < 3]
         volume = sum(t.quantity for t in p2p)
+
         if volume <= 0:
             return self.clearing_price
+
         return sum(t.price * t.quantity for t in p2p) / volume
 
     # --- Phase 4: settlement and the grid --------------------------------------------
@@ -550,16 +579,20 @@ class LocalEnergyMarket:
         injections = [
             self.participants[pid].injection(o, h) for pid, o in outcomes.items()
         ]
+
         return self.grid.assess(step, injections)
 
     def _graph_model(self) -> Optional[GraphGrid]:
         """The paper's graph model on this network when ``grid.method`` is
         ``"graph"``, else ``None``."""
         g = self.scenario.grid
+
         if g.method == "powerflow":
             return None
+
         if g.method != "graph":
             raise ValueError("grid.method must be 'powerflow' or 'graph'")
+
         return GraphGrid(self.grid.line_table(), g.graph_capacity, g.graph_total_kw)
 
     def _grid_signal(self, p: PendingStep, grid: GridAssessment) -> GridAssessment:
@@ -568,13 +601,16 @@ class LocalEnergyMarket:
         (``Dso.charge``) at q / Δt kW."""
         if self.scenario.grid.method == "powerflow":
             return grid
+
         if self.graph is None:
             self.graph = self._graph_model()
+
         h = self.scenario.grid.step_hours
         flows = [
             (self.dso.trade_path(t, self._path, self._upstream), t.quantity / h)
             for t in p.trades
         ]
+
         return self.graph.assess(p.step, flows)
 
     def _charge_fees(
@@ -588,6 +624,7 @@ class LocalEnergyMarket:
         charged = iter(
             self.dso.charge(p.trades, self._path, self._upstream, p.grid_balance_kwh)
         )
+
         return tuple(
             replace(s, trades=tuple(next(charged) for _ in s.trades)) for s in p.stages
         )
@@ -599,10 +636,12 @@ class LocalEnergyMarket:
         [P1] eq. 12 and its decay), as the original's ``lem.py`` did; the record
         with the updates."""
         updates = {}
+
         for pid, participant in self.participants.items():
             update = self.reputation_handler.update_reputation(participant, record)
             participant.reputation = update.reputation
             updates[pid] = update
+
         return replace(record, reputation=updates)
 
     def _advance(self, record: StepRecord) -> None:

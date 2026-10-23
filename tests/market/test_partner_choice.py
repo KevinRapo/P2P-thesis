@@ -38,16 +38,20 @@ def pair(env) -> tuple[int, str, str]:
     seller, buyer)."""
     env.reset(seed=0)
     zero = zero_policy(env)
+
     while not env.market.done:
         t = env.market.current_step
         people = env.market.participants
         sellers = [a for a in AGENTS if people[a].max_sell_kwh(t) > 0.05]
         buyers = [a for a in AGENTS if people[a].max_buy_kwh(t) > 0.05]
+
         for s in sellers:
             for b in buyers:
                 if b != s:
                     return t, s, b
+
         env.step(zero(None))
+
     raise AssertionError(f"no step on {DAY} with a seller and a buyer")
 
 
@@ -55,6 +59,7 @@ def at_step(env: MarketEnv, t: int) -> None:
     """Reset to the start of ``DAY`` and play no orders up to step ``t``."""
     env.reset(seed=0)
     zero = zero_policy(env)
+
     while env.market.current_step < t:
         env.step(zero(None))
 
@@ -68,6 +73,7 @@ def play(env, pair, seller_price, buyer_price, seller_names, buyer_names):
     actions[s] = env.encode(s, "sell", 0.5, seller_price, seller_names)
     actions[b] = env.encode(b, "buy", 0.5, buyer_price, buyer_names)
     *_, infos = env.step(actions)
+
     return env.last_record, infos
 
 
@@ -83,8 +89,10 @@ def test_candidates_are_stable_and_name_dso_and_no_preference(env):
     partner part has one value per candidate."""
     assert env.partners("P1") == ["P2", "P3", "P4", "P5", "DSO", "none"]
     assert env.partners("P3") == ["P1", "P2", "P4", "P5", "DSO", "none"]
+
     for a in AGENTS:
         assert env.action_spaces[a]["partner"].n == len(env.partners(a))
+
     assert env.contract()["partners"]["P4"] == env.partners("P4")
 
 
@@ -93,6 +101,7 @@ def test_partner_index_reaches_the_intent(env, pair):
     DSO (``DSO_ID``), or None for no preference."""
     t, s, _ = pair
     at_step(env, t)
+
     for k, name in enumerate(env.partners(s)):
         action = env.encode(s, "sell", 0.5, 0.5)
         action["partner"] = k
@@ -107,10 +116,12 @@ def test_explicit_choice_is_never_replaced_by_the_rule(env, pair):
     rule only fills in orders the market's own bidding rule makes."""
     t, s, b = pair
     env.market.scenario.market.partner_preference = True
+
     try:
         record, infos = play(env, pair, 0.2, 0.8, None, s)
     finally:
         env.market.scenario.market.partner_preference = False
+
     orders = {o.agent_id: o for o in record.orders}
     assert orders[s].partner_id is None
     assert orders[b].partner_id == s
@@ -128,9 +139,11 @@ def test_compatible_mutual_choice_trades_in_stage_1(env, pair):
     record, infos = play(env, pair, 0.2, 0.8, b, s)
     (trade,) = stage(record, 1)
     assert (trade.seller_id, trade.buyer_id) == (s, b)
+
     for a in (s, b):
         assert infos[a]["preference_kwh"] == pytest.approx(trade.quantity)
         assert infos[a]["state"]["partner_mutual"] == 1.0
+
     assert infos[s]["shared"]["preference_kwh"] == pytest.approx(trade.quantity)
 
 
@@ -177,6 +190,7 @@ def test_partner_observation_and_its_timing(env, pair):
     play(env, pair, 0.2, 0.8, b, s)
     obs = env._observe()
     m = env.market
+
     for a in AGENTS:
         o = obs[a]
         peers = env.partners(a)[:-2]

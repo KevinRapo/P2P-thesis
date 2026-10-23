@@ -32,6 +32,7 @@ def play(recycle, day: str, random_orders: bool) -> list:
         market.reset()
         rng = np.random.default_rng(0)
         out = []
+
         while not market.done:
             intents = None
             if random_orders:
@@ -45,6 +46,7 @@ def play(recycle, day: str, random_orders: bool) -> list:
                     for pid in market.participants
                 }
             out.append(market.step(intents).grid)
+
         return out
     finally:
         SimBenchGrid.recycle = RECYCLE
@@ -53,10 +55,13 @@ def play(recycle, day: str, random_orders: bool) -> list:
 def same(a, b) -> bool:
     if a is None or b is None:
         return a is b
+
     if isinstance(a, float):
         return math.isclose(a, b, rel_tol=0, abs_tol=TOL)
+
     if isinstance(a, dict):
         return a.keys() == b.keys() and all(same(a[k], b[k]) for k in a)
+
     return a == b
 
 
@@ -83,6 +88,7 @@ def test_recycle_gives_the_same_grid_results(day, random_orders):
         "line_loading_percent",
         "violations",
     ]
+
     for step, (a, b) in enumerate(zip(plain, fast)):
         for name in fields:
             x, y = getattr(a, name), getattr(b, name)

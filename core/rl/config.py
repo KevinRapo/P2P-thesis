@@ -80,9 +80,12 @@ def env_spec(
     if paradigm == Paradigm.DTDE:
         env = env_class(env_config)
         return env_class, env_config, list(env.agents_id)
+
     wrapped = {"env_class": env_class, "env_config": env_config}
+
     if paradigm == Paradigm.CTDE:
         return CTDEEnv, wrapped, list(env_class(env_config).agents_id)
+
     return CTCEEnv, wrapped, [GROUP]
 
 
@@ -153,6 +156,7 @@ def build_config(
         }
     else:
         specs = {mid: RLModuleSpec() for mid in module_ids}
+
     return config.rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=specs))
 
 

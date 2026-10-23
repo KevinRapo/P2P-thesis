@@ -107,6 +107,7 @@ def _shapes(algo) -> dict[str, Any]:
     modules = learner_modules(algo)
     first = next(iter(modules.keys()))
     module = modules[first]
+
     return {
         "n_modules": len(modules.keys()),
         "module_obs_dim": int(module.observation_space.shape[0]),
@@ -129,6 +130,7 @@ def _counters(result: dict) -> tuple[int, int, float]:
         for mid, m in result.get(LEARNER_RESULTS, {}).items()
         if isinstance(m, dict) and mid != "__all_modules__"
     )
+
     return (
         int(env.get(NUM_ENV_STEPS_SAMPLED_LIFETIME, 0)),
         int(trained),
@@ -171,9 +173,12 @@ def benchmark(bench: Bench) -> dict[str, Any]:
     _write(bench.out, record)
 
     started_ray = not ray.is_initialized()
+
     if started_ray:
         ray.init(num_cpus=1, num_gpus=bench.num_gpus, include_dashboard=False)
+
     algo = None
+
     try:
         start = time.perf_counter()
         algo = build_algo(config)
@@ -182,11 +187,13 @@ def benchmark(bench: Bench) -> dict[str, Any]:
 
         # Warm-up: until the learner has updated once, and warmup_iterations.
         start, iterations, trained = time.perf_counter(), 0, 0
+
         while iterations < bench.warmup_iterations or trained == 0:
             steps, trained, _ = _counters(algo.train())
             iterations += 1
             if time.perf_counter() - start > bench.max_seconds:
                 raise TimeoutError(f"no learner update after {steps} env steps")
+
         record["warmup"] = {
             "iterations": iterations,
             "env_steps": steps,
@@ -196,13 +203,16 @@ def benchmark(bench: Bench) -> dict[str, Any]:
         # Timed: whole iterations, until timed_env_steps or max_seconds.
         steps0, trained0, return0 = steps, trained, None
         start, iterations = time.perf_counter(), 0
+
         while True:
             steps, trained, team_return = _counters(algo.train())
             iterations += 1
             return0 = team_return if return0 is None else return0
             elapsed = time.perf_counter() - start
+
             if steps - steps0 >= bench.timed_env_steps or elapsed > bench.max_seconds:
                 break
+
         env_steps, samples = steps - steps0, trained - trained0
         grad_steps = samples / record["gradient_batch"] if samples else math.nan
         record["timed"] = {
@@ -242,10 +252,13 @@ def benchmark(bench: Bench) -> dict[str, Any]:
     finally:
         record["finished"] = datetime.now().isoformat(timespec="seconds")
         _write(bench.out, record)
+
         if algo is not None:
             algo.stop()
+
         if started_ray:
             ray.shutdown()
+
     return record
 
 

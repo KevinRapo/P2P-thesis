@@ -150,10 +150,13 @@ def load_env_class(env: str) -> type:
         from core.env import MarketEnv
 
         return MarketEnv
+
     module, _, name = env.partition(":")
     obj: Any = importlib.import_module(module)
+
     for part in name.split("."):
         obj = getattr(obj, part)
+
     return obj
 
 
@@ -238,12 +241,14 @@ class Experiment:
     def load(cls, path: str | Path, check_files: bool = True) -> "Experiment":
         """Read and validate an experiment file; the name defaults to its stem."""
         path = Path(path)
+
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             raise SpecError(f"experiment file not found: {path}") from None
         except json.JSONDecodeError as error:
             raise SpecError(f"{path}: not valid JSON ({error})") from None
+
         return cls.from_dict(data, default_name=path.stem, check_files=check_files)
 
     @classmethod
@@ -252,44 +257,59 @@ class Experiment:
     ) -> "Experiment":
         if not isinstance(data, dict):
             raise SpecError("an experiment file holds one JSON object")
+
         if "heldout_seeds" in data or "heldout_seeds" in (data.get("test") or {}):
             raise SpecError(_GONE)
+
         known = set(cls.__dataclass_fields__)
         unknown = sorted(set(data) - known)
+
         if unknown:
             raise SpecError(
                 f"unknown field(s) {unknown}; the fields are {sorted(known)}"
             )
+
         data = dict(data)
         data.setdefault("name", default_name)
+
         for key in ("train_days", "test_days"):
             data[key] = _days(data.get(key), key)
+
         for key in ("algorithms", "paradigms", "seeds", "budget"):
             if key not in data:
                 raise SpecError(f"missing field '{key}'")
+
         try:
             experiment = cls(**data)
         except TypeError as error:
             raise SpecError(str(error)) from None
+
         experiment.validate(check_files=check_files)
+
         return experiment
 
     # --- Validation -------------------------------------------------------------------
     def validate(self, check_files: bool = True) -> None:
         name = self.name
+
         if not name or any(c in name for c in '/\\:*?"<>| ') or name.startswith("."):
             raise SpecError(f"name {name!r} must be a plain folder name (no spaces)")
+
         for axis, allowed, values in (
             ("algorithms", ALGORITHMS, self.algorithms),
             ("paradigms", PARADIGMS, self.paradigms),
         ):
             if not isinstance(values, list) or not values:
                 raise SpecError(f"'{axis}' must be a non-empty list")
+
             bad = [v for v in values if v not in allowed]
+
             if bad:
                 raise SpecError(f"unknown {axis} {bad}; choose from {list(allowed)}")
+
             if len(set(values)) != len(values):
                 raise SpecError(f"'{axis}' has duplicates")
+
         if (
             not isinstance(self.seeds, list)
             or not self.seeds
@@ -299,17 +319,21 @@ class Experiment:
             or len(set(self.seeds)) != len(self.seeds)
         ):
             raise SpecError("'seeds' must be a non-empty list of distinct integers")
+
         if not isinstance(self.variants, dict) or not all(
             isinstance(v, dict) for v in self.variants.values()
         ):
             raise SpecError("'variants' maps a name to a dict of training overrides")
+
         if not all(
             isinstance(v.get("env_config", {}), dict) for v in self.variants.values()
         ):
             raise SpecError("a variant's 'env_config' must be a dict")
+
         for variant in self.variants:
             if not variant or any(c in variant for c in '/\\:*?"<>| '):
                 raise SpecError(f"variant name {variant!r} must be a plain word")
+
         if not isinstance(self.training, dict) or not set(self.training) <= set(
             ALGORITHMS
         ):
@@ -317,8 +341,10 @@ class Experiment:
                 "'training' maps an algorithm name to its overrides, e.g. "
                 '{"ppo": {"lr": 0.0003}}; keys must be among ' + str(list(ALGORITHMS))
             )
+
         if self.eval_every is not None and self.eval_points is not None:
             raise SpecError("give 'eval_every' or 'eval_points', not both")
+
         for algorithm in self.algorithms:
             budget = self._per_algorithm(self.budget, algorithm, "budget")
             if not isinstance(budget, int) or budget <= 0:
@@ -327,19 +353,25 @@ class Experiment:
                 value = self._per_algorithm(getattr(self, key), algorithm, key, True)
                 if value is not None and (not isinstance(value, int) or value < 0):
                     raise SpecError(f"'{key}' for {algorithm} must be an integer >= 0")
+
         if self.max_parallel < 1 or self.torch_threads < 1 or self.eval_episodes < 1:
             raise SpecError("max_parallel, torch_threads, eval_episodes must be >= 1")
+
         if type(self.num_env_runners) is not int or self.num_env_runners < 0:
             raise SpecError("num_env_runners must be an integer >= 0")
+
         if type(self.ray_thread_caps) is not bool:
             raise SpecError("ray_thread_caps must be true or false")
+
         if self.is_market and not self.scenario:
             raise SpecError("the market environment needs a 'scenario'")
+
         if self.scenario is not None and not isinstance(self.scenario, (str, dict)):
             raise SpecError(
                 "'scenario' is a file relative to the repository root, or the "
                 "scenario itself (a JSON object)"
             )
+
         if (
             isinstance(self.scenario, str)
             and check_files
@@ -349,8 +381,10 @@ class Experiment:
                 f"scenario file not found: {self.scenario_path} "
                 "('scenario' is relative to the repository root)"
             )
+
         if self.env not in MARKET_ENVS and ":" not in self.env:
             raise SpecError(f"env {self.env!r} must be 'market' or 'module:Class'")
+
         _check_resources(self.resources, "resources")
         self._validate_results()
         self._validate_test_block()
@@ -371,18 +405,25 @@ class Experiment:
 
     def _validate_test_block(self) -> None:
         test = self.test
+
         if not isinstance(test, dict):
             raise SpecError(f"'test' maps {list(TEST_KEYS)} to settings")
+
         unknown = sorted(set(test) - set(TEST_KEYS))
+
         if unknown:
             raise SpecError(f"unknown 'test' key(s) {unknown}; use {list(TEST_KEYS)}")
+
         if not isinstance(test.get("seeds", []), list):
             raise SpecError("'test.seeds' is a list of seeds")
+
         for key in ("train_days", "test_days"):
             count = test.get(key, 1)
             if isinstance(count, bool) or not isinstance(count, int) or count < 1:
                 raise SpecError(f"'test.{key}' is a number of days (an integer >= 1)")
+
         _check_resources(test.get("resources", {}), "test.resources")
+
         if test:  # the rest is checked on the version it makes
             try:
                 self.test_version()
@@ -436,8 +477,10 @@ class Experiment:
         ``"detailed"``)."""
         if self.results_detail != "detailed":
             return []
+
         if isinstance(self.trace_days, list):
             return [d for d in self.test_days if d in self.trace_days]
+
         return self.test_days[: self.trace_days]
 
     def heldout_config(
@@ -446,8 +489,10 @@ class Experiment:
         """The environment config of the held-out evaluation (test days) of a run of
         ``variant``; ``exp_dir`` as in ``expand``."""
         config: dict = {"days": self.test_days}
+
         if self.scenario:
             config["scenario"] = str(self.scenario_file(exp_dir))
+
         return config | self.env_config | self._variant_env(variant)
 
     def _variant_env(self, variant: Optional[str]) -> dict:
@@ -467,7 +512,9 @@ class Experiment:
         holds every input of its runs (itself if ``scenario`` is no file name)."""
         if not isinstance(self.scenario, str):
             return self
+
         path = self.scenario_path
+
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
@@ -477,8 +524,10 @@ class Experiment:
             ) from None
         except json.JSONDecodeError as error:
             raise SpecError(f"{path}: not valid JSON ({error})") from None
+
         if not isinstance(data, dict):
             raise SpecError(f"{path}: a scenario file holds one JSON object")
+
         return replace(copy.deepcopy(self), scenario=data)
 
     def dated(self, when: datetime) -> "Experiment":
@@ -491,8 +540,10 @@ class Experiment:
         ``"test"`` (``test_version()``)."""
         if profile == "full":
             return self
+
         if profile == "test":
             return self.test_version()
+
         raise SpecError(f"unknown profile {profile!r}; choose from {list(PROFILES)}")
 
     def test_budget(self, algorithm: str) -> int:
@@ -506,11 +557,13 @@ class Experiment:
         """
         base = self.training.get(algorithm, {})
         budgets = []
+
         for overrides in list(self.variants.values()) or [{}]:
             settings = base | _training(overrides)
             budgets.append(
                 settings.get("train_batch_size_per_learner") or TEST_DEFAULT_BUDGET
             )
+
         return max(budgets)
 
     def test_version(self) -> "Experiment":
@@ -526,11 +579,15 @@ class Experiment:
         )
         test_days = self.test_days[: test.get("test_days", 1)]
         trace_days = self.trace_days
+
         if isinstance(trace_days, list):  # those the test version still has
             trace_days = [d for d in trace_days if d in test_days] or 1
+
         description = f"Test version of {self.name}"
+
         if self.description:
             description += f": {self.description}"
+
         version = replace(
             copy.deepcopy(self),
             name=f"{self.name}--test",
@@ -547,6 +604,7 @@ class Experiment:
             description=description,
         )
         version.validate(check_files=False)  # the scenario is the original's
+
         return version
 
     # --- Expansion --------------------------------------------------------------------
@@ -556,14 +614,17 @@ class Experiment:
         exp_dir = self.folder(exp_dir)
         variants = self.variants or {None: {}}
         specs: list[RunSpec] = []
+
         for algorithm in self.algorithms:
             budget = self._per_algorithm(self.budget, algorithm, "budget")
             every = self._per_algorithm(self.eval_every, algorithm, "eval_every", True)
             points = self._per_algorithm(
                 self.eval_points, algorithm, "eval_points", True
             )
+
             if every is None:
                 every = budget // points if points else 0
+
             for paradigm in self.paradigms:
                 for variant, overrides in variants.items():
                     for seed in self.seeds:
@@ -591,15 +652,20 @@ class Experiment:
                                 num_env_runners=self.num_env_runners,
                             )
                         )
+
         return specs
 
     def _env_config(self, seed: int, exp_dir: Path) -> dict:
         config: dict = {}
+
         if self.scenario:
             config["scenario"] = str(self.scenario_file(exp_dir))
+
         if self.train_days:
             config["days"] = list(self.train_days)
+
         config["seed"] = seed
+
         return config | self.env_config
 
 
@@ -669,8 +735,10 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
         "resources": e.run_resources,
         "test": e.test,
     }
+
     if filled["name"] is None:  # the file's name, as ``load`` gives it
         del filled["name"]
+
     return copy.deepcopy(filled)
 
 
@@ -689,16 +757,21 @@ def _json(value, level: int) -> str:
         isinstance(v, (list, dict))
         for v in (value.values() if isinstance(value, dict) else value)
     )
+
     if not isinstance(value, (list, dict)) or (plain and len(one_line) <= _INLINE):
         return one_line
+
     inner = "  " * (level + 1)
+
     if isinstance(value, dict):
         items = [f"{json.dumps(k)}: {_json(v, level + 1)}" for k, v in value.items()]
         opening, closing = "{", "}"
     else:
         items = [_json(v, level + 1) for v in value]
         opening, closing = "[", "]"
+
     lines = ",\n".join(inner + item for item in items)
+
     return f"{opening}\n{lines}\n{'  ' * level}{closing}"
 
 
@@ -710,18 +783,23 @@ def _check_resources(value, where: str) -> None:
     (``cpus`` and ``minutes`` whole), and ``node`` to one node's name or None."""
     if not isinstance(value, dict):
         raise SpecError(f"'{where}' maps {sorted(RESOURCE_DEFAULTS)} to numbers")
+
     unknown = sorted(set(value) - set(RESOURCE_DEFAULTS))
+
     if unknown:
         raise SpecError(
             f"unknown '{where}' key(s) {unknown}; use {sorted(RESOURCE_DEFAULTS)}"
         )
+
     node = value.get("node")
+
     if node is not None and (
         not isinstance(node, str) or not node or any(c in node for c in " ,[]")
     ):
         raise SpecError(
             f"'{where}.node' is one node's name (e.g. 'blackwell1') or null"
         )
+
     for key, number in value.items():
         if key == "node":
             continue
@@ -740,15 +818,19 @@ def _days(value, key: str) -> list[str]:
     """A list of ISO dates, or ``{"from": ..., "to": ...}`` (both included)."""
     if value is None:
         return []
+
     try:
         if isinstance(value, dict):
             if set(value) != {"from", "to"}:
                 raise SpecError(f"'{key}' as a range needs exactly 'from' and 'to'")
+
             first, last = date.fromisoformat(value["from"]), date.fromisoformat(
                 value["to"]
             )
+
             if last < first:
                 raise SpecError(f"'{key}': 'to' is before 'from'")
+
             return [
                 (first + timedelta(days=i)).isoformat()
                 for i in range((last - first).days + 1)
@@ -757,4 +839,5 @@ def _days(value, key: str) -> list[str]:
             return [date.fromisoformat(d).isoformat() for d in value]
     except (ValueError, TypeError) as error:
         raise SpecError(f"'{key}': bad date ({error}); use YYYY-MM-DD") from None
+
     raise SpecError(f"'{key}' must be a list of dates or {{'from': ..., 'to': ...}}")

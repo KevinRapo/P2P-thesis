@@ -95,6 +95,7 @@ class ReputationHandler:
                 )
 
         total = self.reliability_weight + self.fairness_weight + self.grid_weight
+
         if abs(total - 1.0) > 1e-9:
             raise ValueError(
                 "Weights must sum to 1.0. Current value: "
@@ -139,6 +140,7 @@ class ReputationHandler:
         reputation = (self.decay * agent.reputation) + (
             (1.0 - self.decay) * new_reputation
         )
+
         return ReputationScore(reliability, fairness, grid, new_reputation, reputation)
 
     def get_agent_ranking(self, agents: List[DERAgent]) -> List[Tuple[str, float]]:
@@ -200,6 +202,7 @@ class ReputationHandler:
         # clearing price. [P1]: the agent's peer trades, as the clearing price is
         # the peer trades' (the DSO's tariffs would count as unfair prices).
         clearing_price = record.clearing_price
+
         if p2p_trades and clearing_price > 0:
             price_deviations = [
                 abs(t.price - clearing_price) / clearing_price for t in p2p_trades
@@ -275,6 +278,7 @@ class ReputationHandler:
 
         # Calculate impact based on grid state and agent's role
         is_buyer = trade.buyer_id == agent_id
+
         if grid_balance > 0:  # Excess supply
             if is_buyer:
                 # Buying during excess is good (+)

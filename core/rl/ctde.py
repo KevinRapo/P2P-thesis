@@ -93,11 +93,13 @@ class CTDEEnv(MultiAgentEnv):
     ]:
         obs, rewards, terminateds, truncateds, infos = self.env.step(action_dict)
         missing = set(self.agents_id) - set(obs)
+
         if missing:
             raise ValueError(
                 f"CTDEEnv needs every agent at every step; no observation "
                 f"for {missing}."
             )
+
         return central_obs(obs, self.agents_id), rewards, terminateds, truncateds, infos
 
     def render(self):
@@ -127,13 +129,16 @@ def own_encoder(module) -> OwnObsEncoder:
     """The encoder RLlib builds for the agent's own observation, on its slice."""
     dim = int(module.model_config["own_obs_dim"])
     space = module.observation_space
+
     if not isinstance(space, spaces.Box) or len(space.shape) != 1:
         raise ValueError(f"CTDE needs a flat Box observation space, got {space}.")
+
     own = spaces.Box(space.low[:dim], space.high[:dim], dtype=space.dtype)
     catalog = type(module.catalog)(own, module.action_space, dict(module.model_config))
     encoder = catalog.actor_critic_encoder_config.base_encoder_config.build(
         framework="torch"
     )
+
     return OwnObsEncoder(encoder, dim)
 
 

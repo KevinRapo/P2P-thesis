@@ -83,6 +83,7 @@ def _clearing() -> None:
         on_change=mechanism,
     ).classes("w-full")
     caption = ui.label(DESCRIPTIONS[m.mechanism]).classes("mls-card-caption")
+
     for pair in (
         (("min_price", "Min price", 0.01), ("max_price", "Max price", 0.01)),
         (
@@ -98,6 +99,7 @@ def _clearing() -> None:
                     step=step,
                     on_change=lambda e, f=field: save(f, float(e.value or 0)),
                 ).classes("grow basis-0")
+
     ui.label(
         "Orders are clipped to these bounds, and to what each participant can "
         "physically deliver or take (its surplus or deficit plus its battery)."

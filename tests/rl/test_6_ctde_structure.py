@@ -33,10 +33,12 @@ def test_central_state_layout():
     env = CTDEEnv({"env_class": ActionProbe, "env_config": CONFIG})
     obs, _ = env.reset(seed=3)
     raw = ActionProbe(CONFIG).reset(seed=3)[0]
+
     for a in env.agents_id:
         expected = np.concatenate([raw[a], *[raw[b] for b in env.agents_id]])
         np.testing.assert_array_equal(obs[a], expected)
         assert env.own_dims[a] == 1
+
     np.testing.assert_array_equal(
         obs[env.agents_id[0]], central_obs(raw, env.agents_id)[env.agents_id[0]]
     )
@@ -69,9 +71,11 @@ def test_actor_is_local_critic_is_central():
 
         assert torch.equal(actor(base), actor(other)), "actor reads the global state"
         assert not torch.equal(actor(base), actor(own)), "actor ignores its own obs"
+
         with torch.no_grad():
             v0 = module.compute_values({Columns.OBS: base})
             v1 = module.compute_values({Columns.OBS: other})
+
         assert not torch.equal(v0, v1), "critic ignores the global state"
     finally:
         algo.stop()

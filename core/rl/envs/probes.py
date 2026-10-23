@@ -78,12 +78,14 @@ class _Probe(MultiAgentEnv):
         super().__init__()
         config = env_config or {}
         n = int(config.get("n_agents", 3))
+
         if config.get("scramble_ids"):
             # e.g. agent_2, agent_10, agent_1: sorted is agent_1, agent_10, agent_2
             numbers = [2, 10, 1] + list(range(11, 8 + n))
             self.agents_id = [f"agent_{k}" for k in numbers[:n]]
         else:
             self.agents_id = [f"agent_{k:02d}" for k in range(n)]
+
         self.agents = self.possible_agents = list(self.agents_id)
         box = spaces.Box(-1.0, 1.0, (1,), np.float32)
         self.observation_spaces = {a: box for a in self.agents_id}
@@ -98,8 +100,10 @@ class _Probe(MultiAgentEnv):
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+
         self.t = 0
         self._draw()
+
         return self._obs(), {a: {} for a in self.agents_id}
 
     def step(self, action_dict: dict[str, np.ndarray]):
@@ -107,10 +111,13 @@ class _Probe(MultiAgentEnv):
         rewards = {a: float(self._reward(a, actions[a])) for a in self.agents_id}
         self.t += 1
         done = self.t >= self.length
+
         if not done:
             self._draw()
+
         terminateds = {a: done for a in self.agents_id} | {"__all__": done}
         truncateds = {a: False for a in self.agents_id} | {"__all__": False}
+
         return self._obs(), rewards, terminateds, truncateds, {}
 
     def _obs(self) -> dict[str, np.ndarray]:
@@ -163,6 +170,7 @@ class ObservationProbe(_Probe):
     def checks(self, gamma: float) -> list[Check]:
         mixed = {a: (1.0 if i % 2 == 0 else -1.0) for i, a in enumerate(self.agents_id)}
         out = []
+
         for name, o in (
             ("all +1", {a: 1.0 for a in self.agents_id}),
             ("all -1", {a: -1.0 for a in self.agents_id}),
@@ -170,6 +178,7 @@ class ObservationProbe(_Probe):
         ):
             obs = {a: np.array([v], dtype=np.float32) for a, v in o.items()}
             out.append(Check(name, obs, value=dict(o)))
+
         return out
 
 
@@ -220,6 +229,7 @@ class ObsActionProbe(_Probe):
     def checks(self, gamma: float) -> list[Check]:
         mixed = {a: (1.0 if i % 2 == 0 else -1.0) for i, a in enumerate(self.agents_id)}
         out = []
+
         for name, o in (
             ("all +1", {a: 1.0 for a in self.agents_id}),
             ("all -1", {a: -1.0 for a in self.agents_id}),
@@ -227,6 +237,7 @@ class ObsActionProbe(_Probe):
         ):
             obs = {a: np.array([v], dtype=np.float32) for a, v in o.items()}
             out.append(Check(name, obs, action={a: v / 2 for a, v in o.items()}))
+
         return out
 
 

@@ -34,10 +34,12 @@ def test_studio_matches_core(tmp_path: Path) -> None:
     shutil.copy(SCENARIO_FILE, current)
     market = MarketService()
     m = market.build(ScenarioService(current).current())
+
     while not m.done or m.pending is not None:
         market.next_part()
 
     assert len(m.history) == len(expected)
+
     for got, want in zip(m.history, expected):
         assert got == want, f"step {want.step} differs"
 

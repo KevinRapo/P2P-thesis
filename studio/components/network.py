@@ -148,8 +148,10 @@ def show_topology(
             topology, voltages=voltages, highlight={bus} if bus else None, height=height
         )
         plot = ui.plotly(figure).classes("w-full")
+
         if on_click:
             plot.on("plotly_click", on_click)
+
         if topology.coordinates == "generated":
             ui.label(
                 "No geodata in this network: layout generated from the feeder tree."
@@ -187,12 +189,15 @@ class NetworkPicker:
         self.on_pick = on_pick
         self.networks: list = []
         labels = dict(SOURCE_LABELS)
+
         if not allow_file:
             labels.pop("pandapower_file")
+
         self.toggle = ui.toggle(labels, value=initial.source_type).props(
             "no-caps dense"
         )
         self.level = ui.select([], label="Voltage level").classes("w-full")
+
         # SimBench only: narrow the list by network type, scenario and switches.
         with ui.column().classes("w-full gap-0") as self.facets:
             with ui.row().classes("w-full gap-2 no-wrap"):
@@ -208,6 +213,7 @@ class NetworkPicker:
                     label="Switches",
                 ).classes("grow basis-0")
             self.facet_hint = ui.label().classes("mls-card-caption")
+
         self.network = (
             ui.select({}, label="Network", with_input=True)
             .classes("w-full")
@@ -223,8 +229,10 @@ class NetworkPicker:
         self.status = ui.column().classes("w-full gap-1")
         self.toggle.on_value_change(self._on_source)
         self.level.on_value_change(lambda: self._fill_networks())
+
         for facet in (self.category, self.scenario, self.switches):
             facet.on_value_change(lambda: self._fill_networks())
+
         self.network.on_value_change(self._on_network)
 
     def start(self) -> None:
@@ -259,6 +267,7 @@ class NetworkPicker:
         )
         self.switches.value = ALL
         self._fill_networks()
+
         if not self.networks:
             with self.status:
                 ui.label("No networks for this source yet.").classes("mls-card-caption")
@@ -303,12 +312,14 @@ class ElementsTable:
         self.services = services
         self.source: NetworkRef | None = None
         self.bus: str | None = None
+
         with ui.row().classes("items-center gap-2"):
             self.label = ui.label("All buses").classes("mls-card-caption")
             self.clear_button = ui.button(
                 "Show all", icon="close", on_click=lambda: self.show(self.source, None)
             ).props("flat dense")
             self.clear_button.set_visibility(False)
+
         self.box = ui.column().classes("w-full")
 
     async def show(self, source: NetworkRef | None, bus: str | None = None) -> None:
@@ -316,16 +327,21 @@ class ElementsTable:
         self.source, self.bus = source, bus
         self.label.set_text(f"Bus {bus}" if bus else "All buses")
         self.clear_button.set_visibility(bus is not None)
+
         if source is None:
             self.box.clear()
             return
+
         busy(self.box, "Reading elements …")
+
         try:
             rows = await run.io_bound(self.services.grid.elements, source, bus)
         except Exception as e:  # noqa: BLE001  show the error on the page
             failed(self.box, e)
             return
+
         self.box.clear()
+
         with self.box:
             if not rows:
                 ui.label("No loads, generators or storage.").classes("mls-card-caption")
@@ -366,6 +382,7 @@ class ProfileInspector:
             if catalogue
             else None
         )
+
         with ui.row().classes("w-full gap-4 items-start no-wrap"):
             self.table_box = ui.column().classes("basis-1/2 min-w-0")
             with ui.column().classes("grow basis-0 min-w-0 gap-2"):
@@ -383,6 +400,7 @@ class ProfileInspector:
                             ui.icon("edit_calendar").on("click", menu.open).classes(
                                 "cursor-pointer"
                             )
+
                     self.span = ui.select(
                         {1: "1 day", 7: "1 week", 28: "4 weeks", 366: "1 year"},
                         value=7,
@@ -399,6 +417,7 @@ class ProfileInspector:
                     )
                 self.hint = ui.label().classes("mls-card-caption")
                 self.plot_box = ui.column().classes("w-full")
+
         with ui.row().classes("items-center gap-3 w-full q-mt-sm") as self.power_header:
             with ui.column().classes("gap-0"):
                 ui.label("Scaled to the network's elements").classes(
@@ -411,11 +430,15 @@ class ProfileInspector:
             self.per_element = ui.toggle(
                 {False: "Sum per profile", True: "Per element"}, value=False
             ).props("no-caps dense")
+
         self.scale_hint = ui.label().classes("mls-card-caption")
         self.power_box = ui.column().classes("w-full")
+
         for element in (self.power_header, self.scale_hint, self.power_box):
             element.set_visibility(not catalogue)
+
         self._explain()
+
         for control in (
             self.day,
             self.span,
@@ -444,6 +467,7 @@ class ProfileInspector:
         self.source = source
         busy(self.table_box, "Reading profiles …")
         self.plot_box.clear()
+
         try:
             if self.catalogue:
                 types = await run.io_bound(self.services.profiles.catalogue_types)
@@ -452,12 +476,17 @@ class ProfileInspector:
         except Exception as e:  # noqa: BLE001
             failed(self.table_box, e)
             return
+
         if self.source != source:  # another network was picked meanwhile
             return
+
         self.loaded = True
+
         if self.overview:
             self.overview.show(types)
+
         self.table_box.clear()
+
         with self.table_box:
             if not types:
                 ui.label(
@@ -466,10 +495,13 @@ class ProfileInspector:
                 ).classes("mls-card-caption")
                 self.selected = []
                 return
+
             rows = profile_rows(types)
+
             if self.catalogue:  # no network, so no element counts
                 for row in rows:
                     row.pop("elements")
+
             search = (
                 ui.input(placeholder="Search, e.g. H0, PV, wind, power_plant")
                 .props("dense clearable")
@@ -499,6 +531,7 @@ class ProfileInspector:
             self.rows, self.table = rows, table
             table.selected = rows[:2]
             table.on_select(lambda e: self.plot([r["code"] for r in e.selection]))
+
         await self.plot([r["code"] for r in rows[:2]])
 
     async def only(self, categories: set[str]) -> None:
@@ -507,6 +540,7 @@ class ProfileInspector:
         """
         if self.table is None:
             return
+
         rows = [r for r in self.rows if not categories or r["category"] in categories]
         self.table.rows = rows
         self.table.selected = rows[:2]
@@ -517,8 +551,10 @@ class ProfileInspector:
         """Plot the selected profiles over the chosen window and resolution."""
         if codes is not None:
             self.selected = codes
+
         if not self.loaded:
             return
+
         if not self.selected:
             for box in (self.plot_box, self.power_box):
                 box.clear()
@@ -527,6 +563,7 @@ class ProfileInspector:
                         "mls-card-caption"
                     )
             return
+
         window = (
             self.selected,
             self.day.value,
@@ -534,11 +571,13 @@ class ProfileInspector:
             self.resolution.value,
             self.quantity.value,
         )
+
         if self.catalogue:
             await self._draw(
                 self.plot_box, self.services.profiles.catalogue_series, window
             )
             return
+
         window = (self.source, *window)
         await self._draw(self.plot_box, self.services.profiles.profile_series, window)
         await self._draw(
@@ -551,12 +590,15 @@ class ProfileInspector:
     async def _draw(box: ui.element, read, args: tuple) -> None:
         """Read one series in a worker thread and plot it into ``box``."""
         busy(box, "Reading profiles …")
+
         try:
             series = await run.io_bound(read, *args)
         except Exception as e:  # noqa: BLE001
             failed(box, e)
             return
+
         box.clear()
+
         with box:
             if not series.y:
                 ui.label(

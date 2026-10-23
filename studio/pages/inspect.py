@@ -105,12 +105,14 @@ def _network_tab(s: Services) -> None:
             classes="grow",
         ):
             plot_box = ui.column().classes("w-full")
+
     with section(
         "Elements",
         "Loads, generators and storage, with the profile each one follows",
         "list",
     ):
         elements = ElementsTable(s)
+
     with section(
         "Profiles",
         "The network's SimBench time series as factors of rated power "
@@ -124,14 +126,17 @@ def _network_tab(s: Services) -> None:
         state["topology"] = None
         busy(summary_box, "Loading network …")
         busy(plot_box, "Building topology …")
+
         try:
             summary = await run.io_bound(s.grid.summary, source)
             topology = await run.io_bound(s.grid.topology, source)
         except Exception as e:  # noqa: BLE001  show the error on the page
             failed(summary_box, e)
             return
+
         if picker.source != source:  # another network was picked meanwhile
             return
+
         state["topology"] = topology
         show_summary(summary_box, summary)
         show_topology(plot_box, topology, on_click=on_bus_click)
@@ -169,6 +174,7 @@ def _compare_tab(s: Services) -> None:
                     on_pick=lambda source, side=side: load(side, source),
                     allow_file=False,
                 ).start()
+
     with section(
         "Comparison",
         "Facts, element mix by profile category, topologies and profiles side by side",
@@ -180,6 +186,7 @@ def _compare_tab(s: Services) -> None:
         """Load one side's network, then redraw the comparison."""
         state[side] = {"source": source}
         busy(compare_box, "Loading network …")
+
         try:
             summary = await run.io_bound(s.grid.summary, source)
             topology = await run.io_bound(s.grid.topology, source)
@@ -187,17 +194,22 @@ def _compare_tab(s: Services) -> None:
         except Exception as e:  # noqa: BLE001  show the error on the page
             failed(compare_box, e)
             return
+
         if state[side].get("source") != source:  # picked again meanwhile
             return
+
         state[side].update(summary=summary, topology=topology, types=types)
         show()
 
     def show() -> None:
         """Redraw the comparison once both networks are loaded."""
         a, b = state["a"], state["b"]
+
         if "summary" not in a or "summary" not in b:
             return
+
         compare_box.clear()
+
         with compare_box:
             name_a, name_b = a["summary"].info.label, b["summary"].info.label
             facts_b = dict(summary_facts(b["summary"]))
@@ -233,19 +245,23 @@ def _compare_tab(s: Services) -> None:
                     kind="bar",
                 )
             ).classes("w-full")
+
             with ui.row().classes("w-full gap-4 no-wrap"):
                 for label, net in ((f"A · {name_a}", a), (f"B · {name_b}", b)):
                     with ui.column().classes("grow basis-0 min-w-0 gap-1"):
                         ui.label(label).classes("mls-card-caption")
                         box = ui.column().classes("w-full")
                         show_topology(box, net["topology"], height=320)
+
             ui.label("Profiles in A and B").classes("text-body2 text-weight-medium")
             in_a = {t.code: t for t in a["types"]}
             in_b = {t.code: t for t in b["types"]}
             codes = sorted(in_a.keys() | in_b.keys())
+
             if not codes:
                 ui.label("Neither network ships profiles.").classes("mls-card-caption")
                 return
+
             data_table(
                 [
                     {
@@ -291,6 +307,8 @@ def _profiles_tab(s: Services) -> ProfileInspector:
 def _mix(types: list[ProfileType], classes: list[ProfileClass]) -> list[int]:
     """Number of elements per profile class, in the order of ``classes``."""
     counts: dict[str, int] = {}
+
     for t in types:
         counts[t.category] = counts.get(t.category, 0) + t.elements
+
     return [counts.get(c.key, 0) for c in classes]

@@ -35,6 +35,7 @@ def spec_file(tmp_path: Path, name: str = "exp", **changes) -> Path:
     } | changes
     path = tmp_path / f"{name}.json"
     path.write_text(json.dumps(data), encoding="utf-8")
+
     return path
 
 
@@ -209,6 +210,7 @@ def cluster(tmp_path, monkeypatch):
     monkeypatch.setattr(slurm, "states", lambda exp_dir: dict(answer))
     root = tmp_path / "runs"
     root.mkdir()
+
     return root, answer
 
 
@@ -246,9 +248,11 @@ def test_start_submits_one_array_task_per_run(tmp_path, cluster):
     assert record["resources"] == {"cpus": 2, "mem_gb": 3, "minutes": 90, "node": None}
     assert record["tasks"] == {name: f"{ARRAY}_{i}" for i, name in enumerate(names)}
     assert record["submitted"]
+
     for i, name in enumerate(names):
         status = registry.read_json(exp_dir / name / "status.json")
         assert (status["state"], status["slurm_job"]) == ("queued", f"{ARRAY}_{i}")
+
     assert Experiment.load(exp_dir / "experiment.json") == resolve(path)
     assert {s.state for s in registry.runs("exp", root)} == {"queued"}
 
@@ -280,8 +284,10 @@ def test_start_picks_the_first_partition_that_allows_the_minutes(tmp_path, clust
 def test_choose_partition():
     assert slurm.choose_partition(PARTITIONS, 240) == PARTITIONS[0]
     assert slurm.choose_partition(PARTITIONS, 241) == PARTITIONS[1]
+
     with pytest.raises(SpecError, match="no partition allows 20000 minutes"):
         slurm.choose_partition(PARTITIONS, 20000)
+
     with pytest.raises(SpecError, match="no partition"):
         slurm.choose_partition([], 10)
 
@@ -301,6 +307,7 @@ def sinfo(monkeypatch):
         return subprocess.CompletedProcess(command, 0, stdout=SINFO)
 
     monkeypatch.setattr(slurm.subprocess, "run", run)
+
     return calls
 
 
@@ -334,25 +341,34 @@ def test_start_on_one_node_asks_for_it(tmp_path, cluster, sinfo):
 def test_start_on_a_node_the_cluster_lacks_submits_nothing(tmp_path, cluster, sinfo):
     root, _ = cluster
     path = spec_file(tmp_path, resources={"node": "blackwell13"})
+
     with pytest.raises(SpecError, match="did you mean 'blackwell1'"):
         slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+
     assert FakeExecutor.created == []
 
 
 def test_a_node_takes_only_its_own_partitions():
     long = {"minutes": 600, "node": "green24"}
     assert slurm.runs_partition(PARTITIONS, long, NODES)["name"] == "common"
+
     with pytest.raises(SpecError, match="on node 'blackwell1': no partition allows"):
         slurm.runs_partition(PARTITIONS, long | {"node": "blackwell1"}, NODES)
+
     short = {"minutes": 9, "node": "blackwell1"}
+
     with pytest.raises(SpecError, match="none of which the target lists"):
         slurm.runs_partition(PARTITIONS[1:], short, NODES)
+
     with pytest.raises(SpecError, match="no node 'blackwell13'.*'blackwell1'"):
         slurm.runs_partition(PARTITIONS, short | {"node": "blackwell13"}, NODES)
+
     with pytest.raises(SpecError, match="its nodes: blackwell1, green24"):
         slurm.runs_partition(PARTITIONS, short | {"node": "xyz"}, NODES)
+
     with pytest.raises(SpecError, match="did not list its nodes"):
         slurm.runs_partition(PARTITIONS, short, None)
+
     any_node = {"minutes": 9, "node": None}
     assert slurm.runs_partition(PARTITIONS, any_node, None) == PARTITIONS[0]
 
@@ -360,16 +376,20 @@ def test_a_node_takes_only_its_own_partitions():
 def test_start_with_no_fitting_partition_changes_nothing(tmp_path, cluster):
     root, _ = cluster
     path = spec_file(tmp_path, resources={"minutes": 20000})
+
     with pytest.raises(SpecError, match="no partition allows"):
         slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+
     assert list(root.iterdir()) == [] and FakeExecutor.created == []
 
 
 def test_start_needs_sbatch(tmp_path, cluster, monkeypatch):
     root, _ = cluster
     monkeypatch.setattr(slurm.shutil, "which", lambda name: None)
+
     with pytest.raises(RuntimeError, match="sbatch not found"):
         slurm.start(spec_file(tmp_path), account="a", partitions=PARTITIONS, root=root)
+
     assert list(root.iterdir()) == []
 
 
@@ -380,8 +400,10 @@ def test_start_refuses_while_tasks_are_queued_or_running(tmp_path, cluster):
     answer |= {f"{ARRAY}_0": {"state": "RUNNING", "node": "n1"}}
     answer |= {f"{ARRAY}_1": {"state": "COMPLETED", "node": "n1"}}
     answer |= {f"{ARRAY}_2": {"state": "PENDING", "node": None}}
+
     with pytest.raises(RuntimeError, match=r"still has 2 task\(s\)"):
         slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+
     assert len(FakeExecutor.created) == 1  # nothing was submitted again
 
 
@@ -389,6 +411,7 @@ def test_start_refuses_when_sacct_cannot_say(tmp_path, cluster):
     root, _ = cluster  # slurm.json exists, the fake sacct answers nothing
     path = spec_file(tmp_path)
     slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+
     with pytest.raises(RuntimeError, match="cannot tell"):
         slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
 
@@ -409,6 +432,7 @@ def test_start_again_submits_only_the_runs_that_are_not_completed(tmp_path, clus
         f"{ARRAY}_3": {"state": "CANCELLED", "node": None},
     }
     FakeExecutor.next_array = "2000"
+
     try:
         slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
     finally:
@@ -430,10 +454,12 @@ def test_start_with_everything_completed_submits_nothing(tmp_path, cluster):
     root, answer = cluster
     path = spec_file(tmp_path)
     exp_dir = slurm.start(path, account="acc", partitions=PARTITIONS, root=root)
+
     for i, run_dir in enumerate(sorted(p for p in exp_dir.iterdir() if p.is_dir())):
         if run_dir.name != "slurm":
             launch.write_status(run_dir, state="completed")
             answer[f"{ARRAY}_{i}"] = {"state": "COMPLETED", "node": "n1"}
+
     before = registry.read_json(exp_dir / "slurm.json")
     assert slurm.start(path, account="a", partitions=PARTITIONS, root=root) == exp_dir
     assert len(FakeExecutor.created) == 1
@@ -456,6 +482,7 @@ def scancel(monkeypatch):
         )
 
     monkeypatch.setattr(slurm.subprocess, "run", fake_run)
+
     return result
 
 
@@ -465,6 +492,7 @@ def submitted(tmp_path) -> Path:
     write(exp / "a" / "status.json", {"state": "queued", "slurm_job": f"{ARRAY}_0"})
     write(exp / "b" / "status.json", {"state": "running", "slurm_job": f"{ARRAY}_1"})
     write(exp / "c" / "status.json", {"state": "completed", "slurm_job": f"{ARRAY}_2"})
+
     return exp
 
 
@@ -492,15 +520,19 @@ def test_a_failed_scancel_raises_with_its_message_and_marks_nothing(tmp_path, sc
     submitted(tmp_path)
     scancel["code"] = 1
     scancel["stderr"] = "scancel: error: Invalid job id specified"
+
     with pytest.raises(RuntimeError, match=r"scancel 1042700 failed.*Invalid job id"):
         slurm.stop("exp", root=tmp_path)
+
     assert {s.name: s.state for s in registry.runs("exp", tmp_path)} == {
         "a": "queued",
         "b": "running",
         "c": "completed",
     }
+
     with pytest.raises(RuntimeError, match="nothing was marked stopped"):
         slurm.stop("exp", "b", tmp_path)
+
     assert registry.read_json(tmp_path / "exp" / "b" / "status.json")["state"] == (
         "running"
     )
@@ -514,10 +546,13 @@ def test_stop_without_slurm_job_calls_no_scancel(tmp_path, scancel):
 
 def test_stop_unknown_experiment_or_run(tmp_path, scancel):
     submitted(tmp_path)
+
     with pytest.raises(FileNotFoundError, match="no experiment 'nope'"):
         slurm.stop("nope", root=tmp_path)
+
     with pytest.raises(FileNotFoundError, match="no run 'zzz'"):
         slurm.stop("exp", "zzz", tmp_path)
+
     assert scancel["calls"] == []
 
 
@@ -528,8 +563,10 @@ def test_stop_without_scancel_is_an_error_and_marks_nothing(tmp_path, monkeypatc
         raise FileNotFoundError("scancel")
 
     monkeypatch.setattr(slurm.subprocess, "run", missing)
+
     with pytest.raises(FileNotFoundError, match="scancel"):
         slurm.stop("exp", root=tmp_path)
+
     assert {s.state for s in registry.runs("exp", tmp_path)} == {
         "queued",
         "running",

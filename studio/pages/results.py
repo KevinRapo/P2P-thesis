@@ -110,12 +110,16 @@ def _cell(value: Any) -> Any:
     """A value as a table cell shows it: rounded, and empty for missing."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return ""
+
     if isinstance(value, float):
         return round(value, 3)
+
     if isinstance(value, list):
         return ", ".join(map(str, value))
+
     if isinstance(value, dict):
         return ", ".join(f"{k}: {_cell(v)}" for k, v in value.items())
+
     return value
 
 
@@ -126,6 +130,7 @@ def _table(frame: pd.DataFrame, columns: list[tuple[str, str]]) -> ui.table:
         {"_row": i} | {f: _cell(row[f]) for f, _ in columns}
         for i, (_, row) in enumerate(frame.iterrows())
     ]
+
     return (
         ui.table(
             columns=[
@@ -148,8 +153,10 @@ def shown_participants(
     """The participants the heatmap shows: those whose name contains ``text`` (all
     without), at most ``most``, the largest mean absolute ``column`` first."""
     sizes = table.groupby("agent")[column].apply(lambda v: v.abs().mean())
+
     if text:
         sizes = sizes[[text.lower() in str(a).lower() for a in sizes.index]]
+
     return list(sizes.sort_values(ascending=False).index[:most])
 
 
@@ -170,6 +177,7 @@ def _learning_figure(
     fig = go.Figure()
     keys = list(dict.fromkeys(curves.key))
     colors = {key: SERIES[i % len(SERIES)] for i, key in enumerate(keys)}
+
     for key in keys:
         rows = curves[(curves.key == key) & (curves.policy == "trained")]
         fig.add_scatter(
@@ -188,7 +196,9 @@ def _learning_figure(
                 mode="lines",
                 line=dict(color=colors[key], dash="dot"),
             )
+
     start = curves[(curves.env_steps == 0) & (curves.policy != "trained")]
+
     for policy, rows in start.groupby("policy"):
         if rows[value].round(9).nunique() == 1:  # the same for every run: one line
             fig.add_hline(
@@ -208,13 +218,16 @@ def _learning_figure(
                 mode="lines",
                 line=dict(color=colors[row.key], dash="dash", width=1),
             )
+
     label = "per participant" if per_participant else "team"
+
     return styled(fig, 380, f"return ({label})", "environment steps")
 
 
 def _heldout_figure(days: pd.DataFrame, labels: dict[str, str]) -> go.Figure:
     """Per run, the trained policy minus each baseline on every test day."""
     fig = go.Figure()
+
     for i, (baseline, label) in enumerate(BASELINES.items()):
         column = f"trained_minus_{baseline}"
         if column not in days:
@@ -227,8 +240,10 @@ def _heldout_figure(days: pd.DataFrame, labels: dict[str, str]) -> go.Figure:
             jitter=0.3,
             marker_color=SERIES[i + 1],
         )
+
     fig.add_hline(y=0, line_color="#94A3B8")
     fig.update_layout(boxmode="group", hovermode="closest")
+
     return styled(fig, 380, "difference per test day")
 
 
@@ -254,12 +269,14 @@ def _participant_figure(
     )
     fig.update_layout(hovermode="closest")
     fig.update_yaxes(autorange="reversed")  # the largest difference on top
+
     return styled(fig, max(260, 26 * len(grid) + 120))
 
 
 def _steps_figure(steps: pd.DataFrame, columns: list[str], title: str) -> go.Figure:
     """Lines of ``columns`` over the steps of one traced day."""
     fig = go.Figure()
+
     for i, column in enumerate(c for c in columns if c in steps):
         fig.add_scatter(
             x=steps.step,
@@ -268,6 +285,7 @@ def _steps_figure(steps: pd.DataFrame, columns: list[str], title: str) -> go.Fig
             mode="lines+markers",
             line=dict(color=SERIES[i % len(SERIES)]),
         )
+
     return styled(fig, 280, title, "step")
 
 
@@ -286,6 +304,7 @@ class ResultsView:
         self.overview = pd.DataFrame()
         self.selected: list[str] = []
         self._drawn = {"compare": 0, "inspect": 0}  # the latest draw of each tab
+
         with ui.row().classes("w-full items-center gap-3"):
             ui.button("Refresh", icon="refresh", on_click=self.refresh).props(
                 "flat no-caps dense"
@@ -306,6 +325,7 @@ class ResultsView:
                 .style("min-width: 260px")
             )
             self.search = ui.input(placeholder="Filter runs").props("dense clearable")
+
         self.note = ui.label().classes("mls-card-caption")
         self.runs = (
             ui.table(
@@ -324,9 +344,11 @@ class ResultsView:
             .props("flat dense")
         )
         self.search.bind_value_to(self.runs, "filter")
+
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             ui.tab("compare", label="Compare", icon="compare_arrows")
             ui.tab("inspect", label="Inspect a run", icon="search")
+
         with ui.tab_panels(tabs, value="compare").classes("w-full bg-transparent"):
             with ui.tab_panel("compare").classes("p-0 gap-4"):
                 self.compare = ui.column().classes("w-full gap-4")
@@ -375,13 +397,16 @@ class ResultsView:
         self.experiment.set_options(experiments)
         hidden = len(self.overview) - len(table)
         text = f"{len(table)} runs"
+
         if hidden:
             text += f" ({hidden} test runs hidden)"
+
         if not len(self.overview):
             text = (
                 "No runs yet. Runs on this PC appear here when they have files; a "
                 "cluster's after Sync results on the Runs page."
             )
+
         self.note.set_text(text)
         self.selected = [k for k in self.selected if k in keys]
 
@@ -393,6 +418,7 @@ class ResultsView:
     async def _tick_experiment(self) -> None:
         if not self.experiment.value:
             return
+
         target, experiment = self.experiment.value.split("/", 1)
         table = self._visible()
         chosen = (table.target == target) & (table.experiment == experiment)
@@ -407,10 +433,12 @@ class ResultsView:
         self.selected = [row["key"] for row in self.runs.selected]
         options = self.selected or list(self._visible().get("key", []))
         self.inspected.set_options(options)
+
         if self.inspected.value not in options:
             self.inspected.set_value(options[0] if options else None)  # draws it
         else:
             await self._show_run()
+
         await self._show_compare()
 
     def _draw(self, tab: str) -> int:
@@ -424,19 +452,24 @@ class ResultsView:
         keys = list(self.selected)
         draw = self._draw("compare")
         self.compare.clear()
+
         if not keys:
             with self.compare:
                 placeholder("Tick runs in the table to compare them.", "checklist")
             return
+
         service = self.service
         differs = await run.io_bound(service.differing_settings, keys)
         curves = await run.io_bound(service.learning_curves, keys)
         training = await run.io_bound(service.training_curves, keys)
         days = await run.io_bound(service.heldout_days, keys)
         groups = await run.io_bound(service.seed_groups, keys)
+
         if draw != self._drawn["compare"]:  # ticked again meanwhile
             return
+
         labels = labels_of(keys)
+
         with self.compare:
             with section("The runs", f"{len(keys)} ticked", "list"):
                 varying = {"seed"}  # what differs between the seeds of one grid
@@ -445,12 +478,14 @@ class ResultsView:
                     "Settings that differ (their full saved values): "
                     + (", ".join(shown) or "none")
                 ).classes("text-body2")
+
                 if shown:
                     ui.label(
                         "Inspect each run for its values; runs that differ in "
                         "scenario, days, budget, training settings or model are not "
                         "one configuration."
                     ).classes("mls-card-caption")
+
             with section(
                 "Did it learn?",
                 "Each run's trained policy on the periodic evaluation episodes "
@@ -489,6 +524,7 @@ class ResultsView:
                             "Training return (the sampled episodes while learning)",
                             on_change=lambda e: redraw("training", bool(e.value)),
                         )
+
             with section(
                 "How good is the final policy?",
                 "Every held-out test day: the trained policy minus each baseline on "
@@ -500,6 +536,7 @@ class ResultsView:
                     ui.label("No held-out evaluation.").classes("mls-card-caption")
                 else:
                     ui.plotly(_heldout_figure(days, labels)).classes("w-full")
+
             with section(
                 "How consistent is it?",
                 "Each configuration over its training seeds: the seeds' held-out "
@@ -532,23 +569,30 @@ class ResultsView:
         key = self.inspected.value
         draw = self._draw("inspect")
         self.inspect.clear()
+
         if not key:
             return
+
         service = self.service
         result = await run.io_bound(service.result, key)
         days = await run.io_bound(service.heldout_days, [key])
         episodes = await run.io_bound(service.table, key, "heldout_episodes")
         people = await run.io_bound(service.table, key, "heldout_agents")
+
         if draw != self._drawn["inspect"]:  # another run was picked meanwhile
             return
+
         with self.inspect:
             with section(key, "What the run was", "info"):
                 shown = {k: _cell(v) for k, v in result.labels.items() if v is not None}
                 state = result.state
+
                 if state:
                     shown["state"] = state.state
                     shown["env steps"] = f"{state.env_steps:,} / {state.budget or '?'}"
+
                 key_values(shown)
+
                 for name, title in (
                     ("overrides", "Training settings"),
                     ("model", "Model"),
@@ -558,6 +602,7 @@ class ResultsView:
                             key_values(
                                 {k: _cell(v) for k, v in result.settings[name].items()}
                             )
+
             with section("Test days", "Team return of each policy per day", "event"):
                 _table(
                     days,
@@ -570,7 +615,9 @@ class ResultsView:
                         ("trained_minus_net_position", "− net position"),
                     ],
                 )
+
             self._participants(key, people)
+
             with section(
                 "Market and grid per day",
                 "Energy and the AC power flow, summed over each day",
@@ -582,6 +629,7 @@ class ResultsView:
                     ).classes("mls-card-caption")
                 else:
                     _table(episodes, EPISODE_COLUMNS)
+
             self._traces(key, result.has("heldout_trace_steps"))
 
     def _participants(self, key: str, people: Optional[pd.DataFrame]) -> None:
@@ -599,7 +647,9 @@ class ResultsView:
                     "Not recorded: a run from before the per-participant tables."
                 ).classes("mls-card-caption")
                 return
+
             outcomes = {k: v for k, v in OUTCOMES.items() if k in people}
+
             with ui.row().classes("w-full items-center gap-4"):
                 outcome = ui.select(outcomes, value="return", label="Outcome").classes(
                     "w-56"
@@ -608,6 +658,7 @@ class ResultsView:
                 text = ui.input(placeholder="Only participants containing").props(
                     "dense clearable"
                 )
+
             box = ui.column().classes("w-full gap-1")
 
             async def draw() -> None:
@@ -616,10 +667,12 @@ class ResultsView:
                 )
                 column = f"trained_minus_{baseline.value}"
                 box.clear()
+
                 with box:
                     if table.empty or column not in table:
                         ui.label("Nothing to show.").classes("mls-card-caption")
                         return
+
                     agents = shown_participants(table, column, text.value or "")
                     total = table.agent.nunique()
                     ui.label(f"{len(agents)} of {total} participants").classes(
@@ -635,6 +688,7 @@ class ResultsView:
 
             for field in (outcome, baseline, text):
                 field.on_value_change(draw)
+
             ui.timer(0.01, draw, once=True)
 
     def _traces(self, key: str, traced: bool) -> None:
@@ -649,6 +703,7 @@ class ResultsView:
                     '"detailed".'
                 ).classes("mls-card-caption")
                 return
+
             box = ui.column().classes("w-full gap-2")
 
             async def open_traces() -> None:
@@ -660,6 +715,7 @@ class ResultsView:
                     self.service.table, key, "heldout_trace_agents"
                 )
                 button.delete()
+
                 with box:
                     self._trace_view(steps, agents)
 
@@ -669,11 +725,13 @@ class ResultsView:
 
     def _trace_view(self, steps: pd.DataFrame, agents: pd.DataFrame) -> None:
         box = ui.column().classes("w-full gap-2")
+
         with ui.row().classes("w-full items-center gap-3"):
             day = ui.select(sorted(steps.day.unique()), label="Day")
             policy = ui.select(list(steps.policy.unique()), label="Policy")
             agent = ui.select(sorted(agents.agent.unique()), label="Participant")
             agent.props("use-input")  # type to find one of many
+
         for field in (day, policy, agent):
             field.set_value(field.options[0])
 
@@ -685,6 +743,7 @@ class ResultsView:
                 & (agents.policy == policy.value)
                 & (agents.agent == agent.value)
             ]
+
             with box:
                 ui.plotly(
                     _steps_figure(
@@ -710,6 +769,7 @@ class ResultsView:
                     _steps_figure(person, ["soc", "reward"], "battery and reward")
                 ).classes("w-full")
                 shown = [(f, label) for f, label in TRACE_COLUMNS if f in person]
+
                 if "partner" in person:
                     ui.label(
                         "Orders and partners: the partner named (a participant, DSO "
@@ -731,6 +791,7 @@ class ResultsView:
 
         for field in (day, policy, agent):
             field.on_value_change(draw)
+
         draw()
 
 

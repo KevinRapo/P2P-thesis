@@ -77,6 +77,7 @@ def test_env_runners_reach_training_in_both_profiles(settings, expected, monkeyp
     monkeypatch.setattr("core.runner.spec.load_env_class", lambda name: object)
     experiment = Experiment.from_dict(spec(**settings), "x")
     restored = Experiment.from_dict(experiment.to_dict())
+
     for profile in ("full", "test"):
         for run_spec in restored.with_profile(profile).expand():
             assert run_spec.run().num_env_runners == expected
@@ -182,11 +183,15 @@ def test_resolve_refuses_a_scenario_file_that_is_no_scenario(
     scenario = tmp_path / "s.json"
     scenario.write_text(content, encoding="utf-8")
     experiment = Experiment.from_dict(spec(scenario=str(scenario)), "x")
+
     with pytest.raises(SpecError, match=message):
         resolve(experiment)
+
     scenario.unlink()
+
     with pytest.raises(SpecError, match="scenario file not found"):
         resolve(experiment)
+
     with pytest.raises(SpecError, match="'scenario' is a file"):
         Experiment.from_dict(spec(scenario=[1]), "x")
 
@@ -229,6 +234,7 @@ def test_traced_days_only_with_detailed_results():
     version = Experiment.from_dict(chosen, "x").test_version()
     assert version.test_days == ["2016-07-01"] and version.trace_days == 1
     assert version.traced_days() == ["2016-07-01"]  # its one day instead
+
     for bad, message in (
         ({"results_detail": "all"}, "results_detail"),
         ({"trace_days": 0}, "trace_days"),
@@ -340,6 +346,7 @@ def test_written_out_shows_every_setting_and_makes_the_same_runs():
         before = Experiment.from_dict(data, path.stem).expand()
         after = Experiment.from_dict(full, path.stem).expand()
         assert len(before) == len(after)
+
         for a, b in zip(before, after):
             assert SETTINGS[a.algorithm] | a.training == b.training
             assert NETWORK | a.model == b.model
@@ -408,6 +415,7 @@ def test_test_version_is_the_smallest_version():
     }
     assert version.test == {}
     assert version.description == "Test version of big: Everything"
+
     for key in (
         "scenario",
         "env",
@@ -419,6 +427,7 @@ def test_test_version_is_the_smallest_version():
         "variants",
     ):
         assert getattr(version, key) == getattr(experiment, key), key
+
     # the original is untouched
     assert (experiment.name, experiment.seeds) == ("big", [0, 1])
     assert experiment.budget == {"ppo": 2000}
@@ -491,6 +500,7 @@ def test_profiles():
     experiment = Experiment.from_dict(spec(), "x")
     assert experiment.with_profile("full") is experiment
     assert experiment.with_profile("test") == experiment.test_version()
+
     with pytest.raises(SpecError, match="unknown profile"):
         experiment.with_profile("tiny")
 
@@ -524,6 +534,7 @@ def dead_pid() -> dict:
     child = subprocess.Popen([sys.executable, "-c", "pass"])
     start = psutil.Process(child.pid).create_time()
     child.wait()
+
     return {"pid": child.pid, "create_time": start}
 
 
@@ -641,6 +652,7 @@ def test_header_only_metrics_and_summary(root):
 def test_registry_is_cheap(root):
     for i in range(30):
         write(root / "exp" / f"r{i}" / "status.json", {"state": "queued"})
+
     begin = time.perf_counter()
     registry.runs("exp", root)
     assert time.perf_counter() - begin < 1.0
@@ -661,6 +673,7 @@ def test_stop_marks_queued_and_running_runs_but_keeps_finished_ones(root):
     assert sorted(result["stopped"]) == ["q", "r"]  # d is completed: left alone
     states = {s.name: s.state for s in registry.runs("exp", root)}
     assert states == {"q": "stopped", "r": "stopped", "d": "completed"}
+
     with pytest.raises(FileNotFoundError):
         launch.stop("nope", root=root)
 
@@ -733,6 +746,7 @@ def test_runs_without_slurm_job_ignore_the_slurm_map(root):
     write(exp / "b" / "status.json", {"state": "running", "index": 1} | me())
     write(exp / "c" / "status.json", {"state": "queued", "index": 2})
     slurm = {"42_0": {"state": "RUNNING", "node": "n1"}}
+
     for found in (registry.runs("exp", root), registry.runs("exp", root, slurm)):
         assert [(s.state, s.slurm_state) for s in found] == [
             ("lost", None),
@@ -772,6 +786,7 @@ def test_prepare_writes_the_experiment_and_resets_unfinished_runs(root):
         ("ppo_dtde_s3", {"state": "running", "slurm_job": "42_3"}),
     ):
         write(exp_dir / name / "status.json", status | {"index": 0, "budget": 1})
+
     (exp_dir / "ppo_dtde_s2" / "metrics.csv").write_text("a\n1\n", encoding="utf-8")
     slurm = {"42_3": {"state": "TIMEOUT", "node": "n1"}}
     launch.prepare(experiment, exp_dir, slurm=slurm)
@@ -805,6 +820,7 @@ def test_prepare_refuses_a_changed_spec_and_writes_nothing(root):
     write(exp_dir / "ppo_dtde_s0" / "status.json", {"state": "failed", "index": 0})
     launch.prepare(experiment, exp_dir)  # the same spec resumes
     before = snapshot(exp_dir)
+
     for change in ({"budget": 3000}, {"seeds": [0, 1, 2]}, {"description": "x"}):
         changed = Experiment.from_dict(data | change, "same")
         with pytest.raises(SpecError, match="'same' changed.*new experiment name"):
@@ -820,11 +836,14 @@ def test_prepare_compares_an_older_experiment_json_by_its_content(root):
     exp_dir = root / "old"
     write(exp_dir / "experiment.json", data)  # the spec as written, no name or defaults
     launch.prepare(experiment, exp_dir)  # the same content: accepted
+
     for unreadable in ('{"not": "a spec"}', "{half"):
         (exp_dir / "experiment.json").write_text(unreadable, encoding="utf-8")
         before = snapshot(exp_dir)
+
         with pytest.raises(SpecError, match="changed since it was started"):
             launch.prepare(experiment, exp_dir)
+
         assert snapshot(exp_dir) == before
 
 
@@ -841,8 +860,10 @@ def test_prepare_keeps_the_scenario_of_the_experiment_in_its_folder(root, tmp_pa
     assert saved["scenario"] == {"name": "one"}
     launch.prepare(resolve(Experiment.from_dict(data, "kept")), exp_dir)  # resumes
     scenario.write_text('{"name": "two"}', encoding="utf-8")
+
     with pytest.raises(SpecError, match="changed since it was started"):
         launch.prepare(resolve(Experiment.from_dict(data, "kept")), exp_dir)
+
     assert registry.read_json(exp_dir / SCENARIO_FILE) == {"name": "one"}
 
 
@@ -875,6 +896,7 @@ def test_mark_stopped_without_kill_leaves_the_process_alone(root):
     from core.runner import launch
 
     sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+
     try:
         process = {
             "pid": sleeper.pid,
@@ -893,8 +915,10 @@ def test_mark_stopped_without_kill_leaves_the_process_alone(root):
         sleeper.wait(timeout=20)
     finally:
         sleeper.kill()
+
     with pytest.raises(FileNotFoundError, match="no run 'x'"):
         launch.mark_stopped(exp, "x")
+
     with pytest.raises(FileNotFoundError, match="no experiment"):
         launch.experiment_dir("nope", root)
 

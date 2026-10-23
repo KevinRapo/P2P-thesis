@@ -35,6 +35,7 @@ def data_table(
         .classes("w-full")
         .props("flat dense")
     )
+
     # Badge columns show the value as a coloured chip; the colour comes from another
     # field of the same row (e.g. "state_color").
     for field, color_field in (badge_columns or {}).items():
@@ -42,4 +43,5 @@ def data_table(
             f"body-cell-{field}",
             f'<q-td :props="props"><q-badge :color="props.row.{color_field}" :label="props.value" /></q-td>',
         )
+
     return table

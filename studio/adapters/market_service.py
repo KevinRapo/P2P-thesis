@@ -26,6 +26,7 @@ class MarketService:
         manager = LocalEnergyMarket(scenario)
         manager.reset()
         self.manager = manager
+
         return manager
 
     def clear(self) -> None:

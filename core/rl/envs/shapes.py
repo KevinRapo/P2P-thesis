@@ -46,8 +46,10 @@ class MarketShapedEnv(MultiAgentEnv):
         config = env_config or {}
         n = int(config.get("n_agents", 5))
         obs_dim = int(config.get("obs_dim", MARKET_OBS_DIM))
+
         if config.get("partner_preference"):
             obs_dim += n
+
         act_dim = int(config.get("act_dim", MARKET_ACT_DIM))
         self.length = int(config.get("episode_length", 24))
         self.agents_id = [f"agent_{k:03d}" for k in range(n)]
@@ -68,21 +70,26 @@ class MarketShapedEnv(MultiAgentEnv):
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+
         self.t = 0
         self._draw()
+
         return dict(self.obs), {a: {} for a in self.agents_id}
 
     def step(self, action_dict: dict[str, np.ndarray]):
         rewards = {}
+
         for a in self.agents_id:
             action = np.clip(np.asarray(action_dict[a], np.float32), -1.0, 1.0)
             target = np.clip(self.weights[a] @ self.obs[a], -1.0, 1.0)
             rewards[a] = float(1.0 - np.mean((action - target) ** 2))
+
         self.t += 1
         done = self.t >= self.length
         self._draw()
         terminateds = {a: done for a in self.agents_id} | {"__all__": done}
         truncateds = {a: False for a in self.agents_id} | {"__all__": False}
+
         return dict(self.obs), rewards, terminateds, truncateds, {}
 
     def _draw(self) -> None:

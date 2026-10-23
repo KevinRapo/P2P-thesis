@@ -177,12 +177,16 @@ class RunService:
         written), ``experiment`` (the ``Experiment``) and ``error``: why the file does
         not load (the other fields but ``text`` are then None)."""
         found = []
+
         for path in sorted(self._specs.glob("*.json")):
             text = path.read_text(encoding="utf-8")
             record = self.describe(text, path.stem)
+
             if record["error"]:
                 record["name"] = path.stem
+
             found.append({"path": path, "text": text} | record)
+
         return found
 
     def apply_preset(
@@ -214,11 +218,13 @@ class RunService:
             data = json.loads(text)
         except json.JSONDecodeError as error:
             return _record(None, f"not valid JSON ({error})")
+
         try:
             experiment = Experiment.from_dict(data, default_name)
             resolve(experiment)  # reads the scenario, as the start will
         except (OSError, SpecError) as error:
             return _record(None, str(error))
+
         return _record(experiment)
 
 
@@ -234,13 +240,16 @@ def apply_preset(
     ``ValueError`` says why the text or the template is not an experiment."""
     if preset not in PRESETS:
         raise ValueError(f"unknown preset {preset!r}; choose from {list(PRESETS)}")
+
     data, template = _json_object(text), _json_object(template_text)
     values = {key: template.get(key) for key in PRESET_KEYS}
+
     if preset == "test":
         full = _replaced(data, values)
         test = Experiment.from_dict(full, default_name, check_files=False)
         test_data = test.test_version().to_dict()
         values = {key: test_data[key] for key in PRESET_KEYS}
+
     return to_text(_replaced(data, values))
 
 
@@ -252,14 +261,20 @@ def quick_settings(text: str) -> dict:
         data = _json_object(text)
     except (ValueError, SpecError):
         return {}
+
     found = {}
+
     for name, path in QUICK_SETTINGS.items():
         value: object = data
+
         for key in path:
             value = value.get(key) if isinstance(value, dict) else None
+
         if name == "budget" and isinstance(value, dict):
             value = value.get("ppo")
+
         found[name] = value
+
     return found
 
 
@@ -269,21 +284,27 @@ def apply_settings(text: str, values: dict) -> str:
     edit and its place. A budget given per algorithm stays a dict (PPO's entry is
     set). ``ValueError`` if the text is not a JSON object or a name is unknown."""
     data = _json_object(text)
+
     for name, value in values.items():
         if name not in QUICK_SETTINGS:
             raise ValueError(f"unknown quick setting {name!r}")
+
         *parents, last = QUICK_SETTINGS[name]
         node = data
+
         for key in parents:
             if not isinstance(node.get(key), dict):
                 node[key] = {}
             node = node[key]
+
         if name == "budget" and isinstance(node.get(last), dict):
             node, last = node[last], "ppo"
+
         if value is None:
             node.pop(last, None)
         else:
             node[last] = value
+
     return to_text(data)
 
 
@@ -313,6 +334,7 @@ def _replaced(data: dict, values: dict) -> dict:
     new, and removed where the value is None (the default)."""
     found = {key: values.get(key, value) for key, value in data.items()}
     found |= {key: value for key, value in values.items() if key not in data}
+
     return {key: value for key, value in found.items() if value is not None}
 
 

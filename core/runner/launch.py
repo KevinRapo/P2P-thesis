@@ -115,6 +115,7 @@ def write_status(run_dir: Path, replace: bool = False, **fields) -> dict:
     status = {} if replace else registry.read_json(run_dir / "status.json") or {}
     status |= fields | {"updated": now()}
     write_json(run_dir / "status.json", status)
+
     return status
 
 
@@ -135,6 +136,7 @@ def _spawn_detached(args: list[str], log: Path) -> subprocess.Popen:
         stdin=subprocess.DEVNULL,
         close_fds=True,
     )
+
     with open(log, "ab") as out:
         options |= {"stdout": out, "stderr": subprocess.STDOUT}
         if os.name == "nt":
@@ -170,12 +172,15 @@ def prepare(
     specs = experiment.expand(exp_dir)
     exp_dir.mkdir(parents=True, exist_ok=True)
     write_json(exp_dir / "experiment.json", experiment.to_dict())
+
     if isinstance(experiment.scenario, dict):
         write_json(exp_dir / SCENARIO_FILE, experiment.scenario)
+
     for spec in specs:
         state = registry.current_state(spec.out_dir, slurm=slurm)
         if state not in ("completed", "running"):
             _reset(spec)
+
     return specs
 
 
@@ -185,8 +190,10 @@ def _refuse_changed_spec(experiment: Experiment, exp_dir: Path) -> None:
     held their scenario is compared with its scenario file as it is now. Changes to
     the code are not detected."""
     path = exp_dir / "experiment.json"
+
     if not path.exists():
         return
+
     try:  # a file that cannot be read back is refused like a changed one
         saved = Experiment.from_dict(
             registry.read_json(path), experiment.name, check_files=False
@@ -194,6 +201,7 @@ def _refuse_changed_spec(experiment: Experiment, exp_dir: Path) -> None:
         changed = saved.to_dict() != experiment.inline_scenario().to_dict()
     except SpecError:
         changed = True
+
     if changed:
         raise SpecError(
             f"the spec of '{experiment.name}' changed since it was started: "
@@ -221,12 +229,14 @@ def start(
     """
     experiment = resolve(spec, profile)
     exp_dir = (Path(root) if root else runs_root()) / experiment.name
+
     if registry.worker_alive(exp_dir):
         raise RuntimeError(
             f"experiment '{experiment.name}' already has a running worker "
             f"(pid {registry.worker_info(exp_dir)['pid']}); stop it first with "
             f"`python -m core.runner stop {experiment.name}`"
         )
+
     prepare(experiment, exp_dir)
     process = _spawn_detached(["work", str(exp_dir)], exp_dir / "worker.log")
     write_json(
@@ -237,14 +247,17 @@ def start(
             "started": now(),
         },
     )
+
     return exp_dir
 
 
 def _reset(spec: RunSpec) -> None:
     """Queue a run: forget the files of an earlier attempt."""
     spec.out_dir.mkdir(parents=True, exist_ok=True)
+
     for name in STALE:
         (spec.out_dir / name).unlink(missing_ok=True)
+
     shutil.rmtree(spec.out_dir / "checkpoint", ignore_errors=True)
     write_status(
         spec.out_dir, replace=True, state="queued", index=spec.index, budget=spec.budget
@@ -264,26 +277,34 @@ def work(exp_dir: str | Path) -> None:
     write_json(exp_dir / "worker.json", _self_process() | {"started": now()})
     children: dict[str, subprocess.Popen] = {}
     print(f"[{now()}] worker for {experiment.name}: {len(specs)} runs", flush=True)
+
     while True:
         states = {s.name: registry.current_state(s.out_dir) for s in specs}
+
         for name, process in list(children.items()):
             if process.poll() is not None:  # reaped; its status file says the rest
                 del children[name]
+
         live = sum(state == "running" for state in states.values())
         queued = [s for s in specs if states[s.name] == "queued"]
+
         if not queued and not live:
             break
+
         for spec in queued[: max(0, experiment.max_parallel - live)]:
             children[spec.name] = _start_job(spec)
             print(f"[{now()}] started {spec.name}", flush=True)
             time.sleep(STAGGER_S)
+
         time.sleep(POLL_S)
+
     print(f"[{now()}] worker done", flush=True)
 
 
 def _start_job(spec: RunSpec) -> subprocess.Popen:
     env = job_environment()
     flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+
     with open(spec.out_dir / "log.txt", "wb") as log:
         process = subprocess.Popen(
             [PYTHON, "-m", "core.runner", "job", str(spec.out_dir)],
@@ -295,6 +316,7 @@ def _start_job(spec: RunSpec) -> subprocess.Popen:
             close_fds=True,
             creationflags=flags,
         )
+
     # Running from now on, so the next poll counts it even before the job starts.
     write_status(
         spec.out_dir,
@@ -303,6 +325,7 @@ def _start_job(spec: RunSpec) -> subprocess.Popen:
         create_time=psutil.Process(process.pid).create_time(),
         started=now(),
     )
+
     return process
 
 
@@ -318,13 +341,16 @@ def job(run_dir: str | Path) -> None:
     logging.disable(logging.WARNING)  # Ray and RLlib are noisy
     run_dir = Path(run_dir).resolve()
     started = time.time()
+
     try:
         experiment = Experiment.load(run_dir.parent / "experiment.json")
         spec = next(
             s for s in experiment.expand(run_dir.parent) if s.name == run_dir.name
         )
+
         if experiment.ray_thread_caps:  # before torch and Ray start their threads
             os.environ.update(RAY_THREAD_CAPS)
+
         import torch
 
         torch.set_num_threads(experiment.torch_threads)
@@ -339,8 +365,10 @@ def job(run_dir: str | Path) -> None:
 
         run = spec.run()
         train(run)
+
         if experiment.test_days and experiment.is_market:
             _heldout(experiment, run, run_dir, spec.variant)
+
         write_status(
             run_dir,
             state="completed",
@@ -370,6 +398,7 @@ def heldout_env_config(
 
     trained = record.get("env_config", {})
     config = experiment.heldout_config(exp_dir, variant)
+
     return config | {key: trained[key] for key in SCALE_KEYS if trained.get(key)}
 
 
@@ -401,6 +430,7 @@ def _heldout(
         options=[{"day": day} for _, day in episodes],
         trace=[i for i, (_, day) in enumerate(episodes) if day in traced],
     )
+
     for name, frame in (
         ("heldout", found.summary),
         ("heldout_agents", found.agents),
@@ -420,25 +450,31 @@ def _kill_tree(pid: Optional[int], create_time: Optional[float]) -> bool:
     that the pid is still the process that was recorded."""
     if not registry.process_alive(pid, create_time):
         return False
+
     try:
         process = psutil.Process(int(pid))
         victims = process.children(recursive=True) + [process]
     except psutil.Error:
         return False
+
     for victim in victims:
         try:
             victim.kill()
         except psutil.Error:
             pass
+
     psutil.wait_procs(victims, timeout=15)
+
     return True
 
 
 def experiment_dir(experiment: str, root: Optional[Path] = None) -> Path:
     """The folder of an experiment that exists (``FileNotFoundError`` otherwise)."""
     exp_dir = (Path(root) if root else runs_root()) / experiment
+
     if not exp_dir.is_dir():
         raise FileNotFoundError(f"no experiment '{experiment}' in {exp_dir.parent}")
+
     return exp_dir
 
 
@@ -455,23 +491,29 @@ def mark_stopped(exp_dir: Path, run: Optional[str] = None, kill: bool = True) ->
     exp_dir = Path(exp_dir)
     names = [run] if run else [p.name for p in exp_dir.iterdir() if p.is_dir()]
     killed, stopped = [], []
+
     for name in names:
         run_dir = exp_dir / name
         status = registry.read_json(run_dir / "status.json")
+
         if status is None:
             if run:
                 raise FileNotFoundError(
                     f"no run '{run}' in experiment '{exp_dir.name}'"
                 )
             continue
+
         state = status.get("state")
+
         if state == "running":
             if kill and _kill_tree(status.get("pid"), status.get("create_time")):
                 killed.append(name)
         elif state != "queued":
             continue
+
         write_status(run_dir, state="stopped", finished=now())
         stopped.append(name)
+
     return {"killed": killed, "stopped": stopped}
 
 
@@ -486,9 +528,11 @@ def stop(
         now marked stopped]}``.
     """
     exp_dir = experiment_dir(experiment, root)
+
     if run is None:  # the worker first, or it would start the next queued run
         info = registry.worker_info(exp_dir) or {}
         _kill_tree_worker(info)
+
     return mark_stopped(exp_dir, run)
 
 

@@ -109,6 +109,7 @@ class ProfileService:
             source, codes, start, days, resolution, quantity, per_element
         )
         unit = "kW" if quantity == "p" else "kvar"
+
         return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")
 
     # --- The scenario's day -----------------------------------------------------------
@@ -127,6 +128,7 @@ class ProfileService:
         x, power = adapter.element_power(
             ref, [e.id for e in elements], g.day, 1, resolution
         )
+
         return DayProfiles(
             x=x,
             step_hours=g.step_hours,

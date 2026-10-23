@@ -136,9 +136,11 @@ class Target(ABC):
         whatever its checkout holds, which may not be what is here.
         """
         report = self.check(spec, allow_uncommitted, profile)
+
         if not report["ok"]:
             problems = "; ".join(report["problems"])
             raise TargetError(f"cannot start on {self.name}: {problems}")
+
         return self._start(spec, profile)
 
     @abstractmethod
@@ -154,8 +156,10 @@ class Target(ABC):
         under; otherwise as ``start``."""
         experiment = spec if isinstance(spec, Experiment) else Experiment.load(spec)
         taken = {entry["name"] for entry in self.overview()}
+
         if experiment.with_profile(profile).name in taken:
             experiment = experiment.dated(datetime.now())
+
         return self.start(experiment, profile, allow_uncommitted)
 
     def restart(self, experiment: str, allow_uncommitted: bool = False) -> str:
@@ -163,12 +167,15 @@ class Target(ABC):
         (``experiment.json``): its completed runs stay, failed, stopped and lost runs
         train again from scratch. Returns its name."""
         (entry,) = self.overview(experiment)
+
         if entry["spec"] is None:
             raise TargetError(
                 f"'{experiment}' has no experiment.json: it was not started by the "
                 "runner, so there are no saved inputs to start it from"
             )
+
         saved = Experiment.from_dict(entry["spec"], experiment, check_files=False)
+
         return self.start(saved, "full", allow_uncommitted)
 
     @abstractmethod
@@ -229,6 +236,7 @@ class DirectTarget(Target):
         slurm = self._slurm(name)  # one SLURM question for the summary and the runs
         spec = registry.read_json(self.root / name / "experiment.json")
         runs = registry.runs(name, self.root, slurm)  # read once for both
+
         return {
             "name": name,
             "description": (spec or {}).get("description", ""),
@@ -303,12 +311,15 @@ class SlurmTarget(DirectTarget):
 
         problems = []
         nodes = slurm.cluster_nodes()
+
         if shutil.which("sbatch") is None:
             problems.append("sbatch not found: this is not a cluster's login node")
+
         try:
             importlib.metadata.version("submitit")
         except importlib.metadata.PackageNotFoundError:
             problems.append("submitit is not installed in this Python environment")
+
         commit = _git("rev-parse", "HEAD")
         busy = {"queued", "running"}
         active = [
@@ -316,9 +327,11 @@ class SlurmTarget(DirectTarget):
             for entry in self.overview()
             if busy & set(entry["summary"]["counts"])
         ]
+
         if spec is not None:
             problems += _spec_problems(spec, profile)
             problems += self.fit_problems(spec, nodes, profile) if not problems else []
+
         return _report(
             self.name,
             problems,
@@ -382,22 +395,27 @@ def _slurm_fit(
         resources = resolve(spec, profile).run_resources
     except SpecError:
         return []
+
     try:
         slurm.runs_partition(_setting(name, settings, "partitions"), resources, nodes)
     except (SpecError, TargetError) as error:
         return [str(error)]
+
     return []
 
 
 def _setting(name: str, settings: dict[str, Any], key: str) -> Any:
     if key not in settings:
         raise TargetError(f"target '{name}' has no '{key}' in {TARGETS_FILE}")
+
     value = settings[key]
+
     if isinstance(value, _Unset):
         raise TargetError(
             f"target '{name}': '{key}' needs {value.key}; set it in .env "
             "(see .env.example) or as an environment variable"
         )
+
     return value
 
 
@@ -459,9 +477,12 @@ class RemoteTarget(Target):
     ) -> None:
         self.name = name
         self.settings = settings
+
         if mirror is None:
             mirror = REPO / _setting(name, settings, "mirror")
+
         self.mirror = Path(mirror)
+
         if remote is None:
             from core.runner.remote import Remote
 
@@ -470,6 +491,7 @@ class RemoteTarget(Target):
                 _setting(name, settings, "repo"),
                 _setting(name, settings, "python"),
             )
+
         self.remote = remote
 
     def close(self) -> None:
@@ -494,6 +516,7 @@ class RemoteTarget(Target):
         found = _report(self.name, [], local_commit=local)
         problems: list[str] = []  # always block a start
         unshipped: list[str] = []  # about code the cluster does not have
+
         try:
             cluster = self.remote.runner("check", "--target", self.name, accept=(0, 1))
             commit = self.remote.head()
@@ -507,6 +530,7 @@ class RemoteTarget(Target):
                 "active": cluster["active"],
                 "nodes": cluster.get("nodes"),
             }
+
             if local is None:
                 unshipped.append(
                     "cannot read this machine's commit (is it a git repository?)"
@@ -516,14 +540,18 @@ class RemoteTarget(Target):
                     f"the cluster is at commit {commit[:8]} but this machine at "
                     f"{local[:8]}: {_SHIP}"
                 )
+
             if dirty:
                 unshipped.append(
                     "the cluster's checkout has uncommitted changes: clean it there"
                 )
+
         if spec is not None:
             loads = _spec_problems(spec, profile)
             problems += loads or self.fit_problems(spec, found["nodes"], profile)
+
         problems += [] if allow_uncommitted else unshipped
+
         return found | {"problems": problems, "ok": not problems}
 
     def fit_problems(
@@ -558,6 +586,7 @@ class RemoteTarget(Target):
         args = ["status", *([experiment] if experiment else []), "--target", self.name]
         answer = self.remote.runner(*args)
         entries = [answer] if experiment else answer["experiments"]
+
         return [
             entry | {"runs": [_run_state(run) for run in entry["runs"]]}
             for entry in entries
@@ -572,6 +601,7 @@ class RemoteTarget(Target):
         _plain_name(experiment)
         folder = self.mirror / experiment
         self.copied = self.remote.pull(f"runs/{experiment}", folder)
+
         return folder
 
     def local_runs(self, experiment: str) -> list[RunState]:
@@ -595,10 +625,13 @@ def _expand(value: Any) -> Any:
     by this machine's setting (``core/settings.py``)."""
     if isinstance(value, str):
         return machine.expand(value, _Unset)
+
     if isinstance(value, list):
         return [_expand(v) for v in value]
+
     if isinstance(value, dict):
         return {k: _expand(v) for k, v in value.items()}
+
     return value
 
 
@@ -608,11 +641,13 @@ def settings(path: Optional[Path] = None) -> dict[str, dict]:
     there."""
     found: dict[str, dict] = {"local": {"kind": "local"}}
     path = Path(path) if path else TARGETS_FILE
+
     if path.is_file():
         try:
             found |= tomllib.loads(path.read_text(encoding="utf-8"))
         except tomllib.TOMLDecodeError as error:
             raise TargetError(f"{path}: not valid TOML ({error})") from None
+
     return _expand(found)
 
 
@@ -630,15 +665,20 @@ def get(
     ``SlurmTarget`` where ``sbatch`` exists, else a ``RemoteTarget``; nothing connects
     until it is used."""
     found = settings(path)
+
     if name not in found:
         raise TargetError(f"unknown target '{name}'; the targets are {list(found)}")
+
     kind = found[name].get("kind")
+
     if kind == "local":
         return LocalTarget(root)
+
     if kind == "slurm":
         if shutil.which("sbatch"):
             return SlurmTarget(name, found[name], root)
         return RemoteTarget(name, found[name], mirror=root)
+
     raise TargetError(
         f"target '{name}': 'kind' must be 'local' or 'slurm', not {kind!r}"
     )

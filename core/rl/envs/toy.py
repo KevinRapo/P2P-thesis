@@ -67,8 +67,10 @@ class _ToyEnv(MultiAgentEnv):
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is not None:
             self.rng = np.random.default_rng(seed)
+
         self.t = 0
         self._draw()
+
         return self._obs(), {a: {} for a in self.agents_id}
 
     def step(self, action_dict: dict[str, np.ndarray]):
@@ -82,6 +84,7 @@ class _ToyEnv(MultiAgentEnv):
         self._draw()
         terminateds = {a: done for a in self.agents_id} | {"__all__": done}
         truncateds = {a: False for a in self.agents_id} | {"__all__": False}
+
         return self._obs(), rewards, terminateds, truncateds, {}
 
     # --- What each task defines ------------------------------------------------------
@@ -168,9 +171,11 @@ def baseline_return(
     env = env_class(env_config)
     rng = np.random.default_rng(seed)
     totals = []
+
     for episode in range(episodes):
         env.reset(seed=seed + episode)
         total, done = 0.0, False
+
         while not done:
             if policy == "best":
                 actions = {a: env.best_action(a) for a in env.agents_id}
@@ -185,8 +190,11 @@ def baseline_return(
                 }
             else:
                 raise ValueError(f"Unknown policy {policy!r}")
+
             _, rewards, terminateds, _, _ = env.step(actions)
             total += sum(rewards.values())
             done = terminateds["__all__"]
+
         totals.append(total)
+
     return float(np.mean(totals))

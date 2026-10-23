@@ -108,17 +108,21 @@ def _open_dialog() -> None:
             "own copy. The Step page starts again from the opened scenario."
         ).classes("mls-card-caption")
         files = s.files()
+
         if s.library is not None:
             ui.label(f"In {s.library.parent.name}/{s.library.name}/").classes(
                 "text-subtitle2"
             )
+
         if not files:
             ui.label(
                 "No scenario files yet. A notebook writes one with "
                 "core.config.store.save(scenario, path)."
             ).classes("mls-card-caption")
+
         for path in files:
             _file_row(path, dialog)
+
         ui.label("Or a file from elsewhere").classes("text-subtitle2")
 
         async def uploaded(e) -> None:
@@ -135,6 +139,7 @@ def _open_dialog() -> None:
         ui.upload(label="Scenario JSON", auto_upload=True, on_upload=uploaded).props(
             "accept=.json flat bordered"
         ).classes("w-full")
+
         with ui.row().classes("w-full justify-end"):
             ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
     dialog.open()

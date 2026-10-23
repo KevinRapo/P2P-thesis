@@ -86,10 +86,12 @@ def sources() -> dict[str, Path]:
     from core.runner import targets
 
     found = {LOCAL: runs_root()}
+
     for name, settings in targets.settings().items():
         mirror = settings.get("mirror")
         if settings.get("kind") == "slurm" and isinstance(mirror, str):
             found[name] = REPO / mirror
+
     return found
 
 
@@ -99,6 +101,7 @@ def find_runs(where: Optional[dict[str, Path]] = None) -> list[RunRef]:
     where = where or sources()
     mirrors = {Path(p).resolve() for t, p in where.items() if t != LOCAL}
     found = []
+
     for target, root in where.items():
         root = Path(root)
         for experiment in registry.experiments(root):
@@ -108,6 +111,7 @@ def find_runs(where: Optional[dict[str, Path]] = None) -> list[RunRef]:
             for run_dir in sorted(folder.iterdir()):
                 if registry._is_run_dir(run_dir):
                     found.append(RunRef(target, experiment, run_dir.name, run_dir))
+
     return found
 
 
@@ -145,9 +149,12 @@ class RunResult:
         shown on their own)."""
         settings = self.settings
         scenario = settings["scenario"]
+
         if isinstance(scenario, dict):
             scenario = scenario.get("name", "(unnamed)")
+
         shown = {k: v for k, v in settings.items() if k not in ("overrides", "model")}
+
         return shown | {
             "scenario": scenario,
             "train_days": _days(settings["train_days"]),
@@ -177,8 +184,10 @@ def load_run(ref: RunRef) -> RunResult:
     name = _RUN_NAME.match(ref.run)
     seed = record.get("seed", int(name["seed"]) if name else None)
     variant = None
+
     if name and len(ref.run) > name.end():
         variant = ref.run[name.end() + 1 :]
+
     git = record.get("git") or {}
     settings = {
         "algorithm": record.get("algorithm", name["algorithm"] if name else None),
@@ -196,6 +205,7 @@ def load_run(ref: RunRef) -> RunResult:
         "commit": (git.get("commit") or "")[:8] or None,
         "uncommitted": git.get("uncommitted_changes"),
     }
+
     return RunResult(ref, settings, registry.run_state(ref.folder))
 
 
@@ -207,8 +217,10 @@ def _days(value: Any) -> Optional[str]:
     """Days as one label: ``first … last (n)``."""
     if not value:
         return None
+
     if isinstance(value, dict):
         return f"{value.get('from')} … {value.get('to')}"
+
     return f"{value[0]} … {value[-1]} ({len(value)})" if len(value) > 1 else value[0]
 
 
@@ -235,6 +247,7 @@ def overview(results: Sequence[RunResult]) -> pd.DataFrame:
     """One row per run: what it was, how far it got, and its held-out team return
     for the trained policy and each baseline (``heldout.csv``)."""
     rows = []
+
     for result in results:
         state = result.state
         row = _head(result) | {
@@ -245,12 +258,15 @@ def overview(results: Sequence[RunResult]) -> pd.DataFrame:
             "commit": result.settings["commit"],
         }
         heldout = result.table("heldout")
+
         if heldout is not None and "policy" in heldout:
             scores = heldout.set_index("policy")["team_return_mean"]
             row["participants"] = _agents(heldout)
             for policy in (TRAINED, *BASELINES):
                 row[f"heldout_{policy}"] = scores.get(policy)
+
         rows.append(row)
+
     return pd.DataFrame(rows)
 
 
@@ -258,15 +274,19 @@ def learning_curves(results: Sequence[RunResult]) -> pd.DataFrame:
     """Evaluation during training (``evaluation.csv``): one row per run, evaluation
     point and policy, with the team return and its mean per participant."""
     frames = []
+
     for result in results:
         frame = result.table("evaluation")
+
         if frame is None:
             continue
+
         frame = frame[["env_steps", "policy", "team_return_mean"]].copy()
         frame["per_participant"] = frame.team_return_mean / _agents(
             result.table("evaluation")
         )
         frames.append(frame.assign(**_head(result)))
+
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
@@ -275,15 +295,19 @@ def training_curves(results: Sequence[RunResult]) -> pd.DataFrame:
     and progress report: what the sampled episodes earned while learning, a
     different measurement from the evaluation."""
     frames = []
+
     for result in results:
         frame = result.table("metrics")
+
         if frame is None or "team_return_mean" not in frame:
             continue
+
         frame = frame[["env_steps", "team_return_mean"]].copy()
         counted = result.table("evaluation")  # how many participants
         agents = _agents(counted) if counted is not None else 1
         frame["per_participant"] = frame.team_return_mean / agents
         frames.append(frame.assign(**_head(result)))
+
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
@@ -292,6 +316,7 @@ def heldout_days(results: Sequence[RunResult]) -> pd.DataFrame:
     and ``trained_minus_<baseline>``, the paired difference on the same day. A run
     without the per-day table gives one row with its means and no day."""
     rows = []
+
     for result in results:
         frame = result.table("heldout_episodes")
         if frame is not None:
@@ -306,12 +331,16 @@ def heldout_days(results: Sequence[RunResult]) -> pd.DataFrame:
             scores = {None: dict(zip(frame.policy, frame.team_return_mean))}
         for day, score in scores.items():
             row = _head(result) | {"day": day}
+
             for policy in (TRAINED, *BASELINES):
                 row[policy] = score.get(policy)
+
             for baseline in BASELINES:
                 if row[TRAINED] is not None and row[baseline] is not None:
                     row[f"trained_minus_{baseline}"] = row[TRAINED] - row[baseline]
+
             rows.append(row)
+
     return pd.DataFrame(rows)
 
 
@@ -319,14 +348,18 @@ def participant_days(result: RunResult, value: str = "return") -> pd.DataFrame:
     """One run, per test day and participant (``heldout_agents.csv``): ``value`` for
     each policy and ``trained_minus_<baseline>``. Empty without the table."""
     frame = result.table("heldout_agents")
+
     if frame is None or value not in frame:
         return pd.DataFrame()
+
     wide = frame.pivot_table(
         index=["day", "agent"], columns="policy", values=value
     ).reset_index()
+
     for baseline in BASELINES:
         if TRAINED in wide and baseline in wide:
             wide[f"trained_minus_{baseline}"] = wide[TRAINED] - wide[baseline]
+
     return wide
 
 
@@ -342,10 +375,13 @@ def seed_groups(
     are not the same in all its runs (a group should have none).
     """
     table = overview(results)
+
     if table.empty:
         return table
+
     settings = {r.key: r.settings for r in results}
     rows = []
+
     for values, group in table.groupby(list(by), dropna=False, sort=False):
         done = group[group.state == "completed"]
         trained = done.get(f"heldout_{TRAINED}", pd.Series(dtype=float)).dropna()
@@ -359,14 +395,17 @@ def seed_groups(
             "min": trained.min() if len(trained) else None,
             "max": trained.max() if len(trained) else None,
         }
+
         for baseline in BASELINES:
             column = f"heldout_{baseline}"
             if column in done and len(trained):
                 row[f"trained_minus_{baseline}"] = (
                     trained - done.loc[trained.index, column]
                 ).mean()
+
         row["differs"] = differing_settings([settings[k] for k in group.key], COMPARED)
         rows.append(row)
+
     return pd.DataFrame(rows)
 
 

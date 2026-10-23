@@ -99,8 +99,10 @@ class SimpleSpread(MultiAgentEnv):
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if seed is None and self._first_reset:
             seed = self.seed
+
         self._first_reset = False
         obs, _ = self.env.reset(seed=seed, options=options)
+
         return self._obs(obs), {a: {} for a in self.agents_id}
 
     def step(self, action_dict: dict[str, np.ndarray]):
@@ -116,6 +118,7 @@ class SimpleSpread(MultiAgentEnv):
         terminateds = {a: done for a in self.agents_id} | {"__all__": done}
         truncateds = {a: cut for a in self.agents_id} | {"__all__": cut}
         rewards = {self._name[pz]: float(r) for pz, r in rewards.items()}
+
         return self._obs(obs), rewards, terminateds, truncateds, {}
 
     def render(self) -> np.ndarray:
@@ -146,9 +149,11 @@ def baseline_return(
     env = SimpleSpread({**env_config, "render_mode": None})
     rng = np.random.default_rng(seed)
     totals = []
+
     for episode in range(episodes):
         env.reset(seed=seed + episode)
         total, done = 0.0, False
+
         while not done:
             if policy == "random":
                 actions = {
@@ -162,11 +167,15 @@ def baseline_return(
                 }
             else:
                 raise ValueError(f"Unknown policy {policy!r}")
+
             _, rewards, terminateds, truncateds, _ = env.step(actions)
             total += sum(rewards.values())
             done = terminateds["__all__"] or truncateds["__all__"]
+
         totals.append(total)
+
     env.close()
+
     return float(np.mean(totals))
 
 
@@ -201,12 +210,15 @@ def episode_frames(
 
     obs, _ = env.reset(seed=seed)
     frames, total, done = [frame()], 0.0, False
+
     while not done:
         obs, rewards, terminateds, truncateds, _ = env.step(act(obs))
         frames.append(frame())
         total += sum(rewards.values())
         done = terminateds["__all__"] or truncateds["__all__"]
+
     env.close()
+
     return frames, total
 
 
@@ -214,6 +226,7 @@ def random_policy(env_config: dict[str, Any], seed: int = 0):
     """A policy for ``episode_frames``: every action element uniform in [0, 1]."""
     rng = np.random.default_rng(seed)
     shape = SimpleSpread({**env_config, "render_mode": None}).action_spaces
+
     return lambda obs: {
         a: rng.uniform(0, 1, shape[a].shape).astype(np.float32) for a in obs
     }

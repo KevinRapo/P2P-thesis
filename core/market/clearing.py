@@ -116,21 +116,29 @@ def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
     pricing = ClearingMechanism(rules.mechanism)
     trades = []
     by_agent = {o.agent_id: o for o in work}
+
     for buy in work:
         if not buy.is_buy or buy.partner_id in (None, DSO_ID):
             continue
+
         sell = by_agent.get(buy.partner_id)
+
         if sell is None or sell.is_buy or sell.partner_id != buy.agent_id:
             continue
+
         if buy.price < sell.price:
             continue
+
         quantity = min(buy.quantity, sell.quantity)
+
         if quantity <= rules.threshold_kwh:
             continue
+
         price = pricing.calculate_price(buy, sell, rules.reference_price)
         trades.append(_trade(buy, sell, quantity, price, 1, rules))
         buy.quantity -= quantity
         sell.quantity -= quantity
+
     return StageResult(1, STAGE_NAMES[1], tuple(trades), _open(work, rules))
 
 
@@ -156,6 +164,7 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
     )
     trades = []
     b = s = 0
+
     while b < len(buys) and s < len(sells) and buys[b].price >= sells[s].price:
         buy, sell = buys[b], sells[s]
         quantity = min(buy.quantity, sell.quantity)
@@ -163,10 +172,13 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
         trades.append(_trade(buy, sell, quantity, price, 2, rules))
         buy.quantity -= quantity
         sell.quantity -= quantity
+
         if buy.quantity <= rules.threshold_kwh:
             b += 1
+
         if sell.quantity <= rules.threshold_kwh:
             s += 1
+
     return StageResult(2, STAGE_NAMES[2], tuple(trades), _open(work, rules))
 
 

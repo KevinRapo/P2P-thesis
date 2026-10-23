@@ -30,10 +30,12 @@ SERVERS = {
 def main(names: list[str]) -> None:
     """Start the named servers (all when none are named)."""
     unknown = [n for n in names if n not in SERVERS]
+
     if unknown:
         sys.exit(
             f"Unknown server(s): {', '.join(unknown)}. Choose from {list(SERVERS)}"
         )
+
     for name in names or SERVERS:
         folder, command = SERVERS[name]
         subprocess.Popen(

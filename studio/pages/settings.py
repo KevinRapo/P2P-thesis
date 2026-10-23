@@ -57,6 +57,7 @@ def _cache_section() -> None:
             "HV, EHV and the combined networks are large: up to 120 MB each. "
             "Built-in networks are only cached when opened."
         ).classes("mls-card-caption")
+
         with ui.row().classes("gap-2"):
             buttons = [
                 (
@@ -74,6 +75,7 @@ def _cache_section() -> None:
                 icon="delete",
                 on_click=lambda: (grid.clear_cache(), refresh_coverage()),
             ).props("flat no-caps color=negative")
+
         state = {"coverage": [], "running": False}
 
         def prepare(levels: list[str]) -> None:
@@ -97,6 +99,7 @@ def _cache_section() -> None:
             )
             progress.set_value(cached / total if total else 0)
             table_box.clear()
+
             with table_box:
                 data_table(
                     [
@@ -119,6 +122,7 @@ def _cache_section() -> None:
                     row_key="group",
                     pagination=0,
                 )
+
             for button, levels in buttons:
                 button.set_enabled(not set(levels) <= done)
                 button.tooltip("All cached" if set(levels) <= done else "")
@@ -128,14 +132,18 @@ def _cache_section() -> None:
             counted again when a preparation ends."""
             s = grid.cache_status()
             text = f"{s['bytes'] / 1e9:.2f} GB in {s['folder']}"
+
             if s["running"]:
                 text = (
                     f"Preparing {', '.join(s['levels'])}: {s['done']} of "
                     f"{s['total'] or '…'} · " + text
                 )
+
             detail.set_text(text)
+
             if state["running"] and not s["running"]:
                 ui.timer(0, refresh_coverage, once=True)
+
             state["running"] = s["running"]
 
         refresh()
@@ -150,17 +158,20 @@ def _workspace_section() -> None:
     """The workspace folder: where the Studio keeps its data."""
     home = workspace.default_home()
     source = workspace.home_source()
+
     with section(
         "Workspace folder",
         "Where the Studio keeps its data",
         "storage",
     ):
         folder = ui.input("Folder", value=str(home)).classes("w-full mls-mono")
+
         for name, what in (
             ("cache/networks", "built networks"),
             ("studio-state", "per-browser state (dark mode)"),
         ):
             ui.label(f"{home / name}  ·  {what}").classes("mls-card-caption mls-mono")
+
         if source == "environment":
             folder.disable()
             ui.label(
@@ -169,11 +180,13 @@ def _workspace_section() -> None:
             ).classes("text-warning text-caption")
         elif source == "default":
             ui.label("Default folder (nothing chosen yet).").classes("mls-card-caption")
+
         if workspace.is_synced_folder(home):
             ui.label(
                 "This folder is synced by OneDrive: the cache holds large files, "
                 "which sync clients lock and duplicate. Choose a local folder."
             ).classes("text-warning text-caption")
+
         ui.label(
             f"Remembered in {workspace.settings_path()}. Existing files are not "
             "moved. The per-browser state moves after a restart."
@@ -187,6 +200,7 @@ def _workspace_section() -> None:
             except OSError as error:
                 ui.notify(f"Cannot use this folder: {error}", type="negative")
                 return
+
             reset_services()
             ui.notify(f"Workspace folder: {new_home}")
             ui.navigate.reload()

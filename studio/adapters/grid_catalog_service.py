@@ -54,6 +54,7 @@ class GridCatalogService:
         """
         if self.warming["running"]:
             return
+
         self.warming.update(levels=list(levels), done=0, total=0, running=True)
 
         def progress(done: int, total: int) -> None:

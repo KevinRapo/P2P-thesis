@@ -34,8 +34,10 @@ from core.runner.spec import PROFILES, Experiment, SpecError
 def _duration(seconds) -> str:
     if seconds is None:
         return "-"
+
     seconds = int(seconds)
     hours, rest = divmod(seconds, 3600)
+
     return f"{hours}:{rest // 60:02d}:{rest % 60:02d}"
 
 
@@ -45,10 +47,13 @@ def _number(value, digits: int = 2) -> str:
 
 def _table(states: list[RunState]) -> str:
     columns = [("run", lambda s: s.name), ("state", lambda s: s.state)]
+
     if any(s.slurm_state for s in states):
         columns.append(("slurm", lambda s: s.slurm_state or "-"))
+
     if any(s.host for s in states):
         columns.append(("host", lambda s: s.host or "-"))
+
     columns += [
         ("progress", lambda s: f"{s.progress:.0%}"),
         ("env steps", lambda s: f"{s.env_steps}/{s.budget if s.budget else '?'}"),
@@ -63,9 +68,11 @@ def _table(states: list[RunState]) -> str:
     lines = [
         "  ".join(str(c).ljust(w) for c, w in zip(r, widths)) for r in [header, *rows]
     ]
+
     for s in states:
         if s.error:
             lines.append(f"{s.name}: {s.error}")
+
     return "\n".join(lines)
 
 
@@ -73,6 +80,7 @@ def _summary(entry: dict) -> str:
     info = entry["summary"]
     counts = ", ".join(f"{n} {state}" for state, n in sorted(info["counts"].items()))
     worker = "worker alive" if info["worker_alive"] else "no worker"
+
     return (
         f"{entry['name']:<28} {info['runs']:>3} runs  {info['progress']:>4.0%}  "
         f"{counts}  ({worker})"
@@ -88,14 +96,17 @@ def _check_text(report: dict) -> str:
     """The report of ``Target.check`` for a person."""
     lines = [f"{report['target']}: {'ready' if report['ok'] else 'NOT ready'}"]
     lines += [f"  problem: {problem}" for problem in report["problems"]]
+
     for key, title in (("local_commit", "this machine"), ("cluster_commit", "cluster")):
         if report[key]:
             lines.append(f"  commit on {title}: {report[key][:8]}")
+
     if report["active"]:
         lines.append(
             f"  queued or running: {', '.join(report['active'])} "
             "(do not update or edit the cluster's checkout meanwhile)"
         )
+
     return "\n".join(lines)
 
 
@@ -112,10 +123,12 @@ def _spec(text: str) -> str | Experiment:
     input."""
     if text != "-":
         return text
+
     try:
         data = json.loads(sys.stdin.read())
     except json.JSONDecodeError as error:
         raise SpecError(f"standard input: not valid JSON ({error})") from None
+
     return Experiment.from_dict(data)
 
 
@@ -143,14 +156,17 @@ def main(argv: list[str] | None = None) -> int:
     sync.add_argument("experiment")
     check = commands.add_parser("check")
     check.add_argument("spec", nargs="?", help="config/experiments/<name>.json")
+
     for command in (start, status, stop, sync, check):
         command.add_argument("--json", action="store_true")
         _add_target(command)
+
     commands.add_parser("work").add_argument("exp_dir")
     commands.add_parser("job").add_argument("run_dir")
     args = parser.parse_args(argv)
 
     target = None
+
     try:
         if args.command not in ("work", "job"):
             target = targets.get(args.target)
@@ -161,10 +177,13 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(answer | {"folder": _folder(target, name)}))
             else:
                 print(f"started {name} on {target.name}")
+
                 if isinstance(target, targets.DirectTarget):
                     print(f"results in {target.root / name}")
+
                 more = "" if target.name == "local" else f" --target {target.name}"
                 print(f"watch with: python -m core.runner status {name}{more}")
+
                 if isinstance(target, targets.RemoteTarget):
                     print(
                         f"fetch results with: python -m core.runner sync {name}{more}"
@@ -220,6 +239,7 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if target is not None:
             target.close()
+
     return 0
 
 

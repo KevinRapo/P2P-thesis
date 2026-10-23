@@ -30,6 +30,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
     gens = [e for e in owned if e.element_type == "sgen"]
     bg_load = [e for e in rest if e.element_type == "load"]
     bg_gen = [e for e in rest if e.element_type == "sgen"]
+
     with stat_grid():
         stat(
             "Participants",
@@ -63,6 +64,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
             "settings_input_component",
             "secondary",
         )
+
     with section(
         "Participants",
         f"They trade in the market. {date}. Demand and generation per step; "
@@ -71,6 +73,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
         "groups",
     ):
         _participants(day, people)
+
     with section(
         "Background",
         "The elements no participant took over. They do not trade; in the power "
@@ -88,6 +91,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
 def _participants(day: DayProfiles, people: list[ParticipantSetup]) -> None:
     """Summed curves and one table row per participant."""
     rows = []
+
     for p in people:
         mine = day.owned(p.id)
         loads = [e for e in mine if e.element_type == "load"]
@@ -106,6 +110,7 @@ def _participants(day: DayProfiles, people: list[ParticipantSetup]) -> None:
                 "battery": f"{p.battery.capacity_kwh:g} kWh" if p.battery else "—",
             }
         )
+
     plot_box = ui.column().classes("w-full")
     table = data_table(
         rows,
@@ -144,11 +149,13 @@ def _participants(day: DayProfiles, people: list[ParticipantSetup]) -> None:
 def _background(day: DayProfiles, off: bool) -> None:
     """Summed curves and one table row per background element."""
     rest = day.background()
+
     if not rest:
         ui.label("Every element of the network belongs to a participant.").classes(
             "mls-card-caption"
         )
         return
+
     plot_box = ui.column().classes("w-full")
     rows = [_element_row(day, e) for e in rest]
     table = data_table(
@@ -196,4 +203,5 @@ def _net(day: DayProfiles, participant: str) -> list[float]:
     mine = day.owned(participant)
     gen = day.total_kw([e for e in mine if e.element_type == "sgen"])
     dem = day.total_kw([e for e in mine if e.element_type == "load"])
+
     return [g - d for g, d in zip(gen, dem)]

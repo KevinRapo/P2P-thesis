@@ -69,6 +69,7 @@ class FakeSFTP:
     async def readdir(self, folder: str):
         prefix = folder.rstrip("/") + "/"
         names = {}
+
         for path, (data, mtime) in self.files.items():
             if path.startswith(prefix):
                 first, _, rest = path[len(prefix) :].partition("/")
@@ -78,20 +79,26 @@ class FakeSFTP:
                     names[first] = asyncssh.SFTPAttrs(
                         size=len(data), mtime=mtime, permissions=stat.S_IFREG | 0o644
                     )
+
         if not names:
             raise asyncssh.SFTPNoSuchFile(f"no such folder {folder}")
+
         names["link"] = asyncssh.SFTPAttrs(permissions=stat.S_IFLNK | 0o777)
         entries = [asyncssh.SFTPName(n, attrs=a) for n, a in names.items()]
         dot = asyncssh.SFTPAttrs(permissions=stat.S_IFDIR | 0o755)
+
         return [*entries, asyncssh.SFTPName(".", attrs=dot)]
 
     async def get(self, source: str, target: str, preserve: bool = False) -> None:
         if source in self.broken:
             raise asyncssh.SFTPFailure(f"cannot read {source}")
+
         data, mtime = self.files[source]
         Path(target).write_bytes(data)
+
         if preserve:
             os.utime(target, (mtime, mtime))
+
         self.gets.append((source, preserve))
 
 
@@ -110,9 +117,12 @@ class FakeConnection:
         self.commands.append(command)
         self.run_options.append(options)
         result = self.results.pop(0)
+
         if isinstance(result, BaseException):
             raise result
+
         status, out, err = result
+
         return asyncssh.SSHCompletedProcess(
             None, command, None, status, None, status, out, err
         )
@@ -146,11 +156,14 @@ def connections(monkeypatch):
     async def connect(host, **options):
         Connections.calls.append((host, options))
         found = Connections.queue.pop(0)
+
         if isinstance(found, BaseException):
             raise found
+
         return found
 
     monkeypatch.setattr(remote.asyncssh, "connect", connect)
+
     return Connections
 
 
@@ -192,8 +205,10 @@ def test_a_lost_connection_is_an_error_and_the_next_call_reconnects(
     first = FakeConnection([asyncssh.ConnectionLost("gone")])
     second = FakeConnection([(0, "back", "")])
     connections.queue = [first, second]
+
     with pytest.raises(RemoteError, match=r"^command failed on taltech: gone$"):
         cluster.execute("x")
+
     assert first.closed and first.commands == ["x"]  # not tried again
     assert len(connections.calls) == 1
     assert cluster.execute("y") == (0, "back", "")
@@ -211,12 +226,17 @@ def test_a_connection_that_closed_by_itself_is_replaced(cluster, connections):
 
 def test_an_unreachable_cluster_suggests_the_vpn(cluster, connections):
     connections.queue = [OSError(11001, "getaddrinfo failed")]
+
     with pytest.raises(RemoteError, match=r"failed on taltech.*getaddrinfo.*VPN"):
         cluster.execute("x", "git status")
+
     connections.queue = [TimeoutError()]
+
     with pytest.raises(RemoteError, match=r"no answer within 135 s.*VPN"):
         cluster.execute("x")
+
     connections.queue = [asyncssh.PermissionDenied("Permission denied")]
+
     with pytest.raises(RemoteError, match=r"Permission denied.*VPN"):
         cluster.execute("x")
 
@@ -231,8 +251,10 @@ def test_a_failure_on_an_open_connection_has_no_vpn_hint(cluster, connections):
     refused = asyncssh.ChannelOpenError(2, "open failed")
     conn = FakeConnection([refused])
     connections.queue = [conn]
+
     with pytest.raises(RemoteError) as error:
         cluster.execute("x")
+
     assert str(error.value) == "command failed on taltech: open failed"
     assert conn.closed
 
@@ -268,8 +290,10 @@ def test_runner_sends_its_input_to_standard_input(cluster, connections):
 def test_a_failure_with_a_json_error_becomes_that_error(cluster, connections):
     out = '{"error": "no experiment \'x\' in runs"}'
     connections.queue = [FakeConnection([(2, out, "")])]
+
     with pytest.raises(RemoteError) as error:
         cluster.runner("stop", "x")
+
     assert str(error.value) == "no experiment 'x' in runs"
 
 
@@ -278,12 +302,15 @@ def test_a_failure_without_json_quotes_the_status_and_the_end_of_stderr(
 ):
     stderr = "noise\n" * 500 + "bash: python: command not found"
     connections.queue = [FakeConnection([(127, "", stderr), (1, "", "")])]
+
     with pytest.raises(RemoteError) as error:
         cluster.runner("status")
+
     message = str(error.value)
     assert message.startswith("runner status failed on taltech: exit status 127")
     assert message.endswith("command not found")
     assert len(message) < remote.TAIL_CHARS + 100
+
     with pytest.raises(RemoteError, match="exit status 1: no output"):
         cluster.runner("status")
 
@@ -291,8 +318,10 @@ def test_a_failure_without_json_quotes_the_status_and_the_end_of_stderr(
 def test_output_that_is_not_json_is_an_error_even_on_exit_0(cluster, connections):
     banner = "Welcome to the cluster\n" + '{"a": 1}'
     connections.queue = [FakeConnection([(0, banner, ""), (0, "[1, 2]", "")])]
+
     with pytest.raises(RemoteError, match="printed no JSON.*Welcome"):
         cluster.runner("status")
+
     with pytest.raises(RemoteError, match="printed no JSON"):
         cluster.runner("status")  # JSON, but not an object
 
@@ -302,8 +331,10 @@ def test_check_may_exit_1_with_its_report(cluster, connections):
     results = [(1, report, ""), (1, report, ""), (1, '{"error": "boom"}', "")]
     connections.queue = [FakeConnection(results)]
     assert cluster.runner("check", accept=(0, 1)) == {"ok": False}
+
     with pytest.raises(RemoteError, match="exit status 1"):
         cluster.runner("check")  # exit 1 is not an answer unless accepted
+
     with pytest.raises(RemoteError, match="^boom$"):  # an error stays an error
         cluster.runner("check", accept=(0,))
 
@@ -326,8 +357,10 @@ def test_head_and_uncommitted_ask_git_in_the_checkout(cluster, connections):
 def test_git_that_fails_is_an_error_not_a_guess(cluster, connections):
     failed = (128, "", "fatal: not a git repository")
     connections.queue = [FakeConnection([failed, failed])]
+
     with pytest.raises(RemoteError, match=r"git rev-parse failed.*not a git repo"):
         cluster.head()
+
     with pytest.raises(RemoteError, match=r"git status failed.*exit status 128"):
         cluster.uncommitted()
 
@@ -407,8 +440,10 @@ def test_a_failed_pull_keeps_the_previous_mirror(cluster, connections, tmp_path)
     before = {name: (mirror / name).read_bytes() for name in files_in(mirror)}
     sftp.files[f"{BASE}/r1/metrics.csv"] = (b"new", 1010)
     sftp.broken.add(f"{BASE}/r1/status.json")  # fails half-way through the copy
+
     with pytest.raises(RemoteError, match="copying runs/x failed on taltech.*cannot"):
         cluster.pull("runs/x", mirror)
+
     assert {name: (mirror / name).read_bytes() for name in files_in(mirror)} == before
     assert sorted(p.name for p in tmp_path.iterdir()) == ["x"]  # partial copy removed
 
@@ -447,8 +482,10 @@ def test_a_failed_replacement_puts_the_old_mirror_back(tmp_path, monkeypatch):
         return real_rename(self, target)
 
     monkeypatch.setattr(Path, "rename", rename)
+
     with pytest.raises(PermissionError):
         remote.replace_folder(fresh, mirror)
+
     assert (mirror / "old.txt").read_text(encoding="utf-8") == "old"
 
 
@@ -484,6 +521,8 @@ def test_close_stops_the_thread_and_the_object_can_be_used_again(cluster, connec
 def test_it_works_as_a_context_manager(connections):
     conn = FakeConnection([(0, "a", "")])
     connections.queue = [conn]
+
     with Remote("taltech", "~/r", "python") as box:
         assert box.execute("x")[0] == 0
+
     assert conn.closed and box._thread is None

@@ -83,8 +83,10 @@ def net_position(
     rng = random.Random(market.seed * 100_003 + step)
     spread = utility_price - feed_in_tariff
     out = {}
+
     for pid, v in views.items():
         net = v.generation_kwh - v.demand_kwh
+
         if net > 0:
             quantity = net - min(net, v.chargeable_kwh)
             is_buy = False
@@ -93,10 +95,13 @@ def net_position(
             quantity = -net - min(-net, v.dischargeable_kwh)
             is_buy = True
             price = utility_price - market.bid_margin * spread
+
         if quantity <= 1e-9:
             continue
+
         price += rng.uniform(-1, 1) * market.bid_jitter * spread
         # Clipped to [p_min, p_max] ([P1] eq. 2, §3.2.3)
         price = min(market.max_price, max(market.min_price, price))
         out[pid] = (is_buy, price, quantity, (partners or {}).get(pid))
+
     return out

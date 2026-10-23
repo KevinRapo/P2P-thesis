@@ -37,10 +37,12 @@ def play(env: MarketEnv, policy, day: str):
     obs, _ = env.reset()
     env.days = saved
     rewards, records = [], []
+
     while True:
         obs, r, terminated, _, _ = env.step(policy(obs))
         rewards.append([r[a] for a in env.agents_id])
         records.append(env.last_record)
+
         if terminated["__all__"]:
             return np.array(rewards), records
 
@@ -65,6 +67,7 @@ def first_step_where(env: MarketEnv, side: str):
     env.reset()
     env.days = saved
     zero = zero_policy(env)
+
     while not env.market.done:
         t = env.market.current_step
         for pid, p in env.market.participants.items():
@@ -72,6 +75,7 @@ def first_step_where(env: MarketEnv, side: str):
             if bound > 1e-3:
                 return pid
         env.step(zero(None))
+
     raise AssertionError(f"nobody can {side} on {DAYS[0]}")
 
 
@@ -89,6 +93,7 @@ def test_spaces_and_observations(env):
     assert env.agents == env.possible_agents == AGENTS
     assert len(OBS_NAMES) == 42
     assert env.obs_names[:42] == OBS_NAMES and len(env.obs_names) == 46
+
     for a in AGENTS:
         assert env.observation_spaces[a].shape == (46,)
         space = env.action_spaces[a]
@@ -99,6 +104,7 @@ def test_spaces_and_observations(env):
     rng = np.random.default_rng(0)
     obs, infos = env.reset(seed=0)
     assert set(infos) == set(AGENTS) and infos["P1"]["day"] in DAYS
+
     for step in range(6):
         for a in AGENTS:
             assert np.isfinite(obs[a]).all()
@@ -117,15 +123,18 @@ def test_zero_episode_lasts_one_day(env):
     zero = zero_policy(env)
     obs = env.reset(seed=1)[0]
     steps = 0
+
     while True:
         obs, _, terminated, truncated, _ = env.step(zero(obs))
         steps += 1
         assert not any(truncated.values())
+
         if steps < env.market.n_steps:
             assert not any(terminated.values())
         else:
             assert terminated["__all__"] and all(terminated[a] for a in AGENTS)
             break
+
     assert steps == env.market.n_steps == 24
 
 
@@ -137,13 +146,16 @@ def test_zero_actions_submit_no_orders(env):
     zero = zero_policy(env)
     obs = env.reset(seed=2)[0]
     utility = env.utility_price
+
     while True:
         obs, rewards, terminated, *_ = env.step(zero(obs))
         record = env.last_record
         assert len(record.orders) == 0
+
         for a in AGENTS:
             expected = -utility * record.participants[a].deferred_demand_kwh
             assert rewards[a] == pytest.approx(expected / env.reward_scale)
+
         if terminated["__all__"]:
             break
 
@@ -161,6 +173,7 @@ def test_reward_is_the_scaled_net_bill(env):
     definition the docstring gives for why profit alone is not enough."""
     rng = np.random.default_rng(3)
     env.reset(seed=3)
+
     for _ in range(8):
         _, rewards, _, _, infos = env.step(random_actions(env, rng))
         for a in AGENTS:
@@ -175,11 +188,13 @@ def test_reward_is_the_scaled_net_bill(env):
                 isinstance(v, float) for k, v in infos[a].items() if k not in nested
             )
             labels = {"side", "partner"}  # the trace's labels; the rest numbers
+
             for part in nested:
                 assert all(
                     isinstance(v, str if k in labels else float)
                     for k, v in infos[a][part].items()
                 )
+
             shared = infos[a]["shared"]
             assert shared["p2p_kwh"] == pytest.approx(env.last_record.p2p_kwh)
             assert shared["bought_from_dso_kwh"] == pytest.approx(
@@ -223,6 +238,7 @@ def test_action_decoding_sell(env):
 
     while env.market.participants[pid].max_sell_kwh(env.market.current_step) <= 1e-3:
         env.step({})
+
     t = env.market.current_step
     bound = env.market.participants[pid].max_sell_kwh(t)
     (high,) = order_for(1.0, 1.0)
@@ -254,6 +270,7 @@ def test_action_decoding_buy(env):
     again = env.decode(pid, env.encode(pid, "buy", 0.5, 1.0))
     assert again.quantity_kwh == pytest.approx(bound / 2, rel=1e-5)
     assert again.price == pytest.approx(env.utility_price)
+
     with pytest.raises(ValueError, match="outside its space"):
         env.decode(pid, action(2, 1.0, 0.0, 0))
 
@@ -268,6 +285,7 @@ def test_same_seed_same_day_and_observations(env):
     obs1, info1 = env.reset(seed=7)
     obs2, info2 = env.reset(seed=7)
     assert info1["P1"]["day"] == info2["P1"]["day"]
+
     for a in AGENTS:
         np.testing.assert_array_equal(obs1[a], obs2[a])
 
@@ -275,6 +293,7 @@ def test_same_seed_same_day_and_observations(env):
     assert other.energy_scale == env.energy_scale
     obs3, info3 = other.reset()
     assert info3["P1"]["day"] == info1["P1"]["day"]
+
     for a in AGENTS:
         np.testing.assert_array_equal(obs1[a], obs3[a])
 
@@ -296,8 +315,10 @@ def test_net_position_beats_zero(env):
 
         policy = net_position_policy(env)
         obs, _ = env.reset(seed=0)
+
         for a, act in policy(obs).items():
             assert env.action_spaces[a].contains(act)
+
         net_total, records = play(env, policy, day)
         net_total = net_total.sum()
         print(f"{day}: zero {zero_total:.3f}, net position {net_total:.3f}")

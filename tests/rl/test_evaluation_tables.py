@@ -39,6 +39,7 @@ class Ledger:
         }
         done = self.t >= 3
         terminated = {"a": done, "b": done, "__all__": done}
+
         return {"a": 0.0, "b": 0.0}, rewards, terminated, {"__all__": False}, infos
 
 

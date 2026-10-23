@@ -59,8 +59,10 @@ def shell_path(path: str) -> str:
     expands it; the rest is quoted (``~/my repo`` -> ``~/'my repo'``)."""
     if path == "~" or path == "~/":
         return path
+
     if path.startswith("~/"):
         return "~/" + shlex.quote(path[2:])
+
     return shlex.quote(path)
 
 
@@ -68,6 +70,7 @@ def runner_command(repo: str, python: str, args: Sequence[str]) -> str:
     """The shell command that runs the runner's CLI in the checkout, asking for JSON."""
     quoted = " ".join(shlex.quote(arg) for arg in args)
     run = f"{shell_path(python)} -m core.runner {quoted} --json"
+
     return f"cd {shell_path(repo)} && {run}"
 
 
@@ -106,17 +109,22 @@ async def copy_tree(sftp: Any, folder: str, local: Path, skip: Sequence[str]) ->
     """
     local.mkdir(parents=True, exist_ok=True)
     copied = 0
+
     for entry in sorted(await sftp.readdir(folder), key=lambda e: e.filename):
         name, mode = entry.filename, entry.attrs.permissions or 0
+
         if name in (".", ".."):
             continue
+
         source = posixpath.join(folder, name)
+
         if stat.S_ISDIR(mode):
             if name not in skip:
                 copied += await copy_tree(sftp, source, local / name, skip)
         elif stat.S_ISREG(mode):
             await sftp.get(source, str(local / name), preserve=True)
             copied += 1
+
     return copied
 
 
@@ -125,14 +133,17 @@ def replace_folder(new: Path, target: Path) -> None:
     moved aside first and comes back if the move fails."""
     old = target.with_name(f".{target.name}.old")
     shutil.rmtree(old, ignore_errors=True)
+
     if target.exists():
         target.rename(old)
+
     try:
         new.rename(target)
     except OSError:
         if old.exists():
             old.rename(target)
         raise
+
     shutil.rmtree(old, ignore_errors=True)
 
 
@@ -211,12 +222,15 @@ class Remote:
         what = f"runner {args[0]}"
         command = runner_command(self.repo, self.python, args)
         status, out, err = self.execute(command, what, input)
+
         try:
             data = json.loads(out)
         except ValueError:
             data = None
+
         if not isinstance(data, dict):
             data = None
+
         if status not in accept:
             if data is not None and "error" in data:
                 raise RemoteError(str(data["error"]))
@@ -226,6 +240,7 @@ class Remote:
             reason = f"it printed no JSON: {tail(out) or 'no output'}"
         else:
             return data
+
         raise RemoteError(f"{what} failed on {self.host}: {reason}")
 
     def head(self) -> str:
@@ -240,9 +255,11 @@ class Remote:
         what = f"git {args[0]}"
         command = f"git -C {shell_path(self.repo)} {' '.join(args)}"
         status, out, err = self.execute(command, what)
+
         if status != 0:
             reason = f"exit status {status}: {tail(err) or 'no output'}"
             raise RemoteError(f"{what} failed on {self.host}: {reason}")
+
         return out
 
     # --- Files ------------------------------------------------------------------------
@@ -269,12 +286,14 @@ class Remote:
                 return await copy_tree(sftp, folder, partial, tuple(skip))
 
         shutil.rmtree(partial, ignore_errors=True)
+
         try:
             count = self._call(f"copying {remote_dir}", operation, PULL_TIMEOUT_S)
             replace_folder(partial, local_dir)
         except BaseException:
             shutil.rmtree(partial, ignore_errors=True)
             raise
+
         return count
 
     # --- Closing ----------------------------------------------------------------------
@@ -283,14 +302,18 @@ class Remote:
         with self._guard:
             loop, thread = self._loop, self._thread
             self._loop = self._thread = None
+
         if loop is None or thread is None:
             return
+
         try:
             asyncio.run_coroutine_threadsafe(self._disconnect(), loop).result(5)
         except Exception:  # closing must not fail: the thread stops anyway
             pass
+
         loop.call_soon_threadsafe(loop.stop)
         thread.join(5)
+
         if not thread.is_alive():
             loop.close()
 

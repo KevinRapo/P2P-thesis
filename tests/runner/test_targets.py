@@ -63,6 +63,7 @@ def populated(root) -> Path:
     write(root / "new" / "experiment.json", {"name": "new", "description": "hi"})
     write(root / "new" / "b" / "status.json", {"state": "queued", "index": 1})
     write(root / "new" / "a" / "status.json", {"state": "stopped", "index": 0})
+
     return root
 
 
@@ -104,6 +105,7 @@ def test_get_local_and_unknown_target():
 def machine_settings(monkeypatch, **values: str) -> None:
     """This machine's settings as given, whatever the real ``.env`` says."""
     monkeypatch.setattr(machine, "read_env_file", lambda path=None: {})
+
     for key in (
         "MARLEM_SSH_HOST",
         "MARLEM_CLUSTER_REPO",
@@ -111,6 +113,7 @@ def machine_settings(monkeypatch, **values: str) -> None:
         "MARLEM_SLURM_ACCOUNT",
     ):
         monkeypatch.delenv(key, raising=False)
+
     for key, value in values.items():
         monkeypatch.setenv(key, value)
 
@@ -149,6 +152,7 @@ def test_an_unset_setting_fails_only_where_it_is_used(monkeypatch):
     targets.get("taltech")  # from the PC the account is the cluster's business
     has_sbatch(monkeypatch, True)
     target = targets.get("taltech")
+
     with pytest.raises(targets.TargetError, match="needs MARLEM_SLURM_ACCOUNT"):
         target._setting("account")
 
@@ -176,10 +180,13 @@ def test_env_file(tmp_path, monkeypatch):
 def test_bad_targets_files(tmp_path):
     bad_kind = tmp_path / "kind.toml"
     bad_kind.write_text('[x]\nkind = "grid"\n', encoding="utf-8")
+
     with pytest.raises(targets.TargetError, match="'kind' must be"):
         targets.get("x", path=bad_kind)
+
     bad_toml = tmp_path / "bad.toml"
     bad_toml.write_text("[x\n", encoding="utf-8")
+
     with pytest.raises(targets.TargetError, match="not valid TOML"):
         targets.settings(bad_toml)
 
@@ -220,8 +227,10 @@ def test_local_target_overview_of_one_experiment_and_runs(populated):
         ("a", "stopped"),
         ("b", "queued"),
     ]
+
     with pytest.raises(FileNotFoundError, match="no experiment 'missing'"):
         target.overview("missing")
+
     with pytest.raises(FileNotFoundError, match="no experiment 'missing'"):
         target.runs("missing")
 
@@ -244,6 +253,7 @@ def test_local_target_stop_marks_queued_runs(populated):
     target = targets.LocalTarget()
     assert target.stop("new", "b") == {"killed": [], "stopped": ["b"]}
     assert [r.state for r in target.runs("new")] == ["stopped", "stopped"]
+
     with pytest.raises(FileNotFoundError):
         target.stop("missing")
 
@@ -267,6 +277,7 @@ def record_starts(monkeypatch) -> list[tuple]:
         return spec.with_profile(profile).name
 
     monkeypatch.setattr(targets.LocalTarget, "_start", fake_start)
+
     return started
 
 
@@ -293,8 +304,10 @@ def test_restart_starts_from_the_saved_settings(populated, monkeypatch):
     assert target.restart("again--test") == "again--test"
     ((experiment, profile),) = started
     assert experiment.to_dict() == saved and profile == "full"  # not tested twice
+
     with pytest.raises(targets.TargetError, match="no experiment.json"):
         target.restart("old")
+
     with pytest.raises(FileNotFoundError):
         target.restart("missing")
 
@@ -319,9 +332,11 @@ def test_local_target_start_passes_the_profile(populated, monkeypatch):
 # --------------------------------------------------------------------------------------
 def test_slurm_target_reads_runs_through_the_slurm_states(root, monkeypatch):
     write(root / "x" / "slurm.json", {"array_id": ARRAY})
+
     for i, state in enumerate(["queued", "running", "running", "completed"]):
         status = {"state": state, "index": i, "slurm_job": f"{ARRAY}_{i}"}
         write(root / "x" / f"r{i}" / "status.json", status)
+
     answer = {
         f"{ARRAY}_0": {"state": "PENDING", "node": None},
         f"{ARRAY}_1": {"state": "RUNNING", "node": "n1"},
@@ -380,11 +395,15 @@ def test_slurm_target_start_and_stop_go_through_slurm(root, monkeypatch):
     )
     assert target.stop("smoke--test", "a") == {"cancelled": [ARRAY], "stopped": ["a"]}
     assert calls[1] == ("stop", "smoke--test", "a", root)
+
     with pytest.raises(targets.TargetError, match="x.json: "):  # does not load
         targets.SlurmTarget("t", {"kind": "slurm"}).start("x.json")
+
     with pytest.raises(targets.TargetError, match="has no 'partitions'"):
         targets.SlurmTarget("t", {"kind": "slurm"}).start("config/experiments/smoke.json")
+
     no_account = {"kind": "slurm", "partitions": CLUSTER["partitions"]}
+
     with pytest.raises(targets.TargetError, match="no 'account'"):
         targets.SlurmTarget("t", no_account).start("config/experiments/smoke.json")
 
@@ -422,8 +441,10 @@ def test_slurm_target_start_refuses_with_the_problems(root, monkeypatch):
     started = []
     monkeypatch.setattr(slurm, "start", lambda *a, **k: started.append(a))
     target = targets.SlurmTarget("taltech", CLUSTER)
+
     with pytest.raises(targets.TargetError, match="cannot start on taltech: sbatch"):
         target.start("config/experiments/smoke.json")
+
     assert started == []
 
 
@@ -463,8 +484,10 @@ class FakeRemote:
         self.accepted.append(accept)
         self.inputs.append(input)
         answer = self.answers[args[0]]
+
         if isinstance(answer, Exception):
             raise answer
+
         return answer
 
     def head(self):
@@ -532,6 +555,7 @@ def repo(tmp_path, monkeypatch) -> Path:
     git(root, "add", "-A")
     git(root, "commit", "-m", "start")
     monkeypatch.setattr(targets, "REPO", root)
+
     return root
 
 
@@ -547,8 +571,10 @@ def head_of(root: Path) -> str:
 def test_remote_target_needs_its_settings(tmp_path):
     with pytest.raises(targets.TargetError, match="no 'mirror'"):
         targets.RemoteTarget("t", SSH_SETTINGS, FakeRemote())
+
     with pytest.raises(targets.TargetError, match="no 'host'"):
         targets.RemoteTarget("t", {"mirror": "m"})
+
     default = targets.RemoteTarget("t", REMOTE_SETTINGS, FakeRemote())
     assert default.mirror == REPO / "runs" / "@h"
 
@@ -704,8 +730,10 @@ def test_remote_start_sends_the_experiment_with_its_scenario(tmp_path, repo):
 
 def test_remote_start_refuses_with_the_problems_of_the_check(tmp_path, repo):
     target, fake = remote_target(tmp_path, head="f" * 40, dirty=True)
+
     with pytest.raises(targets.TargetError) as error:
         target.start(repo / "experiments" / "x.json")
+
     message = str(error.value)
     assert message.startswith("cannot start on taltech: ")
     assert "ffffffff" in message and "uncommitted changes" in message
@@ -716,8 +744,10 @@ def test_remote_start_refuses_with_the_problems_of_the_check(tmp_path, repo):
 def test_remote_start_refuses_a_spec_that_does_not_load(tmp_path, repo):
     target, fake = remote_target(tmp_path, head=head_of(repo))
     (repo / "scenarios" / "s.json").unlink()
+
     with pytest.raises(targets.TargetError, match="scenario file not found"):
         target.start(repo / "experiments" / "x.json", allow_uncommitted=True)
+
     assert not [call for call in fake.calls if call[0] == "start"]
 
 
@@ -787,6 +817,7 @@ def test_remote_overview_of_one_experiment_and_runs(tmp_path):
     assert [r.name for r in target.runs("x")] == ["a", "b", "c"]
     assert fake.calls == [("status", "x", "--target", "taltech")] * 2
     fake.answers["status"] = RemoteError("no experiment 'y' in runs")
+
     with pytest.raises(RemoteError, match="no experiment 'y'"):
         target.runs("y")
 
@@ -815,9 +846,11 @@ def test_remote_sync_pulls_into_the_mirror_and_local_runs_reads_it(tmp_path):
     assert folder == tmp_path / "mirror" / "x"
     assert fake.pulled == [("runs/x", tmp_path / "mirror" / "x")]
     assert target.copied == 2
+
     for name in ("../x", "", ".hidden", "a/b", "a\\b"):
         with pytest.raises(targets.TargetError, match="not an experiment name"):
             target.sync(name)
+
     write(folder / "r1" / "status.json", {"state": "completed", "index": 0})
     write(folder / "r1" / "budget.json", {})
     assert [(r.name, r.state) for r in target.local_runs("x")] == [("r1", "completed")]
@@ -828,8 +861,10 @@ def test_a_failed_sync_raises_and_keeps_the_last_count(tmp_path):
     target, fake = remote_target(tmp_path)
     target.sync("x")
     fake.pull_result = RemoteError("copying runs/x failed on taltech: gone")
+
     with pytest.raises(RemoteError, match="copying runs/x failed"):
         target.sync("x")
+
     assert target.copied == 2
 
 
@@ -1030,6 +1065,7 @@ def test_start_goes_to_the_target_with_the_profile(populated, capsys, monkeypatc
     )
     run_cli(capsys, "start", "config/experiments/smoke.json")
     assert calls[-1][2] == "full"
+
     with pytest.raises(SystemExit):  # argparse: not a profile
         main(["start", "config/experiments/smoke.json", "--profile", "tiny"])
 
@@ -1057,10 +1093,12 @@ def test_start_dash_reads_the_experiment_from_standard_input(
     assert code == 0 and json.loads(out)["experiment"] == "sent"
     ((experiment, profile),) = calls
     assert experiment == Experiment.from_dict(sent) and profile == "full"
+
     for text, message in (("{half", "not valid JSON"), ('{"budget": 1}', "missing")):
         monkeypatch.setattr(sys, "stdin", io.StringIO(text))
         code, out, _ = run_cli(capsys, "start", "-", "--json")
         assert code == 2 and message in json.loads(out)["error"]
+
     assert len(calls) == 1  # nothing else was started
 
 
@@ -1127,6 +1165,7 @@ def remote_cli(tmp_path, monkeypatch):
     """``taltech`` is a RemoteTarget over a fake connection."""
     target, fake = remote_target(tmp_path, head=COMMIT)
     monkeypatch.setattr(targets, "get", lambda name="local", **kw: target)
+
     return target, fake
 
 

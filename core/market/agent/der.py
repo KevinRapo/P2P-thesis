@@ -105,13 +105,18 @@ def profiles_from_elements(
     """
     generation = [0.0] * n_steps
     demand = [0.0] * n_steps
+
     for e in owns:
         kind = kinds.get(e)
+
         if kind == "storage":
             continue
+
         target = generation if kind == "sgen" else demand
+
         for t, kw in enumerate(list(power_kw.get(e, []))[:n_steps]):
             target[t] += kw * step_hours
+
     return generation, demand
 
 
@@ -146,6 +151,7 @@ class Participant:
                 f"{id}: {len(generation_kwh)} generation steps, "
                 f"{len(demand_kwh)} demand steps"
             )
+
         self.id = id
         self.bus = bus
         self.owns = list(owns)
@@ -161,6 +167,7 @@ class Participant:
         """Back to the start of the day: battery, profit, reputation."""
         if self.battery is not None:
             self.battery.reset()
+
         self.profit = 0.0
         self.reputation = self.initial_reputation
 
@@ -206,8 +213,10 @@ class Participant:
             reputation_weight: Weight of reputation against closeness, 0 to 1.
         """
         others = [c for c in candidates if c != self.id]
+
         if not others:
             return None
+
         km = {c: distance_km(c) for c in others}
         near, far = min(km.values()), max(km.values())
 
@@ -218,6 +227,7 @@ class Participant:
             closeness = (far - km[c]) / (far - near) if far > near else 1.0
             standing = (rep[c] - low) / (high - low) if high > low else 1.0
             weighted = reputation_weight * standing
+
             return weighted + (1 - reputation_weight) * closeness, -km[c]
 
         return max(others, key=score)
@@ -234,16 +244,19 @@ class Participant:
         """
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
         sold = sum(t.quantity for t in trades if t.seller_id == self.id)
+        g, d = self.generation_kwh[step], self.demand_kwh[step]
+        balance = (g - d) + (bought - sold)  # [P1] eq. 13
+
         # [P1] eq. 14: Σ (p_sell · q_sell − p_buy · q_buy); the fees come later
         profit = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
         profit -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
-        g, d = self.generation_kwh[step], self.demand_kwh[step]
-        balance = (g - d) + (bought - sold)  # [P1] eq. 13
-        b = self.battery
+        self.profit += profit  # profit_{t+1} = profit_t + ... ([P1] eq. 14)
+
         # [P1] eq. 16: a surplus charges the battery, a deficit discharges it
+        b = self.battery
         charge = b.charge(balance) if b and balance > 0 else 0.0
         discharge = b.discharge(-balance) if b and balance < 0 else 0.0
-        self.profit += profit  # profit_{t+1} = profit_t + ... ([P1] eq. 14)
+        
         return ParticipantOutcome(
             participant_id=self.id,
             generation_kwh=g,
@@ -268,6 +281,7 @@ class Participant:
         fees = sum(t.buyer_fee for t in trades if t.buyer_id == self.id)
         fees += sum(t.seller_fee for t in trades if t.seller_id == self.id)
         self.profit -= fees
+
         return replace(outcome, fees=fees, profit=outcome.profit - fees)
 
     # --- Its power at the bus --------------------------------------------------------
@@ -279,6 +293,7 @@ class Participant:
         charge flow out. Replaces the trade-path flows of [P1] §3.5.3."""
         production = (outcome.generation_kwh + outcome.discharge_kwh) / step_hours
         consumption = (outcome.demand_kwh + outcome.charge_kwh) / step_hours
+
         return ParticipantInjection(
             self.id, self.bus, production, consumption, production - consumption
         )

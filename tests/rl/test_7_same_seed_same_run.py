@@ -62,6 +62,7 @@ def fingerprint(algorithm: str, paradigm: str, iterations: int, env: dict) -> di
         timeout=600,
     )
     assert done.returncode == 0, done.stderr[-2000:]
+
     return json.loads(done.stdout.strip().splitlines()[-1])
 
 

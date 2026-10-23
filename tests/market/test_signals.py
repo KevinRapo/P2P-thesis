@@ -83,6 +83,7 @@ def step(orders=(), trades=(), price=0.5, loading=None, signal=None):
     """The parts of a ``StepRecord`` the KPIs read."""
     grid = SimpleNamespace(line_loading_percent=loading or {})
     graph = SimpleNamespace(line_loading_percent=signal) if signal else None
+
     return SimpleNamespace(
         orders=tuple(orders),
         trades=list(trades),
@@ -232,6 +233,7 @@ def test_market_signals_before_the_first_step_are_nan_but_the_tariffs():
     market.history, market.current_step = [], 0
     found = signals.market_signals(market)
     assert found["step"] == 0 and found["price_spread"] == pytest.approx(0.2)
+
     for name in ("clearing_volume", "grid_balance", "p2p_volume", "mean_local_price"):
         assert math.isnan(found[name]), name
 
@@ -319,6 +321,7 @@ def day():
     market = LocalEnergyMarket(store.load(SCENARIO))
     market.reset()
     market.run_to_end()
+
     return market
 
 
@@ -329,6 +332,7 @@ def test_a_day_of_the_market_gives_sound_kpis(day):
         sum(r.p2p_kwh + r.dso_kwh for r in day.history)
     )
     assert found["social_welfare"] > 0.0
+
     for name in (
         "supply_demand_imbalance",
         "coordination_score",
@@ -336,6 +340,7 @@ def test_a_day_of_the_market_gives_sound_kpis(day):
         "flexibility_utilization",
     ):
         assert 0.0 <= found[name] <= 1.0, name
+
     assert found["coordination_score"] == pytest.approx(
         1.0 - found["supply_demand_imbalance"]
     )
@@ -355,6 +360,7 @@ def test_a_day_gives_consistent_market_and_agent_signals():
     found = signals.market_signals(market)
     assert list(found) == MARKET_NAMES and found["time_of_day"] == 1.0
     assert found["p2p_volume"] == pytest.approx(market.history[-1].p2p_kwh)
+
     for agent, p in market.participants.items():
         a = signals.agent_signals(market, agent)
         assert list(a) == AGENT_NAMES

@@ -142,8 +142,10 @@ def _class_path(cls: type) -> str:
 def _load_class(path: str) -> type:
     module, _, name = path.partition(":")
     obj: Any = importlib.import_module(module)
+
     for part in name.split("."):
         obj = getattr(obj, part)
+
     return obj
 
 
@@ -199,6 +201,7 @@ def resolve_env_config(env_class: type, env_config: dict) -> tuple[Any, dict]:
     market's scales)."""
     env = env_class(env_config)
     resolve = getattr(env, "resolved_config", None)
+
     return env, (resolve() if callable(resolve) else dict(env_config))
 
 
@@ -206,9 +209,12 @@ def _env_record(env) -> dict[str, Any]:
     """The environment's contract and each agent's spaces, for the record."""
     found: dict[str, Any] = {}
     contract = getattr(env, "contract", None)
+
     if callable(contract):
         found["env_contract"] = contract()
+
     agents = list(getattr(env, "agents_id", []) or [])
+
     if agents:
         found["agents"] = agents
         found["spaces"] = {
@@ -218,6 +224,7 @@ def _env_record(env) -> dict[str, Any]:
             }
             for a in agents
         }
+
     return found
 
 
@@ -323,6 +330,7 @@ def _nonfinite(results: dict, prefix: str = "") -> list[str]:
     learner's (nested) results. Other metrics are left out: RLlib reports e.g.
     throughputs as NaN in the first iteration."""
     bad = []
+
     for key, value in results.items():
         name = f"{prefix}{key}"
         if isinstance(value, dict):
@@ -333,6 +341,7 @@ def _nonfinite(results: dict, prefix: str = "") -> list[str]:
             and not math.isfinite(value)
         ):
             bad.append(name)
+
     return bad
 
 
@@ -356,6 +365,7 @@ def _iteration_row(iteration: int, result: dict) -> dict[str, Any]:
         learner_env_steps=learner.get("num_env_steps_trained_lifetime", 0),
     )
     per_metric: dict[str, list[float]] = {}
+
     for module_id, metrics in result.get(LEARNER_RESULTS, {}).items():
         if not isinstance(metrics, dict) or module_id == "__all_modules__":
             continue
@@ -363,10 +373,12 @@ def _iteration_row(iteration: int, result: dict) -> dict[str, Any]:
             if name in metrics:
                 row[f"{module_id}/{name}"] = metrics[name]
                 per_metric.setdefault(name, []).append(float(metrics[name]))
+
     for name, values in per_metric.items():  # readable at any number of modules
         row[f"modules/{name}_mean"] = float(np.mean(values))
         row[f"modules/{name}_min"] = float(np.min(values))
         row[f"modules/{name}_max"] = float(np.max(values))
+
     return row
 
 
@@ -408,6 +420,7 @@ def train(run: Run) -> dict[str, Any]:
     timings = {"evaluation_s": 0.0, "train_calls_s": 0.0}
     stage_start = time.perf_counter()
     started_ray = not ray.is_initialized()
+
     if started_ray and os.environ.get("RAY_ADDRESS"):
         ray.init()  # join the shared instance; Ray refuses resources when joining
     elif started_ray:
@@ -416,6 +429,7 @@ def train(run: Run) -> dict[str, Any]:
             num_gpus=run.num_gpus,
             include_dashboard=False,
         )
+
     timings["ray_init_s"] = time.perf_counter() - stage_start
     algo, start = None, time.time()
     rows, evaluations = [], []
@@ -428,6 +442,7 @@ def train(run: Run) -> dict[str, Any]:
         policies = {"trained": Policy(learner_modules(algo), run.paradigm, env)}
         found = evaluation(run.env_class, env_config, policies | (extra or {}), seeds)
         evaluations.append(found.summary)
+
         for frame, name in (
             (found.summary, "evaluation.csv"),
             (found.agents, "evaluation_agents.csv"),
@@ -435,6 +450,7 @@ def train(run: Run) -> dict[str, Any]:
         ):
             frame.insert(0, "env_steps", env_steps)
             _append_csv(out / name, frame, written)
+
         timings["evaluation_s"] += time.perf_counter() - evaluation_start
 
     try:
@@ -447,6 +463,7 @@ def train(run: Run) -> dict[str, Any]:
         learner_steps = 0
         loop_start = time.perf_counter()
         next_eval = run.eval_every or run.budget
+
         while env_steps < run.budget:
             call_start = time.perf_counter()
             result = algo.train()
@@ -460,6 +477,7 @@ def train(run: Run) -> dict[str, Any]:
             env_steps = max(env_steps, row["env_steps"])
             learner_steps = max(learner_steps, row["learner_env_steps"])
             bad = _nonfinite(result.get(LEARNER_RESULTS, {}))
+
             if progressed or bad:
                 row.update(
                     env_steps=env_steps,
@@ -471,14 +489,17 @@ def train(run: Run) -> dict[str, Any]:
                 )
                 rows.append(row)
                 _append_metrics(out / "metrics.csv", rows, metric_columns)
+
             if bad:
                 raise FloatingPointError(
                     f"Non-finite learner metrics at iteration {iteration} "
                     f"({env_steps} env steps): {', '.join(bad[:10])}"
                 )
+
             if env_steps >= next_eval and env_steps < run.budget:
                 evaluate_now(env_steps)
                 next_eval += run.eval_every
+
         evaluate_now(env_steps)
         stage_start = time.perf_counter()
         algo.save_to_path(str((out / "checkpoint").resolve()))
@@ -502,10 +523,13 @@ def train(run: Run) -> dict[str, Any]:
         record["duration_s"] = round(time.time() - start, 1)
         record["finished"] = datetime.now().isoformat(timespec="seconds")
         _write_json(out / "run.json", record)
+
         if algo is not None:
             algo.stop()
+
         if started_ray:
             ray.shutdown()
+
     return record
 
 
@@ -534,4 +558,5 @@ def load_policy(run_dir: str | Path) -> tuple[Policy, dict[str, Any]]:
         )
     )
     env = env_class(record["env_config"])
+
     return Policy(modules, record["paradigm"], env), record

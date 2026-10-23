@@ -91,6 +91,7 @@ def play(method: str, **grid) -> list:
     policy = net_position_policy(env)
     obs, _ = env.reset(options={"day": DAY})
     records = []
+
     while True:
         obs, _, terminated, _, _ = env.step(policy(obs))
         records.append(env.last_record)
@@ -110,6 +111,7 @@ def test_graph_mode_charges_fees_from_the_graph_loading(arms):
         for trade in record.trades:
             if trade.quantity <= 0:
                 continue
+
             c = min(
                 1.0,
                 max(
@@ -119,9 +121,11 @@ def test_graph_mode_charges_fees_from_the_graph_loading(arms):
                 / 100,
             )
             thermal = 0.0
+
             if c > dso.thermal_threshold:
                 f = (c - dso.thermal_threshold) / (1 - dso.thermal_threshold)
                 thermal = min(f, dso.thermal_cap) * trade.quantity * trade.price
+
             assert trade.fee_parts.thermal == pytest.approx(thermal)
 
 
@@ -152,9 +156,12 @@ def _lines(trade) -> tuple[str, ...]:
         )
         env.reset(options={"day": DAY})
         _PATHS["market"] = env.market
+
     market = _PATHS["market"]
     dso = market.dso.id
+
     if dso in (trade.buyer_id, trade.seller_id):
         other = trade.seller_id if trade.buyer_id == dso else trade.buyer_id
         return market._upstream(other).lines
+
     return market._path(trade.buyer_id, trade.seller_id).lines
