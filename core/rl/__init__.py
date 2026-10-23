@@ -5,8 +5,10 @@ fixes is in its docstring; the issue IDs are those of the validation document
 (``docs/validation/rl.md``). The original code and its annotations live on the
 ``clean`` branch.
 
-    grouping.py       all agents as one agent (CTCE, CTDE), spaces in agent order
-    ctde_modules.py   CTDE: RLlib's modules with one actor network per agent
+    state.py          the global state: every agent's observation joined, in agent order
+    ctce.py           CTCE: all agents as one agent (CTCEEnv)
+    ctde.py           CTDE: the global state in each observation (CTDEEnv), and
+                      RLlib's PPO module with the actor on the agent's own part
     config.py         the algorithm configuration of one algorithm and paradigm
     policy.py         acting with a trained module, baselines, evaluation
     train.py          one run: budget in environment steps, record, checkpoint

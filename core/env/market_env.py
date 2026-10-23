@@ -43,7 +43,7 @@ The agent sees its own profile and battery for the step it is bidding on, the
 public reputations and the topology, but nothing of the other agents' profiles,
 batteries or current orders: the orders of the step are submitted at the same
 time and seen by nobody before clearing. DTDE and CTDE give each agent this same
-local observation (CTDE's critic adds the others', ``core/rl/grouping.py``).
+local observation (CTDE's critic adds the others', ``core/rl/ctde.py``).
 
 Action: the paper's a_i = <p_bid, q_bid, α, β> ([P1] eq. 2) as a ``Dict`` of four
 components (``ACTION_COMPONENTS``), two continuous and two categorical:

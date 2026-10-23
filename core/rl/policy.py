@@ -53,7 +53,9 @@ from ray.rllib.utils.spaces.space_utils import (
 )
 
 from core.rl.config import Paradigm
-from core.rl.grouping import GROUP, central_obs, join, ungroup
+from core.rl.ctce import GROUP, ungroup
+from core.rl.ctde import central_obs
+from core.rl.state import join
 
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
 # The nested parts of an agent's infos (see the module).

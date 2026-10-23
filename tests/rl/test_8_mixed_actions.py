@@ -31,7 +31,8 @@ from ray.rllib.evaluation.postprocessing import Postprocessing
 from core.rl import Run, load_policy, train
 from core.rl.config import build_algo, build_config
 from core.rl.envs.probes import MixedActionProbe
-from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv, ungroup
+from core.rl.ctce import GROUP, CTCEEnv, ungroup
+from core.rl.ctde import CTDEEnv
 from core.rl.policy import Policy, evaluation, to_env
 from core.rl.train import learner_modules
 
@@ -79,10 +80,10 @@ def test_mixed_probe_optima_and_routing():
 # CTCE: the Tuple of the agents' actions
 # --------------------------------------------------------------------------------------
 def test_ctce_group_action_round_trip():
-    """GroupedEnv's action space is the agents' own spaces as a ``Tuple`` in
+    """CTCEEnv's action space is the agents' own spaces as a ``Tuple`` in
     environment order (not sorted); a group action reaches each agent as its own
     part, unchanged, and the group's reward is the sum of the agents'."""
-    grouped = GroupedEnv({"env_class": MixedActionProbe, "env_config": CONFIG})
+    grouped = CTCEEnv({"env_class": MixedActionProbe, "env_config": CONFIG})
     inner = grouped.env
     space = grouped.action_spaces[GROUP]
     assert list(space.spaces) == [inner.action_spaces[a] for a in inner.agents_id]
@@ -140,7 +141,7 @@ def test_ctde_actor_ignores_central_inputs_with_mixed_actions():
     algo = build("ctde")
     try:
         modules = learner_modules(algo)
-        env = CentralStateEnv({"env_class": MixedActionProbe, "env_config": CONFIG})
+        env = CTDEEnv({"env_class": MixedActionProbe, "env_config": CONFIG})
         for a in env.agents_id:
             module = modules[a]
             assert type(module).__name__ == "CTDEPPOModule"
@@ -171,7 +172,7 @@ def test_ctde_actor_ignores_central_inputs_with_mixed_actions():
 # --------------------------------------------------------------------------------------
 @pytest.mark.parametrize("paradigm", ["dtde", "ctde", "ctce"])
 def test_rewards_and_values_are_routed_per_objective(paradigm):
-    """DTDE and CTDE: one module, one value and one reward per agent (CentralStateEnv
+    """DTDE and CTDE: one module, one value and one reward per agent (CTDEEnv
     passes each agent's own reward through); CTCE: one module and one value for the
     group, whose reward is the sum."""
     algo = build(paradigm)
@@ -184,7 +185,7 @@ def test_rewards_and_values_are_routed_per_objective(paradigm):
         else:
             assert list(modules.keys()) == list(env.agents_id) == list(values)
         if paradigm == "ctde":
-            central = CentralStateEnv(
+            central = CTDEEnv(
                 {"env_class": MixedActionProbe, "env_config": CONFIG}
             )
             central.reset(seed=0)

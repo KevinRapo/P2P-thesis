@@ -63,9 +63,9 @@ In outline; every calculation is in [One training iteration](rl/cycle.md).
 
 | Part | What happens | Code |
 |---|---|---|
-| A · Collect | the agents observe, act and step the environment with the current policy $\mu$, until the batch holds `train_batch_size_per_learner` steps; nothing is learned | RLlib env runners on [`MarketEnv`](../core/env/market_env.py), wrapped by [`GroupedEnv`](../core/rl/grouping.py#L68-L132) (CTCE) or [`CentralStateEnv`](../core/rl/grouping.py#L147-L194) (CTDE) |
+| A · Collect | the agents observe, act and step the environment with the current policy $\mu$, until the batch holds `train_batch_size_per_learner` steps; nothing is learned | RLlib env runners on [`MarketEnv`](../core/env/market_env.py), wrapped by [`CTCEEnv`](../core/rl/ctce.py#L46-L107) (CTCE) or [`CTDEEnv`](../core/rl/ctde.py#L57-L104) (CTDE) |
 | B · Targets | the critic values every step; λ-returns and advantages | RLlib learner |
-| C · Update | the losses (PPO clip, value, entropy; or SAC's), gradient steps over epochs and minibatches | RLlib learner, [CTDE modules](../core/rl/ctde_modules.py) |
+| C · Update | the losses (PPO clip, value, entropy; or SAC's), gradient steps over epochs and minibatches | RLlib learner, [CTDE module](../core/rl/ctde.py#L140-L145) |
 | D · After | new weights to the env runners; every `eval_every` steps an evaluation against the baselines; metrics, NaN check, checkpoint | [`train`](../core/rl/train.py#L319-L452), [`evaluation`](../core/rl/policy.py#L278-L309) |
 
 ## The environment step
@@ -109,7 +109,7 @@ agent's profile or order, and no grid state. `done` when the day is over.
 | **Writes** | `last_record`; the memory of the last step for the next observation |
 | **Code** | above; metrics: [`_market_infos`](../core/env/market_env.py) |
 | **Paper** | [P1] §3.9 phases 5 (reward) and 7 (observation); eq. 2 (the action) |
-| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); no forecast error (E-05) |
+| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); no forecast error (E-05); *Open: RP-1a to RP-1f* ([plans](plan/index.md)) |
 
 ## The market step
 
@@ -147,7 +147,7 @@ stages, then the rest).
 | **Writes** | `participants`, `dso`, `ledger`, `clearing_price`, `grid`, `graph`; empty `history` |
 | **Code** | [`reset`](../core/market/lem.py#L273-L290) → [`_build_participants`](../core/market/lem.py#L366-L389) ([`profiles_from_elements`](../core/market/agent/der.py#L88-L115)), [`_battery`](../core/market/lem.py#L391-L405), [`Dso.market_price`](../core/market/dso/dso.py#L124-L127), [`SimBenchGrid.reset`](../core/grid/powerflow.py#L67-L89), [`_graph_model`](../core/market/lem.py#L574-L582) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
-| **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs constant over the day |
+| **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs constant over the day; *Open: MP-0a, MP-1c, MP-5b* ([plans](plan/index.md)) |
 
 ### 1. Inputs
 
@@ -158,7 +158,7 @@ stages, then the rest).
 | **Writes** | [`StepInputs`](../core/market/lem.py#L79-L94): `generation_kwh`, `demand_kwh`, `feed_in_tariff`, `utility_price` |
 | **Code** | [`_inputs`](../core/market/lem.py#L407-L417) |
 | **Paper** | $G_t$, $D_t$, $p_\text{FiT}$, $p_\text{utility}$ (§3.3.1, §3.4) |
-| **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03) |
+| **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03); *Open: MP-0a* ([plans](plan/index.md)) |
 
 ### 2. Orders
 
@@ -210,7 +210,7 @@ order), the double auction's last tie-break.
 | **Writes** | [`PendingStep`](../core/market/lem.py#L98-L131): `intents`, `orders`, `notes` |
 | **Code** | [`start_step`](../core/market/lem.py#L292-L310), above |
 | **Paper** | eq. 2 (the action $\langle p, q, \alpha, \beta \rangle$), eq. 15a-b, §3.2.3, §3.4 |
-| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09) |
+| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); *Open: MP-2a, MP-2b, MP-2c, MP-3b* ([plans](plan/index.md)) |
 
 ### 3. Clearing
 
@@ -251,7 +251,7 @@ $$
 | **Writes** | `PendingStep.stages`: three [`StageResult`](../core/market/clearing.py#L35-L53)s, each with its trades and the orders left |
 | **Code** | above; paths: [`_path`](../core/market/lem.py#L465-L473), [`_upstream`](../core/market/lem.py#L475-L481) → [`SimBenchGrid.path`, `path_upstream`](../core/grid/powerflow.py#L159-L181) |
 | **Paper** | §3.3.2 (three stages, Algorithm 1), §3.3.3 and eq. 9-11 (prices), eq. 18 (loss), §3.5.1 (distance) |
-| **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41) |
+| **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41); *Open: MP-3a, MP-5d* ([plans](plan/index.md)) |
 
 ### 4. Settlement
 
@@ -274,7 +274,7 @@ $$
 | **Writes** | [`ParticipantOutcome`](../core/market/agent/der.py#L32-L82) per participant (fees still 0); the battery's energy; `Participant.profit` |
 | **Code** | above; battery: [`charge`, `discharge`](../core/market/agent/battery.py#L121-L137) |
 | **Paper** | eq. 13, 14, 16; §3.4.1 (demand satisfied) |
-| **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23) |
+| **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23); *Open: MP-1a, MP-1b* ([plans](plan/index.md)) |
 
 ### 5. Grid
 
@@ -300,7 +300,7 @@ trade's $q/\Delta t$ added to each line of its path, divided by the line's capac
 | **Writes** | [`GridAssessment`](../core/grid/contract.py) (`grid`), and in graph mode a second one (`signal`) |
 | **Code** | above |
 | **Paper** | §3.5.3 (replaced by the power flow; kept as the graph method) |
-| **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38) |
+| **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38); *Open: MP-4e* ([plans](plan/index.md)) |
 
 ### 6. Fees
 
@@ -345,7 +345,7 @@ trade's fee comes off the step's profit and the running profit.
 | **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `ParticipantOutcome.fees` and `profit` |
 | **Code** | [`_charge_fees`](../core/market/lem.py#L604-L617), above |
 | **Paper** | eq. 8, 8a-8h |
-| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34) |
+| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4a, MP-4b, MP-4c, MP-4d, MP-4f* ([plans](plan/index.md)) |
 
 ### 7. Record
 
@@ -368,7 +368,7 @@ In [`advance`](../core/market/lem.py#L327-L343), once the fees are known (the re
 | **Writes** | `StepRecord`; the DSO's running balance and profit |
 | **Code** | above |
 | **Paper** | eq. 7; UpdateMarketState of Algorithm 1 |
-| **Decisions** | clearing price from peer trades only (M-15); the DSO's balance kept per step and over the day (M-24, M-25) |
+| **Decisions** | clearing price from peer trades only (M-15); the DSO's balance kept per step and over the day (M-24, M-25); *Open: MP-6a* ([plans](plan/index.md)) |
 
 ### 8. Reputation and advance
 
@@ -406,7 +406,7 @@ ledger is on; the record joins `history`, so `current_step` moves on.
 | **Writes** | `Participant.reputation`; `StepRecord.reputation`; `clearing_price`; `history`; the ledger |
 | **Code** | above |
 | **Paper** | eq. 12 and §3.3.4 (reputation, decay, ValidateBlock); §3.9 phases 6 and 8 |
-| **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); the block (M-46) |
+| **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); the block (M-46); *Open: MP-5a, MP-5b, MP-5c, MP-5d* ([plans](plan/index.md)) |
 
 ## Where is it calculated
 

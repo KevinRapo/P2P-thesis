@@ -321,11 +321,12 @@ def test_passes_rllib_environment_check(env):
 
 def test_paradigm_wrappers_over_the_market(env):
     """The CTDE and CTCE wrappers see the market as the RL layer expects: under
-    CentralStateEnv each agent observes its own values followed by all agents'
-    and keeps its own reward and its own mixed action; under GroupedEnv one agent
+    CTDEEnv each agent observes its own values followed by all agents'
+    and keeps its own reward and its own mixed action; under CTCEEnv one agent
     observes everything, acts with a ``Tuple`` of the agents' ``Dict`` actions in
     agent order, and receives the sum of the rewards."""
-    from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv
+    from core.rl.ctce import GROUP, CTCEEnv
+    from core.rl.ctde import CTDEEnv
 
     config = {
         "env_class": MarketEnv,
@@ -333,7 +334,7 @@ def test_paradigm_wrappers_over_the_market(env):
     }
     n, d = len(env.agents_id), len(env.obs_names)
 
-    central = CentralStateEnv(config)
+    central = CTDEEnv(config)
     obs, _ = central.reset(seed=1)
     assert all(o.shape == (d + n * d,) for o in obs.values())
     assert central.action_spaces == env.action_spaces
@@ -343,7 +344,7 @@ def test_paradigm_wrappers_over_the_market(env):
     first = central.agents_id[0]
     np.testing.assert_array_equal(obs[first][d : 2 * d], obs[first][:d])
 
-    grouped = GroupedEnv(config)
+    grouped = CTCEEnv(config)
     obs, _ = grouped.reset(seed=1)
     assert obs[GROUP].shape == (n * d,)
     space = grouped.action_spaces[GROUP]

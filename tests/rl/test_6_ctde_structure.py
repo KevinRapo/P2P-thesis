@@ -13,7 +13,7 @@ from ray.rllib.core.columns import Columns
 
 from core.rl.envs.probes import ActionProbe
 from core.rl.config import build_config
-from core.rl.grouping import CentralStateEnv, central_obs
+from core.rl.ctde import CTDEEnv, central_obs
 from core.rl.train import learner_modules
 
 CONFIG = {"n_agents": 3, "scramble_ids": True}
@@ -30,7 +30,7 @@ def ray_session():
 def test_central_state_layout():
     """Each agent observes its own observation first, then every agent's in
     environment order, and keeps its own reward."""
-    env = CentralStateEnv({"env_class": ActionProbe, "env_config": CONFIG})
+    env = CTDEEnv({"env_class": ActionProbe, "env_config": CONFIG})
     obs, _ = env.reset(seed=3)
     raw = ActionProbe(CONFIG).reset(seed=3)[0]
     for a in env.agents_id:

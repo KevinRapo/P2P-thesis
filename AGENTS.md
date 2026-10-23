@@ -102,7 +102,10 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   Inside a large class, a one-line marker groups methods:
   `    # --- Network cache ----------…`. Put new code in the section it belongs to.
 - **Issue IDs.** A docstring that fixes or decides an issue names its ID from the
-  [register](docs/validation/register.md).
+  [register](docs/validation/register.md); one that implements a plan decision
+  names its `MP-` or `RP-` ID from the [decision log](docs/plan/decisions.md).
+  How the plans, the decision log and the full cycle fit together:
+  [docs/plan/index.md](docs/plan/index.md).
 - New Python files: Black style, 88-character lines.
 - Never `git stash` in these worktrees.
 
@@ -120,8 +123,10 @@ profile generators (`core/market/profile/`) were removed in V2; they are on the
 
 - RLlib's own PPO with RLlib's own modules and distributions: no custom losses,
   distributions or training loops. APPO and SAC are not part of V2 (V1 keeps them).
-  Only the environment (grouping, central state) and, for CTDE, what the actor
-  reads differ between paradigms. Same network settings for every paradigm.
+  Only the environment and, for CTDE, what the actor reads differ between
+  paradigms, each in its own module: `core/rl/ctce.py` (`CTCEEnv`),
+  `core/rl/ctde.py` (`CTDEEnv`, `CTDEPPOModule`), both on the global state of
+  `core/rl/state.py`. Same network settings for every paradigm.
 - Objectives: DTDE and CTDE learn from each agent's own reward, with one module,
   one critic and one PPO ratio per agent; CTCE is one controller on the summed
   reward, with one joint ratio.

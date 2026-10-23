@@ -6,12 +6,15 @@ The Markdown source is `docs/` in the repository, readable on its own in VS Code
 and on GitHub. The site is built with MkDocs Material from `docs_site/`:
 
 ```text
-pip install -r docs_site/requirements.txt        # once, in the marlem env
-mkdocs serve -f docs_site/mkdocs.yml -a 127.0.0.1:8001   # live preview
-mkdocs build -f docs_site/mkdocs.yml             # static site in site/
+pip install -r docs_site/requirements.txt   # once, in the marlem env
+python run_docs.py                          # live preview, http://127.0.0.1:8001
+python run_docs.py build                    # check (--strict) and build into site/
+python run_docs.py diagrams                 # export draw.io diagrams, then build
 ```
 
-`python run_all.py docs` starts the preview at http://127.0.0.1:8001. A new document appears on the site once it is added
+[`run_docs.py`](../run_docs.py) is the whole pipeline; run it from the marlem
+environment (`conda run -n marlem python run_docs.py ...`). `python run_all.py docs`
+also starts the preview, in its own window. A new document appears on the site once it is added
 to `nav` in `docs_site/mkdocs.yml`. After editing `docs_site/hooks.py`, restart
 `mkdocs serve`; changes to the docs, the code and `docs_site/overrides/` are
 picked up while it runs.
@@ -23,19 +26,11 @@ anchors. Those links point at the `marlem-v2` branch, so they work once it is pu
 
 ## Publishing
 
-These are the V2 documents (branch `marlem-v2`). They are **not published**: the
-public site <https://kevinrapo.github.io/P2P-thesis/> that the thesis cites is
-built from `marlem-v1` only, onto `gh-pages`. V2's `docs_site/mkdocs.yml` sets
-`remote_branch: gh-pages-v2-unpublished`, so a `gh-deploy` from here cannot
-overwrite the cited site. Until a destination for V2 is chosen, build and read
-the site locally:
-
-```powershell
-conda run -n marlem mkdocs build -f docs_site/mkdocs.yml --strict
-conda run -n marlem mkdocs serve -f docs_site/mkdocs.yml
-```
-
-The generated `site/` folder is ignored.
+The docs are **not published online** (the former GitHub Pages site of
+`marlem-v1` was taken down on 21 October 2026): read them locally with
+`python run_docs.py`, and run `python run_docs.py build` after a change to catch
+broken internal links and API documentation warnings. The generated `site/`
+folder is ignored.
 
 The HPC guide keeps `hpc.md` as its overview and old public entry point, with
 subpages under `docs/hpc/`. Windows helper source lives in `hpc/` alongside

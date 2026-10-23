@@ -51,7 +51,7 @@ class _ToyEnv(MultiAgentEnv):
         self.n_agents = int(config.get("n_agents", 3))
         self.max_steps = int(config.get("max_steps", 10))
         self.seed = config.get("seed")
-        # Zero-padded, so sorted order (GroupedEnv sorts) equals this order.
+        # Zero-padded, so sorted order equals this order.
         self.agents_id = [f"agent_{i:02d}" for i in range(self.n_agents)]
         self.agents = self.possible_agents = list(self.agents_id)
         box = dict(low=-1.0, high=1.0, dtype=np.float32)

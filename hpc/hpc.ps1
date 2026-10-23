@@ -1,6 +1,6 @@
 <#
 TalTech HPC helper: start, connect to, watch and stop the Jupyter job.
-Reference: docs/hpc/notebooks.md (https://kevinrapo.github.io/P2P-thesis/hpc/notebooks/)
+Reference: docs/hpc/notebooks.md
 
   hpc start [sbatch options]   submit hpc/jupyter.slurm, wait until Jupyter runs, open the tunnel
                                e.g. hpc start -c 78 --mem=60G -t 01:30:00

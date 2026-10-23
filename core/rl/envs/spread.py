@@ -25,7 +25,7 @@ last ``max_cycles`` steps (25) and end by time, never by success.
 
 The interface is that of ``core/rl/envs/toy.py``: built as ``SimpleSpread(env_config)``,
 fixed ``agents_id`` (``agent_00``, ``agent_01``, ..., zero-padded so that sorted
-order, which ``GroupedEnv`` uses, equals this order), one ``Box`` per agent in
+order equals this order), one ``Box`` per agent in
 ``observation_spaces`` and ``action_spaces``, and ``"__all__"`` in ``terminateds``
 and ``truncateds``. PettingZoo ends the episode by truncation at ``max_cycles``;
 that is passed on as ``truncateds``, with ``terminateds`` always False.

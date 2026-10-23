@@ -63,7 +63,7 @@ def test_episode_ends_after_its_length():
 
 def test_scrambled_ids_are_not_in_sorted_order():
     """With scramble_ids the agents' order in the environment differs from their
-    sorted order. GroupedEnv sorts, RLlib does not, so the action and reward tests
+    sorted order. The original's grouping sorted (L-05), so the action and reward tests
     can catch an agent's data delivered to another agent."""
     env = PROBES[0]({"n_agents": 3, "scramble_ids": True})
     print(f"environment order: {list(env.agents_id)}")

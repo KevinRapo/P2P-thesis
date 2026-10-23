@@ -19,8 +19,8 @@ grouped paradigms (CTCE, CTDE).
 
 Each agent has a different target ``t_i`` in probe 4, so an action delivered to
 the wrong agent shows. ``scramble_ids`` names the agents so that their sorted
-order differs from their order in the environment (``GroupedEnv`` sorts the
-agents' spaces; RLlib groups their data in the environment's order).
+order differs from their order in the environment (the original's grouping sorted
+the agents' spaces while RLlib grouped their data in the environment's order, L-05).
 
 ``checks(gamma)`` lists what a trained module must output: per agent and state,
 the expected value (per agent; the grouped paradigms' value is the sum over the

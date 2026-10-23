@@ -7,8 +7,8 @@ paradigms is the environment PPO sees and, for CTDE, what the actor reads:
 | Paradigm | Environment | Modules | Objective |
 |---|---|---|---|
 | DTDE | the multi-agent environment | one per agent, RLlib's default | own reward |
-| CTDE | ``CentralStateEnv``: o_i plus the global state | one per agent, actor on o_i, critic on everything (``ctde_modules.py``) | own reward |
-| CTCE | ``GroupedEnv``: one agent, joined observations, the agents' actions as one ``Tuple`` | one, RLlib's default | summed reward (social planner) |
+| CTDE | ``CTDEEnv``: o_i plus the global state | one per agent, actor on o_i, critic on everything (``ctde.py``) | own reward |
+| CTCE | ``CTCEEnv``: one agent, joined observations, the agents' actions as one ``Tuple`` | one, RLlib's default | summed reward (social planner) |
 
 DTDE and CTDE optimise the same individual objective and differ only in what the
 critic sees, so a difference between them is the central critic's.
@@ -43,8 +43,8 @@ from ray.rllib.core.rl_module.default_model_config import DefaultModelConfig
 from ray.rllib.core.rl_module.multi_rl_module import MultiRLModuleSpec
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
-from core.rl.grouping import GROUP, CentralStateEnv, GroupedEnv
-from core.rl.ctde_modules import CTDEPPOModule
+from core.rl.ctce import GROUP, CTCEEnv
+from core.rl.ctde import CTDEEnv, CTDEPPOModule
 from core.rl_defaults import NETWORK, SETTINGS
 
 
@@ -77,8 +77,8 @@ def env_spec(
         return env_class, env_config, list(env.agents_id)
     wrapped = {"env_class": env_class, "env_config": env_config}
     if paradigm == Paradigm.CTDE:
-        return CentralStateEnv, wrapped, list(env_class(env_config).agents_id)
-    return GroupedEnv, wrapped, [GROUP]
+        return CTDEEnv, wrapped, list(env_class(env_config).agents_id)
+    return CTCEEnv, wrapped, [GROUP]
 
 
 def build_config(
@@ -137,7 +137,7 @@ def build_config(
     config = config.rl_module(model_config=model_config)
 
     if paradigm == Paradigm.CTDE:
-        central = CentralStateEnv(config_for_env)
+        central = CTDEEnv(config_for_env)
         specs = {
             mid: RLModuleSpec(
                 module_class=CTDEPPOModule,

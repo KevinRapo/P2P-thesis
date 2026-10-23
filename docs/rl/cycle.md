@@ -108,7 +108,7 @@ the paradigm's wrapper decides what each module receives
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| What the module receives | $s_t$, all observations joined in the environment's agent order, one input for the group ([`GroupedEnv`](../../core/rl/grouping.py#L68-L137)) | $x_{i,t} = (o_{i,t}, s_t)$, agent $i$'s module ([`CentralStateEnv`](../../core/rl/grouping.py#L147-L194)) | $o_{i,t}$, each agent's module its own |
+| What the module receives | $s_t$, all observations joined in the environment's agent order, one input for the group ([`CTCEEnv`](../../core/rl/ctce.py#L46-L107)) | $x_{i,t} = (o_{i,t}, s_t)$, agent $i$'s module ([`CTDEEnv`](../../core/rl/ctde.py#L57-L104)) | $o_{i,t}$, each agent's module its own |
 
 RLlib passes the observation to the network **as it comes**: the default pipeline
 adds a batch dimension and converts to a tensor, but does not normalise (no
@@ -130,7 +130,7 @@ where the input $z$ and the output size are
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| $z$ | $s_t \in \mathbb{R}^{N d_o}$ | the first $d_o$ entries of $x_{i,t}$, i.e. $o_{i,t}$ ([`own_encoder`](../../core/rl/ctde_modules.py#L60-L79)) | $o_{i,t}$ |
+| $z$ | $s_t \in \mathbb{R}^{N d_o}$ | the first $d_o$ entries of $x_{i,t}$, i.e. $o_{i,t}$ ([`own_encoder`](../../core/rl/ctde.py#L110-L137)) | $o_{i,t}$ |
 | $[m, \ell]$ | $\mathbb{R}^{2 N d_a}$: every agent's mean and log-std from one network | $\mathbb{R}^{2 d_a}$, agent $i$'s network | $\mathbb{R}^{2 d_a}$, agent $i$'s network |
 
 So CTDE's actor is the same network as DTDE's: it never sees the global state.
@@ -182,7 +182,7 @@ $r_{i,t}$, the next observation $o_{i,t+1}$ and whether the episode ended
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| Reward stored | $R_t = \sum_i r_{i,t}$ ([`GroupedEnv`](../../core/rl/grouping.py#L122)) | $r_{i,t}$ in agent $i$'s episode | $r_{i,t}$ in agent $i$'s episode |
+| Reward stored | $R_t = \sum_i r_{i,t}$ ([`CTCEEnv`](../../core/rl/ctce.py#L100)) | $r_{i,t}$ in agent $i$'s episode | $r_{i,t}$ in agent $i$'s episode |
 | Done flag | one, `__all__` | per agent, and `__all__` | per agent, and `__all__` |
 
 The original trained CTDE, like CTCE, on $R_t$.

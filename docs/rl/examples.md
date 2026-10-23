@@ -20,8 +20,9 @@ with RLlib's own functions (`unsquash_action`); the rest is arithmetic on them.
 
 | File | What it defines | Section here |
 |---|---|---|
-| [grouping.py](../../core/rl/grouping.py) | `GroupedEnv`: all agents as one (CTCE); `CentralStateEnv`: each agent's observation with the global state (CTDE) | 1, 2, 4 |
-| [ctde_modules.py](../../core/rl/ctde_modules.py) | CTDE: RLlib's modules with the actor on the agent's own observation | 3, 5 |
+| [state.py](../../core/rl/state.py) | the global state: all observations joined in agent order | 1 |
+| [ctce.py](../../core/rl/ctce.py) | `CTCEEnv`: all agents as one (CTCE) | 1, 2, 4 |
+| [ctde.py](../../core/rl/ctde.py) | `CTDEEnv`: each agent's observation with the global state; `CTDEPPOModule`: the actor on the agent's own observation (CTDE) | 1, 3, 5 |
 | [config.py](../../core/rl/config.py) | the settings of each of the nine combinations | 6 |
 | [policy.py](../../core/rl/policy.py) | acting with a trained policy, baselines, the team score | 7 |
 | [train.py](../../core/rl/train.py) | the budget, the NaN stop, when evaluation runs | 8 |
@@ -45,7 +46,7 @@ So $N = 3$, $d_o = 2$, $d_a = 2$.
 ## 1. What each module receives (A1)
 
 All observations side by side, **in the environment's order** (`join`,
-[grouping.py L61-L65](../../core/rl/grouping.py#L61-L65)), are the global state
+[state.py L26-L30](../../core/rl/state.py#L26-L30)), are the global state
 
 $$s = (\underbrace{0.4,\ 0.8}_{\texttt{agent\_2}},\ \underbrace{-0.2,\ 0.5}_{\texttt{agent\_10}},\ \underbrace{0.9,\ 0.1}_{\texttt{agent\_1}}) \in \mathbb{R}^6.$$
 
@@ -53,11 +54,11 @@ $$s = (\underbrace{0.4,\ 0.8}_{\texttt{agent\_2}},\ \underbrace{-0.2,\ 0.5}_{\te
 |---|---|---|---|
 | Modules | one, `"group"` | three, one per agent | three, one per agent |
 | Input of `agent_10`'s module | – (the group gets $s$) | $x_{10} = (\underbrace{-0.2,\ 0.5}_{o_{10}},\ \underbrace{0.4,\ 0.8,\ -0.2,\ 0.5,\ 0.9,\ 0.1}_{s}) \in \mathbb{R}^8$ | $o_{10} = (-0.2, 0.5)$ |
-| Wrapper | [`GroupedEnv`](../../core/rl/grouping.py#L68-L137) | [`CentralStateEnv`](../../core/rl/grouping.py#L147-L194) (`central_obs`, [L138-L144](../../core/rl/grouping.py#L138-L144)) | none |
+| Wrapper | [`CTCEEnv`](../../core/rl/ctce.py#L46-L107) | [`CTDEEnv`](../../core/rl/ctde.py#L57-L104) (`central_obs`, [L138-L144](../../core/rl/ctde.py#L48-L54)) | none |
 
-**CTCE.** `GroupedEnv` turns the three agents into one agent, `"group"`, with
+**CTCE.** `CTCEEnv` turns the three agents into one agent, `"group"`, with
 observation $s$. The action space is joined the same way (`join_spaces`,
-[L34-L40](../../core/rl/grouping.py#L34-L40)), each agent's bounds in its own
+[L34-L40](../../core/rl/state.py#L17-L23)), each agent's bounds in its own
 slice:
 
 | Position | 1 | 2 | 3 | 4 | 5 | 6 |
@@ -69,7 +70,7 @@ slice:
 To RLlib the group is an ordinary agent with a 6-dimensional `Box` observation and
 action, so RLlib's own module and algorithm train CTCE without any custom network.
 
-**CTDE.** `CentralStateEnv` keeps the three agents. Each agent's observation
+**CTDE.** `CTDEEnv` keeps the three agents. Each agent's observation
 becomes its own $o_i$ followed by $s$, 8 numbers; its action space and reward stay
 its own. The own part comes first so that the actor can read it as a fixed slice
 (section 3).
@@ -118,8 +119,8 @@ question does not arise: each module has its own agent's space.
 market gets the bound −2, but the batch keeps $u = -1.241$ and the learner trains
 on it.
 
-**Splitting back (A5, CTCE).** `GroupedEnv.step` cuts the joint action into the
-agents' parts (`split`, [L52-L58](../../core/rl/grouping.py#L52-L58)) and passes
+**Splitting back (A5, CTCE).** `CTCEEnv.step` cuts the joint action into the
+agents' parts (`ungroup`, [L36-L43](../../core/rl/ctce.py#L36-L43)) and passes
 them to the environment:
 
 ```python
@@ -132,10 +133,9 @@ Each agent's module is RLlib's default module for its algorithm, built for the
 agent's 8-number input $x_i$, with one change: the actor's encoder is replaced by
 the encoder RLlib builds for the agent's own 2-number observation, applied to the
 first 2 entries of $x_i$ (`OwnObsEncoder` and `own_encoder`,
-[ctde_modules.py L44-L79](../../core/rl/ctde_modules.py#L44-L79)). The policy head,
+[ctde.py L110-L137](../../core/rl/ctde.py#L110-L137)). The policy head,
 the critic, the losses and the action distribution stay RLlib's
-([`CTDEPPOModule`](../../core/rl/ctde_modules.py#L80-L85); APPO and SAC alike,
-[L88-L108](../../core/rl/ctde_modules.py#L88-L108)).
+([`CTDEPPOModule`](../../core/rl/ctde.py#L140-L145)).
 
 For `agent_10`, with $x_{10}$ of section 1:
 
@@ -169,7 +169,7 @@ $$r_{\texttt{agent\_2}} = 1.50, \qquad r_{\texttt{agent\_10}} = -0.50, \qquad r_
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| Reward the learner sees | one, $R = 1.25$ for the group ([`GroupedEnv`](../../core/rl/grouping.py#L122)) | each module its own: 1.50, −0.50, 0.25 | each module its own: 1.50, −0.50, 0.25 |
+| Reward the learner sees | one, $R = 1.25$ for the group ([`CTCEEnv`](../../core/rl/ctce.py#L100)) | each module its own: 1.50, −0.50, 0.25 | each module its own: 1.50, −0.50, 0.25 |
 | Critic learns | the group's return, about $N = 3$ times one agent's | each agent's own return, from the whole state | each agent's own return, from its own observation |
 | Advantage | one for the group | one per agent | one per agent |
 

@@ -54,7 +54,7 @@ from core.rl.envs.probes import (  # noqa: E402
     ObsActionProbe,
     ObservationProbe,
 )
-from core.rl.grouping import GROUP  # noqa: E402
+from core.rl.ctce import GROUP  # noqa: E402
 
 PARADIGMS = ["ctce", "ctde", "dtde"]
 TOLERANCE = 0.15

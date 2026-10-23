@@ -20,8 +20,8 @@
 statement about it was read in its installed source, linked at tag
 [`ray-2.51.1`](https://github.com/ray-project/ray/tree/ray-2.51.1/rllib). The
 implementation is `core/rl/` in this repository: the paradigms in
-[grouping.py](../../core/rl/grouping.py) and
-[ctde_modules.py](../../core/rl/ctde_modules.py), the settings in
+[ctce.py](../../core/rl/ctce.py) and
+[ctde.py](../../core/rl/ctde.py), the settings in
 [rl_defaults.py](../../core/rl_defaults.py). The settings below are its `SETTINGS`: the
 original's starting values ([P2] Table 8,
 [`train.py` L215-L259](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L215-L259))
@@ -40,9 +40,9 @@ learning rate of $3 \cdot 10^{-4}$ and PPO batches of 2400 steps, minibatches of
 | $t$ | environment step: all $N$ agents act at once |
 | $o_{i,t}$, $a_{i,t}$, $r_{i,t}$ | agent $i$'s observation, action and reward at step $t$ |
 | $s_t = (o_{1,t}, \dots, o_{N,t})$ | all observations, concatenated: CTCE's input, and the global state CTDE's critics see |
-| $x_{i,t} = (o_{i,t}, s_t)$ | what agent $i$'s module receives in CTDE ([`CentralStateEnv`](../../core/rl/grouping.py#L147-L194)) |
+| $x_{i,t} = (o_{i,t}, s_t)$ | what agent $i$'s module receives in CTDE ([`CTDEEnv`](../../core/rl/ctde.py#L57-L104)) |
 | $\mathbf{a}_t = (a_{1,t}, \dots, a_{N,t})$ | the joint action |
-| $R_t = \sum_i r_{i,t}$ | the group reward of CTCE ([`GroupedEnv`](../../core/rl/grouping.py#L122)) |
+| $R_t = \sum_i r_{i,t}$ | the group reward of CTCE ([`CTCEEnv`](../../core/rl/ctce.py#L100)) |
 | $d_t$ | 1 if the episode terminates at $t$, else 0 |
 | $\pi_\theta$, $\mu$ | the policy being trained (parameters $\theta$); the policy that collected the data |
 | $V_\phi$, $Q_\psi$ | state-value critic (PPO, APPO); action-value critic (SAC) |
@@ -76,10 +76,10 @@ flowchart LR
    and records $o, a, r, d$, $\log\mu(a \mid o)$ and the distribution's inputs.
 2. **Wrap** (CTCE, CTDE). The environment the algorithm sees
    ([`env_spec`](../../core/rl/config.py#L84-L94)):
-   - CTCE: [`GroupedEnv`](../../core/rl/grouping.py#L68-L137) turns the $N$ agents
+   - CTCE: [`CTCEEnv`](../../core/rl/ctce.py#L46-L107) turns the $N$ agents
      into one: observation $s_t$, action $\mathbf{a}_t$, reward $R_t$, one done
      flag;
-   - CTDE: [`CentralStateEnv`](../../core/rl/grouping.py#L147-L194) keeps the $N$
+   - CTDE: [`CTDEEnv`](../../core/rl/ctde.py#L57-L104) keeps the $N$
      agents and their rewards, and extends each agent's observation to
      $x_{i,t} = (o_{i,t}, s_t)$;
    - DTDE: the environment as it is.
@@ -281,7 +281,7 @@ makes it CTDE is only what the networks see:
 $$a_i \sim \pi_{\theta_i}(\cdot \mid o_i), \qquad V_{\phi_i}(o_i, s), \qquad x_i = (o_i, s).$$
 
 The actor's encoder reads the first $\dim o_i$ entries of $x_i$ and nothing else
-([`own_encoder`](../../core/rl/ctde_modules.py#L60-L79)), so the trained actor can
+([`own_encoder`](../../core/rl/ctde.py#L110-L137)), so the trained actor can
 act on its own observation alone (decentralised execution). The critic reads all of
 $x_i$, every agent's observation (centralised training); it is not needed to act.
 
