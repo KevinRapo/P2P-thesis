@@ -64,7 +64,7 @@ the contract; then `decode` (action → order), `step` (reward), `_observe`.
 |---|---|---|
 | **Action** | Every order a participant may place can be expressed, and nothing else: `encode` → `decode` round trip; the net-position baseline through the environment places the orders the market's own rule places | RP-1a. "No order" as a quantity threshold (now) or a third `side` category. RP-1b. Price range [FiT, utility]. RP-1c. Quantity as a share of the eq. 15 bound |
 | **Reward** | One step by hand: bill = profit − p_utility · deferred demand, for a buyer, a seller and an agent that does not trade (Studio Step page) | RP-1d. The bill as the reward (individual, monetary); its scale |
-| **Observation** | For each decision the agent must take, the information it needs is in its observation (SOC, hour, own profile, prices, partner block) | RP-1e. Forecasts or KPIs in the observation, or not (V2: not) |
+| **Observation** | For each decision the agent must take, the information it needs is in its observation (the paper's 42 signals and the peers' reputations, [Observation](../rl/observation.md)) | RP-1e. Forecasts in the observation, or the true values (now: true values, E-05); the KPIs' window (now: the day so far, E-10) |
 | **Episode** | 24 steps, day = episode, termination not truncation; γ over 24 steps | RP-1f. γ (0.99 is almost undiscounted over 24 steps; 1.0 is defensible) |
 
 **Done when** each row's check is written down with its result, and RP-1a to
@@ -137,7 +137,7 @@ training (the discussion of 22 Oct 2026).
 | RP-3c | Value scale | no value normalisation; advantages standardised per module | value normalisation (PopArt); rely on reward scaling | all, CTCE most |
 | RP-3d | Optimiser | one Adam and one global gradient clip (0.5) over actor and critic | separate optimisers and clips (MAPPO, BenchMARL) | all |
 | RP-3e | Parameter sharing | none: one actor and critic per agent | shared with an agent ID (MAPPO, BenchMARL default) | DTDE, CTDE |
-| RP-3f | CTDE critic input | `[o_i, o_1 … o_N]` (156 numbers for 5 agents; partner features repeated) | pruned global state (MAPPO's feature pruning) | CTDE |
+| RP-3f | CTDE critic input | `[o_i, o_1 … o_N]` (276 numbers for 5 agents; the shared market signals and KPIs repeated) | pruned global state (MAPPO's feature pruning) | CTDE |
 | RP-3g | Clip range ε | 0.2 per agent; one joint ratio in CTCE | keep, and state its N-dependence | all |
 
 **Done when** each row has a decision and a reason in the decision log, the chosen changes

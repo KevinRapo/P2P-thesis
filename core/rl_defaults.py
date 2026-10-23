@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Any
 
-# The original's starting hyperparameters ([P2] Table 8), less the defective ones
-# (``config.py`` says which and why).
+# The original's starting hyperparameters ([P2] Table 8), less the defective ones,
+# with fewer epochs on one minibatch (MAPPO); ``config.py`` says which and why.
 SETTINGS: dict[str, dict[str, Any]] = {
     "ppo": {
         "lr": 1e-5,

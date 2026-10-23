@@ -121,7 +121,7 @@ period 23 (the last hour of the day) never does (T1). Every episode loses its la
 hour of demand and generation.
 
 **In `marlem-v1`.** A day is $24 / \text{step_hours}$ steps, and `done` is true only
-after all of them are recorded ([lem.py](../../core/market/lem.py#L254-L262)).
+after all of them are recorded ([lem.py](../../core/market/lem.py#L246-L254)).
 
 ### M-02: an invalid order stops the simulation
 
@@ -146,7 +146,7 @@ raises an exception, which ends the whole episode.
 
 **In `marlem-v1`.** `_validate` clips the price to the market bounds and the
 quantity to eq. 15, drops what is left at or below $q_{\min}$, and records each change
-as a note ([lem.py](../../core/market/lem.py#L472-L497)).
+as a note ([lem.py](../../core/market/lem.py#L465-L490)).
 
 ### M-03: units and time step are mixed
 
@@ -183,7 +183,7 @@ vs \$/MWh), and any number that mixes energy, power and price is ambiguous.
 
 **In `marlem-v1`.** Energy is kWh per step, power is kW, prices are per kWh,
 and the step length is explicit: `GridSetup.step_hours`, 1 h or 15 min
-([scenario.py](../../core/config/scenario.py#L33)). Power becomes energy with
+([scenario.py](../../core/config/scenario.py#L42)). Power becomes energy with
 $\text{kW} \cdot \text{step_hours}$ ([der.py](../../core/market/agent/der.py#L113-L114)).
 
 ### M-04, M-05: a reset cannot be told which profiles to use
@@ -264,7 +264,7 @@ network elements a participant owns, for the scenario's day (`GridSetup.day`), a
 ([der.py](../../core/market/agent/der.py#L88-L115)). Eq. 17 is not used. A
 different day per episode is the RL environment's job: `MarketEnv.reset` draws a
 day from its configured `days`, sets it on the scenario and rebuilds the market
-([market_env.py](../../core/env/market_env.py#L166-L177)), so training and
+([market_env.py](../../core/env/market_env.py#L324-L335)), so training and
 held-out days are separate lists ([v1.md §3](../v1.md#3-the-market-as-an-environment)).
 
 ## 2. Orders and feasibility
@@ -462,7 +462,7 @@ $$
 Without the rescaling, reputations that all start at 0.5 and drift by a few
 hundredths would lose to distance every time. Ties go to the nearer candidate
 ([der.py](../../core/market/agent/der.py#L187-L223),
-[lem.py](../../core/market/lem.py#L433-L451)).
+[lem.py](../../core/market/lem.py#L417-L435)).
 
 ### M-12: the stage-2 capacity check can never trigger
 
@@ -528,7 +528,7 @@ sell 50 gives 200 (T6). It behaves exactly like `BUYER`.
 
 **In `marlem-v1`.** Every mechanism has one fixed signature, `(buy_order,
 sell_order, reference_price)`, so an argument can no longer land in the wrong
-parameter ([clearing_price.py](../../core/market/clearing_price.py#L58-L64)).
+parameter ([clearing_price.py](../../core/market/clearing_price.py#L27-L34)).
 
 ### M-14: `BID_ASK_SPREAD` returns the buyer's price too
 
@@ -556,12 +556,18 @@ trade price lands at a meaningless point of the spread. This is the mechanism
 [P1]'s Case 5 uses, and §3.3.3 does not define it.
 
 **In `marlem-v1`.** `factor` is a constructor argument (default 0.5), not a
-call argument ([clearing_price.py](../../core/market/clearing_price.py#L67-L79)):
+call argument:
 
 ```python
 def __init__(self, factor: float = 0.5) -> None:
     self.factor = max(0.0, min(factor, 1.0))
 ```
+
+**In `marlem-v2`.** The mechanisms are one enum, and `factor` is a keyword argument
+of `calculate_price` with the default 0.5
+([clearing_price.py](../../core/market/clearing_price.py#L54-L56)). The clearing
+stages never pass it and no scenario setting reaches it, so `BID_ASK_SPREAD` prices
+at the midpoint, exactly as `AVERAGE`.
 
 ### M-15: the clearing price includes the DSO's trades
 
@@ -586,7 +592,7 @@ fairness (M-42 to M-44), and the reference price of the proportional mechanism (
 [P1] does not define the clearing price.
 
 **In `marlem-v1`.** Volume-weighted price of the peer trades only, and the
-previous price when there were none ([lem.py](../../core/market/lem.py#L531-L538)).
+previous price when there were none ([lem.py](../../core/market/lem.py#L524-L531)).
 
 ## 5. Settlement, battery and balances
 
@@ -918,7 +924,7 @@ step's start), so it is not a per-period quantity either.
 
 **In `marlem-v1`.** `Dso.settle` computes eq. 7 from every DSO trade, per step
 and over the day, with the DSO's revenue and fees
-([dso.py](../../core/market/dso.py#L264-L280)).
+([dso.py](../../core/market/dso.py#L293-L309)).
 
 ### M-25: two opposite sign conventions for the DSO balance
 
@@ -966,7 +972,7 @@ computes it. Every "grid balance" in the info, the observation, the reputation a
 the reward is the DSO balance, which is itself always 0 (M-24).
 
 **In `marlem-v1`.** `grid_balance_kwh` is the energy offered minus the energy
-asked in the step's orders ([lem.py](../../core/market/lem.py#L178-L181)). It is taken
+asked in the step's orders ([lem.py](../../core/market/lem.py#L184-L187)). It is taken
 *before* stage 3 on purpose: after the DSO clears every order, eq. 20 is 0 by
 construction.
 
@@ -1036,7 +1042,7 @@ hints. The text of eq. 8 calls $F_{\text{trans}}$ a charge for "usage per unit o
 distance of the transmission lines (predefined by the DSO)", and §3.5.2 says the
 losses "are incorporated into trading fees". Both give a fee of quantity ×
 distance × a price factor. Here it is the lost energy (eq. 18) at the trade price
-([dso.py](../../core/market/dso.py#L159)):
+([dso.py](../../core/market/dso.py#L181)):
 
 $$
 F_{\text{trans}} = l_{ij}\, p_{ij} = \kappa\, d_{ij}\, q_{ij}\, p_{ij}
@@ -1071,7 +1077,7 @@ $V_{\text{drop}} = 0.15 \cdot 0.2\ \text{km} = 0.03$ is below the gate, so the v
 0. The thermal cap 0.3 is $f_{\text{threshold}}$ of eq. 8d, which [P1] leaves undefined.
 
 **In `marlem-v1`.** $F_{\text{volt}}$ exactly as eq. 8c; the thermal cap kept at the
-original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso.py#L139-L163)).
+original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso.py#L161-L185)).
 
 ### M-30: the imbalance fee can never apply
 
@@ -1106,7 +1112,7 @@ $F_{\text{imb}}$ is 0 in every possible run.
 
 **In `marlem-v1`.** The imbalance fee is charged on DSO trades that worsen the
 market's balance $B_{\text{grid}}$ (the DSO buying in excess demand, or selling in excess
-supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L165-L178)).
+supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L187-L200)).
 
 <mark class="review">Review</mark> What trade could exactly help at the same time while bringing in more of the quantity that already exists in the P2P market? I dont see a situation
 
@@ -1138,8 +1144,8 @@ quantity to the balance whatever the trade's direction, so a trade that would
 **In `marlem-v1`.** The DSO's energy enters where the upstream grid feeds
 the network, the transformer's low-voltage busbar. A trade with the DSO runs along
 the participant's path to that busbar
-([powerflow.py](../../core/grid/powerflow.py#L169-L180),
-[dso.py](../../core/market/dso.py#L220-L228)). It has a distance, a loss (eq. 18)
+([powerflow.py](../../core/grid/powerflow.py#L170-L181),
+[dso.py](../../core/market/dso.py#L254-L262)). It has a distance, a loss (eq. 18)
 and the fees of that path: congestion and thermal on its lines, voltage and
 transmission by its length. It gets no zone bonus, since the DSO is in no
 participant's zone. A neighbour is closer than the transformer, so a peer trade
@@ -1236,7 +1242,7 @@ such labels, so the zone bonus needs a definition that fits it.
 
 **In `marlem-v1`.** A zone is a feeder: the branch a bus hangs on, named by the
 first bus after the transformer's low-voltage busbar
-([powerflow.py](../../core/grid/powerflow.py#L221-L239)).
+([powerflow.py](../../core/grid/powerflow.py#L246-L264)).
 
 [P2] did use zones: its case study divides IEEE-34 into six named zones
 (substation, transformer, feeder 1 and 2, lateral 1 and 2) for 8 agents. Its zones
@@ -1280,7 +1286,7 @@ at the capacity cap. [P1] §3.5.3 describes a per-period update; congestion here
 measures the episode's history, not the current period.
 
 **In `marlem-v1`.** One AC power flow per step on a fresh state of the network
-([powerflow.py](../../core/grid/powerflow.py#L117-L150)).
+([powerflow.py](../../core/grid/powerflow.py#L118-L151)).
 
 ### M-36: only stage-1 trades reach the grid
 
@@ -1376,7 +1382,7 @@ has nothing to do with the grid.
 
 **In `marlem-v1`.** The grid code is new. Elements reject impossible settings
 instead of correcting them (`Battery._check`, `Scenario.problems()`), and a missing
-bus raises an error ([powerflow.py](../../core/grid/powerflow.py#L129-L130)).
+bus raises an error ([powerflow.py](../../core/grid/powerflow.py#L130-L131)).
 
 ### M-40: losses are topped up from the DSO
 
@@ -1426,7 +1432,7 @@ configuration reaches, in "distance units" of whatever graph is used. [P1] gives
 no value.
 
 **In `marlem-v1`.** `loss_factor` is a DSO setting, per km of line
-([scenario.py](../../core/config/scenario.py#L175)). Every trade also records its
+([scenario.py](../../core/config/scenario.py#L187)). Every trade also records its
 distance $d_{ij}$, along the network's lines.
 
 ## 8. Reputation
@@ -1487,7 +1493,7 @@ the day goes on, the opposite of the paper.
 blends with a fixed factor, $r \leftarrow \delta\, r + (1 - \delta)\, \text{score}$
 ([reputation.py](../../core/market/reputation.py#L119-L142)), and the market sets
 $\delta = 0.8^{\Delta t}$ with $\Delta t$ the step length in hours
-([lem.py](../../core/market/lem.py#L235-L240)). Reversing the original's weights
+([lem.py](../../core/market/lem.py#L227-L232)). Reversing the original's weights
 would still tie the memory to the hour of the day; a per-hour decay keeps the
 memory the same when the step length changes (M-03). With 0.8 the old reputation
 halves in about 3.1 hours ($\ln 0.5 / \ln 0.8$), whether the step is an hour or a

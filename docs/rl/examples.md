@@ -3,8 +3,10 @@
 > **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
 > two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
 > (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
-> is in [v2.md](../v2.md). Code links follow branch `marlem-v2`, so a line anchor may
-> point near, not at, the V1 code described.
+> is in [v2.md](../v2.md), the observation in [Observation](observation.md). The
+> settings here are V1's: V2's `SETTINGS` train 5 epochs on one minibatch of the
+> whole 4000-step batch (after the MAPPO paper). Code links follow branch
+> `marlem-v2`, so a line anchor may point near, not at, the V1 code described.
 
 > The training cycle with numbers, limited to what our own code decides: what each
 > paradigm's modules receive, how CTDE's local actor and central critic are put
@@ -249,7 +251,7 @@ none ([L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act)).
 
 ## 6. The settings we choose
 
-[`SETTINGS` and `NETWORK`](../../core/rl_defaults.py#L21-L66), and what each changes in
+[`SETTINGS` and `NETWORK`](../../core/rl_defaults.py#L22-L50), and what each changes in
 the cycle:
 
 | Setting | Value | What it does in the cycle |
@@ -275,12 +277,12 @@ environment steps, so all paradigms get the same amount of experience.
 
 ## 7. Evaluating a trained policy
 
-[`Policy`](../../core/rl/policy.py#L54-L139) acts with the trained modules outside
+[`Policy`](../../core/rl/policy.py#L91-L159) acts with the trained modules outside
 RLlib, the same way RLlib does in training, but without noise. It builds each
 module's input as the paradigm's wrapper does (`_inputs`: $o_i$, $x_i$ or $s$) and
 always runs in the original multi-agent environment.
 
-**The action** (`act`, [L99-L114](../../core/rl/policy.py#L99-L114)). The most
+**The action** (`act`, [L135-L146](../../core/rl/policy.py#L135-L146)). The most
 likely action is the mean, then RLlib's own rescaling, with each agent's bounds in
 CTDE and DTDE and the joint bounds then a split in CTCE. The result is the same:
 
@@ -292,18 +294,18 @@ CTDE and DTDE and the joint bounds then a split in CTCE. The result is the same:
 For example `agent_10`'s quantity: $-20 + (-0.60 + 1) \times 20 = -12.0$. SAC's
 actions are squashed by tanh, so its most likely action is $\tanh m$; RLlib's own
 deterministic SAC action skips the tanh in Ray 2.51.1, so `_deterministic`
-([L39-L51](../../core/rl/policy.py#L39-L51)) applies it. The original's inference
+([L85-L88](../../core/rl/policy.py#L85-L88)) applies it. The original's inference
 used the mean without rescaling, so `agent_10` would have bid −0.60 kWh
 ([L-15](../validation/rl.md#l-15-standalone-inference-does-not-act-like-training)).
 
-**Baselines** ([L140-L174](../../core/rl/policy.py#L140-L174)). "Random" draws each
+**Baselines** ([L140-L174](../../core/rl/policy.py#L175-L209)). "Random" draws each
 action uniformly within its bounds. "Zero" sends 0 in the environment's units,
 clipped to the bounds: quantity 0, price $\max(0, 0.05) = 0.05$ for every agent. It
 is *not* the network's 0, which would be the middle of the bounds (price 0.20). The
 market environment adds its own baselines (never trade, and the market's bidding
 rule), see [marlem-v1](../v1.md#3-the-market-as-an-environment).
 
-**The team score** (`Episode`, [L175-L195](../../core/rl/policy.py#L175-L195)).
+**The team score** (`Episode`, [L175-L195](../../core/rl/policy.py#L216-L236)).
 Every paradigm is scored in the original multi-agent environment, from the raw
 per-agent rewards. Over a 3-step episode:
 
@@ -319,7 +321,7 @@ same number for CTCE, CTDE and DTDE, computed the same way, so the nine
 combinations and the baselines can be ranked on one scale
 ([L-03](../validation/rl.md#l-03-returns-of-the-paradigms-are-compared-across-different-scales)).
 Evaluation episodes use seeds from 1 000 000 on, which training never reaches
-(`evaluation_seeds`, [L248-L252](../../core/rl/policy.py#L248-L252)); the runner's
+(`evaluation_seeds`, [L248-L252](../../core/rl/policy.py#L415-L419)); the runner's
 held-out evaluation uses test days that training never sees.
 
 `Policy.values` gives each module's critic estimate of a state: in CTCE the group's
@@ -328,16 +330,16 @@ return.
 
 ## 8. The run: budget, NaN stop, evaluation
 
-[`train`](../../core/rl/train.py#L243-L339) repeats RLlib's iteration until the
+[`train`](../../core/rl/train.py#L378-L509) repeats RLlib's iteration until the
 budget of environment steps is used up.
 
 **Budget.** `budget = 100_000` with PPO's 4000 steps per iteration: 25 iterations,
 for every paradigm. With `eval_every = 20_000`, the policy and baselines are
 evaluated at 0 (untrained, together with the baselines), 20 000, 40 000, 60 000,
 80 000 and at the end, 100 000
-([L298-L317](../../core/rl/train.py#L298-L317)).
+([L298-L317](../../core/rl/train.py#L449-L468)).
 
-**NaN stop** (`_nonfinite`, [L204-L219](../../core/rl/train.py#L204-L219)). After
+**NaN stop** (`_nonfinite`, [L204-L219](../../core/rl/train.py#L321-L336)). After
 each iteration the learner's results are searched for losses, entropies and the SAC
 temperature that are NaN or infinite. For
 

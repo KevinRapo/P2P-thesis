@@ -11,8 +11,8 @@ Two places compute it:
 - **[`signals.py`](../../core/market/signals.py)**: each signal as a plain function
   of the market's data, in three dictionaries (`KPIS`, `MARKET_SIGNALS`,
   `AGENT_SIGNALS`). A value with nothing to measure is NaN.
-- **[`MarketEnv._observe`](../../core/env/market_env.py#L499)**: puts them in order,
-  scales each ([`_obs_scales`](../../core/env/market_env.py#L441)), turns NaN into
+- **[`MarketEnv._observe`](../../core/env/market_env.py#L499-L523)**: puts them in order,
+  scales each ([`_obs_scales`](../../core/env/market_env.py#L441-L497)), turns NaN into
   0 and clips to $[-10, 10]$.
 
 The observation is computed for the step about to be played, $t$. "The last step"
@@ -58,7 +58,7 @@ For agent $i$; the sums over $\tau \in \mathcal{H}$ run over the steps played so
 far. $x^{\text{def}}_{i,\tau}$ is the energy no trade or battery covered: the
 demand drawn untraded from the upstream grid, or the surplus spilled. It is what
 settlement leaves after generation, trades and the battery
-([`ParticipantOutcome`](../../core/market/agent/der.py#L32)).
+([`ParticipantOutcome`](../../core/market/agent/der.py#L31-L82)).
 
 | # | Entry | Definition | Scaled as |
 |---|---|---|---|

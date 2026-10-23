@@ -74,7 +74,7 @@ steps, June 2016 to train, 1-14 July 2016 to test.
 - **MP-0a** The reference scenario and days. Its batteries: keep them unlimited,
   or give them SimBench's sizing (power = capacity ÷ 2 h,
   [`simbench_battery`](../../core/config/placement.py#L35-L40); a SimBench storage
-  unit brings its own limit, [`storage_battery`](../../core/config/placement.py#L49-L57)).
+  unit brings its own limit, [`storage_battery`](../../core/config/placement.py#L49-L58)).
   Hourly or 15-minute steps (both supported, `grid.step_hours`).
 
 **Hands to RL.** The scenario and the days every RL stage uses.
@@ -90,13 +90,13 @@ the battery's role the one we want?
 $B = (G - D) + (\text{bought} - \text{sold})$ left at its bus
 ([`Participant.settle`](../../core/market/agent/der.py#L226-L260)). A surplus
 charges the battery, a deficit discharges it, within its room and power limit
-([`charge`, `discharge`](../../core/market/agent/battery.py#L121-L139)); the rest
+([`charge`, `discharge`](../../core/market/agent/battery.py#L121-L138)); the rest
 is exchanged with the upstream grid untraded (`external`). The battery has no
 decision of its own: the agent steers it only through its trade quantity
 (selling beyond the surplus discharges it, buying beyond the deficit charges it,
 trading exactly the net position leaves it alone). Untraded energy has no price in
 the market's profit; the RL reward charges an untraded import at the utility price
-([`MarketEnv.step`](../../core/env/market_env.py#L404-L407)). Every day starts at
+([`MarketEnv.step`](../../core/env/market_env.py#L355-L358)). Every day starts at
 the initial state of charge (0.5).
 
 **Check.**
@@ -136,7 +136,7 @@ cannot place?
 the surplus or deficit plus what the battery can give or take) and to the
 scenario's price and quantity bounds; the cut is noted, an order at or below the
 minimum quantity is dropped
-([`_validate`](../../core/market/lem.py#L493-L518)). Submitting nothing is
+([`_validate`](../../core/market/lem.py#L465-L490)). Submitting nothing is
 allowed. The scenario's price bounds are 0 and 1, the tariffs 0.08 (FiT) and
 0.30 (utility).
 
@@ -171,14 +171,14 @@ eq. 15 bound, the price range (MP-2b), what an out-of-range action does (MP-2a).
 2. [**Double auction**](../../core/market/clearing.py#L140-L170): bids from the
    highest price down, asks from the lowest up, ties broken by reputation, then
    arrival; pairs trade while bid ≥ ask.
-3. [**DSO**](../../core/market/dso.py#L262-L283): every open order clears with
+3. [**DSO**](../../core/market/dso.py#L269-L290): every open order clears with
    the DSO, sells at FiT and buys at the utility price. Every order is therefore
    executed in full; only its price depends on the market.
 
 A pair's price follows the scenario's mechanism (`average`: the midpoint of bid
 and ask, [clearing_price.py](../../core/market/clearing_price.py)). The step's
 clearing price is the volume-weighted price of the peer trades
-([`_clearing_price`](../../core/market/lem.py#L552-L559)). Orders made by the
+([`_clearing_price`](../../core/market/lem.py#L524-L531)). Orders made by the
 market's own rule name a partner by a 50/50 score of reputation and closeness
 ([`choose_partner`](../../core/market/agent/der.py#L187-L223)); an RL agent's
 partner is never replaced.
@@ -208,7 +208,7 @@ differ on the same step?
 **Now.** After the trades, the AC power flow runs on what the participants
 physically did. Every trade then pays eq. 8 on its path
 ([`Dso.fees_of`](../../core/market/dso.py#L161-L185),
-[`Dso.charge`](../../core/market/dso.py#L226-L259)), split 50/50 between
+[`Dso.charge`](../../core/market/dso.py#L238-L266)), split 50/50 between
 buyer and seller for a peer trade:
 
 | Part | V2 now | Scenario value |
@@ -223,7 +223,7 @@ buyer and seller for a peer trade:
 A trade with the DSO runs from the participant to the transformer's busbar. With
 `grid.method = "graph"` the fees read the line loading of the paper's graph model
 from the step's trades instead of the power flow's
-([`_grid_signal`](../../core/market/lem.py#L593-L611),
+([`_grid_signal`](../../core/market/lem.py#L565-L578),
 [graph.py](../../core/grid/graph.py)); the power flow still runs and is recorded.
 
 **Check.** A step with a loaded line by hand: each fee part of one trade; the

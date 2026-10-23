@@ -17,7 +17,8 @@ Every paradigm uses the same network settings (RLlib's defaults: 2 x 256 tanh,
 separate actor and critic), which fixes L-04.
 
 The hyperparameters start from the original's (``SETTINGS`` in
-``core/rl_defaults.py``, [P2] Table 8), with the defects removed:
+``core/rl_defaults.py``, [P2] Table 8), with the defects removed and the update
+schedule changed:
 
 - ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07; the
   original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from RLlib's
@@ -27,6 +28,10 @@ The hyperparameters start from the original's (``SETTINGS`` in
 - No population-based training and no Ray Tune (fixes L-10 and part of L-11):
   one run has fixed hyperparameters and one seed; tuning and seeds are loops
   around ``core/rl/train.py``.
+- 5 epochs, each on one minibatch of the whole batch (4000 environment steps), in
+  place of the original's 30 epochs of 128-step minibatches: fewer, larger updates
+  work better for PPO with several agents (Yu et al., "The Surprising Effectiveness
+  of PPO in Cooperative Multi-Agent Games", NeurIPS 2022).
 - Iterations are not tied to wall-clock time (``min_time_s_per_iteration=0``),
   and the budget is counted in environment steps by the trainer (fixes L-14).
 """

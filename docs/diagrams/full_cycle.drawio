@@ -19,7 +19,7 @@
         <mxCell id="reset" value="&lt;b&gt;Episode start = one day&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot; color=&quot;#555555&quot;&gt;MarketEnv.reset → market phase 0&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=8;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=6;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;" vertex="1" parent="1">
           <mxGeometry x="80" y="190" width="260" height="70" as="geometry"/>
         </mxCell>
-        <mxCell id="a1" value="&lt;b&gt;A1 observe&lt;/b&gt; o&lt;sub&gt;t&lt;/sub&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot; color=&quot;#555555&quot;&gt;16 numbers per agent&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=8;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=6;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+        <mxCell id="a1" value="&lt;b&gt;A1 observe&lt;/b&gt; o&lt;sub&gt;t&lt;/sub&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot; color=&quot;#555555&quot;&gt;the paper&#39;s 42 signals&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=8;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=6;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
           <mxGeometry x="80" y="300" width="260" height="70" as="geometry"/>
         </mxCell>
         <mxCell id="a2" value="&lt;b&gt;A2 actor forward&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:12px&quot; color=&quot;#555555&quot;&gt;per agent (DTDE, CTDE) · joint (CTCE)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=8;align=left;verticalAlign=middle;spacingLeft=10;spacingRight=6;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">

@@ -3,8 +3,10 @@
 > **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
 > two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
 > (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
-> is in [v2.md](../v2.md). Code links follow branch `marlem-v2`, so a line anchor may
-> point near, not at, the V1 code described.
+> is in [v2.md](../v2.md), the observation in [Observation](observation.md). The
+> settings here are V1's: V2's `SETTINGS` train 5 epochs on one minibatch of the
+> whole 4000-step batch (after the MAPPO paper). Code links follow branch
+> `marlem-v2`, so a line anchor may point near, not at, the V1 code described.
 
 > The math that has to happen in one training iteration of each of the nine
 > combinations: PPO, APPO and SAC, each trained as CTCE, CTDE and DTDE, as
@@ -75,7 +77,7 @@ flowchart LR
    rescales it from $[-1, 1]$ to the action's bounds (`normalize_actions=True`),
    and records $o, a, r, d$, $\log\mu(a \mid o)$ and the distribution's inputs.
 2. **Wrap** (CTCE, CTDE). The environment the algorithm sees
-   ([`env_spec`](../../core/rl/config.py#L84-L94)):
+   ([`env_spec`](../../core/rl/config.py#L71-L81)):
    - CTCE: [`CTCEEnv`](../../core/rl/ctce.py#L46-L107) turns the $N$ agents
      into one: observation $s_t$, action $\mathbf{a}_t$, reward $R_t$, one done
      flag;
@@ -143,7 +145,7 @@ adapt.
 **What to check.** $\rho = 1$ on the first minibatch; advantages with mean 0 and
 standard deviation 1; explained variance of $V_\phi$ rising toward 1; entropy
 falling slowly, never NaN. The trainer stops a run as soon as a loss or metric is
-NaN or infinite ([`train.py`](../../core/rl/train.py#L204-L219)).
+NaN or infinite ([`train.py`](../../core/rl/train.py#L321-L336)).
 
 ## 3. APPO
 
@@ -243,7 +245,7 @@ $\alpha$ settling; the entropy near its target.
 The algorithm's math stays the same; the paradigm decides **what counts as one
 agent** for RLlib, what its module sees and which reward it learns from. Every
 module is RLlib's default network (2 × 256 tanh) with separate actor and critic
-encoders (`vf_share_layers=False`, [`NETWORK`](../../core/rl_defaults.py#L57-L66)), so
+encoders (`vf_share_layers=False`, [`NETWORK`](../../core/rl_defaults.py#L41-L50)), so
 the paradigms differ in inputs and rewards, not in network design.
 
 | | CTCE | CTDE | DTDE |
@@ -336,7 +338,7 @@ what the original code computes instead.
 ## 7. Steps per iteration, and comparing runs
 
 An **iteration** is one call of RLlib's training step. `core/rl/` sets
-`min_time_s_per_iteration=0` ([config.py](../../core/rl/config.py#L97-L163)), so
+`min_time_s_per_iteration=0` ([config.py](../../core/rl/config.py#L84-L150)), so
 an iteration does not wait for the clock; what it holds still differs by algorithm:
 
 | Per iteration | PPO | APPO | SAC |

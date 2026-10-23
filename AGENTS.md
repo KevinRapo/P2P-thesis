@@ -43,6 +43,9 @@ runs/        training runs and results (git-ignored); the runner's one source of
 - **The market's API**: `LocalEnergyMarket` in `core/market/lem.py` (the one class
   that runs a market step and its power flow), `Scenario` in `core/config/`, the
   grid's records and `GridModel` protocol in `core/grid/contract.py`.
+- **The observation signals**: `core/market/signals.py`, the paper's 42 signals
+  (KPIs, market and agent signals), each a plain function; `MarketEnv` scales them
+  into the observation.
 - **The power flow**: `core/grid/powerflow.py` (`SimBenchGrid`); `core/grid/` is the
   only place that imports pandapower or simbench.
 - **The RL entry points**: `build_config` / `build_algo` (`core/rl/config.py`),

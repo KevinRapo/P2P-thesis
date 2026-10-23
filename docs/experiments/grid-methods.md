@@ -27,8 +27,11 @@ under it. What is compared is the method, not the published numbers.
 [`diagrams/grid_methods.drawio`](diagrams/grid_methods.drawio).
 
 Read it from the top. Both arms play the same market step. The grid reaches the
-agents only through the **DSO fees** in their reward: the observation holds no grid
-state ([market_env.py](../../core/env/market_env.py#L8-L24)). Most fee inputs are
+agents through the **DSO fees** in their reward and through one entry of their
+observation, the `grid_congestion` KPI: the mean line loading the fees were charged
+on, so the power flow's in one arm and the graph model's in the other
+([observation](../rl/observation.md#implicit-cooperation-kpis-10-the-same-for-every-agent)).
+Most fee inputs are
 the same in both arms (middle column). Two come from the arm: the line loading
 $C_t$ of the trade's path, which sets the congestion and thermal fees, and the
 voltage drop $V_\text{drop}$, which sets the voltage fee.

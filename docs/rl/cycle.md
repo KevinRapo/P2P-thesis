@@ -3,8 +3,10 @@
 > **V2 note.** This page describes V1 (PPO, APPO and SAC; the market's action as
 > two numbers in one `Box`). V2 trains PPO only, with the mixed `Dict` action
 > (side, quantity, price, partner) and CTCE's `Tuple` group action; what differs
-> is in [v2.md](../v2.md). Code links follow branch `marlem-v2`, so a line anchor may
-> point near, not at, the V1 code described.
+> is in [v2.md](../v2.md), the observation in [Observation](observation.md). The
+> settings here are V1's: V2's `SETTINGS` train 5 epochs on one minibatch of the
+> whole 4000-step batch (after the MAPPO paper). Code links follow branch
+> `marlem-v2`, so a line anchor may point near, not at, the V1 code described.
 
 > Every calculation in one training iteration, in the order it happens: the
 > agents observe, act and collect a batch of steps; the batch is turned into
@@ -21,7 +23,7 @@
 its installed source and linked at tag
 [`ray-2.51.1`](https://github.com/ray-project/ray/tree/ray-2.51.1/rllib); the
 implementation is `core/rl/` in this repository, with the settings of its
-[`SETTINGS`](../../core/rl_defaults.py#L21-L55) (the original's starting values,
+[`SETTINGS`](../../core/rl_defaults.py#L22-L39) (the original's starting values,
 [P2] Table 8, without the defective ones), completed with RLlib's defaults. The
 step labels (A1 to D3) are kept as they are for the original code
 ([`15d6715`](https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment)),
@@ -104,7 +106,7 @@ A5. Nothing is learned here: no gradients, no critic.
 
 The environment returns one observation per agent, $o_{i,t} \in \mathbb{R}^{d_o}$;
 the paradigm's wrapper decides what each module receives
-([`env_spec`](../../core/rl/config.py#L84-L94)).
+([`env_spec`](../../core/rl/config.py#L71-L81)).
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
@@ -368,7 +370,7 @@ $$g \leftarrow g \cdot \min\left(1, \frac{0.5}{\lVert g \rVert_2}\right).$$
 The direction is kept, the length capped. If $g$ contains NaN, RLlib replaces it
 with zeros, logs a warning and carries on; the trainer stops the run instead, as
 soon as a loss or metric is NaN or infinite
-([`train.py`](../../core/rl/train.py#L204-L219)).
+([`train.py`](../../core/rl/train.py#L321-L336)).
 
 ### C10. Adam step
 
@@ -400,7 +402,7 @@ again after its iteration.
 
 ### D3. Between iterations
 
-The trainer ([`train`](../../core/rl/train.py#L243-L339)) records the iteration's
+The trainer ([`train`](../../core/rl/train.py#L378-L509)) records the iteration's
 metrics, stops the run on a NaN or infinite learner metric, and evaluates the
 policy and the baselines when the budget of environment steps reaches the next
 evaluation point. Hyperparameters stay fixed during a run. In the original,

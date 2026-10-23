@@ -42,14 +42,12 @@ flowchart TD
   market --> m4["clearing_price.py"]:::done
   market --> m2["order.py"]:::done
   market --> m5["reputation.py"]:::done
-  market --> m9["kpis.py"]:::done
+  market --> m9["signals.py"]:::done
   market --> agent["agent/"]
   agent --> a1["der.py"]:::done
   agent --> a2["battery.py"]:::done
   agent --> a3["rule_based_bid.py"]:::done
   market --> d1["dso.py"]:::done
-  market --> profile["profile/"]
-  profile --> p1["base.py · der.py · dso.py"]:::orig
 
   core --> env["env/"]
   env --> e1["market_env.py"]:::done
@@ -161,7 +159,7 @@ the remaining original files (profiles) are the reference.
 | [`clearing_price.py`](../core/market/clearing_price.py) | `ClearingMechanism` enum: six pricing calculations with one fixed signature (fixes the seller price) | done |
 | [`order.py`](../core/market/order.py) | `Order`, `Trade` (stage, distance, loss, fee and who pays it) and `GridFees` (the parts of eq. 8) | done |
 | [`reputation.py`](../core/market/reputation.py) | The original's `ReputationHandler`, all reputation dials in one place (weights, decay): eq. 12 from reliability, price fairness and grid contribution, blended with the decay; reads a `StepRecord`; fixed where it disagreed with [P1] (see its docstring); `ReputationScore` | done |
-| [`kpis.py`](../core/market/kpis.py) | The paper's ten implicit-cooperation KPIs ([P1] eq. 19-27), each a function of the records of the steps it is given, in one registry (`KPIS`, `compute`); the definitions the papers leave open are marked `# OPEN` | done, open definitions provisional |
+| [`signals.py`](../core/market/signals.py) | The paper's 42 observation signals ([P1] Table 2): the 10 implicit-cooperation KPIs (functions of the steps given), the 16 market and 16 agent signals (functions of the market now), each a plain function listed in `KPIS`, `MARKET_SIGNALS`, `AGENT_SIGNALS`; NaN when there is nothing to measure; open definitions marked `# OPEN` | done, open definitions provisional |
 | [`agent/der.py`](../core/market/agent/der.py) | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice by reputation and distance, settlement (eq. 13, 14 less its fees, battery eq. 16), its reputation (decay blend), its bus injection; `ParticipantOutcome` | done |
 | [`agent/battery.py`](../core/market/agent/battery.py) | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the market only calls it | done |
 | [`agent/rule_based_bid.py`](../core/market/agent/rule_based_bid.py) | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
@@ -176,12 +174,12 @@ the step's record to observations and rewards; the market rules stay in
 
 | Script | What it does | State |
 |---|---|---|
-| [`market_env.py`](../core/env/market_env.py) | `MarketEnv` (V2): V1's 16 normalised observations per agent (`OBS_NAMES`) plus the partner block (last stage-1 energy, the peers' reputations, grid distances to the peers and the DSO; `obs_names`); the mixed action of [P1] eq. 2 as a `Dict`: side (categorical), quantity share with a no-order threshold and price (continuous), partner (categorical over `partners(agent)`: the peers in scenario order, DSO, none), passed to `OrderIntent.partner_id` unchanged; reward = scaled net energy bill; episode = one day drawn from `days`, terminated at the day end; `resolved_config` (the training scales a run keeps), `contract` (observation names, action parts, partner mapping, scales), `encode`; baselines `zero_policy`, `net_position_policy` (`baseline_policies`); step infos with the side, partner, mutual choice and stage-1 energy. The module docstring documents the interface | done |
-| [`__init__.py`](../core/env/__init__.py) | Public imports: `MarketEnv`, `OBS_NAMES`, `net_position_policy`, `zero_policy` | done |
+| [`market_env.py`](../core/env/market_env.py) | `MarketEnv` (V2): the paper's 42 signals from `signals.py`, scaled, then the peers' reputations (`obs_names`, [Observation](rl/observation.md)); the mixed action of [P1] eq. 2 as a `Dict`: side (categorical), quantity share with a no-order threshold and price (continuous), partner (categorical over `partners(agent)`: the peers in scenario order, DSO, none), passed to `OrderIntent.partner_id` unchanged; reward = scaled net energy bill; episode = one day drawn from `days`, terminated at the day end; `resolved_config` (the training scales a run keeps), `contract` (observation names, action parts, partner mapping, scales), `encode`; baselines `zero_policy`, `net_position_policy` (`baseline_policies`); step infos with the side, partner, mutual choice and stage-1 energy. The module docstring documents the interface | done |
+| [`__init__.py`](../core/env/__init__.py) | Public imports: `MarketEnv`, `OBS_NAMES` (and its three blocks), `net_position_policy`, `zero_policy` | done |
 
 ## core/rl/: the reinforcement-learning layer
 
-The three paradigms (CTCE, CTDE, DTDE) on RLlib's own PPO, APPO and SAC. It
+The three paradigms (CTCE, CTDE, DTDE) on RLlib's own PPO (APPO and SAC are in V1). It
 imports no market module: the environment is passed in as a class. Each file's
 docstring names the issues it fixes ([validation/rl.md](validation/rl.md)). The
 original code and its annotations live on the `clean` branch.
@@ -225,7 +223,7 @@ back into `runs/@taltech/` (`sync`). A spec can also ask for
 cluster `resources` (cpus, mem_gb, minutes per run) and describe its **test
 profile** (`test` block): `--profile test` runs `Experiment.test_version()`, the
 smallest version of the experiment (first seed, one train day and test day, about
-one training batch (SAC: plus its warm-up), 15 minutes, named `<name>--test`), to prove the pipeline
+one training batch, 15 minutes, named `<name>--test`), to prove the pipeline
 with a small amount of actual training. [The resource guide](hpc/resources.md)
 separates run concurrency from within-run sampling; [the workflow guide](hpc/experiments.md)
 describes restart, sync and the inspected execution evidence.
@@ -314,7 +312,7 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`market/test_fees_timing.py`](../tests/market/test_fees_timing.py) | Grid fees priced on the same step's power flow (congestion and thermal parts), the first step charged like any other | done |
 | [`market/test_powerflow_recycle.py`](../tests/market/test_powerflow_recycle.py) | pandapower's `recycle` in the step power flow gives the same grid results | done |
 | [`market/test_grid_methods.py`](../tests/market/test_grid_methods.py) | The graph model's capacity rules and flows; a graph-mode day charges its thermal fees from the graph loading while `record.grid` stays the power flow; the same physics in both arms for a policy that ignores fees; the measured voltage drop | done |
-| [`market/test_kpis.py`](../tests/market/test_kpis.py) | Each KPI against numbers worked out by hand, the empty cases (NaN, not 0), the registry, and one real day | done |
+| [`market/test_signals.py`](../tests/market/test_signals.py) | The KPIs, market and agent signals against numbers worked out by hand, the empty cases (NaN, not 0), the three lists, and one real day | done |
 | [`rl/test_0_every_probe.py`](../tests/rl/test_0_every_probe.py) to `test_5_obs_action_probe.py` | Deterministic checks of the probe environments | done |
 | [`rl/test_6_ctde_structure.py`](../tests/rl/test_6_ctde_structure.py) | The CTDE modules' structure: what the actor and the critic read | done |
 | [`rl/test_training_metrics.py`](../tests/rl/test_training_metrics.py) | Idle reports omitted, learner-only progress preserved, non-finite metrics still fail, timing fields and total training-call time retained; learner metrics over the modules (mean, min, max); every evaluation kept per episode and agent, appended per evaluation point | done |
