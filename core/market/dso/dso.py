@@ -223,6 +223,18 @@ class Dso:
         loss = self.transmission_loss(path.distance_km, trade.quantity)
         return replace(trade, distance=path.distance_km, transmission_loss=loss)
 
+    def trade_path(
+        self,
+        trade: Trade,
+        path: Callable[[str, str], GridPath],
+        upstream: Callable[[str], GridPath],
+    ) -> GridPath:
+        """The peer path, or the participant's upstream path for a DSO trade."""
+        if self.id in (trade.buyer_id, trade.seller_id):
+            other = trade.seller_id if trade.buyer_id == self.id else trade.buyer_id
+            return upstream(other)
+        return path(trade.buyer_id, trade.seller_id)
+
     def charge(
         self,
         trades: Sequence[Trade],
@@ -241,20 +253,15 @@ class Dso:
         ``grid_balance_kwh`` (B_grid before stage 3, + excess supply)."""
         out = []
         for t in trades:
+            parts = self.fees_of(
+                t.quantity,
+                t.price,
+                self.trade_path(t, path, upstream),
+                t.transmission_loss,
+            )
             if self.id in (t.buyer_id, t.seller_id):
-                other = t.seller_id if t.buyer_id == self.id else t.buyer_id
-                parts = self.fees_of(
-                    t.quantity, t.price, upstream(other), t.transmission_loss
-                )
                 imbalance = self.imbalance_fee(t, grid_balance_kwh).imbalance
                 parts = replace(parts, zone=0.0, imbalance=imbalance)
-            else:
-                parts = self.fees_of(
-                    t.quantity,
-                    t.price,
-                    path(t.buyer_id, t.seller_id),
-                    t.transmission_loss,
-                )
             out.append(self._charged(t, parts))
         return tuple(out)
 

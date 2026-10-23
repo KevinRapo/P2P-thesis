@@ -38,7 +38,7 @@ A step can run at once (``step``) or one stage at a time (``start_step``, then
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from typing import Mapping, Optional
 
 from core.config.scenario import BatterySetup, Scenario
@@ -224,22 +224,7 @@ class LocalEnergyMarket:
         )
         self.participants: dict[str, Participant] = {}
         d, m = scenario.dso, scenario.market
-        self.dso = Dso(
-            feed_in_tariff=d.feed_in_tariff,
-            utility_price=d.utility_price,
-            fees_charged=d.fees_charged,
-            fee_buyer_share=d.fee_buyer_share,
-            loss_factor=d.loss_factor,
-            congestion_factor=d.congestion_factor,
-            congestion_threshold=d.congestion_threshold,
-            voltage_factor=d.voltage_factor,
-            voltage_threshold=d.voltage_threshold,
-            thermal_threshold=d.thermal_threshold,
-            thermal_cap=d.thermal_cap,
-            imbalance_factor=d.imbalance_factor,
-            zone_factor=d.zone_factor,
-            voltage_drop=d.voltage_drop,
-        )
+        self.dso = Dso(**asdict(d))
         self.reputation_handler = ReputationHandler(
             reliability_weight=m.reliability_weight,
             fairness_weight=m.fairness_weight,
@@ -393,16 +378,7 @@ class LocalEnergyMarket:
         one."""
         if b is None:
             return None
-        return Battery(
-            capacity_kwh=b.capacity_kwh,
-            min_soc=b.min_soc,
-            max_soc=b.max_soc,
-            charge_efficiency=b.charge_efficiency,
-            discharge_efficiency=b.discharge_efficiency,
-            initial_soc=b.initial_soc,
-            max_power_kw=b.max_power_kw,
-            step_hours=self.scenario.grid.step_hours,
-        )
+        return Battery(**asdict(b), step_hours=self.scenario.grid.step_hours)
 
     def _inputs(self, step: int) -> StepInputs:
         """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are fixed for the
@@ -599,15 +575,10 @@ class LocalEnergyMarket:
         if self.graph is None:
             self.graph = self._graph_model()
         h = self.scenario.grid.step_hours
-        flows = []
-        for t in p.trades:
-            dso = self.dso.id
-            if dso in (t.buyer_id, t.seller_id):
-                other = t.seller_id if t.buyer_id == dso else t.buyer_id
-                path = self._upstream(other)
-            else:
-                path = self._path(t.buyer_id, t.seller_id)
-            flows.append((path, t.quantity / h))
+        flows = [
+            (self.dso.trade_path(t, self._path, self._upstream), t.quantity / h)
+            for t in p.trades
+        ]
         return self.graph.assess(p.step, flows)
 
     def _charge_fees(

@@ -29,7 +29,6 @@ again, which skips completed (and still running) runs and re-queues the rest.
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import socket
@@ -43,6 +42,7 @@ from typing import Optional
 
 import psutil
 
+from core.files import write_json
 from core.runner import registry
 from core.runner.spec import (
     REPO,
@@ -107,20 +107,6 @@ def job_environment() -> dict[str, str]:
 # --------------------------------------------------------------------------------------
 def now() -> str:
     return datetime.now().isoformat(timespec="seconds")
-
-
-def write_json(path: Path, data: dict) -> None:
-    """Replace a JSON file in one step, so a reader never sees half of it."""
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
-    for attempt in range(20):  # Windows refuses while a reader has the file open
-        try:
-            os.replace(tmp, path)
-            return
-        except PermissionError:
-            if attempt == 19:
-                raise
-            time.sleep(0.05)
 
 
 def write_status(run_dir: Path, replace: bool = False, **fields) -> dict:

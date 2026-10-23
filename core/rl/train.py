@@ -77,6 +77,7 @@ from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_SAMPLED_LIFETIME,
 )
 
+from core.files import replace_file as _replace, write_json as _write_json
 from core.rl.config import SETTINGS, Algorithm, build_algo, build_config
 from core.rl.policy import Policy, baselines, evaluation, evaluation_seeds
 
@@ -277,22 +278,6 @@ def _settings_keys(run: Run) -> set[str]:
     return keys | {"train_batch_size_per_learner"}
 
 
-def _replace(path: Path, write) -> None:
-    """Write the file at ``path`` in one step: ``write(tmp)`` writes it beside
-    ``path``, which it then replaces, so a reader (the runner's status, read while
-    the run trains) never sees half of it."""
-    tmp = path.with_name(path.name + ".tmp")
-    write(tmp)
-    for attempt in range(20):  # Windows refuses while a reader has the file open
-        try:
-            os.replace(tmp, path)
-            return
-        except PermissionError:
-            if attempt == 19:
-                raise
-            time.sleep(0.05)
-
-
 def _append(path: Path, frame: pd.DataFrame) -> None:
     """Add ``frame``'s rows (in the file's columns) to the end of a CSV in one write,
     so a reader sees whole rows."""
@@ -328,11 +313,6 @@ def _append_metrics(path: Path, rows: list[dict], columns: list[str]) -> None:
         )
     else:
         _append(path, pd.DataFrame(rows[-1:], columns=columns))
-
-
-def _write_json(path: Path, data: dict) -> None:
-    text = json.dumps(data, indent=2, default=str)
-    _replace(path, lambda tmp: tmp.write_text(text, encoding="utf-8"))
 
 
 # --------------------------------------------------------------------------------------

@@ -23,7 +23,7 @@ flowchart TD
 
   root --> core["core/"]
 
-  core --> cs["settings.py · rl_defaults.py"]:::done
+  core --> cs["settings.py · rl_defaults.py · files.py"]:::done
 
   core --> config["config/"]
   config --> c1["scenario.py"]:::data
@@ -119,10 +119,11 @@ Green: implemented; this is not a fresh test report for every component. Blue: d
 copied unchanged, kept as the reference; most of it is **not importable** (its
 imports point to the old layout).
 
-## core/settings.py: this machine's settings
+## core/: shared helpers
 
 | Script | What it does | State |
 |---|---|---|
+| [`files.py`](../core/files.py) | Atomic file replacement and JSON writing shared by training and the runner; preserves the Windows retry behavior without importing either layer | done |
 | [`settings.py`](../core/settings.py) | The values that belong to a person or a site (cluster account, SSH host, ports, folders): `get(key, default)` from the environment variable, else `.env` in the root, else the default; `expand` fills `${KEY}` / `${KEY:-default}` (used by `hpc/targets.toml`). Standard library only, so any layer may import it | done |
 
 ## core/config/: the scenario
