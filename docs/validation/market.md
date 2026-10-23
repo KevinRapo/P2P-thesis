@@ -918,7 +918,7 @@ step's start), so it is not a per-period quantity either.
 
 **In `marlem-v1`.** `Dso.settle` computes eq. 7 from every DSO trade, per step
 and over the day, with the DSO's revenue and fees
-([dso.py](../../core/market/dso/dso.py#L264-L280)).
+([dso.py](../../core/market/dso.py#L264-L280)).
 
 ### M-25: two opposite sign conventions for the DSO balance
 
@@ -1036,7 +1036,7 @@ hints. The text of eq. 8 calls $F_{\text{trans}}$ a charge for "usage per unit o
 distance of the transmission lines (predefined by the DSO)", and §3.5.2 says the
 losses "are incorporated into trading fees". Both give a fee of quantity ×
 distance × a price factor. Here it is the lost energy (eq. 18) at the trade price
-([dso.py](../../core/market/dso/dso.py#L159)):
+([dso.py](../../core/market/dso.py#L159)):
 
 $$
 F_{\text{trans}} = l_{ij}\, p_{ij} = \kappa\, d_{ij}\, q_{ij}\, p_{ij}
@@ -1071,7 +1071,7 @@ $V_{\text{drop}} = 0.15 \cdot 0.2\ \text{km} = 0.03$ is below the gate, so the v
 0. The thermal cap 0.3 is $f_{\text{threshold}}$ of eq. 8d, which [P1] leaves undefined.
 
 **In `marlem-v1`.** $F_{\text{volt}}$ exactly as eq. 8c; the thermal cap kept at the
-original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso/dso.py#L139-L163)).
+original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso.py#L139-L163)).
 
 ### M-30: the imbalance fee can never apply
 
@@ -1106,7 +1106,7 @@ $F_{\text{imb}}$ is 0 in every possible run.
 
 **In `marlem-v1`.** The imbalance fee is charged on DSO trades that worsen the
 market's balance $B_{\text{grid}}$ (the DSO buying in excess demand, or selling in excess
-supply); a trade that helps pays nothing ([dso.py](../../core/market/dso/dso.py#L165-L178)).
+supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L165-L178)).
 
 <mark class="review">Review</mark> What trade could exactly help at the same time while bringing in more of the quantity that already exists in the P2P market? I dont see a situation
 
@@ -1139,7 +1139,7 @@ quantity to the balance whatever the trade's direction, so a trade that would
 the network, the transformer's low-voltage busbar. A trade with the DSO runs along
 the participant's path to that busbar
 ([powerflow.py](../../core/grid/powerflow.py#L169-L180),
-[dso.py](../../core/market/dso/dso.py#L220-L228)). It has a distance, a loss (eq. 18)
+[dso.py](../../core/market/dso.py#L220-L228)). It has a distance, a loss (eq. 18)
 and the fees of that path: congestion and thermal on its lines, voltage and
 transmission by its length. It gets no zone bonus, since the DSO is in no
 participant's zone. A neighbour is closer than the transformer, so a peer trade

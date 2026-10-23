@@ -171,7 +171,7 @@ eq. 15 bound, the price range (MP-2b), what an out-of-range action does (MP-2a).
 2. [**Double auction**](../../core/market/clearing.py#L140-L170): bids from the
    highest price down, asks from the lowest up, ties broken by reputation, then
    arrival; pairs trade while bid ≥ ask.
-3. [**DSO**](../../core/market/dso/dso.py#L262-L283): every open order clears with
+3. [**DSO**](../../core/market/dso.py#L262-L283): every open order clears with
    the DSO, sells at FiT and buys at the utility price. Every order is therefore
    executed in full; only its price depends on the market.
 
@@ -207,8 +207,8 @@ differ on the same step?
 
 **Now.** After the trades, the AC power flow runs on what the participants
 physically did. Every trade then pays eq. 8 on its path
-([`Dso.fees_of`](../../core/market/dso/dso.py#L161-L185),
-[`Dso.charge`](../../core/market/dso/dso.py#L226-L259)), split 50/50 between
+([`Dso.fees_of`](../../core/market/dso.py#L161-L185),
+[`Dso.charge`](../../core/market/dso.py#L226-L259)), split 50/50 between
 buyer and seller for a peer trade:
 
 | Part | V2 now | Scenario value |
@@ -218,7 +218,7 @@ buyer and seller for a peer trade:
 | Voltage | $f_\text{volt} \cdot d_{ij}$, capped (`voltage_drop = "distance"`; `"measured"` uses the power flow's voltages) | factor 0.15, cap 0.05 |
 | Transmission | the trade's loss $\kappa \cdot d_{ij} \cdot q$ at the trade price | κ 0.03 per km |
 | Zone bonus | a discount when both ends hang on the same feeder | 0.15 |
-| Imbalance | only trades with the DSO, only when they worsen $B_\text{grid}$ = offered − asked ([`imbalance_fee`](../../core/market/dso/dso.py#L187-L200)) | 0.15 |
+| Imbalance | only trades with the DSO, only when they worsen $B_\text{grid}$ = offered − asked ([`imbalance_fee`](../../core/market/dso.py#L187-L200)) | 0.15 |
 
 A trade with the DSO runs from the participant to the transformer's busbar. With
 `grid.method = "graph"` the fees read the line loading of the paper's graph model
@@ -292,7 +292,7 @@ consistent, and how good can a simple rule be?
 
 **Now.** The market's own bidding rule offers a surplus at FiT + 0.3 · spread and
 asks for a deficit at utility − 0.3 · spread (each ± a jitter of 0.1), after
-the battery has taken what it can ([bidding.py](../../core/market/bidding.py)); the Studio's Summary page shows
+the battery has taken what it can ([rule_based_bid.py](../../core/market/agent/rule_based_bid.py)); the Studio's Summary page shows
 a day.
 
 **Check.**

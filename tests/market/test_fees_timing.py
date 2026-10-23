@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from core.config import store
-from core.market.dso.dso import DSO_ID
+from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"

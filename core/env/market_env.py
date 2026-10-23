@@ -180,7 +180,7 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
-from core.market.dso.dso import DSO_ID
+from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepRecord
 from core.market.order import Order
 
@@ -663,7 +663,7 @@ def zero_policy(env: MarketEnv) -> Callable[[dict[str, np.ndarray]], dict]:
 def net_position_policy(
     env: MarketEnv, margin: float = 0.3, battery_first: bool = True
 ) -> Callable[[dict[str, np.ndarray]], dict]:
-    """The market's own bidding rule (``core/market/bidding.py``) read from the
+    """The market's own bidding rule (``core/market/agent/rule_based_bid.py``) read from the
     observation: a surplus is offered at ``FiT + margin · spread``, a deficit asked
     for at ``utility − margin · spread``, without the rule's jitter and without a
     partner preference.

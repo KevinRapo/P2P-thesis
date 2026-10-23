@@ -7,7 +7,7 @@ over, so the Studio can show the market after every stage:
     2  double auction bids from the highest price down, asks from the lowest up;
                       every pair with bid >= ask trades
     3  DSO            the DSO clears the rest (``Dso.clear``,
-                      ``core/market/dso/dso.py``)
+                      ``core/market/dso.py``)
 
 The stages work on copies: the orders as submitted are never changed. Every trade
 leaves its stage with its distance d_ij and transmission loss l_ij ([P1] eq. 18,
@@ -22,7 +22,7 @@ from typing import Callable, Mapping, Sequence
 
 from core.grid.contract import GridPath
 from core.market.clearing_price import ClearingMechanism
-from core.market.dso.dso import DSO_ID, Dso
+from core.market.dso import DSO_ID, Dso
 from core.market.order import Order, Trade
 
 STAGE_NAMES = {1: "Preferences", 2: "Double auction", 3: "DSO"}

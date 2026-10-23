@@ -2,7 +2,7 @@
 
 Named as in the original MARLEM (``LocalEnergyMarket`` in ``lem.py``), but
 without the learning parts (no observation, no reward). It holds the participants
-(``core/market/agent/der.py``), the DSO (``core/market/dso/dso.py``) and the
+(``core/market/agent/der.py``), the DSO (``core/market/dso.py``) and the
 step-time grid, and runs one market step in the order of the paper ([P1] §3.9;
 docs: marlem/methodology.md §3). Each element computes its own equations; the
 market only calls them in order:
@@ -45,7 +45,8 @@ from core.grid import simbench
 from core.grid.contract import GridAssessment, GridPath, NetworkRef
 from core.grid.graph import GraphGrid
 from core.grid.powerflow import SimBenchGrid
-from core.market import bidding, clearing
+from core.market import clearing
+from core.market.agent import rule_based_bid
 from core.market.agent.battery import Battery
 from core.market.agent.der import (
     Participant,
@@ -53,7 +54,7 @@ from core.market.agent.der import (
     profiles_from_elements,
 )
 from core.market.clearing import ClearingRules, StageResult
-from core.market.dso.dso import DSO_ID, Dso, DsoOutcome
+from core.market.dso import DSO_ID, Dso, DsoOutcome
 from core.market.order import Order, Trade
 from core.market.reputation import ReputationHandler, ReputationScore
 
@@ -388,9 +389,9 @@ class LocalEnergyMarket:
         )
 
     def _rule_intents(self, inputs: StepInputs) -> dict[str, OrderIntent]:
-        """The bidding rule's intents (``core/market/bidding.py``)."""
+        """The bidding rule's intents (``core/market/agent/rule_based_bid.py``)."""
         views = {
-            pid: bidding.BidView(
+            pid: rule_based_bid.BidView(
                 pid,
                 inputs.generation_kwh[pid],
                 inputs.demand_kwh[pid],
@@ -398,7 +399,7 @@ class LocalEnergyMarket:
             )
             for pid, p in self.participants.items()
         }
-        rule = bidding.net_position(
+        rule = rule_based_bid.net_position(
             views,
             self.scenario.market,
             inputs.feed_in_tariff,

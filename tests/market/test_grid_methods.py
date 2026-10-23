@@ -20,7 +20,7 @@ import pytest
 from core.env import MarketEnv, net_position_policy
 from core.grid.contract import GridAssessment, GridPath
 from core.grid.graph import GraphGrid, capacities
-from core.market.dso.dso import Dso
+from core.market.dso import Dso
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAY = "2016-07-01"

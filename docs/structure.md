@@ -39,15 +39,14 @@ flowchart TD
   core --> market["market/"]
   market --> m1["lem.py"]:::done
   market --> m7["clearing.py"]:::done
-  market --> m8["bidding.py"]:::done
   market --> m4["clearing_price.py"]:::done
   market --> m2["order.py"]:::done
   market --> m5["reputation.py"]:::done
   market --> agent["agent/"]
   agent --> a1["der.py"]:::done
   agent --> a2["battery.py"]:::done
-  market --> dso["dso/"]
-  dso --> d1["dso.py"]:::done
+  agent --> a3["rule_based_bid.py"]:::done
+  market --> d1["dso.py"]:::done
   market --> profile["profile/"]
   profile --> p1["base.py · der.py · dso.py"]:::orig
 
@@ -151,20 +150,20 @@ never pandapower objects.
 
 The market of the paper ([methodology](marlem/methodology.md)). `lem.py` is the
 one class that runs it (`LocalEnergyMarket`, as in the original); `clearing.py`,
-`bidding.py`, `clearing_price.py` and `reputation.py` are its rebuilt pieces, and
+`agent/rule_based_bid.py`, `clearing_price.py` and `reputation.py` are its rebuilt pieces, and
 the remaining original files (profiles) are the reference.
 
 | Script | What it does | State |
 |---|---|---|
 | [`lem.py`](../core/market/lem.py) | `LocalEnergyMarket`: the participants (`Participant`), the DSO (`Dso`) and the reputation rule, one step in the paper's phases (validate, orders, the three stages, settle, power flow, fees, rate, advance), one stage at a time or all at once; the history of the day | done |
 | [`clearing.py`](../core/market/clearing.py) | The three clearing stages as separate functions: preferences, double auction, DSO; every trade assessed by the DSO (distance, loss, fee) | done |
-| [`bidding.py`](../core/market/bidding.py) | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
 | [`clearing_price.py`](../core/market/clearing_price.py) | `ClearingMechanism` enum: six pricing calculations with one fixed signature (fixes the seller price) | done |
 | [`order.py`](../core/market/order.py) | `Order`, `Trade` (stage, distance, loss, fee and who pays it) and `GridFees` (the parts of eq. 8) | done |
 | [`reputation.py`](../core/market/reputation.py) | The original's `ReputationHandler`, all reputation dials in one place (weights, decay): eq. 12 from reliability, price fairness and grid contribution, blended with the decay; reads a `StepRecord`; fixed where it disagreed with [P1] (see its docstring); `ReputationScore` | done |
 | [`agent/der.py`](../core/market/agent/der.py) | `Participant`: profiles from its elements, feasibility (eq. 15a-b), partner choice by reputation and distance, settlement (eq. 13, 14 less its fees, battery eq. 16), its reputation (decay blend), its bus injection; `ParticipantOutcome` | done |
 | [`agent/battery.py`](../core/market/agent/battery.py) | `Battery`: its energy, what it can still take or give (eq. 15c-d), charging and discharging (eq. 16); the market only calls it | done |
-| [`dso/dso.py`](../core/market/dso/dso.py) | `Dso`: tariffs, market price (their midpoint), the lines' loading of the step's power flow, transmission losses (eq. 18), grid fees (eq. 8) charged after that power flow and who pays them, stage 3 clearing (§3.3.2), its balance (eq. 7) and money; `DsoOutcome`, `DSO_ID` | done |
+| [`agent/rule_based_bid.py`](../core/market/agent/rule_based_bid.py) | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
+| [`dso.py`](../core/market/dso.py) | `Dso`: tariffs, market price (their midpoint), the lines' loading of the step's power flow, transmission losses (eq. 18), grid fees (eq. 8) charged after that power flow and who pays them, stage 3 clearing (§3.3.2), its balance (eq. 7) and money; `DsoOutcome`, `DSO_ID` | done |
 
 ## core/env/: the market as an RL environment
 
@@ -371,7 +370,7 @@ Where the rebuilt step differs from the paper or the original code, for now:
 
 | Topic | Here |
 |---|---|
-| Orders | The standalone market uses `core/market/bidding.py`; `MarketEnv` supplies feasible orders decoded from learned actions |
+| Orders | The standalone market uses `core/market/agent/rule_based_bid.py`; `MarketEnv` supplies feasible orders decoded from learned actions |
 | Orders preferring the DSO | Skip stages 1 and 2 and are cleared in stage 3 (the original cleared them first) |
 | Distance d_ij | Line length along the shortest path between the two buses (km); for a trade with the DSO, the path to the transformer's low-voltage busbar, where its energy enters |
 | Losses (eq. 18) | Recorded on every trade as d · q · κ (κ = 0.03 per km); not taken off the delivered energy, since the power flow has the physical losses |

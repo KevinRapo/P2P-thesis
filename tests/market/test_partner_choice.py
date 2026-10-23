@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 
 from core.env import SCALE_KEYS, MarketEnv, zero_policy
-from core.market.dso.dso import DSO_ID
+from core.market.dso import DSO_ID
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAY = "2016-06-15"
