@@ -357,6 +357,8 @@ The weights $w$ are not given. Reputation is the tie-breaker in the double aucti
     not included. Proof of work raises the nonce until the hash starts with
     `difficulty` zeros (default 2, so about 256 tries per block). The chain starts
     with an empty genesis block, and `verify_chain` recomputes every hash and link.
+    marlem-v2 does not implement it (the ledger changes no market result); it is in
+    `marlem-v1`.
 
 ## 5. Agents ([P1] §3.4)
 

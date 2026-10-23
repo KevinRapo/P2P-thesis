@@ -1593,13 +1593,14 @@ breaking the chain. The matcher also calls the validator's *private*
 in one process, not a consensus between parties. [P1] §3.3.4 presents it as an
 emulation, which is fair, but the hash should cover everything that moves money.
 
-**In `marlem-v1`.** Out of scope for now: the ledger changes no market result.
-The validator is kept as in the original; once the ledger matters, its hash should
-cover each trade's distance, loss and fee.
-
 **In `marlem-v1`.** Original code, with a public `seal_block` in place of the
-private call; off by default (`ledger_difficulty = 0`). Now that fees are charged,
-the hash should cover them.
+private call; off by default (`ledger_difficulty = 0`). The ledger changes no market
+result.
+
+**In `marlem-v2`.** Removed (`validation.py`, `LocalEnergyMarket.ledger` and the
+`ledger_difficulty` setting): the ledger changes no market result and the thesis
+does not use it. The issue stands for the original; a ledger added back later
+should hash each trade's distance, loss and fee.
 
 ## Problems in the paper's market method
 

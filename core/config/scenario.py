@@ -108,8 +108,6 @@ class MarketSetup:
         bid_jitter: Random spread of the prices around that, as a share of the
             tariff spread, so the order book is not flat.
         seed: Seed of the jitter.
-        ledger_difficulty: Proof-of-work difficulty of the trade ledger (0: off;
-            [P1] §3.3.4).
         reliability_weight: w_rel of the reputation ([P1] eq. 12; not given in
             [P1], the original's value).
         fairness_weight: w_fair of the reputation ([P1] eq. 12).
@@ -131,7 +129,6 @@ class MarketSetup:
     bid_margin: float = 0.3
     bid_jitter: float = 0.1
     seed: int = 0
-    ledger_difficulty: int = 0
     reliability_weight: float = 0.3
     fairness_weight: float = 0.2
     grid_weight: float = 0.5

@@ -80,7 +80,6 @@
     "bid_margin": 0.3,
     "bid_jitter": 0.1,
     "seed": 0,
-    "ledger_difficulty": 0,
     "reliability_weight": 0.3,
     "fairness_weight": 0.2,
     "grid_weight": 0.5,

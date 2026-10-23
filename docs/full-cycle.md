@@ -122,7 +122,7 @@ flowchart LR
 
 | # | Phase | Method | Produces | [P1] §3.9 phase |
 |---|---|---|---|---|
-| 0 | Before the day | [`reset`](../core/market/lem.py#L273-L290) | participants with their day's profiles, DSO, grid, ledger | – |
+| 0 | Before the day | [`reset`](../core/market/lem.py#L273-L290) | participants with their day's profiles, DSO, grid | – |
 | 1 | Inputs | [`_inputs`](../core/market/lem.py#L407-L417) | `StepInputs`: $G_t$, $D_t$, $p_\text{FiT}$, $p_\text{utility}$ | – |
 | 2 | Orders | [`start_step`](../core/market/lem.py#L292-L310) | `PendingStep.orders` | 1, 2 |
 | 3 | Clearing | [`advance`](../core/market/lem.py#L319-L322) × 3 → [`clearing.STAGES`](../core/market/clearing.py#L183) | three `StageResult`s with their trades | 3 |
@@ -130,7 +130,7 @@ flowchart LR
 | 5 | Grid | [`_assess_grid`](../core/market/lem.py#L562-L572), [`_grid_signal`](../core/market/lem.py#L584-L602) | `GridAssessment` (and the fee signal) | 4 |
 | 6 | Fees | [`_charge_fees`](../core/market/lem.py#L604-L617), `pay_fees` | each trade's fee parts; profits net of fees | 4 |
 | 7 | Record | [`advance`](../core/market/lem.py#L332-L343) | `StepRecord` | 6 |
-| 8 | Reputation and advance | [`_update_reputation`](../core/market/lem.py#L620-L630), [`_advance`](../core/market/lem.py#L632-L643) | new reputations, next $p_\text{ref}$, ledger block, history | 6, 8 |
+| 8 | Reputation and advance | [`_update_reputation`](../core/market/lem.py#L620-L630), [`_advance`](../core/market/lem.py#L632-L643) | new reputations, next $p_\text{ref}$, history | 6, 8 |
 
 Phases 5 (reward, KPIs) and 7 (observation) of [P1] §3.9 are the environment
 step's E2 and E3. Without the RL agents, the market runs on its own bidding rule
@@ -144,7 +144,7 @@ stages, then the rest).
 |---|---|
 | **Reads** | the scenario: network and day (`grid`), participants and what they own, batteries, market and DSO settings |
 | **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen; the first reference price $p_\text{ref}$ = midpoint of $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network; the graph model if `grid.method = "graph"` |
-| **Writes** | `participants`, `dso`, `ledger`, `clearing_price`, `grid`, `graph`; empty `history` |
+| **Writes** | `participants`, `dso`, `clearing_price`, `grid`, `graph`; empty `history` |
 | **Code** | [`reset`](../core/market/lem.py#L273-L290) → [`_build_participants`](../core/market/lem.py#L366-L389) ([`profiles_from_elements`](../core/market/agent/der.py#L88-L115)), [`_battery`](../core/market/lem.py#L391-L405), [`Dso.market_price`](../core/market/dso/dso.py#L124-L127), [`SimBenchGrid.reset`](../core/grid/powerflow.py#L67-L89), [`_graph_model`](../core/market/lem.py#L574-L582) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
 | **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs constant over the day; *Open: MP-0a, MP-1c, MP-5b* ([plans](plan/index.md)) |
@@ -396,17 +396,17 @@ supply or sells during a shortage
 ([`_calculate_grid_impact`](../core/market/reputation.py#L244-L293)).
 
 **8b. Advance.** [`_advance`](../core/market/lem.py#L632-L643): the clearing price
-becomes next step's $p_\text{ref}$; the trades go into a ledger block, if the
-ledger is on; the record joins `history`, so `current_step` moves on.
+becomes next step's $p_\text{ref}$; the record joins `history`, so `current_step`
+moves on.
 
 | | |
 |---|---|
 | **Reads** | `StepRecord`, each participant's reputation |
-| **Computes** | the three components, the score, the new reputation; the block hash |
-| **Writes** | `Participant.reputation`; `StepRecord.reputation`; `clearing_price`; `history`; the ledger |
+| **Computes** | the three components, the score, the new reputation |
+| **Writes** | `Participant.reputation`; `StepRecord.reputation`; `clearing_price`; `history` |
 | **Code** | above |
-| **Paper** | eq. 12 and §3.3.4 (reputation, decay, ValidateBlock); §3.9 phases 6 and 8 |
-| **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); the block (M-46); *Open: MP-5a, MP-5b, MP-5c, MP-5d* ([plans](plan/index.md)) |
+| **Paper** | eq. 12 and §3.3.4 (reputation, decay); §3.9 phases 6 and 8 |
+| **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); *Open: MP-5a, MP-5b, MP-5c, MP-5d* ([plans](plan/index.md)) |
 
 ## Where is it calculated
 
@@ -443,4 +443,3 @@ Every quantity of the environment step and the market step, with the phase that 
 | Clearing price (next $p_\text{ref}$) | $p_\text{clear}$ | 7 | [`_clearing_price`](../core/market/lem.py#L543-L550) | `StepRecord.clearing_price` |
 | DSO balance, revenue, fees | $B_\text{DSO}$ | 7 | [`Dso.settle`](../core/market/dso/dso.py#L286-L304) | `StepRecord.dso` |
 | Reputation components, score, reputation | $\delta$, $s$, $r$ | 8 | [`ReputationHandler`](../core/market/reputation.py#L119-L293) | `StepRecord.reputation`, `Participant.reputation` |
-| Ledger block | | 8 | [`Validator`](../core/market/validation.py) | the ledger |

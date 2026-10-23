@@ -112,18 +112,6 @@ def _clearing() -> None:
         "other side as its partner; pairs that name each other trade in stage 1, "
         "before the auction. Off: stage 1 stays empty."
     ).classes("mls-card-caption")
-    ui.number(
-        "Ledger proof-of-work difficulty (0: off)",
-        value=m.ledger_difficulty,
-        min=0,
-        max=4,
-        step=1,
-        on_change=lambda e: save("ledger_difficulty", int(e.value or 0)),
-    ).classes("w-full")
-    ui.label(
-        "Each step's trades go into one hashed block. Every level of difficulty "
-        "makes a step about 16 times slower."
-    ).classes("mls-card-caption")
 
 
 # --------------------------------------------------------------------------------------

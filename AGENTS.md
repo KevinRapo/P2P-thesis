@@ -115,9 +115,11 @@ The paper's graph grid model is to be added as a second grid method on the same
 SimBench network (see the top-level `AGENTS.md`). Until it exists, do not delete
 original-paper grid or market functionality, or anything it could use, only
 because nothing calls it today (e.g. `electrical_distance`, the paths and zones of
-`core/grid/powerflow.py`, the ledger, the reputation helpers). The original's
-profile generators (`core/market/profile/`) were removed in V2; they are on the
-`main` and `clean` branches. When unsure, keep it and ask.
+`core/grid/powerflow.py`, the reputation helpers). The original's profile
+generators (`core/market/profile/`) and its blockchain-style trade ledger
+(`validation.py`, with the `ledger_difficulty` setting) were removed in V2: the
+ledger changes no market result. The generators are on the `main` and `clean`
+branches, the ledger also on `marlem-v1`. When unsure, keep it and ask.
 
 ## RL layer
 

@@ -175,7 +175,6 @@ def _market(scenario: Scenario) -> None:
             "Bid margin": f"{m.bid_margin:g}",
             "Bid jitter": f"{m.bid_jitter:g}",
             "Seed": m.seed,
-            "Ledger difficulty": m.ledger_difficulty or "off",
         }
     )
 

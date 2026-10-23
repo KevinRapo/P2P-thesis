@@ -2,10 +2,10 @@
 
 Named as in the original MARLEM (``LocalEnergyMarket`` in ``lem.py``), but
 without the learning parts (no observation, no reward). It holds the participants
-(``core/market/agent/der.py``), the DSO (``core/market/dso/dso.py``), the ledger
-and the step-time grid, and runs one market step in the order of the paper ([P1]
-§3.9; docs: marlem/methodology.md §3). Each element computes its own equations;
-the market only calls them in order:
+(``core/market/agent/der.py``), the DSO (``core/market/dso/dso.py``) and the
+step-time grid, and runs one market step in the order of the paper ([P1] §3.9;
+docs: marlem/methodology.md §3). Each element computes its own equations; the
+market only calls them in order:
 
     1  validate   orders limited to the market bounds and to each participant's
                   eq. 15a-b (``Participant.max_sell_kwh``, ``max_buy_kwh``)
@@ -26,8 +26,7 @@ the market only calls them in order:
                   pays its share (``Participant.pay_fees``); the DSO: its balance
                   (eq. 7) and fees (``Dso.settle``)
     6  advance    reputation (eq. 12 with its decay;
-                  ``ReputationHandler.update_reputation``), clearing price, ledger
-                  block (§3.3.4), clock
+                  ``ReputationHandler.update_reputation``), clearing price, clock
 
 Phases 5 (reward and KPIs) and 7 (observation) of the paper are learning only.
 
@@ -57,7 +56,6 @@ from core.market.clearing import ClearingRules, StageResult
 from core.market.dso.dso import DSO_ID, Dso, DsoOutcome
 from core.market.order import Order, Trade
 from core.market.reputation import ReputationHandler, ReputationScore
-from core.market.validation import Validator
 
 
 # --------------------------------------------------------------------------------------
@@ -233,7 +231,6 @@ class LocalEnergyMarket:
         )
         self.history: list[StepRecord] = []
         self.pending: Optional[PendingStep] = None
-        self.ledger: Optional[Validator] = None
         self.clearing_price = 0.0
         self._paths: dict[tuple[str, str], GridPath] = {}
         self._upstream_paths: dict[str, GridPath] = {}
@@ -261,8 +258,6 @@ class LocalEnergyMarket:
         g = self.scenario.grid
         self.participants = self._build_participants()
         self.dso.reset()
-        difficulty = self.scenario.market.ledger_difficulty
-        self.ledger = Validator(difficulty) if difficulty > 0 else None
         self.clearing_price = self.dso.market_price()
         self.grid = SimBenchGrid(
             g, {p.id: list(p.owns) for p in self.scenario.participants}
@@ -610,15 +605,10 @@ class LocalEnergyMarket:
         return replace(record, reputation=updates)
 
     def _advance(self, record: StepRecord) -> None:
-        """Phase 6 ([P1] §3.9): clearing price, ledger block (ValidateBlock,
-        [P1] §3.3.4), clock. The participants added their profit when they
-        settled and paid their fees ([P1] eq. 14); their reputation is updated
-        just before (``_update_reputation``)."""
+        """Phase 6 ([P1] §3.9): clearing price, clock. The participants added their
+        profit when they settled and paid their fees ([P1] eq. 14); their
+        reputation is updated just before (``_update_reputation``)."""
         self.clearing_price = record.clearing_price
-        if self.ledger is not None:
-            for t in record.trades:
-                self.ledger.add_trade(t)
-            self.ledger.seal_block()
         self.history.append(record)
         self.pending = None
 
