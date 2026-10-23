@@ -160,7 +160,7 @@ the remaining original files (ledger, profiles) are the reference.
 | [`lem.py`](../core/market/lem.py) | `LocalEnergyMarket`: the participants (`Participant`), the DSO (`Dso`) and the reputation rule, one step in the paper's phases (validate, orders, the three stages, settle, power flow, fees, rate, advance), one stage at a time or all at once; the history of the day | done |
 | [`clearing.py`](../core/market/clearing.py) | The three clearing stages as separate functions: preferences, double auction, DSO; every trade assessed by the DSO (distance, loss, fee) | done |
 | [`bidding.py`](../core/market/bidding.py) | The rule that writes orders: battery first, then sell the surplus or buy the deficit between the DSO's tariffs | done |
-| [`clearing_price.py`](../core/market/clearing_price.py) | Pricing mechanisms with one fixed signature (fixes the seller price) | done |
+| [`clearing_price.py`](../core/market/clearing_price.py) | `ClearingMechanism` enum: six pricing calculations with one fixed signature (fixes the seller price) | done |
 | [`order.py`](../core/market/order.py) | `Order`, `Trade` (stage, distance, loss, fee and who pays it) and `GridFees` (the parts of eq. 8) | done |
 | [`reputation.py`](../core/market/reputation.py) | The original's `ReputationHandler`, all reputation dials in one place (weights, decay): eq. 12 from reliability, price fairness and grid contribution, blended with the decay; reads a `StepRecord`; fixed where it disagreed with [P1] (see its docstring); `ReputationScore` | done |
 | [`validation.py`](../core/market/validation.py) | Hash-chained trade ledger with proof of work; `seal_block` closes a market period's block | original, public `seal_block` added |

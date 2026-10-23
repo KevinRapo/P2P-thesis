@@ -113,7 +113,7 @@ def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
     price, when the bid reaches the ask (as the original's
     ``validate_grid_constraints``). Orders that prefer the DSO wait for stage 3."""
     work = [replace(o) for o in orders]
-    pricing = ClearingMechanism(rules.mechanism).get_instance()
+    pricing = ClearingMechanism(rules.mechanism)
     trades = []
     by_agent = {o.agent_id: o for o in work}
     for buy in work:
@@ -143,7 +143,7 @@ def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult
     ties. Pairs trade while the bid is at least the ask. Orders that prefer the DSO
     stay out."""
     work = [replace(o) for o in orders]
-    pricing = ClearingMechanism(rules.mechanism).get_instance()
+    pricing = ClearingMechanism(rules.mechanism)
     rep = rules.reputation
     auction = [o for o in work if o.partner_id != DSO_ID]
     buys = sorted(

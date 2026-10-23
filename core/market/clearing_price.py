@@ -10,125 +10,64 @@ buyer's price; one fixed signature rules that out.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Protocol
 
 from core.market.order import Order
 
 
-# --------------------------------------------------------------------------------------
-# The interface
-# --------------------------------------------------------------------------------------
-class BasePricing(Protocol):
-    """What every pricing mechanism provides."""
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        """The trade price of a matched pair.
-
-        Args:
-            buy_order: The buyer's order.
-            sell_order: The seller's order.
-            reference_price: Previous clearing price, or the tariffs' midpoint.
-        """
-        ...
-
-
-# --------------------------------------------------------------------------------------
-# The mechanisms
-# --------------------------------------------------------------------------------------
-class AveragePricing:
-    """Average of bid and ask ([P1] eq. 9)."""
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        return (buy_order.price + sell_order.price) / 2
-
-
-class BuyerPricing:
-    """The buyer's bid ("pay as offer"); favours the seller ([P1] §3.3.3)."""
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        return buy_order.price
-
-
-class SellerPricing:
-    """The seller's ask ("pay as bid"); favours the buyer ([P1] §3.3.3)."""
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        return sell_order.price
-
-
-class BidAskSpreadPricing:
-    """A point inside the bid-ask spread: ``factor`` 0 is the ask, 1 the bid.
-
-    Used in the [P1] case study, not defined in [P1] §3.3.3.
-    """
-
-    def __init__(self, factor: float = 0.5) -> None:
-        self.factor = max(0.0, min(factor, 1.0))
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        return sell_order.price + (buy_order.price - sell_order.price) * self.factor
-
-
-class NashBargainingPricing:
-    """Equal split of the surplus ([P1] eq. 10); the average when there is none."""
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        spread = buy_order.price - sell_order.price
-        if spread <= 0:
-            return (buy_order.price + sell_order.price) / 2
-        return sell_order.price + spread / 2
-
-
-class ProportionalSurplusPricing:
-    """Surplus split by each side's distance from the reference price ([P1] eq. 11,
-    reconstructed); the average when the distances say nothing."""
-
-    def calculate_price(
-        self, buy_order: Order, sell_order: Order, reference_price: float
-    ) -> float:
-        buyer = max(0.0, buy_order.price - reference_price)
-        seller = max(0.0, reference_price - sell_order.price)
-        spread = buy_order.price - sell_order.price
-        if buyer + seller == 0 or spread <= 0:
-            return (buy_order.price + sell_order.price) / 2
-        return sell_order.price + buyer / (buyer + seller) * spread
-
-
-# --------------------------------------------------------------------------------------
-# Choosing a mechanism by name
-# --------------------------------------------------------------------------------------
 class ClearingMechanism(Enum):
-    """The mechanisms by the name the scenario uses."""
+    """The mechanism selected by a scenario, and its trade-price calculation."""
 
-    AVERAGE = "average"
+    AVERAGE = "average"  # [P1] eq. 9
     BUYER = "buyer"
     SELLER = "seller"
-    BID_ASK_SPREAD = "bid_ask_spread"
-    NASH_BARGAINING = "nash_bargaining"
-    PROPORTIONAL_SURPLUS = "proportional_surplus"
+    BID_ASK_SPREAD = "bid_ask_spread"  # [P1] case study; not defined in §3.3.3
+    NASH_BARGAINING = "nash_bargaining"  # [P1] eq. 10
+    PROPORTIONAL_SURPLUS = "proportional_surplus"  # [P1] eq. 11, reconstructed
 
-    def get_instance(self) -> BasePricing:
-        """The pricing object of this mechanism."""
-        return {
-            "average": AveragePricing,
-            "buyer": BuyerPricing,
-            "seller": SellerPricing,
-            "bid_ask_spread": BidAskSpreadPricing,
-            "nash_bargaining": NashBargainingPricing,
-            "proportional_surplus": ProportionalSurplusPricing,
-        }[self.value]()
+    def calculate_price(
+        self,
+        buy: Order,
+        sell: Order,
+        reference_price: float,
+        *,
+        factor: float = 0.5,
+    ) -> float:
+        """Return the trade price for a matched pair of orders.
+
+        Args:
+            buy: The buyer's order.
+            sell: The seller's order.
+            reference_price: Previous clearing price, or the tariffs' midpoint.
+            factor: For ``BID_ASK_SPREAD`` only, position in the spread,
+                clamped to [0, 1].
+        """
+        match self:
+            case ClearingMechanism.AVERAGE:
+                return (buy.price + sell.price) / 2
+            
+            case ClearingMechanism.BUYER:
+                return buy.price
+            
+            case ClearingMechanism.SELLER:
+                return sell.price
+            
+            case ClearingMechanism.BID_ASK_SPREAD:
+                factor = max(0.0, min(factor, 1.0))
+                return sell.price + (buy.price - sell.price) * factor
+            
+            case ClearingMechanism.NASH_BARGAINING:
+                spread = buy.price - sell.price
+                if spread <= 0:
+                    return (buy.price + sell.price) / 2
+                return sell.price + spread / 2
+            
+            case ClearingMechanism.PROPORTIONAL_SURPLUS:
+                buyer = max(0.0, buy.price - reference_price)
+                seller = max(0.0, reference_price - sell.price)
+                spread = buy.price - sell.price
+                if buyer + seller == 0 or spread <= 0:
+                    return (buy.price + sell.price) / 2
+                return sell.price + buyer / (buyer + seller) * spread
 
 
 # What each mechanism means, for the Studio's captions.
