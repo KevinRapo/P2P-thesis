@@ -25,12 +25,14 @@ SETTINGS: dict[str, dict[str, Any]] = {
     "ppo": {
         "lr": 1e-5,
         "gamma": 0.99,
+        "grad_clip": 0.5,
+        "train_batch_size_per_learner": 4000,
+        "minibatch_size": 4000,
+        "num_epochs": 5,
+        # PPO only
         "lambda_": 0.95,
-        "num_epochs": 30,
-        "minibatch_size": 128,
         "entropy_coeff": 0.01,
         "clip_param": 0.2,
-        "grad_clip": 0.5,
         "use_kl_loss": False,
         "vf_clip_param": 1e6,
     },
