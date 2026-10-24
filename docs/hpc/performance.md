@@ -36,6 +36,7 @@ The probe notebook ([probe_paradigms.ipynb](../../notebooks/rl/probe_paradigms.i
 | This PC, 13 Oct | 3 | one per run | about 91 min; 4 of 45 failed (Ray start-up, memory) |
 | green28, 16 Oct | 16 | one per run | 27 min, capped by the thread limit |
 | green node | 38 | one shared | not measured yet; about 20 min expected (the slowest run) |
+| green24, 23 Oct (V2, PPO, probes 1-10 × 3 paradigms, `"fast"`) | 30 | one shared | 301 s for all 30; with `escalate` (failures again at 2×, 4×, 8×) 1 h 05 min; peak memory 22 GB on `-c 78 --mem=60G` (job 1047329) |
 
 - A run is one process on one core (about 95 % CPU) and about 0.75 GB. A green core
   is as fast as this PC's (SAC DTDE about 1100–1200 s).
@@ -69,11 +70,11 @@ Per 1000 environment steps (one market hour for all agents):
 | Part | Seconds | Source |
 |---|---|---|
 | Market + power flow | about 42 | [market_step.csv](../../notebooks/market/results/market_step.csv): 41 ms at 53 agents (urban6), 40 ms at 39 |
-| RL, PPO CTCE | about 5.5 | [benchmark_speed.ipynb](../../notebooks/rl/benchmark_speed.ipynb), "paper" preset, between 39 and 118 agents |
+| RL, PPO CTCE | about 5.5 | [benchmark_speed.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/notebooks/rl/benchmark_speed.ipynb) (removed; commit 90839c2), "paper" preset, between 39 and 118 agents |
 | RL, PPO CTDE | about 40 | same (27 at 39 agents, 124 at 118) |
 | RL, PPO DTDE | about 100 | same (76 at 39 agents, 248 at 118) |
 
-The RL benchmark ([shapes.py](../../core/rl/envs/shapes.py)) uses the original
+The RL benchmark ([shapes.py](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/core/rl/envs/shapes.py), removed; commit 90839c2) uses the original
 MARLEM market's sizes, 42 observations and 4 actions per agent; `MarketEnv` has 16
 and 2, so these learner times are on the high side. The learner dominates in CTDE
 and DTDE (one network per agent); CTCE has one network.
@@ -124,14 +125,14 @@ booked CPUs at start-up and in the tail.
 1. A 50-agent scenario on a green node: the market step
    ([benchmark_market_step.ipynb](../../notebooks/market/benchmark_market_step.ipynb))
    and the RL benchmark for PPO, APPO and SAC at N = 50
-   ([benchmark_speed.ipynb](../../notebooks/rl/benchmark_speed.ipynb)).
+   ([benchmark_speed.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/notebooks/rl/benchmark_speed.ipynb), removed; commit 90839c2).
 2. One short real run per paradigm (e.g. 10,000 steps) through `core.runner`, to
    replace the factor 1.5.
 3. Then refill the tables above.
 
 ## Node types on the market
 
-Measured 20–21 October 2026 with [benchmark.py](../../core/rl/scripts/benchmark.py) on
+Measured 20–21 October 2026 with [benchmark.py](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/core/rl/scripts/benchmark.py) (removed; commit 90839c2) on
 `MarketEnv` (`validate_market`, first week of June), the PPO and SAC settings of
 [market_3x3.json](../../config/experiments/market_3x3.json), one torch thread, no
 remote samplers. Seconds per 1000 environment steps; one measurement each.
