@@ -56,7 +56,7 @@ measurement below 7–13 threads used more than 1 s of CPU, the main threads of 
 samplers and the driver. The 4096 limit counts every thread that exists, asleep or
 not, so only the peak matters for sizing.
 
-Measured with [core/rl/scripts/thread_probe.py](../../core/rl/scripts/thread_probe.py) on green
+Measured with [core/rl/scripts/thread_probe.py](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/core/rl/scripts/thread_probe.py) (removed 24 Oct 2026; commit 90839c2) on green
 nodes (SLURM jobs 1043952, 1044568, 1044587–1044591; 19–20 October 2026): one run
 of the test profile of [market_3x3.json](../../config/experiments/market_3x3.json) with
 one setting changed (base: PPO, DTDE, 5 agents), counting the threads of the run's

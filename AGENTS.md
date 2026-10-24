@@ -23,8 +23,8 @@ core/        the MARLEM functionality: everything a notebook can call
   config/      the scenario: network, participants, market rules; save and load
   market/      orders, matching, pricing, DSO, agents, reputation; LocalEnergyMarket
   env/         MarketEnv: the market as an RLlib multi-agent environment
-  rl/          the RL layer (paradigms on RLlib), with envs/ (test environments)
-               and scripts/ (probe check, benchmark, thread probe)
+  rl/          the RL layer (paradigms on RLlib), with envs/ (the probe
+               environments) and scripts/ (the probe check)
   runner/      experiments: start, watch, stop and sync training runs
   settings.py  this machine's settings (.env)
 config/      experiments/: experiment specs (JSON, tracked), which runs to train;
