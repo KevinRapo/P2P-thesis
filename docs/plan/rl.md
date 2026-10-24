@@ -290,3 +290,5 @@ Questions raised while working on a stage that belong elsewhere. Add, do not act
 |---|---|---|
 | 22 Oct | SAC with the mixed action | After stage 8, if time allows |
 | 22 Oct | Partner choice conditional on side (autoregressive policy) | Only if probe 9 and stage 5 show it is needed |
+| 24 Oct | A shared central critic with separate policies, still estimating each agent's own value (agent ID or $[o_i, s]$ as input; value normalisation): does learning from every agent's examples help, or do the households' different returns interfere? Same operations per step as separate critics; the possible gain is data, not computation | After stage 8; compare with the per-agent critics (RP-3e) |
+| 24 Oct | Group-wise policy sharing: one policy per kind of household (PV + battery, battery only, consumer), as in selective parameter sharing (Christianos et al. 2021) | After stage 8; one module per group in `config.py` |
