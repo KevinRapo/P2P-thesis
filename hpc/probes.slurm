@@ -20,7 +20,7 @@
 #SBATCH --time=03:00:00              # per task
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2            # one training process; Ray's own threads
-#SBATCH --mem=3G
+#SBATCH --mem=6G                 # 3G: about 40 % of the tasks were killed at start
 #SBATCH --output=probes-%A_%a.out
 
 source ~/miniforge3/etc/profile.d/conda.sh
