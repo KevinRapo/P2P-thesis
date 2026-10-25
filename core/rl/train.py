@@ -9,9 +9,13 @@ A run is PPO in one paradigm, one seed and one budget of environment steps. Ever
                      versions, git commit, status, final scores (fixes L-16's
                      missing record)
     metrics.csv      one row per progress report: environment steps, team
-                     return, learner metrics per module and their mean, min and
-                     max over the modules (``modules/<metric>_mean`` ...), timing
-                     (idle polls omitted)
+                     return, learner metrics per module (losses, explained
+                     variance, entropy, the gradient's global norm before
+                     clipping) and their mean, min and max over the modules
+                     (``modules/<metric>_mean`` ...), each action part's
+                     distribution in fixed states (``<module>/<part>/mean``,
+                     ``log_std``, ``outside``, ``entropy``, ``top``;
+                     ``policy.part_stats``), timing (idle polls omitted)
     evaluation.csv   periodic evaluation: the policy and the baselines on seeds
                      training does not use, but on the training configuration
                      (the market's training days), at fixed environment-step
@@ -79,7 +83,14 @@ from ray.rllib.utils.metrics import (
 
 from core.files import replace_file as _replace, write_json as _write_json
 from core.rl.config import SETTINGS, Algorithm, build_algo, build_config
-from core.rl.policy import Policy, baselines, evaluation, evaluation_seeds
+from core.rl.policy import (
+    Policy,
+    baselines,
+    evaluation,
+    evaluation_seeds,
+    observation_sample,
+    part_stats,
+)
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -92,6 +103,10 @@ LEARNER_METRICS = [
     "entropy",
     "mean_kl_loss",
     "num_module_steps_trained",
+    "vf_loss_unclipped",
+    # The global norm of the module's gradient before ``grad_clip``: above the
+    # clip, the update (actor and critic together) is scaled down.
+    "gradients_default_optimizer_global_norm",
 ]
 
 
@@ -459,6 +474,8 @@ def train(run: Run) -> dict[str, Any]:
         timings["build_s"] = time.perf_counter() - stage_start
         # Step 0: the untrained policy and the baselines, on the same seeds.
         evaluate_now(0, baselines(run.env_class, env_config, run.seed))
+        # The fixed states each action part's distribution is read in, every row.
+        states = observation_sample(run.env_class, env_config, seed=run.seed)
         env_steps, iteration = 0, 0
         learner_steps = 0
         loop_start = time.perf_counter()
@@ -487,6 +504,8 @@ def train(run: Run) -> dict[str, Any]:
                     elapsed_s=time.perf_counter() - loop_start,
                     sampled_steps_per_train_s=env_steps / timings["train_calls_s"],
                 )
+                policy = Policy(learner_modules(algo), run.paradigm, env)
+                row.update(part_stats(policy, states))
                 rows.append(row)
                 _append_metrics(out / "metrics.csv", rows, metric_columns)
 

@@ -35,6 +35,8 @@ def fake_training(monkeypatch, tmp_path, results):
     monkeypatch.setattr(training, "learner_modules", lambda algo: None)
     monkeypatch.setattr(training, "Policy", lambda *a: None)
     monkeypatch.setattr(training, "baselines", lambda *a: {})
+    monkeypatch.setattr(training, "observation_sample", lambda *a, **kw: [])
+    monkeypatch.setattr(training, "part_stats", lambda *a: {})
     monkeypatch.setattr(
         training,
         "evaluation",

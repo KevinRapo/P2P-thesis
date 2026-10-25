@@ -457,3 +457,117 @@ def baselines(env_class: type, env_config: dict, seed: int = 0) -> dict[str, Act
         return found | env.baseline_policies(seed)
 
     return found | {"zero": constant_policy(env, 0.0)}
+
+
+# --------------------------------------------------------------------------------------
+# Diagnostics: the action distribution part by part
+# --------------------------------------------------------------------------------------
+DIAGNOSTIC_STEPS = 128  # states the per-part statistics are taken over
+
+
+def action_parts(
+    space: spaces.Space, agents: Optional[Sequence[str]] = None
+) -> list[tuple[str, spaces.Space, int]]:
+    """The leaf parts of one module's action space, in the order RLlib cuts the
+    module's distribution inputs into them (``TorchMultiDistribution``: dm-tree's
+    flattening of the space's structure, a ``Dict``'s keys sorted), each with its
+    name and its number of inputs: ``n`` for a ``Discrete``, a mean and a log σ per
+    dimension for a ``Box``. A ``Tuple`` of agents' actions (CTCE) names each part
+    after its agent, ``agent.part``."""
+    struct = get_base_struct_from_space(space)
+
+    if isinstance(struct, spaces.Space):
+        paths = [((), struct)]
+    else:
+        paths = tree.flatten_with_path(struct)
+
+    out = []
+
+    for path, part in paths:
+        names = [str(k) for k in path]
+        if agents is not None and names:
+            names[0] = agents[int(names[0])]
+        if isinstance(part, spaces.Discrete):
+            size = int(part.n)
+        else:
+            size = 2 * int(np.prod(part.shape))
+
+        out.append((".".join(names) or "action", part, size))
+
+    return out
+
+
+def observation_sample(
+    env_class: type, env_config: dict, steps: int = DIAGNOSTIC_STEPS, seed: int = 0
+) -> list[dict[str, np.ndarray]]:
+    """``steps`` observations of every agent, from episodes played with random
+    actions: the fixed states ``part_stats`` reads the policy in."""
+    env = env_class(env_config)
+    act = random_policy(env, seed)
+    found, episode = [], 0
+
+    while len(found) < steps:
+        obs, _ = env.reset(seed=seed + episode)
+        episode += 1
+        found.append(obs)
+
+        while len(found) < steps:
+            obs, _, terminateds, truncateds, _ = env.step(act(obs))
+            if terminateds["__all__"] or truncateds["__all__"]:
+                break
+            found.append(obs)
+
+    return found
+
+
+def part_stats(policy: Policy, observations: list[dict]) -> dict[str, float]:
+    """Each module's action distribution part by part, averaged over
+    ``observations`` (``observation_sample``):
+
+        <module>/<part>/mean      a continuous part: its Gaussian's mean
+        <module>/<part>/log_std   its log σ (RLlib does not clip it for a Dict action)
+        <module>/<part>/outside   the share of states whose mean is outside [-1, 1],
+                                  where the clipped action makes the reward flat
+        <module>/<part>/entropy   a categorical part: its entropy
+        <module>/<part>/top       its most likely category's probability
+
+    In the network's units: a continuous part's [-1, 1] is its space's bounds."""
+    inputs: dict[str, list[np.ndarray]] = {}
+
+    for obs in observations:
+        for mid, x in policy._inputs(obs).items():
+            inputs.setdefault(mid, []).append(np.asarray(x, dtype=np.float32))
+
+    out = {}
+
+    for mid, xs in inputs.items():
+        if policy.paradigm == Paradigm.CTCE:
+            space = spaces.Tuple([policy.act_spaces[a] for a in policy.agents])
+            parts = action_parts(space, policy.agents)
+        else:
+            parts = action_parts(policy.act_spaces[mid])
+
+        batch = {Columns.OBS: torch.as_tensor(np.stack(xs))}
+
+        with torch.no_grad():
+            logits = policy.modules[mid].forward_inference(batch)
+            logits = logits[Columns.ACTION_DIST_INPUTS]
+
+        chunks = torch.split(logits, [size for _, _, size in parts], dim=-1)
+
+        for (name, part, _), chunk in zip(parts, chunks):
+            key = f"{mid}/{name}"
+
+            if isinstance(part, spaces.Discrete):
+                probs = torch.softmax(chunk, dim=-1)
+                entropy = -(probs * torch.log(probs.clamp_min(1e-12))).sum(-1)
+                out[f"{key}/entropy"] = float(entropy.mean())
+                out[f"{key}/top"] = float(probs.max(-1).values.mean())
+                continue
+
+            mean, log_std = chunk.chunk(2, dim=-1)
+            out[f"{key}/mean"] = float(mean.mean())
+            out[f"{key}/log_std"] = float(log_std.mean())
+            out[f"{key}/outside"] = float((mean.abs() > 1.0).float().mean())
+
+    return out
