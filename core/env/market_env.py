@@ -254,9 +254,9 @@ class MarketEnv(MultiAgentEnv):
             for p in self.market.participants.values():
                 largest = max(largest, max(p.generation_kwh), max(p.demand_kwh))
 
-        return max(largest, 1e-6)
+        return max(largest, 1e-6) 
 
-    def _action_space(self) -> spaces.Dict:
+    def _action_space(self) -> spaces.Dict: #! Action shape
         """One agent's action: the four components of [P1] eq. 2."""
         unit = spaces.Box(-1.0, 1.0, (1,), np.float32)
         return spaces.Dict(
