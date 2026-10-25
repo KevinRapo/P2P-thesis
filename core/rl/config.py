@@ -54,6 +54,7 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from core.rl.ctce import GROUP, CTCEEnv
 from core.rl.ctde import CTDEEnv, CTDEPPOModule
+from core.rl.modules import PPOModule
 from core.rl_defaults import NETWORK, SETTINGS
 
 
@@ -159,7 +160,7 @@ def build_config(
             for mid in module_ids
         }
     else:
-        specs = {mid: RLModuleSpec() for mid in module_ids}
+        specs = {mid: RLModuleSpec(module_class=PPOModule) for mid in module_ids}
 
     return config.rl_module(rl_module_spec=MultiRLModuleSpec(rl_module_specs=specs))
 

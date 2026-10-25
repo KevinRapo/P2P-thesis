@@ -50,4 +50,9 @@ NETWORK: dict[str, Any] = {
     "free_log_std": False,
     "log_std_clip_param": 20.0,
     "vf_share_layers": False,
+    # Our own (core/rl/modules.py, RP-3h): the continuous action parts kept in
+    # bounds. Off: the policy head is RLlib's.
+    "bound_mean": False,
+    "log_std_bounds": None,
+    "free_log_std_parts": False,
 }

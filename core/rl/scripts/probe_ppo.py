@@ -36,7 +36,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--probes", nargs="+", default=list(probe_check.PROBES))
     parser.add_argument("--paradigms", nargs="+", default=probe_check.PARADIGMS)
-    parser.add_argument("--preset", choices=list(probe_check.PRESETS), default="fast")
+    parser.add_argument(
+        "--preset", default="fast", help="fast, thorough, or with a variant: fast:A"
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--workers", type=int, default=None)
     parser.add_argument("--budget-scale", type=float, default=1.0)

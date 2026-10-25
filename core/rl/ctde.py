@@ -32,13 +32,11 @@ from typing import Any, Optional
 import numpy as np
 import torch
 from gymnasium import spaces
-from ray.rllib.algorithms.ppo.torch.default_ppo_torch_rl_module import (
-    DefaultPPOTorchRLModule,
-)
 from ray.rllib.core.columns import Columns
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.utils.typing import MultiAgentDict
 
+from core.rl.modules import PPOModule
 from core.rl.state import join, join_spaces
 
 
@@ -142,8 +140,9 @@ def own_encoder(module) -> OwnObsEncoder:
     return OwnObsEncoder(encoder, dim)
 
 
-class CTDEPPOModule(DefaultPPOTorchRLModule):
-    """RLlib's PPO module; the actor reads the agent's own observation only."""
+class CTDEPPOModule(PPOModule):
+    """``PPOModule`` (RLlib's PPO module, its policy head bounded as configured);
+    the actor reads the agent's own observation only."""
 
     def setup(self):
         super().setup()

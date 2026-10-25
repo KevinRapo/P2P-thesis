@@ -327,11 +327,16 @@ def test_the_rl_defaults_are_those_the_trainer_uses():
     from core.rl.config import MODEL
     from core.rl_defaults import NETWORK
 
+    from core.rl.modules import BOUND_MEAN, FREE_LOG_STD, LOG_STD_BOUNDS
+
+    ours = {"vf_share_layers": False, BOUND_MEAN: False, LOG_STD_BOUNDS: None}
+    ours[FREE_LOG_STD] = False  # our own options (core/rl/modules.py), all off
     rllib = dataclasses.asdict(DefaultModelConfig())
-    assert {k: v for k, v in NETWORK.items() if k != "vf_share_layers"} == {
-        k: rllib[k] for k in NETWORK if k != "vf_share_layers"
+    assert {k: v for k, v in NETWORK.items() if k not in ours} == {
+        k: rllib[k] for k in NETWORK if k not in ours
     }
-    assert MODEL == rllib | {"vf_share_layers": False}
+    assert {k: NETWORK[k] for k in ours} == ours
+    assert MODEL == rllib | ours
 
 
 def test_written_out_shows_every_setting_and_makes_the_same_runs():

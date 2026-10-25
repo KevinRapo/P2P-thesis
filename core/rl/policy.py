@@ -55,6 +55,7 @@ from ray.rllib.utils.spaces.space_utils import (
 from core.rl.config import Paradigm
 from core.rl.ctce import GROUP, ungroup
 from core.rl.ctde import central_obs
+from core.rl.modules import action_parts
 from core.rl.state import join
 
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
@@ -463,38 +464,6 @@ def baselines(env_class: type, env_config: dict, seed: int = 0) -> dict[str, Act
 # Diagnostics: the action distribution part by part
 # --------------------------------------------------------------------------------------
 DIAGNOSTIC_STEPS = 128  # states the per-part statistics are taken over
-
-
-def action_parts(
-    space: spaces.Space, agents: Optional[Sequence[str]] = None
-) -> list[tuple[str, spaces.Space, int]]:
-    """The leaf parts of one module's action space, in the order RLlib cuts the
-    module's distribution inputs into them (``TorchMultiDistribution``: dm-tree's
-    flattening of the space's structure, a ``Dict``'s keys sorted), each with its
-    name and its number of inputs: ``n`` for a ``Discrete``, a mean and a log σ per
-    dimension for a ``Box``. A ``Tuple`` of agents' actions (CTCE) names each part
-    after its agent, ``agent.part``."""
-    struct = get_base_struct_from_space(space)
-
-    if isinstance(struct, spaces.Space):
-        paths = [((), struct)]
-    else:
-        paths = tree.flatten_with_path(struct)
-
-    out = []
-
-    for path, part in paths:
-        names = [str(k) for k in path]
-        if agents is not None and names:
-            names[0] = agents[int(names[0])]
-        if isinstance(part, spaces.Discrete):
-            size = int(part.n)
-        else:
-            size = 2 * int(np.prod(part.shape))
-
-        out.append((".".join(names) or "action", part, size))
-
-    return out
 
 
 def observation_sample(

@@ -141,13 +141,42 @@ PRESETS = {
     },
 }
 
+# Variants of the learner, on top of a preset: ``"fast:A"`` is the fast preset
+# with variant A. The continuous action parts kept in bounds (A, RP-3h, the
+# module's options in core/rl/modules.py), the gradient clip raised to MAPPO's
+# (B, RP-3d), both, or one log σ per part for every state as in MAPPO (S).
+VARIANTS = {
+    "A": {"model": {"bound_mean": True, "log_std_bounds": [-3.0, 0.0]}},
+    "B": {"training": {"grad_clip": 10.0}},
+    "AB": {
+        "model": {"bound_mean": True, "log_std_bounds": [-3.0, 0.0]},
+        "training": {"grad_clip": 10.0},
+    },
+    "S": {"model": {"free_log_std_parts": True}},
+}
+
+
+def settings_of(preset: str) -> dict:
+    """A preset's settings, with its variant's on top: ``"fast"`` or
+    ``"fast:A"`` (``PRESETS``, ``VARIANTS``)."""
+    name, _, variant = preset.partition(":")
+    base = PRESETS[name]
+    extra = VARIANTS[variant] if variant else {}
+
+    return {
+        "model": base["model"] | extra.get("model", {}),
+        "training": base["training"] | extra.get("training", {}),
+        "budget_scale": base["budget_scale"],
+    }
+
 
 # --------------------------------------------------------------------------------------
 # Runs
 # --------------------------------------------------------------------------------------
 def runs_dir(preset: str) -> Path:
-    """Where the runs of a preset are kept."""
-    return ROOT / "runs" / f"probes_{preset}"
+    """Where the runs of a preset (and variant) are kept: ``runs/probes_fast``,
+    ``runs/probes_fast_A``."""
+    return ROOT / "runs" / f"probes_{preset.replace(':', '_')}"
 
 
 def make_run(
@@ -155,7 +184,7 @@ def make_run(
 ) -> Run:
     """One run: PPO in ``paradigm`` on ``probe``, ``scale`` times the preset's
     budget."""
-    p, settings = PROBES[probe], PRESETS[preset]
+    p, settings = PROBES[probe], settings_of(preset)
     suffix = "" if scale == 1.0 else f"_x{scale:g}"
 
     return Run(
