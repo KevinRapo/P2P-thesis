@@ -86,6 +86,34 @@ def test_mutual_choice_pays_only_together():
     assert _rewards(env, same_side)[first] == pytest.approx(0.1)
 
 
+def test_mutual_choice_dso_reward_and_coordination_share():
+    """``dso_reward`` sets what naming the DSO pays (8a: 0.1, below the 1/6 that
+    naming the mate is worth at the start; 8b: 0.5, above it). ``coordinated`` is
+    the share of pairs naming each other on opposite sides."""
+    for key, paid in (("8a", 0.1), ("8b", 0.5)):
+        config = dict(PROBES[key].env_config)
+        env = MutualChoiceProbe(config)
+        assert env.dso_reward == paid
+        dso = {a: {"side": env.preferred[a], "partner": env.DSO} for a in env.agents_id}
+        assert all(r == pytest.approx(paid + 0.1) for r in _rewards(env, dso).values())
+
+    assert paid > 1 / 6 > PROBES["8a"].env_config["dso_reward"]
+    assert PROBES["8b"].measured and not PROBES["8a"].measured
+
+    env = MutualChoiceProbe({"n_agents": 4, "scramble_ids": True})
+    best = _best(env, env.checks(0.99)[0])
+    assert env.coordinated(best) == 1.0
+
+    half = dict(best)
+    first, second = env.agents_id[:2]
+    half[first] = {"side": env.preferred[first], "partner": env.DSO}
+    assert env.coordinated(half) == 0.5
+
+    one_sided = dict(best)
+    one_sided[second] = {"side": env.preferred[first], "partner": env.MATE}
+    assert env.coordinated(one_sided) == 0.5  # same sides: no trade
+
+
 def test_mutual_choice_needs_pairs():
     with pytest.raises(ValueError):
         MutualChoiceProbe({"n_agents": 3})
@@ -93,11 +121,20 @@ def test_mutual_choice_needs_pairs():
 
 def test_conditional_part_level_follows_the_side():
     """The own side at its level earns 1.05; the other side at its own level 1.0;
-    a level that ignores the side (0) earns less on either."""
+    a level that ignores the side (0) earns less on either. The check judges the
+    level against the chosen side's target and leaves the side free."""
     env = ConditionalPartProbe(SCRAMBLED)
     check = env.checks(0.99)[0]
-    best = _best(env, check)
+    best = {
+        a: {"side": s, "level": _unit(env.level_for[s])}
+        for a, s in env.own_side.items()
+    }
     assert _rewards(env, best) == {a: pytest.approx(1.05) for a in env.agents_id}
+
+    for agent, parts in check.action.items():
+        assert parts["side"] is None
+        assert parts["level"].on == "side"
+        assert parts["level"].targets == {0: -0.5, 1: 0.5}
 
     other = {
         a: {"side": 1 - s, "level": _unit(env.level_for[1 - s])}
@@ -113,7 +150,7 @@ def test_long_episode_values_are_the_discounted_end_reward():
     """24 steps, +1 at the last only, the hour in the observation: the discounted
     return from hour t is γ^(23 − t), as the checks state."""
     env = LongEpisodeProbe({"n_agents": 3})
-    gamma = PROBES[10].gamma
+    gamma = PROBES["10"].gamma
     obs, _ = env.reset(seed=0)
     hours, rewards = [obs[env.agents_id[0]][0]], []
 
@@ -133,13 +170,15 @@ def test_long_episode_values_are_the_discounted_end_reward():
     }
     for check in env.checks(gamma):
         hour = round(check.obs[env.agents_id[0]][0] * 23)
+        assert check.relative
         for value in check.value.values():
             assert value == pytest.approx(returns[hour])
 
 
 def test_every_probe_has_a_budget_and_its_checks():
-    """The check's table covers probes 1-10, each with checks it can score."""
-    assert sorted(PROBES) == list(range(1, 11))
+    """The check's table covers probes 1-10 (8 as 8a and 8b), each with checks it
+    can score."""
+    assert list(PROBES) == ["1", "2", "3", "4", "5", "6", "7", "8a", "8b", "9", "10"]
 
     for number, probe in PROBES.items():
         env = probe.env_class(dict(probe.env_config))

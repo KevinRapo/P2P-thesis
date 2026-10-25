@@ -35,23 +35,39 @@ Probes 7-10 each isolate one feature of the market (``docs/plan/rl.md``, stage 2
 
     7  GatedActionProbe      a gate decides whether the choice counts   open at 0.5, c_i
     8  MutualChoiceProbe     pairs paid only when they name each other  mutual, own side
-    9  ConditionalPartProbe  the best level depends on the side          s_i, t_{s_i}
+    9  ConditionalPartProbe  the best level depends on the side          level = t_side
     10 LongEpisodeProbe      24 steps, reward at the end                 V(t) = γ^(23-t)
 
-Probes 7 and 8 have a local optimum on purpose (never open the gate; name the
-DSO): the market has the same ones (never order; trade with the DSO). Failing
-them at the fast budget says how hard the market's version is, not that the
-learner is broken; ``core/rl/scripts/probe_check.escalate`` trains them longer.
+Probe 7 has a local optimum on purpose (never open the gate), as the market has
+(never order). Probe 8 runs twice (``core/rl/scripts/probe_check.py``): with the
+DSO paying 0.1, mutual naming is the safe choice from the start and its answer is
+exact (8a); with the DSO paying 0.5 it is a stag hunt whose safe option
+independent learners are expected to choose, so it is measured (the share of
+pairs that coordinate), not judged (8b).
+
+What a check expects of an action part (``Check.action``): a number (a continuous
+part's mean), an ``int`` (the category exactly), ``None`` (not checked: any value
+is right) or ``Follows`` (the right value depends on the category another part
+chose).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import numpy as np
 from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
+
+
+@dataclass(frozen=True)
+class Follows:
+    """An action part whose right value depends on the category another part chose:
+    ``targets[category of part on]``."""
+
+    on: str
+    targets: dict[int, float] = field(default_factory=dict)
 
 
 @dataclass
@@ -62,13 +78,18 @@ class Check:
         name: Short description of the state.
         obs: Observation of each agent.
         value: Expected value of each agent (``None``: not checked).
-        action: Expected action mean of each agent (``None``: not checked).
+        action: Expected action of each agent (``None``: not checked); for a mixed
+            action, one entry per part (see the module docstring).
+        relative: Judge the values relative to their size (``TOLERANCE · |V|``)
+            instead of ``TOLERANCE · max(1, |V|)``: for values well below 1, where
+            an absolute tolerance would accept almost anything.
     """
 
     name: str
     obs: dict[str, np.ndarray]
     value: Optional[dict[str, float]] = None
-    action: Optional[dict[str, float]] = None
+    action: Optional[dict[str, Any]] = None
+    relative: bool = False
 
 
 # --------------------------------------------------------------------------------------
@@ -379,15 +400,23 @@ class MutualChoiceProbe(_DictProbe):
     side 0 sells, 1 buys; partner 0 names the pair-mate, 1 the DSO, 2 nobody.
 
     Reward: 1 when both name each other on opposite sides (stage 1 of the
-    clearing), 0.5 for naming the DSO (a safe outside option, like its tariffs),
-    else 0; plus 0.1 for the agent's own preferred side (the first of a pair
-    sells, the second buys), which makes the best answer unique: preferred sides,
-    mutual naming, 1.1 each.
+    clearing), ``dso_reward`` for naming the DSO (a safe outside option, like its
+    tariffs), else 0; plus 0.1 for the agent's own preferred side (the first of a
+    pair sells, the second buys), which makes the best answer unique: preferred
+    sides, mutual naming, 1.1 each.
 
-    The safe option makes this a stag hunt: naming the DSO pays 0.6 whatever the
-    mate does, mutual naming pays more only if both do it. Independent learners
-    are known to settle on the safe option; the probe shows whether a paradigm
-    finds the coordinated answer."""
+    Which answer a learner should reach depends on ``dso_reward``. At the start
+    every choice is uniform, so naming the mate pays P(mate names me) · P(opposite
+    sides) = 1/3 · 1/2 = 1/6 on average, naming the DSO ``dso_reward``:
+
+    - ``dso_reward`` below 1/6 (8a: 0.1): mutual naming is the better bet from the
+      start, so every working learner should find it. An exact check.
+    - ``dso_reward`` above 1/6 (8b: 0.5, the default): a stag hunt. The DSO is the
+      risk-dominant choice and independent learners are expected to settle on it
+      (Claus and Boutilier 1998); CTCE's summed reward makes mutual naming worth
+      1/3 to the pair, still below 0.5. Measured with ``coordinated``, not judged.
+
+    env_config keys (besides ``_Probe``'s): ``dso_reward`` (default 0.5)."""
 
     parts = {"side": spaces.Discrete(2), "partner": spaces.Discrete(3)}
     MATE, DSO, NOBODY = 0, 1, 2
@@ -398,11 +427,32 @@ class MutualChoiceProbe(_DictProbe):
         if len(self.agents_id) % 2:
             raise ValueError("MutualChoiceProbe needs an even number of agents")
 
-        self.mate = {
-            a: self.agents_id[i ^ 1] for i, a in enumerate(self.agents_id)
-        }
+        self.dso_reward = float((env_config or {}).get("dso_reward", 0.5))
+        # Pairs in agent order: the 1st with the 2nd, the 3rd with the 4th, ...
+        self.mate = {}
+
+        for first in range(0, len(self.agents_id), 2):
+            a, b = self.agents_id[first], self.agents_id[first + 1]
+            self.mate[a] = b
+            self.mate[b] = a
         self.preferred = {a: i % 2 for i, a in enumerate(self.agents_id)}
         self._actions: dict[str, dict[str, Any]] = {}
+
+    def coordinated(self, actions: dict[str, Any]) -> float:
+        """The share of pairs whose actions are mutual naming on opposite sides."""
+        parsed = {a: self._parse(actions[a]) for a in self.agents_id}
+        firsts = self.agents_id[::2]
+        hits = 0
+
+        for a in firsts:
+            b = self.mate[a]
+            hits += (
+                parsed[a]["partner"] == self.MATE
+                and parsed[b]["partner"] == self.MATE
+                and parsed[a]["side"] != parsed[b]["side"]
+            )
+
+        return hits / len(firsts)
 
     def step(self, action_dict: dict[str, Any]):
         # The reward of one agent depends on its mate's action too.
@@ -414,7 +464,7 @@ class MutualChoiceProbe(_DictProbe):
         bonus = 0.1 if action["side"] == self.preferred[agent] else 0.0
 
         if action["partner"] == self.DSO:
-            return 0.5 + bonus
+            return self.dso_reward + bonus
 
         other = self._actions[self.mate[agent]]
         mutual = (
@@ -444,7 +494,12 @@ class ConditionalPartProbe(_DictProbe):
     The factorised policy samples the level independently of the side, so while
     the side is undecided the level is one compromise for both (near 0, reward
     about 0.75). The probe checks that the level still ends at the chosen side's
-    target, the limit the market's price and quantity face with the side."""
+    target, the limit the market's price and quantity face with the side.
+
+    The other side at its own level earns 1.0, a near-tie with the best answer, so
+    the check accepts either side: what it judges is that the level follows the
+    side the policy chose (``Follows``). The value is checked against 1.05, whose
+    tolerance (0.1575) includes 1.0."""
 
     parts = {"side": spaces.Discrete(2), "level": _UNIT}
     level_for = {0: -0.5, 1: 0.5}
@@ -460,9 +515,8 @@ class ConditionalPartProbe(_DictProbe):
         return 1.0 - (action["level"] - target) ** 2 + bonus
 
     def checks(self, gamma: float) -> list[Check]:
-        best = {
-            a: {"side": s, "level": self.level_for[s]} for a, s in self.own_side.items()
-        }
+        level = Follows("side", dict(self.level_for))
+        best = {a: {"side": None, "level": level} for a in self.agents_id}
         value = {a: 1.05 for a in self.agents_id}
 
         return [Check("obs 0", self._all(0.0), value=value, action=best)]
@@ -471,7 +525,11 @@ class ConditionalPartProbe(_DictProbe):
 class LongEpisodeProbe(_Probe):
     """10. The market's horizon: 24 steps, observation ``t / 23`` (the hour), reward
     +1 at the last step only, the action ignored. Checks discounting and
-    bootstrapping over a day (probe 3 has two steps): ``V(t) = γ^(23 − t)``."""
+    bootstrapping over a day (probe 3 has two steps): ``V(t) = γ^(23 − t)``.
+
+    The values are judged relative to their size (``Check.relative``): with γ =
+    0.95, V(0) = 0.31, and the absolute tolerance of 0.15 would accept anything
+    from 0.16 to 0.46, i.e. a value three steps of discounting off."""
 
     length = 24
 
@@ -490,6 +548,7 @@ class LongEpisodeProbe(_Probe):
                 f"hour {t}",
                 self._all(t / last),
                 value={a: gamma ** (last - t) for a in self.agents_id},
+                relative=True,
             )
             for t in (0, 12, last)
         ]

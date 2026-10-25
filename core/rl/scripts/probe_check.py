@@ -10,13 +10,20 @@ A run is judged by reading its networks in the probe's check states, not by its
 return (which mixes in exploration noise):
 
 - values: per agent in DTDE and CTDE, the group's sum in CTCE, within
-  ``TOLERANCE`` · max(1, |expected|);
+  ``TOLERANCE`` · max(1, |expected|), or ``TOLERANCE`` · |expected| for a check
+  marked ``relative``;
 - actions: a continuous part's mean within ``TOLERANCE``; a categorical part must
-  be the expected category exactly.
+  be the expected category exactly; a part expected as ``None`` is not judged; a
+  ``Follows`` part must be within ``TOLERANCE`` of the target of the category the
+  policy chose for the other part (``compare``).
 
-Runs go to ``runs/probes_<preset>/`` and are reused: a finished run is scored, not
-trained again. ``escalate`` trains the failing combinations again with a larger
-budget, to separate "slow" from "broken".
+A probe marked ``measured`` (8b, the stag hunt) has no pass or fail: its result is
+a number, the share of pairs that coordinate (``measure``).
+
+Probes are named by strings ("1" to "10", with "8a" and "8b"). Runs go to
+``runs/probes_<preset>/`` and are reused: a finished run is scored, not trained
+again. ``escalate`` trains the failing combinations again with a larger budget, to
+separate "slow" from "broken".
 
 On a SLURM job (the cluster), the runs share one Ray instance and use one worker
 per physical core, capped by the user's thread limit (``parallel_setup``).
@@ -32,7 +39,7 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import numpy as np
 import pandas as pd
@@ -40,9 +47,11 @@ import pandas as pd
 from core.rl.ctce import GROUP
 from core.rl.envs.probes import (
     ActionProbe,
+    Check,
     ConditionalPartProbe,
     ConstantProbe,
     DiscountProbe,
+    Follows,
     GatedActionProbe,
     LongEpisodeProbe,
     MixedActionProbe,
@@ -68,8 +77,9 @@ class Probe:
         name: Short name.
         env_class: The probe environment.
         gamma: The discount it is trained and checked with.
-        env_config: Its ``env_config`` (agents, scrambled names).
+        env_config: Its ``env_config`` (agents, scrambled names, probe settings).
         budget: Environment steps with the ``"fast"`` preset.
+        measured: No pass or fail: the result is ``measure``'s number.
     """
 
     name: str
@@ -77,28 +87,38 @@ class Probe:
     gamma: float
     env_config: dict
     budget: int
+    measured: bool = False
 
 
 _THREE = {"n_agents": 3, "scramble_ids": False}
 _SCRAMBLED = {"n_agents": 3, "scramble_ids": True}
+_PAIRS = {"n_agents": 4, "scramble_ids": True}
 
-PROBES: dict[int, Probe] = {
-    1: Probe("Constant", ConstantProbe, 0.99, _THREE, 3_000),
-    2: Probe("Observation", ObservationProbe, 0.99, _THREE, 3_000),
-    3: Probe("Discount", DiscountProbe, 0.5, _THREE, 3_000),
-    4: Probe("Action", ActionProbe, 0.99, _SCRAMBLED, 8_000),
-    5: Probe("Obs -> action", ObsActionProbe, 0.99, _SCRAMBLED, 15_000),
-    6: Probe("Mixed action", MixedActionProbe, 0.99, _SCRAMBLED, 10_000),
-    7: Probe("Gated action", GatedActionProbe, 0.99, _SCRAMBLED, 15_000),
-    8: Probe(
-        "Mutual choice",
+PROBES: dict[str, Probe] = {
+    "1": Probe("Constant", ConstantProbe, 0.99, _THREE, 3_000),
+    "2": Probe("Observation", ObservationProbe, 0.99, _THREE, 3_000),
+    "3": Probe("Discount", DiscountProbe, 0.5, _THREE, 3_000),
+    "4": Probe("Action", ActionProbe, 0.99, _SCRAMBLED, 8_000),
+    "5": Probe("Obs -> action", ObsActionProbe, 0.99, _SCRAMBLED, 15_000),
+    "6": Probe("Mixed action", MixedActionProbe, 0.99, _SCRAMBLED, 10_000),
+    "7": Probe("Gated action", GatedActionProbe, 0.99, _SCRAMBLED, 15_000),
+    "8a": Probe(
+        "Mutual choice, coordination",
         MutualChoiceProbe,
         0.99,
-        {"n_agents": 4, "scramble_ids": True},
+        _PAIRS | {"dso_reward": 0.1},
         20_000,
     ),
-    9: Probe("Conditional part", ConditionalPartProbe, 0.99, _SCRAMBLED, 15_000),
-    10: Probe("Long episode", LongEpisodeProbe, 0.95, _THREE, 24_000),
+    "8b": Probe(
+        "Mutual choice, stag hunt",
+        MutualChoiceProbe,
+        0.99,
+        _PAIRS | {"dso_reward": 0.5},
+        20_000,
+        measured=True,
+    ),
+    "9": Probe("Conditional part", ConditionalPartProbe, 0.99, _SCRAMBLED, 15_000),
+    "10": Probe("Long episode", LongEpisodeProbe, 0.95, _THREE, 24_000),
 }
 
 # "fast": a 2 x 64 network and short budgets, for day-to-day checks. "thorough":
@@ -131,7 +151,7 @@ def runs_dir(preset: str) -> Path:
 
 
 def make_run(
-    paradigm: str, probe: int, preset: str = "fast", seed: int = 0, scale: float = 1.0
+    paradigm: str, probe: str, preset: str = "fast", seed: int = 0, scale: float = 1.0
 ) -> Run:
     """One run: PPO in ``paradigm`` on ``probe``, ``scale`` times the preset's
     budget."""
@@ -251,7 +271,56 @@ def train_runs(runs: Iterable[Run], workers: int, retrain: bool = False) -> None
 # --------------------------------------------------------------------------------------
 # Scoring
 # --------------------------------------------------------------------------------------
-def score(run: Run, probe: int) -> pd.DataFrame:
+def compare(
+    check: Check, values: Optional[dict], actions: Optional[dict], paradigm: str
+) -> list[tuple]:
+    """The rows of one check: ``(state, output, expected, got, tolerance)``, from the
+    trained policy's ``values`` and ``actions`` in the check's state (each ``None``
+    when the check has none). CTCE's one value is compared with the sum of the
+    agents' values."""
+    rows = []
+
+    if check.value is not None:
+        expected = (
+            dict(check.value)
+            if paradigm != "ctce"
+            else {GROUP: sum(check.value.values())}
+        )
+        for mid, value in expected.items():
+            size = abs(value) if check.relative else max(1.0, abs(value))
+            rows.append(
+                (check.name, f"value {mid}", value, values[mid], TOLERANCE * size)
+            )
+
+    if check.action is None:
+        return rows
+
+    for agent, value in check.action.items():
+        if not isinstance(value, dict):
+            have = float(np.asarray(actions[agent]).reshape(-1)[0])
+            rows.append((check.name, f"action {agent}", value, have, TOLERANCE))
+            continue
+
+        for part, want in value.items():  # a mixed action, part by part
+            have = np.asarray(actions[agent][part]).reshape(-1)[0]
+            output = f"action {agent} {part}"
+
+            if want is None:  # any value is right
+                continue
+
+            if isinstance(want, Follows):
+                chosen = int(np.asarray(actions[agent][want.on]).reshape(-1)[0])
+                target = want.targets[chosen]
+                rows.append((check.name, output, target, float(have), TOLERANCE))
+                continue
+
+            tolerance = 0.0 if isinstance(want, int) else TOLERANCE
+            rows.append((check.name, output, float(want), float(have), tolerance))
+
+    return rows
+
+
+def score(run: Run, probe: str) -> pd.DataFrame:
     """One row per checked output of a finished run: state, output, expected, got,
     tolerance, error, ok."""
     p = PROBES[probe]
@@ -260,33 +329,9 @@ def score(run: Run, probe: int) -> pd.DataFrame:
     rows = []
 
     for check in env.checks(p.gamma):
-        if check.value is not None:
-            got = policy.values(check.obs)
-            expected = (
-                dict(check.value)
-                if run.paradigm != "ctce"
-                else {GROUP: sum(check.value.values())}
-            )
-            for mid, value in expected.items():
-                tolerance = TOLERANCE * max(1.0, abs(value))
-                rows.append((check.name, f"value {mid}", value, got[mid], tolerance))
-
-        if check.action is not None:
-            got = policy.act(check.obs)
-            for agent, value in check.action.items():
-                if isinstance(value, dict):  # a mixed action, part by part
-                    for part, want in value.items():
-                        have = np.asarray(got[agent][part]).reshape(-1)[0]
-                        tolerance = 0.0 if isinstance(want, int) else TOLERANCE
-                        output = f"action {agent} {part}"
-                        rows.append(
-                            (check.name, output, float(want), float(have), tolerance)
-                        )
-                else:
-                    have = float(np.asarray(got[agent]).reshape(-1)[0])
-                    rows.append(
-                        (check.name, f"action {agent}", value, have, TOLERANCE)
-                    )
+        values = policy.values(check.obs) if check.value is not None else None
+        actions = policy.act(check.obs) if check.action is not None else None
+        rows += compare(check, values, actions, run.paradigm)
 
     frame = pd.DataFrame(
         rows, columns=["state", "output", "expected", "got", "tolerance"]
@@ -295,6 +340,17 @@ def score(run: Run, probe: int) -> pd.DataFrame:
     frame["ok"] = frame.error <= frame.tolerance + 1e-9
 
     return frame
+
+
+def measure(run: Run, probe: str) -> float:
+    """A measured probe's result: the share of pairs whose most likely actions
+    coordinate (probe 8b, ``MutualChoiceProbe.coordinated``), in its check state."""
+    p = PROBES[probe]
+    policy, _ = load_policy(run.out_dir)
+    env = p.env_class(run.env_config)
+    state = env.checks(p.gamma)[0].obs
+
+    return float(env.coordinated(policy.act(state)))
 
 
 def verdict(frame: pd.DataFrame) -> tuple[str, float]:
@@ -311,7 +367,7 @@ def verdict(frame: pd.DataFrame) -> tuple[str, float]:
 # The check, and the longer budgets
 # --------------------------------------------------------------------------------------
 def check(
-    probes: Iterable[int] = PROBES,
+    probes: Iterable[str] = PROBES,
     paradigms: Iterable[str] = PARADIGMS,
     preset: str = "fast",
     seed: int = 0,
@@ -322,10 +378,11 @@ def check(
     """Train every probe in every paradigm (one pool for all runs) and score them.
 
     Returns the summary (one row per probe and paradigm: result, worst error /
-    tolerance, budget) and each run's scored checks by ``(probe, paradigm)``.
+    tolerance or, for a measured probe, its measure; budget) and each run's scored
+    checks by ``(probe, paradigm)``.
     """
     workers, _ = parallel_setup(workers)
-    pairs = [(k, p) for k in probes for p in paradigms]
+    pairs = [(str(k), p) for k in probes for p in paradigms]
     runs = {pair: make_run(pair[1], pair[0], preset, seed, scale) for pair in pairs}
     train_runs(runs.values(), workers, retrain)
     rows, frames = [], {}
@@ -338,7 +395,12 @@ def check(
             continue
 
         frames[probe, paradigm] = score(run, probe)
-        result, worst = verdict(frames[probe, paradigm])
+
+        if PROBES[probe].measured:
+            result, worst = "MEASURED", measure(run, probe)
+        else:
+            result, worst = verdict(frames[probe, paradigm])
+
         rows.append(row | {"result": result, "worst": worst, "budget": run.budget})
 
     return pd.DataFrame(rows), frames
@@ -353,15 +415,18 @@ def escalate(
 ) -> pd.DataFrame:
     """Train the combinations that did not pass again at each larger budget in
     turn, until they pass or the scales run out. One row per probe and paradigm:
-    the smallest scale it passed at (``NaN``: none)."""
+    the smallest scale it passed at (``NaN``: none). Measured probes have no pass
+    or fail and are left out."""
     workers, _ = parallel_setup(workers)
+    judged = summary[summary.result != "MEASURED"]
     passed_at = {
         (r.probe, r.paradigm): (1.0 if r.result == "PASS" else float("nan"))
-        for r in summary.itertuples()
+        for r in judged.itertuples()
     }
 
     for scale in scales:
         failing = [pair for pair, at in passed_at.items() if np.isnan(at)]
+
         if not failing:
             break
 
@@ -369,6 +434,7 @@ def escalate(
         runs = {(k, p): make_run(p, k, preset, seed, scale) for k, p in failing}
         print(f"x{scale:g}: {len(runs)} combinations", flush=True)
         train_runs(runs.values(), workers)
+
         for (probe, paradigm), run in runs.items():
             if status(run) == "completed":
                 result, _ = verdict(score(run, probe))
@@ -384,8 +450,10 @@ def escalate(
 
 
 def table(summary: pd.DataFrame) -> pd.DataFrame:
-    """The summary as probes by paradigms: ``PASS 0.42`` (result and worst error /
-    tolerance)."""
+    """The summary as probes by paradigms, in the probes' order: ``PASS 0.42``
+    (result and worst error / tolerance), ``FAIL miss`` (a wrong category) or
+    ``MEASURED 0.50`` (a measured probe's share)."""
+
     def cell_of(row) -> str:
         if row.result == "NOT RUN":
             return "NOT RUN"
@@ -395,9 +463,15 @@ def table(summary: pd.DataFrame) -> pd.DataFrame:
         return f"{row.result} {worst}"
 
     cell = summary.apply(cell_of, axis=1)
-
-    return (
-        summary.assign(cell=cell)
-        .pivot(index=["probe", "name"], columns="paradigm", values="cell")
-        .reindex(columns=[p for p in PARADIGMS if p in set(summary.paradigm)])
+    order = [k for k in PROBES if k in set(summary.probe)]
+    found = summary.assign(cell=cell).pivot(
+        index="probe", columns="paradigm", values="cell"
     )
+    found = found.reindex(
+        index=order, columns=[p for p in PARADIGMS if p in set(summary.paradigm)]
+    )
+    found.index = pd.MultiIndex.from_tuples(
+        [(k, PROBES[k].name) for k in order], names=["probe", "name"]
+    )
+
+    return found
