@@ -235,3 +235,66 @@ def test_seed_groups_spread_over_seeds_and_what_differs(where):
         "algorithm"
     )
     assert merged.loc["ppo", "differs"] == ["scenario"]  # s1 here, s2 on the cluster
+
+
+def test_learner_metrics_per_module_and_part(tmp_path):
+    """Any run's metrics.csv as one long table: the training return (no module),
+    each module's own metrics, each action part's statistics; the modules' mean,
+    min and max columns left out; the run's gradient clip in its settings."""
+    exp = tmp_path / "runs" / "probes"
+    run = make_run(
+        exp,
+        "ppo_dtde_s0",
+        0,
+        [-8, -9],
+        settings_effective={"grad_clip": 0.5, "use_kl_loss": True},
+    )
+    off = make_run(
+        exp,
+        "ppo_dtde_s1",
+        1,
+        [-8, -9],
+        settings_effective={"grad_clip": 0.5, "use_kl_loss": False},
+    )
+    write(
+        off / "metrics.csv",
+        pd.DataFrame({"env_steps": [500], "agent_1/mean_kl_loss": [0.0]}),
+    )
+    write(
+        run / "metrics.csv",
+        pd.DataFrame(
+            {
+                "env_steps": [500, 1000],
+                "team_return_mean": [0.5, 0.9],
+                "agent_1/policy_loss": [-0.1, -0.2],
+                "agent_1/gradients_default_optimizer_global_norm": [1.2, 3.4],
+                "agent_1/mean_kl_loss": [0.02, 0.01],
+                "agent_1/level/mean": [0.0, 0.3],
+                "agent_1/level/log_std": [-0.2, -1.0],
+                "agent_1/side/entropy": [0.69, 0.2],
+                "modules/policy_loss_mean": [-0.1, -0.2],
+                "train_call_s": [1.0, 1.1],
+            }
+        ),
+    )
+    found = results.load_runs(results.find_runs({"local": tmp_path / "runs"}))
+    assert found[0].settings["grad_clip"] == 0.5
+
+    table = results.learner_metrics(found)
+    assert set(table[table.key.str.endswith("s0")].metric) == {
+        "team_return_mean",
+        "policy_loss",
+        "gradients_default_optimizer_global_norm",
+        "mean_kl_loss",
+        "mean",
+        "log_std",
+        "entropy",
+    }
+    # With the KL off, RLlib's constant 0 is not shown as a measurement.
+    assert "mean_kl_loss" not in set(table[table.key.str.endswith("s1")].metric)
+    table = table[table.key.str.endswith("s0")]
+    level = table[(table.part == "level") & (table.metric == "mean")]
+    assert list(level.value) == [0.0, 0.3] and set(level.module) == {"agent_1"}
+    assert set(table[table.metric == "team_return_mean"].module) == {""}
+    assert set(table[table.metric == "policy_loss"].part) == {""}
+    assert set(table.key) == {"local/probes/ppo_dtde_s0"}

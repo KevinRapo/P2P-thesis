@@ -16,7 +16,7 @@ from typing import Optional
 import pandas as pd
 
 from core.runner import results
-from core.runner.results import RunResult
+from core.runner.results import LEARNER_GROUPS, RunResult
 
 
 class ResultsService:
@@ -60,6 +60,12 @@ class ResultsService:
 
     def training_curves(self, keys: list[str]) -> pd.DataFrame:
         return results.training_curves(self.results(keys))
+
+    def learner_metrics(self, keys: list[str]) -> pd.DataFrame:
+        return results.learner_metrics(self.results(keys))
+
+    # The learner's metric groups, as the reader defines them (title, metrics, note).
+    learner_groups = LEARNER_GROUPS
 
     def heldout_days(self, keys: list[str]) -> pd.DataFrame:
         return results.heldout_days(self.results(keys))

@@ -3,8 +3,11 @@
 The runs of this PC and of each cluster after *Sync results* on the Runs page, read
 from their folders by ``core/runner/results.py`` (through ``ResultsService``; the
 notebook ``notebooks/runner/results.ipynb`` reads the same). The table at the top
-lists every run; test-profile runs (``<name>--test``) can be hidden. The runs ticked
-there are compared in the first tab, and one of them is looked into in the second.
+lists every run; test-profile runs (``<name>--test``) can be hidden. Choosing one
+experiment shows only its runs and ticks all of them; *Ticked only* shows only the
+ticked runs; *Clear* unticks everything and shows every run again. The runs ticked
+there are compared in the first tab, one of them is looked into in the second, and
+their learner is shown in the third.
 
 Compare: the settings that differ between the runs (their full saved values), the
 periodic evaluation return over environment steps, played on the training days
@@ -21,14 +24,21 @@ with detailed results, the traced days step by step (read only when opened):
 the market, and per participant its orders, the partner it named, whether the
 choice was mutual and what it traded in the preference stage (stage 1).
 
-Nothing is read again until Refresh: a new run or a new sync shows after it, in both
-tabs.
+Learning: how the ticked runs' learner behaved, from their ``metrics.csv``
+(``core/runner/results.learner_metrics``), for any environment: the training
+return; per module the policy and value losses, the critic's explained variance,
+the entropy, the KL of each update and the gradient norm against the run's clip;
+and one action part at a time, its distribution over training.
+
+Nothing is read again until Refresh: a new run or a new sync shows after it, in
+every tab.
 """
 
 from __future__ import annotations
 
 from typing import Any, Optional
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from nicegui import app, run, ui
@@ -273,6 +283,113 @@ def _participant_figure(
     return styled(fig, max(260, 26 * len(grid) + 120))
 
 
+DASHES = ["solid", "dot", "dash", "dashdot", "longdash", "longdashdot"]
+
+
+def _learner_figure(
+    metrics: pd.DataFrame,
+    names: list[str],
+    labels: dict[str, str],
+    mean_over_modules: bool,
+    clip: Optional[dict[str, float]] = None,
+) -> go.Figure:
+    """The module metrics ``names`` over environment steps: a colour per run, one
+    line per module (or their mean), a dash per metric; ``clip`` draws each run's
+    gradient clip as a dashed level."""
+    fig = go.Figure()
+    keys = list(dict.fromkeys(metrics.key))
+    colors = {key: SERIES[i % len(SERIES)] for i, key in enumerate(keys)}
+    rows = metrics[(metrics.part == "") & metrics.metric.isin(names)]
+
+    for key in keys:
+        own = rows[rows.key == key]
+        for dash, name in zip(DASHES, names):
+            frame = own[own.metric == name]
+            if frame.empty:
+                continue
+
+            if mean_over_modules:
+                lines = {"mean": frame.groupby("env_steps").value.mean().reset_index()}
+            else:
+                lines = {m: f for m, f in frame.groupby("module")}
+
+            for module, line in lines.items():
+                suffix = "" if len(names) == 1 else f" {name}"
+                fig.add_scatter(
+                    x=line.env_steps,
+                    y=line.value,
+                    name=f"{labels[key]} · {module}{suffix}",
+                    mode="lines",
+                    line=dict(color=colors[key], dash=dash, width=1.5),
+                )
+
+        if clip and clip.get(key) is not None:
+            fig.add_hline(y=clip[key], line_dash="dash", line_color=colors[key])
+
+    fig.update_layout(showlegend=True)  # also with one line: which run it is
+
+    return styled(fig, 300, "", "environment steps")
+
+
+def _part_figure(
+    metrics: pd.DataFrame, key: str, module: str, part: str, label: str
+) -> go.Figure:
+    """One action part over environment steps. A continuous part: its mean with a
+    band of ±σ, the bounds ±1 dashed, and the share of means outside them (right
+    axis). A categorical part: its entropy and its most likely category's
+    probability."""
+    rows = metrics[
+        (metrics.key == key) & (metrics.module == module) & (metrics.part == part)
+    ]
+    series = {m: f.set_index("env_steps").value for m, f in rows.groupby("metric")}
+    fig = go.Figure()
+
+    if "mean" in series:
+        mean, sigma = series["mean"], series["log_std"].pipe(np.exp)
+        steps = list(mean.index)
+        fig.add_scatter(
+            x=steps + steps[::-1],
+            y=list(mean + sigma) + list((mean - sigma)[::-1]),
+            fill="toself",
+            fillcolor="rgba(15,118,110,0.15)",
+            line=dict(width=0),
+            name="mean ± σ",
+            hoverinfo="skip",
+        )
+        fig.add_scatter(
+            x=steps, y=mean, name="mean", mode="lines", line=dict(color=SERIES[0])
+        )
+        for bound in (-1.0, 1.0):
+            fig.add_hline(y=bound, line_dash="dash", line_color="#94A3B8")
+        fig.add_scatter(
+            x=list(series["outside"].index),
+            y=series["outside"],
+            name="share outside [-1, 1]",
+            mode="lines",
+            line=dict(color=SERIES[1], dash="dot"),
+            yaxis="y2",
+        )
+        fig.update_layout(
+            yaxis2=dict(overlaying="y", side="right", range=[0, 1], showgrid=False)
+        )
+        title = "mean (network units)"
+    else:
+        for i, name in enumerate(("entropy", "top")):
+            if name in series:
+                fig.add_scatter(
+                    x=list(series[name].index),
+                    y=series[name],
+                    name=name,
+                    mode="lines",
+                    line=dict(color=SERIES[i]),
+                )
+        title = "entropy, top probability"
+
+    fig.update_layout(title=dict(text=f"{label} · {module} · {part}", font_size=13))
+
+    return styled(fig, 320, title, "environment steps")
+
+
 def _steps_figure(steps: pd.DataFrame, columns: list[str], title: str) -> go.Figure:
     """Lines of ``columns`` over the steps of one traced day."""
     fig = go.Figure()
@@ -303,7 +420,7 @@ class ResultsView:
         self.service = service
         self.overview = pd.DataFrame()
         self.selected: list[str] = []
-        self._drawn = {"compare": 0, "inspect": 0}  # the latest draw of each tab
+        self._drawn = {"compare": 0, "inspect": 0, "learning": 0}  # latest draws
 
         with ui.row().classes("w-full items-center gap-3"):
             ui.button("Refresh", icon="refresh", on_click=self.refresh).props(
@@ -317,13 +434,19 @@ class ResultsView:
             self.experiment = (
                 ui.select(
                     [],
-                    label="Tick every run of an experiment",
-                    on_change=self._tick_experiment,
+                    label="One experiment (shows and ticks its runs)",
+                    on_change=self._experiment_changed,
                     clearable=True,
                 )
                 .classes("grow")
                 .style("min-width: 260px")
             )
+            self.only_ticked = ui.switch(
+                "Ticked only", on_change=lambda _: self._fill()
+            )
+            ui.button("Clear", icon="deselect", on_click=self.clear).props(
+                "flat no-caps dense"
+            ).tooltip("Untick every run, and show them all again")
             self.search = ui.input(placeholder="Filter runs").props("dense clearable")
 
         self.note = ui.label().classes("mls-card-caption")
@@ -348,6 +471,7 @@ class ResultsView:
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             ui.tab("compare", label="Compare", icon="compare_arrows")
             ui.tab("inspect", label="Inspect a run", icon="search")
+            ui.tab("learning", label="Learning", icon="psychology")
 
         with ui.tab_panels(tabs, value="compare").classes("w-full bg-transparent"):
             with ui.tab_panel("compare").classes("p-0 gap-4"):
@@ -360,6 +484,8 @@ class ResultsView:
                         .style("min-width: 320px")
                     )
                 self.inspect = ui.column().classes("w-full gap-4")
+            with ui.tab_panel("learning").classes("p-0 gap-4"):
+                self.learning = ui.column().classes("w-full gap-4")
 
     # --- The run table ---------------------------------------------------------------
     async def load(self) -> None:
@@ -374,29 +500,50 @@ class ResultsView:
         await self.load()
         await self._selected()
 
-    def _visible(self) -> pd.DataFrame:
+    def _offered(self) -> pd.DataFrame:
+        """Every run that can be ticked: all, or all but the test runs."""
         table = self.overview
         if table.empty or self.show_tests.value:
             return table
         return table[~table.test]
 
+    def _visible(self) -> pd.DataFrame:
+        """The runs the table shows: those offered, narrowed to the chosen
+        experiment and, with *Ticked only*, to the ticked runs."""
+        table = self._offered()
+
+        if table.empty:
+            return table
+
+        if self.experiment.value:
+            target, experiment = self.experiment.value.split("/", 1)
+            table = table[(table.target == target) & (table.experiment == experiment)]
+
+        if self.only_ticked.value:
+            table = table[table.key.isin(self.selected)]
+
+        return table
+
     def _fill(self) -> None:
+        offered = self._offered()
+        keys = set(offered.key) if len(offered) else set()
+        self.selected = [k for k in self.selected if k in keys]
         table = self._visible()
         self.runs.rows = [
             {"key": row["key"]} | {f: _cell(row.get(f)) for f, _ in RUN_COLUMNS}
             for _, row in table.iterrows()
         ]
-        keys = set(table.key) if len(table) else set()
         self.runs.selected = [r for r in self.runs.rows if r["key"] in self.selected]
         self.runs.update()
         experiments = (
-            sorted({f"{t}/{e}" for t, e in zip(table.target, table.experiment)})
-            if len(table)
+            sorted({f"{t}/{e}" for t, e in zip(offered.target, offered.experiment)})
+            if len(offered)
             else []
         )
         self.experiment.set_options(experiments)
-        hidden = len(self.overview) - len(table)
-        text = f"{len(table)} runs"
+        text = f"{len(table)} of {len(offered)} runs shown"
+        text += f" · {len(self.selected)} ticked"
+        hidden = len(self.overview) - len(offered)
 
         if hidden:
             text += f" ({hidden} test runs hidden)"
@@ -408,29 +555,41 @@ class ResultsView:
             )
 
         self.note.set_text(text)
-        self.selected = [k for k in self.selected if k in keys]
 
     async def _tests_changed(self) -> None:
         app.storage.user[SHOW_TESTS] = bool(self.show_tests.value)
         self._fill()
         await self._selected()
 
-    async def _tick_experiment(self) -> None:
-        if not self.experiment.value:
+    async def _experiment_changed(self) -> None:
+        """An experiment chosen: show only its runs and tick all of them (the ticks
+        are replaced). Cleared: show every run again, the ticks kept."""
+        if self.experiment.value:
+            target, experiment = self.experiment.value.split("/", 1)
+            table = self._offered()
+            chosen = (table.target == target) & (table.experiment == experiment)
+            self.selected = list(table[chosen].key)
+
+        self._fill()
+        await self._selected()
+
+    async def clear(self) -> None:
+        """Untick every run and show them all: no experiment, not *Ticked only*."""
+        self.selected = []
+        self.only_ticked.value = False  # its own redraw of the table is cheap
+
+        if self.experiment.value:
+            self.experiment.set_value(None)  # redraws the table and the tabs
             return
 
-        target, experiment = self.experiment.value.split("/", 1)
-        table = self._visible()
-        chosen = (table.target == target) & (table.experiment == experiment)
-        keys = list(table[chosen].key)
-        self.runs.selected = [r for r in self.runs.rows if r["key"] in keys]
-        self.runs.update()
+        self._fill()
         await self._selected()
 
     async def _selected(self, _: Any = None) -> None:
         """The ticked runs changed (or were read again): compare them, and draw the
         inspected run again, or the first one offered when it is gone."""
         self.selected = [row["key"] for row in self.runs.selected]
+        self._fill()  # the count, and with *Ticked only* the rows unticked just now
         options = self.selected or list(self._visible().get("key", []))
         self.inspected.set_options(options)
 
@@ -440,6 +599,7 @@ class ResultsView:
             await self._show_run()
 
         await self._show_compare()
+        await self._show_learning()
 
     def _draw(self, tab: str) -> int:
         """A new draw of ``tab``: its number. A draw that waited for files and is no
@@ -563,6 +723,127 @@ class ResultsView:
                         ("differs", "Differs"),
                     ],
                 )
+
+    # --- Learning: the learner of the ticked runs -------------------------------------
+    async def _show_learning(self) -> None:
+        keys = list(self.selected)
+        draw = self._draw("learning")
+        self.learning.clear()
+
+        if not keys:
+            with self.learning:
+                placeholder("Tick runs in the table to see how they learned.", "school")
+
+            return
+
+        metrics = await run.io_bound(self.service.learner_metrics, keys)
+        results = await run.io_bound(self.service.results, keys)
+
+        if draw != self._drawn["learning"]:  # ticked again meanwhile
+            return
+
+        labels = labels_of(keys)
+        clip = {r.key: r.settings.get("grad_clip") for r in results}
+
+        with self.learning:
+            if metrics.empty:
+                placeholder("The ticked runs have no metrics yet.", "hourglass_empty")
+                return
+
+            modules = metrics[metrics.module != ""].module.nunique()
+            mean = ui.switch("Mean over modules", value=modules > 3)
+            ui.label(
+                "One colour per run, one line per module (agent, or the group in "
+                "CTCE). Read from each run's metrics.csv; a run from before 25 Oct "
+                "has no per-part statistics, gradient norm or KL."
+            ).classes("mls-card-caption")
+            figures = []
+
+            with section(
+                "Training return",
+                "The sampled episodes' team return while learning (with exploration).",
+                "show_chart",
+            ):
+                fig = _learner_figure(metrics, ["team_return_mean"], labels, True)
+                ui.plotly(fig).classes("w-full")
+
+            with ui.grid(columns=2).classes("w-full gap-4"):
+                for title, names, note in self.service.learner_groups:
+                    present = [n for n in names if n in set(metrics.metric)]
+                    if not present:
+                        continue
+                    gradient = "gradients_default_optimizer_global_norm" in present
+                    has = set(metrics[metrics.metric.isin(present)].key)
+                    missing = [labels[k] for k in keys if k not in has]
+                    with section(title, note):
+                        if missing:
+                            ui.label(
+                                "Not recorded in: "
+                                + ", ".join(missing)
+                                + " (trained before this metric was logged, or "
+                                "with it switched off)"
+                            ).classes("mls-card-caption")
+                        plot = ui.plotly(
+                            _learner_figure(
+                                metrics,
+                                present,
+                                labels,
+                                mean.value,
+                                clip if gradient else None,
+                            )
+                        ).classes("w-full")
+                        figures.append((plot, present, gradient))
+
+            def redraw() -> None:
+                for plot, present, gradient in figures:
+                    plot.update_figure(
+                        _learner_figure(
+                            metrics,
+                            present,
+                            labels,
+                            mean.value,
+                            clip if gradient else None,
+                        )
+                    )
+
+            mean.on_value_change(lambda _: redraw())
+            parts = (
+                metrics[metrics.part != ""][["key", "module", "part"]]
+                .drop_duplicates()
+                .itertuples(index=False)
+            )
+            options = {
+                f"{k}|{m}|{p}": f"{labels[k]} · {m} · {p}" for k, m, p in parts
+            }
+
+            with section(
+                "Each action part",
+                "One part of one module, read in the same fixed states every report: "
+                "a continuous part's mean ± σ (network units: ±1 are its bounds) "
+                "and "
+                "the share of means outside them; a categorical part's entropy and "
+                "its most likely category's probability.",
+                "tune",
+            ):
+                if not options:
+                    ui.label("No per-part statistics in these runs.").classes(
+                        "mls-card-caption"
+                    )
+                    return
+
+                chosen = ui.select(
+                    options, value=next(iter(options)), label="Part"
+                ).classes("w-full")
+                part_plot = ui.plotly(go.Figure()).classes("w-full")
+
+                def show_part() -> None:
+                    key, module, part = chosen.value.split("|")
+                    part_plot.update_figure(
+                        _part_figure(metrics, key, module, part, labels[key])
+                    )
+
+                chosen.on_value_change(lambda _: show_part())
+                show_part()
 
     # --- Inspect one run -------------------------------------------------------------
     async def _show_run(self) -> None:

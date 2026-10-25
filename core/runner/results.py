@@ -18,6 +18,10 @@ days or the participants of one run.
     overview(results)            one row per run: settings, state, held-out scores
     learning_curves(results)     evaluation return over environment steps
     training_curves(results)     training return over environment steps
+    learner_metrics(results)     the learner over environment steps, long format:
+                                 per module (losses, entropy, KL, gradient norm)
+                                 and per action part (``LEARNER_GROUPS``,
+                                 ``PART_STATS``); any environment
     heldout_days(results)        per run and test day: each policy's team return
                                  and the trained policy minus each baseline
     participant_days(result)     one run, per test day and participant: the same
@@ -128,8 +132,10 @@ class RunResult:
             ``variant``, ``test`` (a test-profile run), ``scenario`` (its contents,
             or its file name in older runs), ``train_days`` and ``test_days`` (every
             day), ``budget``, ``overrides`` (the training settings it ran with),
-            ``model``, ``results_detail``, ``commit``, ``uncommitted``; None where
-            the files do not say. Compare these; show ``labels``.
+            ``grad_clip`` (the effective gradient clip), ``kl_logged`` (whether the
+            learner computed the KL), ``model``,
+            ``results_detail``, ``commit``, ``uncommitted``; None where the files do
+            not say. Compare these; show ``labels``.
         state: Its ``RunState`` (None if the folder cannot be read as a run).
     """
 
@@ -200,6 +206,10 @@ def load_run(ref: RunRef) -> RunResult:
         "test_days": spec.get("test_days"),
         "budget": record.get("budget_env_steps"),
         "overrides": record.get("settings"),
+        # The gradient clip the run trained with (given or RLlib's default), and
+        # whether its learner computed the KL (with it off RLlib logs a constant 0).
+        "grad_clip": (record.get("settings_effective") or {}).get("grad_clip"),
+        "kl_logged": (record.get("settings_effective") or {}).get("use_kl_loss"),
         "model": record.get("model"),
         "results_detail": spec.get("results_detail", "standard"),
         "commit": (git.get("commit") or "")[:8] or None,
@@ -307,6 +317,106 @@ def training_curves(results: Sequence[RunResult]) -> pd.DataFrame:
         agents = _agents(counted) if counted is not None else 1
         frame["per_participant"] = frame.team_return_mean / agents
         frames.append(frame.assign(**_head(result)))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+# What the learner reports per module and action part (``core/rl/train.py``), in
+# groups that read together: (title, metrics, what to look for). Nothing in them is
+# specific to an environment.
+LEARNER_GROUPS: list[tuple[str, list[str], str]] = [
+    (
+        "Policy loss",
+        ["policy_loss"],
+        "PPO's clipped surrogate (negated); its trend matters less than its noise",
+    ),
+    (
+        "Value loss",
+        ["vf_loss", "vf_loss_unclipped"],
+        "the critic's squared error against its targets; should fall, then settle",
+    ),
+    (
+        "Value fit",
+        ["vf_explained_var"],
+        "explained variance of the targets by the critic: 1 is a perfect fit, "
+        "0 no better than their mean",
+    ),
+    (
+        "Entropy",
+        ["entropy"],
+        "the action distribution's entropy, summed over the parts: falls as the "
+        "policy sharpens; a Gaussian's can go below 0",
+    ),
+    (
+        "Update size (KL)",
+        ["mean_kl_loss"],
+        "KL between the collecting and the updated policy: about 0.01-0.02 is a "
+        "usual step; near 0 means nothing moves",
+    ),
+    (
+        "Gradient norm",
+        ["gradients_default_optimizer_global_norm"],
+        "before clipping; above grad_clip (the dashed line) the whole update, actor "
+        "and critic, is scaled down",
+    ),
+]
+# Per action part (``core/rl/policy.part_stats``): a continuous part's mean, log σ
+# and share of means outside [-1, 1]; a categorical part's entropy and the most
+# likely category's probability.
+PART_STATS = ("mean", "log_std", "outside", "entropy", "top")
+
+
+def learner_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
+    """The learner of each run over environment steps (``metrics.csv``), long format:
+    one row per run, progress report, module, part and metric, with ``value``.
+
+    ``part`` is empty for a module's own metrics (``LEARNER_GROUPS``) and names the
+    action part for its per-part statistics (``PART_STATS``); ``module`` is empty
+    for the run's training return (``team_return_mean``). The modules' mean, min and
+    max columns (``modules/...``) are left out: they follow from the rows. The KL
+    (``mean_kl_loss``) is left out of a run whose learner did not compute it
+    (``use_kl_loss`` off): RLlib then logs a constant 0, not a measurement."""
+    frames = []
+
+    for result in results:
+        frame = result.table("metrics")
+
+        if frame is None or "env_steps" not in frame:
+            continue
+
+        rows = []
+        kl_logged = bool(result.settings.get("kl_logged"))
+
+        for column in frame.columns:
+            pieces = column.split("/")
+
+            if pieces[-1] == "mean_kl_loss" and not kl_logged:
+                continue
+
+            if column == "team_return_mean":
+                module, part, metric = "", "", "team_return_mean"
+            elif len(pieces) == 2 and pieces[0] != "modules":
+                module, part, metric = pieces[0], "", pieces[1]
+            elif len(pieces) == 3 and pieces[2] in PART_STATS:
+                module, part, metric = pieces
+            else:
+                continue
+
+            values = frame[["env_steps", column]].dropna()
+            rows.append(
+                pd.DataFrame(
+                    {
+                        "env_steps": values.env_steps.to_numpy(),
+                        "module": module,
+                        "part": part,
+                        "metric": metric,
+                        "value": values[column].astype(float).to_numpy(),
+                    }
+                )
+            )
+
+        if rows:
+            frames.append(pd.concat(rows, ignore_index=True).assign(**_head(result)))
 
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
