@@ -120,7 +120,10 @@ def main() -> int:
         run = runs[args.index]
         print(f"run {args.index} of {len(runs)}: {run.out_dir}", flush=True)
         probe_check.train_runs([run], workers=1, retrain=args.retrain)
-        return 0
+
+        # A failed run is an error of the task, so SLURM shows it (and a scoring
+        # job submitted with afterok does not start).
+        return 0 if probe_check.status(run) == "completed" else 1
 
     if len(args.preset) > 1:
         # Every preset's runs in one pool, so the workers stay busy until the last
