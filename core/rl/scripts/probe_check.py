@@ -60,6 +60,7 @@ from core.rl.envs.probes import (
     ObservationProbe,
 )
 from core.rl.train import Run, load_policy, train
+from core.rl_defaults import SETTINGS
 
 PARADIGMS = ["ctce", "ctde", "dtde"]
 TOLERANCE = 0.15
@@ -139,6 +140,11 @@ PRESETS = {
         "training": {"lr": 3e-4, "train_batch_size_per_learner": 1000},
         "budget_scale": 2.0,
     },
+    # The settings every market run uses (core/rl_defaults.py: RLlib's 2 x 256
+    # network, lr 1e-5, one minibatch of 4000 steps, 5 epochs), nothing changed.
+    # The budget is a number of PPO iterations for every probe, not the probe's
+    # own budget: with batches of 4000 steps those would be 1-6 updates.
+    "paper": {"model": {}, "training": {}, "budget_scale": 1.0, "iterations": 100},
 }
 
 # Variants of the learner, on top of a preset: ``"fast:A"`` is the fast preset
@@ -153,6 +159,7 @@ VARIANTS = {
         "training": {"grad_clip": 10.0},
     },
     "S": {"model": {"free_log_std_parts": True}},
+    "SB": {"model": {"free_log_std_parts": True}, "training": {"grad_clip": 10.0}},
 }
 
 
@@ -167,6 +174,7 @@ def settings_of(preset: str) -> dict:
         "model": base["model"] | extra.get("model", {}),
         "training": base["training"] | extra.get("training", {}),
         "budget_scale": base["budget_scale"],
+        "iterations": base.get("iterations"),
     }
 
 
@@ -177,6 +185,19 @@ def runs_dir(preset: str) -> Path:
     """Where the runs of a preset (and variant) are kept: ``runs/probes_fast``,
     ``runs/probes_fast_A``."""
     return ROOT / "runs" / f"probes_{preset.replace(':', '_')}"
+
+
+def _budget(p: Probe, settings: dict, scale: float) -> int:
+    """Environment steps for a run: ``iterations`` PPO batches when the preset gives
+    them, else the probe's own budget; times ``scale``."""
+    if settings.get("iterations"):
+        batch = settings["training"].get(
+            "train_batch_size_per_learner",
+            SETTINGS["ppo"]["train_batch_size_per_learner"],
+        )
+        return int(settings["iterations"] * batch * scale)
+
+    return int(p.budget * settings["budget_scale"] * scale)
 
 
 def make_run(
@@ -192,7 +213,7 @@ def make_run(
         paradigm,
         p.env_class,
         dict(p.env_config),
-        budget=int(p.budget * settings["budget_scale"] * scale),
+        budget=_budget(p, settings, scale),
         seed=seed,
         eval_episodes=5,
         training=settings["training"] | {"gamma": p.gamma},
