@@ -41,6 +41,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from nicegui import app, run, ui
 
 from studio.adapters.results_service import ResultsService
@@ -331,63 +332,167 @@ def _learner_figure(
     return styled(fig, 300, "", "environment steps")
 
 
-def _part_figure(
-    metrics: pd.DataFrame, key: str, module: str, part: str, label: str
-) -> go.Figure:
-    """One action part over environment steps. A continuous part: its mean with a
-    band of ±σ, the bounds ±1 dashed, and the share of means outside them (right
-    axis). A categorical part: its entropy and its most likely category's
-    probability."""
-    rows = metrics[
-        (metrics.key == key) & (metrics.module == module) & (metrics.part == part)
-    ]
-    series = {m: f.set_index("env_steps").value for m, f in rows.groupby("metric")}
-    fig = go.Figure()
+def _agent_part(module: str, part: str) -> tuple[str, str]:
+    """An action part's agent and name: the module and the part, or, for CTCE's
+    group (``agent.part``), the agent named in the part."""
+    if "." in part:
+        agent, name = part.split(".", 1)
+        return agent, name
 
-    if "mean" in series:
-        mean, sigma = series["mean"], series["log_std"].pipe(np.exp)
-        steps = list(mean.index)
-        fig.add_scatter(
-            x=steps + steps[::-1],
-            y=list(mean + sigma) + list((mean - sigma)[::-1]),
-            fill="toself",
-            fillcolor="rgba(15,118,110,0.15)",
-            line=dict(width=0),
-            name="mean ± σ",
-            hoverinfo="skip",
-        )
-        fig.add_scatter(
-            x=steps, y=mean, name="mean", mode="lines", line=dict(color=SERIES[0])
-        )
-        for bound in (-1.0, 1.0):
-            fig.add_hline(y=bound, line_dash="dash", line_color="#94A3B8")
-        fig.add_scatter(
-            x=list(series["outside"].index),
-            y=series["outside"],
-            name="share outside [-1, 1]",
-            mode="lines",
-            line=dict(color=SERIES[1], dash="dot"),
-            yaxis="y2",
-        )
-        fig.update_layout(
-            yaxis2=dict(overlaying="y", side="right", range=[0, 1], showgrid=False)
-        )
-        title = "mean (network units)"
-    else:
-        for i, name in enumerate(("entropy", "top")):
-            if name in series:
+    return module, part
+
+
+def _part_series(
+    metrics: pd.DataFrame, key: str, part: str
+) -> dict[str, dict[str, pd.Series]]:
+    """Per agent, the statistics of action part ``part`` of run ``key`` over
+    environment steps: ``{agent: {metric: series}}``."""
+    rows = metrics[(metrics.key == key) & (metrics.part != "")]
+    found: dict[str, dict[str, pd.Series]] = {}
+
+    for (module, name, metric), frame in rows.groupby(["module", "part", "metric"]):
+        agent, base = _agent_part(module, name)
+        if base == part:
+            found.setdefault(agent, {})[metric] = frame.set_index("env_steps").value
+
+    return found
+
+
+def _rgba(color: str, alpha: float) -> str:
+    """A ``#rrggbb`` colour with transparency."""
+    r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
+
+    return f"rgba({r},{g},{b},{alpha})"
+
+
+def _parts_figure(metrics: pd.DataFrame, key: str, label: str) -> go.Figure:
+    """Every action part of one run over environment steps, in panels stacked on
+    one time axis, a colour per agent (the same in every panel):
+
+    - a continuous part: its mean with a band of ±σ (the bounds ±1 dashed), then
+      its log σ (solid; σ itself in the hover) and the share of means outside
+      [-1, 1] (dotted, right axis);
+    - a categorical part: its entropy (solid) and its most likely category's
+      probability (dashed).
+    """
+    rows = metrics[(metrics.key == key) & (metrics.part != "")]
+    parts = sorted({_agent_part(m, p)[1] for m, p in zip(rows.module, rows.part)})
+    series = {part: _part_series(metrics, key, part) for part in parts}
+    agents = list(dict.fromkeys(a for s in series.values() for a in s))
+    colors = {a: SERIES[i % len(SERIES)] for i, a in enumerate(agents)}
+    panels = []  # (part, kind)
+
+    for part in parts:
+        if any("mean" in s for s in series[part].values()):
+            panels += [(part, "mean"), (part, "spread")]
+        else:
+            panels.append((part, "categorical"))
+
+    titles = {
+        "mean": "{} · mean ± σ",
+        "spread": "{} · log σ, share outside [-1, 1]",
+        "categorical": "{} · entropy, top probability",
+    }
+    fig = make_subplots(
+        rows=len(panels),
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.06,
+        subplot_titles=[titles[kind].format(part) for part, kind in panels],
+        specs=[[{"secondary_y": kind == "spread"}] for _, kind in panels],
+    )
+    shown = set()  # agents already in the legend
+
+    def legend(agent: str) -> bool:
+        first = agent not in shown
+        shown.add(agent)
+        return first
+
+    for row, (part, kind) in enumerate(panels, start=1):
+        for agent, stats in series[part].items():
+            color = colors[agent]
+            common = dict(legendgroup=agent, name=agent, mode="lines")
+
+            if kind == "mean":
+                mean, sigma = stats["mean"], stats["log_std"].pipe(np.exp)
+                steps = list(mean.index)
                 fig.add_scatter(
-                    x=list(series[name].index),
-                    y=series[name],
-                    name=name,
-                    mode="lines",
-                    line=dict(color=SERIES[i]),
+                    x=steps + steps[::-1],
+                    y=list(mean + sigma) + list((mean - sigma)[::-1]),
+                    fill="toself",
+                    fillcolor=_rgba(color, 0.12),
+                    line=dict(width=0),
+                    legendgroup=agent,
+                    showlegend=False,
+                    hoverinfo="skip",
+                    row=row,
+                    col=1,
                 )
-        title = "entropy, top probability"
+                fig.add_scatter(
+                    x=steps,
+                    y=mean,
+                    line=dict(color=color),
+                    showlegend=legend(agent),
+                    row=row,
+                    col=1,
+                    **common,
+                )
+            elif kind == "spread":
+                log_std = stats["log_std"]
+                fig.add_scatter(
+                    x=list(log_std.index),
+                    y=log_std,
+                    line=dict(color=color),
+                    showlegend=legend(agent),
+                    customdata=np.exp(log_std.to_numpy()),
+                    hovertemplate="log σ %{y:.2f} (σ %{customdata:.4f})"
+                    "<extra>%{fullData.name}</extra>",
+                    row=row,
+                    col=1,
+                    **common,
+                )
+                if "outside" in stats:
+                    fig.add_scatter(
+                        x=list(stats["outside"].index),
+                        y=stats["outside"],
+                        line=dict(color=color, dash="dot"),
+                        showlegend=False,
+                        row=row,
+                        col=1,
+                        secondary_y=True,
+                        **common,
+                    )
+            else:
+                for name, dash in (("entropy", "solid"), ("top", "dash")):
+                    if name in stats:
+                        fig.add_scatter(
+                            x=list(stats[name].index),
+                            y=stats[name],
+                            line=dict(color=color, dash=dash),
+                            showlegend=legend(agent),
+                            row=row,
+                            col=1,
+                            **common,
+                        )
 
-    fig.update_layout(title=dict(text=f"{label} · {module} · {part}", font_size=13))
+        if kind == "mean":
+            for bound in (-1.0, 1.0):
+                fig.add_hline(
+                    y=bound, line_dash="dash", line_color="#94A3B8", row=row, col=1
+                )
+        elif kind == "spread":
+            fig.add_hline(y=0, line_dash="dot", line_color="#94A3B8", row=row, col=1)
+            fig.update_yaxes(
+                range=[0, 1], showgrid=False, row=row, col=1, secondary_y=True
+            )
 
-    return styled(fig, 320, title, "environment steps")
+    fig = styled(fig, 230 * len(panels) + 80, "", "")
+    fig.update_xaxes(title="environment steps", row=len(panels), col=1)
+    fig.update_layout(
+        title=dict(text=label, font_size=13), showlegend=True, hovermode="x unified"
+    )
+
+    return fig
 
 
 def _steps_figure(steps: pd.DataFrame, columns: list[str], title: str) -> go.Figure:
@@ -807,22 +912,16 @@ class ResultsView:
                     )
 
             mean.on_value_change(lambda _: redraw())
-            parts = (
-                metrics[metrics.part != ""][["key", "module", "part"]]
-                .drop_duplicates()
-                .itertuples(index=False)
-            )
-            options = {
-                f"{k}|{m}|{p}": f"{labels[k]} · {m} · {p}" for k, m, p in parts
-            }
+            with_parts = list(dict.fromkeys(metrics[metrics.part != ""].key))
+            options = {k: labels[k] for k in with_parts}
 
             with section(
                 "Each action part",
-                "One part of one module, read in the same fixed states every report: "
-                "a continuous part's mean ± σ (network units: ±1 are its bounds) "
-                "and "
-                "the share of means outside them; a categorical part's entropy and "
-                "its most likely category's probability.",
+                "Every action part of one run, every agent in its own colour, read "
+                "in the same fixed states every report: a continuous part's mean "
+                "± σ (network units: ±1 are its bounds), then its log σ and the "
+                "share of means outside the bounds; a categorical part's entropy "
+                "and its most likely category's probability.",
                 "tune",
             ):
                 if not options:
@@ -832,18 +931,16 @@ class ResultsView:
                     return
 
                 chosen = ui.select(
-                    options, value=next(iter(options)), label="Part"
+                    options, value=next(iter(options)), label="Run"
                 ).classes("w-full")
-                part_plot = ui.plotly(go.Figure()).classes("w-full")
+                parts_plot = ui.plotly(go.Figure()).classes("w-full")
 
-                def show_part() -> None:
-                    key, module, part = chosen.value.split("|")
-                    part_plot.update_figure(
-                        _part_figure(metrics, key, module, part, labels[key])
-                    )
+                def show_parts() -> None:
+                    key = chosen.value
+                    parts_plot.update_figure(_parts_figure(metrics, key, labels[key]))
 
-                chosen.on_value_change(lambda _: show_part())
-                show_part()
+                chosen.on_value_change(lambda _: show_parts())
+                show_parts()
 
     # --- Inspect one run -------------------------------------------------------------
     async def _show_run(self) -> None:
