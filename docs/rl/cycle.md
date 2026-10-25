@@ -333,11 +333,13 @@ until it overflowed
 
 ### C6. KL between the collecting and the current policy
 
-Not computed: `use_kl_loss=False`. The original kept the KL term on with
-coefficient $\beta = 0$, so it computed
+Computed and logged as `mean_kl_loss`, with weight $\beta = 0$ in the loss
+(`use_kl_loss=True`, `kl_coeff=0.0`): a measure of how far each update moved the
+policy, nothing more. The original had the same setting, so it also computed
 $\mathrm{KL}_t(\mu \,\|\, \pi_\theta) = \sum_k \big[\ell'_k - \ell_k + \frac{e^{2\ell_k} + (m_k - m'_k)^2}{2\, e^{2\ell'_k}} - \frac12\big]$
 for every row, and an infinite KL turned $\beta \cdot \mathrm{KL}$ into NaN
-([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).
+([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)), which went unnoticed; here training stops on any non-finite
+metric.
 
 ### C7. Total loss
 

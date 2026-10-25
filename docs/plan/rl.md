@@ -177,7 +177,7 @@ explained variance, entropy (summed over parts). **Missing:**
 | Diagnostic | Why |
 |---|---|
 | Entropy per action part (side, quantity, price, partner) | One summed number hides which part collapsed or stayed random |
-| Clip fraction and approximate KL per module | Whether updates are too large (or nothing moves); `mean_kl_loss` is 0 with `use_kl_loss=False` |
+| Clip fraction and approximate KL per module | Whether updates are too large (or nothing moves). The KL is logged since 25 Oct (`use_kl_loss=True`, `kl_coeff=0.0`, RP-4a); the clip fraction needs a learner subclass |
 | Gradient norm before clipping | Whether the 0.5 clip is active on every step (3d) |
 | Behaviour per evaluation: share of no-order steps, side vs net position, price chosen, partner distribution, mutual-preference rate | What the policy actually does in the market (the step infos already hold it: `side`, `partner`, `partner_mutual`) |
 

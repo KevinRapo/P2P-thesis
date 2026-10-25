@@ -20,11 +20,15 @@ The hyperparameters start from the original's (``SETTINGS`` in
 ``core/rl_defaults.py``, [P2] Table 8), with the defects removed and the update
 schedule changed:
 
-- ``use_kl_loss=False``, so the KL term is not computed at all (fixes L-07; the
-  original set ``kl_coeff=0`` and kept it). ``vf_clip_param`` raised from RLlib's
-  10: RLlib caps the squared value error there, so an error above about 3.2 would
-  give the critic no gradient at all. Rewards should still be scaled by the
-  environment to returns of order 1-10.
+- ``use_kl_loss=True`` with ``kl_coeff=0``: the KL between the collecting and the
+  updated policy is computed and logged as a measure of each update's size, with
+  weight 0 in the loss (RLlib's adaptive coefficient stays 0: 1.5 · 0 = 0). The
+  original had the same setting without meaning to (L-07); what made it a defect
+  there, a non-finite KL turning the loss NaN unnoticed, is caught here: training
+  stops on any non-finite metric (``core/rl/train.py``).
+- ``vf_clip_param`` raised from RLlib's 10: RLlib caps the squared value error
+  there, so an error above about 3.2 would give the critic no gradient at all.
+  Rewards should still be scaled by the environment to returns of order 1-10.
 - No population-based training and no Ray Tune (fixes L-10 and part of L-11):
   one run has fixed hyperparameters and one seed; tuning and seeds are loops
   around ``core/rl/train.py``.

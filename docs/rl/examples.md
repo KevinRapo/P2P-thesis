@@ -262,7 +262,7 @@ the cycle:
 | `clip_param` | 0.2 | the band $[0.8, 1.2]$ of section 5 |
 | `entropy_coeff` | 0.01 | the constant push to widen $\sigma$ (C5) |
 | `grad_clip` | 0.5 | gradient norm capped at 0.5 (C9) |
-| `use_kl_loss` | False | the KL term is not computed at all (C6 disappears; fixes [L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
+| `use_kl_loss`, `kl_coeff` | True, 0.0 | the KL is computed and logged as a measure of each update's size, with weight 0 in the loss (C6); a non-finite KL stops training instead of going unnoticed ([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
 | `vf_clip_param` | $10^6$ | the value loss is not capped (C4) |
 | `vf_share_layers` | False | actor and critic have separate encoders: the value loss does not train the actor's layers (C8) |
 | SAC `target_entropy` | `"auto"` | $-\dim A$ of each module: **−2** per agent in CTDE and DTDE, **−6** for the group in CTCE |

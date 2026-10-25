@@ -132,7 +132,7 @@ $$L = -\min\big(\rho_t \hat A_t,\; \text{clip}(\rho_t, 1 - \epsilon, 1 + \epsilo
 | clipped surrogate | $\epsilon = 0.2$ | raise the probability of actions with $\hat A > 0$, but stop once $\rho$ leaves $[0.8, 1.2]$ |
 | value loss | $c_v = 1$, cap $c_{\max} = 10^6$ (`vf_clip_param`) | fit $V_\phi$ to $G^\lambda$; the cap is lifted from RLlib's 10, which gives **no** gradient for an error above $\sqrt{10} \approx 3.2$ |
 | entropy bonus | $c_H = 0.01$ | keep exploring |
-| KL penalty | off (`use_kl_loss=False`) | not computed at all; the original set $\beta = 0$ and kept computing it, so $0 \cdot \infty$ = NaN ([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
+| KL penalty | weight 0 (`use_kl_loss=True`, `kl_coeff=0.0`) | computed and logged (`mean_kl_loss`) as a measure of each update's size; no effect on the loss. The original had the same setting and its NaN ($0 \cdot \infty$) went unnoticed; here a non-finite metric stops training ([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)) |
 
 **Gradient steps.** 30 epochs over the 4000 steps in shuffled minibatches of 128:
 $30 \times 4000 / 128 \approx 940$ Adam steps, learning rate $10^{-5}$. In the first

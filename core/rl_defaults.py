@@ -33,7 +33,10 @@ SETTINGS: dict[str, dict[str, Any]] = {
         "lambda_": 0.95,
         "entropy_coeff": 0.01,
         "clip_param": 0.2,
-        "use_kl_loss": False,
+        # The KL between the collecting and the updated policy is computed and
+        # logged (mean_kl_loss), with weight 0 in the loss: a step-size gauge.
+        "use_kl_loss": True,
+        "kl_coeff": 0.0,
         "vf_clip_param": 1e6,
     },
 }

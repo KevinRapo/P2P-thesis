@@ -54,7 +54,8 @@ fields that rewrite the JSON:
       "entropy_coeff": 0.01,
       "clip_param": 0.2,
       "grad_clip": 0.5,
-      "use_kl_loss": false,
+      "use_kl_loss": true,
+      "kl_coeff": 0.0,
       "vf_clip_param": 1000000.0,
       "train_batch_size_per_learner": 2400
     }
