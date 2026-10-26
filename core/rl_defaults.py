@@ -19,16 +19,20 @@ from __future__ import annotations
 
 from typing import Any
 
-# The original's starting hyperparameters ([P2] Table 8), less the defective ones,
-# with fewer epochs on one minibatch (MAPPO); ``config.py`` says which and why.
+# The original's starting hyperparameters ([P2] Table 8), less the defective ones;
+# ``config.py`` says which and why. The learning rate, batch, minibatch and epochs
+# chosen on the probes (RP-6b, docs/plan/decisions.md): the original's (1e-5, one
+# minibatch of 4000, 5 epochs) learned none of the probes within 4 times their
+# budget; these (Stable-Baselines3's PPO defaults, with a smaller batch) pass every
+# probe in CTDE and DTDE.
 SETTINGS: dict[str, dict[str, Any]] = {
     "ppo": {
-        "lr": 1e-5,
+        "lr": 3e-4,
         "gamma": 0.99,
         "grad_clip": 0.5,
-        "train_batch_size_per_learner": 4000,
-        "minibatch_size": 4000,
-        "num_epochs": 5,
+        "train_batch_size_per_learner": 500,
+        "minibatch_size": 64,
+        "num_epochs": 10,
         # PPO only
         "lambda_": 0.95,
         "entropy_coeff": 0.01,

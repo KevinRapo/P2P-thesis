@@ -34,11 +34,11 @@ order so that each stage rests only on the stages before it.
 | # | Stage | Question it answers | Size | Status |
 |---|---|---|---|---|
 | 1 | The decision problem | Is the market, as the agents see it, the problem we mean? | M | not started |
-| 2 | The learner on known answers | Does PPO with a mixed action learn what it should, in each paradigm? | M | in progress (since 23 Oct) |
-| 3 | PPO design choices | Which settings follow from the method, before any tuning? | M | not started |
-| 4 | Diagnostics | What must a run report so that a failure can be explained? | S | not started |
+| 2 | The learner on known answers | Does PPO with a mixed action learn what it should, in each paradigm? | M | done (26 Oct) |
+| 3 | PPO design choices | Which settings follow from the method, before any tuning? | M | in progress (since 26 Oct): 3e, 3h decided |
+| 4 | Diagnostics | What must a run report so that a failure can be explained? | S | mostly done (25 Oct): per-part statistics, KL, gradient norm, Learning tab; clip fraction open |
 | 5 | First learning on the market | Does it learn the market, and which action part is the obstacle? | L | not started |
-| 6 | Budget and hyperparameters | How long, and with which settings? | M | not started |
+| 6 | Budget and hyperparameters | How long, and with which settings? | M | in progress (since 26 Oct): settings decided (RP-6b), budget open |
 | 7 | Evaluation protocol | How is a result measured, compared and trusted? | S | not started |
 | 8 | The three paradigms | The RL result itself | L | not started |
 

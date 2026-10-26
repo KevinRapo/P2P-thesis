@@ -312,3 +312,42 @@ What they say:
   CTCE's spread shrinks more slowly and its level is still moving (0.35 at 30,000
   steps). This is the market's price and quantity under an undecided side; the
   options are in the [RL plan](../plan/rl.md), stage 3.
+
+### The continuous parts (26 October 2026)
+
+Six ways of handling the continuous action parts, 3 seeds each, `"fast"` preset
+(`runs/@taltech/probe_methods_scores.csv`): RLlib's head (baseline); bounded mean
+and log σ with the clip at 10 (AB); one log σ per part for every state as in MAPPO
+(S, SB with the clip at 10); S with the mean through tanh (SM, SMB). Passes out of
+3 seeds, CTDE / DTDE:
+
+| Probe | Baseline | AB | S | SM |
+|---|---|---|---|---|
+| 7 | 3 / 2 | 3 / 3 | 3 / 2 | 3 / 3 |
+| 9 | 0 / 0 | 0 / 0 | 2 / 3 | **3 / 3** |
+| All judged probes (of 30) | 24 / 23 | 25 / 25 | 26 / 27 | **28 / 28** |
+
+The state-independent log σ fixes probe 9 (it cannot shrink faster than about the
+learning rate per step, so the mean still has spread when the side settles); the
+bounded mean keeps it inside the action's bounds. SM is the default (RP-3h,
+[decisions](../plan/decisions.md)). Bounding the log σ instead (A) did not help:
+it held at its floor and the mean still stopped short.
+
+### Training settings and readiness (26 October 2026)
+
+With SM, the market's network (2 × 256) and 4 times each probe's budget in
+environment steps, eight training settings (learning rate, batch, minibatch,
+epochs), probes 4-7 and 9, 3 seeds (`runs/@taltech/probes_screen_*/`):
+
+| Settings | CTDE + DTDE (of 30) | CTCE (of 15) | Median KL per update |
+|---|---|---|---|
+| 1e-5, 4000, 4000, 5 (the original's) | 3 | 0 | 0.0014 |
+| 1e-3, 500, 64, 10 | 16 | 5 | 0.016 |
+| **3e-4, 500, 64, 10** | **29** | **8** | **0.005** |
+| 1e-3, 1000, 1000, 10 | 9 | 0 | 0.002 |
+| any batch of 2000 or 4000 | 0 | 0 | ≤ 0.0002 |
+
+The chosen settings (RP-6b) also pass probes 1-3, 8a and 10 in every paradigm and
+seed. CTCE stays short on probes 4-6 even at 8 times the budget (4: 2 of 3; 5 and
+6: 0 of 3), as its joint ratio and summed reward let it (L-02). By the criteria of
+RP-2a, the RL layer is ready for the market.
