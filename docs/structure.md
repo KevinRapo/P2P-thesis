@@ -53,7 +53,7 @@ flowchart TD
   env --> e1["market_env.py"]:::done
 
   core --> rlcore["rl/"]
-  rlcore --> r1["config.py · state.py · ctce.py · ctde.py<br/>policy.py · train.py"]:::done
+  rlcore --> r1["config.py · state.py · ctce.py · ctde.py<br/>modules.py · learner.py · policy.py · train.py"]:::done
   rlcore --> renvs["envs/"]
   renvs --> r2["probes.py"]:::done
   rlcore --> rscripts["scripts/"]
@@ -190,6 +190,8 @@ original code and its annotations live on the `clean` branch.
 | [`state.py`](../core/rl/state.py) | The global state: every agent's observation joined in agent order (`join`, `join_spaces`); CTCE's observation, the CTDE critic's input | done |
 | [`ctce.py`](../core/rl/ctce.py) | CTCE: `CTCEEnv` (joint observation `Box`, the agents' own actions as one `Tuple` in agent order, nested and mixed as they are; summed reward); `ungroup` | done |
 | [`ctde.py`](../core/rl/ctde.py) | CTDE: `CTDEEnv` (own observation plus the global state, own reward; `central_obs`) and `CTDEPPOModule`, one RLlib PPO module per agent, actor on its own observation, critic on the global state | done |
+| [`modules.py`](../core/rl/modules.py) | `PPOModule`, RLlib's PPO module with its policy head wrapped (`BoundedHead`): bounded means, optional log σ bounds, a state-independent log σ (RP-3h); `action_parts`, `continuous_slots` | done |
+| [`learner.py`](../core/rl/learner.py) | `PPOLearner`, RLlib's PPO learner unchanged, also logging each module's clip fraction (the share of ratios outside the clip range) | done |
 | [`../rl_defaults.py`](../core/rl_defaults.py) | The default hyperparameters per algorithm (`SETTINGS`) and network settings (`NETWORK`), without Ray, so the runner and the Studio can write an experiment out in full. It sits in `core/`, outside the package: importing anything under `core/rl/` loads Ray | done |
 | [`config.py`](../core/rl/config.py) | PPO (the only algorithm in V2), paradigms and configuration (`build_config` from `SETTINGS` and `MODEL`; modules declared in agent order); `build_algo` | done |
 | [`policy.py`](../core/rl/policy.py) | Policy actions for any action space RLlib's catalog handles (`to_env`: continuous parts unsquashed as RLlib's samplers do, categorical parts as indices; CTCE's group action back to each agent), baselines (random and constant per action part, or the environment's `baseline_policies`), rollout (with reset options, e.g. the day) and evaluation: `evaluation` keeps every episode per agent and per episode, and chosen episodes step by step, read from the infos' layout (amounts, `state` with numbers and labels, `shared`, `shared_state`); `evaluate` its summary; per-part diagnostics (`action_parts`, `observation_sample`, `part_stats`: each action part's distribution in fixed states, written to `metrics.csv` by `train.py`) | done |

@@ -354,6 +354,12 @@ LEARNER_GROUPS: list[tuple[str, list[str], str]] = [
         "usual step; near 0 means nothing moves",
     ),
     (
+        "Clip fraction",
+        ["clip_fraction"],
+        "share of samples whose ratio is outside [1 - clip, 1 + clip], where the "
+        "clipped objective can stop the policy gradient; about 0.1-0.2 is usual",
+    ),
+    (
         "Gradient norm",
         ["gradients_default_optimizer_global_norm"],
         "before clipping; above grad_clip (the dashed line) the whole update, actor "

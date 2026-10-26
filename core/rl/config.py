@@ -54,6 +54,7 @@ from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 from core.rl.ctce import GROUP, CTCEEnv
 from core.rl.ctde import CTDEEnv, CTDEPPOModule
+from core.rl.learner import PPOLearner
 from core.rl.modules import PPOModule
 from core.rl_defaults import NETWORK, SETTINGS
 
@@ -138,6 +139,7 @@ def build_config(
         .env_runners(num_env_runners=num_env_runners, sample_timeout_s=None)
         .learners(num_learners=0, num_gpus_per_learner=num_gpus)
         .training(**(SETTINGS[algorithm] | (training or {})))
+        .training(learner_class=PPOLearner)
         .reporting(min_time_s_per_iteration=0)
         .debugging(seed=seed)
         .multi_agent(

@@ -107,6 +107,9 @@ LEARNER_METRICS = [
     # The global norm of the module's gradient before ``grad_clip``: above the
     # clip, the update (actor and critic together) is scaled down.
     "gradients_default_optimizer_global_norm",
+    # Share of samples whose ratio is outside [1 - clip, 1 + clip]
+    # (``core/rl/learner.py``).
+    "clip_fraction",
 ]
 
 
