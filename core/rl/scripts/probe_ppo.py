@@ -61,6 +61,7 @@ def report(args, preset: str) -> bool:
     out = probe_check.runs_dir(preset)
     out.mkdir(parents=True, exist_ok=True)
     suffix = "" if args.budget_scale == 1.0 else f"_x{args.budget_scale:g}"
+    suffix += f"_s{args.seed}" if args.seed else ""  # one file per seed
     summary.to_csv(out / f"summary{suffix}.csv", index=False)
     print(f"\n=== {preset}")
     print(probe_check.table(summary))

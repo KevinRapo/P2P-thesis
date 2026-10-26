@@ -160,6 +160,12 @@ VARIANTS = {
     },
     "S": {"model": {"free_log_std_parts": True}},
     "SB": {"model": {"free_log_std_parts": True}, "training": {"grad_clip": 10.0}},
+    # S with the bounded mean of A: each fix where it worked (probe 9, probe 7).
+    "SM": {"model": {"free_log_std_parts": True, "bound_mean": True}},
+    "SMB": {
+        "model": {"free_log_std_parts": True, "bound_mean": True},
+        "training": {"grad_clip": 10.0},
+    },
 }
 
 
