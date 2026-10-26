@@ -12,5 +12,5 @@
   "eval_episodes": 5,
   "max_parallel": 3,
   "num_env_runners": 3,
-  "resources": {"cpus": 4, "mem_gb": 8, "minutes": 600}
+  "resources": {"cpus": 4, "mem_gb": 8, "minutes": 240, "node": "blackwell1"}
 }
