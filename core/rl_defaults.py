@@ -50,9 +50,11 @@ NETWORK: dict[str, Any] = {
     "free_log_std": False,
     "log_std_clip_param": 20.0,
     "vf_share_layers": False,
-    # Our own (core/rl/modules.py, RP-3h): the continuous action parts kept in
-    # bounds. Off: the policy head is RLlib's.
-    "bound_mean": False,
+    # Our own (core/rl/modules.py, RP-3h): each continuous action part's mean
+    # through tanh, and one learned log std per part for every state (MAPPO's).
+    # Chosen on the probes (docs/rl/probes.md): RLlib's state-dependent log std
+    # collapsed before the side it depends on was decided (probe 9: 0 of 9).
+    "bound_mean": True,
     "log_std_bounds": None,
-    "free_log_std_parts": False,
+    "free_log_std_parts": True,
 }

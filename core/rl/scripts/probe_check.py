@@ -145,6 +145,10 @@ PRESETS = {
     # The budget is a number of PPO iterations for every probe, not the probe's
     # own budget: with batches of 4000 steps those would be 1-6 updates.
     "paper": {"model": {}, "training": {}, "budget_scale": 1.0, "iterations": 100},
+    # The market's network and defaults (2 x 256, SM, core/rl_defaults.py) with the
+    # training settings varied by a variant (``SCREEN``), at 4 times each probe's
+    # budget in environment steps: the same samples for every variant.
+    "screen": {"model": {}, "training": {}, "budget_scale": 4.0},
 }
 
 # Variants of the learner, on top of a preset: ``"fast:A"`` is the fast preset
@@ -167,6 +171,57 @@ VARIANTS = {
         "training": {"grad_clip": 10.0},
     },
 }
+
+
+# Training settings compared on the "screen" preset: learning rate, batch,
+# minibatch, epochs; the rest as core/rl_defaults.py (named: lr_batch_minibatch_
+# epochs). "D" is the defaults unchanged.
+SCREEN = {
+    "D": {},
+    "1e-3_500_64_10": {
+        "lr": 1e-3,
+        "train_batch_size_per_learner": 500,
+        "minibatch_size": 64,
+        "num_epochs": 10,
+    },
+    "3e-4_500_64_10": {
+        "lr": 3e-4,
+        "train_batch_size_per_learner": 500,
+        "minibatch_size": 64,
+        "num_epochs": 10,
+    },
+    "1e-3_1000_1000_10": {
+        "lr": 1e-3,
+        "train_batch_size_per_learner": 1000,
+        "minibatch_size": 1000,
+        "num_epochs": 10,
+    },
+    "3e-4_2000_500_5": {
+        "lr": 3e-4,
+        "train_batch_size_per_learner": 2000,
+        "minibatch_size": 500,
+        "num_epochs": 5,
+    },
+    "1e-3_2000_2000_5": {
+        "lr": 1e-3,
+        "train_batch_size_per_learner": 2000,
+        "minibatch_size": 2000,
+        "num_epochs": 5,
+    },
+    "1e-3_4000_4000_5": {
+        "lr": 1e-3,
+        "train_batch_size_per_learner": 4000,
+        "minibatch_size": 4000,
+        "num_epochs": 5,
+    },
+    "3e-4_4000_4000_5": {
+        "lr": 3e-4,
+        "train_batch_size_per_learner": 4000,
+        "minibatch_size": 4000,
+        "num_epochs": 5,
+    },
+}
+VARIANTS |= {name: {"training": training} for name, training in SCREEN.items()}
 
 
 def settings_of(preset: str) -> dict:
@@ -407,6 +462,38 @@ def measure(run: Run, probe: str) -> float:
     state = env.checks(p.gamma)[0].obs
 
     return float(env.coordinated(policy.act(state)))
+
+
+def score_to_file(run: Run, probe: str, preset: str) -> pd.DataFrame:
+    """Score a finished run and keep the result in its folder (``score.csv``, one
+    row): what was run, ``result`` (PASS, FAIL or MEASURED) and ``worst`` (worst
+    error / tolerance, or a measured probe's share). The run's checks go to
+    ``checks.csv``. A synced run brings both along, so results can be read where
+    its checkpoint is not."""
+    frame = score(run, probe)
+    frame.to_csv(Path(run.out_dir) / "checks.csv", index=False)
+
+    if PROBES[probe].measured:
+        result, worst = "MEASURED", measure(run, probe)
+    else:
+        result, worst = verdict(frame)
+
+    found = pd.DataFrame(
+        [
+            {
+                "preset": preset,
+                "seed": run.seed,
+                "probe": probe,
+                "paradigm": run.paradigm,
+                "budget": run.budget,
+                "result": result,
+                "worst": worst,
+            }
+        ]
+    )
+    found.to_csv(Path(run.out_dir) / "score.csv", index=False)
+
+    return found
 
 
 def verdict(frame: pd.DataFrame) -> tuple[str, float]:

@@ -329,8 +329,8 @@ def test_the_rl_defaults_are_those_the_trainer_uses():
 
     from core.rl.modules import BOUND_MEAN, FREE_LOG_STD, LOG_STD_BOUNDS
 
-    ours = {"vf_share_layers": False, BOUND_MEAN: False, LOG_STD_BOUNDS: None}
-    ours[FREE_LOG_STD] = False  # our own options (core/rl/modules.py), all off
+    ours = {"vf_share_layers": False, BOUND_MEAN: True, LOG_STD_BOUNDS: None}
+    ours[FREE_LOG_STD] = True  # our own options (core/rl/modules.py, RP-3h)
     rllib = dataclasses.asdict(DefaultModelConfig())
     assert {k: v for k, v in NETWORK.items() if k not in ours} == {
         k: rllib[k] for k in NETWORK if k not in ours

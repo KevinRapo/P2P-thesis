@@ -95,7 +95,11 @@ def main() -> int:
     parser.add_argument("--escalate", type=float, nargs="*", default=None)
     parser.add_argument("--retrain", action="store_true")
     parser.add_argument(
-        "--seeds", type=int, nargs="+", default=None, help="several seeds (with --index)"
+        "--seeds",
+        type=int,
+        nargs="+",
+        default=None,
+        help="several seeds (with --index)",
     )
     parser.add_argument(
         "--index",
@@ -109,7 +113,7 @@ def main() -> int:
 
     if args.index is not None or args.count:
         runs = [
-            probe_check.make_run(paradigm, probe, preset, seed, args.budget_scale)
+            (preset, seed, probe, paradigm)
             for preset in args.preset
             for seed in (args.seeds or [args.seed])
             for probe in args.probes
@@ -118,13 +122,18 @@ def main() -> int:
         if args.count:
             print(len(runs))
             return 0
-        run = runs[args.index]
+        preset, seed, probe, paradigm = runs[args.index]
+        run = probe_check.make_run(paradigm, probe, preset, seed, args.budget_scale)
         print(f"run {args.index} of {len(runs)}: {run.out_dir}", flush=True)
         probe_check.train_runs([run], workers=1, retrain=args.retrain)
 
-        # A failed run is an error of the task, so SLURM shows it (and a scoring
-        # job submitted with afterok does not start).
-        return 0 if probe_check.status(run) == "completed" else 1
+        # A failed run is an error of the task, so SLURM shows it.
+        if probe_check.status(run) != "completed":
+            return 1
+
+        found = probe_check.score_to_file(run, probe, preset)
+        print(found.to_string(index=False), flush=True)
+        return 0
 
     if len(args.preset) > 1:
         # Every preset's runs in one pool, so the workers stay busy until the last
