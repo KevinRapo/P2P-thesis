@@ -170,6 +170,12 @@ VARIANTS = {
         "model": {"free_log_std_parts": True, "bound_mean": True},
         "training": {"grad_clip": 10.0},
     },
+    # CTCE's misses on probes 4-6 (L-02): the entropy bonus divided by the number
+    # of agents (3) or none, and one agent instead of three ("env_config" changes
+    # the probe's own), where CTCE is one agent's PPO, as DTDE.
+    "ent3": {"training": {"entropy_coeff": 0.01 / 3}},
+    "ent0": {"training": {"entropy_coeff": 0.0}},
+    "one": {"env_config": {"n_agents": 1}},
 }
 
 
@@ -234,6 +240,7 @@ def settings_of(preset: str) -> dict:
     return {
         "model": base["model"] | extra.get("model", {}),
         "training": base["training"] | extra.get("training", {}),
+        "env_config": extra.get("env_config", {}),
         "budget_scale": base["budget_scale"],
         "iterations": base.get("iterations"),
     }
@@ -273,7 +280,7 @@ def make_run(
         "ppo",
         paradigm,
         p.env_class,
-        dict(p.env_config),
+        dict(p.env_config) | settings["env_config"],
         budget=_budget(p, settings, scale),
         seed=seed,
         eval_episodes=5,

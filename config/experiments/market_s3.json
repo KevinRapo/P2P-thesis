@@ -1,0 +1,16 @@
+{
+  "name": "market_s3",
+  "description": "market_s2 with 3 seeds and twice the budget (480k environment steps; CTDE and DTDE were still improving at 240k), 8 environment runners per run. The PPO defaults unchanged (RP-6b, entropy_coeff 0.01 in every paradigm); CTCE with its entropy bonus divided by 13 is market_s3_ctce.",
+  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["ppo"],
+  "paradigms": ["ctce", "ctde", "dtde"],
+  "seeds": [0, 1, 2],
+  "budget": 480000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 9,
+  "num_env_runners": 8,
+  "resources": {"cpus": 10, "mem_gb": 16, "minutes": 240, "node": "blackwell1"}
+}

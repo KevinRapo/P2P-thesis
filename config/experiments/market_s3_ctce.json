@@ -1,0 +1,19 @@
+{
+  "name": "market_s3_ctce",
+  "description": "CTCE beside market_s3 (same scenario, days, seeds, budget and runners) with entropy_coeff 0.01 / 13: the variant that learned in ctce_entropy (L-02). With market_s3's CTCE at 0.01, the evidence for the CTCE entropy decision.",
+  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["ppo"],
+  "paradigms": ["ctce"],
+  "seeds": [0, 1, 2],
+  "variants": {
+    "ent1e-2over13": {"entropy_coeff": 0.000769}
+  },
+  "budget": 480000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 3,
+  "num_env_runners": 8,
+  "resources": {"cpus": 10, "mem_gb": 16, "minutes": 240, "node": "blackwell1"}
+}
