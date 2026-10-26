@@ -1,0 +1,42 @@
+{
+  "name": "scale_p13_ctce",
+  "description": "CTCE beside scale_p13, with entropy_coeff 0.01 / 13 (the bonus per agent as market_s3_ctce's 0.01 / 13).",
+  "scenario": "config/scenarios/lv_rural3_p13.json",
+  "train_days": {
+    "from": "2016-06-01",
+    "to": "2016-06-30"
+  },
+  "test_days": {
+    "from": "2016-07-01",
+    "to": "2016-07-14"
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctce"
+  ],
+  "seeds": [
+    0,
+    1
+  ],
+  "training": {
+    "ppo": {
+      "entropy_coeff": 0.000769
+    }
+  },
+  "budget": 240000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 2,
+  "num_env_runners": 8,
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 24,
+    "minutes": 240,
+    "node": "blackwell1"
+  },
+  "test": {
+    "budget": 6000
+  }
+}
