@@ -95,15 +95,14 @@ the training values, so an observation and a reward mean the same everywhere.
 Episodes. ``reset`` draws a day from ``days`` (or plays ``options["day"]``, one
 of them: the held-out evaluation plays each test day once) and rebuilds the market
 for it (changing the day and resetting is cheap; the first reset of a process
-loads the SimBench network). The day is **truncated**, not terminated: after the
-last step ``truncateds`` is True for every agent and ``__all__``, ``terminateds``
-always False. The market goes on after midnight, so the return is bootstrapped
-from the value of the final observation (the next day's midnight: hour 0, its
-tariffs) instead of ending at 0 (Pardo et al. 2018, "Time Limits in Reinforcement
-Learning"); otherwise an agent learns that nothing after 24:00 matters, e.g. that
-energy left in the battery at midnight is worth nothing. The next episode still
-starts a fresh day (the battery at its initial state of charge, MP-1c), so the
-bootstrapped value is an estimate of a continuation the environment does not play.
+loads the SimBench network). The day ends the episode: ``terminateds`` is True for
+every agent and ``__all__`` after the last step, ``truncateds`` is always False.
+Each day is a task of its own: the return ends at midnight, and the next episode
+starts a fresh day (the battery at its initial state of charge). The agents
+therefore optimise one day; energy left in the battery at midnight is worth
+nothing to them (MP-1c). Truncating instead, so the return bootstraps into the
+next day, was tried and reverted on 26 Oct 2026 (RP-1f): it is only consistent
+with days that carry their state over, a larger redesign kept for later.
 
 Infos, per agent and step, in the layout ``core/rl/policy.py`` reads (amounts
 are summed over an episode, states only kept step by step; kWh and the scenario's
@@ -403,11 +402,9 @@ class MarketEnv(MultiAgentEnv):
                 "shared_state": shared_state,
             }
 
-        # The day is truncated, not terminated: the return bootstraps from the final
-        # observation (the module docstring, "Episodes").
         done = self.market.done
-        terminateds = {a: False for a in self.agents_id} | {"__all__": False}
-        truncateds = {a: done for a in self.agents_id} | {"__all__": done}
+        terminateds = {a: done for a in self.agents_id} | {"__all__": done}
+        truncateds = {a: False for a in self.agents_id} | {"__all__": False}
 
         return self._observe(), rewards, terminateds, truncateds, infos
 

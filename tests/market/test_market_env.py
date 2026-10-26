@@ -39,11 +39,11 @@ def play(env: MarketEnv, policy, day: str):
     rewards, records = [], []
 
     while True:
-        obs, r, _, truncated, _ = env.step(policy(obs))
+        obs, r, terminated, _, _ = env.step(policy(obs))
         rewards.append([r[a] for a in env.agents_id])
         records.append(env.last_record)
 
-        if truncated["__all__"]:
+        if terminated["__all__"]:
             return np.array(rewards), records
 
 
@@ -118,8 +118,8 @@ def test_spaces_and_observations(env):
 # --------------------------------------------------------------------------------------
 def test_zero_episode_lasts_one_day(env):
     """A day of zero actions takes exactly ``n_steps`` steps; only the last one
-    truncates (every agent and ``__all__``) and nothing terminates: the market goes
-    on after midnight, so the return bootstraps from the final observation."""
+    terminates (every agent and ``__all__``) and nothing is truncated: each day is a
+    task of its own (RP-1f)."""
     zero = zero_policy(env)
     obs = env.reset(seed=1)[0]
     steps = 0
@@ -127,12 +127,12 @@ def test_zero_episode_lasts_one_day(env):
     while True:
         obs, _, terminated, truncated, _ = env.step(zero(obs))
         steps += 1
-        assert not any(terminated.values())
+        assert not any(truncated.values())
 
         if steps < env.market.n_steps:
-            assert not any(truncated.values())
+            assert not any(terminated.values())
         else:
-            assert truncated["__all__"] and all(truncated[a] for a in AGENTS)
+            assert terminated["__all__"] and all(terminated[a] for a in AGENTS)
             break
 
     assert steps == env.market.n_steps == 24
@@ -147,7 +147,7 @@ def test_zero_actions_submit_no_orders(env):
     obs = env.reset(seed=2)[0]
 
     while True:
-        obs, rewards, _, truncated, _ = env.step(zero(obs))
+        obs, rewards, terminated, _, _ = env.step(zero(obs))
         record = env.last_record
         assert len(record.orders) == 0
         utility = record.inputs.utility_price  # the step's
@@ -156,7 +156,7 @@ def test_zero_actions_submit_no_orders(env):
             expected = -utility * record.participants[a].deferred_demand_kwh
             assert rewards[a] == pytest.approx(expected / env.reward_scale)
 
-        if truncated["__all__"]:
+        if terminated["__all__"]:
             break
 
 

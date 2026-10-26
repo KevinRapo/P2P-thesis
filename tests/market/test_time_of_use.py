@@ -65,7 +65,7 @@ def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):
     assert (env.feed_in_tariff, env.utility_price) == (0.08, 0.40)  # the day's range
 
     for step in range(env.market.n_steps):
-        obs, rewards, _, truncated, _ = env.step(zero(obs))
+        obs, rewards, terminated, _, _ = env.step(zero(obs))
         record = env.last_record
         assert record.inputs.utility_price == price_at(0.3, TOU_UTILITY, step)
 
@@ -73,7 +73,7 @@ def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):
             expected = -record.inputs.utility_price * o.deferred_demand_kwh
             assert rewards[pid] == pytest.approx(expected / env.reward_scale)
 
-    assert truncated["__all__"]
+    assert terminated["__all__"]
     assert env.market.dso.utility_price == 0.20  # set for the next day's midnight
 
 
