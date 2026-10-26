@@ -1,6 +1,6 @@
 {
   "name": "scale_p13",
-  "description": "Scaling with the number of agents: 1-LV-rural3--2-sw with 13 of its 43 prosumer buses as participants (scale_p13, _p26, _p43 on the same network; the rest as background), the market and PPO defaults of market_s3, CTDE and DTDE. CTCE is scale_p13_ctce.",
+  "description": "Scaling with the number of agents: 1-LV-rural3--2-sw with 13 of its 43 prosumer buses as participants (scale_p13, _p26, _p43 on the same network; the rest as background), the market and PPO defaults of market_s3, 192k environment steps (where market_s3's runs were near their plateau), CTDE and DTDE. CTCE is scale_p13_ctce.",
   "scenario": "config/scenarios/lv_rural3_p13.json",
   "train_days": {
     "from": "2016-06-01",
@@ -21,7 +21,7 @@
     0,
     1
   ],
-  "budget": 240000,
+  "budget": 192000,
   "eval_points": 10,
   "eval_episodes": 5,
   "max_parallel": 4,
