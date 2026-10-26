@@ -1,4 +1,4 @@
-"""Step: play the market one clearing stage at a time and watch the network.
+"""Market step: play the market one clearing stage at a time and watch the network.
 
 One market step is five parts, each one click: collect the orders, stage 1
 (preferences), stage 2 (double auction), stage 3 (DSO), then settlement and the
@@ -20,7 +20,7 @@ from core.market.order import Trade
 from studio.components.cards import section
 from studio.components.charts import styled, topology_figure
 from studio.components.network import busy, failed
-from studio.components.tables import data_table
+from studio.components.tables import data_table, trades_table
 from studio.layout import shell
 from studio.state import services
 
@@ -64,7 +64,7 @@ def page() -> None:
 
     with shell(
         "step",
-        "Step",
+        "Market step",
         "Play the market on its network one clearing stage at a time. Reset builds "
         "the market from the Grid & Participants and Market & DSO pages.",
     ):
@@ -170,7 +170,7 @@ def page() -> None:
                 ui.plotly(_network(state["topology"], m, view)).classes("w-full")
 
         with trades_box:
-            _trades_table(view["trades"])
+            trades_table(view["trades"])
 
         with people_box:
             _people_table(m, view)
@@ -469,46 +469,6 @@ def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
 # --------------------------------------------------------------------------------------
 # Tables: trades and participants
 # --------------------------------------------------------------------------------------
-STAGE_LABELS = {1: "1 · Preferences", 2: "2 · Double auction", 3: "3 · DSO"}
-
-
-def _trades_table(trades: list[Trade]) -> None:
-    if not trades:
-        ui.label("No trades yet in this step.").classes("mls-card-caption")
-        return
-
-    rows = [
-        {
-            "n": n,
-            "stage": STAGE_LABELS.get(t.stage, str(t.stage)),
-            "seller": t.seller_id,
-            "buyer": t.buyer_id,
-            "kwh": round(t.quantity, 3),
-            "price": round(t.price, 4),
-            "value": round(t.quantity * t.price, 4),
-        }
-        for n, t in enumerate(trades, start=1)
-    ]
-    data_table(
-        rows,
-        [
-            ("stage", "Stage"),
-            ("seller", "Seller"),
-            ("buyer", "Buyer"),
-            ("kwh", "kWh"),
-            ("price", "Price"),
-            ("value", "Value"),
-        ],
-        row_key="n",
-        pagination=10,
-    )
-    p2p = sum(t.quantity for t in trades if t.stage < 3)
-    dso = sum(t.quantity for t in trades if t.stage == 3)
-    ui.label(f"Peer to peer {p2p:.2f} kWh · with the DSO {dso:.2f} kWh").classes(
-        "mls-card-caption"
-    )
-
-
 def _people_table(m: LocalEnergyMarket, view: dict) -> None:
     inputs = view["inputs"]
 

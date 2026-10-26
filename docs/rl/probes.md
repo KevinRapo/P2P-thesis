@@ -69,7 +69,8 @@ clip of 0.5 and the entropy coefficient of 0.01.
   the learner, the action's distribution or the probe's own design. The per-part
   diagnostics in each run's `metrics.csv` (each action part's mean, log σ and
   share outside the bounds, or its entropy; the gradient norm; the KL of each
-  update) show which; the Studio's Results page plots them in its Learning tab.
+  update) show which; the Studio's Validate → RL probes page plots them in its Learning tab, next to each
+  probe run's description and checks.
 
 ## The probes at a glance
 

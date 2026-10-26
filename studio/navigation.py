@@ -30,7 +30,14 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
             NavItem("summary", "Summary", "fact_check", "/summary"),
         ],
     ),
-    ("Run", [NavItem("step", "Step", "skip_next", "/step")]),
+    (
+        "Validate",
+        [
+            NavItem("market_probes", "Market probes", "rule", "/market-probes"),
+            NavItem("step", "Market step", "skip_next", "/step"),
+            NavItem("rl_probes", "RL probes", "psychology", "/rl-probes"),
+        ],
+    ),
     (
         "Experiments",
         [

@@ -1,6 +1,8 @@
 # Plan: a Validate section (market probes, market step, RL probes)
 
-> Status: plan, 26 Oct 2026. Not in the docs' navigation yet. Goal: one place in the
+> Status: 26 Oct 2026: steps 1-4 done (the Validate group; the RL probes page with
+> the Learning tab moved; market probes M1-M4: core, tests, page); M5-M9 and the
+> docs (step 5) open. Not in the docs' navigation yet. Goal: one place in the
 > Studio to validate the two layers on cases with known answers, with every piece
 > of logic in `core/` and the Studio only showing it (AGENTS.md layer rules).
 
@@ -14,7 +16,8 @@
 | Learner metrics of any run (losses, KL, gradient norm, per-part statistics) | `core/runner/results.learner_metrics` | done |
 | Learning tab (training curves per run, one action part at a time) | `studio/pages/results.py` | done |
 | Step page: one market step played stage by stage | `studio/pages/step.py` (nav: Run → Step) | done |
-| Market probes: small scripted market cases with known outcomes | — | **new** |
+| RL probes page: probe descriptions and a probe run's score (`core/runner/probe_runs.py`, not under `core/rl/`, which loads Ray), the Learning tab moved | `studio/pages/rl_probes.py`, `studio/components/run_table.py` | done |
+| Market probes M1-M4: scripted cases with known outcomes, both grid methods | `core/market/probes.py`, `tests/market/test_market_probes.py`, `studio/pages/market_probes.py` | done (M5-M9 open) |
 
 ## Target layout in the Studio
 
