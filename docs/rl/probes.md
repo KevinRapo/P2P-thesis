@@ -352,3 +352,37 @@ The chosen settings (RP-6b) also pass probes 1-3, 8a and 10 in every paradigm an
 seed. CTCE stays short on probes 4-6 even at 8 times the budget (4: 2 of 3; 5 and
 6: 0 of 3), as its joint ratio and summed reward let it (L-02). By the criteria of
 RP-2a, the RL layer is ready for the market.
+
+### Why CTCE misses probes 4-6 (26 October 2026)
+
+CTCE with the chosen settings, probes 4-6, 3 seeds (TalTech jobs 1051309 and
+1051310; `runs/@taltech/probes_screen_one`, `_ent3`, `_ent0` and the `_x4` runs of
+`probes_screen_D`). Passes out of 3, and the largest error over its tolerance:
+
+| Probe | 3 agents (as above) | 1 agent | Entropy 0.01 / 3 | Entropy 0 | 3 agents, 16 × budget |
+|---|---|---|---|---|---|
+| 4 | 0 (2.0-2.6) | **3** | 0 (2.1-2.4) | 0 (2.0-2.5) | 2 |
+| 5 | 2 | **3** | 3 | 2 | 0 (1.05-1.55) |
+| 6 | 0 (2.6-2.7) | **3** | 0 (2.6) | 0 (2.5-2.6) | 2 |
+
+- **The CTCE plumbing is right.** With one agent, CTCE is one agent's PPO and passes
+  every probe, as DTDE does.
+- **The entropy bonus is not the cause here.** Without it, or divided by 3, probes
+  4 and 6 miss by as much as with 0.01. (On the market it was the cause: L-02,
+  `ctce_entropy`.)
+- **The shared reward slows each agent's σ.** At 4 times the budget one agent's
+  log σ is −1.74; three agents' are −0.9 to −1.0, with or without entropy. While σ
+  is that wide, the best mean is beyond the target, because the probe clips the
+  sampled action to [−1, 1]: for a target of 0.6 it is 0.90 at log σ = −0.8, 0.76
+  at −1.0 and 0.60 below −2. The misses are that overshoot (means of ±0.97 for
+  targets of ±0.6); the agent whose target is 0, where clipping is symmetric,
+  passes.
+- **With a longer budget σ shrinks, and then collapses.** At 16 times the budget
+  the overshoot is gone (log σ −2 to −2.5), but an agent's log σ reaches −4 to −5.6,
+  the KL per update grows to 0.1-0.4 and its mean drifts by about 0.2 (probe 5:
+  0.65-0.71 for 0.5). The team's return stays near its best (probe 5: 2.98 of 3),
+  so the summed reward hardly sees one agent's error.
+
+So CTCE learns the probes slowly and, with a long budget, unsteadily per agent:
+the cost of one advantage for the team's summed reward and one joint ratio
+(L-02), not a fault of the implementation.
