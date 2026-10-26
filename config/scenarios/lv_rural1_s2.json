@@ -1,0 +1,240 @@
+{
+  "name": "lv_rural1_s2",
+  "grid": {
+    "code": "1-LV-rural1--2-sw",
+    "day": "2016-06-15",
+    "step_hours": 1.0,
+    "background": "profiles",
+    "v_min_pu": 0.95,
+    "v_max_pu": 1.05,
+    "line_max_percent": 100.0,
+    "method": "powerflow",
+    "graph_capacity": "paper",
+    "graph_total_kw": null
+  },
+  "participants": [
+    {
+      "id": "P1",
+      "bus": "LV1.101 Bus 1",
+      "owns": [
+        "LV1.101 Load 8",
+        "LV1.101 SGen 6"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P2",
+      "bus": "LV1.101 Bus 10",
+      "owns": [
+        "LV1.101 Load 1",
+        "LV1.101 Load 18",
+        "LV1.101 Load 20",
+        "LV1.101 Storage 5"
+      ],
+      "battery": {
+        "capacity_kwh": 100.5,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": 50.2
+      }
+    },
+    {
+      "id": "P3",
+      "bus": "LV1.101 Bus 11",
+      "owns": [
+        "LV1.101 Load 11",
+        "LV1.101 Load 19",
+        "LV1.101 Load 24",
+        "LV1.101 SGen 2"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P4",
+      "bus": "LV1.101 Bus 12",
+      "owns": [
+        "LV1.101 Load 10",
+        "LV1.101 Load 15",
+        "LV1.101 Storage 1"
+      ],
+      "battery": {
+        "capacity_kwh": 146.7,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": 73.4
+      }
+    },
+    {
+      "id": "P5",
+      "bus": "LV1.101 Bus 13",
+      "owns": [
+        "LV1.101 Load 4",
+        "LV1.101 Load 27",
+        "LV1.101 SGen 3"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P6",
+      "bus": "LV1.101 Bus 14",
+      "owns": [
+        "LV1.101 Load 3",
+        "LV1.101 Load 22",
+        "LV1.101 Load 28",
+        "LV1.101 Storage 3"
+      ],
+      "battery": {
+        "capacity_kwh": 61.1,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": 30.6
+      }
+    },
+    {
+      "id": "P7",
+      "bus": "LV1.101 Bus 2",
+      "owns": [
+        "LV1.101 Load 12",
+        "LV1.101 Load 26",
+        "LV1.101 SGen 7"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P8",
+      "bus": "LV1.101 Bus 3",
+      "owns": [
+        "LV1.101 Load 7",
+        "LV1.101 Load 17",
+        "LV1.101 SGen 5"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P9",
+      "bus": "LV1.101 Bus 5",
+      "owns": [
+        "LV1.101 Load 13",
+        "LV1.101 Load 25",
+        "LV1.101 SGen 8"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P10",
+      "bus": "LV1.101 Bus 6",
+      "owns": [
+        "LV1.101 Load 6",
+        "LV1.101 Load 23",
+        "LV1.101 Storage 4"
+      ],
+      "battery": {
+        "capacity_kwh": 36.7,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": 18.3
+      }
+    },
+    {
+      "id": "P11",
+      "bus": "LV1.101 Bus 7",
+      "owns": [
+        "LV1.101 Load 9",
+        "LV1.101 SGen 1"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P12",
+      "bus": "LV1.101 Bus 8",
+      "owns": [
+        "LV1.101 Load 2",
+        "LV1.101 Load 14",
+        "LV1.101 Load 16",
+        "LV1.101 Load 21",
+        "LV1.101 SGen 4"
+      ],
+      "battery": null
+    },
+    {
+      "id": "P13",
+      "bus": "LV1.101 Bus 9",
+      "owns": [
+        "LV1.101 Load 5",
+        "LV1.101 Storage 2"
+      ],
+      "battery": {
+        "capacity_kwh": 67.0,
+        "min_soc": 0.1,
+        "max_soc": 0.9,
+        "charge_efficiency": 0.95,
+        "discharge_efficiency": 0.95,
+        "initial_soc": 0.5,
+        "max_power_kw": 33.5
+      }
+    }
+  ],
+  "market": {
+    "mechanism": "average",
+    "min_price": 0.0,
+    "max_price": 1.0,
+    "min_quantity": 0.0,
+    "max_quantity": 100.0,
+    "partner_preference": true,
+    "partner_reputation_weight": 0.5,
+    "bid_margin": 0.3,
+    "bid_jitter": 0.1,
+    "seed": 0,
+    "reliability_weight": 0.3,
+    "fairness_weight": 0.2,
+    "grid_weight": 0.5,
+    "reputation_decay": 0.8
+  },
+  "dso": {
+    "feed_in_tariff": 0.08,
+    "utility_price": 0.3,
+    "utility_schedule": [
+      [
+        0.0,
+        0.2
+      ],
+      [
+        7.0,
+        0.3
+      ],
+      [
+        17.0,
+        0.4
+      ],
+      [
+        22.0,
+        0.2
+      ]
+    ],
+    "feed_in_schedule": null,
+    "fees_charged": true,
+    "fee_buyer_share": 0.5,
+    "loss_factor": 0.03,
+    "congestion_factor": 0.5,
+    "congestion_threshold": 0.8,
+    "voltage_factor": 0.15,
+    "voltage_threshold": 0.05,
+    "thermal_threshold": 0.2,
+    "thermal_cap": 0.3,
+    "imbalance_factor": 0.15,
+    "zone_factor": 0.15,
+    "voltage_drop": "distance"
+  }
+}

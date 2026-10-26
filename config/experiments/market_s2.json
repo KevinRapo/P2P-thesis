@@ -1,0 +1,16 @@
+{
+  "name": "market_s2",
+  "description": "PPO in the three paradigms on 1-LV-rural1--2-sw with all 13 participants (8 with PV, 5 with SimBench storage), time-of-use utility price, the probe-tested PPO defaults (RP-6b), 240k environment steps.",
+  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "algorithms": ["ppo"],
+  "paradigms": ["ctce", "ctde", "dtde"],
+  "seeds": [0],
+  "budget": 240000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 3,
+  "num_env_runners": 3,
+  "resources": {"cpus": 4, "mem_gb": 8, "minutes": 600}
+}
