@@ -39,11 +39,11 @@ def play(env: MarketEnv, policy, day: str):
     rewards, records = [], []
 
     while True:
-        obs, r, terminated, _, _ = env.step(policy(obs))
+        obs, r, _, truncated, _ = env.step(policy(obs))
         rewards.append([r[a] for a in env.agents_id])
         records.append(env.last_record)
 
-        if terminated["__all__"]:
+        if truncated["__all__"]:
             return np.array(rewards), records
 
 
@@ -118,8 +118,8 @@ def test_spaces_and_observations(env):
 # --------------------------------------------------------------------------------------
 def test_zero_episode_lasts_one_day(env):
     """A day of zero actions takes exactly ``n_steps`` steps; only the last one
-    terminates (every agent and ``__all__``) and nothing is truncated: the day end
-    is the real end of the task, not a cut."""
+    truncates (every agent and ``__all__``) and nothing terminates: the market goes
+    on after midnight, so the return bootstraps from the final observation."""
     zero = zero_policy(env)
     obs = env.reset(seed=1)[0]
     steps = 0
@@ -127,12 +127,12 @@ def test_zero_episode_lasts_one_day(env):
     while True:
         obs, _, terminated, truncated, _ = env.step(zero(obs))
         steps += 1
-        assert not any(truncated.values())
+        assert not any(terminated.values())
 
         if steps < env.market.n_steps:
-            assert not any(terminated.values())
+            assert not any(truncated.values())
         else:
-            assert terminated["__all__"] and all(terminated[a] for a in AGENTS)
+            assert truncated["__all__"] and all(truncated[a] for a in AGENTS)
             break
 
     assert steps == env.market.n_steps == 24
@@ -145,18 +145,18 @@ def test_zero_actions_submit_no_orders(env):
     reward_scale`` (it earns nothing, and the import is charged)."""
     zero = zero_policy(env)
     obs = env.reset(seed=2)[0]
-    utility = env.utility_price
 
     while True:
-        obs, rewards, terminated, *_ = env.step(zero(obs))
+        obs, rewards, _, truncated, _ = env.step(zero(obs))
         record = env.last_record
         assert len(record.orders) == 0
+        utility = record.inputs.utility_price  # the step's
 
         for a in AGENTS:
             expected = -utility * record.participants[a].deferred_demand_kwh
             assert rewards[a] == pytest.approx(expected / env.reward_scale)
 
-        if terminated["__all__"]:
+        if truncated["__all__"]:
             break
 
 
@@ -178,7 +178,9 @@ def test_reward_is_the_scaled_net_bill(env):
         _, rewards, _, _, infos = env.step(random_actions(env, rng))
         for a in AGENTS:
             o = env.last_record.participants[a]
-            bill = o.profit - env.utility_price * o.deferred_demand_kwh
+            bill = (
+                o.profit - env.last_record.inputs.utility_price * o.deferred_demand_kwh
+            )
             assert rewards[a] == pytest.approx(bill / env.reward_scale)
             assert infos[a]["bill"] == pytest.approx(bill)
             assert infos[a]["profit"] == pytest.approx(o.profit)
@@ -223,7 +225,10 @@ def test_action_decoding_sell(env):
     t = env.market.current_step
     bound = env.market.participants[pid].max_sell_kwh(t)
     expected = min(bound, env.market.scenario.market.max_quantity)
-    fit, utility = env.feed_in_tariff, env.utility_price
+    fit, utility = (
+        env.market.dso.feed_in_tariff,
+        env.market.dso.utility_price,
+    )  # the step's
     none = len(AGENTS)  # the last partner index: no preference
 
     def order_for(q: float, p: float):
@@ -259,17 +264,19 @@ def test_action_decoding_buy(env):
     bound = p.max_buy_kwh(t)
     intent = env.decode(pid, action(1, 1.0, 0.0, 0))
     assert intent.is_buy and intent.quantity_kwh == pytest.approx(bound)
-    assert intent.price == pytest.approx((env.feed_in_tariff + env.utility_price) / 2)
+    assert intent.price == pytest.approx(
+        (env.market.dso.feed_in_tariff + env.market.dso.utility_price) / 2
+    )
     half = env.decode(pid, action(1, 2 * 0.525 - 1, 0.0, 0))
     assert half.quantity_kwh == pytest.approx(bound / 2)
     # continuous parts are clipped to [-1, 1] first
     big = env.decode(pid, action(1, 5.0, 9.0, 0))
     assert big.quantity_kwh == pytest.approx(bound)
-    assert big.price == pytest.approx(env.utility_price)
+    assert big.price == pytest.approx(env.market.dso.utility_price)
     # encode is decode's inverse for baselines and tests
     again = env.decode(pid, env.encode(pid, "buy", 0.5, 1.0))
     assert again.quantity_kwh == pytest.approx(bound / 2, rel=1e-5)
-    assert again.price == pytest.approx(env.utility_price)
+    assert again.price == pytest.approx(env.market.dso.utility_price)
 
     with pytest.raises(ValueError, match="outside its space"):
         env.decode(pid, action(2, 1.0, 0.0, 0))

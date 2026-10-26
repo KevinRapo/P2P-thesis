@@ -161,6 +161,32 @@ class MarketSetup:
         return found
 
 
+# --------------------------------------------------------------------------------------
+# Time-of-use tariffs
+# --------------------------------------------------------------------------------------
+# A synthetic time-of-use utility price, per kWh in the scenario's money unit: off
+# peak at night, a day price and an evening peak; [start hour, price] pairs, each
+# price until the next start. Not measured data: a simple shape that makes energy
+# worth more at some hours than at others (decided 26 Oct 2026).
+TOU_UTILITY = [[0.0, 0.20], [7.0, 0.30], [17.0, 0.40], [22.0, 0.20]]
+
+
+def price_at(flat: float, schedule: Optional[list], hour: float) -> float:
+    """The price at ``hour`` (0-24, wrapping): the schedule's last ``[start,
+    price]`` that has started, or ``flat`` without a schedule."""
+    if not schedule:
+        return float(flat)
+
+    hour = hour % 24
+    price = float(sorted(schedule)[-1][1])  # before the first start: the last one
+
+    for start, value in sorted(schedule):
+        if start <= hour:
+            price = float(value)
+
+    return price
+
+
 @dataclass
 class DsoSetup:
     """DSO tariffs ([P1] §3.3.1), grid fees ([P1] eq. 8) and transmission losses
@@ -168,8 +194,15 @@ class DsoSetup:
     original code's.
 
     Attributes:
-        feed_in_tariff: p_FiT, what the DSO pays per kWh it buys.
-        utility_price: p_utility, what the DSO charges per kWh it sells.
+        feed_in_tariff: p_FiT, what the DSO pays per kWh it buys (all day, unless
+            ``feed_in_schedule`` is given).
+        utility_price: p_utility, what the DSO charges per kWh it sells (all day,
+            unless ``utility_schedule`` is given).
+        utility_schedule: A time-of-use p_utility: ``[start hour, price]`` pairs,
+            each price until the next start (``TOU_UTILITY`` is a synthetic one);
+            ``None``: the flat ``utility_price``. [P1] §3.4.4 lets the tariffs
+            change per step.
+        feed_in_schedule: The same for p_FiT; ``None``: the flat ``feed_in_tariff``.
         fees_charged: Whether the fees are paid (always calculated and recorded).
         fee_buyer_share: Share of a peer-to-peer trade's fee the buyer pays; the
             seller pays the rest. A trade with the DSO is paid by the participant.
@@ -189,6 +222,8 @@ class DsoSetup:
 
     feed_in_tariff: float = 0.08
     utility_price: float = 0.30
+    utility_schedule: Optional[list] = None
+    feed_in_schedule: Optional[list] = None
     fees_charged: bool = True
     fee_buyer_share: float = 0.5
     loss_factor: float = 0.03
@@ -207,10 +242,15 @@ class DsoSetup:
         gain nothing by trading with each other, and fee settings out of range."""
         found = []
 
-        if self.feed_in_tariff >= self.utility_price:
-            found.append(
-                "Feed-in tariff is not below the utility price: no gain from peers."
-            )
+        for hour in range(24):
+            fit = price_at(self.feed_in_tariff, self.feed_in_schedule, hour)
+            utility = price_at(self.utility_price, self.utility_schedule, hour)
+            if fit >= utility:
+                found.append(
+                    f"Feed-in tariff is not below the utility price at {hour}:00: "
+                    "no gain from peers."
+                )
+                break
 
         if not 0 <= self.fee_buyer_share <= 1:
             found.append("Fee buyer share is not in 0-1.")

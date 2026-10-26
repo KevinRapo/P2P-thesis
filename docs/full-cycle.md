@@ -150,7 +150,7 @@ stages, then the rest).
 | **Writes** | `participants`, `dso`, `clearing_price`, `grid`, `graph`; empty `history` |
 | **Code** | [`reset`](../core/market/lem.py#L256-L271) → [`_build_participants`](../core/market/lem.py#L347-L370) ([`profiles_from_elements`](../core/market/agent/der.py#L88-L115)), [`_battery`](../core/market/lem.py#L372-L377), [`Dso.market_price`](../core/market/dso.py#L124-L127), [`SimBenchGrid.reset`](../core/grid/powerflow.py#L67-L89), [`_graph_model`](../core/market/lem.py#L555-L563) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
-| **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs constant over the day; *Open: MP-0a, MP-1c, MP-5b* ([plans](plan/index.md)) |
+| **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs flat or time-of-use (MP-0b: the reference scenario's utility price by hour, `Dso.set_hour` before each step); *Open: MP-0a, MP-1c, MP-5b* ([plans](plan/index.md)) |
 
 ### 1. Inputs
 

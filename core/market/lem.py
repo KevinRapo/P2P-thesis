@@ -260,6 +260,7 @@ class LocalEnergyMarket:
         g = self.scenario.grid
         self.participants = self._build_participants()
         self.dso.reset()
+        self.dso.set_hour(0.0)
         self.clearing_price = self.dso.market_price()
         self.grid = SimBenchGrid(
             g, {p.id: list(p.owns) for p in self.scenario.participants}
@@ -391,8 +392,9 @@ class LocalEnergyMarket:
         return Battery(**asdict(b), step_hours=self.scenario.grid.step_hours)
 
     def _inputs(self, step: int) -> StepInputs:
-        """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are fixed for the
-        day; [P1] §3.4.4 lets them change per step."""
+        """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are the DSO's
+        current ones: flat, or the time-of-use price of the step's hour (set when
+        the previous step ends, ``_advance``)."""
         people = self.participants.items()
         return StepInputs(
             step=step,
@@ -651,6 +653,9 @@ class LocalEnergyMarket:
         self.clearing_price = record.clearing_price
         self.history.append(record)
         self.pending = None
+        # The next step's tariffs (after the last step: the next day's midnight, as
+        # the final observation shows).
+        self.dso.set_hour(self.current_step * self.scenario.grid.step_hours)
 
 
 __all__ = [

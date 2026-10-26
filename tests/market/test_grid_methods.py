@@ -93,9 +93,9 @@ def play(method: str, **grid) -> list:
     records = []
 
     while True:
-        obs, _, terminated, _, _ = env.step(policy(obs))
+        obs, _, _, truncated, _ = env.step(policy(obs))
         records.append(env.last_record)
-        if terminated["__all__"]:
+        if truncated["__all__"]:
             return records
 
 

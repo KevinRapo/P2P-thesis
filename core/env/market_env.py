@@ -22,7 +22,9 @@ reputations, which [P1] adds when partner preference is on:
                           participants, in the agent's candidate order (below)
 
 Scaling (``_obs_scales``), with E = ``energy_scale``, N agents, T steps a day: prices
-as (p − FiT) / (utility − FiT), price differences / (utility − FiT); one step's
+as (p − FiT) / (utility − FiT), price differences / (utility − FiT), FiT the day's
+lowest and utility the day's highest tariff (the same scale at every hour, so the
+time-of-use price itself is seen: ``dso_buy_price``, ``dso_sell_price``); one step's
 energy / E (agent) or / (E · N) (market); energy over the day / (E · T) (agent) or
 / (E · N · T) (KPIs); profit / ``reward_scale``, welfare / (``reward_scale`` · N ·
 T); shares, ratios, reputation and the state of charge as they are. A signal that is
@@ -43,9 +45,10 @@ components (``ACTION_COMPONENTS``), two continuous and two categorical:
               there is no order; above it the share is rescaled to (0, 1] of the
               bound, so q = 1 offers all it may and the policy needs no knowledge
               of the bounds. No order below 1e-9 kWh.
-    price     Box([-1, 1]): p_bid = FiT + (p + 1) / 2 · (utility − FiT): −1 is the
-              feed-in tariff, +1 the utility price (the range the DSO makes every
-              trade worth)
+    price     Box([-1, 1]): p_bid = FiT + (p + 1) / 2 · (utility − FiT), with the
+              tariffs of the step being played (time-of-use tariffs change by
+              hour): −1 is the feed-in tariff, +1 the utility price (the range the
+              DSO makes every trade worth)
     partner   Discrete(N + 1): β, an index into the agent's candidates
               (``partners(agent)``): the N − 1 other participants in scenario
               order, then the DSO, then "no preference"
@@ -70,7 +73,8 @@ Reward, per agent and step: the net energy bill, scaled,
 
     r = (profit − p_utility · deferred_demand) / reward_scale
 
-``profit`` is eq. 14 for the step (revenue − cost of its trades − its grid fees).
+``profit`` is eq. 14 for the step (revenue − cost of its trades − its grid fees);
+p_utility is the step's (time-of-use tariffs change by hour).
 ``deferred_demand`` is the demand that generation, purchases and battery left
 uncovered; it is drawn from the upstream grid untraded. Settlement leaves that
 energy unpriced, so profit alone would make not buying free: an agent that
@@ -82,19 +86,24 @@ these two outside options.
 
 Scales. ``energy_scale`` E defaults to the largest generation or demand of any
 participant in any step of any day in ``days``; ``reward_scale`` defaults to
-``p_utility · E``, the bill for E kWh bought from the DSO, so a reward of −1 is
-one such purchase. A run resolves both once, on its training days, and keeps them
-(``resolved_config``): validation, the held-out days and a restored policy use
+``p_utility · E`` with the day's highest p_utility, the bill for E kWh bought from
+the DSO at its dearest, so a reward of −1 is one such purchase. A run resolves
+both once, on its training days, and keeps them (``resolved_config``):
+validation, the held-out days and a restored policy use
 the training values, so an observation and a reward mean the same everywhere.
 
 Episodes. ``reset`` draws a day from ``days`` (or plays ``options["day"]``, one
 of them: the held-out evaluation plays each test day once) and rebuilds the market
 for it (changing the day and resetting is cheap; the first reset of a process
-loads the SimBench network). The day ends the episode: ``terminateds`` is True for
-every agent and ``__all__`` after the last step, ``truncateds`` is always False.
-The end of the day is not a cut in an endless task but the real end, and the hour
-is in the observation, so the value of a state near the end is learnable and no
-bootstrap is needed.
+loads the SimBench network). The day is **truncated**, not terminated: after the
+last step ``truncateds`` is True for every agent and ``__all__``, ``terminateds``
+always False. The market goes on after midnight, so the return is bootstrapped
+from the value of the final observation (the next day's midnight: hour 0, its
+tariffs) instead of ending at 0 (Pardo et al. 2018, "Time Limits in Reinforcement
+Learning"); otherwise an agent learns that nothing after 24:00 matters, e.g. that
+energy left in the battery at midnight is worth nothing. The next episode still
+starts a fresh day (the battery at its initial state of charge, MP-1c), so the
+bootstrapped value is an estimate of a continuation the environment does not play.
 
 Infos, per agent and step, in the layout ``core/rl/policy.py`` reads (amounts
 are summed over an episode, states only kept step by step; kWh and the scenario's
@@ -219,8 +228,9 @@ class MarketEnv(MultiAgentEnv):
         self.days: list[str] = list(config.get("days") or [scenario.grid.day])
         self.agents_id: list[str] = [p.id for p in scenario.participants]
         self.agents = self.possible_agents = list(self.agents_id)
-        self.feed_in_tariff = scenario.dso.feed_in_tariff
-        self.utility_price = scenario.dso.utility_price
+        # The day's lowest p_FiT and highest p_utility: the fixed scale of prices
+        # and rewards (the step's own tariffs are the DSO's, ``self.market.dso``).
+        self.feed_in_tariff, self.utility_price = self.market.dso.tariff_range()
         self.energy_scale: float = float(
             config.get("energy_scale") or self._largest_energy()
         )
@@ -301,9 +311,11 @@ class MarketEnv(MultiAgentEnv):
                     "price": {
                         "kind": "continuous",
                         "bounds": [-1.0, 1.0],
-                        "means": "FiT + (p + 1) / 2 · (utility − FiT)",
+                        "means": "FiT + (p + 1) / 2 · (utility − FiT), the step's",
                         "feed_in_tariff": self.feed_in_tariff,
                         "utility_price": self.utility_price,
+                        "utility_schedule": self.market.dso.utility_schedule,
+                        "feed_in_schedule": self.market.dso.feed_in_schedule,
                     },
                     "partner": {
                         "kind": "categorical",
@@ -365,7 +377,7 @@ class MarketEnv(MultiAgentEnv):
 
         for pid in self.agents_id:
             o = record.participants[pid]
-            bill = o.profit - self.utility_price * o.deferred_demand_kwh
+            bill = o.profit - record.inputs.utility_price * o.deferred_demand_kwh
             rewards[pid] = bill / self.reward_scale
             order = orders.get(pid)
             battery = self.market.participants[pid].battery
@@ -391,9 +403,11 @@ class MarketEnv(MultiAgentEnv):
                 "shared_state": shared_state,
             }
 
+        # The day is truncated, not terminated: the return bootstraps from the final
+        # observation (the module docstring, "Episodes").
         done = self.market.done
-        terminateds = {a: done for a in self.agents_id} | {"__all__": done}
-        truncateds = {a: False for a in self.agents_id} | {"__all__": False}
+        terminateds = {a: False for a in self.agents_id} | {"__all__": False}
+        truncateds = {a: done for a in self.agents_id} | {"__all__": done}
 
         return self._observe(), rewards, terminateds, truncateds, infos
 
@@ -426,8 +440,8 @@ class MarketEnv(MultiAgentEnv):
         if quantity <= _MIN_ORDER_KWH:
             return None
 
-        spread = self.utility_price - self.feed_in_tariff
-        price = self.feed_in_tariff + (p + 1.0) / 2.0 * spread
+        fit, utility = self.market.dso.feed_in_tariff, self.market.dso.utility_price
+        price = fit + (p + 1.0) / 2.0 * (utility - fit)
 
         return OrderIntent(
             pid, is_buy, float(price), float(quantity), self._candidates[pid][partner]

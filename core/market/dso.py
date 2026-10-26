@@ -3,7 +3,8 @@
 What belongs to the DSO and nobody else:
 
     tariffs          p_FiT, what it pays for energy it buys, and p_utility, what it
-                     charges for energy it sells; p_FiT < p_P2P < p_utility
+                     charges for energy it sells; p_FiT < p_P2P < p_utility. Flat,
+                     or time-of-use: ``set_hour`` sets the step's
     market price     the midpoint of the two, the reference before any trade
     grid             what it saw in the step's power flow: the lines' loading
     losses, fees     eq. 18 for every trade as it clears; eq. 8 once the step's
@@ -21,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Callable, Mapping, Optional, Sequence
 
+from core.config.scenario import price_at
 from core.grid.contract import GridAssessment, GridPath
 from core.market.order import GridFees, Order, Trade
 
@@ -55,6 +57,9 @@ class Dso:
         feed_in_tariff: p_FiT, what the DSO pays per kWh it buys ([P1] §3.3.1).
         utility_price: p_utility, what the DSO charges per kWh it sells ([P1]
             §3.3.1).
+        utility_schedule: A time-of-use p_utility (``DsoSetup``); ``utility_price``
+            then holds the step's price, set by ``set_hour``.
+        feed_in_schedule: The same for p_FiT.
         fees_charged: Whether the participants pay the fees.
         fee_buyer_share: Share of a peer-to-peer fee the buyer pays.
         loss_factor: κ of eq. 18, per km.
@@ -75,6 +80,8 @@ class Dso:
         self,
         feed_in_tariff: float,
         utility_price: float,
+        utility_schedule: Optional[list] = None,
+        feed_in_schedule: Optional[list] = None,
         fees_charged: bool = True,
         fee_buyer_share: float = 0.5,
         loss_factor: float = 0.03,
@@ -92,6 +99,10 @@ class Dso:
         if voltage_drop not in ("distance", "measured"):
             raise ValueError("voltage_drop must be 'distance' or 'measured'")
 
+        self.flat_feed_in_tariff = feed_in_tariff
+        self.flat_utility_price = utility_price
+        self.utility_schedule = utility_schedule
+        self.feed_in_schedule = feed_in_schedule
         self.feed_in_tariff = feed_in_tariff
         self.utility_price = utility_price
         self.fees_charged = fees_charged
@@ -122,6 +133,25 @@ class Dso:
         self.fees = 0.0
 
     # --- Tariffs ---------------------------------------------------------------------
+    def tariffs_at(self, hour: float) -> tuple[float, float]:
+        """``(p_FiT, p_utility)`` at ``hour`` of the day (flat or time-of-use)."""
+        return (
+            price_at(self.flat_feed_in_tariff, self.feed_in_schedule, hour),
+            price_at(self.flat_utility_price, self.utility_schedule, hour),
+        )
+
+    def set_hour(self, hour: float) -> None:
+        """Make the tariffs of ``hour`` the current ones (``feed_in_tariff``,
+        ``utility_price``): what the step about to be played trades at."""
+        self.feed_in_tariff, self.utility_price = self.tariffs_at(hour)
+
+    def tariff_range(self) -> tuple[float, float]:
+        """The lowest p_FiT and the highest p_utility of the day: the fixed range
+        prices are scaled by (observation, reward)."""
+        prices = [self.tariffs_at(hour) for hour in range(24)]
+
+        return min(f for f, _ in prices), max(u for _, u in prices)
+
     def market_price(self) -> float:
         """The midpoint of p_FiT and p_utility: the reference price before any
         peer-to-peer trade (the original's ``get_market_price``; not in [P1])."""

@@ -88,6 +88,25 @@
   "dso": {
     "feed_in_tariff": 0.08,
     "utility_price": 0.3,
+    "utility_schedule": [
+      [
+        0.0,
+        0.2
+      ],
+      [
+        7.0,
+        0.3
+      ],
+      [
+        17.0,
+        0.4
+      ],
+      [
+        22.0,
+        0.2
+      ]
+    ],
+    "feed_in_schedule": null,
     "fees_charged": true,
     "fee_buyer_share": 0.5,
     "loss_factor": 0.03,
