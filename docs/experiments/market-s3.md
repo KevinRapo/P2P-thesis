@@ -106,6 +106,47 @@ the held-out gain over doing nothing, (trained − zero) / N, mean of 2 seeds.
 - DTDE was still improving at 192k for 26 and 43 agents (its training evaluation
   rose by 0.24-0.28 over the last three points).
 
+## 4. CTCE: clip, network and batch (27-28 October)
+
+Why does CTCE trail? Three candidate causes, each tested by one RLlib setting on
+`market_s3_ctce` (rural1, 480k steps, 3 seeds, entropy 0.01 / 13):
+
+- **The clip.** CTCE clips one joint ratio, the product of 13 agents' ratios, so
+  PPO's 0.2 leaves each agent a narrower trust region than a DTDE agent gets.
+  Variant: `clip_param` 0.2 · √13 = 0.72 (`market_s4_ctce`).
+- **Capacity.** One 2 × 256 network for all 13 agents, against 13 such networks in
+  DTDE. Variant: 2 × 768, about the DTDE networks' size together
+  (`market_s4_ctce_net`).
+- **Noise.** One team advantage judges every agent's action, so each agent's
+  signal carries the other agents' luck. Variant: four times the batch per update
+  (2000 steps, minibatches of 256), the same total budget (`market_s4_ctce_batch`).
+
+| CTCE | Held-out return | Clip fraction | KL per update |
+|---|---|---|---|
+| baseline (`market_s3_ctce`) | 1.07 ± 0.24 | 0.83 | 0.28 |
+| clip 0.72 | 0.96 ± 0.45 | 0.64 | 2.1 |
+| 2 × 768 | −0.17 ± 0.69 | 0.83 | 0.76 |
+| clip 0.72 and 2 × 768 | −0.33 ± 0.54 | 0.70 | 2.8 |
+| **batch 2000** | **1.63 ± 0.17** | 0.78 | 0.20 |
+| *CTDE / DTDE (`market_s3`)* | *1.63 ± 0.12 / 1.76 ± 0.09* | *0.37* | *0.04* |
+
+The wider clip lets the policy take steps ten times larger without learning more,
+and the larger network learns less: the high clip fraction is a symptom of a noisy
+joint update, not its cause. The larger batch averages the noise down, and CTCE
+reaches CTDE's held-out return, with a spread as small. Its training-day return
+was still rising at 480k in two seeds (2.16, 2.67, 2.42 at the end), and a run
+takes 1.6 h instead of 2.8 h (fewer updates). At 43 agents (rural3) the clip
+(1.31) and a 2 × 1024 network did not help either (gain per agent 0.054-0.074 and
+−0.022-0.048 against 0.053-0.091); the batch has not been tried there.
+
+On the probes (CTCE, 3 seeds, 4 times the budget) none of entropy 0.01 / 3, the
+clip widened by √3, a 2 × 512 network, or no tanh on the mean passes probes 4 and 6.
+The batch has not been tried on the probes.
+
+The same diagnosis as Gupta et al. (2017, "Cooperative Multi-Agent Control Using
+Deep RL"), whose centralised controller with a factored joint action trailed
+concurrent and parameter-sharing learners in all three of their tasks.
+
 ## What to expect with more agents
 
 - **DTDE and CTDE**: the learning holds; the cost is compute. DTDE's time grows
