@@ -38,8 +38,8 @@
   "resources": {
     "cpus": 10,
     "mem_gb": 16,
-    "minutes": 240,
-    "node": "blackwell1"
+    "minutes": 600,
+    "node": null
   },
   "model": {
     "fcnet_hiddens": [
