@@ -164,6 +164,7 @@ nav:
   # What the thesis compares, and how.
   - Experiments:
       - Grid-method comparison: experiments/grid-methods.md
+      - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
   # Running on the TalTech cluster.
   - HPC:
       - Overview: hpc.md
