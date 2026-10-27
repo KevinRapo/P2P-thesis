@@ -1,0 +1,42 @@
+{
+  "name": "market_s4_ctce_batch",
+  "description": "CTCE (entropy 0.01 / 13, clip 0.2) with four times the batch per update: 2000 environment steps, minibatches of 256, 10 epochs. The clip (market_s4_ctce) and a larger network (market_s4_ctce_net) did not raise CTCE's held-out return; what is left is the noise of one team advantage for 13 agents, which a larger batch averages down.",
+  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "train_days": {
+    "from": "2016-06-01",
+    "to": "2016-06-30"
+  },
+  "test_days": {
+    "from": "2016-07-01",
+    "to": "2016-07-14"
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctce"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "variants": {
+    "batch2k": {
+      "entropy_coeff": 0.000769,
+      "train_batch_size_per_learner": 2000,
+      "minibatch_size": 256
+    }
+  },
+  "budget": 480000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 3,
+  "num_env_runners": 8,
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 16,
+    "minutes": 600,
+    "node": null
+  }
+}
