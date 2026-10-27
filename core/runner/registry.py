@@ -177,14 +177,25 @@ def _complete(text: str) -> list[str]:
 
 def _last_row(path: Path) -> Optional[dict]:
     """The last complete row of a CSV as a dict, reading only its first line and
-    its end."""
+    its end: 8 kB, or more until the end holds a whole row (a run with many agents
+    writes rows of more than 8 kB)."""
     try:
         with open(path, "rb") as handle:
             header = handle.readline().decode("utf-8").strip()
             handle.seek(0, 2)
             size = handle.tell()
-            handle.seek(max(0, size - 8192))
-            tail = _complete(handle.read().decode("utf-8", errors="replace"))
+            window = 8192
+
+            while True:
+                start = max(0, size - window)
+                handle.seek(start)
+                tail = _complete(handle.read().decode("utf-8", errors="replace"))
+                # The first line of a window inside the file may be a row's end.
+                if start > 0:
+                    tail = tail[1:]
+                if start == 0 or any(line.strip() for line in tail):
+                    break
+                window *= 4
     except OSError:
         return None
 

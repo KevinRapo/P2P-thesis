@@ -35,8 +35,5 @@
     "mem_gb": 24,
     "minutes": 240,
     "node": "blackwell1"
-  },
-  "test": {
-    "budget": 6000
   }
 }

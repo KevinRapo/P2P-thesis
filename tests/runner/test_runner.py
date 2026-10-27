@@ -936,6 +936,13 @@ def test_a_row_still_being_written_is_not_read(tmp_path):
     assert registry._last_row(path)["env_steps"] == "200"
     path.write_text("iteration,env", encoding="utf-8")  # the header, half written
     assert registry._last_row(path) is None
+    # Rows longer than the 8 kB read at first (many agents): still the whole row.
+    wide = ",".join(f"m{k}" for k in range(1998))
+    row = lambda i: ",".join([str(i), str(i * 500)] + ["0.123456"] * 1998)
+    path.write_text(
+        f"iteration,env_steps,{wide}\n{row(1)}\n{row(2)}\n", encoding="utf-8"
+    )
+    assert registry._last_row(path)["env_steps"] == "1000"
     evaluation = tmp_path / "evaluation.csv"
     evaluation.write_text(
         "policy,team_return_mean\ntrained,-7.5\ntrained,-6", encoding="utf-8"
