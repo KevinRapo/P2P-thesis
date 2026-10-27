@@ -185,6 +185,12 @@ VARIANTS = {
         "model": {"fcnet_hiddens": [512, 512]},
         "training": {"entropy_coeff": 0.01 / 3, "clip_param": 0.2 * 3**0.5},
     },
+    # ent3 without the tanh on the mean (S instead of SM): CTCE's means at +-0.6
+    # end near +-0.97, where the tanh is saturated and passes little gradient.
+    "ent3free": {
+        "model": {"bound_mean": False},
+        "training": {"entropy_coeff": 0.01 / 3},
+    },
 }
 
 
