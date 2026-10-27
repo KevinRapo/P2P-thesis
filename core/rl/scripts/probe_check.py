@@ -176,6 +176,15 @@ VARIANTS = {
     "ent3": {"training": {"entropy_coeff": 0.01 / 3}},
     "ent0": {"training": {"entropy_coeff": 0.0}},
     "one": {"env_config": {"n_agents": 1}},
+    # ent3 with PPO's clip widened by sqrt(3): CTCE clips one joint ratio, the
+    # product of the agents' ratios, so the same clip leaves each agent a trust
+    # region about sqrt(N) times narrower than a DTDE agent's. "net": a network
+    # of about the three DTDE networks' size together.
+    "ent3clip": {"training": {"entropy_coeff": 0.01 / 3, "clip_param": 0.2 * 3**0.5}},
+    "ent3clipnet": {
+        "model": {"fcnet_hiddens": [512, 512]},
+        "training": {"entropy_coeff": 0.01 / 3, "clip_param": 0.2 * 3**0.5},
+    },
 }
 
 

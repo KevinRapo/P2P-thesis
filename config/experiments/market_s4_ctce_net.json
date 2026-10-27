@@ -1,0 +1,50 @@
+{
+  "name": "market_s4_ctce_net",
+  "description": "market_s4_ctce with a network of about the 13 DTDE networks' size together (2 x 768 against 13 x 2 x 256: about 2.2M parameters each): the entropy fix alone (net) and with the widened clip (clipnet).",
+  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "train_days": {
+    "from": "2016-06-01",
+    "to": "2016-06-30"
+  },
+  "test_days": {
+    "from": "2016-07-01",
+    "to": "2016-07-14"
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctce"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "variants": {
+    "net": {
+      "entropy_coeff": 0.000769
+    },
+    "clipnet": {
+      "entropy_coeff": 0.000769,
+      "clip_param": 0.721
+    }
+  },
+  "budget": 480000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 6,
+  "num_env_runners": 8,
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 16,
+    "minutes": 240,
+    "node": "blackwell1"
+  },
+  "model": {
+    "fcnet_hiddens": [
+      768,
+      768
+    ]
+  }
+}

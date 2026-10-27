@@ -1,0 +1,41 @@
+{
+  "name": "market_s4_ctce",
+  "description": "CTCE with PPO's clip widened for the joint ratio: clip_param 0.2 x sqrt(13). CTCE clips one ratio, the product of the 13 agents' ratios, so 0.2 leaves each agent a trust region about sqrt(13) times narrower than a DTDE agent's (clip fraction 0.85 against 0.37 in market_s3). Entropy 0.01 / 13 as market_s3_ctce, the baseline.",
+  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "train_days": {
+    "from": "2016-06-01",
+    "to": "2016-06-30"
+  },
+  "test_days": {
+    "from": "2016-07-01",
+    "to": "2016-07-14"
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctce"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "variants": {
+    "clip": {
+      "entropy_coeff": 0.000769,
+      "clip_param": 0.721
+    }
+  },
+  "budget": 480000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "max_parallel": 3,
+  "num_env_runners": 8,
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 16,
+    "minutes": 240,
+    "node": "blackwell1"
+  }
+}
