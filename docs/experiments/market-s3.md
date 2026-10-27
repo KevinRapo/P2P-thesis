@@ -2,7 +2,7 @@
 
 > **Status: results of 26-27 October 2026**, TalTech (blackwell1, CTDE with 43
 > agents on green20). One budget per experiment, the PPO defaults of RP-6b, no
-> tuning. The CTDE runs with 43 agents were still training when this was written.
+> tuning.
 
 Three questions after `market_s2` (one seed, 240k steps):
 
@@ -78,7 +78,7 @@ the held-out gain over doing nothing, (trained − zero) / N, mean of 2 seeds.
 |---|---|---|---|---|
 | 13 | 0.170 | 0.213 | 0.200 | +0.008 |
 | 26 | 0.124 | 0.174 | 0.177 | +0.017 |
-| 43 | 0.072 | *running* | 0.176 | +0.026 |
+| 43 | 0.072 | 0.168 | 0.176 | +0.026 |
 
 | N | CTCE: clip fraction, KL | DTDE: clip fraction, KL | Hours per run (blackwell1): CTCE / CTDE / DTDE |
 |---|---|---|---|
@@ -95,9 +95,10 @@ the held-out gain over doing nothing, (trained − zero) / N, mean of 2 seeds.
   team advantage (0.73 against 1/√2 = 0.71); at 43 it falls faster (0.42 against
   0.55), as the joint ratio breaks down: KL 0.92 and 91 % of the samples clipped.
   Its log σ stays near 0 (σ ≈ 1): the per-agent signal no longer shrinks it.
-- **CTDE costs the most to train**: N critics, each reading the global state that
-  grows with N; about 10 environment steps per second at 43 agents against 56 at
-  13.
+- **CTDE learns as DTDE does, at a much higher cost**: its gain per agent follows
+  DTDE's (0.168 against 0.176 at 43 agents), but it has N critics, each reading
+  the global state that grows with N: about 10 environment steps per second at 43
+  agents against 56 at 13, and 11 h per run on a green node.
 - **Rural3 is an easy grid**: no violations at all, even without trading, and
   the net_position heuristic is strong (the learned policies beat it by 0.01-0.03
   per agent). Rural1 is the network where the grid binds; the scaling results say
