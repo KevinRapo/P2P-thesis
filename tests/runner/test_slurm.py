@@ -142,6 +142,26 @@ def test_states_asks_sacct_once_for_the_array(tmp_path, monkeypatch):
     assert calls[0][-1] == "JobID,State,NodeList"
 
 
+def test_states_of_many_experiments_is_one_sacct_call(tmp_path, monkeypatch):
+    write(tmp_path / "a" / "slurm.json", {"array_id": "100"})
+    write(tmp_path / "b" / "slurm.json", {"array_id": "200"})
+    (tmp_path / "never").mkdir()
+    calls = []
+
+    def fake_run(command, **options):
+        calls.append(command)
+        return subprocess.CompletedProcess(
+            command, 0, stdout="100_0|COMPLETED|n1\n200_[0-1]|PENDING|\n"
+        )
+
+    monkeypatch.setattr(slurm.subprocess, "run", fake_run)
+    found = slurm.states_of([tmp_path / "a", tmp_path / "b", tmp_path / "never"])
+    assert len(calls) == 1 and calls[0][:3] == ["sacct", "-j", "100,200"]
+    assert list(found["a"]) == ["100_0"]
+    assert sorted(found["b"]) == ["200_0", "200_1"]
+    assert found["never"] == {}
+
+
 def test_states_is_empty_without_slurm_json_or_sacct(tmp_path, monkeypatch):
     def broken(command, **options):
         raise AssertionError("sacct must not be called")

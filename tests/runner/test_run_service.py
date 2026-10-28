@@ -51,7 +51,7 @@ class FakeTarget:
         self.closed = False
         self.copied = copied  # files the last sync copied; None for a LocalTarget
 
-    def overview(self):
+    def overview(self, recent=None):
         self.calls.append(("overview",))
         return list(self.entries)
 
@@ -255,14 +255,17 @@ def test_the_smoke_spec_in_numbers():
 
 
 def test_a_spec_that_does_not_load_says_why(tmp_path):
-    good = json.loads((REPO / "config" / "experiments" / "smoke.json").read_text("utf-8"))
+    good = json.loads(
+        (REPO / "config" / "experiments" / "smoke.json").read_text("utf-8")
+    )
     (tmp_path / "a_good.json").write_text(json.dumps(good), encoding="utf-8")
     (tmp_path / "b_not_json.json").write_text("{not json", encoding="utf-8")
     (tmp_path / "c_unknown.json").write_text(
         json.dumps(good | {"colour": "red"}), encoding="utf-8"
     )
     (tmp_path / "d_no_scenario.json").write_text(
-        json.dumps(good | {"scenario": "config/scenarios/missing.json"}), encoding="utf-8"
+        json.dumps(good | {"scenario": "config/scenarios/missing.json"}),
+        encoding="utf-8",
     )
     (tmp_path / "notes.txt").write_text("not a spec", encoding="utf-8")
 
@@ -365,7 +368,9 @@ def test_preset_keys_are_the_settings_the_test_version_changes():
 
 
 def test_a_preset_on_text_that_is_no_experiment_says_why():
-    template = (REPO / "config" / "experiments" / "smoke.json").read_text(encoding="utf-8")
+    template = (REPO / "config" / "experiments" / "smoke.json").read_text(
+        encoding="utf-8"
+    )
 
     for text, message in (("{half", "not valid JSON"), ("[1]", "one JSON object")):
         with pytest.raises(ValueError, match=message):
@@ -387,7 +392,9 @@ def test_quick_settings_read_and_rewrite_the_editors_json():
     workers and cluster resources are read from the editor's JSON and written back
     into it, every other setting keeping its edit; None removes a setting (its
     default then applies), and the result is still an experiment."""
-    text = editable((REPO / "config" / "experiments" / "market_ppo.json").read_text("utf-8"))
+    text = editable(
+        (REPO / "config" / "experiments" / "market_ppo.json").read_text("utf-8")
+    )
     values = quick_settings(text)
     assert values["paradigms"] == ["ctce", "ctde", "dtde"]
     assert values["lr"] == 0.0003 and values["num_env_runners"] == 3

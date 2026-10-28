@@ -345,11 +345,11 @@ def test_slurm_target_reads_runs_through_the_slurm_states(root, monkeypatch):
     }
     seen = []
 
-    def fake_states(exp_dir):
-        seen.append(Path(exp_dir))
-        return answer
+    def fake_states_of(exp_dirs):
+        seen.extend(Path(d) for d in exp_dirs)
+        return {Path(d).name: answer for d in exp_dirs}
 
-    monkeypatch.setattr(slurm, "states", fake_states)
+    monkeypatch.setattr(slurm, "states_of", fake_states_of)
     target = targets.SlurmTarget("taltech", CLUSTER)
     (entry,) = target.overview()
     assert seen == [root / "x"]  # one sacct for the summary and the runs together
@@ -815,6 +815,39 @@ def test_remote_overview_is_one_call_with_the_runs_as_run_states(tmp_path):
     assert (found["runs"][2].slurm_state, found["runs"][2].host) == ("COMPLETED", "n1")
 
 
+def test_remote_overview_asks_for_recent_and_falls_back_on_an_old_checkout(
+    tmp_path,
+):
+    target, fake = remote_target(tmp_path)
+    fake.answers["status"] = {"target": "taltech", "experiments": [ENTRY]}
+    target.overview(recent=3)
+    assert fake.calls[-1] == ("status", "--target", "taltech", "--recent", "3")
+
+    class OldCheckout(FakeRemote):
+        def runner(self, *args, **options):
+            if "--recent" in args:
+                raise RemoteError("unrecognized arguments: --recent 3")
+            return super().runner(*args, **options)
+
+    old = OldCheckout()
+    old.answers["status"] = {"target": "taltech", "experiments": [ENTRY]}
+    target = targets.RemoteTarget("taltech", REMOTE_SETTINGS, old, tmp_path / "m")
+    assert [e["name"] for e in target.overview(recent=3)] == ["x"]
+    assert old.calls == [("status", "--target", "taltech")]
+
+
+def test_local_overview_recent_keeps_the_newest_and_the_running(populated):
+    import os
+
+    for name, when in (("old", 1000), ("new", 2000)):
+        os.utime(populated / name, (when, when))
+
+    target = targets.LocalTarget(populated)
+    assert [e["name"] for e in target.overview(recent=1)] == ["new"]
+    assert [e["name"] for e in target.overview(recent=0)] == []
+    assert sorted(e["name"] for e in target.overview()) == ["new", "old"]
+
+
 def test_remote_overview_of_one_experiment_and_runs(tmp_path):
     target, fake = remote_target(tmp_path)
     fake.answers["status"] = {"target": "taltech", "experiment": "x"} | ENTRY
@@ -969,7 +1002,9 @@ def test_status_table_with_slurm_states(root, capsys, monkeypatch):
         {"state": "running", "slurm_job": f"{ARRAY}_0", "host": "node7"},
     )
     answer = {f"{ARRAY}_0": {"state": "RUNNING", "node": "node7"}}
-    monkeypatch.setattr(slurm, "states", lambda exp_dir: answer)
+    monkeypatch.setattr(
+        slurm, "states_of", lambda exp_dirs: {Path(d).name: answer for d in exp_dirs}
+    )
     has_sbatch(monkeypatch, True)
     code, out, _ = run_cli(capsys, "status", "x", "--target", "taltech")
     header, row = out.splitlines()

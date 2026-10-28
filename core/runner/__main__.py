@@ -145,10 +145,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m core.runner", description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     start = commands.add_parser("start")
-    start.add_argument("spec", help="config/experiments/<name>.json, or - (standard input)")
+    start.add_argument(
+        "spec", help="config/experiments/<name>.json, or - (standard input)"
+    )
     start.add_argument("--profile", choices=PROFILES, default="full")
     status = commands.add_parser("status")
     status.add_argument("experiment", nargs="?")
+    status.add_argument(
+        "--recent",
+        type=int,
+        help="only the N most recently changed experiments and those still running",
+    )
     stop = commands.add_parser("stop")
     stop.add_argument("experiment")
     stop.add_argument("run", nargs="?")
@@ -189,7 +196,7 @@ def main(argv: list[str] | None = None) -> int:
                         f"fetch results with: python -m core.runner sync {name}{more}"
                     )
         elif args.command == "status":
-            entries = target.overview(args.experiment)
+            entries = target.overview(args.experiment, args.recent)
             if args.json and args.experiment:
                 answer = {"target": target.name, "experiment": args.experiment}
                 print(json.dumps(answer | _entry_json(entries[0]), default=str))

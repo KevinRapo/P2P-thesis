@@ -41,6 +41,7 @@ from studio.state import services
 
 LOCAL = "local"  # the target that is this PC; any other target is a cluster
 LOCAL_REFRESH_S = 2.0
+RECENT = 8  # experiments shown unless all are asked for (and those running)
 REMOTE_REFRESH_S = 10.0  # every read of a cluster is a round trip over SSH
 START_HINT = (
     "Start an experiment with the button above, or "
@@ -398,7 +399,7 @@ class RunsMonitor:
                         "Check", icon="wifi_tethering", on_click=self.check
                     ).props("flat no-caps dense")
 
-            # When the data was read | Refresh now
+            # When the data was read | Refresh now | All experiments
             with ui.row().classes("w-full items-center gap-2"):
                 self.note = ui.label()
                 if self.remote:
@@ -407,6 +408,12 @@ class RunsMonitor:
                         icon="refresh",
                         on_click=lambda: self.refresh(True),
                     ).props("flat no-caps dense")
+
+                ui.space()
+                self.all = ui.switch(
+                    f"All experiments (else the {RECENT} newest and those running)",
+                    on_change=lambda: self.refresh(True),
+                )
 
             # The experiment cards, newest first (built by _build)
             self.box = ui.column().classes("w-full gap-4")
@@ -432,7 +439,8 @@ class RunsMonitor:
         self._busy = True
 
         try:
-            data = await run.io_bound(self.service.overview, self.target)
+            recent = None if self.all.value else RECENT
+            data = await run.io_bound(self.service.overview, self.target, recent)
         except (OSError, RuntimeError) as error:
             self._show_note(error)
             return

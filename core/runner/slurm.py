@@ -14,7 +14,8 @@ What it adds next to the usual files (see ``launch.py``):
     runs/<experiment>/<run>/status.json  gets ``slurm_job``: the task id (1042700_3)
 
 ``registry`` never calls SLURM: it receives the answer of ``states`` (one ``sacct``
-call) and tells from it whether a run is alive.
+call; ``states_of`` asks about many experiments in one) and tells from it whether a
+run is alive.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ import shlex
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Optional, Sequence
 
 import submitit
 
@@ -109,6 +110,52 @@ def states(exp_dir: Path) -> dict[str, dict]:
         return {}
 
     return parse_sacct(done.stdout) if done.returncode == 0 else {}
+
+
+def states_of(exp_dirs: Sequence[Path]) -> dict[str, dict[str, dict]]:
+    """``states`` of many experiments with one ``sacct`` call (one per experiment
+    takes seconds for a few dozen).
+
+    Returns:
+        ``{experiment folder name: its task map}``; ``{}`` for an experiment never
+        submitted, and for all of them when ``sacct`` is missing or fails.
+    """
+    arrays = {}
+
+    for exp_dir in exp_dirs:
+        info = registry.read_json(Path(exp_dir) / "slurm.json") or {}
+
+        if info.get("array_id"):
+            arrays[Path(exp_dir).name] = str(info["array_id"])
+
+    found = {Path(d).name: {} for d in exp_dirs}
+
+    if not arrays:
+        return found
+
+    command = ["sacct", "-j", ",".join(sorted(set(arrays.values())))]
+    command += ["-n", "-P", "-X", "-o", "JobID,State,NodeList"]
+
+    try:
+        done = subprocess.run(
+            command, capture_output=True, text=True, timeout=SACCT_TIMEOUT_S
+        )
+    except (OSError, subprocess.SubprocessError):
+        return found
+
+    if done.returncode != 0:
+        return found
+
+    tasks = parse_sacct(done.stdout)
+
+    for name, array_id in arrays.items():
+        found[name] = {
+            task: info
+            for task, info in tasks.items()
+            if task == array_id or task.startswith(f"{array_id}_")
+        }
+
+    return found
 
 
 # --------------------------------------------------------------------------------------

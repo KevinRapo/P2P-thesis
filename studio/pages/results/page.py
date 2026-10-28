@@ -8,13 +8,15 @@
     Grid         what did the grid do? the power flow's amounts per day
     Explore      any recorded number, with every control
 
-The runs are those of this PC and of each cluster's mirror (after Sync results on
-the Runs page once), read from their folders (``core/runner/results.py``, the
-notebook ``notebooks/runner/results.ipynb`` reads the same). Only the open tab is
-built. With *Live* on, every 10 s the mirror of each cluster experiment with a
-ticked run still queued or running is brought up to date (``Target.follow``: only
-what training wrote since), the runs are read again (an unchanged file is not)
-and the open tab's charts redraw in place.
+The runs are those of this PC and of each cluster's mirror, read from their
+folders (``core/runner/results.py``, the notebook ``notebooks/runner/results.ipynb``
+reads the same). Only the open tab is built. With *Live* on, at once and then
+every 10 s, each cluster is asked which of its experiments have runs queued or
+running, and the mirror of each is brought up to date (``Target.follow``: only
+what training wrote since; an experiment new here appears in the table); the runs
+are read again (an unchanged file is not) and the open tab's charts redraw in
+place. A finished experiment not followed while it ran: Sync results on the Runs
+page.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ import time
 
 from nicegui import run, ui
 
+from core.runner.results import LOCAL
 from studio.adapters.results_service import ResultsService
 from studio.adapters.run_service import RunService
 from studio.components.cards import placeholder
@@ -64,7 +67,10 @@ class ResultsView:
 
         # Live row: switch | when it last read the runs
         with ui.row().classes("w-full items-center gap-3"):
-            self.live = ui.switch(f"Live (every {LIVE_S} s)")
+            self.live = ui.switch(
+                f"Live (every {LIVE_S} s)",
+                on_change=lambda e: self.tick() if e.value else None,
+            )
             self.note = ui.label().classes("mls-card-caption")
 
         # Tab bar; only the open tab is built, into the box under it
@@ -121,7 +127,7 @@ class ResultsView:
 
         try:
             keys = list(self.table.selected)
-            followed = await self._follow(keys)
+            followed = await self._follow()
             self.service.refresh()
             await self.table.load()
             tab = self.tab
@@ -138,21 +144,22 @@ class ResultsView:
         finally:
             self._ticking = False
 
-    async def _follow(self, keys: list[str]) -> list[str]:
-        """Bring the mirror of every cluster experiment with a ticked run still
-        queued or running up to date; returns ``target/experiment`` of each."""
-        table = self.table.overview
+    async def _follow(self) -> list[str]:
+        """Ask each cluster which experiments have runs queued or running, and
+        bring the mirror of each up to date (it appears here if it is new); returns
+        ``target/experiment`` of each."""
+        followed = []
 
-        if table.empty or "state" not in table:
-            return []
+        for target, _ in self.runs.target_names():
+            if target == LOCAL:
+                continue
 
-        active = table[table.key.isin(keys) & table.state.isin(ACTIVE)]
-        pairs = sorted(set(zip(active.target, active.experiment)))
+            for entry in await run.io_bound(self.runs.overview, target, 0):
+                if any(r.state in ACTIVE for r in entry["runs"]):
+                    await run.io_bound(self.runs.follow, target, entry["name"])
+                    followed.append(f"{target}/{entry['name']}")
 
-        for target, experiment in pairs:
-            await run.io_bound(self.runs.follow, target, experiment)
-
-        return [f"{target}/{experiment}" for target, experiment in pairs]
+        return followed
 
 
 def page() -> None:
@@ -162,8 +169,8 @@ def page() -> None:
     with shell(
         "results",
         "Results",
-        "The ticked runs, of this PC and of the clusters (Sync results on the Runs "
-        "page once). Live reads the training runs again every 10 s.",
+        "The ticked runs, of this PC and of the clusters. Live follows the "
+        "experiments training on a cluster and reads the runs again every 10 s.",
     ):
         view = ResultsView(s.results, s.runs)
         ui.timer(0.05, view.load, once=True)

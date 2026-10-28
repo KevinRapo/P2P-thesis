@@ -180,12 +180,16 @@ class Target(ABC):
         return self.start(saved, "full", allow_uncommitted)
 
     @abstractmethod
-    def overview(self, experiment: Optional[str] = None) -> list[dict]:
+    def overview(
+        self, experiment: Optional[str] = None, recent: Optional[int] = None
+    ) -> list[dict]:
         """The experiments there (or just ``experiment``), each ``{"name",
         "description", "summary" (``registry.summary``), "modified" (seconds since the
         epoch), "spec" (its ``experiment.json``, None if it has none), "runs" (its
         ``RunState`` list in the order of its grid)}``. An experiment that does not
-        exist is an error."""
+        exist is an error. With ``recent``, only the ``recent`` most recently changed
+        experiments and those still running (``_active``): every run of every
+        experiment is read otherwise, which takes seconds on a cluster."""
 
     def runs(self, experiment: str) -> list[RunState]:
         """The runs of one experiment, in the order of its grid."""
@@ -230,14 +234,34 @@ class DirectTarget(Target):
         """The SLURM state of the experiment's tasks (None: not a SLURM target)."""
         return None
 
-    def overview(self, experiment: Optional[str] = None) -> list[dict]:
+    def _ask_slurm(self, names: list[str]) -> None:
+        """Ask SLURM once about the tasks of all ``names`` (nothing to ask here)."""
+
+    def _active(self, names: list[str]) -> set[str]:
+        """Those of ``names`` that are still running: here, whose worker lives."""
+        return {n for n in names if registry.worker_alive(self.root / n)}
+
+    def overview(
+        self, experiment: Optional[str] = None, recent: Optional[int] = None
+    ) -> list[dict]:
         if experiment is None:
             names = registry.experiments(self.root)
         elif (self.root / experiment).is_dir():
             names = [experiment]
         else:
             raise FileNotFoundError(f"no experiment '{experiment}' in {self.root}")
+
+        self._ask_slurm(names)
+
+        if experiment is None and recent is not None:
+            changed = sorted(names, key=self._modified, reverse=True)[:recent]
+            keep = set(changed) | self._active(names)
+            names = [n for n in names if n in keep]
+
         return [self._entry(name) for name in names]
+
+    def _modified(self, name: str) -> float:
+        return (self.root / name).stat().st_mtime
 
     def _entry(self, name: str) -> dict:
         slurm = self._slurm(name)  # one SLURM question for the summary and the runs
@@ -248,7 +272,7 @@ class DirectTarget(Target):
             "name": name,
             "description": (spec or {}).get("description", ""),
             "summary": registry.summarize(runs, name, self.root),
-            "modified": (self.root / name).stat().st_mtime,
+            "modified": self._modified(name),
             "spec": spec,
             "runs": runs,
         }
@@ -299,10 +323,31 @@ class SlurmTarget(DirectTarget):
     def _setting(self, key: str) -> Any:
         return _setting(self.name, self.settings, key)
 
+    def _ask_slurm(self, names: list[str]) -> None:
+        """One ``sacct`` call for the tasks of every experiment in ``names``
+        (``slurm.states_of``), kept for ``_slurm`` and ``_active``."""
+        from core.runner import slurm
+
+        self._tasks = slurm.states_of([self.root / n for n in names])
+
     def _slurm(self, experiment: str) -> Optional[dict]:
         from core.runner import slurm
 
-        return slurm.states(self.root / experiment)
+        found = getattr(self, "_tasks", {}).get(experiment)
+        return found if found is not None else slurm.states(self.root / experiment)
+
+    def _active(self, names: list[str]) -> set[str]:
+        """Those of ``names`` with a SLURM task not finished."""
+        from core.runner import slurm
+
+        return {
+            n
+            for n in names
+            if any(
+                t["state"] not in slurm.TERMINAL
+                for t in self._tasks.get(n, {}).values()
+            )
+        }
 
     def check(
         self,
@@ -587,11 +632,22 @@ class RemoteTarget(Target):
         return {k: v for k, v in answer.items() if k not in ("target", "experiment")}
 
     # --- Reading ----------------------------------------------------------------------
-    def overview(self, experiment: Optional[str] = None) -> list[dict]:
+    def overview(
+        self, experiment: Optional[str] = None, recent: Optional[int] = None
+    ) -> list[dict]:
         """One call to the cluster; the entries are ``status``'s, with the runs turned
         into ``RunState``."""
+        from core.runner.remote import RemoteError
+
         args = ["status", *([experiment] if experiment else []), "--target", self.name]
-        answer = self.remote.runner(*args)
+        recent_args = ["--recent", str(recent)] if recent is not None else []
+
+        try:
+            answer = self.remote.runner(*args, *recent_args)
+        except RemoteError as error:
+            if not recent_args or "--recent" not in str(error):
+                raise
+            answer = self.remote.runner(*args)  # a checkout from before --recent
         entries = [answer] if experiment else answer["experiments"]
 
         return [

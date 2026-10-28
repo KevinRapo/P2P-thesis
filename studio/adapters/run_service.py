@@ -118,10 +118,11 @@ class RunService:
             target.close()
 
     # --- On a target -----------------------------------------------------------------
-    def overview(self, target: str) -> list[dict]:
+    def overview(self, target: str, recent: Optional[int] = None) -> list[dict]:
         """Every experiment of the target with its summary, runs and spec (see
-        ``Target.overview``), the most recently changed first."""
-        entries = self.target(target).overview()
+        ``Target.overview``), the most recently changed first; with ``recent`` only
+        the ``recent`` most recently changed and those still running."""
+        entries = self.target(target).overview(recent=recent)
         return sorted(
             entries, key=lambda entry: entry.get("modified", 0.0), reverse=True
         )
