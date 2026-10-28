@@ -69,7 +69,7 @@ def test_the_heatmap_shows_the_largest_differences_or_the_filtered():
 def test_baselines_are_each_runs_own_unless_they_are_the_same():
     import pandas as pd
 
-    from studio.pages.results import _learning_figure
+    from studio.pages.results import LearningChart
 
     def curves(zero_a, zero_b):
         rows = []
@@ -101,9 +101,16 @@ def test_baselines_are_each_runs_own_unless_they_are_the_same():
         return frame.assign(per_participant=frame.team_return_mean / 2)
 
     labels = {"t/x/a": "x/a", "t/x/b": "x/b"}
-    shared = _learning_figure(curves(-10, -10), pd.DataFrame(), labels, False, False)
+
+    def figure(frame):
+        chart = LearningChart(
+            curves=frame, training=pd.DataFrame(), labels=labels, per=False, train=False
+        )
+        return chart.figure()
+
+    shared = figure(curves(-10, -10))
     assert len(shared.data) == 2 and len(shared.layout.shapes) == 1  # one grey line
-    own = _learning_figure(curves(-10, -20), pd.DataFrame(), labels, False, False)
+    own = figure(curves(-10, -20))
     names = [t.name for t in own.data]
     assert "x/a: zero" in names and "x/b: zero" in names  # each run's own
     assert len(own.layout.shapes) == 0

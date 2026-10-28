@@ -20,6 +20,7 @@ import pandas as pd
 from nicegui import app, run, ui
 
 from studio.adapters.results_service import ResultsService
+from studio.components.tables import data_table
 
 RUN_COLUMNS = [
     ("target", "Target"),
@@ -130,21 +131,8 @@ class RunTable:
             )
 
         self.note = ui.label().classes("mls-card-caption")
-        self.runs = (
-            ui.table(
-                columns=[
-                    {"name": f, "label": label, "field": f, "sortable": True}
-                    | {"align": "left"}
-                    for f, label in columns
-                ],
-                rows=[],
-                row_key="key",
-                selection="multiple",
-                pagination={"rowsPerPage": 10},
-                on_select=self._selected,
-            )
-            .classes("w-full")
-            .props("flat dense")
+        self.runs = data_table(
+            [], columns, row_key="key", selection="multiple", on_select=self._selected
         )
 
     async def load(self) -> None:
@@ -202,7 +190,7 @@ class RunTable:
         table = self.visible()
         self.runs.rows = [
             {"key": row["key"]} | {f: cell(row.get(f)) for f, _ in self.columns}
-            for _, row in table.iterrows()
+            for row in table.to_dict("records")
         ]
         self.runs.selected = [r for r in self.runs.rows if r["key"] in self.selected]
         self.runs.update()

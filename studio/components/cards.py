@@ -1,7 +1,6 @@
 """Cards, stat tiles and placeholders; a box's states while it loads."""
 
-from collections.abc import Callable, Generator
-from contextlib import contextmanager
+from collections.abc import Callable
 from typing import Any, Optional
 
 from nicegui import run, ui
@@ -10,10 +9,9 @@ from nicegui import run, ui
 # --------------------------------------------------------------------------------------
 # Cards and tiles
 # --------------------------------------------------------------------------------------
-@contextmanager
 def section(
     title: str, caption: str = "", icon: str | None = None, classes: str = ""
-) -> Generator[ui.column, None, None]:
+) -> ui.column:
     """A bordered card with a title row; content goes inside the `with` block."""
     # The card itself
     with ui.column().classes(f"mls-card gap-3 w-full min-w-0 {classes}") as card:
@@ -26,8 +24,7 @@ def section(
                 if caption:
                     ui.label(caption).classes("mls-card-caption")
 
-        # The caller's content follows here, under the title row
-        yield card
+    return card
 
 
 def stat(
@@ -56,11 +53,9 @@ def stat(
             ui.label(caption).classes("mls-card-caption")
 
 
-@contextmanager
-def stat_grid() -> Generator[ui.element, None, None]:
+def stat_grid() -> ui.element:
     """Responsive grid for stat tiles."""
-    with ui.element("div").classes("mls-stat-grid") as grid:
-        yield grid
+    return ui.element("div").classes("mls-stat-grid")
 
 
 def key_values(items: dict) -> None:
@@ -104,20 +99,28 @@ async def fill(
     read: Callable[[], Any],
     draw: Callable[[Any], None],
     waiting: str = "Loading …",
+    *,
+    current: Callable[[], bool] | None = None,
 ) -> Optional[Any]:
     """The usual way to show data: a spinner in ``box`` while ``read()`` runs in a
     worker thread, then ``draw(result)`` into the box, or the error in its place.
+    When given, ``current`` must still be true before either is displayed (a
+    newer selection may have started another request while this one waited).
 
     Returns:
         What ``read`` returned, for a page that uses it again; ``None`` after an
-        error.
+        error or an obsolete request.
     """
     busy(box, waiting)
 
     try:
         result = await run.io_bound(read)
     except Exception as e:  # noqa: BLE001  show the error on the page
-        failed(box, e)
+        if current is None or current():
+            failed(box, e)
+        return None
+
+    if current is not None and not current():
         return None
 
     box.clear()

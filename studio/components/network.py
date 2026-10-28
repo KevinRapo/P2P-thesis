@@ -17,8 +17,8 @@ from nicegui import run, ui
 from core.grid.contract import NetworkRef, NetworkSummary, TopologyView
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileType
-from studio.components.cards import busy, failed, not_implemented
-from studio.components.charts import line_figure, topology_figure
+from studio.components.cards import busy, failed, fill, not_implemented
+from studio.components.charts import NetworkChart, SeriesModelChart
 from studio.components.profiles import ProfileOverview
 from studio.components.tables import data_table
 
@@ -124,30 +124,26 @@ def show_topology(
     topology: TopologyView,
     voltages: dict[str, float] | None = None,
     bus: str | None = None,
-    on_click: Callable[[Any], Awaitable[None]] | None = None,
+    on_bus: Callable[[str], Any] | None = None,
     height: int = 460,
 ) -> None:
-    """Draw the topology into ``box``; a click on a bus calls ``on_click``."""
+    """Draw the topology into ``box``, ``bus`` ringed; a click on a bus calls
+    ``on_bus`` with its ID."""
     box.clear()
-    with box:
-        figure = topology_figure(
-            topology, voltages=voltages, highlight={bus} if bus else None, height=height
-        )
-        plot = ui.plotly(figure).classes("w-full")
 
-        if on_click:
-            plot.on("plotly_click", on_click)
+    with box:
+        NetworkChart(
+            height,
+            on_bus=on_bus,
+            topology=topology,
+            voltages=voltages,
+            highlight={bus} if bus else None,
+        ).show()
 
         if topology.coordinates == "generated":
             ui.label(
                 "No geodata in this network: layout generated from the feeder tree."
             ).classes("mls-card-caption")
-
-
-def clicked_bus(event: Any) -> str | None:
-    """The bus ID of a Plotly click event (buses carry it as ``customdata``)."""
-    points = (event.args or {}).get("points") or []
-    return points[0].get("customdata") if points else None
 
 
 # --------------------------------------------------------------------------------------
@@ -314,6 +310,7 @@ class ElementsTable:
 
     async def show(self, source: NetworkRef | None, bus: str | None = None) -> None:
         """Load and show the elements of ``source`` (all, or those on ``bus``)."""
+        self._request = request = object()
         self.source, self.bus = source, bus
         self.label.set_text(f"Bus {bus}" if bus else "All buses")
         self.clear_button.set_visibility(bus is not None)
@@ -322,21 +319,19 @@ class ElementsTable:
             self.box.clear()
             return
 
-        busy(self.box, "Reading elements …")
-
-        try:
-            rows = await run.io_bound(self.services.grid.elements, source, bus)
-        except Exception as e:  # noqa: BLE001  show the error on the page
-            failed(self.box, e)
-            return
-
-        self.box.clear()
-
-        with self.box:
+        def draw(rows) -> None:
             if not rows:
                 ui.label("No loads, generators or storage.").classes("mls-card-caption")
                 return
             data_table([asdict(r) for r in rows], ELEMENT_COLUMNS, pagination=10)
+
+        await fill(
+            self.box,
+            lambda: self.services.grid.elements(source, bus),
+            draw,
+            "Reading elements …",
+            current=lambda: self._request is request,
+        )
 
 
 # --------------------------------------------------------------------------------------
@@ -465,6 +460,7 @@ class ProfileInspector:
 
     async def show(self, source: NetworkRef | None = None) -> None:
         """Load the profiles (of ``source``, or the catalogue); plot the first two."""
+        self._plot_request = object()  # any plots still loading belong to the old list
         self.source = source
         busy(self.table_box, "Reading profiles …")
         self.plot_box.clear()
@@ -508,25 +504,11 @@ class ProfileInspector:
                 .props("dense clearable")
                 .classes("w-full")
             )
-            table = (
-                ui.table(
-                    columns=[
-                        {
-                            "name": k,
-                            "label": k.capitalize(),
-                            "field": k,
-                            "align": "left",
-                            "sortable": True,
-                        }
-                        for k in rows[0]
-                    ],
-                    rows=rows,
-                    row_key="code",
-                    selection="multiple",
-                    pagination=10,
-                )
-                .classes("w-full")
-                .props("flat dense")
+            table = data_table(
+                rows,
+                [(k, k.capitalize()) for k in rows[0]],
+                row_key="code",
+                selection="multiple",
             )
             search.bind_value(table, "filter")
             self.rows, self.table = rows, table
@@ -550,6 +532,11 @@ class ProfileInspector:
 
     async def plot(self, codes: list[str] | None = None) -> None:
         """Plot the selected profiles over the chosen window and resolution."""
+        self._plot_request = request = object()
+
+        def current() -> bool:
+            return self._plot_request is request
+
         if codes is not None:
             self.selected = codes
 
@@ -575,38 +562,42 @@ class ProfileInspector:
 
         if self.catalogue:
             await self._draw(
-                self.plot_box, self.services.profiles.catalogue_series, window
+                self.plot_box, self.services.profiles.catalogue_series, window, current
             )
             return
 
         window = (self.source, *window)
-        await self._draw(self.plot_box, self.services.profiles.profile_series, window)
+        await self._draw(
+            self.plot_box, self.services.profiles.profile_series, window, current
+        )
+
+        if not current():
+            return
+
         await self._draw(
             self.power_box,
             self.services.profiles.profile_power,
             (*window, bool(self.per_element.value)),
+            current,
         )
 
     @staticmethod
-    async def _draw(box: ui.element, read, args: tuple) -> None:
+    async def _draw(
+        box: ui.element, read, args: tuple, current: Callable[[], bool]
+    ) -> None:
         """Read one series in a worker thread and plot it into ``box``."""
-        busy(box, "Reading profiles …")
 
-        try:
-            series = await run.io_bound(read, *args)
-        except Exception as e:  # noqa: BLE001
-            failed(box, e)
-            return
-
-        box.clear()
-
-        with box:
+        def draw(series) -> None:
             if not series.y:
                 ui.label(
                     "No values: reactive power (Q) exists only for load profiles."
                 ).classes("mls-card-caption")
                 return
-            ui.plotly(line_figure(series, height=340)).classes("w-full")
+            SeriesModelChart(340, series=series).show()
+
+        await fill(
+            box, lambda: read(*args), draw, "Reading profiles …", current=current
+        )
 
 
 def profile_rows(types: list[ProfileType]) -> list[dict]:

@@ -1,29 +1,30 @@
-"""Plotly figures of the Studio, built from two general kinds.
+"""The Studio's charts: one base class, two kinds, and the controls that change them.
 
-**Series**: values along one axis (time of day, market step, environment steps,
-cumulative kWh). A figure is a list of ``Line``s (what to draw and how) and
-``Level``s (horizontal reference lines), drawn by ``series_figure``; a page with
-subplots draws each panel with ``add_series`` and ``add_levels``. The figures of
-the day (``day_figure``, ``element_figure``) and ``line_figure`` are such lists.
+    Chart          any Plotly figure on a page: ``draw()`` builds it from the
+                   chart's options; ``show()`` places it; ``set(...)`` changes
+                   options and redraws it in place
+    SeriesChart    values along one axis (time of day, step, environment steps,
+                   cumulative kWh): ``line``, ``bars``, ``level`` in ``draw()``
+    NetworkChart   the network's topology, coloured by bus kind or voltage, with
+                   ``links`` and ``rings`` drawn on it and a callback for bus clicks
 
-**Network**: ``topology_figure`` draws the buses and branches; ``add_links``
-(lines between two buses, e.g. trades) and ``add_rings`` (rings around buses, e.g.
-orders) draw on top of it.
-
-Every figure gets the Studio's look from ``styled``; a figure stays a plain
-``go.Figure``, so a page can still add anything to it. The colours with a meaning
-are in ``studio/theme.py``.
+A page's chart is a small subclass that only says what to draw (``DayChart``
+below; the Results page's ``LearningChart``). A switch, dropdown or slider that
+changes a chart comes from the chart itself (``chart.switch("training", ...)``),
+so a page writes no redraw code. Every figure gets the Studio's look from
+``styled``; the colours with a meaning are in ``studio/theme.py``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence
+from itertools import cycle
+from typing import Any, Callable, Optional, Sequence
 
 import plotly.graph_objects as go
+from nicegui import ui
+from plotly.subplots import make_subplots
 
 from core.grid.contract import BusView, TopologyView
-from studio.adapters.models import DayElement, DayProfiles, Series
 from studio.theme import BUS, ENERGY, HIGHLIGHT, LIMIT, MUTED, SERIES
 
 
@@ -57,11 +58,6 @@ def styled(
     return fig
 
 
-def palette(keys: Sequence[str]) -> dict[str, str]:
-    """A colour per key from the series palette, in order (it cycles)."""
-    return {key: SERIES[i % len(SERIES)] for i, key in enumerate(keys)}
-
-
 def rgba(color: str, alpha: float) -> str:
     """A ``#rrggbb`` colour with transparency (for bands and fills)."""
     r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
@@ -70,96 +66,202 @@ def rgba(color: str, alpha: float) -> str:
 
 
 # --------------------------------------------------------------------------------------
-# Series: values along one axis
+# Chart: options -> figure, redrawn in place, with controls that change an option
 # --------------------------------------------------------------------------------------
-@dataclass
-class Line:
-    """One series to draw: its values, and how it looks.
+class Options(dict):
+    """A chart's options, also readable as attributes (``self.o.day``)."""
 
-    Attributes:
-        name: The legend's name (and the hover's).
-        y: The values.
-        x: Its own x values; default: the figure's x.
-        color: Default: the next colour of the palette.
-        dash: ``"solid"``, ``"dot"``, ``"dash"`` or ``"dashdot"``.
-        shape: ``"linear"``, or ``"hv"`` for a value that holds over a step
-            (energy per market step).
-        kind: ``"lines"``, ``"markers"``, ``"lines+markers"`` or ``"bar"``.
-        width: Line width in pixels.
-        opacity: 1 is solid; lower draws it faint.
-        right: On the right axis (a second unit, e.g. price next to kWh).
-        band: ``(low, high)``: a shaded band behind the line (e.g. mean ± σ).
-        group: Lines of one group share one legend entry and show or hide
-            together.
-        legend: Whether the line has its own legend entry.
-        options: Anything else for Plotly's trace (e.g. ``hovertemplate``).
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name) from None
+
+
+class Chart:
+    """A Plotly chart on a page. A subclass writes ``draw()``: it adds traces to
+    ``self.fig`` (or returns a figure of its own) from the options in ``self.o``.
+
+    Class attributes a subclass may set: ``height``, ``x_title``, ``y_title`` and
+    ``layout`` (Plotly layout settings applied after the Studio's look, e.g.
+    ``{"hovermode": "closest"}``).
+
+    Args:
+        height: Overrides the class' height.
+        options: Whatever ``draw`` reads, e.g. the data and the switches' values.
     """
 
-    name: str
-    y: Sequence[Any]
-    x: Optional[Sequence[Any]] = None
-    color: Optional[str] = None
-    dash: str = "solid"
-    shape: str = "linear"
-    kind: str = "lines"
-    width: float = 2
-    opacity: float = 1.0
-    right: bool = False
-    band: Optional[tuple[Sequence[float], Sequence[float]]] = None
-    group: Optional[str] = None
-    legend: bool = True
-    options: dict[str, Any] = field(default_factory=dict)
+    height = 300
+    x_title = ""
+    y_title = ""
+    layout: dict[str, Any] = {}
+
+    def __init__(self, height: Optional[int] = None, **options: Any) -> None:
+        self.o = Options(options)
+        self.plot: Optional[ui.plotly] = None
+
+        if height is not None:
+            self.height = height
+
+    # --- What to draw (a subclass) ----------------------------------------------------
+    def draw(self) -> Optional[go.Figure]:
+        raise NotImplementedError
+
+    def titles(self, x: Optional[str] = None, y: Optional[str] = None) -> None:
+        """Axis titles that depend on the options (call in ``draw``)."""
+        self._titles.update({k: v for k, v in (("x", x), ("y", y)) if v is not None})
+
+    def after(self, **layout: Any) -> None:
+        """Layout settings that depend on the options (call in ``draw``)."""
+        self._after.update(layout)
+
+    def figure(self) -> go.Figure:
+        """The figure as the options are now, in the Studio's look."""
+        self.fig = go.Figure()
+        self._titles = {"x": self.x_title, "y": self.y_title}
+        self._after = dict(self.layout)
+        self._prepare()
+        drawn = self.draw()
+
+        if drawn is not None:
+            self.fig = drawn
+
+        styled(self.fig, self.height, self._titles["y"], self._titles["x"])
+        self._finish()
+        self.fig.update_layout(**self._after)
+
+        return self.fig
+
+    def _prepare(self) -> None:
+        """What a kind of chart adds before ``draw`` (a subclass)."""
+
+    def _finish(self) -> None:
+        """What a kind of chart adds after the look (a subclass)."""
+
+    # --- On the page ------------------------------------------------------------------
+    def show(self) -> Chart:
+        """Place the chart where the page is building (full width)."""
+        self.plot = ui.plotly(self.figure()).classes("w-full")
+        return self
+
+    def set(self, **changes: Any) -> None:
+        """Change options and redraw the chart in place."""
+        self.o.update(changes)
+
+        if self.plot is not None:
+            self.plot.update_figure(self.figure())
+
+    # --- Controls that change one option ----------------------------------------------
+    def switch(self, option: str, label: str) -> ui.switch:
+        """A switch for a yes/no option."""
+        return ui.switch(
+            label,
+            value=bool(self.o.get(option)),
+            on_change=lambda e: self.set(**{option: bool(e.value)}),
+        )
+
+    def select(self, option: str, choices: Any, label: str = "") -> ui.select:
+        """A dropdown for an option with a few choices (a list, or value -> name)."""
+        return ui.select(
+            choices,
+            value=self.o.get(option),
+            label=label,
+            on_change=lambda e: self.set(**{option: e.value}),
+        )
+
+    def slider(
+        self, option: str, low: float, high: float, step: float, label: str = ""
+    ) -> ui.slider:
+        """A slider for a number option, with its label above."""
+        if label:
+            ui.label(label).classes("mls-card-caption")
+
+        return ui.slider(
+            min=low,
+            max=high,
+            step=step,
+            value=self.o.get(option, low),
+            on_change=lambda e: self.set(**{option: e.value}),
+        )
 
 
-@dataclass
-class Level:
-    """A horizontal reference line across the figure (a tariff, a limit, zero, a
-    baseline).
+# --------------------------------------------------------------------------------------
+# SeriesChart: values along one axis
+# --------------------------------------------------------------------------------------
+class SeriesChart(Chart):
+    """Values along one axis. In ``draw()``, ``line`` and ``bars`` add a series
+    (each takes the next palette colour unless given one), ``level`` a horizontal
+    reference line; ``panels`` splits the figure into rows on one x axis.
 
-    Attributes:
-        y: Where.
-        label: Text at its left end; empty: none.
-        color: Default: muted grey.
-        dash: ``"dash"``, ``"dot"`` or ``"solid"``.
-        width: Line width in pixels.
+    Class attributes besides ``Chart``'s: ``right_title`` (the right axis, for
+    series with ``right=True``) and ``stacked`` (bars stacked).
     """
 
-    y: float
-    label: str = ""
-    color: str = MUTED
-    dash: str = "dash"
-    width: float = 1
+    right_title = ""
+    stacked = False
 
+    def _prepare(self) -> None:
+        self._colors = cycle(SERIES)
+        self._right = False
+        self._panels = False
 
-def add_series(
-    fig: go.Figure,
-    x: Optional[Sequence[Any]],
-    lines: Sequence[Line],
-    row: Optional[int] = None,
-    col: Optional[int] = None,
-) -> go.Figure:
-    """Draw ``lines`` into ``fig`` (into one panel with ``row`` and ``col``, for a
-    figure made with ``make_subplots``; a line on the right then needs the panel's
-    ``secondary_y`` in its specs)."""
-    colors = palette([line.name for line in lines])
+    def _finish(self) -> None:
+        if self._right and not self._panels:
+            self.fig.update_layout(
+                yaxis2=dict(
+                    title=self.right_title, overlaying="y", side="right", showgrid=False
+                )
+            )
 
-    for line in lines:
-        xs = list(line.x if line.x is not None else x)
-        color = line.color or colors[line.name]
-        group = line.group or line.name
-        place: dict[str, Any] = {}
+        if self.stacked:
+            self.fig.update_layout(barmode="stack")
 
-        if row is not None:
-            place = dict(row=row, col=col or 1)
-            if line.right:
-                place["secondary_y"] = True
-        elif line.right:
-            place = dict(yaxis="y2")
+    # --- What draw() calls ------------------------------------------------------------
+    def panels(self, titles: Sequence[str], right: Sequence[bool] = ()) -> None:
+        """Split the figure into one row per title, on a shared x axis; ``right``
+        says which rows have a right axis."""
+        rows = len(titles)
+        self._panels = True
+        self.fig = make_subplots(
+            rows=rows,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.06,
+            subplot_titles=list(titles),
+            specs=[[{"secondary_y": i < len(right) and right[i]}] for i in range(rows)],
+        )
 
-        if line.band is not None:
-            low, high = line.band
-            fig.add_scatter(
-                x=xs + xs[::-1],
+    def line(
+        self,
+        x: Sequence[Any],
+        y: Sequence[Any],
+        name: str,
+        color: Optional[str] = None,
+        dash: str = "solid",
+        shape: str = "linear",
+        markers: bool = False,
+        width: float = 2,
+        opacity: float = 1.0,
+        band: Optional[tuple[Sequence[float], Sequence[float]]] = None,
+        group: Optional[str] = None,
+        legend: bool = True,
+        right: bool = False,
+        row: Optional[int] = None,
+        **trace: Any,
+    ) -> None:
+        """A line. ``shape="hv"`` holds each value over its step (energy per market
+        step); ``band=(low, high)`` shades a band behind it; ``group`` gives lines
+        one legend entry; ``right`` puts it on the right axis; ``row`` in a panel;
+        ``trace`` passes anything else to Plotly (e.g. ``hovertemplate``)."""
+        color = color or next(self._colors)
+        x = list(x)
+        place = self._place(right, row)
+        group = group or name
+
+        if band is not None:
+            low, high = band
+            self.fig.add_scatter(
+                x=x + x[::-1],
                 y=list(high) + list(low)[::-1],
                 fill="toself",
                 fillcolor=rgba(color, 0.12),
@@ -170,130 +272,76 @@ def add_series(
                 **place,
             )
 
-        common = dict(
-            x=xs,
-            y=list(line.y),
-            name=line.name,
+        self.fig.add_scatter(
+            x=x,
+            y=list(y),
+            name=name,
+            mode="lines+markers" if markers else "lines",
+            line=dict(color=color, dash=dash, shape=shape, width=width),
+            opacity=opacity,
             legendgroup=group,
-            showlegend=line.legend,
-            opacity=line.opacity,
+            showlegend=legend,
+            **place,
+            **trace,
         )
 
-        if line.kind == "bar":
-            fig.add_bar(marker_color=color, **common, **place, **line.options)
-        else:
-            fig.add_scatter(
-                mode=line.kind,
-                line=dict(
-                    color=color, dash=line.dash, shape=line.shape, width=line.width
-                ),
-                marker=dict(color=color),
-                **common,
-                **place,
-                **line.options,
+    def bars(
+        self,
+        x: Sequence[Any],
+        y: Sequence[Any],
+        name: str,
+        color: Optional[str] = None,
+        right: bool = False,
+        row: Optional[int] = None,
+        **trace: Any,
+    ) -> None:
+        """Bars (side by side, or stacked with the class' ``stacked``)."""
+        self.fig.add_bar(
+            x=list(x),
+            y=list(y),
+            name=name,
+            marker_color=color or next(self._colors),
+            **self._place(right, row),
+            **trace,
+        )
+
+    def level(
+        self,
+        y: float,
+        label: str = "",
+        color: str = MUTED,
+        dash: str = "dash",
+        width: float = 1,
+        row: Optional[int] = None,
+    ) -> None:
+        """A horizontal reference line (a tariff, a limit, zero, a baseline)."""
+        text = dict(annotation_text=label, annotation_position="top left")
+        self.fig.add_hline(
+            y=y,
+            line=dict(color=color, dash=dash, width=width),
+            **(text if label else {}),
+            **({} if row is None else dict(row=row, col=1)),
+        )
+
+    def _place(self, right: bool, row: Optional[int]) -> dict[str, Any]:
+        """Where a trace goes: a panel's row (and its right axis), or the right axis
+        of a figure without panels."""
+        if row is not None:
+            return (
+                dict(row=row, col=1, secondary_y=True)
+                if right
+                else dict(row=row, col=1)
             )
 
-    return fig
+        if right:
+            self._right = True
+            return dict(yaxis="y2")
 
-
-def add_levels(
-    fig: go.Figure,
-    levels: Sequence[Level],
-    row: Optional[int] = None,
-    col: Optional[int] = None,
-) -> go.Figure:
-    """Draw ``levels`` across ``fig`` (or across one panel)."""
-    place = {} if row is None else dict(row=row, col=col or 1)
-
-    for level in levels:
-        label = (
-            dict(annotation_text=level.label, annotation_position="top left")
-            if level.label
-            else {}
-        )
-        fig.add_hline(
-            y=level.y,
-            line=dict(color=level.color, dash=level.dash, width=level.width),
-            **label,
-            **place,
-        )
-
-    return fig
-
-
-def series_figure(
-    x: Optional[Sequence[Any]],
-    lines: Sequence[Line],
-    levels: Sequence[Level] = (),
-    *,
-    y_title: str = "",
-    x_title: str = "",
-    right_title: str = "",
-    stacked: bool = False,
-    height: int = 300,
-) -> go.Figure:
-    """The general series figure: ``lines`` along ``x`` (a line with its own x
-    uses that), ``levels`` across, in the Studio's look.
-
-    Args:
-        x: The shared x values (time labels, steps, environment steps); ``None``
-            when every line has its own.
-        lines: What to draw, in legend order.
-        levels: Reference lines.
-        y_title: The left axis' title.
-        x_title: The x axis' title.
-        right_title: The right axis' title, for lines with ``right``.
-        stacked: Bars stacked instead of side by side.
-        height: Height in pixels.
-    """
-    fig = go.Figure()
-    add_series(fig, x, lines)
-    add_levels(fig, levels)
-    styled(fig, height, y_title, x_title)
-
-    if any(line.right for line in lines):
-        fig.update_layout(
-            yaxis2=dict(title=right_title, overlaying="y", side="right", showgrid=False)
-        )
-
-    if stacked:
-        fig.update_layout(barmode="stack")
-
-    return fig
-
-
-def line_figure(
-    series: Series, height: int = 300, dashed: tuple[str, ...] = (), kind: str = "line"
-) -> go.Figure:
-    """A ``Series``: one line (or bar group) per named y list.
-
-    Args:
-        series: The data.
-        height: Height in pixels.
-        dashed: Names drawn dashed, e.g. reference lines.
-        kind: ``"line"`` or ``"bar"``.
-    """
-    lines = [
-        Line(
-            name,
-            values,
-            kind="bar" if kind == "bar" else "lines",
-            dash="dash" if name in dashed else "solid",
-        )
-        for name, values in series.y.items()
-    ]
-
-    return series_figure(
-        series.x,
-        lines,
-        y_title=series.y_label,
-        x_title=series.x_label,
-        height=height,
-    )
+        return {}
 
 
 # --------------------------------------------------------------------------------------
-# A day of profiles
+# Series charts used on more than one page
 # --------------------------------------------------------------------------------------
 DAY_NAMES = {"load": "Demand", "sgen": "Generation", "storage": "Storage"}
 
@@ -303,54 +351,65 @@ def clock(labels: Sequence[str]) -> list[str]:
     return [label[-5:] for label in labels]
 
 
-def day_figure(
-    day: DayProfiles,
-    elements: list[DayElement],
-    height: int = 280,
-    faint: bool = False,
-) -> go.Figure:
-    """Demand, generation and storage of ``elements``, each summed per step.
+class DayChart(SeriesChart):
+    """Demand, generation and storage of some elements, each summed per step.
 
-    Args:
-        day: The day's profiles (time axis and step length).
-        elements: The elements to sum, e.g. all participants'.
-        height: Height in pixels.
-        faint: Draw dashed and light, for elements that are switched off.
+    Options: ``day`` (``DayProfiles``), ``elements`` (e.g. ``day.owned()``),
+    ``faint`` (dashed and light, for elements that are switched off).
     """
-    lines = []
 
-    for kind, name in DAY_NAMES.items():
-        group = [e for e in elements if e.element_type == kind]
+    height = 280
+    y_title = "kW"
 
-        if group:
-            lines.append(
-                Line(
-                    f"{name} ({len(group)})",
+    def draw(self) -> None:
+        day, faint = self.o.day, self.o.get("faint", False)
+
+        for kind, name in DAY_NAMES.items():
+            group = [e for e in self.o.elements if e.element_type == kind]
+
+            if group:
+                self.line(
+                    clock(day.x),
                     day.total_kw(group),
+                    f"{name} ({len(group)})",
                     color=ENERGY[kind],
                     shape="hv",
                     dash="dash" if faint else "solid",
                     opacity=0.55 if faint else 1.0,
                 )
-            )
-
-    return series_figure(clock(day.x), lines, y_title="kW", height=height)
 
 
-def element_figure(
-    day: DayProfiles,
-    lines: dict[str, list[float]],
-    height: int = 280,
-    y_title: str = "kW",
-) -> go.Figure:
-    """One line per name over the day (colours from the series palette)."""
-    drawn = [Line(name, kw, shape="hv") for name, kw in lines.items()]
+class ElementsChart(SeriesChart):
+    """One line per name over the day. Options: ``day``, ``lines`` (name -> values
+    per step), ``y_title`` (default kW)."""
 
-    return series_figure(clock(day.x), drawn, y_title=y_title, height=height)
+    height = 280
+
+    def draw(self) -> None:
+        self.titles(y=self.o.get("y_title", "kW"))
+
+        for name, values in self.o.lines.items():
+            self.line(clock(self.o.day.x), values, name, shape="hv")
+
+
+class SeriesModelChart(SeriesChart):
+    """A ``Series`` (the profile service's) as lines or bars. Options: ``series``,
+    ``kind`` (``"line"`` or ``"bar"``), ``dashed`` (names drawn dashed)."""
+
+    def draw(self) -> None:
+        s = self.o.series
+        self.titles(x=s.x_label, y=s.y_label)
+
+        for name, values in s.y.items():
+            if self.o.get("kind") == "bar":
+                self.bars(s.x, values, name)
+            else:
+                dash = "dash" if name in self.o.get("dashed", ()) else "solid"
+                self.line(s.x, values, name, dash=dash)
 
 
 # --------------------------------------------------------------------------------------
-# Network: the topology, and what is drawn on it
+# NetworkChart: the topology, and what is drawn on it
 # --------------------------------------------------------------------------------------
 def _bus_color(kind: str) -> str:
     """Marker colour for a bus kind; combined kinds fall back to their main element."""
@@ -363,228 +422,204 @@ def _bus_color(kind: str) -> str:
     return BUS["load+pv"] if "pv" in kind else BUS["load"]
 
 
-def _branch_trace(fig: go.Figure, pos: dict, branches: list, **line) -> None:
-    """Draw branches as one line trace (``None`` breaks the line between segments)."""
-    xs, ys = [], []
-
-    for br in branches:
-        if br.from_bus in pos and br.to_bus in pos:
-            (x0, y0), (x1, y1) = pos[br.from_bus], pos[br.to_bus]
-            xs += [x0, x1, None]
-            ys += [y0, y1, None]
-
-    if xs:
-        fig.add_scatter(
-            x=xs, y=ys, mode="lines", line=line, hoverinfo="skip", showlegend=False
-        )
+def _bus_size(b: BusView) -> int:
+    """External grid large, buses with elements medium, empty buses small."""
+    return 16 if b.kind == "external_grid" else (9 if b.kind != "bus" else 6)
 
 
-def topology_figure(
-    topology: TopologyView,
-    voltages: dict[str, float] | None = None,
-    highlight: set[str] | None = None,
-    height: int = 420,
-    violating: set[str] | None = None,
-) -> go.Figure:
-    """Network plot. Buses carry their ID as ``customdata`` for click handlers.
+class NetworkChart(Chart):
+    """The network: branches, then the buses coloured by kind, or by voltage when
+    ``voltages`` is given. A subclass's ``draw()`` adds ``links`` and ``rings``
+    on top (the base draws nothing more).
+
+    Options: ``topology`` (``TopologyView``); ``voltages`` (bus -> pu, coloured on
+    a fixed 0.93 to 1.05 scale); ``highlight`` (buses ringed in amber:
+    participants, the selected bus); ``violating`` (buses ringed in red).
 
     Args:
-        topology: Buses and branches.
-        voltages: Voltage per bus; colours the buses on a fixed 0.93 to 1.05 pu scale.
-        highlight: Buses outlined in amber (selected bus, participants).
-        height: Height in pixels.
-        violating: Buses outlined in red (outside their voltage limits).
+        on_bus: Called with the bus ID when a bus is clicked.
     """
-    pos = {b.id: (b.x, b.y) for b in topology.buses}
-    fig = go.Figure()
-    lines = [br for br in topology.branches if br.kind == "line"]
-    # Lines first (dotted when open), then transformers and switches drawn thick.
-    _branch_trace(
-        fig,
-        pos,
-        [br for br in lines if br.closed],
-        color="rgba(100,116,139,0.6)",
-        width=1.5,
-    )
-    _branch_trace(
-        fig,
-        pos,
-        [br for br in lines if not br.closed],
-        color="rgba(100,116,139,0.45)",
-        width=1,
-        dash="dot",
-    )
-    _branch_trace(
-        fig,
-        pos,
-        [br for br in topology.branches if br.kind in ("trafo", "switch")],
-        color="#0F172A",
-        width=3,
-    )
 
-    def hover(b: BusView) -> str:
-        """Hover text: bus ID, kind, voltage level and, after a preview, the voltage."""
-        text = f"{b.id}<br>{b.kind} · {b.vn_kv} kV"
+    height = 420
+    layout = {"hovermode": "closest", "legend": {"orientation": "h", "y": -0.02}}
 
-        if voltages and b.id in voltages:
-            text += f"<br>{voltages[b.id]:.3f} pu"
+    def __init__(
+        self,
+        height: Optional[int] = None,
+        on_bus: Optional[Callable[[str], Any]] = None,
+        **options: Any,
+    ) -> None:
+        super().__init__(height, **options)
+        self.on_bus = on_bus
 
-        return text
+    def draw(self) -> None:
+        """Nothing beyond the network (a subclass adds links and rings)."""
 
-    def size(b: BusView) -> int:
-        """Marker size: external grid large, buses with elements medium, empty buses
-        small.
-        """
-        return 16 if b.kind == "external_grid" else (9 if b.kind != "bus" else 6)
+    def _prepare(self) -> None:
+        topology: TopologyView = self.o.topology
+        self.pos = {b.id: (b.x, b.y) for b in topology.buses}
+        self._branches(topology)
+        self._buses(topology)
 
-    def outline(group: list[BusView]) -> dict:
-        """Amber outline for highlighted buses (selected bus, participants), red for
-        buses outside their voltage limits."""
-        bad = [bool(violating) and b.id in violating for b in group]
-        marked = [bool(highlight) and b.id in highlight for b in group]
+    def _finish(self) -> None:
+        self.fig.update_xaxes(visible=False)
+        self.fig.update_yaxes(visible=False, scaleanchor="x")
 
-        return dict(
-            width=[3 if m or v else 0.5 for m, v in zip(marked, bad)],
-            color=[LIMIT if v else HIGHLIGHT for v in bad],
-        )
+    def show(self) -> NetworkChart:
+        super().show()
 
-    # After a preview: one trace coloured by voltage. Otherwise one trace per bus kind,
-    # so the legend explains the colours.
-    if voltages:
-        group = topology.buses
-        fig.add_scatter(
-            x=[b.x for b in group],
-            y=[b.y for b in group],
-            mode="markers",
-            customdata=[b.id for b in group],
-            text=[hover(b) for b in group],
-            hoverinfo="text",
-            showlegend=False,
-            marker=dict(
-                size=[size(b) for b in group],
-                color=[voltages.get(b.id, 1.0) for b in group],
-                colorscale="RdYlGn",
-                cmin=0.93,
-                cmax=1.05,
-                colorbar=dict(title="V (pu)", thickness=12),
-                line=outline(group),
-            ),
-        )
-    else:
-        kinds = sorted(
-            {b.kind for b in topology.buses}, key=lambda k: k != "external_grid"
-        )
-        for kind in kinds:
-            group = [b for b in topology.buses if b.kind == kind]
-            fig.add_scatter(
-                x=[b.x for b in group],
-                y=[b.y for b in group],
-                mode="markers",
-                name=kind.replace("_", " "),
-                customdata=[b.id for b in group],
-                text=[hover(b) for b in group],
+        if self.on_bus is not None:
+            self.plot.on("plotly_click", self._clicked)
+
+        return self
+
+    async def _clicked(self, event: Any) -> None:
+        """A click on a bus (buses carry their ID as ``customdata``)."""
+        points = (event.args or {}).get("points") or [{}]
+        bus = points[0].get("customdata")
+
+        if bus:
+            result = self.on_bus(bus)
+
+            if hasattr(result, "__await__"):
+                await result
+
+    # --- What draw() calls ------------------------------------------------------------
+    def links(
+        self,
+        links: Sequence[tuple[str, str, float, str]],
+        color: str,
+        name: str,
+        dash: str = "solid",
+    ) -> None:
+        """Lines between two buses, ``(bus a, bus b, amount, hover text)`` each,
+        wider for a larger amount, as one legend entry (e.g. trades)."""
+        drawn = [k for k in links if k[0] in self.pos and k[1] in self.pos]
+        biggest = max((k[2] for k in drawn), default=0.0) or 1.0
+
+        for n, (a, b, amount, text) in enumerate(drawn):
+            (x0, y0), (x1, y1) = self.pos[a], self.pos[b]
+            self.fig.add_scatter(
+                x=[x0, x1],
+                y=[y0, y1],
+                mode="lines",
+                line=dict(color=color, width=1.5 + 5 * amount / biggest, dash=dash),
+                opacity=0.8,
+                name=name,
+                legendgroup=name,
+                showlegend=n == 0,
                 hoverinfo="text",
+                text=text,
+            )
+
+    def rings(
+        self, rings: Sequence[tuple[str, str]], color: str, name: str, size: int = 20
+    ) -> None:
+        """Rings around buses, ``(bus, hover text)`` each, as one legend entry
+        (e.g. orders)."""
+        drawn = [r for r in rings if r[0] in self.pos]
+
+        if drawn:
+            self.fig.add_scatter(
+                x=[self.pos[bus][0] for bus, _ in drawn],
+                y=[self.pos[bus][1] for bus, _ in drawn],
+                mode="markers",
+                name=name,
+                hoverinfo="text",
+                text=[text for _, text in drawn],
                 marker=dict(
-                    size=[size(b) for b in group],
-                    color=_bus_color(kind),
-                    line=outline(group),
+                    size=size, symbol="circle-open", color=color, line=dict(width=3)
                 ),
             )
 
-    fig = styled(fig, height)
-    fig.update_layout(hovermode="closest", legend=dict(orientation="h", y=-0.02))
-    fig.update_xaxes(visible=False)
-    fig.update_yaxes(visible=False, scaleanchor="x")
+    # --- The network itself -----------------------------------------------------------
+    def _branches(self, topology: TopologyView) -> None:
+        """Lines (dotted when open), then transformers and switches drawn thick."""
+        lines = [br for br in topology.branches if br.kind == "line"]
 
-    return fig
-
-
-@dataclass
-class Link:
-    """A line between two buses (a trade, later perhaps a loaded line).
-
-    Attributes:
-        a: One bus.
-        b: The other bus.
-        amount: Sets the width, relative to the largest of its group.
-        text: Hover text.
-    """
-
-    a: str
-    b: str
-    amount: float = 1.0
-    text: str = ""
-
-
-@dataclass
-class Ring:
-    """A ring around a bus (an order, a participant).
-
-    Attributes:
-        bus: Where.
-        text: Hover text.
-    """
-
-    bus: str
-    text: str = ""
-
-
-def add_links(
-    fig: go.Figure,
-    topology: TopologyView,
-    links: Sequence[Link],
-    color: str,
-    name: str,
-    dash: str = "solid",
-) -> go.Figure:
-    """Draw ``links`` on a topology figure as one legend group, wider for a larger
-    amount; links to a bus the topology lacks are left out."""
-    pos = {b.id: (b.x, b.y) for b in topology.buses}
-    drawn = [link for link in links if link.a in pos and link.b in pos]
-    biggest = max((link.amount for link in drawn), default=0.0) or 1.0
-
-    for n, link in enumerate(drawn):
-        (x0, y0), (x1, y1) = pos[link.a], pos[link.b]
-        fig.add_scatter(
-            x=[x0, x1],
-            y=[y0, y1],
-            mode="lines",
-            line=dict(color=color, width=1.5 + 5 * link.amount / biggest, dash=dash),
-            opacity=0.8,
-            name=name,
-            legendgroup=name,
-            showlegend=n == 0,
-            hoverinfo="text",
-            text=link.text,
-        )
-
-    return fig
-
-
-def add_rings(
-    fig: go.Figure,
-    topology: TopologyView,
-    rings: Sequence[Ring],
-    color: str,
-    name: str,
-    size: int = 20,
-) -> go.Figure:
-    """Draw ``rings`` on a topology figure as one legend entry; rings on a bus the
-    topology lacks are left out."""
-    pos = {b.id: (b.x, b.y) for b in topology.buses}
-    drawn = [ring for ring in rings if ring.bus in pos]
-
-    if drawn:
-        fig.add_scatter(
-            x=[pos[r.bus][0] for r in drawn],
-            y=[pos[r.bus][1] for r in drawn],
-            mode="markers",
-            name=name,
-            hoverinfo="text",
-            text=[r.text for r in drawn],
-            marker=dict(
-                size=size, symbol="circle-open", color=color, line=dict(width=3)
+        for branches, look in (
+            (
+                [br for br in lines if br.closed],
+                dict(color="rgba(100,116,139,0.6)", width=1.5),
             ),
-        )
+            (
+                [br for br in lines if not br.closed],
+                dict(color="rgba(100,116,139,0.45)", width=1, dash="dot"),
+            ),
+            (
+                [br for br in topology.branches if br.kind in ("trafo", "switch")],
+                dict(color="#0F172A", width=3),
+            ),
+        ):
+            xs, ys = [], []
 
-    return fig
+            for br in branches:
+                if br.from_bus in self.pos and br.to_bus in self.pos:
+                    (x0, y0), (x1, y1) = self.pos[br.from_bus], self.pos[br.to_bus]
+                    xs += [x0, x1, None]  # None breaks the line between segments
+                    ys += [y0, y1, None]
+
+            if xs:
+                self.fig.add_scatter(
+                    x=xs,
+                    y=ys,
+                    mode="lines",
+                    line=look,
+                    hoverinfo="skip",
+                    showlegend=False,
+                )
+
+    def _buses(self, topology: TopologyView) -> None:
+        """One trace per bus kind (so the legend explains the colours), or after a
+        power flow one trace coloured by voltage."""
+        voltages = self.o.get("voltages")
+        highlight = self.o.get("highlight") or set()
+        violating = self.o.get("violating") or set()
+
+        def hover(b: BusView) -> str:
+            text = f"{b.id}<br>{b.kind} · {b.vn_kv} kV"
+            return text + (
+                f"<br>{voltages[b.id]:.3f} pu" if voltages and b.id in voltages else ""
+            )
+
+        def outline(group: list[BusView]) -> dict:
+            return dict(
+                width=[
+                    3 if b.id in highlight or b.id in violating else 0.5 for b in group
+                ],
+                color=[LIMIT if b.id in violating else HIGHLIGHT for b in group],
+            )
+
+        if voltages:
+            groups = [(None, list(topology.buses))]
+        else:
+            kinds = sorted(
+                {b.kind for b in topology.buses}, key=lambda k: k != "external_grid"
+            )
+            groups = [(k, [b for b in topology.buses if b.kind == k]) for k in kinds]
+
+        for kind, group in groups:
+            marker = dict(size=[_bus_size(b) for b in group], line=outline(group))
+
+            if kind is None:
+                marker |= dict(
+                    color=[voltages.get(b.id, 1.0) for b in group],
+                    colorscale="RdYlGn",
+                    cmin=0.93,
+                    cmax=1.05,
+                    colorbar=dict(title="V (pu)", thickness=12),
+                )
+            else:
+                marker["color"] = _bus_color(kind)
+
+            self.fig.add_scatter(
+                x=[b.x for b in group],
+                y=[b.y for b in group],
+                mode="markers",
+                name=kind.replace("_", " ") if kind else "",
+                showlegend=kind is not None,
+                customdata=[b.id for b in group],
+                text=[hover(b) for b in group],
+                hoverinfo="text",
+                marker=marker,
+            )

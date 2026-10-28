@@ -23,27 +23,16 @@ and one action part at a time, its distribution over training.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from nicegui import run, ui
 
 from core.runner.probe_runs import ProbeRunInfo
 from studio.adapters.results_service import ResultsService
 from studio.adapters.validation_service import ValidationService
 from studio.components.cards import key_values, placeholder, section
-from studio.components.charts import (
-    Level,
-    Line,
-    add_levels,
-    add_series,
-    palette,
-    series_figure,
-    styled,
-)
+from studio.components.charts import SeriesChart
+from studio.theme import SERIES
 from studio.components.run_table import RUN_COLUMNS, RunTable, labels_of
 from studio.components.tables import data_table
 from studio.layout import shell
@@ -60,54 +49,45 @@ COLUMNS = RUN_COLUMNS[:7] + [("probe", "Probe"), ("result", "Result"), RUN_COLUM
 DASHES = ["solid", "dot", "dash", "dashdot", "longdash", "longdashdot"]
 
 
-def _learner_figure(
-    metrics: pd.DataFrame,
-    names: list[str],
-    labels: dict[str, str],
-    mean_over_modules: bool,
-    clip: Optional[dict[str, float]] = None,
-) -> go.Figure:
-    """The module metrics ``names`` over environment steps: a colour per run, one
-    line per module (or their mean), a dash per metric; ``clip`` draws each run's
-    gradient clip as a dashed level."""
-    colors = palette(list(dict.fromkeys(metrics.key)))
-    rows = metrics[(metrics.part == "") & metrics.metric.isin(names)]
-    lines, levels = [], []
+class LearnerChart(SeriesChart):
+    """Module metrics over environment steps: a colour per run, one line per module
+    (or their mean), a dash per metric; with ``clip``, each run's gradient clip as
+    a level in its colour.
 
-    for key, color in colors.items():
-        own = rows[rows.key == key]
+    Options: ``metrics`` (``learner_metrics``), ``names`` (the metrics),
+    ``labels``, ``mean`` (the mean over modules), ``clip`` (run key -> clip).
+    """
 
-        for dash, name in zip(DASHES, names):
-            frame = own[own.metric == name]
+    x_title = "environment steps"
+    layout = {"showlegend": True}  # also with one line: which run it is
 
-            if frame.empty:
-                continue
+    def draw(self) -> None:
+        o = self.o
+        keys = list(dict.fromkeys(o.metrics.key))
+        rows = o.metrics[(o.metrics.part == "") & o.metrics.metric.isin(o.names)]
 
-            if mean_over_modules:
-                found = {"mean": frame.groupby("env_steps").value.mean().reset_index()}
-            else:
-                found = {m: f for m, f in frame.groupby("module")}
+        for i, key in enumerate(keys):
+            color = SERIES[i % len(SERIES)]
+            own = rows[rows.key == key]
 
-            suffix = "" if len(names) == 1 else f" {name}"
-            lines += [
-                Line(
-                    f"{labels[key]} · {module}{suffix}",
-                    line.value,
-                    x=line.env_steps,
-                    color=color,
-                    dash=dash,
-                    width=1.5,
-                )
-                for module, line in found.items()
-            ]
+            for dash, name in zip(DASHES, o.names):
+                frame = own[own.metric == name]
+                suffix = "" if len(o.names) == 1 else f" {name}"
 
-        if clip and clip.get(key) is not None:
-            levels.append(Level(clip[key], color=color))
+                if o.mean:
+                    lines = {"mean": frame.groupby("env_steps").value.mean()}
+                else:
+                    lines = {
+                        m: f.set_index("env_steps").value
+                        for m, f in frame.groupby("module")
+                    }
 
-    fig = series_figure(None, lines, levels, x_title="environment steps", height=300)
-    fig.update_layout(showlegend=True)  # also with one line: which run it is
+                for module, line in lines.items():
+                    name_ = f"{o.labels[key]} · {module}{suffix}"
+                    self.line(line.index, line, name_, color, dash=dash, width=1.5)
 
-    return fig
+            if (o.get("clip") or {}).get(key) is not None:
+                self.level(o.clip[key], color=color)
 
 
 def _agent_part(module: str, part: str) -> tuple[str, str]:
@@ -136,7 +116,7 @@ def _part_series(
     return found
 
 
-def _parts_figure(metrics: pd.DataFrame, key: str, label: str) -> go.Figure:
+class PartsChart(SeriesChart):
     """Every action part of one run over environment steps, in panels stacked on
     one time axis, a colour per agent (the same in every panel):
 
@@ -145,120 +125,82 @@ def _parts_figure(metrics: pd.DataFrame, key: str, label: str) -> go.Figure:
       [-1, 1] (dotted, right axis);
     - a categorical part: its entropy (solid) and its most likely category's
       probability (dashed).
+
+    Options: ``metrics``, ``key`` (the run), ``labels``.
     """
-    rows = metrics[(metrics.key == key) & (metrics.part != "")]
-    parts = sorted({_agent_part(m, p)[1] for m, p in zip(rows.module, rows.part)})
-    series = {part: _part_series(metrics, key, part) for part in parts}
-    colors = palette(list(dict.fromkeys(a for s in series.values() for a in s)))
-    panels = []  # (part, kind)
 
-    for part in parts:
-        if any("mean" in s for s in series[part].values()):
-            panels += [(part, "mean"), (part, "spread")]
-        else:
-            panels.append((part, "categorical"))
-
-    titles = {
+    TITLES = {
         "mean": "{} · mean ± σ",
         "spread": "{} · log σ, share outside [-1, 1]",
         "categorical": "{} · entropy, top probability",
     }
-    fig = make_subplots(
-        rows=len(panels),
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.06,
-        subplot_titles=[titles[kind].format(part) for part, kind in panels],
-        specs=[[{"secondary_y": kind == "spread"}] for _, kind in panels],
-    )
-    shown = set()  # agents already in the legend
 
-    def legend(agent: str) -> bool:
-        first = agent not in shown
-        shown.add(agent)
-        return first
+    def draw(self) -> None:
+        metrics, key = self.o.metrics, self.o.key
+        rows = metrics[(metrics.key == key) & (metrics.part != "")]
+        parts = sorted({_agent_part(m, p)[1] for m, p in zip(rows.module, rows.part)})
+        series = {part: _part_series(metrics, key, part) for part in parts}
+        agents = list(dict.fromkeys(a for s in series.values() for a in s))
+        colors = {a: SERIES[i % len(SERIES)] for i, a in enumerate(agents)}
+        panels = []  # (part, kind)
 
-    # Each panel is a list of lines (a colour per agent) and its levels, drawn with
-    # the shared series builders into its row of the figure.
-    for row, (part, kind) in enumerate(panels, start=1):
-        lines = []
+        for part in parts:
+            if any("mean" in s for s in series[part].values()):
+                panels += [(part, "mean"), (part, "spread")]
+            else:
+                panels.append((part, "categorical"))
 
-        for agent, stats in series[part].items():
-            look = dict(color=colors[agent], group=agent)
+        self.panels(
+            [self.TITLES[kind].format(part) for part, kind in panels],
+            right=[kind == "spread" for _, kind in panels],
+        )
+        self.height = 230 * len(panels) + 80
+        self.after(title=dict(text=self.o.labels[key], font_size=13), showlegend=True)
+        shown = set()  # agents already in the legend
+
+        for row, (part, kind) in enumerate(panels, start=1):
+            for agent, stats in series[part].items():
+                look = dict(color=colors[agent], group=agent, row=row)
+                look["legend"] = agent not in shown
+                shown.add(agent)
+
+                if kind == "mean":
+                    mean, sigma = stats["mean"], stats["log_std"].pipe(np.exp)
+                    band = (mean - sigma, mean + sigma)
+                    self.line(mean.index, mean, agent, band=band, **look)
+                elif kind == "spread":
+                    log_std = stats["log_std"]
+                    self.line(
+                        log_std.index,
+                        log_std,
+                        agent,
+                        customdata=np.exp(log_std.to_numpy()),
+                        hovertemplate="log σ %{y:.2f} (σ %{customdata:.4f})"
+                        "<extra>%{fullData.name}</extra>",
+                        **look,
+                    )
+
+                    if "outside" in stats:
+                        look["legend"] = False
+                        out = stats["outside"]
+                        self.line(out.index, out, agent, dash="dot", right=True, **look)
+                else:
+                    for name, dash in (("entropy", "solid"), ("top", "dash")):
+                        if name in stats:
+                            values = stats[name]
+                            self.line(values.index, values, agent, dash=dash, **look)
+                            look["legend"] = False
 
             if kind == "mean":
-                mean, sigma = stats["mean"], stats["log_std"].pipe(np.exp)
-                lines.append(
-                    Line(
-                        agent,
-                        mean,
-                        x=mean.index,
-                        band=(mean - sigma, mean + sigma),
-                        legend=legend(agent),
-                        **look,
-                    )
-                )
+                self.level(-1.0, row=row)
+                self.level(1.0, row=row)
             elif kind == "spread":
-                log_std = stats["log_std"]
-                lines.append(
-                    Line(
-                        agent,
-                        log_std,
-                        x=log_std.index,
-                        legend=legend(agent),
-                        options=dict(
-                            customdata=np.exp(log_std.to_numpy()),
-                            hovertemplate="log σ %{y:.2f} (σ %{customdata:.4f})"
-                            "<extra>%{fullData.name}</extra>",
-                        ),
-                        **look,
-                    )
+                self.level(0.0, dash="dot", row=row)
+                self.fig.update_yaxes(
+                    range=[0, 1], showgrid=False, row=row, col=1, secondary_y=True
                 )
 
-                if "outside" in stats:
-                    outside = stats["outside"]
-                    lines.append(
-                        Line(
-                            agent,
-                            outside,
-                            x=outside.index,
-                            dash="dot",
-                            right=True,
-                            legend=False,
-                            **look,
-                        )
-                    )
-            else:
-                for name, dash in (("entropy", "solid"), ("top", "dash")):
-                    if name in stats:
-                        lines.append(
-                            Line(
-                                agent,
-                                stats[name],
-                                x=stats[name].index,
-                                dash=dash,
-                                legend=legend(agent),
-                                **look,
-                            )
-                        )
-
-        add_series(fig, None, lines, row=row, col=1)
-
-        if kind == "mean":
-            add_levels(fig, [Level(-1.0), Level(1.0)], row=row, col=1)
-        elif kind == "spread":
-            add_levels(fig, [Level(0.0, dash="dot")], row=row, col=1)
-            fig.update_yaxes(
-                range=[0, 1], showgrid=False, row=row, col=1, secondary_y=True
-            )
-
-    fig = styled(fig, 230 * len(panels) + 80, "", "")
-    fig.update_xaxes(title="environment steps", row=len(panels), col=1)
-    fig.update_layout(
-        title=dict(text=label, font_size=13), showlegend=True, hovermode="x unified"
-    )
-
-    return fig
+        self.fig.update_xaxes(title="environment steps", row=len(panels), col=1)
 
 
 # --------------------------------------------------------------------------------------
@@ -522,15 +464,19 @@ class ProbesView:
                 "CTCE). Read from each run's metrics.csv; a run from before 25 Oct "
                 "has no per-part statistics, gradient norm or KL."
             ).classes("mls-card-caption")
-            figures = []
+            charts = []  # the module charts, which the mean switch changes
 
             with section(
                 "Training return",
                 "The sampled episodes' team return while learning (with exploration).",
                 "show_chart",
             ):
-                fig = _learner_figure(metrics, ["team_return_mean"], labels, True)
-                ui.plotly(fig).classes("w-full")
+                LearnerChart(
+                    metrics=metrics,
+                    names=["team_return_mean"],
+                    labels=labels,
+                    mean=True,
+                ).show()
 
             # Two columns of cards, one per group of learner metrics
             with ui.grid(columns=2).classes("w-full gap-4"):
@@ -549,30 +495,16 @@ class ProbesView:
                                 + " (trained before this metric was logged, or "
                                 "with it switched off)"
                             ).classes("mls-card-caption")
-                        plot = ui.plotly(
-                            _learner_figure(
-                                metrics,
-                                present,
-                                labels,
-                                mean.value,
-                                clip if gradient else None,
-                            )
-                        ).classes("w-full")
-                        figures.append((plot, present, gradient))
-
-            def redraw() -> None:
-                for plot, present, gradient in figures:
-                    plot.update_figure(
-                        _learner_figure(
-                            metrics,
-                            present,
-                            labels,
-                            mean.value,
-                            clip if gradient else None,
+                        chart = LearnerChart(
+                            metrics=metrics,
+                            names=present,
+                            labels=labels,
+                            mean=mean.value,
+                            clip=clip if gradient else None,
                         )
-                    )
+                        charts.append(chart.show())
 
-            mean.on_value_change(lambda _: redraw())
+            mean.on_value_change(lambda e: [c.set(mean=e.value) for c in charts])
             with_parts = list(dict.fromkeys(metrics[metrics.part != ""].key))
             options = {k: labels[k] for k in with_parts}
 
@@ -591,17 +523,14 @@ class ProbesView:
                     )
                     return
 
-                chosen = ui.select(
-                    options, value=next(iter(options)), label="Run"
-                ).classes("w-full")
-                parts_plot = ui.plotly(go.Figure()).classes("w-full")
+                # The run picker above the chart; it changes the chart's run
+                picker = ui.row().classes("w-full")
+                chart = PartsChart(
+                    metrics=metrics, key=next(iter(options)), labels=labels
+                ).show()
 
-                def show_parts() -> None:
-                    key = chosen.value
-                    parts_plot.update_figure(_parts_figure(metrics, key, labels[key]))
-
-                chosen.on_value_change(lambda _: show_parts())
-                show_parts()
+                with picker:
+                    chart.select("key", options, "Run").classes("w-full")
 
 
 def page() -> None:

@@ -16,11 +16,13 @@ def data_table(
     row_key: str = "id",
     pagination: int = 10,
     badge_columns: dict[str, str] | None = None,
+    **options: Any,
 ) -> ui.table:
-    """Build a table. `columns` = [(field, label)]; `badge_columns` = {field: color_field}."""
-    columns = columns or [
-        (k, k.replace("_", " ")) for k in (rows[0].keys() if rows else [])
-    ]
+    """Build a table. `columns` = [(field, label)]; `badge_columns` = {field: color_field}.
+    Other options (e.g. selection and its callback) go to NiceGUI's table.
+    """
+    if columns is None:
+        columns = [(k, k.replace("_", " ")) for k in (rows[0] if rows else [])]
     table = (
         ui.table(
             columns=[
@@ -36,6 +38,7 @@ def data_table(
             rows=rows,
             row_key=row_key,
             pagination=pagination,
+            **options,
         )
         .classes("w-full")
         .props("flat dense")

@@ -17,9 +17,9 @@ from core.config.scenario import BatterySetup
 from core.grid.contract import NetworkRef
 from core.market.clearing_price import DESCRIPTIONS
 from studio.components.cards import busy, failed, fill, section
-from studio.components.charts import day_figure, topology_figure
+from studio.components.charts import DayChart, NetworkChart
 from studio.components.labels import BACKGROUNDS, MECHANISMS, STEP_LENGTHS
-from studio.components.network import NetworkPicker, clicked_bus
+from studio.components.network import NetworkPicker
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
@@ -154,12 +154,8 @@ def page() -> None:
         ui.notify(f"Network: {code}")
         redraw()
 
-    async def on_click(e) -> None:
-        bus = clicked_bus(e)
-
-        if not bus:
-            return
-
+    async def on_bus(bus: str) -> None:
+        """A bus was clicked: add a participant there, or remove it."""
         if state["shown"] != s.scenario.current().grid.code:
             ui.notify("Use this network first", type="warning")
             return
@@ -176,13 +172,12 @@ def page() -> None:
         plot_box.clear()
 
         if topology is not None:
-            # The network plot in the right card; a click on a bus calls on_click
+            # The network plot in the right card; a click on a bus calls on_bus
             with plot_box:
                 marked = {p.bus for p in current.participants} if own else set()
-                plot = ui.plotly(
-                    topology_figure(topology, highlight=marked, height=480)
-                ).classes("w-full")
-                plot.on("plotly_click", on_click)
+                NetworkChart(
+                    480, on_bus=on_bus, topology=topology, highlight=marked
+                ).show()
 
         if state["kinds_of"] != current.grid.code:  # the bus kinds of this network
             state["kinds_of"] = current.grid.code
@@ -206,7 +201,7 @@ def page() -> None:
         await fill(
             day_box,
             lambda: s.profiles.day_profiles(current),
-            lambda day: ui.plotly(day_figure(day, day.owned())).classes("w-full"),
+            lambda day: DayChart(day=day, elements=day.owned()).show(),
             "Reading the profiles …",
         )
 

@@ -12,13 +12,12 @@ from core.grid.contract import NetworkRef
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileClass, ProfileType, Series
 from studio.components.cards import busy, failed, section
-from studio.components.charts import line_figure
+from studio.components.charts import SeriesModelChart
 from studio.components.network import (
     DEFAULT_SOURCE,
     ElementsTable,
     NetworkPicker,
     ProfileInspector,
-    clicked_bus,
     show_summary,
     show_topology,
     summary_facts,
@@ -150,14 +149,13 @@ def _network_tab(s: Services) -> None:
 
         state["topology"] = topology
         show_summary(summary_box, summary)
-        show_topology(plot_box, topology, on_click=on_bus_click)
+        show_topology(plot_box, topology, on_bus=on_bus_click)
         await elements.show(source)
         await profiles.show(source)
 
-    async def on_bus_click(e) -> None:
+    async def on_bus_click(bus: str) -> None:
         """A bus was clicked: outline it and list its elements."""
-        bus = clicked_bus(e)
-        show_topology(plot_box, state["topology"], bus=bus, on_click=on_bus_click)
+        show_topology(plot_box, state["topology"], bus=bus, on_bus=on_bus_click)
         await elements.show(picker.source, bus)
 
     picker.start()
@@ -246,20 +244,12 @@ def _compare_tab(s: Services) -> None:
             ui.label("Elements per profile category").classes(
                 "text-body2 text-weight-medium"
             )
-            ui.plotly(
-                line_figure(
-                    Series(
-                        x=[c.label for c in classes],
-                        y={
-                            "A": _mix(a["types"], classes),
-                            "B": _mix(b["types"], classes),
-                        },
-                        y_label="elements",
-                    ),
-                    height=260,
-                    kind="bar",
-                )
-            ).classes("w-full")
+            mix = Series(
+                x=[c.label for c in classes],
+                y={"A": _mix(a["types"], classes), "B": _mix(b["types"], classes)},
+                y_label="elements",
+            )
+            SeriesModelChart(260, series=mix, kind="bar").show()
 
             # Two topologies side by side, A | B, each with its caption above
             with ui.row().classes("w-full gap-4 no-wrap"):

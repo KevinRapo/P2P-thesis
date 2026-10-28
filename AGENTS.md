@@ -95,6 +95,12 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   (`studio/pages/market/`: `page.py` with the frame and the tab bar, one file per
   tab, `__init__.py` exporting `page`). A component goes in `studio/components/`
   only once a second place uses it, not before.
+- **Charts.** A chart on a page is a small subclass of `SeriesChart`,
+  `NetworkChart` or `Chart` (`studio/components/charts.py`) whose `draw()` says
+  what to draw from its options; `show()` places it and a control that changes it
+  comes from the chart (`chart.switch`, `chart.select`, `chart.slider`), so a page
+  writes no redraw code. Colours with a meaning are in `studio/theme.py`. The
+  Components page shows every building block with its code.
 - **Sections.** A file that does more than one thing is split into sections with a
   banner whose title says what the section is for:
 

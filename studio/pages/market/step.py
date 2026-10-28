@@ -11,24 +11,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Optional
 
-import plotly.graph_objects as go
 from nicegui import run, ui
 
 from core.grid.contract import NetworkRef
 from core.market.clearing import DSO_ID
 from core.market.lem import StepRecord
-from core.market.order import Trade
 from studio.components.cards import busy, failed, section
-from studio.components.charts import (
-    Level,
-    Line,
-    Link,
-    Ring,
-    add_links,
-    add_rings,
-    series_figure,
-    topology_figure,
-)
+from studio.components.charts import NetworkChart, SeriesChart
 from studio.components.tables import data_table, trades_table
 from studio.state import services
 from studio.theme import LIMIT, MARKET
@@ -171,13 +160,13 @@ def tab() -> None:
         # Fill each card built in page(), in page order
         with book_box:
             if view["orders"]:
-                ui.plotly(_order_book(view)).classes("w-full")
+                OrderBookChart(view=view).show()
             else:
                 ui.label("No orders yet.").classes("mls-card-caption")
 
         with network_box:
             if state["topology"] is not None:
-                ui.plotly(_network(state["topology"], m, view)).classes("w-full")
+                MarketNetworkChart(topology=state["topology"], m=m, view=view).show()
 
         with trades_box:
             trades_table(view["trades"])
@@ -187,13 +176,13 @@ def tab() -> None:
 
         with day_box:
             if m.history:
-                ui.plotly(_day_figure(m)).classes("w-full")
+                TradedChart(m=m).show()
             else:
                 ui.label("No step played yet.").classes("mls-card-caption")
 
         with volt_box:
             if m.history:
-                ui.plotly(_voltage_figure(m)).classes("w-full")
+                VoltageChart(m=m).show()
 
     async def start() -> None:
         await topology()
@@ -365,105 +354,104 @@ def _curve(orders, buy: bool) -> tuple[list[float], list[float]]:
     return xs, ys
 
 
-def _order_book(view: dict) -> go.Figure:
+class OrderBookChart(SeriesChart):
     """Supply and demand as step curves (each with its own x: cumulative kWh): the
-    orders as submitted faint, those still open bold; the DSO's prices as levels."""
-    lines, levels = [], []
-    inputs = view["inputs"]
+    orders as submitted faint, those still open bold; the DSO's prices as levels.
+    Options: ``view`` (``_view``)."""
 
-    for orders, faint in ((view["orders"], True), (view["open"], False)):
-        for buy, color, name in (
-            (True, BUY, "Demand (bids)"),
-            (False, SELL, "Supply (asks)"),
-        ):
-            xs, ys = _curve(orders, buy)
+    height = 360
+    x_title = "cumulative kWh"
+    y_title = "price per kWh"
+    layout = {"hovermode": "closest"}
 
-            if len(xs) >= 2:
-                lines.append(
-                    Line(
-                        name + (" · submitted" if faint else " · open"),
+    def draw(self) -> None:
+        view = self.o.view
+
+        for orders, faint in ((view["orders"], True), (view["open"], False)):
+            for buy, color, name in (
+                (True, BUY, "Demand (bids)"),
+                (False, SELL, "Supply (asks)"),
+            ):
+                xs, ys = _curve(orders, buy)
+
+                if len(xs) >= 2:
+                    self.line(
+                        xs,
                         ys,
-                        x=xs,
+                        name + (" · submitted" if faint else " · open"),
                         color=color,
                         shape="hv",
                         width=1 if faint else 3,
                         dash="dot" if faint else "solid",
                         opacity=0.45 if faint else 1.0,
                     )
-                )
 
-    if inputs is not None:
-        levels = [
-            Level(inputs.feed_in_tariff, "Feed-in tariff", color=DSO),
-            Level(inputs.utility_price, "Utility price", color=DSO),
-        ]
-
-    fig = series_figure(
-        None,
-        lines,
-        levels,
-        y_title="price per kWh",
-        x_title="cumulative kWh",
-        height=360,
-    )
-    fig.update_layout(hovermode="closest")
-
-    return fig
+        if view["inputs"] is not None:
+            self.level(view["inputs"].feed_in_tariff, "Feed-in tariff", color=DSO)
+            self.level(view["inputs"].utility_price, "Utility price", color=DSO)
 
 
 # --------------------------------------------------------------------------------------
 # Network: participants, trades, voltages
 # --------------------------------------------------------------------------------------
-def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
-    record: Optional[StepRecord] = view["record"]
-    voltages = (
-        dict(record.grid.bus_voltage_pu) if record and record.grid.converged else None
-    )
-    violating = (
-        {v.element_id for v in record.grid.violations if v.element_type == "bus"}
-        if record
-        else None
-    )
-    buses = {p.bus for p in m.participants.values()}
-    fig = topology_figure(
-        topology, voltages=voltages, highlight=buses, height=480, violating=violating
-    )
-    bus_of = {pid: p.bus for pid, p in m.participants.items()}
-    ext = topology.external_grid_bus
+class MarketNetworkChart(NetworkChart):
+    """The network after the step's power flow (voltages, buses outside their
+    limits), the participants ringed, the trades as links and the orders as rings.
+    Options: ``topology``, ``m`` (the market), ``view`` (``_view``)."""
 
-    def links(trades: list[Trade]) -> list[Link]:
-        """Each trade from the seller's bus to the buyer's (the DSO's: the external
-        grid)."""
-        return [
-            Link(
-                ext if t.seller_id == DSO_ID else bus_of.get(t.seller_id, ext),
-                ext if t.buyer_id == DSO_ID else bus_of.get(t.buyer_id, ext),
-                t.quantity,
-                f"{t.seller_id} → {t.buyer_id}: "
-                f"{t.quantity:.2f} kWh at {t.price:.3f}",
-            )
-            for t in trades
-        ]
+    height = 480
 
-    trades = view["trades"]
-    peer = links([t for t in trades if t.stage < 3])
-    dso = links([t for t in trades if t.stage == 3])
-    add_links(fig, topology, peer, P2P, "Peer trade")
-    add_links(fig, topology, dso, DSO, "DSO trade", dash="dash")
+    def __init__(self, **options) -> None:
+        record: Optional[StepRecord] = options["view"]["record"]
+        grid = record.grid if record else None
+        super().__init__(
+            voltages=dict(grid.bus_voltage_pu) if grid and grid.converged else None,
+            violating=(
+                {v.element_id for v in grid.violations if v.element_type == "bus"}
+                if grid
+                else None
+            ),
+            highlight={p.bus for p in options["m"].participants.values()},
+            **options,
+        )
 
-    for buy, color, name in ((False, SELL, "Seller"), (True, BUY, "Buyer")):
-        verb = "buys" if buy else "sells"
-        rings = [
-            Ring(
-                o.location,
-                f"{o.agent_id} {verb} {o.quantity:.2f} kWh at {o.price:.3f}",
-            )
-            for o in view["orders"]
-            if o.is_buy == buy
-        ]
-        add_rings(fig, topology, rings, color, name)
+    def draw(self) -> None:
+        m, view = self.o.m, self.o.view
+        ext = self.o.topology.external_grid_bus
+        bus_of = {pid: p.bus for pid, p in m.participants.items()}
 
-    return fig
+        def bus(agent: str) -> str:
+            """An agent's bus; the DSO's is the external grid."""
+            return ext if agent == DSO_ID else bus_of.get(agent, ext)
+
+        for stages, color, name, dash in (
+            ((1, 2), P2P, "Peer trade", "solid"),
+            ((3,), DSO, "DSO trade", "dash"),
+        ):
+            links = [
+                (
+                    bus(t.seller_id),
+                    bus(t.buyer_id),
+                    t.quantity,
+                    f"{t.seller_id} → {t.buyer_id}: {t.quantity:.2f} kWh at "
+                    f"{t.price:.3f}",
+                )
+                for t in view["trades"]
+                if t.stage in stages
+            ]
+            self.links(links, color, name, dash)
+
+        for buy, color, name in ((False, SELL, "Seller"), (True, BUY, "Buyer")):
+            verb = "buys" if buy else "sells"
+            rings = [
+                (
+                    o.location,
+                    f"{o.agent_id} {verb} {o.quantity:.2f} kWh at {o.price:.3f}",
+                )
+                for o in view["orders"]
+                if o.is_buy == buy
+            ]
+            self.rings(rings, color, name)
 
 
 # --------------------------------------------------------------------------------------
@@ -538,50 +526,36 @@ def _people_table(m: LocalEnergyMarket, view: dict) -> None:
 # --------------------------------------------------------------------------------------
 # The day: volumes, prices, voltages
 # --------------------------------------------------------------------------------------
-def _day_figure(m: LocalEnergyMarket) -> go.Figure:
-    """Energy traded per step (stacked bars), the clearing price on the right."""
-    h = m.history
-    lines = [
-        Line("Peer to peer", [r.p2p_kwh for r in h], color=P2P, kind="bar"),
-        Line("With the DSO", [r.dso_kwh for r in h], color=DSO, kind="bar"),
-        Line(
-            "Clearing price",
-            [r.clearing_price if r.p2p_kwh > 0 else None for r in h],
-            color=SELL,
-            kind="lines+markers",
-            right=True,
-        ),
-    ]
+class TradedChart(SeriesChart):
+    """Energy traded per step (stacked bars), the clearing price on the right.
+    Options: ``m`` (the market)."""
 
-    return series_figure(
-        [_clock(m, r.step)[:5] for r in h],
-        lines,
-        y_title="kWh",
-        right_title="price per kWh",
-        stacked=True,
-        height=300,
-    )
+    y_title = "kWh"
+    right_title = "price per kWh"
+    stacked = True
+
+    def draw(self) -> None:
+        h = self.o.m.history
+        x = [_clock(self.o.m, r.step)[:5] for r in h]
+        self.bars(x, [r.p2p_kwh for r in h], "Peer to peer", color=P2P)
+        self.bars(x, [r.dso_kwh for r in h], "With the DSO", color=DSO)
+        price = [r.clearing_price if r.p2p_kwh > 0 else None for r in h]
+        self.line(x, price, "Clearing price", color=SELL, markers=True, right=True)
 
 
-def _voltage_figure(m: LocalEnergyMarket) -> go.Figure:
-    """The lowest and highest bus voltage after each step, with the limits."""
-    h, g = m.history, m.scenario.grid
-    lines = [
-        Line(
-            "Highest V",
-            [r.grid.max_voltage_pu for r in h],
-            color=SELL,
-            kind="lines+markers",
-        ),
-        Line(
-            "Lowest V",
-            [r.grid.min_voltage_pu for r in h],
-            color=BUY,
-            kind="lines+markers",
-        ),
-    ]
-    levels = [Level(v, color=LIMIT) for v in (g.v_min_pu, g.v_max_pu)]
+class VoltageChart(SeriesChart):
+    """The lowest and highest bus voltage after each step, with the limits.
+    Options: ``m`` (the market)."""
 
-    return series_figure(
-        [_clock(m, r.step)[:5] for r in h], lines, levels, y_title="V (pu)", height=300
-    )
+    y_title = "V (pu)"
+
+    def draw(self) -> None:
+        m = self.o.m
+        x = [_clock(m, r.step)[:5] for r in m.history]
+        highest = [r.grid.max_voltage_pu for r in m.history]
+        lowest = [r.grid.min_voltage_pu for r in m.history]
+        self.line(x, highest, "Highest V", color=SELL, markers=True)
+        self.line(x, lowest, "Lowest V", color=BUY, markers=True)
+
+        for v in (m.scenario.grid.v_min_pu, m.scenario.grid.v_max_pu):
+            self.level(v, color=LIMIT)

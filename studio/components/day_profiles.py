@@ -12,7 +12,7 @@ from nicegui import ui
 from core.config.scenario import ParticipantSetup, Scenario
 from studio.adapters.models import DayElement, DayProfiles
 from studio.components.cards import section, stat, stat_grid
-from studio.components.charts import day_figure, element_figure
+from studio.components.charts import DayChart, ElementsChart
 from studio.components.tables import data_table
 
 
@@ -134,14 +134,12 @@ def _participants(day: DayProfiles, people: list[ParticipantSetup]) -> None:
         plot_box.clear()
         with plot_box:
             if len(selected) == 1:
-                ui.plotly(day_figure(day, day.owned(selected[0]))).classes("w-full")
+                DayChart(day=day, elements=day.owned(selected[0])).show()
             elif selected:
                 lines = {pid: _net(day, pid) for pid in selected}
-                ui.plotly(
-                    element_figure(day, lines, y_title="net kW (+ surplus)")
-                ).classes("w-full")
+                ElementsChart(day=day, lines=lines, y_title="net kW (+ surplus)").show()
             else:
-                ui.plotly(day_figure(day, day.owned())).classes("w-full")
+                DayChart(day=day, elements=day.owned()).show()
 
     table.on_select(lambda e: draw([r["id"] for r in e.selection]))
     draw([])
@@ -178,9 +176,9 @@ def _background(day: DayProfiles, off: bool) -> None:
         with plot_box:
             if selected:
                 lines = {e.id: e.kw for e in rest if e.id in selected}
-                ui.plotly(element_figure(day, lines)).classes("w-full")
+                ElementsChart(day=day, lines=lines).show()
             else:
-                ui.plotly(day_figure(day, rest, faint=off)).classes("w-full")
+                DayChart(day=day, elements=rest, faint=off).show()
 
     table.on_select(lambda e: draw([r["id"] for r in e.selection]))
     draw([])

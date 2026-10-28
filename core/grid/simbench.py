@@ -764,18 +764,32 @@ def profile_catalog(ref: NetworkRef) -> list[ProfileRecord]:
     Networks without profiles (pandapower built-ins, most files) return ``[]``.
     """
     net = _load(ref)
+    counts = {}
+
+    for table in set(PROFILE_USERS.values()):
+        users = getattr(net, table)
+
+        if "profile" in users:
+            counts[table] = users["profile"].value_counts().to_dict()
+
+    return _profile_records(getattr(net, "profiles", None) or {}, counts)
+
+
+def _profile_records(
+    profiles: dict[str, Any], counts: dict[str, dict[str, int]] | None = None
+) -> list[ProfileRecord]:
+    """The same profile descriptions for a network and the complete catalogue."""
     out = []
 
-    for (table, name), columns in _profile_columns(net).items():
-        values = net.profiles[table][columns.get("p", next(iter(columns.values())))]
-        users = getattr(net, PROFILE_USERS[table])
-        count = int((users["profile"] == name).sum()) if "profile" in users else 0
+    for (table, name), columns in _profile_columns(profiles).items():
+        values = profiles[table][columns.get("p", next(iter(columns.values())))]
+
         out.append(
             ProfileRecord(
                 name=name,
                 table=table,
                 quantities=tuple(q for q in ("p", "q") if q in columns),
-                elements=count,
+                elements=int((counts or {}).get(PROFILE_USERS[table], {}).get(name, 0)),
                 mean=round(float(values.mean()), 4),
                 peak=round(float(values.max()), 4),
             )
@@ -815,10 +829,9 @@ def _labels(d: date, count: int, step: int, resolution: str) -> list[str]:
     ]
 
 
-def _aggregate(values: Any, first: int, last: int, step: int) -> list[float]:
-    """Mean of every ``step`` rows of a column between ``first`` and ``last``."""
-    block = values.iloc[first:last]
-    means = block.groupby([i // step for i in range(len(block))]).mean()
+def _aggregate(values: Any, step: int) -> list[float]:
+    """Mean of every ``step`` rows of an already selected time window."""
+    means = values.groupby([i // step for i in range(len(values))]).mean()
 
     return [float(v) for v in means]
 
@@ -864,7 +877,8 @@ def _series(
     for table, name in columns:
         if name in names and quantity in columns[(table, name)]:
             column = profiles[table][columns[(table, name)][quantity]]
-            values[name] = [round(v, 4) for v in _aggregate(column, first, last, step)]
+            window = column.iloc[first:last]
+            values[name] = [round(v, 4) for v in _aggregate(window, step)]
 
     count = len(next(iter(values.values()), []))
 
@@ -921,12 +935,15 @@ def profile_power(
         if not ids:
             continue
 
+        # Select the window before adding or scaling the full-year profiles.
+        frame = frame.iloc[first:last]
+
         if per_element:
             for i in ids:
-                kw = _aggregate(frame[i] * 1000, first, last, step)
+                kw = _aggregate(frame[i] * 1000, step)
                 values[f"{users.at[i, 'name']} · {name}"] = [round(v, 3) for v in kw]
         else:
-            kw = _aggregate(frame[ids].sum(axis=1) * 1000, first, last, step)
+            kw = _aggregate(frame[ids].sum(axis=1) * 1000, step)
             values[f"{name} ({len(ids)})"] = [round(v, 3) for v in kw]
 
     count = len(next(iter(values.values()), []))
@@ -965,6 +982,10 @@ def element_power(
 
     for table in ("load", "sgen", "storage"):
         frame = absolute.get((table, "p_mw"))
+
+        if frame is not None:
+            frame = frame.iloc[first:last]
+
         for i, row in net[table].iterrows():
             name = row.get("name")
             element_id = str(name) if isinstance(name, str) else f"{table} {i}"
@@ -973,7 +994,7 @@ def element_power(
                 continue
 
             if frame is not None and i in frame.columns:
-                kw = _aggregate(frame[i] * 1000, first, last, step)
+                kw = _aggregate(frame[i] * 1000, step)
             else:
                 kw = [float(row.p_mw) * 1000] * count
 
@@ -1002,25 +1023,11 @@ def catalogue_profiles(scenario: int = 0) -> list[ProfileRecord]:
     Returns:
         One record per profile; ``elements`` is 0, as no network is involved.
     """
-    profiles = _catalogue(scenario)
-    out = []
+    profiles = {
+        table: frame for table, frame in _catalogue(scenario).items() if not frame.empty
+    }
 
-    for (table, name), columns in _profile_columns(profiles).items():
-        values = profiles[table][columns.get("p", next(iter(columns.values())))]
-        if values.empty:
-            continue
-        out.append(
-            ProfileRecord(
-                name=name,
-                table=table,
-                quantities=tuple(q for q in ("p", "q") if q in columns),
-                elements=0,
-                mean=round(float(values.mean()), 4),
-                peak=round(float(values.max()), 4),
-            )
-        )
-
-    return sorted(out, key=lambda r: (PROFILE_TABLES.index(r.table), r.name))
+    return _profile_records(profiles)
 
 
 def catalogue_series(

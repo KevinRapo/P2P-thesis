@@ -32,14 +32,14 @@ from __future__ import annotations
 from typing import Optional
 
 import pandas as pd
-import plotly.graph_objects as go
 from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import key_values, placeholder, section
-from studio.components.charts import Level, Line, palette, series_figure, styled
+from studio.components.charts import Chart, SeriesChart
 from studio.components.run_table import RunTable, labels_of
 from studio.components.run_table import cell as _cell
+from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
 from studio.theme import MUTED, SERIES
@@ -95,23 +95,10 @@ def _table(frame: pd.DataFrame, columns: list[tuple[str, str]]) -> ui.table:
     columns = [(f, label) for f, label in columns if f in frame]
     rows = [
         {"_row": i} | {f: _cell(row[f]) for f, _ in columns}
-        for i, (_, row) in enumerate(frame.iterrows())
+        for i, row in enumerate(frame.to_dict("records"))
     ]
 
-    return (
-        ui.table(
-            columns=[
-                {"name": f, "label": label, "field": f, "sortable": True}
-                | {"align": "left"}
-                for f, label in columns
-            ],
-            rows=rows,
-            row_key="_row",
-            pagination={"rowsPerPage": 15},
-        )
-        .classes("w-full")
-        .props("flat dense")
-    )
+    return data_table(rows, columns, row_key="_row", pagination=15)
 
 
 def shown_participants(
@@ -130,130 +117,115 @@ def shown_participants(
 # --------------------------------------------------------------------------------------
 # Figures
 # --------------------------------------------------------------------------------------
-def _learning_figure(
-    curves: pd.DataFrame,
-    training: pd.DataFrame,
-    labels: dict[str, str],
-    per_participant: bool,
-    with_training: bool,
-) -> go.Figure:
-    """Each run's trained policy over environment steps (evaluation, and with
-    ``with_training`` its training return, dotted), and each run's own baselines at
-    step 0, dashed in its colour (one grey line when every run has the same)."""
-    value = "per_participant" if per_participant else "team_return_mean"
-    colors = palette(list(dict.fromkeys(curves.key)))
-    lines, levels = [], []
+class LearningChart(SeriesChart):
+    """Each run's trained policy over environment steps (evaluation; with ``train``
+    also its training return, dotted), and each run's own baselines at step 0,
+    dashed in its colour (one grey level when every run has the same).
 
-    for key, color in colors.items():
-        rows = curves[(curves.key == key) & (curves.policy == "trained")]
-        lines.append(
-            Line(
-                labels[key],
-                rows[value],
-                x=rows.env_steps,
-                color=color,
-                kind="lines+markers",
+    Options: ``curves``, ``training`` (``learning_curves`` / ``training_curves``),
+    ``labels`` (run key -> name), ``per`` (per participant instead of the team),
+    ``train`` (with the training return).
+    """
+
+    height = 380
+    x_title = "environment steps"
+
+    def draw(self) -> None:
+        o = self.o
+        value = "per_participant" if o.per else "team_return_mean"
+        self.titles(y=f"return ({'per participant' if o.per else 'team'})")
+        keys = list(dict.fromkeys(o.curves.key))
+        colors = {k: SERIES[i % len(SERIES)] for i, k in enumerate(keys)}
+
+        for key in keys:
+            rows = o.curves[(o.curves.key == key) & (o.curves.policy == "trained")]
+            self.line(
+                rows.env_steps, rows[value], o.labels[key], colors[key], markers=True
             )
-        )
 
-        if with_training and not training.empty:
-            own = training[training.key == key]
-            lines.append(
-                Line(
-                    f"{labels[key]} (training)",
-                    own[value],
-                    x=own.env_steps,
-                    color=color,
-                    dash="dot",
+            if o.train and not o.training.empty:
+                own = o.training[o.training.key == key]
+                name = f"{o.labels[key]} (training)"
+                self.line(own.env_steps, own[value], name, colors[key], dash="dot")
+
+        start = o.curves[(o.curves.env_steps == 0) & (o.curves.policy != "trained")]
+
+        for policy, rows in start.groupby("policy"):
+            if rows[value].round(9).nunique() == 1:  # the same for every run
+                self.level(rows[value].iloc[0], f"{policy} (step 0)")
+                continue
+
+            for _, row in rows.iterrows():
+                end = o.curves[o.curves.key == row.key].env_steps.max()
+                name = f"{o.labels[row.key]}: {policy}"
+                y = [row[value]] * 2
+                self.line([0, end], y, name, colors[row.key], dash="dash", width=1)
+
+
+class HeldoutChart(Chart):
+    """Per run, the trained policy minus each baseline on every test day, as boxes.
+    Options: ``days`` (``heldout_days``), ``labels``."""
+
+    height = 380
+    y_title = "difference per test day"
+    layout = {"boxmode": "group", "hovermode": "closest"}
+
+    def draw(self) -> None:
+        for i, (baseline, label) in enumerate(BASELINES.items()):
+            column = f"trained_minus_{baseline}"
+
+            if column in self.o.days:
+                self.fig.add_box(
+                    x=[self.o.labels[k] for k in self.o.days.key],
+                    y=self.o.days[column],
+                    name=f"trained − {label}",
+                    boxpoints="all",
+                    jitter=0.3,
+                    marker_color=SERIES[i + 1],
                 )
-            )
 
-    start = curves[(curves.env_steps == 0) & (curves.policy != "trained")]
-
-    for policy, rows in start.groupby("policy"):
-        if rows[value].round(9).nunique() == 1:  # the same for every run: one line
-            levels.append(Level(rows[value].iloc[0], f"{policy} (step 0)"))
-            continue
-
-        for _, row in rows.iterrows():
-            end = curves[curves.key == row.key].env_steps.max()
-            lines.append(
-                Line(
-                    f"{labels[row.key]}: {policy}",
-                    [row[value]] * 2,
-                    x=[0, end],
-                    color=colors[row.key],
-                    dash="dash",
-                    width=1,
-                )
-            )
-
-    label = "per participant" if per_participant else "team"
-
-    return series_figure(
-        None,
-        lines,
-        levels,
-        y_title=f"return ({label})",
-        x_title="environment steps",
-        height=380,
-    )
+        self.fig.add_hline(y=0, line_color=MUTED)
 
 
-def _heldout_figure(days: pd.DataFrame, labels: dict[str, str]) -> go.Figure:
-    """Per run, the trained policy minus each baseline on every test day."""
-    fig = go.Figure()
+class ParticipantChart(Chart):
+    """The ``agents`` × test days: ``column`` (trained minus a baseline), red to
+    blue around 0, the largest difference on top. Options: ``table``, ``column``,
+    ``agents``, ``title`` (the colour bar's)."""
 
-    for i, (baseline, label) in enumerate(BASELINES.items()):
-        column = f"trained_minus_{baseline}"
-        if column not in days:
-            continue
-        fig.add_box(
-            x=[labels[k] for k in days.key],
-            y=days[column],
-            name=f"trained − {label}",
-            boxpoints="all",
-            jitter=0.3,
-            marker_color=SERIES[i + 1],
+    layout = {"hovermode": "closest"}
+
+    def draw(self) -> None:
+        o = self.o
+        grid = o.table[o.table.agent.isin(o.agents)].pivot(
+            index="agent", columns="day", values=o.column
         )
-
-    fig.add_hline(y=0, line_color=MUTED)
-    fig.update_layout(boxmode="group", hovermode="closest")
-
-    return styled(fig, 380, "difference per test day")
-
-
-def _participant_figure(
-    table: pd.DataFrame, column: str, agents: list[str], title: str
-) -> go.Figure:
-    """The ``agents`` × test days: ``column`` (trained minus a baseline)."""
-    grid = table[table.agent.isin(agents)].pivot(
-        index="agent", columns="day", values=column
-    )
-    grid = grid.reindex([a for a in agents if a in grid.index])
-    limit = float(grid.abs().max().max() or 1.0)
-    fig = go.Figure(
-        go.Heatmap(
+        grid = grid.reindex([a for a in o.agents if a in grid.index])
+        limit = float(grid.abs().max().max() or 1.0)
+        self.height = max(260, 26 * len(grid) + 120)
+        self.fig.add_heatmap(
             z=grid.values,
             x=list(grid.columns),
             y=list(grid.index),
             colorscale="RdBu",
             zmin=-limit,
             zmax=limit,
-            colorbar=dict(title=title),
+            colorbar=dict(title=o.title),
         )
-    )
-    fig.update_layout(hovermode="closest")
-    fig.update_yaxes(autorange="reversed")  # the largest difference on top
-
-    return styled(fig, max(260, 26 * len(grid) + 120))
+        self.fig.update_yaxes(autorange="reversed")
 
 
-def _steps_figure(steps: pd.DataFrame, columns: list[str], title: str) -> go.Figure:
-    """Lines of ``columns`` over the steps of one traced day."""
-    lines = [Line(c, steps[c], kind="lines+markers") for c in columns if c in steps]
+class TraceChart(SeriesChart):
+    """Lines of some columns over the steps of one traced day. Options: ``steps``
+    (the rows of that day), ``columns``, ``title`` (the y axis)."""
 
-    return series_figure(steps.step, lines, y_title=title, x_title="step", height=280)
+    height = 280
+    x_title = "step"
+
+    def draw(self) -> None:
+        self.titles(y=self.o.title)
+
+        for column in (c for c in self.o.columns if c in self.o.steps):
+            self.line(self.o.steps.step, self.o.steps[column], column, markers=True)
 
 
 # --------------------------------------------------------------------------------------
@@ -372,32 +344,20 @@ class ResultsView:
                 if curves.empty:
                     ui.label("No evaluation recorded.").classes("mls-card-caption")
                 else:
-                    options = {"per": False, "training": False}
-                    plot = ui.plotly(
-                        _learning_figure(curves, training, labels, False, False)
-                    ).classes("w-full")
+                    chart = LearningChart(
+                        curves=curves,
+                        training=training,
+                        labels=labels,
+                        per=False,
+                        train=False,
+                    ).show()
 
-                    def redraw(name: str, value: bool) -> None:
-                        options[name] = value
-                        plot.update_figure(
-                            _learning_figure(
-                                curves,
-                                training,
-                                labels,
-                                options["per"],
-                                options["training"],
-                            )
-                        )
-
-                    # Two switches under the chart that redraw it
+                    # Two switches under the chart, each changing one option
                     with ui.row().classes("gap-4"):
-                        ui.switch(
-                            "Per participant",
-                            on_change=lambda e: redraw("per", bool(e.value)),
-                        )
-                        ui.switch(
+                        chart.switch("per", "Per participant")
+                        chart.switch(
+                            "train",
                             "Training return (the sampled episodes while learning)",
-                            on_change=lambda e: redraw("training", bool(e.value)),
                         )
 
             with section(
@@ -410,7 +370,7 @@ class ResultsView:
                 if days.empty:
                     ui.label("No held-out evaluation.").classes("mls-card-caption")
                 else:
-                    ui.plotly(_heldout_figure(days, labels)).classes("w-full")
+                    HeldoutChart(days=days, labels=labels).show()
 
             with section(
                 "How consistent is it?",
@@ -562,9 +522,9 @@ class ResultsView:
                         f"{OUTCOMES[outcome.value]}:<br>trained −<br>"
                         + BASELINES[baseline.value]
                     )
-                    ui.plotly(
-                        _participant_figure(table, column, agents, title)
-                    ).classes("w-full")
+                    ParticipantChart(
+                        table=table, column=column, agents=agents, title=title
+                    ).show()
 
             for field in (outcome, baseline, text):
                 field.on_value_change(draw)
@@ -631,29 +591,16 @@ class ResultsView:
             # Top to bottom: market kWh, clearing price, the participant's kWh,
             # battery and reward, then its orders and partners table
             with box:
-                ui.plotly(
-                    _steps_figure(
-                        one,
-                        [
-                            "p2p_kwh",
-                            "preference_kwh",
-                            "bought_from_dso_kwh",
-                            "sold_to_dso_kwh",
-                        ],
-                        "market kWh (preference_kwh: stage 1, part of p2p)",
-                    )
-                ).classes("w-full")
-                ui.plotly(
-                    _steps_figure(one, ["clearing_price"], "clearing price")
-                ).classes("w-full")
-                ui.plotly(
-                    _steps_figure(
-                        person, ["order_kwh", "bought_kwh", "sold_kwh"], "kWh"
-                    )
-                ).classes("w-full")
-                ui.plotly(
-                    _steps_figure(person, ["soc", "reward"], "battery and reward")
-                ).classes("w-full")
+                market = ["p2p_kwh", "preference_kwh"]
+                market += ["bought_from_dso_kwh", "sold_to_dso_kwh"]
+                for rows, columns, title in (
+                    (one, market, "market kWh (preference_kwh: stage 1, part of p2p)"),
+                    (one, ["clearing_price"], "clearing price"),
+                    (person, ["order_kwh", "bought_kwh", "sold_kwh"], "kWh"),
+                    (person, ["soc", "reward"], "battery and reward"),
+                ):
+                    TraceChart(steps=rows, columns=columns, title=title).show()
+
                 shown = [(f, label) for f, label in TRACE_COLUMNS if f in person]
 
                 if "partner" in person:

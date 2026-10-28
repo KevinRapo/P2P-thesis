@@ -23,7 +23,7 @@ from studio.components.cards import (
     placeholder,
     section,
 )
-from studio.components.charts import day_figure, topology_figure
+from studio.components.charts import DayChart, NetworkChart
 from studio.components.day_profiles import show_day_profiles
 from studio.components.labels import BACKGROUNDS, MECHANISMS, STEP_LENGTHS
 from studio.components.tables import data_table
@@ -122,7 +122,7 @@ def page() -> None:
         day_box.clear()
 
         with day_box:
-            ui.plotly(day_figure(day, day.owned())).classes("w-full")
+            DayChart(day=day, elements=day.owned()).show()
 
         profiles_box.clear()
 
@@ -135,9 +135,9 @@ def page() -> None:
         await fill(
             network_box,
             lambda: s.grid.topology(NetworkRef("simbench", scenario.grid.code)),
-            lambda topology: ui.plotly(
-                topology_figure(topology, highlight=marked, height=300)
-            ).classes("w-full"),
+            lambda topology: NetworkChart(
+                300, topology=topology, highlight=marked
+            ).show(),
             "Building topology …",
         )
 
