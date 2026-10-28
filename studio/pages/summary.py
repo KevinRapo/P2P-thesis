@@ -40,12 +40,19 @@ def page() -> None:
         "The market as configured: every setting once, the day's curves and the "
         "network. Change settings on their own pages, then run it on Step.",
     ):
+        # Ready banner at the top (filled by _checks)
         check_box = ui.column().classes("w-full")
+
+        # Tab bar: Settings | Day profiles
         with ui.tabs().classes("w-full").props("align=left no-caps") as tabs:
             settings_tab = ui.tab("Settings", icon="fact_check")
             profiles_tab = ui.tab("Day profiles", icon="show_chart")
+
+        # The tabs' contents, one panel per tab
         with ui.tab_panels(tabs, value=settings_tab).classes("w-full bg-transparent"):
+            # Settings tab
             with ui.tab_panel(settings_tab).classes("p-0 gap-4"):
+                # Row 1: three cards side by side (network, market, DSO)
                 with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
                     with section("Network and day", icon="hub", classes="grow basis-0"):
                         _grid(scenario)
@@ -53,8 +60,12 @@ def page() -> None:
                         _market(scenario)
                     with section("DSO", icon="account_balance", classes="grow basis-0"):
                         _dso(scenario)
+
+                # Row 2: the participants card, full width
                 with section("Participants", icon="groups"):
                     _participants(scenario)
+
+                # Row 3: day curves (left) and network plot (right), filled by load()
                 with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
                     with section(
                         "Participants over the day",
@@ -71,6 +82,8 @@ def page() -> None:
                         classes="grow basis-0",
                     ):
                         network_box = ui.column().classes("w-full")
+
+            # Day profiles tab: every element's curve, filled by load()
             with ui.tab_panel(profiles_tab).classes("p-0 gap-4"):
                 profiles_box = ui.column().classes("w-full gap-4")
 
@@ -146,11 +159,14 @@ def _checks(box: ui.element, scenario: Scenario, day: DayProfiles | None) -> Non
     box.clear()
     problems = _problems(scenario, day)
 
+    # The banner: icon | text (grows) | Open Step button, in one row
     with box, ui.row().classes("mls-card w-full items-center gap-3 no-wrap"):
         ui.icon(
             "warning" if problems else "check_circle",
             size="24px",
         ).classes("text-warning" if problems else "text-positive")
+
+        # Middle: "Ready to run" or one line per problem
         with ui.column().classes("gap-0 grow"):
             if not problems:
                 ui.label("Ready to run").classes("text-body1 text-weight-medium")
@@ -265,6 +281,7 @@ def _participants(scenario: Scenario) -> None:
             pagination=5,
         )
 
+    # Collapsible list under the card: one row per participant
     with ui.expansion("All participants", icon="list").classes("w-full"):
         data_table(
             [

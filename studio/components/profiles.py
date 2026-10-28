@@ -80,8 +80,10 @@ class ProfileOverview:
         self.on_pick = on_pick
         self.picked: set[str] = set()
         self.counts: Counter[str] = Counter()
+        # The class tiles (drawn by _draw)
         self.box = ui.column().classes("w-full gap-2")
 
+        # Under the tiles: what is selected (grows) | Clear selection
         with ui.row().classes("w-full items-start no-wrap gap-3"):
             self.hint = ui.column().classes("grow gap-0")
             self.clear = (
@@ -110,6 +112,7 @@ class ProfileOverview:
             groups.setdefault(c.group, {}).setdefault(c.subgroup, []).append(c)
 
         with self.box:
+            # One wrapping row: the "All" tile, then one shaded panel per group
             with ui.row().classes("w-full gap-3 items-stretch"):
                 self._tile(
                     "All",
@@ -128,11 +131,15 @@ class ProfileOverview:
     def _group(self, group: str, subgroups: dict[str, list[ProfileClass]]) -> None:
         """One shaded panel: the group's name, then its (sub)groups of tiles."""
         with ui.column().classes("mls-pgroup gap-2"):
+            # Group title with its hint under it
             with ui.column().classes("gap-0"):
                 ui.label(group).classes("mls-pgroup-title")
                 ui.label(GROUP_HINTS.get(group, "")).classes("mls-card-caption")
+
+            # The subgroups side by side
             with ui.row().classes("gap-3 no-wrap items-start"):
                 for subgroup, classes in subgroups.items():
+                    # One subgroup: its title, then its tiles in a row
                     with ui.column().classes("gap-1"):
                         if subgroup:
                             ui.label(subgroup).classes("mls-psub-title").tooltip(

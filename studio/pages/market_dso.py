@@ -28,6 +28,7 @@ def page() -> None:
         "pays and charges. Saved on every change; press Reset on the Step page to "
         "play with new settings.",
     ):
+        # One row of three cards side by side: Clearing | Bidding | DSO
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Clearing",
@@ -91,6 +92,7 @@ def _clearing() -> None:
             ("max_quantity", "Max quantity (kWh)", 1),
         ),
     ):
+        # Two number fields side by side: min | max
         with ui.row().classes("w-full gap-2 no-wrap"):
             for field, label, step in pair:
                 ui.number(

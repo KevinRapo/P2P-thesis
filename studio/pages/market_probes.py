@@ -161,15 +161,18 @@ class ProbesView:
         self.service = service
         self.runs: list[ProbeRun] = []
 
+        # Top line: Play again button | status note
         with ui.row().classes("w-full items-center gap-3"):
             self.again = ui.button(
                 "Play again", icon="replay", on_click=lambda: self.load(again=True)
             ).props("flat no-caps dense")
             self.note = ui.label().classes("mls-card-caption")
 
+        # Card: the summary table of every probe (filled by load())
         with section("Every probe", "Played on both grid methods", "rule"):
             self.summary = ui.column().classes("w-full")
 
+        # Selector row for the detail below: probe | grid method | step
         with ui.row().classes("w-full items-center gap-3"):
             self.probe = ui.select({}, label="Probe", on_change=self._draw).classes(
                 "grow"
@@ -181,6 +184,7 @@ class ProbesView:
                 "w-40"
             )
 
+        # The selected probe's cards (filled by _draw())
         self.detail = ui.column().classes("w-full gap-4")
 
     async def load(self, again: bool = False) -> None:
@@ -237,6 +241,8 @@ class ProbesView:
         p = found.probe
         checks = [c for c in found.checks if c.step == record.step]
 
+        # The detail cards, top to bottom: the probe, its checks, trades,
+        # participants, DSO and grid, validation notes
         with self.detail:
             with section(f"{p.key} · {p.title}", p.shows, "science"):
                 key_values({"Orders": p.setup, "A correct market gives": p.expect})
@@ -296,6 +302,7 @@ def page() -> None:
     ):
         view = ProbesView(services().validation)
 
+        # A waiting note where the detail cards will appear
         if not services().validation.played:
             with view.detail:
                 placeholder("Playing the probes ...", "hourglass_empty")

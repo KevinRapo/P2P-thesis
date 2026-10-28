@@ -88,6 +88,7 @@ class RunTable:
         self.overview = pd.DataFrame()
         self.selected: list[str] = []
 
+        # Filter row: Refresh | experiments | search | Show test runs
         with ui.row().classes("w-full items-center gap-3"):
             ui.button("Refresh", icon="refresh", on_click=self.refresh).props(
                 "flat no-caps dense"
@@ -116,6 +117,7 @@ class RunTable:
                 on_change=self._tests_changed,
             )
 
+        # Ticking row: Tick shown | Untick all | Ticked only
         with ui.row().classes("w-full items-center gap-3"):
             ui.button("Tick shown", icon="done_all", on_click=self.tick_shown).props(
                 "flat no-caps dense"

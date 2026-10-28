@@ -270,15 +270,20 @@ class ResultsView:
     def __init__(self, service: ResultsService) -> None:
         self.service = service
         self._drawn = {"compare": 0, "inspect": 0}  # latest draws
+        # The run table at the top, with a tick box per run
         self.table = RunTable(service, self._selected, SHOW_TESTS)
 
+        # Tab bar under it: Compare | Inspect a run
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             ui.tab("compare", label="Compare", icon="compare_arrows")
             ui.tab("inspect", label="Inspect a run", icon="search")
 
         with ui.tab_panels(tabs, value="compare").classes("w-full bg-transparent"):
+            # Compare tab: its cards are drawn by _show_compare()
             with ui.tab_panel("compare").classes("p-0 gap-4"):
                 self.compare = ui.column().classes("w-full gap-4")
+
+            # Inspect tab: the run picker, then the cards of _show_run()
             with ui.tab_panel("inspect").classes("p-0 gap-4"):
                 with ui.row().classes("w-full items-center gap-3"):
                     self.inspected = (
@@ -337,6 +342,8 @@ class ResultsView:
 
         labels = labels_of(keys)
 
+        # The Compare tab's cards, top to bottom: the runs, did it learn?, the final
+        # policy, consistency over seeds
         with self.compare:
             with section("The runs", f"{len(keys)} ticked", "list"):
                 varying = {"seed"}  # what differs between the seeds of one grid
@@ -382,6 +389,7 @@ class ResultsView:
                             )
                         )
 
+                    # Two switches under the chart that redraw it
                     with ui.row().classes("gap-4"):
                         ui.switch(
                             "Per participant",
@@ -449,6 +457,8 @@ class ResultsView:
         if draw != self._drawn["inspect"]:  # another run was picked meanwhile
             return
 
+        # The Inspect tab's cards, top to bottom: the run, test days, participants,
+        # market and grid per day, traced days
         with self.inspect:
             with section(key, "What the run was", "info"):
                 shown = {k: _cell(v) for k, v in result.labels.items() if v is not None}
@@ -465,6 +475,7 @@ class ResultsView:
                     ("model", "Model"),
                 ):
                     if result.settings.get(name):
+                        # Collapsible list of the settings, inside the card
                         with ui.expansion(title, icon="tune").classes("w-full"):
                             key_values(
                                 {k: _cell(v) for k, v in result.settings[name].items()}
@@ -517,6 +528,7 @@ class ResultsView:
 
             outcomes = {k: v for k, v in OUTCOMES.items() if k in people}
 
+            # Filter row: outcome | baseline | participant name filter
             with ui.row().classes("w-full items-center gap-4"):
                 outcome = ui.select(outcomes, value="return", label="Outcome").classes(
                     "w-56"
@@ -526,6 +538,7 @@ class ResultsView:
                     "dense clearable"
                 )
 
+            # The chart under the filters, redrawn by draw()
             box = ui.column().classes("w-full gap-1")
 
             async def draw() -> None:
@@ -571,6 +584,7 @@ class ResultsView:
                 ).classes("mls-card-caption")
                 return
 
+            # Empty until the button below is clicked, then the trace view
             box = ui.column().classes("w-full gap-2")
 
             async def open_traces() -> None:
@@ -591,8 +605,11 @@ class ResultsView:
             ).props("outline no-caps dense")
 
     def _trace_view(self, steps: pd.DataFrame, agents: pd.DataFrame) -> None:
+        # Charts and table, redrawn by draw(). Created before the selector row, so
+        # they are shown above it
         box = ui.column().classes("w-full gap-2")
 
+        # Selector row: day | policy | participant
         with ui.row().classes("w-full items-center gap-3"):
             day = ui.select(sorted(steps.day.unique()), label="Day")
             policy = ui.select(list(steps.policy.unique()), label="Policy")
@@ -611,6 +628,8 @@ class ResultsView:
                 & (agents.agent == agent.value)
             ]
 
+            # Top to bottom: market kWh, clearing price, the participant's kWh,
+            # battery and reward, then its orders and partners table
             with box:
                 ui.plotly(
                     _steps_figure(

@@ -14,7 +14,9 @@ def section(
     title: str, caption: str = "", icon: str | None = None, classes: str = ""
 ) -> Generator[ui.column, None, None]:
     """A bordered card with a title row; content goes inside the `with` block."""
+    # The card itself
     with ui.column().classes(f"mls-card gap-3 w-full min-w-0 {classes}") as card:
+        # Title row: icon | title with the caption under it
         with ui.row().classes("items-center gap-2 no-wrap w-full"):
             if icon:
                 ui.icon(icon, size="20px").classes("text-primary")
@@ -22,6 +24,8 @@ def section(
                 ui.label(title).classes("mls-card-title")
                 if caption:
                     ui.label(caption).classes("mls-card-caption")
+
+        # The caller's content follows here, under the title row
         yield card
 
 
@@ -37,7 +41,9 @@ def stat(
         icon: Material icon name shown top-right.
         tone: Colour of the icon (``"primary"``, ``"warning"``, …).
     """
+    # The tile: label and icon on top, the value, the caption
     with ui.column().classes("mls-card gap-1"):
+        # Top line: label (left) | icon (right)
         with ui.row().classes("items-center justify-between w-full no-wrap"):
             ui.label(label).classes("mls-stat-label")
             if icon:

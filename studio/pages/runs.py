@@ -217,7 +217,9 @@ class ExperimentCard:
             "" if spec else "Runs made without the runner (no experiment.json)"
         )
 
+        # The experiment's card: a header row, then the table of its runs
         with section(name, caption, "insights"):
+            # Header row: state badges (left) | Sync, Restart and Stop (right)
             with ui.row().classes("w-full items-center gap-2"):
                 self.badges = ui.row().classes("items-center gap-2")
                 ui.space()
@@ -244,6 +246,8 @@ class ExperimentCard:
                     on_click=lambda: monitor.confirm_stop(name),
                 ).props("outline no-caps dense color=negative")
 
+            # The runs table; its state, progress and Stop cells are the HTML
+            # templates STATE_CELL, PROGRESS_CELL and ACTIONS_CELL above
             self.table = (
                 ui.table(
                     columns=_columns(monitor.remote),
@@ -326,6 +330,7 @@ def _show_report(report: dict) -> None:
     """A report of ``check`` in the current container: Ready, or the problems that
     stop a start; the two commits; and the experiments that are queued or running, as
     a reminder not to update the cluster's checkout while they are."""
+    # Icon | "Ready" or the list of problems
     with ui.row().classes("items-start gap-2 no-wrap"):
         if report["ok"]:
             ui.icon("check_circle", size="20px", color="positive")
@@ -382,14 +387,18 @@ class RunsMonitor:
         self._checked = False
         self._updated = ""  # when the data shown was read
 
+        # The target's tab, top to bottom: (cluster) check report with its button,
+        # the "updated" note with Refresh now, then the experiment cards
         with panel:
             if self.remote:
+                # Check report (grows) | Check button
                 with ui.row().classes("w-full items-start gap-3 no-wrap"):
                     self.status = ui.column().classes("grow gap-1")
                     ui.button(
                         "Check", icon="wifi_tethering", on_click=self.check
                     ).props("flat no-caps dense")
 
+            # When the data was read | Refresh now
             with ui.row().classes("w-full items-center gap-2"):
                 self.note = ui.label()
                 if self.remote:
@@ -399,6 +408,7 @@ class RunsMonitor:
                         on_click=lambda: self.refresh(True),
                     ).props("flat no-caps dense")
 
+            # The experiment cards, newest first (built by _build)
             self.box = ui.column().classes("w-full gap-4")
             ui.timer(REMOTE_REFRESH_S if self.remote else LOCAL_REFRESH_S, self.refresh)
 
@@ -530,12 +540,15 @@ class RunsMonitor:
         )
 
         # Built in the tab's panel, not in a card: a card can be rebuilt meanwhile.
+        # Pop-up window: question, explanation, Cancel | Stop experiment
         with self.panel, ui.dialog() as dialog, ui.card().classes("w-[460px] gap-3"):
             ui.label(f"Stop experiment {experiment}?").classes("text-h6")
             ui.label(
                 f"{what} A stopped run keeps no result: starting the experiment "
                 "again trains it from scratch."
             ).classes("mls-card-caption")
+
+            # Buttons, right-aligned
             with ui.row().classes("w-full justify-end"):
                 ui.button("Cancel", on_click=lambda: dialog.submit(False)).props(
                     "flat no-caps"
@@ -628,6 +641,7 @@ class StartDialog:
         self.quick: dict[str, Any] = {}  # the fields of the quick settings
         self._filling = False  # the fields are being set from the editor
 
+        # The pop-up window; its contents are built by _build() each time it opens
         with ui.dialog() as self.dialog:
             with ui.card().classes("w-[760px] max-w-full gap-3"):
                 self.body = ui.column().classes("w-full gap-3")  # filled by ``show``
@@ -647,6 +661,8 @@ class StartDialog:
 
     def _build(self) -> None:
         """The fields, made again each time the dialog opens."""
+        # Top to bottom: title, template, preset buttons, quick settings, JSON
+        # editor, what it starts, where to run, the check, Cancel | Start
         ui.label("Start an experiment").classes("text-h6")
         self.template = ui.select(
             {path: Path(path).stem for path in self.templates},
@@ -655,6 +671,7 @@ class StartDialog:
             on_change=self._template_changed,
         ).classes("w-full")
 
+        # One row of preset buttons
         with ui.row().classes("w-full items-center gap-2"):
             for preset, (label, icon, purpose) in PRESET_BUTTONS.items():
                 ui.button(
@@ -664,6 +681,7 @@ class StartDialog:
                     f"in the editor with {purpose}; other edits stay"
                 )
 
+        # Collapsible quick settings (open at first)
         with ui.expansion(
             "Paradigms, PPO and resources", icon="tune", value=True
         ).classes("w-full"):
@@ -681,6 +699,7 @@ class StartDialog:
             .classes("w-full mls-mono")
             .props("outlined rows=24")
         )
+        # What the experiment starts, or what is wrong (filled by _show_details)
         self.details = ui.column().classes("w-full gap-1")
         self.target = ui.select(
             self.targets,
@@ -688,8 +707,10 @@ class StartDialog:
             value=LOCAL,
             on_change=self._check,
         ).classes("w-full")
+        # The cluster's check report (filled by _check)
         self.check_box = ui.column().classes("w-full gap-1")
 
+        # Bottom buttons, right-aligned: Cancel | Start
         with ui.row().classes("w-full justify-end"):
             ui.button("Cancel", on_click=self.dialog.close).props("flat no-caps")
             self.start = ui.button(
@@ -700,6 +721,8 @@ class StartDialog:
         """The quick settings: each field rewrites its setting in the JSON."""
         for group, fields in QUICK_GROUPS.items():
             ui.label(group).classes("mls-card-caption")
+
+            # The group's fields in one row
             with ui.row().classes("w-full gap-2"):
                 for name, (label, kind) in fields.items():
                     if kind == "paradigms":
@@ -837,6 +860,7 @@ class StartDialog:
 
         with self.details:
             if record["error"]:
+                # Error icon | message
                 with ui.row().classes("items-start gap-2 no-wrap"):
                     ui.icon("error_outline", size="20px", color="negative")
                     ui.label(record["error"]).classes("text-body2 text-negative")
@@ -853,6 +877,7 @@ class StartDialog:
             label = self.targets.get(self.target.value, self.target.value)
 
             for problem in self.fit:
+                # Error icon | what the cluster cannot give
                 with ui.row().classes("items-start gap-2 no-wrap"):
                     ui.icon("error_outline", size="20px", color="negative")
                     ui.label(f"On {label}: {problem}").classes(
@@ -953,10 +978,12 @@ def page() -> None:
             placeholder(f"The targets cannot be read: {error}", "error_outline")
             return
 
+        # Top: Start experiment… (opens the StartDialog built below)
         ui.button(
             "Start experiment…", icon="play_arrow", on_click=lambda: dialog.show()
         ).props("unelevated no-caps")
 
+        # Tab bar: one tab per target (this PC, then each cluster)
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             for name, label in names:
                 icon = "computer" if name == LOCAL else "cloud"
@@ -965,6 +992,7 @@ def page() -> None:
         first = names[0][0]
         monitors: dict[str, RunsMonitor] = {}
 
+        # One panel per target, each filled by its RunsMonitor
         with ui.tab_panels(tabs, value=first).classes("w-full bg-transparent"):
             for name, label in names:
                 with ui.tab_panel(name).classes("p-0 gap-4") as panel:

@@ -24,8 +24,10 @@ PREPARE = (
 def page() -> None:
     """Settings: workspace folder, network cache, appearance."""
     with shell("settings", "Settings", "Local preferences of this computer"):
+        # Three cards, top to bottom: workspace folder, network cache, appearance
         _workspace_section()
         _cache_section()
+
         with section("Appearance", icon="palette"):
             ui.switch(
                 "Dark mode",
@@ -50,6 +52,7 @@ def _cache_section() -> None:
         status = ui.label().classes("text-body2")
         progress = ui.linear_progress(show_value=False).props("rounded size=8px")
         detail = ui.label().classes("mls-card-caption mls-mono")
+        # Table of cached networks per group (filled by refresh)
         table_box = ui.column().classes("w-full")
         ui.label(
             "At start-up the Studio prepares the LV and MV networks in the "
@@ -58,6 +61,7 @@ def _cache_section() -> None:
             "Built-in networks are only cached when opened."
         ).classes("mls-card-caption")
 
+        # Button row: one Prepare button per group of networks, then Clear
         with ui.row().classes("gap-2"):
             buttons = [
                 (
@@ -205,6 +209,7 @@ def _workspace_section() -> None:
             ui.notify(f"Workspace folder: {new_home}")
             ui.navigate.reload()
 
+        # Button row: Use this folder | Reset to default
         with ui.row().classes("gap-2"):
             ui.button(
                 "Use this folder", icon="check", on_click=lambda: use(folder.value)

@@ -316,6 +316,7 @@ def _summary(found: dict[str, ProbeRunInfo]) -> None:
 def _probe_card(label: str, info: ProbeRunInfo) -> None:
     about = info.about
 
+    # One card: what the probe tests, then its check table and a note
     with section(
         f"Probe {info.probe}" + (f" · {about.name}" if about else ""),
         f"{label}: {info.paradigm.upper()}, seed {info.seed}"
@@ -388,6 +389,8 @@ class ProbesView:
         self.service = service
         self.validation = validation
         self._drawn = {"probes": 0, "learning": 0}  # latest draws
+
+        # The run table at the top, with a tick box per run
         self.table = RunTable(
             service,
             self._selected,
@@ -396,13 +399,17 @@ class ProbesView:
             read=validation.rl_overview,
         )
 
+        # Tab bar under it: Probes | Learning
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             ui.tab("probes", label="Probes", icon="science")
             ui.tab("learning", label="Learning", icon="psychology")
 
         with ui.tab_panels(tabs, value="probes").classes("w-full bg-transparent"):
+            # Probes tab: drawn by _show_probes()
             with ui.tab_panel("probes").classes("p-0 gap-4"):
                 self.probes = ui.column().classes("w-full gap-4")
+
+            # Learning tab: drawn by _show_learning()
             with ui.tab_panel("learning").classes("p-0 gap-4"):
                 self.learning = ui.column().classes("w-full gap-4")
 
@@ -434,6 +441,8 @@ class ProbesView:
         if draw != self._drawn["probes"]:  # ticked again meanwhile
             return
 
+        # The Probes tab, top to bottom: summary card, probe-run picker, that run's
+        # probe card
         with self.probes:
             if not found:
                 placeholder(
@@ -466,6 +475,7 @@ class ProbesView:
             chosen = ui.select(options, value=order[0], label="Probe run").classes(
                 "w-full"
             )
+            # The chosen run's probe card, redrawn by show()
             card = ui.column().classes("w-full")
 
             def show() -> None:
@@ -498,6 +508,8 @@ class ProbesView:
         labels = labels_of(keys)
         clip = {r.key: r.settings.get("grad_clip") for r in results}
 
+        # The Learning tab, top to bottom: the mean switch with a note, training
+        # return, a two-column grid of learner charts, the action parts
         with self.learning:
             if metrics.empty:
                 placeholder("The ticked runs have no metrics yet.", "hourglass_empty")
@@ -520,6 +532,7 @@ class ProbesView:
                 fig = _learner_figure(metrics, ["team_return_mean"], labels, True)
                 ui.plotly(fig).classes("w-full")
 
+            # Two columns of cards, one per group of learner metrics
             with ui.grid(columns=2).classes("w-full gap-4"):
                 for title, names, note in self.service.learner_groups:
                     present = [n for n in names if n in set(metrics.metric)]

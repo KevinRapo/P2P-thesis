@@ -36,6 +36,8 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                 ui.element("div").classes("q-mt-sm")
             for item in items:
                 is_active = item.key == active
+
+                # One clickable entry: icon (left) | label
                 with ui.item(on_click=lambda r=item.route: ui.navigate.to(r)).props(
                     "dense"
                 ).classes("mls-nav-item" + (" mls-nav-active" if is_active else "")):
@@ -44,6 +46,8 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                     with ui.item_section():
                         ui.item_label(item.label)
 
+    # Top bar, left to right: menu button, logo and name, (space), scenario button,
+    # dark-mode button
     with ui.header(elevated=False).classes("mls-header items-center q-px-md gap-3"):
         ui.button(icon="menu", on_click=drawer.toggle).props(
             "flat round dense color=white"
@@ -59,6 +63,7 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
     # Page heading; the page's own content follows where the caller's
     # `with shell(...)` block continues (the yield).
     with ui.column().classes("mls-page w-full"):
+        # Title with the subtitle under it
         with ui.column().classes("gap-0"):
             ui.label(title).classes("mls-title")
             if subtitle:
@@ -100,6 +105,8 @@ def _open(scenario: Scenario, source: str) -> None:
 
 def _open_dialog() -> None:
     s = services().scenario
+
+    # Pop-up window: the saved scenario files, an upload field, Cancel
     with ui.dialog() as dialog, ui.card().classes("w-[640px] max-w-full gap-3"):
         ui.label("Open a scenario file").classes("text-h6")
         ui.label(
@@ -140,6 +147,7 @@ def _open_dialog() -> None:
             "accept=.json flat bordered"
         ).classes("w-full")
 
+        # Bottom: Cancel, right-aligned
         with ui.row().classes("w-full justify-end"):
             ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
     dialog.open()
@@ -157,6 +165,7 @@ def _file_row(path: Path, dialog: ui.dialog) -> None:
         dialog.close()
         _open(scenario, path.name)
 
+    # One row: file name with its summary under it (left) | Open (right)
     with ui.row().classes("w-full items-center no-wrap gap-3"):
         with ui.column().classes("grow gap-0"):
             ui.label(path.name).classes("text-body1")

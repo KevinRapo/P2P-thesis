@@ -49,7 +49,8 @@ def page() -> None:
         "Nothing here changes the scenario.",
     ):
         # ui.tabs is the tab bar; ui.tab_panels holds one panel per tab and shows
-        # the selected one. Both panels are built when the page opens.
+        # the selected one. Every panel is built when the page opens.
+        # Tab bar: Network | Profiles | Compare
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             network_tab = ui.tab("Network", icon="travel_explore")
             profiles_tab = ui.tab("Profiles", icon="show_chart")
@@ -60,12 +61,18 @@ def page() -> None:
         with ui.tab_panels(tabs, value=network_tab, keep_alive=False).classes(
             "w-full bg-transparent"
         ):
+            # Network tab
             with ui.tab_panel(network_tab).classes("p-0 gap-4"):
                 _network_tab(s)
+
+            # Profiles tab
             with ui.tab_panel(profiles_tab).classes("p-0 gap-4"):
                 catalogue = _profiles_tab(s)
+
+            # Compare tab
             with ui.tab_panel(compare_tab).classes("p-0 gap-4"):
                 _compare_tab(s)
+
         # The catalogue (about 460 profiles) is read only when its tab is opened.
         tabs.on_value_change(
             lambda e: (
@@ -84,7 +91,9 @@ def _network_tab(s: Services) -> None:
     # The topology shown and the bus selected in it.
     state: dict = {"topology": None}
 
+    # Top row: picker and facts card (left, a third) | topology card (right)
     with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
+        # Left card: network picker, then the network's facts (filled by load())
         with section(
             "Network",
             "Any network; the experiment's network is chosen on the Grid page",
@@ -98,6 +107,8 @@ def _network_tab(s: Services) -> None:
                 allow_file=False,
             )
             summary_box = ui.column().classes("w-full gap-1")
+
+        # Right card: the topology plot (filled by load())
         with section(
             "Topology",
             "Colour = element type. Click a bus to list its elements.",
@@ -106,6 +117,7 @@ def _network_tab(s: Services) -> None:
         ):
             plot_box = ui.column().classes("w-full")
 
+    # Full-width card: the element table
     with section(
         "Elements",
         "Loads, generators and storage, with the profile each one follows",
@@ -113,6 +125,7 @@ def _network_tab(s: Services) -> None:
     ):
         elements = ElementsTable(s)
 
+    # Full-width card: the profile list and its plot
     with section(
         "Profiles",
         "The network's SimBench time series as factors of rated power "
@@ -162,6 +175,7 @@ def _compare_tab(s: Services) -> None:
     state: dict = {"a": {}, "b": {}}
     all_classes = s.profiles.profile_classes()
 
+    # Top row: two picker cards side by side, Network A | Network B
     with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
         for side, label, initial in (
             ("a", "Network A", DEFAULT_SOURCE),
@@ -175,6 +189,7 @@ def _compare_tab(s: Services) -> None:
                     allow_file=False,
                 ).start()
 
+    # Full-width card below: the comparison, drawn by show() once both are loaded
     with section(
         "Comparison",
         "Facts, element mix by profile category, topologies and profiles side by side",
@@ -210,6 +225,8 @@ def _compare_tab(s: Services) -> None:
 
         compare_box.clear()
 
+        # Inside the comparison card, top to bottom: facts table, element-mix bars,
+        # the two topologies side by side, the profile table
         with compare_box:
             name_a, name_b = a["summary"].info.label, b["summary"].info.label
             facts_b = dict(summary_facts(b["summary"]))
@@ -246,6 +263,7 @@ def _compare_tab(s: Services) -> None:
                 )
             ).classes("w-full")
 
+            # Two topologies side by side, A | B, each with its caption above
             with ui.row().classes("w-full gap-4 no-wrap"):
                 for label, net in ((f"A · {name_a}", a), (f"B · {name_b}", b)):
                     with ui.column().classes("grow basis-0 min-w-0 gap-1"):

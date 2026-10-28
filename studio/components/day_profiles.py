@@ -31,6 +31,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
     bg_load = [e for e in rest if e.element_type == "load"]
     bg_gen = [e for e in rest if e.element_type == "sgen"]
 
+    # A row of number tiles, then the Participants and Background cards
     with stat_grid():
         stat(
             "Participants",

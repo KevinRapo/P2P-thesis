@@ -68,9 +68,13 @@ def page() -> None:
         "Play the market on its network one clearing stage at a time. Reset builds "
         "the market from the Grid & Participants and Market & DSO pages.",
     ):
+        # Every box below is empty here and filled by render() after each click
+
+        # Top card, full width: where the step is and the buttons (_controls)
         with section("Market step", icon="skip_next"):
             controls = ui.column().classes("w-full gap-2")
 
+        # Row: order book (left) | network with the trades (right)
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "Order book",
@@ -89,12 +93,14 @@ def page() -> None:
             ):
                 network_box = ui.column().classes("w-full")
 
+        # Full-width cards: the trades table, then the participants table
         with section("Trades", icon="swap_horiz"):
             trades_box = ui.column().classes("w-full")
 
         with section("Participants", icon="groups"):
             people_box = ui.column().classes("w-full")
 
+        # Bottom row: the day's volumes and prices (left) | voltages (right)
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
             with section(
                 "The day so far",
@@ -159,6 +165,7 @@ def page() -> None:
         if m is None:
             return
 
+        # Fill each card built in page(), in page order
         with book_box:
             if view["orders"]:
                 ui.plotly(_order_book(view)).classes("w-full")
@@ -213,7 +220,9 @@ def _clock(m: LocalEnergyMarket, step: int) -> str:
 def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> None:
     market = services().market
     box.clear()
+
     with box:
+        # No market yet: the scenario in one line and "Build the market"
         if m is None:
             scenario = services().scenario.current()
             n = len(scenario.participants)
@@ -237,6 +246,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
         pos = _position(m)
         shown = m.pending.step if m.pending else max(0, m.current_step - 1)
 
+        # Heading line: "Step i of n · time" | the scenario in short
         with ui.row().classes("w-full items-center gap-3"):
             ui.label(f"Step {shown + 1} of {m.n_steps} · {_clock(m, shown)}").classes(
                 "text-h6"
@@ -246,6 +256,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
                 f"{len(m.participants)} participants · {m.scenario.market.mechanism}"
             ).classes("mls-card-caption")
 
+        # Progress chips through the step's parts, joined by arrows
         with ui.row().classes("w-full items-center gap-1"):
             for i, name in enumerate(PARTS):
                 done = i <= pos if pos >= 0 else False
@@ -260,6 +271,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
 
         ui.label(EXPLAIN[pos]).classes("text-body2")
 
+        # Button row: next part | finish this step | run to the end | Reset
         with ui.row().classes("gap-2"):
             if m.done and m.pending is None:
                 label = "Day complete"

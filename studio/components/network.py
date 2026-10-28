@@ -82,6 +82,8 @@ SCALE_HINTS = {
 def busy(box: ui.element, text: str) -> None:
     """Replace a box's content with a spinner while a slow call runs."""
     box.clear()
+
+    # Spinner | text
     with box, ui.row().classes("items-center gap-2"):
         ui.spinner(size="md")
         ui.label(text).classes("mls-card-caption")
@@ -128,6 +130,7 @@ def show_summary(box: ui.element, summary: NetworkSummary) -> None:
     with box:
         ui.label(summary.info.label).classes("text-body2 text-weight-medium")
         for label, value in summary_facts(summary):
+            # One fact per line: label (left) | value (right)
             with ui.row().classes("justify-between w-full no-wrap"):
                 ui.label(label).classes("mls-card-caption")
                 ui.label(value).classes("text-body2")
@@ -193,6 +196,8 @@ class NetworkPicker:
         if not allow_file:
             labels.pop("pandapower_file")
 
+        # Top to bottom: source toggle, voltage level, the SimBench filters, the
+        # network list, (File) upload, status
         self.toggle = ui.toggle(labels, value=initial.source_type).props(
             "no-caps dense"
         )
@@ -200,6 +205,7 @@ class NetworkPicker:
 
         # SimBench only: narrow the list by network type, scenario and switches.
         with ui.column().classes("w-full gap-0") as self.facets:
+            # Three filters side by side: Type | Scenario | Switches
             with ui.row().classes("w-full gap-2 no-wrap"):
                 self.category = ui.select(
                     {ALL: "All"}, value=ALL, label="Type"
@@ -313,6 +319,7 @@ class ElementsTable:
         self.source: NetworkRef | None = None
         self.bus: str | None = None
 
+        # Line above the table: which bus is shown | Show all
         with ui.row().classes("items-center gap-2"):
             self.label = ui.label("All buses").classes("mls-card-caption")
             self.clear_button = ui.button(
@@ -383,19 +390,27 @@ class ProfileInspector:
             else None
         )
 
+        # Main row: profile table (left half) | chart controls and chart (right)
         with ui.row().classes("w-full gap-4 items-start no-wrap"):
             self.table_box = ui.column().classes("basis-1/2 min-w-0")
+
+            # Right side: controls row, hint, the chart
             with ui.column().classes("grow basis-0 min-w-0 gap-2"):
+                # Controls: start day | window | resolution | P or Q
                 with ui.row().classes("items-center gap-3 w-full"):
+                    # Start day field; its calendar icon opens a date picker
                     with ui.input("Start day", value="2016-06-15").classes(
                         "w-36"
                     ) as self.day:
+                        # The pop-up calendar (opened by the icon only)
                         with ui.menu().props("no-parent-event") as menu:
                             with ui.date(mask="YYYY-MM-DD").bind_value(self.day):
+                                # Close button under the calendar
                                 with ui.row().classes("justify-end"):
                                     ui.button("Close", on_click=menu.close).props(
                                         "flat"
                                     )
+                        # The calendar icon, inside the field on the right
                         with self.day.add_slot("append"):
                             ui.icon("edit_calendar").on("click", menu.open).classes(
                                 "cursor-pointer"
@@ -418,7 +433,10 @@ class ProfileInspector:
                 self.hint = ui.label().classes("mls-card-caption")
                 self.plot_box = ui.column().classes("w-full")
 
+        # Below the main row (networks only, not the catalogue): heading | per-element
+        # toggle, then a hint and the chart in kW
         with ui.row().classes("items-center gap-3 w-full q-mt-sm") as self.power_header:
+            # Heading with its caption under it
             with ui.column().classes("gap-0"):
                 ui.label("Scaled to the network's elements").classes(
                     "text-body2 text-weight-medium"

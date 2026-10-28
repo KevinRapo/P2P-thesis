@@ -37,7 +37,9 @@ def page() -> None:
         "Pick the network and the day, then place the participants on its buses. "
         "Changes are saved at once; the Step page builds the market from them.",
     ):
+        # Top row: settings card (left, a third) | network plot card (right)
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
+            # Left card: network picker, "Use this network", then the grid settings
             with section(
                 "Network and day",
                 "The network the market runs on, and the day of its profiles",
@@ -47,6 +49,8 @@ def page() -> None:
                 picker_box = ui.column().classes("w-full gap-2")
                 apply_box = ui.column().classes("w-full gap-1")
                 _grid_settings()
+
+            # Right card: the clickable network plot, the placement buttons under it
             with section(
                 "Participants on the network",
                 "Click a bus to add a participant there (or remove it). Amber rings "
@@ -56,6 +60,11 @@ def page() -> None:
             ):
                 plot_box = ui.column().classes("w-full")
                 placement_box = ui.column().classes("w-full gap-1")
+
+        
+        with section("Test"):
+            test=0
+        # Bottom card, full width: the participant table with its battery editor
         with section(
             "Participants",
             "Each takes over the loads and generators on its bus. Select one to "
@@ -73,6 +82,9 @@ def page() -> None:
 
         if source.code != s.scenario.current().grid.code:
             count = len(s.scenario.current().participants)
+
+            # Under the picker: "Use this network", with a warning if it removes
+            # participants
             with apply_box:
                 ui.button(
                     "Use this network",
@@ -123,6 +135,7 @@ def page() -> None:
         plot_box.clear()
 
         if topology is not None:
+            # The network plot in the right card; a click on a bus calls on_click
             with plot_box:
                 marked = {p.bus for p in current.participants} if own else set()
                 plot = ui.plotly(
@@ -136,6 +149,7 @@ def page() -> None:
 
         _participant_table(table_box, redraw)
 
+    # The network picker at the top of the left card; picking one calls load()
     with picker_box:
         NetworkPicker(
             s,
@@ -159,13 +173,18 @@ def _grid_settings() -> None:
 
     ui.separator()
 
+    # Day field; the calendar icon at its right end opens a date picker
     with ui.input("Day (2016)", value=g.day).classes("w-full") as day:
+        # The pop-up calendar (opened by the icon only, not by clicking the field)
         with ui.menu().props("no-parent-event") as menu:
             with ui.date(value=g.day).props(
                 'minimal default-year-month="2016/06"'
             ).bind_value(day):
+                # Close button under the calendar
                 with ui.row().classes("justify-end"):
                     ui.button("Close", on_click=menu.close).props("flat")
+
+        # The calendar icon, inside the field on the right
         with day.add_slot("append"):
             ui.icon("event").on("click", menu.open).classes("cursor-pointer")
 
@@ -191,6 +210,7 @@ def _grid_settings() -> None:
         "profiles, or be switched off so only the market is seen."
     ).classes("mls-card-caption")
 
+    # Limits, three number fields in one row: V min | V max | Line max
     with ui.row().classes("w-full gap-2 no-wrap"):
         for field, label in (
             ("v_min_pu", "V min (pu)"),
@@ -220,6 +240,7 @@ def _placement_buttons(box: ui.element, redraw) -> None:
     counts = s.scenario.kind_counts()
     box.clear()
 
+    # One row under the plot: bus kinds | battery size | its power | Place | Clear
     with box, ui.row().classes("w-full items-end gap-2"):
         kinds = (
             ui.select(
@@ -257,6 +278,7 @@ def _placement_buttons(box: ui.element, redraw) -> None:
             on_click=lambda: (s.scenario.clear(), redraw()),
         ).props("flat no-caps color=negative")
 
+    # Explanation under the row
     with box:
         ui.label(
             "A bus kind is what the bus carries (load, pv, gen = other generator, "
@@ -314,6 +336,8 @@ def _participant_table(box: ui.element, redraw) -> None:
             pagination=10,
         )
         table.props("selection=single")
+
+        # Battery editor under the table, filled when a row is selected (edit)
         editor = ui.column().classes("w-full")
 
         def edit(e) -> None:
@@ -328,6 +352,7 @@ def _participant_table(box: ui.element, redraw) -> None:
             battery = p.battery or storage
             presets = s.scenario.battery_presets()
 
+            # One row: title | size preset | capacity | power | start SoC | Save
             with editor, ui.row().classes("w-full items-end gap-2"):
                 ui.label(f"{pid} battery").classes("text-body2 text-weight-medium")
                 size = ui.select(
@@ -394,6 +419,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                     "unelevated no-caps"
                 )
 
+            # Explanation under the row
             with editor:
                 ui.label(
                     f"{pid} took over SimBench storage: its capacity and power are "
