@@ -101,6 +101,23 @@ class FakeSFTP:
 
         self.gets.append((source, preserve))
 
+    @contextlib.asynccontextmanager
+    async def open(self, path: str, mode: str = "r"):
+        files, reads = self.files, self.reads
+
+        class Handle:
+            async def read(self, size: int = -1, offset: int = 0) -> bytes:
+                data = files[path][0]
+                reads.append((path, offset, size))
+                return data[offset:] if size < 0 else data[offset : offset + size]
+
+        yield Handle()
+
+    @property
+    def reads(self) -> list[tuple[str, int, int]]:
+        """What ``open(...).read`` read: ``(path, offset, size)``."""
+        return self.__dict__.setdefault("_reads", [])
+
 
 class FakeConnection:
     """What ``asyncssh.connect`` returns: answers ``run`` from a queue of results (an
@@ -500,6 +517,67 @@ def test_copy_tree_walks_one_file_after_the_other(tmp_path):
         "r1/status.json",
         "slurm.json",
     ]
+
+
+# --------------------------------------------------------------------------------------
+# Following a running experiment
+# --------------------------------------------------------------------------------------
+def test_follow_copies_only_the_followed_files(cluster, connections, tmp_path):
+    sftp = FakeSFTP(cluster_files())
+    connections.queue = [FakeConnection(sftp=sftp)]
+    mirror = tmp_path / "x"
+    assert cluster.follow("runs/x", mirror) == 3
+    assert files_in(mirror) == ["experiment.json", "r1/metrics.csv", "r1/status.json"]
+    assert int((mirror / "r1" / "metrics.csv").stat().st_mtime) == 1004
+    assert cluster.follow("runs/x", mirror) == 0  # nothing new: nothing read
+    assert len(sftp.reads) == 3
+
+
+def test_follow_reads_only_new_complete_rows(cluster, connections, tmp_path):
+    sftp = FakeSFTP(cluster_files())
+    connections.queue = [FakeConnection(sftp=sftp)]
+    mirror = tmp_path / "x"
+    cluster.follow("runs/x", mirror)
+    metrics = f"{BASE}/r1/metrics.csv"
+    sftp.files[metrics] = (b"a,b\n1,2\n3,4\n5,", 1010)  # a row half written
+    sftp.reads.clear()
+
+    assert cluster.follow("runs/x", mirror) == 1
+    assert (mirror / "r1" / "metrics.csv").read_bytes() == b"a,b\n1,2\n3,4\n"
+    assert (metrics, 8, 6) in sftp.reads  # only what came after the copy
+
+    sftp.files[metrics] = (b"a,b\n1,2\n3,4\n5,6\n", 1011)
+    cluster.follow("runs/x", mirror)
+    assert (mirror / "r1" / "metrics.csv").read_bytes() == b"a,b\n1,2\n3,4\n5,6\n"
+
+
+def test_follow_copies_a_rewritten_table_whole(cluster, connections, tmp_path):
+    sftp = FakeSFTP(cluster_files())
+    connections.queue = [FakeConnection(sftp=sftp)]
+    mirror = tmp_path / "x"
+    cluster.follow("runs/x", mirror)
+    metrics = f"{BASE}/r1/metrics.csv"
+
+    sftp.files[metrics] = (b"a,b,c\n1,2,9\n3,4,9\n", 1010)  # new columns
+    cluster.follow("runs/x", mirror)
+    assert (mirror / "r1" / "metrics.csv").read_bytes() == b"a,b,c\n1,2,9\n3,4,9\n"
+
+    sftp.files[metrics] = (b"a,b\n", 1011)  # shorter: started again
+    cluster.follow("runs/x", mirror)
+    assert (mirror / "r1" / "metrics.csv").read_bytes() == b"a,b\n"
+
+
+def test_follow_copies_a_changed_status_of_the_same_size(
+    cluster, connections, tmp_path
+):
+    sftp = FakeSFTP(cluster_files())
+    connections.queue = [FakeConnection(sftp=sftp)]
+    mirror = tmp_path / "x"
+    cluster.follow("runs/x", mirror)
+    sftp.files[f"{BASE}/r1/status.json"] = (b'{"state": "finished"}'[:20], 1020)
+
+    assert cluster.follow("runs/x", mirror) == 1
+    assert (mirror / "r1" / "status.json").read_bytes() == b'{"state": "finished"'
 
 
 # --------------------------------------------------------------------------------------

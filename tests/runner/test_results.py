@@ -214,6 +214,36 @@ def test_heldout_days_are_paired_and_older_runs_give_their_means(where):
     )
 
 
+def test_day_and_participant_metrics_are_long_with_their_phase(where):
+    runs = results.load_runs(results.find_runs(where))
+    days = results.day_metrics(runs)
+    one = days[(days.key == "local/grid/ppo_dtde_s0") & (days.policy == "trained")]
+    assert set(one.phase) == {"heldout"}  # no evaluation_episodes.csv here
+    assert one.metric.unique().tolist() == ["team_return"]  # the episode seed is not
+    assert sorted(one.value) == [-9, -8] and set(one.seed) == {0}  # the run's seed
+    assert {"paradigm", "variant", "day", "episode"} <= set(days.columns)
+
+    people = results.participant_metrics(runs)
+    p1 = people[(people.key == "local/grid/ppo_dtde_s0") & (people.agent == "P1")]
+    assert len(p1) == 3 * 2  # policies x days, one metric
+    assert results.day_metrics([]).empty
+
+
+def test_a_table_is_read_again_only_when_its_file_changed(where):
+    (run,) = [
+        r
+        for r in results.load_runs(results.find_runs(where))
+        if r.key == "local/grid/ppo_dtde_s0"
+    ]
+    first = run.table("metrics")
+    assert run.table("metrics") is first  # unchanged: the same frame
+
+    rows = pd.DataFrame({"env_steps": [50, 100, 150], "team_return_mean": [1, 2, 3]})
+    write(run.ref.folder / "metrics.csv", rows)
+    assert len(run.table("metrics")) == 3
+    assert run.table("missing") is None
+
+
 def test_participant_days(where):
     runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
     table = results.participant_days(runs["local/grid/ppo_dtde_s0"])

@@ -38,7 +38,7 @@ def test_runs_are_read_once_until_refresh(where):  # noqa: F811
 # What the Results page shows (its helpers, without a browser)
 # --------------------------------------------------------------------------------------
 def test_runs_of_two_targets_keep_their_target_in_the_labels():
-    from studio.pages.results import labels_of
+    from studio.components.run_table import labels_of
 
     one = ["local/x/ppo_s0", "local/y/ppo_s0"]
     assert labels_of(one) == {
@@ -52,7 +52,7 @@ def test_runs_of_two_targets_keep_their_target_in_the_labels():
 def test_the_heatmap_shows_the_largest_differences_or_the_filtered():
     import pandas as pd
 
-    from studio.pages.results import shown_participants
+    from studio.pages.results.market import shown_participants
 
     table = pd.DataFrame(
         {
@@ -69,7 +69,7 @@ def test_the_heatmap_shows_the_largest_differences_or_the_filtered():
 def test_baselines_are_each_runs_own_unless_they_are_the_same():
     import pandas as pd
 
-    from studio.pages.results import LearningChart
+    from studio.pages.results.validation import LearningChart
 
     def curves(zero_a, zero_b):
         rows = []

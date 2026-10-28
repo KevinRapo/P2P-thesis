@@ -168,6 +168,15 @@ class RunService:
             folder = found.sync(experiment)
             return folder, found.copied or 0
 
+    def follow(self, target: str, experiment: str) -> int:
+        """Bring this PC's copy of a running experiment up to date with only what is
+        new (``Target.follow``); returns the number of files that changed (0 on this
+        PC, where the files are already)."""
+        with self._syncing:
+            found = self.target(target)
+            found.follow(experiment)
+            return found.copied or 0
+
     # --- Experiment specs ------------------------------------------------------------
     def spec_files(self) -> list[dict]:
         """The specs in the specs folder, by file name, with what the start dialog

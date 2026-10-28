@@ -1,10 +1,12 @@
-"""ResultsService: what the Results page reads about finished runs.
+"""ResultsService: what the Results page reads about runs.
 
 A thin wrapper over ``core/runner/results.py``: the runs of this PC and of each
-cluster's mirror (filled by Sync results on the Runs page), read once and kept until
-``refresh``, and the reader's tables for the runs the page names by their key
-(``target/experiment/run``). The tables are returned as the reader makes them. Every
-method reads files, so the page calls them through ``run.io_bound``.
+cluster's mirror (filled by Sync results on the Runs page, or kept up to date by
+the Results page's live view), found once and kept until ``refresh``, and the
+reader's tables for the runs the page names by their key
+(``target/experiment/run``). The tables are returned as the reader makes them; a
+file is read again only when it has changed. Every method reads files, so the page
+calls them through ``run.io_bound``.
 """
 
 from __future__ import annotations
@@ -69,6 +71,12 @@ class ResultsService:
 
     def heldout_days(self, keys: list[str]) -> pd.DataFrame:
         return results.heldout_days(self.results(keys))
+
+    def day_metrics(self, keys: list[str]) -> pd.DataFrame:
+        return results.day_metrics(self.results(keys))
+
+    def participant_metrics(self, keys: list[str]) -> pd.DataFrame:
+        return results.participant_metrics(self.results(keys))
 
     def seed_groups(self, keys: list[str]) -> pd.DataFrame:
         return results.seed_groups(self.results(keys))

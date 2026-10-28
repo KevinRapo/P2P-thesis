@@ -400,7 +400,9 @@ def test_slurm_target_start_and_stop_go_through_slurm(root, monkeypatch):
         targets.SlurmTarget("t", {"kind": "slurm"}).start("x.json")
 
     with pytest.raises(targets.TargetError, match="has no 'partitions'"):
-        targets.SlurmTarget("t", {"kind": "slurm"}).start("config/experiments/smoke.json")
+        targets.SlurmTarget("t", {"kind": "slurm"}).start(
+            "config/experiments/smoke.json"
+        )
 
     no_account = {"kind": "slurm", "partitions": CLUSTER["partitions"]}
 
@@ -505,6 +507,10 @@ class FakeRemote:
         if isinstance(self.pull_result, Exception):
             raise self.pull_result
         return self.pull_result
+
+    def follow(self, remote_dir, local_dir):
+        self.pulled.append(("follow", remote_dir, local_dir))
+        return 1
 
     def close(self):
         self.closed = True
@@ -855,6 +861,21 @@ def test_remote_sync_pulls_into_the_mirror_and_local_runs_reads_it(tmp_path):
     write(folder / "r1" / "budget.json", {})
     assert [(r.name, r.state) for r in target.local_runs("x")] == [("r1", "completed")]
     assert target.local_runs("other") == []
+
+
+def test_follow_brings_the_mirror_up_to_date_and_local_follow_is_sync(
+    tmp_path, populated
+):
+    target, fake = remote_target(tmp_path)
+    assert target.follow("x") == tmp_path / "mirror" / "x"
+    assert fake.pulled == [("follow", "runs/x", tmp_path / "mirror" / "x")]
+    assert target.copied == 1
+
+    with pytest.raises(targets.TargetError, match="not an experiment name"):
+        target.follow("../x")
+
+    local = targets.LocalTarget(populated)
+    assert local.follow("old") == local.sync("old") == populated / "old"
 
 
 def test_a_failed_sync_raises_and_keeps_the_last_count(tmp_path):

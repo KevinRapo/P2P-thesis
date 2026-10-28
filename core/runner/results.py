@@ -24,6 +24,10 @@ days or the participants of one run.
                                  ``PART_STATS``); any environment
     heldout_days(results)        per run and test day: each policy's team return
                                  and the trained policy minus each baseline
+    day_metrics(results)         every market and grid amount per played day, during
+                                 training (evaluation) and on the test days
+                                 (held-out), long format
+    participant_metrics(results) the same per participant
     participant_days(result)     one run, per test day and participant: the same
     seed_groups(results)         per configuration over its seeds: mean, spread,
                                  number of seeds, and the settings that differ
@@ -33,9 +37,10 @@ days or the participants of one run.
 
 from __future__ import annotations
 
+import functools
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -142,7 +147,6 @@ class RunResult:
     ref: RunRef
     settings: dict[str, Any]
     state: Optional[RunState]
-    _tables: dict[str, Optional[pd.DataFrame]] = field(default_factory=dict)
 
     @property
     def key(self) -> str:
@@ -173,14 +177,26 @@ class RunResult:
 
     def table(self, name: str) -> Optional[pd.DataFrame]:
         """The run's ``<name>.csv`` (e.g. ``"heldout_episodes"``), None if it has
-        none; read once."""
-        if name not in self._tables:
-            path = self.ref.folder / f"{name}.csv"
-            try:
-                self._tables[name] = pd.read_csv(path) if path.is_file() else None
-            except (OSError, ValueError, pd.errors.EmptyDataError):
-                self._tables[name] = None
-        return self._tables[name]
+        none; read again only when the file has changed (a running run's grow).
+        Shared between callers: copy before changing it."""
+        path = self.ref.folder / f"{name}.csv"
+
+        try:
+            found = path.stat()
+        except OSError:
+            return None
+
+        return _read_csv(str(path), found.st_mtime_ns, found.st_size)
+
+
+@functools.lru_cache(maxsize=512)
+def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
+    """A table, cached by its file's path, time and size: an unchanged file is
+    read once."""
+    try:
+        return pd.read_csv(path)
+    except (OSError, ValueError, pd.errors.EmptyDataError):
+        return None
 
 
 def load_run(ref: RunRef) -> RunResult:
@@ -458,6 +474,52 @@ def heldout_days(results: Sequence[RunResult]) -> pd.DataFrame:
             rows.append(row)
 
     return pd.DataFrame(rows)
+
+
+# The two phases of the per-day tables: during training on the training days
+# (``evaluation_*.csv``, at each evaluation point) and on the test days at the end
+# (``heldout_*.csv``); their columns are the same.
+PHASES = ("evaluation", "heldout")
+
+
+def _long(results: Sequence[RunResult], table: str, ids: Sequence[str]) -> pd.DataFrame:
+    """Every number of ``<phase>_<table>.csv`` of every run, one row per run, phase,
+    row of the table and column (``metric``, ``value``)."""
+    frames = []
+
+    for result in results:
+        for phase in PHASES:
+            frame = result.table(f"{phase}_{table}")
+
+            if frame is None or "policy" not in frame:
+                continue
+
+            frame = frame.drop(columns="seed", errors="ignore")  # the episode's
+            kept = ("env_steps", "policy", "episode", "day", *ids)
+            kept = [c for c in kept if c in frame]
+            numbers = [
+                c
+                for c in frame.columns
+                if c not in kept and pd.api.types.is_numeric_dtype(frame[c])
+            ]
+            long = frame.melt(kept, numbers, var_name="metric", value_name="value")
+            frames.append(long.assign(phase=phase, **_head(result)))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def day_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
+    """Every market and grid amount of every played day (``evaluation_episodes`` and
+    ``heldout_episodes``), long format: per run (``key`` and its settings),
+    ``phase`` (``"evaluation"``: during training, at ``env_steps``; ``"heldout"``:
+    the test days), ``policy``, ``episode``, ``day``, ``metric`` and ``value``."""
+    return _long(results, "episodes", ())
+
+
+def participant_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
+    """As ``day_metrics``, per participant (``agent``): its return, bill, energy
+    bought and sold (``evaluation_agents`` and ``heldout_agents``)."""
+    return _long(results, "agents", ("agent",))
 
 
 def participant_days(result: RunResult, value: str = "return") -> pd.DataFrame:

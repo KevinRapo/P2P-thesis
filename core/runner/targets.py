@@ -17,6 +17,7 @@ or where the runs happen:
     runs(experiment)           the runs of one experiment
     stop(experiment, run)      stop an experiment or one run
     sync(experiment)           make the results available here; returns their folder
+    follow(experiment)         the same for a running experiment, only what is new
     close()                    let go of what the target holds (a connection)
 
 ``check`` is the one source of readiness. Its report::
@@ -199,6 +200,12 @@ class Target(ABC):
     def sync(self, experiment: str) -> Optional[Path]:
         """Make the experiment's files available on this machine; returns their
         folder (None if there are none)."""
+
+    def follow(self, experiment: str) -> Optional[Path]:
+        """Bring this machine's copy of a running experiment up to date, reading
+        only what is new, often enough to watch it train; returns its folder. Here
+        as ``sync`` (the files are on this machine already)."""
+        return self.sync(experiment)
 
     def close(self) -> None:
         """Let go of what the target holds open (nothing, for most)."""
@@ -601,6 +608,17 @@ class RemoteTarget(Target):
         _plain_name(experiment)
         folder = self.mirror / experiment
         self.copied = self.remote.pull(f"runs/{experiment}", folder)
+
+        return folder
+
+    def follow(self, experiment: str) -> Path:
+        """Bring ``mirror/<experiment>`` up to date with what training has written
+        since (``Remote.follow``: the status, the learner, the evaluations and the
+        held-out tables, only their new rows); returns that folder. ``copied`` is
+        the number of files that changed."""
+        _plain_name(experiment)
+        folder = self.mirror / experiment
+        self.copied = self.remote.follow(f"runs/{experiment}", folder)
 
         return folder
 

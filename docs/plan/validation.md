@@ -2,7 +2,9 @@
 
 > Status: 26 Oct 2026: steps 1-4 done (the Validate group; the RL probes page with
 > the Learning tab moved; market probes M1-M4: core, tests, page); M5-M9 and the
-> docs (step 5) open. Not in the docs' navigation yet. Goal: one place in the
+> docs (step 5) open. Not in the docs' navigation yet. 28 Oct: the Learning tab
+> moved back, to the new Results page (Results → Learning), next to the
+> validation, market and grid tabs; RL probes keeps the probes. Goal: one place in the
 > Studio to validate the two layers on cases with known answers, with every piece
 > of logic in `core/` and the Studio only showing it (AGENTS.md layer rules).
 

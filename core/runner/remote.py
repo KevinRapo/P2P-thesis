@@ -11,6 +11,8 @@ services):
                                  cluster's checkout of the repository; its JSON answer
     head() / uncommitted()       the checkout's commit / whether it has changes
     pull(remote_dir, local_dir)  a fresh copy of a folder of the checkout here
+    follow(remote_dir, local_dir)  bring a copy up to date with only what is new: a
+                                 running experiment's files, as training writes them
     close()                      close the connection and stop the thread
 
 The connection is opened by the first call and reused by the next ones. Nothing is
@@ -27,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import posixpath
 import shlex
 import shutil
@@ -41,6 +44,21 @@ import asyncssh
 # submitit's pickles and batch scripts.
 PULL_SKIP = ("checkpoint", "slurm")
 PULL_TIMEOUT_S = 900
+# What ``follow`` keeps up to date: what training writes as it goes (the status, the
+# learner, the evaluations) and the held-out tables at the end; not the traces.
+FOLLOWED = (
+    "experiment.json",
+    "run.json",
+    "status.json",
+    "metrics.csv",
+    "evaluation.csv",
+    "evaluation_episodes.csv",
+    "evaluation_agents.csv",
+    "heldout.csv",
+    "heldout_episodes.csv",
+    "heldout_agents.csv",
+)
+FOLLOW_TIMEOUT_S = 60
 TAIL_CHARS = 600  # how much of a failed command's output goes into the message
 # What asyncssh, the network and the clock raise; anything else is a bug and passes.
 _FAILURES = (asyncssh.Error, OSError, EOFError, TimeoutError)
@@ -126,6 +144,76 @@ async def copy_tree(sftp: Any, folder: str, local: Path, skip: Sequence[str]) ->
             copied += 1
 
     return copied
+
+
+async def follow_tree(
+    sftp: Any, folder: str, local: Path, names: Sequence[str], skip: Sequence[str]
+) -> int:
+    """Bring the files called ``names`` under ``folder`` on the cluster up to date in
+    ``local`` (``follow_file``), at any depth but in the folders called in ``skip``.
+
+    Returns:
+        The number of files that changed here.
+    """
+    changed = 0
+
+    for entry in await sftp.readdir(folder):
+        name, attrs = entry.filename, entry.attrs
+        mode = attrs.permissions or 0
+        source = posixpath.join(folder, name)
+
+        if stat.S_ISDIR(mode) and name not in (".", "..", *skip):
+            changed += await follow_tree(sftp, source, local / name, names, skip)
+        elif stat.S_ISREG(mode) and name in names:
+            changed += await follow_file(sftp, source, local / name, attrs)
+
+    return changed
+
+
+async def follow_file(sftp: Any, source: str, target: Path, attrs: Any) -> int:
+    """Bring one file up to date: nothing when its size and time are those of the
+    copy here; for a table that grew under the same header, only the new rows;
+    otherwise the whole file. A table keeps only complete rows, so a row the
+    cluster is still writing comes with the next call.
+
+    Returns:
+        1 if the copy here changed, else 0.
+    """
+    size, mtime = attrs.size or 0, attrs.mtime
+    have = target.stat() if target.is_file() else None
+
+    if have is not None and have.st_size == size and int(have.st_mtime) == mtime:
+        return 0
+
+    table = target.suffix == ".csv"
+
+    async with sftp.open(source, "rb") as remote_file:
+        if table and have is not None and 0 < have.st_size < size:
+            with target.open("rb") as local_file:
+                header = local_file.readline()
+
+            if await remote_file.read(len(header), 0) == header:
+                new = await remote_file.read(size - have.st_size, have.st_size)
+                new = new[: new.rfind(b"\n") + 1]
+
+                with target.open("ab") as local_file:
+                    local_file.write(new)
+
+                os.utime(target, (mtime, mtime))
+                return 1 if new else 0
+
+        data = await remote_file.read(size, 0)
+
+    if table:
+        data = data[: data.rfind(b"\n") + 1]
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    partial = target.with_name(f".{target.name}.partial")
+    partial.write_bytes(data)
+    os.utime(partial, (mtime, mtime))
+    os.replace(partial, target)
+
+    return 1
 
 
 def replace_folder(new: Path, target: Path) -> None:
@@ -295,6 +383,32 @@ class Remote:
             raise
 
         return count
+
+    def follow(
+        self,
+        remote_dir: str,
+        local_dir: Path,
+        names: Sequence[str] = FOLLOWED,
+        skip: Sequence[str] = PULL_SKIP,
+    ) -> int:
+        """Bring the copy ``local_dir`` of ``remote_dir`` (relative to the
+        repository, e.g. ``runs/smoke``) up to date in its files called ``names``,
+        reading only what is new (``follow_file``): a few kilobytes per run while it
+        trains, so it can be called every few seconds. Other files are left as they
+        are (``pull`` copies everything).
+
+        Returns:
+            The number of files that changed here.
+        """
+        folder = sftp_path(self.repo, remote_dir)
+
+        async def operation(conn: asyncssh.SSHClientConnection):
+            async with conn.start_sftp_client() as sftp:
+                return await follow_tree(
+                    sftp, folder, Path(local_dir), tuple(names), tuple(skip)
+                )
+
+        return self._call(f"following {remote_dir}", operation, FOLLOW_TIMEOUT_S)
 
     # --- Closing ----------------------------------------------------------------------
     def close(self) -> None:
