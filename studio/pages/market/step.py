@@ -1,4 +1,5 @@
-"""Market step: play the market one clearing stage at a time and watch the network.
+"""The Market page's Step tab: play the market one clearing stage at a time and
+watch the network.
 
 One market step is five parts, each one click: collect the orders, stage 1
 (preferences), stage 2 (double auction), stage 3 (DSO), then settlement and the
@@ -17,12 +18,20 @@ from core.grid.contract import NetworkRef
 from core.market.clearing import DSO_ID
 from core.market.lem import StepRecord
 from core.market.order import Trade
-from studio.components.cards import section
-from studio.components.charts import styled, topology_figure
-from studio.components.network import busy, failed
+from studio.components.cards import busy, failed, section
+from studio.components.charts import (
+    Level,
+    Line,
+    Link,
+    Ring,
+    add_links,
+    add_rings,
+    series_figure,
+    topology_figure,
+)
 from studio.components.tables import data_table, trades_table
-from studio.layout import shell
 from studio.state import services
+from studio.theme import LIMIT, MARKET
 
 if TYPE_CHECKING:  # only to annotate what the page reads; the page never builds one
     from core.market.lem import LocalEnergyMarket
@@ -51,71 +60,65 @@ EXPLAIN = {
     "flow shows what the step does to the network.",
     4: "Step done: the network shows the voltages after the power flow.",
 }
-SELL, BUY, P2P, DSO = "#D97706", "#2563EB", "#15803D", "#64748B"
+SELL, BUY, P2P, DSO = MARKET["sell"], MARKET["buy"], MARKET["p2p"], MARKET["dso"]
 
 
 # --------------------------------------------------------------------------------------
-# The page
+# The tab
 # --------------------------------------------------------------------------------------
-def page() -> None:
+def tab() -> None:
     """Controls on top, order book and network side by side, participants and the
-    day below."""
+    day below (built into the Market page's Step tab)."""
     s = services()
 
-    with shell(
-        "step",
-        "Market step",
-        "Play the market on its network one clearing stage at a time. Reset builds "
-        "the market from the Grid & Participants and Market & DSO pages.",
-    ):
-        # Every box below is empty here and filled by render() after each click
+    # Every box below is empty here and filled by render() after each click
 
-        # Top card, full width: where the step is and the buttons (_controls)
-        with section("Market step", icon="skip_next"):
-            controls = ui.column().classes("w-full gap-2")
+    # Top card, full width: where the step is and the buttons (_controls)
+    with section("Market step", icon="skip_next"):
+        controls = ui.column().classes("w-full gap-2")
 
-        # Row: order book (left) | network with the trades (right)
-        with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
-            with section(
-                "Order book",
-                "Open orders as supply and demand curves; faint lines are the orders "
-                "as submitted",
-                "candlestick_chart",
-                classes="grow basis-0",
-            ):
-                book_box = ui.column().classes("w-full")
-            with section(
-                "Network",
-                "Rings: sellers (orange) and buyers (blue). Lines: trades between "
-                "peers (green) and with the DSO (grey, to the external grid)",
-                "hub",
-                classes="grow basis-0",
-            ):
-                network_box = ui.column().classes("w-full")
+    # Row: order book (left) | network with the trades (right)
+    with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
+        with section(
+            "Order book",
+            "Open orders as supply and demand curves; faint lines are the orders "
+            "as submitted",
+            "candlestick_chart",
+            classes="grow basis-0",
+        ):
+            book_box = ui.column().classes("w-full")
+        with section(
+            "Network",
+            "Rings: sellers (orange) and buyers (blue). Lines: trades between "
+            "peers (green) and with the DSO (grey, to the external grid)",
+            "hub",
+            classes="grow basis-0",
+        ):
+            network_box = ui.column().classes("w-full")
 
-        # Full-width cards: the trades table, then the participants table
-        with section("Trades", icon="swap_horiz"):
-            trades_box = ui.column().classes("w-full")
+    # Full-width cards: the trades table, then the participants table
+    with section("Trades", icon="swap_horiz"):
+        trades_box = ui.column().classes("w-full")
 
-        with section("Participants", icon="groups"):
-            people_box = ui.column().classes("w-full")
+    with section("Participants", icon="groups"):
+        people_box = ui.column().classes("w-full")
 
-        # Bottom row: the day's volumes and prices (left) | voltages (right)
-        with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
-            with section(
-                "The day so far",
-                "Energy traded per step, and the price of the peer trades (none: no point)",
-                "bar_chart",
-                classes="grow basis-0",
-            ):
-                day_box = ui.column().classes("w-full")
-            with section(
-                "Network over the day",
-                "Lowest and highest bus voltage after each step's power flow",
-                "show_chart",
-                classes="grow basis-0",
-            ):
-                volt_box = ui.column().classes("w-full")
+    # Bottom row: the day's volumes and prices (left) | voltages (right)
+    with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
+        with section(
+            "The day so far",
+            "Energy traded per step, and the price of the peer trades (none: no point)",
+            "bar_chart",
+            classes="grow basis-0",
+        ):
+            day_box = ui.column().classes("w-full")
+        with section(
+            "Network over the day",
+            "Lowest and highest bus voltage after each step's power flow",
+            "show_chart",
+            classes="grow basis-0",
+        ):
+            volt_box = ui.column().classes("w-full")
 
     state: dict[str, Any] = {"topology": None, "code": None, "busy": False}
 
@@ -363,7 +366,9 @@ def _curve(orders, buy: bool) -> tuple[list[float], list[float]]:
 
 
 def _order_book(view: dict) -> go.Figure:
-    fig = go.Figure()
+    """Supply and demand as step curves (each with its own x: cumulative kWh): the
+    orders as submitted faint, those still open bold; the DSO's prices as levels."""
+    lines, levels = [], []
     inputs = view["inputs"]
 
     for orders, faint in ((view["orders"], True), (view["open"], False)):
@@ -372,35 +377,35 @@ def _order_book(view: dict) -> go.Figure:
             (False, SELL, "Supply (asks)"),
         ):
             xs, ys = _curve(orders, buy)
-            if len(xs) < 2:
-                continue
-            fig.add_scatter(
-                x=xs,
-                y=ys,
-                mode="lines",
-                line_shape="hv",
-                name=name + (" · submitted" if faint else " · open"),
-                line=dict(
-                    color=color,
-                    width=1 if faint else 3,
-                    dash="dot" if faint else "solid",
-                ),
-                opacity=0.45 if faint else 1.0,
-            )
+
+            if len(xs) >= 2:
+                lines.append(
+                    Line(
+                        name + (" · submitted" if faint else " · open"),
+                        ys,
+                        x=xs,
+                        color=color,
+                        shape="hv",
+                        width=1 if faint else 3,
+                        dash="dot" if faint else "solid",
+                        opacity=0.45 if faint else 1.0,
+                    )
+                )
 
     if inputs is not None:
-        for price, name in (
-            (inputs.feed_in_tariff, "Feed-in tariff"),
-            (inputs.utility_price, "Utility price"),
-        ):
-            fig.add_hline(
-                y=price,
-                line=dict(color=DSO, dash="dash", width=1),
-                annotation_text=name,
-                annotation_position="top left",
-            )
+        levels = [
+            Level(inputs.feed_in_tariff, "Feed-in tariff", color=DSO),
+            Level(inputs.utility_price, "Utility price", color=DSO),
+        ]
 
-    fig = styled(fig, 360, "price per kWh", "cumulative kWh")
+    fig = series_figure(
+        None,
+        lines,
+        levels,
+        y_title="price per kWh",
+        x_title="cumulative kWh",
+        height=360,
+    )
     fig.update_layout(hovermode="closest")
 
     return fig
@@ -423,57 +428,40 @@ def _network(topology, m: LocalEnergyMarket, view: dict) -> go.Figure:
     fig = topology_figure(
         topology, voltages=voltages, highlight=buses, height=480, violating=violating
     )
-    pos = {b.id: (b.x, b.y) for b in topology.buses}
     bus_of = {pid: p.bus for pid, p in m.participants.items()}
     ext = topology.external_grid_bus
 
-    def segment(trades: list[Trade], color: str, dash: str, name: str) -> None:
-        if not trades:
-            return
-        biggest = max(t.quantity for t in trades) or 1.0
-        for n, t in enumerate(trades):
-            a = bus_of.get(t.seller_id, ext) if t.seller_id != DSO_ID else ext
-            b = bus_of.get(t.buyer_id, ext) if t.buyer_id != DSO_ID else ext
-
-            if a not in pos or b not in pos:
-                continue
-
-            (x0, y0), (x1, y1) = pos[a], pos[b]
-            fig.add_scatter(
-                x=[x0, x1],
-                y=[y0, y1],
-                mode="lines",
-                line=dict(color=color, width=1.5 + 5 * t.quantity / biggest, dash=dash),
-                opacity=0.8,
-                name=name,
-                legendgroup=name,
-                showlegend=n == 0,
-                hoverinfo="text",
-                text=f"{t.seller_id} → {t.buyer_id}: {t.quantity:.2f} kWh at {t.price:.3f}",
+    def links(trades: list[Trade]) -> list[Link]:
+        """Each trade from the seller's bus to the buyer's (the DSO's: the external
+        grid)."""
+        return [
+            Link(
+                ext if t.seller_id == DSO_ID else bus_of.get(t.seller_id, ext),
+                ext if t.buyer_id == DSO_ID else bus_of.get(t.buyer_id, ext),
+                t.quantity,
+                f"{t.seller_id} → {t.buyer_id}: "
+                f"{t.quantity:.2f} kWh at {t.price:.3f}",
             )
+            for t in trades
+        ]
 
     trades = view["trades"]
-    segment([t for t in trades if t.stage < 3], P2P, "solid", "Peer trade")
-    segment([t for t in trades if t.stage == 3], DSO, "dash", "DSO trade")
+    peer = links([t for t in trades if t.stage < 3])
+    dso = links([t for t in trades if t.stage == 3])
+    add_links(fig, topology, peer, P2P, "Peer trade")
+    add_links(fig, topology, dso, DSO, "DSO trade", dash="dash")
 
     for buy, color, name in ((False, SELL, "Seller"), (True, BUY, "Buyer")):
-        group = [o for o in view["orders"] if o.is_buy == buy and o.location in pos]
-        if group:
-            fig.add_scatter(
-                x=[pos[o.location][0] for o in group],
-                y=[pos[o.location][1] for o in group],
-                mode="markers",
-                name=name,
-                hoverinfo="text",
-                text=[
-                    f"{o.agent_id} {'buys' if buy else 'sells'} {o.quantity:.2f} kWh "
-                    f"at {o.price:.3f}"
-                    for o in group
-                ],
-                marker=dict(
-                    size=20, symbol="circle-open", color=color, line=dict(width=3)
-                ),
+        verb = "buys" if buy else "sells"
+        rings = [
+            Ring(
+                o.location,
+                f"{o.agent_id} {verb} {o.quantity:.2f} kWh at {o.price:.3f}",
             )
+            for o in view["orders"]
+            if o.is_buy == buy
+        ]
+        add_rings(fig, topology, rings, color, name)
 
     return fig
 
@@ -551,53 +539,49 @@ def _people_table(m: LocalEnergyMarket, view: dict) -> None:
 # The day: volumes, prices, voltages
 # --------------------------------------------------------------------------------------
 def _day_figure(m: LocalEnergyMarket) -> go.Figure:
-    x = [_clock(m, r.step)[:5] for r in m.history]
-    fig = go.Figure()
-    fig.add_bar(
-        x=x, y=[r.p2p_kwh for r in m.history], name="Peer to peer", marker_color=P2P
-    )
-    fig.add_bar(
-        x=x, y=[r.dso_kwh for r in m.history], name="With the DSO", marker_color=DSO
-    )
-    fig.add_scatter(
-        x=x,
-        y=[r.clearing_price if r.p2p_kwh > 0 else None for r in m.history],
-        name="Clearing price",
-        yaxis="y2",
-        mode="lines+markers",
-        line=dict(color=SELL),
-    )
-    fig = styled(fig, 300, "kWh")
-    fig.update_layout(
-        barmode="stack",
-        yaxis2=dict(
-            title="price per kWh", overlaying="y", side="right", showgrid=False
+    """Energy traded per step (stacked bars), the clearing price on the right."""
+    h = m.history
+    lines = [
+        Line("Peer to peer", [r.p2p_kwh for r in h], color=P2P, kind="bar"),
+        Line("With the DSO", [r.dso_kwh for r in h], color=DSO, kind="bar"),
+        Line(
+            "Clearing price",
+            [r.clearing_price if r.p2p_kwh > 0 else None for r in h],
+            color=SELL,
+            kind="lines+markers",
+            right=True,
         ),
-    )
+    ]
 
-    return fig
+    return series_figure(
+        [_clock(m, r.step)[:5] for r in h],
+        lines,
+        y_title="kWh",
+        right_title="price per kWh",
+        stacked=True,
+        height=300,
+    )
 
 
 def _voltage_figure(m: LocalEnergyMarket) -> go.Figure:
-    x = [_clock(m, r.step)[:5] for r in m.history]
-    g = m.scenario.grid
-    fig = go.Figure()
-    fig.add_scatter(
-        x=x,
-        y=[r.grid.max_voltage_pu for r in m.history],
-        name="Highest V",
-        mode="lines+markers",
-        line=dict(color=SELL),
-    )
-    fig.add_scatter(
-        x=x,
-        y=[r.grid.min_voltage_pu for r in m.history],
-        name="Lowest V",
-        mode="lines+markers",
-        line=dict(color=BUY),
-    )
+    """The lowest and highest bus voltage after each step, with the limits."""
+    h, g = m.history, m.scenario.grid
+    lines = [
+        Line(
+            "Highest V",
+            [r.grid.max_voltage_pu for r in h],
+            color=SELL,
+            kind="lines+markers",
+        ),
+        Line(
+            "Lowest V",
+            [r.grid.min_voltage_pu for r in h],
+            color=BUY,
+            kind="lines+markers",
+        ),
+    ]
+    levels = [Level(v, color=LIMIT) for v in (g.v_min_pu, g.v_max_pu)]
 
-    for v in (g.v_min_pu, g.v_max_pu):
-        fig.add_hline(y=v, line=dict(color="#DC2626", dash="dash", width=1))
-
-    return styled(fig, 300, "V (pu)")
+    return series_figure(
+        [_clock(m, r.step)[:5] for r in h], lines, levels, y_title="V (pu)", height=300
+    )

@@ -1,5 +1,5 @@
-"""Table helpers, and the trades of a market step (the Market step and Market probes
-pages)."""
+"""Table helpers, and the trades of a market step (the Market page's Step and
+Probes tabs)."""
 
 from typing import Any, Sequence
 

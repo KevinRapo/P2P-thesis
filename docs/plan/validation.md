@@ -15,9 +15,9 @@
 | Probe descriptions, expected results, results | `docs/rl/probes.md` | done (prose only) |
 | Learner metrics of any run (losses, KL, gradient norm, per-part statistics) | `core/runner/results.learner_metrics` | done |
 | Learning tab (training curves per run, one action part at a time) | `studio/pages/results.py` | done |
-| Step page: one market step played stage by stage | `studio/pages/step.py` (nav: Run → Step) | done |
+| Step page: one market step played stage by stage | `studio/pages/market/step.py` (nav: Validate → Market, Step tab) | done |
 | RL probes page: probe descriptions and a probe run's score (`core/runner/probe_runs.py`, not under `core/rl/`, which loads Ray), the Learning tab moved | `studio/pages/rl_probes.py`, `studio/components/run_table.py` | done |
-| Market probes M1-M4: scripted cases with known outcomes, both grid methods | `core/market/probes.py`, `tests/market/test_market_probes.py`, `studio/pages/market_probes.py` | done (M5-M9 open) |
+| Market probes M1-M4: scripted cases with known outcomes, both grid methods | `core/market/probes.py`, `tests/market/test_market_probes.py`, `studio/pages/market/probes.py` | done (M5-M9 open) |
 
 ## Target layout in the Studio
 

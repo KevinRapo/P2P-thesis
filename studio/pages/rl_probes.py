@@ -35,12 +35,19 @@ from core.runner.probe_runs import ProbeRunInfo
 from studio.adapters.results_service import ResultsService
 from studio.adapters.validation_service import ValidationService
 from studio.components.cards import key_values, placeholder, section
-from studio.components.charts import styled
+from studio.components.charts import (
+    Level,
+    Line,
+    add_levels,
+    add_series,
+    palette,
+    series_figure,
+    styled,
+)
 from studio.components.run_table import RUN_COLUMNS, RunTable, labels_of
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
-from studio.theme import SERIES
 
 SHOW_TESTS = "rl_probes_show_tests"  # app.storage.user key
 # The run table's columns: what the run was, its probe and result, its state.
@@ -63,39 +70,44 @@ def _learner_figure(
     """The module metrics ``names`` over environment steps: a colour per run, one
     line per module (or their mean), a dash per metric; ``clip`` draws each run's
     gradient clip as a dashed level."""
-    fig = go.Figure()
-    keys = list(dict.fromkeys(metrics.key))
-    colors = {key: SERIES[i % len(SERIES)] for i, key in enumerate(keys)}
+    colors = palette(list(dict.fromkeys(metrics.key)))
     rows = metrics[(metrics.part == "") & metrics.metric.isin(names)]
+    lines, levels = [], []
 
-    for key in keys:
+    for key, color in colors.items():
         own = rows[rows.key == key]
+
         for dash, name in zip(DASHES, names):
             frame = own[own.metric == name]
+
             if frame.empty:
                 continue
 
             if mean_over_modules:
-                lines = {"mean": frame.groupby("env_steps").value.mean().reset_index()}
+                found = {"mean": frame.groupby("env_steps").value.mean().reset_index()}
             else:
-                lines = {m: f for m, f in frame.groupby("module")}
+                found = {m: f for m, f in frame.groupby("module")}
 
-            for module, line in lines.items():
-                suffix = "" if len(names) == 1 else f" {name}"
-                fig.add_scatter(
+            suffix = "" if len(names) == 1 else f" {name}"
+            lines += [
+                Line(
+                    f"{labels[key]} · {module}{suffix}",
+                    line.value,
                     x=line.env_steps,
-                    y=line.value,
-                    name=f"{labels[key]} · {module}{suffix}",
-                    mode="lines",
-                    line=dict(color=colors[key], dash=dash, width=1.5),
+                    color=color,
+                    dash=dash,
+                    width=1.5,
                 )
+                for module, line in found.items()
+            ]
 
         if clip and clip.get(key) is not None:
-            fig.add_hline(y=clip[key], line_dash="dash", line_color=colors[key])
+            levels.append(Level(clip[key], color=color))
 
+    fig = series_figure(None, lines, levels, x_title="environment steps", height=300)
     fig.update_layout(showlegend=True)  # also with one line: which run it is
 
-    return styled(fig, 300, "", "environment steps")
+    return fig
 
 
 def _agent_part(module: str, part: str) -> tuple[str, str]:
@@ -124,13 +136,6 @@ def _part_series(
     return found
 
 
-def _rgba(color: str, alpha: float) -> str:
-    """A ``#rrggbb`` colour with transparency."""
-    r, g, b = (int(color[i : i + 2], 16) for i in (1, 3, 5))
-
-    return f"rgba({r},{g},{b},{alpha})"
-
-
 def _parts_figure(metrics: pd.DataFrame, key: str, label: str) -> go.Figure:
     """Every action part of one run over environment steps, in panels stacked on
     one time axis, a colour per agent (the same in every panel):
@@ -144,8 +149,7 @@ def _parts_figure(metrics: pd.DataFrame, key: str, label: str) -> go.Figure:
     rows = metrics[(metrics.key == key) & (metrics.part != "")]
     parts = sorted({_agent_part(m, p)[1] for m, p in zip(rows.module, rows.part)})
     series = {part: _part_series(metrics, key, part) for part in parts}
-    agents = list(dict.fromkeys(a for s in series.values() for a in s))
-    colors = {a: SERIES[i % len(SERIES)] for i, a in enumerate(agents)}
+    colors = palette(list(dict.fromkeys(a for s in series.values() for a in s)))
     panels = []  # (part, kind)
 
     for part in parts:
@@ -174,80 +178,76 @@ def _parts_figure(metrics: pd.DataFrame, key: str, label: str) -> go.Figure:
         shown.add(agent)
         return first
 
+    # Each panel is a list of lines (a colour per agent) and its levels, drawn with
+    # the shared series builders into its row of the figure.
     for row, (part, kind) in enumerate(panels, start=1):
+        lines = []
+
         for agent, stats in series[part].items():
-            color = colors[agent]
-            common = dict(legendgroup=agent, name=agent, mode="lines")
+            look = dict(color=colors[agent], group=agent)
 
             if kind == "mean":
                 mean, sigma = stats["mean"], stats["log_std"].pipe(np.exp)
-                steps = list(mean.index)
-                fig.add_scatter(
-                    x=steps + steps[::-1],
-                    y=list(mean + sigma) + list((mean - sigma)[::-1]),
-                    fill="toself",
-                    fillcolor=_rgba(color, 0.12),
-                    line=dict(width=0),
-                    legendgroup=agent,
-                    showlegend=False,
-                    hoverinfo="skip",
-                    row=row,
-                    col=1,
-                )
-                fig.add_scatter(
-                    x=steps,
-                    y=mean,
-                    line=dict(color=color),
-                    showlegend=legend(agent),
-                    row=row,
-                    col=1,
-                    **common,
+                lines.append(
+                    Line(
+                        agent,
+                        mean,
+                        x=mean.index,
+                        band=(mean - sigma, mean + sigma),
+                        legend=legend(agent),
+                        **look,
+                    )
                 )
             elif kind == "spread":
                 log_std = stats["log_std"]
-                fig.add_scatter(
-                    x=list(log_std.index),
-                    y=log_std,
-                    line=dict(color=color),
-                    showlegend=legend(agent),
-                    customdata=np.exp(log_std.to_numpy()),
-                    hovertemplate="log σ %{y:.2f} (σ %{customdata:.4f})"
-                    "<extra>%{fullData.name}</extra>",
-                    row=row,
-                    col=1,
-                    **common,
+                lines.append(
+                    Line(
+                        agent,
+                        log_std,
+                        x=log_std.index,
+                        legend=legend(agent),
+                        options=dict(
+                            customdata=np.exp(log_std.to_numpy()),
+                            hovertemplate="log σ %{y:.2f} (σ %{customdata:.4f})"
+                            "<extra>%{fullData.name}</extra>",
+                        ),
+                        **look,
+                    )
                 )
+
                 if "outside" in stats:
-                    fig.add_scatter(
-                        x=list(stats["outside"].index),
-                        y=stats["outside"],
-                        line=dict(color=color, dash="dot"),
-                        showlegend=False,
-                        row=row,
-                        col=1,
-                        secondary_y=True,
-                        **common,
+                    outside = stats["outside"]
+                    lines.append(
+                        Line(
+                            agent,
+                            outside,
+                            x=outside.index,
+                            dash="dot",
+                            right=True,
+                            legend=False,
+                            **look,
+                        )
                     )
             else:
                 for name, dash in (("entropy", "solid"), ("top", "dash")):
                     if name in stats:
-                        fig.add_scatter(
-                            x=list(stats[name].index),
-                            y=stats[name],
-                            line=dict(color=color, dash=dash),
-                            showlegend=legend(agent),
-                            row=row,
-                            col=1,
-                            **common,
+                        lines.append(
+                            Line(
+                                agent,
+                                stats[name],
+                                x=stats[name].index,
+                                dash=dash,
+                                legend=legend(agent),
+                                **look,
+                            )
                         )
 
+        add_series(fig, None, lines, row=row, col=1)
+
         if kind == "mean":
-            for bound in (-1.0, 1.0):
-                fig.add_hline(
-                    y=bound, line_dash="dash", line_color="#94A3B8", row=row, col=1
-                )
+            add_levels(fig, [Level(-1.0), Level(1.0)], row=row, col=1)
         elif kind == "spread":
-            fig.add_hline(y=0, line_dash="dot", line_color="#94A3B8", row=row, col=1)
+            add_levels(fig, [Level(0.0, dash="dot")], row=row, col=1)
             fig.update_yaxes(
                 range=[0, 1], showgrid=False, row=row, col=1, secondary_y=True
             )

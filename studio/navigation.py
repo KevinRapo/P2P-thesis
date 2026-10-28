@@ -26,15 +26,13 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
         [
             NavItem("inspect", "Inspect", "travel_explore", "/inspect"),
             NavItem("grid", "Grid & Participants", "hub", "/grid"),
-            NavItem("market", "Market & DSO", "storefront", "/market"),
             NavItem("summary", "Summary", "fact_check", "/summary"),
         ],
     ),
     (
         "Validate",
         [
-            NavItem("market_probes", "Market probes", "rule", "/market-probes"),
-            NavItem("step", "Market step", "skip_next", "/step"),
+            NavItem("market", "Market", "skip_next", "/market"),
             NavItem("rl_probes", "RL probes", "psychology", "/rl-probes"),
         ],
     ),
@@ -45,5 +43,11 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
             NavItem("results", "Results", "query_stats", "/results"),
         ],
     ),
-    (None, [NavItem("settings", "Settings", "settings", "/settings")]),
+    (
+        None,
+        [
+            NavItem("components", "Components", "widgets", "/components"),
+            NavItem("settings", "Settings", "settings", "/settings"),
+        ],
+    ),
 ]

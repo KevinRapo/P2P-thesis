@@ -91,8 +91,10 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 ## Code conventions
 
 - **Pages and components.** A page is one file in `studio/pages/`; code only it
-  uses stays there. A component goes in `studio/components/` only once a second
-  place uses it, not before.
+  uses stays there. A page whose tabs each need a file gets a folder of its own
+  (`studio/pages/market/`: `page.py` with the frame and the tab bar, one file per
+  tab, `__init__.py` exporting `page`). A component goes in `studio/components/`
+  only once a second place uses it, not before.
 - **Sections.** A file that does more than one thing is split into sections with a
   banner whose title says what the section is for:
 

@@ -1,22 +1,25 @@
-"""Grid & Participants: pick the network and the day, place the participants.
+"""Grid & Participants: pick the network and the day, place the participants, and
+set the market and the DSO.
 
-Writes ``scenario.grid`` and ``scenario.participants`` (saved at once). A
-participant sits on one bus and takes over the loads and generators there: their
-SimBench profiles become its demand and generation.
+Writes ``scenario.grid``, ``scenario.participants``, ``scenario.market`` and
+``scenario.dso`` (saved at once). A participant sits on one bus and takes over the
+loads and generators there: their SimBench profiles become its demand and
+generation. Grid fees are not offered as settings.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
 
-from nicegui import run, ui
+from nicegui import background_tasks, run, ui
 
 from core.config.scenario import BatterySetup
 from core.grid.contract import NetworkRef
-from studio.components.cards import section
-from studio.components.charts import topology_figure
-from studio.components.labels import BACKGROUNDS, STEP_LENGTHS
-from studio.components.network import NetworkPicker, busy, clicked_bus, failed
+from core.market.clearing_price import DESCRIPTIONS
+from studio.components.cards import busy, failed, fill, section
+from studio.components.charts import day_figure, topology_figure
+from studio.components.labels import BACKGROUNDS, MECHANISMS, STEP_LENGTHS
+from studio.components.network import NetworkPicker, clicked_bus
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
@@ -26,16 +29,17 @@ from studio.state import services
 # The page
 # --------------------------------------------------------------------------------------
 def page() -> None:
-    """Network and day on the left, the network with its participants on the right,
-    the participant list below."""
+    """Network and day on the left, the network with its participants on the right;
+    below them the participants' day, the participant list and the market panel."""
     s = services()
     scenario = s.scenario.current()
 
     with shell(
         "grid",
         "Grid & Participants",
-        "Pick the network and the day, then place the participants on its buses. "
-        "Changes are saved at once; the Step page builds the market from them.",
+        "Pick the network and the day, place the participants on its buses, and set "
+        "the market and the DSO. Changes are saved at once; the Step page builds the "
+        "market from them (press Reset there to play with new settings).",
     ):
         # Top row: settings card (left, a third) | network plot card (right)
         with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
@@ -48,7 +52,7 @@ def page() -> None:
             ):
                 picker_box = ui.column().classes("w-full gap-2")
                 apply_box = ui.column().classes("w-full gap-1")
-                _grid_settings()
+                _grid_settings(on_change=lambda: show_day_later())
 
             # Right card: the clickable network plot, the placement buttons under it
             with section(
@@ -61,9 +65,15 @@ def page() -> None:
                 plot_box = ui.column().classes("w-full")
                 placement_box = ui.column().classes("w-full gap-1")
 
-        
-        with section("Test"):
-            test=0
+        # Card, full width: the participants' summed demand and generation over the
+        # day (filled by show_day)
+        with section(
+            "Participants over the day",
+            "Their summed demand and generation per step, on the scenario's day",
+            "show_chart",
+        ):
+            day_box = ui.column().classes("w-full")
+
         # Bottom card, full width: the participant table with its battery editor
         with section(
             "Participants",
@@ -72,6 +82,37 @@ def page() -> None:
             "list",
         ):
             table_box = ui.column().classes("w-full")
+
+        # Market panel, full width: three cards side by side, Clearing | Bidding |
+        # DSO (moved here from the former Market & DSO page)
+        with section(
+            "Market and DSO",
+            "How orders are matched and priced, how participants bid, and what the "
+            "DSO pays and charges",
+            "storefront",
+        ):
+            with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
+                with section(
+                    "Clearing",
+                    "Three stages: preferences, double auction, DSO",
+                    "gavel",
+                    classes="grow basis-0",
+                ):
+                    _clearing()
+                with section(
+                    "Bidding",
+                    "The rule that writes each participant's order",
+                    "sell",
+                    classes="grow basis-0",
+                ):
+                    _bidding()
+                with section(
+                    "DSO",
+                    "Buys what is left over, sells what is missing",
+                    "account_balance",
+                    classes="grow basis-0",
+                ):
+                    _dso()
 
     state: dict = {"topology": None, "shown": scenario.grid.code, "kinds_of": None}
 
@@ -148,6 +189,31 @@ def page() -> None:
             _placement_buttons(placement_box, redraw)
 
         _participant_table(table_box, redraw)
+        show_day_later()
+
+    async def show_day() -> None:
+        """The participants' summed demand and generation on the scenario's day."""
+        current = s.scenario.current()
+
+        if not current.participants:
+            day_box.clear()
+
+            with day_box:
+                ui.label("No participants yet.").classes("mls-card-caption")
+
+            return
+
+        await fill(
+            day_box,
+            lambda: s.profiles.day_profiles(current),
+            lambda day: ui.plotly(day_figure(day, day.owned())).classes("w-full"),
+            "Reading the profiles …",
+        )
+
+    def show_day_later() -> None:
+        """Start ``show_day`` from code that cannot wait for it (``redraw`` and the
+        settings' handlers are plain functions)."""
+        background_tasks.create(show_day())
 
     # The network picker at the top of the left card; picking one calls load()
     with picker_box:
@@ -162,14 +228,18 @@ def page() -> None:
 # --------------------------------------------------------------------------------------
 # Grid settings: day, step length, background, limits
 # --------------------------------------------------------------------------------------
-def _grid_settings() -> None:
-    """Day, step length, background and limits, saved on every change."""
+def _grid_settings(on_change=None) -> None:
+    """Day, step length, background and limits, saved on every change; then
+    ``on_change()``, if given."""
     s = services()
     g = s.scenario.current().grid
 
     def save(field: str, value) -> None:
         setattr(s.scenario.current().grid, field, value)
         s.scenario.save()
+
+        if on_change is not None:
+            on_change()
 
     ui.separator()
 
@@ -430,3 +500,155 @@ def _participant_table(box: ui.element, redraw) -> None:
                 ).classes("mls-card-caption")
 
         table.on_select(edit)
+
+
+# --------------------------------------------------------------------------------------
+# Market and DSO: clearing, bidding, the DSO's tariffs
+# --------------------------------------------------------------------------------------
+def _saver(section_name: str):
+    """A function that sets one field of ``scenario.<section_name>`` and saves."""
+    s = services()
+
+    def save(field: str, value) -> None:
+        if value is None:
+            return
+        setattr(getattr(s.scenario.current(), section_name), field, value)
+        s.scenario.save()
+
+    return save
+
+
+# --------------------------------------------------------------------------------------
+# Clearing
+# --------------------------------------------------------------------------------------
+def _clearing() -> None:
+    m = services().scenario.current().market
+    save = _saver("market")
+
+    def mechanism(e) -> None:
+        save("mechanism", e.value)
+        caption.set_text(DESCRIPTIONS[e.value])
+
+    ui.select(
+        MECHANISMS,
+        value=m.mechanism,
+        label="Price of a peer-to-peer trade",
+        on_change=mechanism,
+    ).classes("w-full")
+    caption = ui.label(DESCRIPTIONS[m.mechanism]).classes("mls-card-caption")
+
+    for pair in (
+        (("min_price", "Min price", 0.01), ("max_price", "Max price", 0.01)),
+        (
+            ("min_quantity", "Min quantity (kWh)", 0.1),
+            ("max_quantity", "Max quantity (kWh)", 1),
+        ),
+    ):
+        # Two number fields side by side: min | max
+        with ui.row().classes("w-full gap-2 no-wrap"):
+            for field, label, step in pair:
+                ui.number(
+                    label,
+                    value=getattr(m, field),
+                    step=step,
+                    on_change=lambda e, f=field: save(f, float(e.value or 0)),
+                ).classes("grow basis-0")
+
+    ui.label(
+        "Orders are clipped to these bounds, and to what each participant can "
+        "physically deliver or take (its surplus or deficit plus its battery)."
+    ).classes("mls-card-caption")
+    ui.switch(
+        "Preferred partners",
+        value=m.partner_preference,
+        on_change=lambda e: save("partner_preference", bool(e.value)),
+    )
+    ui.label(
+        "On: every participant names the electrically nearest participant on the "
+        "other side as its partner; pairs that name each other trade in stage 1, "
+        "before the auction. Off: stage 1 stays empty."
+    ).classes("mls-card-caption")
+
+
+# --------------------------------------------------------------------------------------
+# Bidding
+# --------------------------------------------------------------------------------------
+def _bidding() -> None:
+    m = services().scenario.current().market
+    save = _saver("market")
+    ui.label(
+        "Each participant first charges or discharges its own battery, then sells "
+        "what is left over or buys what is missing."
+    ).classes("text-body2")
+
+    def explain(margin: float) -> None:
+        if margin < 0.5:
+            text = "Bids lie above asks: peers trade with each other first."
+        elif margin == 0.5:
+            text = "Everyone bids the midpoint: trades happen only with jitter."
+        else:
+            text = "Asks lie above bids: no peer trades, everything goes to the DSO."
+        hint.set_text(
+            f"Sellers ask FiT + {margin:.2f} × spread, buyers bid utility − "
+            f"{margin:.2f} × spread. {text}"
+        )
+
+    def margin(e) -> None:
+        save("bid_margin", float(e.value))
+        explain(float(e.value))
+
+    ui.label("Margin").classes("text-caption")
+    ui.slider(min=0, max=1, step=0.05, value=m.bid_margin, on_change=margin).props(
+        "label"
+    )
+    hint = ui.label().classes("mls-card-caption")
+    explain(m.bid_margin)
+    ui.label("Jitter").classes("text-caption")
+    ui.slider(
+        min=0,
+        max=0.5,
+        step=0.05,
+        value=m.bid_jitter,
+        on_change=lambda e: save("bid_jitter", float(e.value)),
+    ).props("label")
+    ui.label(
+        "Random spread of each price, as a share of the tariff spread, so the order "
+        "book shows a range of prices."
+    ).classes("mls-card-caption")
+    ui.number(
+        "Seed",
+        value=m.seed,
+        step=1,
+        on_change=lambda e: save("seed", int(e.value or 0)),
+    ).classes("w-full")
+
+
+# --------------------------------------------------------------------------------------
+# DSO
+# --------------------------------------------------------------------------------------
+def _dso() -> None:
+    d = services().scenario.current().dso
+    save = _saver("dso")
+    ui.number(
+        "Feed-in tariff (per kWh)",
+        value=d.feed_in_tariff,
+        step=0.01,
+        on_change=lambda e: save("feed_in_tariff", float(e.value or 0)),
+    ).classes("w-full")
+    ui.label("What the DSO pays for every kWh it buys (stage 3).").classes(
+        "mls-card-caption"
+    )
+    ui.number(
+        "Utility price (per kWh)",
+        value=d.utility_price,
+        step=0.01,
+        on_change=lambda e: save("utility_price", float(e.value or 0)),
+    ).classes("w-full")
+    ui.label("What the DSO charges for every kWh it sells (stage 3).").classes(
+        "mls-card-caption"
+    )
+    ui.label(
+        "Both are constant over the day for now. Local trading pays off between "
+        "them: sellers get more than the feed-in tariff, buyers pay less than the "
+        "utility price. Grid fees (paper eq. 8) are not charged yet."
+    ).classes("mls-card-caption")

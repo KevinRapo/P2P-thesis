@@ -1,4 +1,5 @@
-"""Market probes: tiny scripted market cases whose outcome is known by hand.
+"""The Market page's Probes tab: tiny scripted market cases whose outcome is known
+by hand.
 
 Each probe (``core/market/probes.py``) plays four participants on a SimBench LV
 network with scripted orders over five midday steps, once with the power flow and
@@ -7,8 +8,8 @@ the profiles. The page shows, per probe, what it isolates, its orders and what a
 correct market gives; the checks of each step (PASS/FAIL); and the step played
 out: the trades of every stage with their fees, the participants and the DSO.
 
-The probes are played when the page first asks for them (about 10 s) and kept
-until *Play again*.
+The probes are played when the tab is first opened (about 10 s) and kept until
+*Play again*.
 """
 
 from __future__ import annotations
@@ -21,7 +22,6 @@ from core.market.probes import Check, ProbeRun
 from studio.adapters.validation_service import ValidationService
 from studio.components.cards import key_values, placeholder, section
 from studio.components.tables import data_table, trades_table
-from studio.layout import shell
 from studio.state import services
 
 METHODS = {"powerflow": "Power flow", "graph": "Graph model"}
@@ -292,19 +292,18 @@ class ProbesView:
                         ui.label(note).classes("text-body2")
 
 
-def page() -> None:
-    """The probes, played when the page first opens."""
-    with shell(
-        "market_probes",
-        "Market probes",
+def tab() -> ProbesView:
+    """The probes view (built into the Market page's Probes tab). The page calls its
+    ``load`` when the tab is first opened, so the probes play only when asked for."""
+    ui.label(
         "Tiny scripted market cases whose outcome is known by hand, played on both "
-        "grid methods: each isolates one part of the market step.",
-    ):
-        view = ProbesView(services().validation)
+        "grid methods: each isolates one part of the market step."
+    ).classes("mls-card-caption")
+    view = ProbesView(services().validation)
 
-        # A waiting note where the detail cards will appear
-        if not services().validation.played:
-            with view.detail:
-                placeholder("Playing the probes ...", "hourglass_empty")
+    # A waiting note where the detail cards will appear
+    if not services().validation.played:
+        with view.detail:
+            placeholder("Playing the probes ...", "hourglass_empty")
 
-        ui.timer(0.05, view.load, once=True)
+    return view

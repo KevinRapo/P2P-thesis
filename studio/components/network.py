@@ -17,7 +17,7 @@ from nicegui import run, ui
 from core.grid.contract import NetworkRef, NetworkSummary, TopologyView
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileType
-from studio.components.cards import not_implemented
+from studio.components.cards import busy, failed, not_implemented
 from studio.components.charts import line_figure, topology_figure
 from studio.components.profiles import ProfileOverview
 from studio.components.tables import data_table
@@ -77,25 +77,8 @@ SCALE_HINTS = {
 
 
 # --------------------------------------------------------------------------------------
-# Small helpers: spinner, error, yes/no
+# Small helpers: yes/no
 # --------------------------------------------------------------------------------------
-def busy(box: ui.element, text: str) -> None:
-    """Replace a box's content with a spinner while a slow call runs."""
-    box.clear()
-
-    # Spinner | text
-    with box, ui.row().classes("items-center gap-2"):
-        ui.spinner(size="md")
-        ui.label(text).classes("mls-card-caption")
-
-
-def failed(box: ui.element, error: Exception) -> None:
-    """Show an error in place of a box's content."""
-    box.clear()
-    with box:
-        ui.label(f"Failed: {error}").classes("text-negative text-body2")
-
-
 def yes_no(value: bool | None, no: str = "no") -> str:
     """``yes`` / ``no`` (or the given text) for a flag; ``—`` when unknown."""
     return "—" if value is None else ("yes" if value else no)

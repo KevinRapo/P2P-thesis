@@ -21,15 +21,14 @@ os.environ.setdefault("NICEGUI_STORAGE_PATH", str(default_home() / "studio-state
 from nicegui import app, ui  # noqa: E402
 
 from studio.pages import (  # noqa: E402
+    components,
     grid_participants,
     inspect,
-    market_dso,
-    market_probes,
+    market,
     results,
     rl_probes,
     runs,
     settings,
-    step,
     summary,
 )
 from studio.state import services  # noqa: E402
@@ -47,14 +46,13 @@ ROOT = Path(__file__).resolve().parents[1]
 ROUTES = {
     "/inspect": inspect.page,
     "/grid": grid_participants.page,
-    "/market": market_dso.page,
     "/summary": summary.page,
-    "/market-probes": market_probes.page,
-    "/step": step.page,
+    "/market": market.page,
     "/rl-probes": rl_probes.page,
     "/runs": runs.page,
     "/results": results.page,
     "/settings": settings.page,
+    "/components": components.page,
 }
 
 

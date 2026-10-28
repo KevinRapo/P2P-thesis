@@ -1,9 +1,9 @@
 """Summary: the scenario in one look, before the market is run.
 
-Two tabs. Settings: every setting of the Grid & Participants and Market & DSO pages
-once, next to the day's curves and the network with its participants. Day profiles:
-what every element does on the day, participants apart from the background. Read
-only: change things on their own pages.
+Two tabs. Settings: every setting of the Grid & Participants page once, next to the
+day's curves and the network with its participants. Day profiles: what every
+element does on the day, participants apart from the background. Read only: change
+things on the Grid & Participants page.
 """
 
 from __future__ import annotations
@@ -15,11 +15,17 @@ from nicegui import run, ui
 from core.config.scenario import Scenario
 from core.grid.contract import NetworkRef
 from studio.adapters.models import DayProfiles
-from studio.components.cards import key_values, placeholder, section
+from studio.components.cards import (
+    busy,
+    failed,
+    fill,
+    key_values,
+    placeholder,
+    section,
+)
 from studio.components.charts import day_figure, topology_figure
 from studio.components.day_profiles import show_day_profiles
 from studio.components.labels import BACKGROUNDS, MECHANISMS, STEP_LENGTHS
-from studio.components.network import busy, failed
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
@@ -38,7 +44,7 @@ def page() -> None:
         "summary",
         "Summary",
         "The market as configured: every setting once, the day's curves and the "
-        "network. Change settings on their own pages, then run it on Step.",
+        "network. Change settings on Grid & Participants, then run it on Step.",
     ):
         # Ready banner at the top (filled by _checks)
         check_box = ui.column().classes("w-full")
@@ -125,21 +131,15 @@ def page() -> None:
 
         _checks(check_box, scenario, day)
 
-        try:
-            topology = await run.io_bound(
-                s.grid.topology, NetworkRef("simbench", scenario.grid.code)
-            )
-        except Exception as e:  # noqa: BLE001  show the error on the page
-            failed(network_box, e)
-            return
-
-        network_box.clear()
-
-        with network_box:
-            marked = {p.bus for p in scenario.participants}
-            ui.plotly(topology_figure(topology, highlight=marked, height=300)).classes(
-                "w-full"
-            )
+        marked = {p.bus for p in scenario.participants}
+        await fill(
+            network_box,
+            lambda: s.grid.topology(NetworkRef("simbench", scenario.grid.code)),
+            lambda topology: ui.plotly(
+                topology_figure(topology, highlight=marked, height=300)
+            ).classes("w-full"),
+            "Building topology …",
+        )
 
     ui.timer(0.05, load, once=True)
 
@@ -173,7 +173,7 @@ def _checks(box: ui.element, scenario: Scenario, day: DayProfiles | None) -> Non
             for text in problems:
                 ui.label(text).classes("text-body2")
         ui.button(
-            "Open Step", icon="skip_next", on_click=lambda: ui.navigate.to("/step")
+            "Open Step", icon="skip_next", on_click=lambda: ui.navigate.to("/market")
         ).props("unelevated no-caps")
 
 

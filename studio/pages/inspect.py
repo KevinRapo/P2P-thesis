@@ -11,16 +11,14 @@ from nicegui import run, ui
 from core.grid.contract import NetworkRef
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileClass, ProfileType, Series
-from studio.components.cards import section
+from studio.components.cards import busy, failed, section
 from studio.components.charts import line_figure
 from studio.components.network import (
     DEFAULT_SOURCE,
     ElementsTable,
     NetworkPicker,
     ProfileInspector,
-    busy,
     clicked_bus,
-    failed,
     show_summary,
     show_topology,
     summary_facts,

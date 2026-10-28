@@ -29,6 +29,28 @@ SERIES = [
     "#DB2777",
 ]
 
+# Colours with a meaning in charts: the same thing has the same colour on every page
+MUTED = "#94A3B8"  # reference levels, empty buses, anything neutral
+LIMIT = "#DC2626"  # limits and what breaks them (voltage band, violating buses)
+HIGHLIGHT = "#D97706"  # marked buses (participants, the selected bus)
+
+# Element types of a day's profiles
+ENERGY = {"load": "#2563EB", "sgen": "#D97706", "storage": "#7C3AED"}
+
+# Sides and counterparts of the market
+MARKET = {"sell": "#D97706", "buy": "#2563EB", "p2p": "#15803D", "dso": "#64748B"}
+
+# Bus kinds of the network plot (combined kinds fall back to their main element)
+BUS = {
+    "external_grid": "#0F172A",
+    "load": "#0F766E",
+    "pv": "#D97706",
+    "load+pv": "#EA580C",
+    "gen": "#B45309",
+    "storage": "#7C3AED",
+    "bus": "#94A3B8",
+}
+
 
 def apply_theme() -> None:
     """Call once per page, before building the layout."""

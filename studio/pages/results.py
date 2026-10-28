@@ -37,12 +37,12 @@ from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import key_values, placeholder, section
-from studio.components.charts import styled
+from studio.components.charts import Level, Line, palette, series_figure, styled
 from studio.components.run_table import RunTable, labels_of
 from studio.components.run_table import cell as _cell
 from studio.layout import shell
 from studio.state import services
-from studio.theme import SERIES
+from studio.theme import MUTED, SERIES
 
 BASELINES = {"zero": "zero", "net_position": "net position"}
 # The market and grid per test day (``heldout_episodes.csv``), as shown.
@@ -141,54 +141,63 @@ def _learning_figure(
     ``with_training`` its training return, dotted), and each run's own baselines at
     step 0, dashed in its colour (one grey line when every run has the same)."""
     value = "per_participant" if per_participant else "team_return_mean"
-    fig = go.Figure()
-    keys = list(dict.fromkeys(curves.key))
-    colors = {key: SERIES[i % len(SERIES)] for i, key in enumerate(keys)}
+    colors = palette(list(dict.fromkeys(curves.key)))
+    lines, levels = [], []
 
-    for key in keys:
+    for key, color in colors.items():
         rows = curves[(curves.key == key) & (curves.policy == "trained")]
-        fig.add_scatter(
-            x=rows.env_steps,
-            y=rows[value],
-            name=labels[key],
-            mode="lines+markers",
-            line=dict(color=colors[key]),
+        lines.append(
+            Line(
+                labels[key],
+                rows[value],
+                x=rows.env_steps,
+                color=color,
+                kind="lines+markers",
+            )
         )
+
         if with_training and not training.empty:
             own = training[training.key == key]
-            fig.add_scatter(
-                x=own.env_steps,
-                y=own[value],
-                name=f"{labels[key]} (training)",
-                mode="lines",
-                line=dict(color=colors[key], dash="dot"),
+            lines.append(
+                Line(
+                    f"{labels[key]} (training)",
+                    own[value],
+                    x=own.env_steps,
+                    color=color,
+                    dash="dot",
+                )
             )
 
     start = curves[(curves.env_steps == 0) & (curves.policy != "trained")]
 
     for policy, rows in start.groupby("policy"):
         if rows[value].round(9).nunique() == 1:  # the same for every run: one line
-            fig.add_hline(
-                y=rows[value].iloc[0],
-                line_dash="dash",
-                line_color="#94A3B8",
-                annotation_text=f"{policy} (step 0)",
-                annotation_position="top left",
-            )
+            levels.append(Level(rows[value].iloc[0], f"{policy} (step 0)"))
             continue
+
         for _, row in rows.iterrows():
             end = curves[curves.key == row.key].env_steps.max()
-            fig.add_scatter(
-                x=[0, end],
-                y=[row[value]] * 2,
-                name=f"{labels[row.key]}: {policy}",
-                mode="lines",
-                line=dict(color=colors[row.key], dash="dash", width=1),
+            lines.append(
+                Line(
+                    f"{labels[row.key]}: {policy}",
+                    [row[value]] * 2,
+                    x=[0, end],
+                    color=colors[row.key],
+                    dash="dash",
+                    width=1,
+                )
             )
 
     label = "per participant" if per_participant else "team"
 
-    return styled(fig, 380, f"return ({label})", "environment steps")
+    return series_figure(
+        None,
+        lines,
+        levels,
+        y_title=f"return ({label})",
+        x_title="environment steps",
+        height=380,
+    )
 
 
 def _heldout_figure(days: pd.DataFrame, labels: dict[str, str]) -> go.Figure:
@@ -208,7 +217,7 @@ def _heldout_figure(days: pd.DataFrame, labels: dict[str, str]) -> go.Figure:
             marker_color=SERIES[i + 1],
         )
 
-    fig.add_hline(y=0, line_color="#94A3B8")
+    fig.add_hline(y=0, line_color=MUTED)
     fig.update_layout(boxmode="group", hovermode="closest")
 
     return styled(fig, 380, "difference per test day")
@@ -242,18 +251,9 @@ def _participant_figure(
 
 def _steps_figure(steps: pd.DataFrame, columns: list[str], title: str) -> go.Figure:
     """Lines of ``columns`` over the steps of one traced day."""
-    fig = go.Figure()
+    lines = [Line(c, steps[c], kind="lines+markers") for c in columns if c in steps]
 
-    for i, column in enumerate(c for c in columns if c in steps):
-        fig.add_scatter(
-            x=steps.step,
-            y=steps[column],
-            name=column,
-            mode="lines+markers",
-            line=dict(color=SERIES[i % len(SERIES)]),
-        )
-
-    return styled(fig, 280, title, "step")
+    return series_figure(steps.step, lines, y_title=title, x_title="step", height=280)
 
 
 # --------------------------------------------------------------------------------------

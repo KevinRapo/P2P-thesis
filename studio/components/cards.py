@@ -1,9 +1,10 @@
-"""Cards, stat tiles and placeholders."""
+"""Cards, stat tiles and placeholders; a box's states while it loads."""
 
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
+from typing import Any, Optional
 
-from nicegui import ui
+from nicegui import run, ui
 
 
 # --------------------------------------------------------------------------------------
@@ -71,13 +72,60 @@ def key_values(items: dict) -> None:
 
 
 # --------------------------------------------------------------------------------------
-# Placeholders
+# Placeholders and a box's states: loading, failed, filled
 # --------------------------------------------------------------------------------------
 def placeholder(text: str, icon: str = "construction") -> None:
     """A muted box with an icon and text, for content that does not exist yet."""
     with ui.column().classes("mls-placeholder w-full items-center gap-1"):
         ui.icon(icon, size="22px")
         ui.label(text)
+
+
+def busy(box: ui.element, text: str) -> None:
+    """Replace a box's content with a spinner while a slow call runs."""
+    box.clear()
+
+    # Spinner | text
+    with box, ui.row().classes("items-center gap-2"):
+        ui.spinner(size="md")
+        ui.label(text).classes("mls-card-caption")
+
+
+def failed(box: ui.element, error: Exception) -> None:
+    """Show an error in place of a box's content."""
+    box.clear()
+
+    with box:
+        ui.label(f"Failed: {error}").classes("text-negative text-body2")
+
+
+async def fill(
+    box: ui.element,
+    read: Callable[[], Any],
+    draw: Callable[[Any], None],
+    waiting: str = "Loading …",
+) -> Optional[Any]:
+    """The usual way to show data: a spinner in ``box`` while ``read()`` runs in a
+    worker thread, then ``draw(result)`` into the box, or the error in its place.
+
+    Returns:
+        What ``read`` returned, for a page that uses it again; ``None`` after an
+        error.
+    """
+    busy(box, waiting)
+
+    try:
+        result = await run.io_bound(read)
+    except Exception as e:  # noqa: BLE001  show the error on the page
+        failed(box, e)
+        return None
+
+    box.clear()
+
+    with box:
+        draw(result)
+
+    return result
 
 
 def not_implemented(action: str) -> None:
