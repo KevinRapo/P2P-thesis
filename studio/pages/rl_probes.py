@@ -166,6 +166,7 @@ class ProbesView:
             SHOW_TESTS,
             columns=COLUMNS,
             read=validation.rl_overview,
+            kind="probe",
         )
 
         # The ticked probe runs, drawn by _show_probes()

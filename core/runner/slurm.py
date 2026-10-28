@@ -159,7 +159,7 @@ def states_of(exp_dirs: Sequence[Path]) -> dict[str, dict[str, dict]]:
 
 
 # --------------------------------------------------------------------------------------
-# start: one job array for the runs that need to run
+# submit: one job array for the runs that need to run
 # --------------------------------------------------------------------------------------
 def choose_partition(partitions: list[dict], minutes: int) -> dict:
     """The first partition (``{"name", "max_minutes"}``) that allows ``minutes``."""
@@ -245,7 +245,7 @@ def runs_partition(
         raise SpecError(f"on node {node!r}: {error}") from None
 
 
-def start(
+def submit(
     spec: str | Path | Experiment,
     *,
     account: str,
@@ -255,7 +255,7 @@ def start(
 ) -> Path:
     """Queue an experiment and submit its runs as one job array; returns at once.
 
-    Like ``launch.start`` it resumes: completed runs stay, the others are queued
+    Like ``launch.start_worker`` it resumes: completed runs stay, the others are queued
     again from scratch and submitted. Refuses while the previous array of the
     experiment still has tasks queued or running.
 
@@ -354,9 +354,9 @@ def _refuse_while_alive(name: str, exp_dir: Path) -> dict[str, dict]:
 
 
 # --------------------------------------------------------------------------------------
-# stop
+# cancel
 # --------------------------------------------------------------------------------------
-def stop(
+def cancel(
     experiment: str, run: Optional[str] = None, root: Optional[Path] = None
 ) -> dict:
     """Cancel a whole experiment's job array (or just one run's task), then mark its

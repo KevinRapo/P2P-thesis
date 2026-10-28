@@ -90,6 +90,19 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 
 ## Code conventions
 
+- **One name per layer.** When a call passes through layers that each do their
+  own part, each layer names its part, so a search lands on one of them:
+  - a page's event handler is `on_<what>` (`on_sync`, `on_stop_run`);
+  - a Studio service names what it does to what (`RunService.start_experiment`,
+    `check_target`, `experiments`);
+  - an interface keeps the plain verb its implementations share (`Target.start`,
+    `Target.sync`), and its place-specific step has its own (`Target._launch`);
+  - a back end names its action (`launch.start_worker`, `slurm.submit`,
+    `slurm.cancel`).
+  A service that only hands a call on unchanged (`ResultsService.learning_curves`
+  -> `results.learning_curves`) keeps the core's name, and an interface's
+  implementations share theirs (`reset`, `step`, `assess`): there the same name
+  means the same thing.
 - **Pages and components.** A page is one file in `studio/pages/`; code only it
   uses stays there. A page whose tabs each need a file gets a folder of its own
   (`studio/pages/market/`: `page.py` with the frame and the tab bar, one file per

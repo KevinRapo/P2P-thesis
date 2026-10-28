@@ -276,7 +276,7 @@ def record_starts(monkeypatch) -> list[tuple]:
         started.append((spec, profile))
         return spec.with_profile(profile).name
 
-    monkeypatch.setattr(targets.LocalTarget, "_start", fake_start)
+    monkeypatch.setattr(targets.LocalTarget, "_launch", fake_start)
 
     return started
 
@@ -319,7 +319,7 @@ def test_local_target_start_passes_the_profile(populated, monkeypatch):
         calls.append((spec_path, root, profile))
         return Path(root) / "smoke--test"
 
-    monkeypatch.setattr(launch, "start", fake_start)
+    monkeypatch.setattr(launch, "start_worker", fake_start)
     target = targets.LocalTarget()
     assert target.start("config/experiments/smoke.json", "test") == "smoke--test"
     assert calls == [("config/experiments/smoke.json", populated, "test")]
@@ -379,8 +379,8 @@ def test_slurm_target_start_and_stop_go_through_slurm(root, monkeypatch):
         return {"cancelled": [ARRAY], "stopped": ["a"]}
 
     has_sbatch(monkeypatch, True)
-    monkeypatch.setattr(slurm, "start", fake_start)
-    monkeypatch.setattr(slurm, "stop", fake_stop)
+    monkeypatch.setattr(slurm, "submit", fake_start)
+    monkeypatch.setattr(slurm, "cancel", fake_stop)
     target = targets.SlurmTarget("taltech", CLUSTER)
     assert target.start("config/experiments/smoke.json", "test") == "smoke--test"
     assert calls[0] == (
@@ -441,7 +441,7 @@ def test_slurm_target_check_lists_what_is_missing(root, monkeypatch):
 def test_slurm_target_start_refuses_with_the_problems(root, monkeypatch):
     has_sbatch(monkeypatch, False)
     started = []
-    monkeypatch.setattr(slurm, "start", lambda *a, **k: started.append(a))
+    monkeypatch.setattr(slurm, "submit", lambda *a, **k: started.append(a))
     target = targets.SlurmTarget("taltech", CLUSTER)
 
     with pytest.raises(targets.TargetError, match="cannot start on taltech: sbatch"):
@@ -1062,7 +1062,7 @@ def test_stop_command(populated, capsys):
 def test_stop_on_slurm_says_cancelled(root, capsys, monkeypatch):
     write(root / "x" / "a" / "status.json", {"state": "queued"})
     monkeypatch.setattr(
-        slurm, "stop", lambda *a: {"cancelled": ["7"], "stopped": ["a"]}
+        slurm, "cancel", lambda *a: {"cancelled": ["7"], "stopped": ["a"]}
     )
     has_sbatch(monkeypatch, True)
     code, out, _ = run_cli(capsys, "stop", "x", "--target", "taltech")
@@ -1182,7 +1182,7 @@ def test_status_json_is_the_only_output_of_a_real_process(populated):
 
 
 def test_start_stop_and_sync_json_are_the_only_output(populated, capsys, monkeypatch):
-    monkeypatch.setattr(targets.LocalTarget, "_start", lambda *a: "smoke--test")
+    monkeypatch.setattr(targets.LocalTarget, "_launch", lambda *a: "smoke--test")
     code, out, err = run_cli(capsys, "start", "x.json", "--json")
     assert (code, err) == (0, "")
     assert json.loads(out) == {
@@ -1227,7 +1227,9 @@ def remote_cli(tmp_path, monkeypatch):
 
 def test_cli_start_through_a_remote_target(remote_cli, tmp_path, capsys, monkeypatch):
     target, fake = remote_cli
-    monkeypatch.setattr(targets.RemoteTarget, "_start", lambda self, spec, profile: "s")
+    monkeypatch.setattr(
+        targets.RemoteTarget, "_launch", lambda self, spec, profile: "s"
+    )
     monkeypatch.setattr(targets, "_spec_problems", lambda spec, profile: [])
     monkeypatch.setattr(
         targets, "_git", lambda *args: COMMIT if args[0] == "rev-parse" else ""

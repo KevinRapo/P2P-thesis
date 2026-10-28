@@ -35,10 +35,37 @@ class ResultsService:
         self._lock = threading.Lock()
 
     # --- The runs --------------------------------------------------------------------
-    def refresh(self) -> None:
-        """Read the run folders again on the next call (new runs, a new sync)."""
+    def refresh(self, experiments: Optional[list[tuple[str, str]]] = None) -> None:
+        """Read the run folders again: all on the next call (new runs, a new sync),
+        or now only those of ``experiments`` (``(target, experiment)`` pairs: what a
+        live refresh followed), keeping every other run as it was read."""
         with self._lock:
-            self._runs = None
+            if experiments is None or self._runs is None:
+                self._runs = None
+                return
+
+            wanted = set(experiments)
+            fresh = results.load_runs(results.find_runs(self._where, list(wanted)))
+            kept = {
+                key: r
+                for key, r in self._runs.items()
+                if (r.ref.target, r.ref.experiment) not in wanted
+            }
+            order = {target: i for i, target in enumerate(self._sources())}
+            merged = kept | {r.key: r for r in fresh}
+            self._runs = dict(
+                sorted(
+                    merged.items(),
+                    key=lambda item: (
+                        order.get(item[1].ref.target, len(order)),
+                        item[1].ref.experiment,
+                        item[1].ref.run,
+                    ),
+                )
+            )
+
+    def _sources(self) -> dict[str, Path]:
+        return self._where or results.sources()
 
     def _all(self) -> dict[str, RunResult]:
         with self._lock:

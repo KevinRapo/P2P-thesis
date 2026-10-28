@@ -7,8 +7,9 @@ it produces is under ``runs/<experiment>/`` and survives closing the terminal,
 the Studio or the Claude session.
 
     spec.py       ``Experiment``: the JSON file, validated, expanded to ``RunSpec``s
-    launch.py     ``start`` (detached worker), ``prepare``, ``work``, ``job``, ``stop``
-    slurm.py      the same runs as a SLURM job array (``slurm.start``, ``slurm.stop``,
+    launch.py     ``start_worker`` (detached worker), ``prepare``, ``work``, ``job``,
+                  ``stop_worker``
+    slurm.py      the same runs as a SLURM job array (``slurm.submit``, ``slurm.cancel``,
                   ``slurm.states``); import it where it is used, it loads submitit
     registry.py   read-only view of ``runs/``: ``experiments``, ``runs``, ``RunState``
     targets.py    where an experiment runs (``hpc/targets.toml``): ``targets.get``
@@ -18,7 +19,7 @@ the Studio or the Claude session.
 """
 
 from core.runner import targets
-from core.runner.launch import job, prepare, start, stop, work
+from core.runner.launch import job, prepare, start_worker, stop_worker, work
 from core.runner.registry import RunState, experiments, runs, summary
 from core.runner.spec import Experiment, RunSpec, SpecError
 from core.runner.targets import Target
@@ -33,8 +34,8 @@ __all__ = [
     "job",
     "prepare",
     "runs",
-    "start",
-    "stop",
+    "start_worker",
+    "stop_worker",
     "summary",
     "targets",
     "work",

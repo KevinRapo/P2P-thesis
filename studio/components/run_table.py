@@ -71,6 +71,8 @@ class RunTable:
         storage_key: ``app.storage.user`` key of the *Show test runs* switch.
         columns: ``(field, label)`` of the overview to show.
         read: The overview to show (default ``service.overview``).
+        kind: Only runs of this kind (``results.run_kind``: ``"market"`` or
+            ``"probe"``), and those whose kind nothing says yet; all without.
     """
 
     def __init__(
@@ -80,12 +82,14 @@ class RunTable:
         storage_key: str,
         columns: list[tuple[str, str]] = RUN_COLUMNS,
         read: Optional[Callable[[], pd.DataFrame]] = None,
+        kind: Optional[str] = None,
     ) -> None:
         self.service = service
         self.on_change = on_change
         self.storage_key = storage_key
         self.columns = columns
         self.read = read or service.overview
+        self.kind = kind
         self.overview = pd.DataFrame()
         self.selected: list[str] = []
 
@@ -148,11 +152,17 @@ class RunTable:
         await self._selected()
 
     def _offered(self) -> pd.DataFrame:
-        """Every run that can be ticked: all, or all but the test runs."""
+        """Every run that can be ticked: those of the table's kind (all without),
+        all of them or all but the test runs."""
         table = self.overview
-        if table.empty or self.show_tests.value:
+
+        if table.empty:
             return table
-        return table[~table.test]
+
+        if self.kind and "kind" in table:
+            table = table[(table.kind == self.kind) | table.kind.isna()]
+
+        return table if self.show_tests.value else table[~table.test]
 
     def visible(self) -> pd.DataFrame:
         """The runs the table shows: those offered, narrowed to the chosen

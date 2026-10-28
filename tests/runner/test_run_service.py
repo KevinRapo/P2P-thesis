@@ -116,14 +116,14 @@ def test_overview_of_this_pc_has_the_runs_newest_first(runs_root):
     os.utime(runs_root / "old", (1_000_000, 1_000_000))  # older than `new`
     (runs_root / "new" / "experiment.json").write_text('{"description": "hi"}')
 
-    found = RunService().overview("local")
+    found = RunService().experiments("local")
     assert [e["name"] for e in found] == ["new", "old"]
     assert found[0]["spec"] == {"description": "hi"} and found[1]["spec"] is None
     assert found[0]["summary"]["counts"] == {"queued": 1, "stopped": 1}
     runs = found[0]["runs"]
     assert all(isinstance(r, RunState) for r in runs)
     assert [(r.name, r.state) for r in runs] == [("a", "stopped"), ("b", "queued")]
-    folder, copied = RunService().sync("local", "new")
+    folder, copied = RunService().sync_experiment("local", "new")
     assert (folder, copied) == (runs_root / "new", 0)  # the files are here already
 
 
@@ -135,20 +135,23 @@ def test_stop_marks_queued_runs_stopped(runs_root):
     service = RunService()
 
     def states():
-        (entry,) = service.overview("local")
+        (entry,) = service.experiments("local")
         return [r.state for r in entry["runs"]]
 
-    assert service.stop("local", "x", "a") == {"killed": [], "stopped": ["a"]}
+    assert service.stop_experiment("local", "x", "a") == {
+        "killed": [],
+        "stopped": ["a"],
+    }
     assert states() == ["stopped", "queued"]
-    assert service.stop("local", "x")["stopped"] == ["b"]
+    assert service.stop_experiment("local", "x")["stopped"] == ["b"]
     assert set(states()) == {"stopped"}
 
     with pytest.raises(FileNotFoundError):
-        service.stop("local", "missing")
+        service.stop_experiment("local", "missing")
 
 
 def test_this_pc_is_always_ready():
-    report = RunService().check("local", "config/experiments/smoke.json")
+    report = RunService().check_target("local", "config/experiments/smoke.json")
     assert report["ok"] and report["problems"] == []
 
 
@@ -194,27 +197,35 @@ def test_overview_is_the_targets_newest_first(fakes):
     old = {"name": "old", "modified": 1.0, "runs": [], "spec": None}
     new = {"name": "new", "modified": 9.0, "runs": [], "spec": {"description": "d"}}
     fakes["taltech"].entries = [old, new]
-    assert RunService().overview("taltech") == [new, old]
+    assert RunService().experiments("taltech") == [new, old]
     assert fakes["taltech"].calls == [("overview",)]
     assert fakes["local"].calls == []
 
 
 def test_fit_problems_go_to_the_target_with_the_nodes_of_its_check(fakes):
     service = RunService()
-    assert service.fit_problems("taltech", "experiments/x.json", {}) == ["no node"]
+    assert service.check_fit("taltech", "experiments/x.json", {}) == ["no node"]
     assert fakes["taltech"].calls == [("fit_problems", "experiments/x.json", {})]
 
 
 def test_check_start_stop_and_sync_go_to_the_target_asked(fakes):
     service = RunService()
-    assert service.check("taltech") == {"target": "taltech", "ok": True}
-    service.check("taltech", "experiments/x.json")
-    assert service.start("taltech", "experiments/x.json", "test") == "x--test"
-    assert service.start("local", Path("experiments/x.json")) == "x"
-    assert service.stop("taltech", "x", "a") == {"cancelled": ["7"], "stopped": ["a"]}
-    assert service.stop("taltech", "x")["stopped"] == ["a"]
-    assert service.sync("taltech", "x") == (Path("mirror") / "x", 3)
-    assert service.sync("local", "x") == (Path("mirror") / "x", 0)  # nothing copied
+    assert service.check_target("taltech") == {"target": "taltech", "ok": True}
+    service.check_target("taltech", "experiments/x.json")
+    assert (
+        service.start_experiment("taltech", "experiments/x.json", "test") == "x--test"
+    )
+    assert service.start_experiment("local", Path("experiments/x.json")) == "x"
+    assert service.stop_experiment("taltech", "x", "a") == {
+        "cancelled": ["7"],
+        "stopped": ["a"],
+    }
+    assert service.stop_experiment("taltech", "x")["stopped"] == ["a"]
+    assert service.sync_experiment("taltech", "x") == (Path("mirror") / "x", 3)
+    assert service.sync_experiment("local", "x") == (
+        Path("mirror") / "x",
+        0,
+    )  # nothing copied
     assert fakes["taltech"].calls == [
         ("check", None),
         ("check", "experiments/x.json"),
@@ -289,8 +300,11 @@ def test_a_spec_that_does_not_load_says_why(tmp_path):
 def test_start_new_and_restart_go_to_the_target_asked(fakes):
     service = RunService()
     experiment = Experiment.load(REPO / "config" / "experiments" / "smoke.json")
-    assert service.start_new("taltech", experiment, "test") == "x-20261018-120000"
-    assert service.restart("local", "x") == "x"
+    assert (
+        service.start_new_experiment("taltech", experiment, "test")
+        == "x-20261018-120000"
+    )
+    assert service.restart_experiment("local", "x") == "x"
     assert fakes["taltech"].calls == [("start_new", experiment, "test")]
     assert fakes["local"].calls == [("restart", "x")]
 

@@ -34,6 +34,23 @@ def test_runs_are_read_once_until_refresh(where):  # noqa: F811
     assert len(service.results()) == 5
 
 
+def test_a_narrow_refresh_reads_only_the_experiments_named(where):  # noqa: F811
+    service = ResultsService(where)
+    before = {r.key: r for r in service.results()}
+    make_run(where["local"] / "grid", "ppo_dtde_s2", 2, [-1, -1])
+    make_run(where["local"] / "fresh", "ppo_dtde_s0", 0, [-1, -1])  # new here
+    make_run(where["cluster"] / "grid", "ppo_dtde_s1_v1", 1, [-2, -2])  # not named
+    service.refresh([("local", "grid"), ("local", "fresh")])
+    after = {r.key: r for r in service.results()}
+
+    assert "local/grid/ppo_dtde_s2" in after and "local/fresh/ppo_dtde_s0" in after
+    assert "cluster/grid/ppo_dtde_s1_v1" not in after  # not asked for: not read
+    assert after["local/old/sac_ctce_s3"] is before["local/old/sac_ctce_s3"]  # kept
+    assert after["local/grid/ppo_dtde_s0"] is not before["local/grid/ppo_dtde_s0"]
+    full = ResultsService(where)
+    assert [k for k in full.overview().key if k in after] == list(after)  # same order
+
+
 # --------------------------------------------------------------------------------------
 # What the Results page shows (its helpers, without a browser)
 # --------------------------------------------------------------------------------------

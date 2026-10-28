@@ -48,7 +48,7 @@ import pandas as pd
 
 from core.runner import registry
 from core.runner.registry import RunState
-from core.runner.spec import REPO, runs_root
+from core.runner.spec import MARKET_ENVS, REPO, runs_root
 
 LOCAL = "local"
 BASELINES = ("zero", "net_position")
@@ -104,16 +104,26 @@ def sources() -> dict[str, Path]:
     return found
 
 
-def find_runs(where: Optional[dict[str, Path]] = None) -> list[RunRef]:
+def find_runs(
+    where: Optional[dict[str, Path]] = None,
+    experiments: Optional[Sequence[tuple[str, str]]] = None,
+) -> list[RunRef]:
     """Every run folder of every source (default ``sources()``), by target,
-    experiment and run name. A mirror inside the runs root is not read twice."""
+    experiment and run name; with ``experiments`` (``(target, experiment)`` pairs)
+    only theirs. A mirror inside the runs root is not read twice."""
     where = where or sources()
     mirrors = {Path(p).resolve() for t, p in where.items() if t != LOCAL}
     found = []
 
     for target, root in where.items():
         root = Path(root)
-        for experiment in registry.experiments(root):
+
+        if experiments is None:
+            names = registry.experiments(root)
+        else:
+            names = [e for t, e in experiments if t == target and (root / e).is_dir()]
+
+        for experiment in names:
             folder = root / experiment
             if folder.resolve() in mirrors and target == LOCAL:
                 continue
@@ -133,8 +143,8 @@ class RunResult:
 
     Attributes:
         ref: Where it is.
-        settings: What it was, as saved: ``algorithm``, ``paradigm``, ``seed``,
-            ``variant``, ``test`` (a test-profile run), ``scenario`` (its contents,
+        settings: What it was, as saved: ``kind`` (``run_kind``), ``algorithm``,
+            ``paradigm``, ``seed``, ``variant``, ``test`` (a test-profile run), ``scenario`` (its contents,
             or its file name in older runs), ``train_days`` and ``test_days`` (every
             day), ``budget``, ``overrides`` (the training settings it ran with),
             ``grad_clip`` (the effective gradient clip), ``kl_logged`` (whether the
@@ -212,6 +222,7 @@ def load_run(ref: RunRef) -> RunResult:
 
     git = record.get("git") or {}
     settings = {
+        "kind": run_kind(record.get("env_class") or spec.get("env")),
         "algorithm": record.get("algorithm", name["algorithm"] if name else None),
         "paradigm": record.get("paradigm", name["paradigm"] if name else None),
         "seed": seed,
@@ -233,6 +244,19 @@ def load_run(ref: RunRef) -> RunResult:
     }
 
     return RunResult(ref, settings, registry.run_state(ref.folder))
+
+
+def run_kind(env: Optional[str]) -> Optional[str]:
+    """What a run trained on, from its environment (``run.json``'s ``env_class``,
+    else its experiment's ``env``): ``"market"``, ``"probe"`` (an RL probe of
+    ``core/rl/envs/probes.py``), ``"other"``, or None when nothing says yet."""
+    if not env:
+        return None
+
+    if env in MARKET_ENVS:
+        return "market"
+
+    return "probe" if env.startswith("core.rl.envs.probes:") else "other"
 
 
 def load_runs(refs: Sequence[RunRef]) -> list[RunResult]:
@@ -277,6 +301,7 @@ def overview(results: Sequence[RunResult]) -> pd.DataFrame:
     for result in results:
         state = result.state
         row = _head(result) | {
+            "kind": result.settings["kind"],
             "test": result.settings["test"],
             "state": state.state if state else None,
             "env_steps": state.env_steps if state else None,

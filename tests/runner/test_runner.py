@@ -670,17 +670,17 @@ def test_stop_marks_queued_and_running_runs_but_keeps_finished_ones(root):
     write(exp / "q" / "status.json", {"state": "queued"})
     write(exp / "r" / "status.json", {"state": "running"} | dead_pid())
     write(exp / "d" / "status.json", {"state": "completed"})
-    result = launch.stop("exp", "q", root=root)  # one run
+    result = launch.stop_worker("exp", "q", root=root)  # one run
     assert result == {"killed": [], "stopped": ["q"]}
     write(exp / "q" / "status.json", {"state": "queued"})
-    result = launch.stop("exp", root=root)  # the whole experiment
+    result = launch.stop_worker("exp", root=root)  # the whole experiment
     assert result["killed"] == []  # the recorded process is gone: nothing to kill
     assert sorted(result["stopped"]) == ["q", "r"]  # d is completed: left alone
     states = {s.name: s.state for s in registry.runs("exp", root)}
     assert states == {"q": "stopped", "r": "stopped", "d": "completed"}
 
     with pytest.raises(FileNotFoundError):
-        launch.stop("nope", root=root)
+        launch.stop_worker("nope", root=root)
 
 
 # --------------------------------------------------------------------------------------

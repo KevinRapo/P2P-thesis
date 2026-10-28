@@ -1,6 +1,6 @@
 """Start, run and stop experiments as detached processes.
 
-``start`` writes the experiment's folder (``prepare``) and spawns one detached
+``start_worker`` writes the experiment's folder (``prepare``) and spawns one detached
 *worker* that outlives the terminal, the Studio and the Claude session. The worker
 keeps up to ``max_parallel`` *job* processes running, one per run; a job trains a
 run and evaluates it on the test days. ``slurm.py`` reuses ``prepare`` and ``job``
@@ -23,7 +23,7 @@ to run the same runs as a SLURM job array. State lives in files only (see
                                          traced test days step by step
 
 Jobs are not killed when the worker dies: they run on to the end and write their
-own status, but nothing starts the queued runs behind them until ``start`` is run
+own status, but nothing starts the queued runs behind them until ``start_worker`` is run
 again, which skips completed (and still running) runs and re-queues the rest.
 """
 
@@ -124,7 +124,7 @@ def _self_process() -> dict:
 
 
 # --------------------------------------------------------------------------------------
-# start: the folder, the queue and the detached worker
+# start_worker: the folder, the queue and the detached worker
 # --------------------------------------------------------------------------------------
 def _spawn_detached(args: list[str], log: Path) -> subprocess.Popen:
     """A process that keeps running after the caller (and its terminal) is gone."""
@@ -209,7 +209,7 @@ def _refuse_changed_spec(experiment: Experiment, exp_dir: Path) -> None:
         )
 
 
-def start(
+def start_worker(
     spec: str | Path | Experiment, root: Optional[Path] = None, profile: str = "full"
 ) -> Path:
     """Queue an experiment and start its worker; returns at once.
@@ -443,7 +443,7 @@ def _heldout(
 
 
 # --------------------------------------------------------------------------------------
-# stop
+# stop_worker
 # --------------------------------------------------------------------------------------
 def _kill_tree(pid: Optional[int], create_time: Optional[float]) -> bool:
     """Kill a process and everything it started (Ray's processes), after checking
@@ -517,7 +517,7 @@ def mark_stopped(exp_dir: Path, run: Optional[str] = None, kill: bool = True) ->
     return {"killed": killed, "stopped": stopped}
 
 
-def stop(
+def stop_worker(
     experiment: str, run: Optional[str] = None, root: Optional[Path] = None
 ) -> dict:
     """Stop a whole experiment (worker, running jobs; queued runs become

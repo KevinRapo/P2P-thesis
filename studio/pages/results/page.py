@@ -14,9 +14,11 @@ reads the same). Only the open tab is built. With *Live* on, at once and then
 every 10 s, each cluster is asked which of its experiments have runs queued or
 running, and the mirror of each is brought up to date (``Target.follow``: only
 what training wrote since; an experiment new here appears in the table); the runs
-are read again (an unchanged file is not) and the open tab's charts redraw in
-place. A finished experiment not followed while it ran: Sync results on the Runs
-page.
+of those experiments and of this PC's running ones are read again, once more after
+they stop running (every other run stays as read; an unchanged file is not read),
+and the open tab's charts redraw in place. *Refresh* above the table reads every
+run again. A finished experiment not followed while it ran: Sync results on the
+Runs page.
 """
 
 from __future__ import annotations
@@ -61,9 +63,13 @@ class ResultsView:
         }
         self._drawn = 0  # the latest draw: an older one that finishes later stops
         self._ticking = False
+        # What the last live refresh read again: read once more after it stops
+        # running, so its last files (final status, held-out tables) arrive too
+        self._watched: set[tuple[str, str]] = set()
 
-        # The run table at the top, with a tick box per run
-        self.table = RunTable(service, self.show, SHOW_TESTS)
+        # The run table at the top, with a tick box per run: market runs only
+        # (the RL probes' are on their own page)
+        self.table = RunTable(service, self.show, SHOW_TESTS, kind="market")
 
         # Live row: switch | when it last read the runs
         with ui.row().classes("w-full items-center gap-3"):
@@ -127,8 +133,9 @@ class ResultsView:
 
         try:
             keys = list(self.table.selected)
-            followed = await self._follow()
-            self.service.refresh()
+            active = await self._follow()
+            self.service.refresh(sorted(active | self._watched))
+            self._watched = active
             await self.table.load()
             tab = self.tab
 
@@ -137,29 +144,33 @@ class ResultsView:
 
             self.note.set_text(
                 f"Read at {time.strftime('%H:%M:%S')}"
-                + (f" · following {', '.join(followed)}" if followed else "")
+                + (
+                    " · following " + ", ".join(f"{t}/{e}" for t, e in sorted(active))
+                    if active
+                    else ""
+                )
             )
         except Exception as error:  # noqa: BLE001  show it, try again next time
             self.note.set_text(f"Live refresh failed: {error}")
         finally:
             self._ticking = False
 
-    async def _follow(self) -> list[str]:
-        """Ask each cluster which experiments have runs queued or running, and
-        bring the mirror of each up to date (it appears here if it is new); returns
-        ``target/experiment`` of each."""
-        followed = []
+    async def _follow(self) -> set[tuple[str, str]]:
+        """The experiments with runs queued or running, ``(target, experiment)``:
+        on this PC those whose worker lives; on each cluster those it reports, each
+        mirror brought up to date (it appears here if it is new)."""
+        active = set()
 
         for target, _ in self.runs.target_names():
-            if target == LOCAL:
-                continue
-
-            for entry in await run.io_bound(self.runs.overview, target, 0):
+            for entry in await run.io_bound(self.runs.experiments, target, 0):
                 if any(r.state in ACTIVE for r in entry["runs"]):
-                    await run.io_bound(self.runs.follow, target, entry["name"])
-                    followed.append(f"{target}/{entry['name']}")
+                    if target != LOCAL:
+                        await run.io_bound(
+                            self.runs.follow_experiment, target, entry["name"]
+                        )
+                    active.add((target, entry["name"]))
 
-        return followed
+        return active
 
 
 def page() -> None:

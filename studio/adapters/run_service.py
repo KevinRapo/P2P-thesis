@@ -3,8 +3,11 @@
 A thin wrapper over ``core.runner``. An experiment runs on a **target** (``targets.py``,
 named in ``hpc/targets.toml``): this PC, or a cluster driven over SSH. The service holds
 one target object per name for the life of the Studio (a cluster's target keeps its SSH
-connection open) and passes the calls on: ``overview``, ``check``, ``start``,
-``start_new``, ``restart``, ``stop``, ``sync``. The start dialog edits an experiment
+connection open) and passes the calls on, each named for what it does to an
+experiment (``experiments``, ``check_target``, ``check_fit``,
+``start_experiment``, ``start_new_experiment``, ``restart_experiment``,
+``stop_experiment``, ``sync_experiment``, ``follow_experiment``) to the target's
+method of the plain verb (``Target.start`` and so on). The start dialog edits an experiment
 file's text; ``apply_preset`` rewrites the text as the test or the full experiment,
 ``quick_settings`` / ``apply_settings`` read and write the settings the dialog
 offers as fields (paradigms, seeds, budget, PPO, workers, cluster resources), and
@@ -118,7 +121,7 @@ class RunService:
             target.close()
 
     # --- On a target -----------------------------------------------------------------
-    def overview(self, target: str, recent: Optional[int] = None) -> list[dict]:
+    def experiments(self, target: str, recent: Optional[int] = None) -> list[dict]:
         """Every experiment of the target with its summary, runs and spec (see
         ``Target.overview``), the most recently changed first; with ``recent`` only
         the ``recent`` most recently changed and those still running."""
@@ -127,12 +130,12 @@ class RunService:
             entries, key=lambda entry: entry.get("modified", 0.0), reverse=True
         )
 
-    def check(self, target: str, spec: Optional[targets.Spec] = None) -> dict:
+    def check_target(self, target: str, spec: Optional[targets.Spec] = None) -> dict:
         """Whether the target is ready (with ``spec``, a file or an ``Experiment``: to
         start that experiment), as the report of ``Target.check``."""
         return self.target(target).check(spec)
 
-    def fit_problems(
+    def check_fit(
         self, target: str, spec: targets.Spec, nodes: Optional[dict]
     ) -> list[str]:
         """What the experiment asks that the target cannot give, on the ``nodes`` of
@@ -140,28 +143,36 @@ class RunService:
         every edit."""
         return self.target(target).fit_problems(spec, nodes)
 
-    def start(self, target: str, spec: targets.Spec, profile: str = "full") -> str:
+    def start_experiment(
+        self, target: str, spec: targets.Spec, profile: str = "full"
+    ) -> str:
         """Queue and start the experiment ``spec`` (a file or an ``Experiment``;
         ``profile`` ``"full"`` or ``"test"``); returns its name. It checks first and
         raises ``TargetError`` with the problems if the target is not ready."""
         return self.target(target).start(spec, profile)
 
-    def start_new(self, target: str, spec: targets.Spec, profile: str = "full") -> str:
+    def start_new_experiment(
+        self, target: str, spec: targets.Spec, profile: str = "full"
+    ) -> str:
         """Start ``spec`` as a new experiment (``Target.start_new``: a dated name if
         its name is taken there); returns the name it started under."""
         return self.target(target).start_new(spec, profile)
 
-    def restart(self, target: str, experiment: str) -> str:
+    def restart_experiment(self, target: str, experiment: str) -> str:
         """Start an experiment again from the inputs saved in its folder
         (``Target.restart``): its failed, stopped and lost runs train again."""
         return self.target(target).restart(experiment)
 
-    def stop(self, target: str, experiment: str, run: Optional[str] = None) -> dict:
+    def stop_experiment(
+        self, target: str, experiment: str, run: Optional[str] = None
+    ) -> dict:
         """Stop a whole experiment, or one run of it (see ``Target.stop``). Kills
         processes or cancels SLURM tasks, so it can take a few seconds."""
         return self.target(target).stop(experiment, run)
 
-    def sync(self, target: str, experiment: str) -> tuple[Optional[Path], int]:
+    def sync_experiment(
+        self, target: str, experiment: str
+    ) -> tuple[Optional[Path], int]:
         """Copy the experiment's results to this PC: ``(folder, files copied)``. On this
         PC the files are there already: 0 copied."""
         with self._syncing:
@@ -169,7 +180,7 @@ class RunService:
             folder = found.sync(experiment)
             return folder, found.copied or 0
 
-    def follow(self, target: str, experiment: str) -> int:
+    def follow_experiment(self, target: str, experiment: str) -> int:
         """Bring this PC's copy of a running experiment up to date with only what is
         new (``Target.follow``); returns the number of files that changed (0 on this
         PC, where the files are already)."""

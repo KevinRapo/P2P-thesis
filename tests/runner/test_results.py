@@ -244,6 +244,16 @@ def test_a_table_is_read_again_only_when_its_file_changed(where):
     assert run.table("missing") is None
 
 
+def test_a_run_is_a_market_run_a_probe_run_or_not_known_yet(where):
+    assert results.run_kind("market") == "market"
+    assert results.run_kind("core.env.market_env:MarketEnv") == "market"
+    assert results.run_kind("core.rl.envs.probes:ConstantProbe") == "probe"
+    assert results.run_kind("my.module:Env") == "other"
+    assert results.run_kind(None) is None
+    table = results.overview(results.load_runs(results.find_runs(where)))
+    assert table.kind.isna().all()  # these hand-written runs name no environment
+
+
 def test_participant_days(where):
     runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
     table = results.participant_days(runs["local/grid/ppo_dtde_s0"])

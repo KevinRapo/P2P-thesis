@@ -229,13 +229,13 @@ class ExperimentCard:
                     ui.button(
                         "Sync results",
                         icon="sync",
-                        on_click=lambda e: monitor.sync(name, e.sender),
+                        on_click=lambda e: monitor.on_sync(name, e.sender),
                     ).props("outline no-caps dense")
 
                 self.restart = ui.button(
                     "Restart failed runs",
                     icon="replay",
-                    on_click=lambda e: monitor.restart(name, e.sender),
+                    on_click=lambda e: monitor.on_restart(name, e.sender),
                 ).props("outline no-caps dense")
                 self.restart.tooltip(
                     "Train the failed, stopped and lost runs again, from scratch, "
@@ -244,7 +244,7 @@ class ExperimentCard:
                 self.stop = ui.button(
                     "Stop experiment",
                     icon="stop_circle",
-                    on_click=lambda: monitor.confirm_stop(name),
+                    on_click=lambda: monitor.on_stop_experiment(name),
                 ).props("outline no-caps dense color=negative")
 
             # The runs table; its state, progress and Stop cells are the HTML
@@ -262,7 +262,7 @@ class ExperimentCard:
             self.table.add_slot("body-cell-state", STATE_CELL)
             self.table.add_slot("body-cell-progress", PROGRESS_CELL)
             self.table.add_slot("body-cell-actions", ACTIONS_CELL)
-            self.table.on("stop", lambda e: monitor.stop_run(name, e.args))
+            self.table.on("stop", lambda e: monitor.on_stop_run(name, e.args))
 
     def update(self, entry: dict) -> None:
         """Show an entry of ``RunService.overview``."""
@@ -308,11 +308,13 @@ class ExperimentCard:
 # --------------------------------------------------------------------------------------
 # What ``check`` found
 # --------------------------------------------------------------------------------------
-async def _check(service: RunService, target: str, spec_path: Optional[str]) -> dict:
+async def _read_check(
+    service: RunService, target: str, spec_path: Optional[str]
+) -> dict:
     """``service.check`` in a worker thread. A target that cannot even be made
     (incomplete ``targets.toml``) is a report that is not ok, with the reason."""
     try:
-        return await run.io_bound(service.check, target, spec_path)
+        return await run.io_bound(service.check_target, target, spec_path)
     except (OSError, RuntimeError, ValueError) as error:
         return {
             "ok": False,
@@ -396,7 +398,7 @@ class RunsMonitor:
                 with ui.row().classes("w-full items-start gap-3 no-wrap"):
                     self.status = ui.column().classes("grow gap-1")
                     ui.button(
-                        "Check", icon="wifi_tethering", on_click=self.check
+                        "Check", icon="wifi_tethering", on_click=self.on_check
                     ).props("flat no-caps dense")
 
             # When the data was read | Refresh now | All experiments
@@ -424,7 +426,7 @@ class RunsMonitor:
         cluster the first time."""
         self.active = True
         if self.remote and not self._checked:
-            await asyncio.gather(self.check(), self.refresh())
+            await asyncio.gather(self.on_check(), self.refresh())
         else:
             await self.refresh()
 
@@ -440,7 +442,7 @@ class RunsMonitor:
 
         try:
             recent = None if self.all.value else RECENT
-            data = await run.io_bound(self.service.overview, self.target, recent)
+            data = await run.io_bound(self.service.experiments, self.target, recent)
         except (OSError, RuntimeError) as error:
             self._show_note(error)
             return
@@ -489,7 +491,7 @@ class RunsMonitor:
                     entry["name"], self, entry["spec"]
                 )
 
-    async def check(self) -> None:
+    async def on_check(self) -> None:
         """Ask the cluster whether it is ready and show the report."""
         self._checked = True
         self.status.clear()
@@ -497,19 +499,19 @@ class RunsMonitor:
         with self.status:
             ui.label(f"Checking {self.label} ...").classes("mls-card-caption")
 
-        report = await _check(self.service, self.target, None)
+        report = await _read_check(self.service, self.target, None)
         self.status.clear()
 
         with self.status:
             _show_report(report)
 
     # --- Syncing ---------------------------------------------------------------------
-    async def sync(self, experiment: str, button: ui.button) -> None:
+    async def on_sync(self, experiment: str, button: ui.button) -> None:
         """Copy the experiment's results from the cluster to this PC."""
         button.props("loading")
         try:
             folder, copied = await run.io_bound(
-                self.service.sync, self.target, experiment
+                self.service.sync_experiment, self.target, experiment
             )
         except (OSError, RuntimeError) as error:
             _fail(f"Could not sync {experiment}: {error}")
@@ -519,11 +521,11 @@ class RunsMonitor:
             button.props(remove="loading")
 
     # --- Restarting ------------------------------------------------------------------
-    async def restart(self, experiment: str, button: ui.button) -> None:
+    async def on_restart(self, experiment: str, button: ui.button) -> None:
         """Start the experiment again from the settings saved in its folder."""
         button.props("loading")
         try:
-            await run.io_bound(self.service.restart, self.target, experiment)
+            await run.io_bound(self.service.restart_experiment, self.target, experiment)
         except (OSError, RuntimeError, ValueError) as error:
             _fail(f"Could not restart {experiment}: {error}")
         else:
@@ -533,11 +535,11 @@ class RunsMonitor:
             button.props(remove="loading")
 
     # --- Stopping --------------------------------------------------------------------
-    async def stop_run(self, experiment: str, name: str) -> None:
+    async def on_stop_run(self, experiment: str, name: str) -> None:
         """Stop one run, at once."""
-        await self._stop(experiment, name, f"{experiment}/{name}")
+        await self._stop_and_report(experiment, name, f"{experiment}/{name}")
 
-    async def confirm_stop(self, experiment: str) -> None:
+    async def on_stop_experiment(self, experiment: str) -> None:
         """Ask first, then stop the worker and every run of the experiment."""
         what = (
             "Cancels every queued and running SLURM task of the experiment and marks "
@@ -569,14 +571,16 @@ class RunsMonitor:
         dialog.delete()
 
         if confirmed:
-            await self._stop(experiment, None, experiment)
+            await self._stop_and_report(experiment, None, experiment)
 
-    async def _stop(self, experiment: str, name: Optional[str], label: str) -> None:
+    async def _stop_and_report(
+        self, experiment: str, name: Optional[str], label: str
+    ) -> None:
         ui.notify(f"Stopping {label} ...")
 
         try:
             result = await run.io_bound(
-                self.service.stop, self.target, experiment, name
+                self.service.stop_experiment, self.target, experiment, name
             )
         except (OSError, RuntimeError) as error:
             _fail(f"Could not stop {label}: {error}")
@@ -665,7 +669,7 @@ class StartDialog:
 
         self.dialog.open()
         self._template_changed()
-        await self._check()
+        await self._on_check()
 
     def _build(self) -> None:
         """The fields, made again each time the dialog opens."""
@@ -713,7 +717,7 @@ class StartDialog:
             self.targets,
             label="Where to run",
             value=LOCAL,
-            on_change=self._check,
+            on_change=self._on_check,
         ).classes("w-full")
         # The cluster's check report (filled by _check)
         self.check_box = ui.column().classes("w-full gap-1")
@@ -722,7 +726,7 @@ class StartDialog:
         with ui.row().classes("w-full justify-end"):
             ui.button("Cancel", on_click=self.dialog.close).props("flat no-caps")
             self.start = ui.button(
-                "Start", icon="play_arrow", on_click=self._start
+                "Start", icon="play_arrow", on_click=self._on_start
             ).props("unelevated no-caps")
 
     def _build_quick(self) -> None:
@@ -852,7 +856,7 @@ class StartDialog:
 
         if experiment is not None and self.report is not None:
             nodes = self.report.get("nodes")
-            self.fit = self.service.fit_problems(self.target.value, experiment, nodes)
+            self.fit = self.service.check_fit(self.target.value, experiment, nodes)
 
         self._show_details()
         self._update_start()
@@ -893,7 +897,7 @@ class StartDialog:
                     )
 
     # --- Checking and starting -------------------------------------------------------
-    async def _check(self) -> None:
+    async def _on_check(self) -> None:
         """Check the chosen cluster (this PC needs no check) and show the report; the
         experiment itself is checked here on every edit. Start stays disabled until
         the report is ok."""
@@ -908,7 +912,7 @@ class StartDialog:
         with self.check_box:
             ui.label(f"Checking {self.targets[asked]} ...").classes("mls-card-caption")
 
-        report = await _check(self.service, asked, None)
+        report = await _read_check(self.service, asked, None)
 
         if asked != self.target.value:  # changed in the meantime
             return
@@ -918,7 +922,7 @@ class StartDialog:
 
         with self.check_box:
             _show_report(report)
-            ui.button("Check again", icon="refresh", on_click=self._check).props(
+            ui.button("Check again", icon="refresh", on_click=self._on_check).props(
                 "flat no-caps dense"
             )
 
@@ -933,7 +937,7 @@ class StartDialog:
         )
         self.start.set_enabled(ready and not self.starting)
 
-    async def _start(self) -> None:
+    async def _on_start(self) -> None:
         target, label = self.target.value, self.targets[self.target.value]
         experiment = self.record["experiment"]
         self.starting = True
@@ -941,12 +945,12 @@ class StartDialog:
 
         try:
             name = await run.io_bound(
-                self.service.start_new, target, experiment, "full"
+                self.service.start_new_experiment, target, experiment, "full"
             )
         except (OSError, RuntimeError, ValueError) as error:
             self.starting = False
             _fail(f"Could not start: {error}")
-            await self._check()  # what was true a moment ago may not be now
+            await self._on_check()  # what was true a moment ago may not be now
 
             return
 

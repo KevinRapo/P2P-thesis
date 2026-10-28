@@ -142,10 +142,10 @@ class Target(ABC):
             problems = "; ".join(report["problems"])
             raise TargetError(f"cannot start on {self.name}: {problems}")
 
-        return self._start(spec, profile)
+        return self._launch(spec, profile)
 
     @abstractmethod
-    def _start(self, spec: Spec, profile: str) -> str:
+    def _launch(self, spec: Spec, profile: str) -> str:
         """Queue and start, once ``check`` has passed."""
 
     def start_new(
@@ -297,11 +297,11 @@ class LocalTarget(DirectTarget):
     ) -> dict:
         return _report(self.name, [])
 
-    def _start(self, spec: Spec, profile: str) -> str:
-        return launch.start(spec, self.root, profile).name
+    def _launch(self, spec: Spec, profile: str) -> str:
+        return launch.start_worker(spec, self.root, profile).name
 
     def stop(self, experiment: str, run: Optional[str] = None) -> dict:
-        return launch.stop(experiment, run, self.root)
+        return launch.stop_worker(experiment, run, self.root)
 
 
 class SlurmTarget(DirectTarget):
@@ -401,10 +401,10 @@ class SlurmTarget(DirectTarget):
     ) -> list[str]:
         return _slurm_fit(self.name, self.settings, spec, nodes, profile)
 
-    def _start(self, spec: Spec, profile: str) -> str:
+    def _launch(self, spec: Spec, profile: str) -> str:
         from core.runner import slurm
 
-        exp_dir = slurm.start(
+        exp_dir = slurm.submit(
             spec,
             account=self._setting("account"),
             partitions=self._setting("partitions"),
@@ -416,7 +416,7 @@ class SlurmTarget(DirectTarget):
     def stop(self, experiment: str, run: Optional[str] = None) -> dict:
         from core.runner import slurm
 
-        return slurm.stop(experiment, run, self.root)
+        return slurm.cancel(experiment, run, self.root)
 
 
 def _spec_problems(spec: Spec, profile: str = "full") -> list[str]:
@@ -615,7 +615,7 @@ class RemoteTarget(Target):
         return _slurm_fit(self.name, self.settings, spec, nodes, profile)
 
     # --- Start and stop ---------------------------------------------------------------
-    def _start(self, spec: Spec, profile: str) -> str:
+    def _launch(self, spec: Spec, profile: str) -> str:
         experiment = resolve(spec, profile)  # the cluster starts it as it is
         answer = self.remote.runner(
             "start",
