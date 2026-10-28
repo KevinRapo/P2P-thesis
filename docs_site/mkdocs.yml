@@ -154,7 +154,7 @@ nav:
           - Probes:
               - How the probes work: rl/probes.md
           - RL helpers:
-              - Training cycle (3 × 3): rl/training.md
+              - Training cycle (PPO × 3): rl/training.md
               - One iteration, step by step: rl/cycle.md
               - Worked examples (our code): rl/examples.md
       - SimBench:

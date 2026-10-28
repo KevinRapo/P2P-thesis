@@ -27,8 +27,12 @@ SERVED = {".md", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".gif"}
 # "md-ellipsis" too: the table of contents and navigation repeat a heading's text, its
 # \(...\) math included, in md-ellipsis spans without the arithmatex class. MathJax
 # only looks inside elements whose own class matches, so the span is named directly.
+# The color package is loaded at start-up: left to MathJax's autoload, \color and
+# \textcolor came out undefined on the site (docs/rl/ marks our terms with them).
 MATHJAX = """window.MathJax = {
-  tex: {inlineMath: [["\\\\(", "\\\\)"]], displayMath: [["\\\\[", "\\\\]"]],
+  loader: {load: ["[tex]/color"]},
+  tex: {packages: {"[+]": ["color"]},
+        inlineMath: [["\\\\(", "\\\\)"]], displayMath: [["\\\\[", "\\\\]"]],
         processEscapes: true, processEnvironments: true},
   options: {ignoreHtmlClass: ".*|", processHtmlClass: "arithmatex|md-ellipsis"}
 };

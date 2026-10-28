@@ -376,7 +376,7 @@ class MarketEnv(MultiAgentEnv):
 
         for pid in self.agents_id:
             o = record.participants[pid]
-            bill = o.profit - record.inputs.utility_price * o.deferred_demand_kwh
+            bill = o.profit - record.inputs.utility_price * o.deferred_demand_kwh #! Reward calc
             rewards[pid] = bill / self.reward_scale
             order = orders.get(pid)
             battery = self.market.participants[pid].battery

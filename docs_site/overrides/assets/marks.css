@@ -32,3 +32,40 @@ mark.open,
 .md-typeset mark.open {
   background-color: #ffc9c9;
 }
+
+/* Ours: what this implementation adds to or changes in RLlib's PPO (the RL helper
+   pages, docs/rl/). Usage: <span class="ours">text</span> inline, an admonition
+   `!!! ours "Title"` for a block, \textcolor{mediumpurple}{...} in a formula (no "#" and no [model]: both broke on the site; hooks.py loads the color package), and
+   `classDef ours` in a mermaid diagram (fill #ede9fe, stroke #7c3aed). */
+
+:root {
+  --ours: #7c3aed;
+  --ours-bg: rgba(139, 92, 246, 0.12);
+}
+
+[data-md-color-scheme="slate"] {
+  --ours: #b197fc;
+}
+
+span.ours,
+.md-typeset span.ours {
+  color: var(--ours);
+  font-weight: 600;
+}
+
+.md-typeset .admonition.ours,
+.md-typeset details.ours {
+  border-color: var(--ours);
+}
+
+.md-typeset .ours > .admonition-title,
+.md-typeset .ours > summary {
+  background-color: var(--ours-bg);
+}
+
+.md-typeset .ours > .admonition-title::before,
+.md-typeset .ours > summary::before {
+  background-color: var(--ours);
+  -webkit-mask-image: var(--md-admonition-icon--note);
+  mask-image: var(--md-admonition-icon--note);
+}
