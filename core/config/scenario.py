@@ -7,7 +7,9 @@ market rules and the DSO. Plain data, edited by the Studio pages and read by the
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Mapping, Optional
 
 
@@ -164,27 +166,50 @@ class MarketSetup:
 # --------------------------------------------------------------------------------------
 # Time-of-use tariffs
 # --------------------------------------------------------------------------------------
-# A synthetic time-of-use utility price, per kWh in the scenario's money unit: off
-# peak at night, a day price and an evening peak; [start hour, price] pairs, each
-# price until the next start. Not measured data: a simple shape that makes energy
-# worth more at some hours than at others (decided 26 Oct 2026).
-TOU_UTILITY = [[0.0, 0.20], [7.0, 0.30], [17.0, 0.40], [22.0, 0.20]]
+# The price files: JSON with a ``utility`` and a ``feed_in`` series, one price per
+# market step of the day from 00:00, per kWh in the scenario's money unit.
+PRICES_DIR = Path(__file__).resolve().parents[2] / "config" / "data"
 
 
-def price_at(flat: float, schedule: Optional[list], hour: float) -> float:
-    """The price at ``hour`` (0-24, wrapping): the schedule's last ``[start,
-    price]`` that has started, or ``flat`` without a schedule."""
-    if not schedule:
+def price_files() -> list[str]:
+    """The names of the price files in ``config/data/``."""
+    return sorted(path.stem for path in PRICES_DIR.glob("*.json"))
+
+
+def read_prices(name: str) -> dict:
+    """The contents of the price file ``name``."""
+    return json.loads((PRICES_DIR / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def load_prices(prices: Optional[str | dict], step_hours: float) -> dict:
+    """The ``utility`` and ``feed_in`` series of ``prices``: the name of a file in
+    ``config/data/``, the series themselves, or ``None`` (both ``None``: flat).
+    Each series must have one price per market step of ``step_hours`` hours."""
+    if prices is None:
+        return {"utility": None, "feed_in": None}
+
+    if isinstance(prices, str):
+        prices = read_prices(prices)
+
+    steps = round(24 / step_hours)
+
+    for name in ("utility", "feed_in"):
+        if len(prices[name]) != steps:
+            raise ValueError(
+                f"The {name} series has {len(prices[name])} prices, but a day has "
+                f"{steps} steps of {step_hours} h"
+            )
+
+    return prices
+
+
+def price_at(flat: float, series: Optional[list], hour: float) -> float:
+    """The price at ``hour`` (0-24, wrapping): the price of the series' step that
+    holds that hour, or ``flat`` without a series."""
+    if series is None:
         return float(flat)
 
-    hour = hour % 24
-    price = float(sorted(schedule)[-1][1])  # before the first start: the last one
-
-    for start, value in sorted(schedule):
-        if start <= hour:
-            price = float(value)
-
-    return price
+    return float(series[int((hour % 24) * len(series) / 24)])
 
 
 @dataclass
@@ -195,14 +220,12 @@ class DsoSetup:
 
     Attributes:
         feed_in_tariff: p_FiT, what the DSO pays per kWh it buys (all day, unless
-            ``feed_in_schedule`` is given).
+            ``prices`` is given).
         utility_price: p_utility, what the DSO charges per kWh it sells (all day,
-            unless ``utility_schedule`` is given).
-        utility_schedule: A time-of-use p_utility: ``[start hour, price]`` pairs,
-            each price until the next start (``TOU_UTILITY`` is a synthetic one);
-            ``None``: the flat ``utility_price``. [P1] §3.4.4 lets the tariffs
-            change per step.
-        feed_in_schedule: The same for p_FiT; ``None``: the flat ``feed_in_tariff``.
+            unless ``prices`` is given).
+        prices: p_utility and p_FiT per market step of the day: the name of a file
+            in ``config/data/``, or the series themselves (``load_prices``);
+            ``None``: the flat tariffs. [P1] §3.4.4 lets the tariffs change per step.
         fees_charged: Whether the fees are paid (always calculated and recorded).
         fee_buyer_share: Share of a peer-to-peer trade's fee the buyer pays; the
             seller pays the rest. A trade with the DSO is paid by the participant.
@@ -222,8 +245,7 @@ class DsoSetup:
 
     feed_in_tariff: float = 0.08
     utility_price: float = 0.30
-    utility_schedule: Optional[list] = None
-    feed_in_schedule: Optional[list] = None
+    prices: Optional[str | dict] = None
     fees_charged: bool = True
     fee_buyer_share: float = 0.5
     loss_factor: float = 0.03
@@ -237,17 +259,24 @@ class DsoSetup:
     zone_factor: float = 0.15
     voltage_drop: str = "distance"
 
-    def problems(self) -> list[str]:
+    def problems(self, step_hours: float) -> list[str]:
         """Tariffs that break p_FiT < p_P2P < p_utility ([P1] §3.3.2), so peers
-        gain nothing by trading with each other, and fee settings out of range."""
+        gain nothing by trading with each other, prices that do not fit the market
+        step of ``step_hours`` hours, and fee settings out of range."""
         found = []
 
-        for hour in range(24):
-            fit = price_at(self.feed_in_tariff, self.feed_in_schedule, hour)
-            utility = price_at(self.utility_price, self.utility_schedule, hour)
+        try:
+            prices = load_prices(self.prices, step_hours)
+        except (OSError, ValueError, KeyError) as error:
+            return [f"The prices cannot be read: {error}"]
+
+        for step in range(round(24 / step_hours)):
+            hour = step * step_hours
+            fit = price_at(self.feed_in_tariff, prices["feed_in"], hour)
+            utility = price_at(self.utility_price, prices["utility"], hour)
             if fit >= utility:
                 found.append(
-                    f"Feed-in tariff is not below the utility price at {hour}:00: "
+                    f"Feed-in tariff is not below the utility price at {hour:g} h: "
                     "no gain from peers."
                 )
                 break
@@ -305,4 +334,8 @@ class Scenario:
                         "battery: the storage unit would disappear."
                     )
 
-        return found + self.market.problems() + self.dso.problems()
+        return (
+            found
+            + self.market.problems()
+            + self.dso.problems(self.grid.step_hours)
+        )

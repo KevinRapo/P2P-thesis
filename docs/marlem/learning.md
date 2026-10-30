@@ -136,7 +136,7 @@ bought and sold in step $t$.
 computed in
 [matching.py L447-L502](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L447-L502)
 and
-[dso.py L266-L269](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L266-L269))
+[dso.py L266-L269](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L268-L271))
 
 | # | Signal | Definition in the original code |
 |---|---|---|

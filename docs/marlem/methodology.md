@@ -209,7 +209,7 @@ $F_{\text{trans}}$ is named in (8), described as a charge for "usage per unit of
 ??? note "Not in [P1]: the original code"
 
     `DSOAgent.calculate_fees`
-    ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L274-L345))
+    ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L276-L347))
     computes eq. 8 for every peer trade in stage 2, with these values:
 
     | Factor | In the code |
@@ -246,7 +246,7 @@ $F_{\text{trans}}$ is named in (8), described as a charge for "usage per unit of
     So, against eq. 8:
 
     - $F_{\text{trans}}$ is 0, although the distance is computed on the line above it
-      ([dso.py L297, L318](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L291-L314)).
+      ([dso.py L297, L318](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L293-L316)).
     - $V_{\text{threshold}}$ is used as a gate, not the cap of eq. 8c, and the cap is
       0.2.
     - $F_{\text{imb}}$ is always 0, because the fee is only computed for peer trades.
@@ -502,15 +502,15 @@ Needed to implement the market but not defined in [P1]:
 
     | Point | In the code |
     |---|---|
-    | $F_{\text{trans}}$ | Always 0; the distance is computed but unused ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L274-L345)) |
+    | $F_{\text{trans}}$ | Always 0; the distance is computed but unused ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L276-L347)) |
     | $f_{\text{threshold}}$ (8d) | A cap: $F_{\text{thermal}} = \min(0.3,\ f_{\text{thermal}})\, q_{ij}\, p_{ij}$ |
-    | Fee factors $f_{\ast}$ | $f_{\text{cong}} = 0.5$, $f_{\text{volt}} = 0.15$, $f_{\text{zone}} = 0.15$, $f_{\text{imb}} = 0.15$; a `distance_factor = 0.35` is defined but never used ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L63-L74)) |
+    | Fee factors $f_{\ast}$ | $f_{\text{cong}} = 0.5$, $f_{\text{volt}} = 0.15$, $f_{\text{zone}} = 0.15$, $f_{\text{imb}} = 0.15$; a `distance_factor = 0.35` is defined but never used ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L64-L75)) |
     | Reputation weights | $w_{\text{rel}} = 0.3$, $w_{\text{fair}} = 0.2$, $w_{\text{grid}} = 0.5$ ([reputation.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py#L24-L26)) |
     | Decay factor | The time of day: $r_i \leftarrow \tau_t\, r_i + (1 - \tau_t)\, r_i^{\text{new}}$, $\tau_t = (t \bmod T)/T$ ([reputation.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/reputation.py#L87)) |
     | Loss factor $\kappa$ | 0.03 per unit of graph distance, a default argument no caller changes ([network.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L331-L348)) |
     | Edge capacity | The grid capacity $C$ shared in inverse proportion to edge length: $C_e = C \cdot \dfrac{1/d_e}{\sum_{e'} 1/d_{e'}}$ ([network.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L67-L79)) |
     | Edge flows per period | Never reset. Each edge starts at a random $U(0, 0.3) \cdot C_e$, every trade on its path adds its quantity, and the flow is capped at $C_e$ ([network.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L85), [L325](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L325)) |
-    | Capacity-violation policy | "Disallowed", in two different checks. Stage 1 (`validate_grid_constraints`) rejects a pair if $\lvert B_{\text{DSO}} + q \rvert$ exceeds the grid capacity or the path congestion exceeds 0.8 ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L347-L392)). Stage 2 skips a match while $\lvert B \rvert > q_{\max} \cdot N$ ([matching.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L158), [L299](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L299)). Trades with the DSO are never checked. Nothing is penalised |
+    | Capacity-violation policy | "Disallowed", in two different checks. Stage 1 (`validate_grid_constraints`) rejects a pair if $\lvert B_{\text{DSO}} + q \rvert$ exceeds the grid capacity or the path congestion exceeds 0.8 ([dso.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L349-L394)). Stage 2 skips a match while $\lvert B \rvert > q_{\max} \cdot N$ ([matching.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L158), [L299](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L299)). Trades with the DSO are never checked. Nothing is penalised |
     | Battery rate limits | None. A charge or discharge is limited only by the room to $SoC_{\max}$ or $SoC_{\min}$ ([battery.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/battery.py#L131-L182)) |
     | Bid-ask spread mechanism | $p_{ij} = p_{\text{sell}} + \phi\,(p_{\text{buy}} - p_{\text{sell}})$ with $\phi$ clipped to [0, 1], default 0.5 (the midpoint) ([mechanism.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/mechanism.py#L87-L111)). The matcher passes the market price as $\phi$, so with prices above 1 it returns $p_{\text{buy}}$ |
 

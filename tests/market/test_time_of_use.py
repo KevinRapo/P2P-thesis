@@ -1,59 +1,46 @@
-"""Time-of-use tariffs (``core/config/scenario.py`` ``price_at``, ``Dso.set_hour``):
-the step's tariffs reach the DSO's trades, the market's inputs, the RL agents'
-price action and their reward; flat tariffs stay as they were."""
+"""Tariffs from the price files (``config/data/``): a series must fit the market step,
+and the step's tariffs reach the market's inputs, the RL agents' price action and
+their reward."""
 
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from core.config import store
-from core.config.scenario import TOU_UTILITY, price_at
+from core.config.scenario import load_prices, price_at
 from core.env.market_env import MarketEnv, zero_policy
-from core.market.dso import Dso
+from core.market.lem import LocalEnergyMarket
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
+TOU_UTILITY = load_prices("synthetic_day", 1.0)["utility"]
 
 
-def test_price_at_follows_the_schedule_and_wraps():
-    assert [price_at(0.3, TOU_UTILITY, h) for h in (0, 6, 7, 16, 17, 21, 22, 23)] == [
-        0.20,
-        0.20,
-        0.30,
-        0.30,
-        0.40,
-        0.40,
-        0.20,
-        0.20,
-    ]
-    assert price_at(0.3, TOU_UTILITY, 24.0) == 0.20  # the next day's midnight
-    assert price_at(0.3, None, 17) == 0.3  # flat
-    late = [[6.0, 0.25], [18.0, 0.35]]
-    assert price_at(0.3, late, 2) == 0.35  # before the first start: the day's last
+def test_prices_must_fit_the_market_step():
+    scenario = store.load(SCENARIO)
+    scenario.grid.step_hours = 0.25
+    assert any("96 steps" in problem for problem in scenario.problems())
+
+    with pytest.raises(ValueError, match="a day has 96 steps"):
+        LocalEnergyMarket(scenario)
 
 
-def test_dso_sets_the_hours_tariffs_and_their_range():
-    dso = Dso(0.08, 0.30, utility_schedule=TOU_UTILITY)
-    dso.set_hour(18)
-    assert (dso.feed_in_tariff, dso.utility_price) == (0.08, 0.40)
-    assert dso.tariff_range() == (0.08, 0.40)
-    flat = Dso(0.08, 0.30)
-    flat.set_hour(18)
-    assert (flat.utility_price, flat.tariff_range()) == (0.30, (0.08, 0.30))
-
-
-def test_a_tariff_above_the_feed_in_is_required_every_hour():
-    setup = store.load(SCENARIO).dso
-    assert not replace(setup, utility_schedule=TOU_UTILITY).problems()
-    low = [[0.0, 0.30], [12.0, 0.05]]
-    assert replace(setup, utility_schedule=low).problems()
+def test_quarter_hour_steps_trade_at_their_prices():
+    scenario = store.load(SCENARIO)
+    scenario.grid.step_hours = 0.25
+    scenario.dso.prices = "synthetic_day_15min"
+    market = LocalEnergyMarket(scenario)
+    market.reset()
+    records = market.run_to_end()
+    assert len(records) == 96
+    assert records[27].inputs.utility_price == 0.20  # 06:45
+    assert records[28].inputs.utility_price == 0.30  # 07:00
+    assert records[68].inputs.utility_price == 0.40  # 17:00
+    assert market.dso.utility_price == 0.20  # set for the next day's midnight
 
 
 @pytest.fixture(scope="module")
 def env() -> MarketEnv:
-    return MarketEnv(
-        {"scenario": str(SCENARIO), "dso": {"utility_schedule": TOU_UTILITY}}
-    )
+    return MarketEnv({"scenario": str(SCENARIO), "dso": {"prices": "synthetic_day"}})
 
 
 def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):

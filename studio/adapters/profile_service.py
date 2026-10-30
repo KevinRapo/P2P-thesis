@@ -1,4 +1,5 @@
-"""ProfileService: SimBench profiles of a network and of the complete catalogue.
+"""ProfileService: SimBench profiles of a network and of the complete catalogue,
+and the saved price files.
 
 Read from the networks and SimBench's data set through the pandapower adapter:
 the Inspect page's profile tables, plots and class overview.
@@ -8,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.config.scenario import Scenario
+from core.config.scenario import Scenario, price_files, read_prices
 from core.grid import simbench as adapter
 from core.grid.contract import NetworkRef
 from studio.adapters.models import (
@@ -180,6 +181,27 @@ class ProfileService:
             y=y,
             x_label="time",
             y_label=f"{quantity} (factor of rated power)",
+        )
+
+    # --- The price files --------------------------------------------------------------
+    def price_files(self) -> list[str]:
+        """The names of the saved price files (``config/data/``)."""
+        return price_files()
+
+    def price_series(self, name: str) -> Series:
+        """A price file's series over the day, one point per market step."""
+        prices = read_prices(name)
+        steps = len(prices["utility"])
+        minutes = [step * 1440 // steps for step in range(steps)]
+
+        return Series(
+            x=[f"{m // 60:02d}:{m % 60:02d}" for m in minutes],
+            y={
+                "Utility price": prices["utility"],
+                "Feed-in tariff": prices["feed_in"],
+            },
+            x_label="time of day",
+            y_label="price per kWh",
         )
 
 

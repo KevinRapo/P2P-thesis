@@ -1,0 +1,13 @@
+{
+  "description": "A synthetic day, per kWh in the scenario's money unit, one price per hourly market step from 00:00. utility: time-of-use (off peak at night, a day price, an evening peak); feed_in: flat. Not measured data: a simple shape that makes energy worth more at some hours than at others (decided 26 Oct 2026).",
+  "utility": [
+    0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2,
+    0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3,
+    0.4, 0.4, 0.4, 0.4, 0.4,
+    0.2, 0.2
+  ],
+  "feed_in": [
+    0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08,
+    0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08, 0.08
+  ]
+}

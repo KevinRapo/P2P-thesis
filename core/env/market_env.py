@@ -313,8 +313,7 @@ class MarketEnv(MultiAgentEnv):
                         "means": "FiT + (p + 1) / 2 · (utility − FiT), the step's",
                         "feed_in_tariff": self.feed_in_tariff,
                         "utility_price": self.utility_price,
-                        "utility_schedule": self.market.dso.utility_schedule,
-                        "feed_in_schedule": self.market.dso.feed_in_schedule,
+                        "prices": self.market.dso.prices,
                     },
                     "partner": {
                         "kind": "categorical",

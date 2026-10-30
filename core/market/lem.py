@@ -224,7 +224,7 @@ class LocalEnergyMarket:
         )
         self.participants: dict[str, Participant] = {}
         d, m = scenario.dso, scenario.market
-        self.dso = Dso(**asdict(d))
+        self.dso = Dso(**asdict(d), step_hours=scenario.grid.step_hours)
         self.reputation_handler = ReputationHandler(
             reliability_weight=m.reliability_weight,
             fairness_weight=m.fairness_weight,
@@ -393,7 +393,7 @@ class LocalEnergyMarket:
 
     def _inputs(self, step: int) -> StepInputs:
         """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are the DSO's
-        current ones: flat, or the time-of-use price of the step's hour (set when
+        current ones: flat, or the hourly prices of the step's hour (set when
         the previous step ends, ``_advance``)."""
         people = self.participants.items()
         return StepInputs(

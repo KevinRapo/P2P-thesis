@@ -63,6 +63,8 @@ flowchart TD
   runnercore --> ru1["spec.py · launch.py · registry.py · results.py<br/>slurm.py · targets.py · remote.py · __main__.py"]:::done
 
   root --> cfg["config/"]
+  cfg --> pricedata["data/"]
+  pricedata --> pd1["synthetic_day.json · synthetic_day_15min.json"]:::data
   cfg --> exps["experiments/"]
   exps --> ex1["smoke.json · market_ppo.json<br/>market_ppo_detailed.json · grid_methods.json"]:::data
 
@@ -244,6 +246,13 @@ describes restart, sync and the inspected execution evidence.
 Execution evidence is dated and scoped in [Training experiments](hpc/experiments.md#existing-execution-evidence).
 It comes from saved pre-migration results, not a new full-suite or UI test.
 
+## config/data/: the tariffs
+
+| File | What it is | State |
+|---|---|---|
+| [`synthetic_day.json`](../config/data/synthetic_day.json) | One day of hourly prices, a time-of-use `utility` series and a flat `feed_in` series (synthetic); a scenario names a file in its `dso.prices`, and a started experiment holds a copy of the series | data |
+| [`synthetic_day_15min.json`](../config/data/synthetic_day_15min.json) | The same day with one price per quarter-hour. A series must have one price per market step, so `step_hours` 0.25 needs this file | data |
+
 ## config/experiments/: what to train
 
 | File | What it is | State |
@@ -265,7 +274,7 @@ than one place uses it.
 | [`app.py`](../studio/app.py) | Registers the pages and starts the server; on shutdown closes the connections to a cluster (`RunService.close`) | done |
 | [`layout.py`](../studio/layout.py), [`navigation.py`](../studio/navigation.py), [`theme.py`](../studio/theme.py), [`static/`](../studio/static) | Page frame, left navigation, colours and styles; the header names the current scenario and opens another from a scenario file (`config/scenarios/` or an upload) | done |
 | [`state.py`](../studio/state.py) | The adapters (`services()`), built once | done |
-| [`pages/inspect.py`](../studio/pages/inspect.py) | Inspect: any network in depth, all SimBench profiles, two networks compared | done |
+| [`pages/inspect.py`](../studio/pages/inspect.py) | Inspect: any network in depth, all SimBench profiles, two networks compared, the saved price files plotted | done |
 | [`pages/settings.py`](../studio/pages/settings.py) | Workspace folder, network cache and its coverage, dark mode | done |
 | [`pages/components.py`](../studio/pages/components.py) | Components: every base building block (layout, text and tiles, colours, `placeholder`/`busy`/`failed`/`fill`, tables, the series and network chart classes with their controls) drawn with made-up values; each card is a small demo function shown with its own source; the Style lab changes every option of a line through the chart's controls | done |
 | [`pages/grid_participants.py`](../studio/pages/grid_participants.py) | Network, day, step length, background, limits; participants placed by clicking buses or per load or prosumer bus; batteries; the participants' summed day; the market panel (pricing mechanism, bounds, preferred partners, the bidding rule, the DSO's tariffs) | done |
@@ -350,7 +359,7 @@ market or pandapower directly.
 | [`container.py`](../studio/adapters/container.py) | Builds the adapters once | done |
 | [`workspace.py`](../studio/adapters/workspace.py) | Where the Studio keeps its data: the network cache, the scenario file, per-browser state (`C:\MARLEM` here) | done |
 | [`grid_catalog_service.py`](../studio/adapters/grid_catalog_service.py) | Networks, their facts, topology, elements as the grid contract's records; the network cache and its background warming | done |
-| [`profile_service.py`](../studio/adapters/profile_service.py) | A network's profiles and SimBench's whole catalogue; every element's power on the scenario's day (`day_profiles`) | done |
+| [`profile_service.py`](../studio/adapters/profile_service.py) | A network's profiles and SimBench's whole catalogue; every element's power on the scenario's day (`day_profiles`); the saved price files (`price_series`) | done |
 | [`profile_classes.py`](../studio/adapters/profile_classes.py) | SimBench's profile classes and how a profile name is classified | done |
 | [`models.py`](../studio/adapters/models.py) | The data types only the Studio needs: profile classes, profile types, chart series, a day's element profiles | done |
 | [`scenario_service.py`](../studio/adapters/scenario_service.py) | The scenario being edited, saved on every change; calls `core/config/placement.py` to place participants; lists, reads and opens scenario files | done |

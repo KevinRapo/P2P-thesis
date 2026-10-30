@@ -19,7 +19,7 @@ joins it to the market.
 **Keeping it true.** The market sections follow
 [`LocalEnergyMarket.start_step`](../core/market/lem.py#L275-L298) and
 [`advance`](../core/market/lem.py#L300-L338), the environment section
-[`MarketEnv.step`](../core/env/market_env.py#L359-L409), the training section
+[`MarketEnv.step`](../core/env/market_env.py#L358-L408), the training section
 [`train`](../core/rl/train.py#L408-L555). When one of them changes, its section
 changes. Line links point at branch `marlem-v2`.
 
@@ -44,8 +44,8 @@ VS Code's Draw.io extension, then run `python docs_site/export_drawio.py`.
 |---|---|---|---|---|
 | Training | one iteration: collect, targets, update | until `budget` environment steps | [`train`](../core/rl/train.py#L408-L555) → RLlib `algo.train()` | [One training iteration](rl/cycle.md) |
 | Collect (A) | one environment step for every agent | until the batch is full (`train_batch_size_per_learner`) | RLlib env runners | [A1-A5](rl/cycle.md#a-collect-from-observation-to-environment-step) |
-| Episode | one day | 24 steps (96 with quarter hours) | [`MarketEnv.reset`](../core/env/market_env.py#L339-L357) | [0. Before the day](#0-before-the-day-reset) |
-| Environment step (A5) | decode, market step, reward, observation | once per collect step | [`MarketEnv.step`](../core/env/market_env.py#L359-L409) | [The environment step](#the-environment-step) |
+| Episode | one day | 24 steps (96 with quarter hours) | [`MarketEnv.reset`](../core/env/market_env.py#L338-L356) | [0. Before the day](#0-before-the-day-reset) |
+| Environment step (A5) | decode, market step, reward, observation | once per collect step | [`MarketEnv.step`](../core/env/market_env.py#L358-L408) | [The environment step](#the-environment-step) |
 | Market step | phases 1 to 8 | once per environment step | [`LocalEnergyMarket.step`](../core/market/lem.py#L340-L347) | [The market step](#the-market-step) |
 
 The paradigms (CTCE, CTDE, DTDE) change only A1 to A4 and the update: what each
@@ -66,10 +66,10 @@ In outline; every calculation is in [One training iteration](rl/cycle.md).
 
 ## The environment step
 
-[`MarketEnv.step`](../core/env/market_env.py#L359-L409): the agents' actions in,
+[`MarketEnv.step`](../core/env/market_env.py#L358-L408): the agents' actions in,
 observations and rewards out, one market step in the middle.
 
-**E1. Decode.** [`decode`](../core/env/market_env.py#L412-L445), per agent. The
+**E1. Decode.** [`decode`](../core/env/market_env.py#L411-L444), per agent. The
 action's four parts ([P1] eq. 2; [v2.md §2](v2.md#2-the-mixed-action)) become an
 intent: `side` picks sell or buy, `partner` one of the agent's candidates (a peer,
 the DSO or none), and the continuous `quantity` and `price` $a_q, a_p \in [-1, 1]$
@@ -97,14 +97,14 @@ $$
 where profit is eq. 14 net of fees, deferred demand is what its trades and battery
 left uncovered (drawn untraded from the upstream grid, charged at the step's utility
 price $p_\text{utility}$), $\bar p_\text{utility}$ is the day's highest utility
-price ([`Dso.tariff_range`](../core/market/dso.py#L148-L153)) and $E$ the
+price ([`Dso.tariff_range`](../core/market/dso.py#L149-L155)) and $E$ the
 `energy_scale`, the largest generation or demand of any participant in any step of
 the training days. Both scales are resolved once per run and reused for every later
 environment of the run, held-out days included ([v2.md §5](v2.md#5-the-run-contract)).
 CTCE's `CTCEEnv` sums the agents' rewards, $R = \sum_i r_i$; DTDE and CTDE keep
 each agent's own.
 
-**E3. Observation.** [`_observe`](../core/env/market_env.py#L533-L559), per agent
+**E3. Observation.** [`_observe`](../core/env/market_env.py#L532-L558), per agent
 for the step about to be played: the paper's 16 market signals, the agent's own 16
 agent signals and the 10 implicit-cooperation KPIs over the day so far, all from
 [`signals.py`](../core/market/signals.py), then the other agents' reputations;
@@ -163,9 +163,9 @@ stages, then the rest).
 | | |
 |---|---|
 | **Reads** | the scenario: network and day (`grid`), participants and what they own, batteries, market and DSO settings |
-| **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen and the tariffs of hour 0 ([`Dso.set_hour`](../core/market/dso.py#L143-L146)); the first reference price $p_\text{ref}$ = midpoint of those $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network; the graph model if `grid.method = "graph"` |
+| **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen and the tariffs of hour 0 ([`Dso.set_hour`](../core/market/dso.py#L144-L147)); the first reference price $p_\text{ref}$ = midpoint of those $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network; the graph model if `grid.method = "graph"` |
 | **Writes** | `participants`, `dso`, `clearing_price`, `grid`, `graph`; empty `history` |
-| **Code** | [`reset`](../core/market/lem.py#L257-L273) → [`_build_participants`](../core/market/lem.py#L360-L385) ([`profiles_from_elements`](../core/market/agent/der.py#L88-L120)), [`_battery`](../core/market/lem.py#L387-L392), [`Dso.market_price`](../core/market/dso.py#L155-L158), [`SimBenchGrid.reset`](../core/grid/powerflow.py#L68-L90), [`_graph_model`](../core/market/lem.py#L587-L598) |
+| **Code** | [`reset`](../core/market/lem.py#L257-L273) → [`_build_participants`](../core/market/lem.py#L360-L385) ([`profiles_from_elements`](../core/market/agent/der.py#L88-L120)), [`_battery`](../core/market/lem.py#L387-L392), [`Dso.market_price`](../core/market/dso.py#L157-L160), [`SimBenchGrid.reset`](../core/grid/powerflow.py#L68-L90), [`_graph_model`](../core/market/lem.py#L587-L598) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
 | **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs flat or time-of-use (MP-0b: the reference scenario's utility price by hour, `Dso.set_hour` before each step); *Open: MP-0a, MP-1c, MP-5b* ([plans](plan/index.md)) |
 
@@ -174,7 +174,7 @@ stages, then the rest).
 | | |
 |---|---|
 | **Reads** | the step $t$ = `current_step` (number of steps already recorded) |
-| **Computes** | nothing new: picks step $t$ out of each participant's day, and takes the DSO's current tariffs, which the previous step's 8b (or the reset, for step 0) set to this step's hour: flat, or a time-of-use schedule of `[start hour, price]` pairs ([`price_at`](../core/config/scenario.py#L174-L186)) |
+| **Computes** | nothing new: picks step $t$ out of each participant's day, and takes the DSO's current tariffs, which the previous step's 8b (or the reset, for step 0) set to this step's hour: flat, or the step's price from the series of a file in `config/data/` ([`price_at`](../core/config/scenario.py#L206-L212)) |
 | **Writes** | [`StepInputs`](../core/market/lem.py#L77-L93): `generation_kwh`, `demand_kwh`, `feed_in_tariff`, `utility_price` |
 | **Code** | [`_inputs`](../core/market/lem.py#L394-L405) |
 | **Paper** | $G_t$, $D_t$, $p_\text{FiT}$, $p_\text{utility}$ (§3.3.1, §3.4) |
@@ -188,7 +188,7 @@ Three sub-steps, all inside [`start_step`](../core/market/lem.py#L275-L298).
 optionally a preferred partner $\beta$. They come from outside or from the market's
 own rule:
 
-- **from the RL agents**: [`MarketEnv.decode`](../core/env/market_env.py#L412-L445)
+- **from the RL agents**: [`MarketEnv.decode`](../core/env/market_env.py#L411-L444)
   turns each action into an intent (quantity as a share of eq. 15a-b's bound, price
   between $p_\text{FiT}$ and $p_\text{utility}$);
 - **from the bidding rule** when none are given:
@@ -237,7 +237,7 @@ order), the double auction's last tie-break.
 `advance` runs one stage per call, each on the orders the previous one left open
 ([`clearing.py`](../core/market/clearing.py)). The stages work on copies: the
 submitted orders stay as they were. Every trade leaves its stage with its distance
-and loss ([`Dso.assess`](../core/market/dso.py#L264-L268)); its fee comes only
+and loss ([`Dso.assess`](../core/market/dso.py#L266-L270)); its fee comes only
 in phase 6.
 
 **3a. Stage 1, preferences.**
@@ -251,7 +251,7 @@ price down, asks from the lowest up, reputation then arrival breaking ties; pair
 trade while bid ≥ ask. Orders that prefer the DSO stay out.
 
 **3c. Stage 3, DSO.** [`dso`](../core/market/clearing.py#L188-L192) →
-[`Dso.clear`](../core/market/dso.py#L315-L338): every order still open trades
+[`Dso.clear`](../core/market/dso.py#L317-L340): every order still open trades
 with the DSO, sells at $p_\text{FiT}$, buys at $p_\text{utility}$, along the path to
 the transformer.
 
@@ -325,10 +325,10 @@ trade's $q/\Delta t$ added to each line of its path, divided by the line's capac
 ### 6. Fees
 
 **6a. The DSO looks at the grid.**
-[`Dso.observe(signal, measured=grid)`](../core/market/dso.py#L161-L169): it
+[`Dso.observe(signal, measured=grid)`](../core/market/dso.py#L163-L171): it
 keeps the signal's line loading and the power flow's bus voltages.
 
-**6b. A fee for every trade.** [`Dso.charge`](../core/market/dso.py#L282-L312),
+**6b. A fee for every trade.** [`Dso.charge`](../core/market/dso.py#L284-L314),
 for a peer trade along $\text{path}(i, j)$, for a DSO trade along the path to the
 transformer (no zone bonus, plus the imbalance fee):
 
@@ -344,13 +344,13 @@ F_\text{imb} &= f_\text{imb}\, \min\bigl(q / |B_\text{grid}|, 1\bigr)\, q\, p \ 
 \end{aligned}
 $$
 
-([`congestion`](../core/market/dso.py#L182-L187),
-[`voltage_drop_of`](../core/market/dso.py#L171-L180),
-[`fees_of`](../core/market/dso.py#L194-L223),
-[`imbalance_fee`](../core/market/dso.py#L225-L242)). $B_\text{grid}$ is the
+([`congestion`](../core/market/dso.py#L184-L189),
+[`voltage_drop_of`](../core/market/dso.py#L173-L182),
+[`fees_of`](../core/market/dso.py#L196-L225),
+[`imbalance_fee`](../core/market/dso.py#L227-L244)). $B_\text{grid}$ is the
 market's balance before stage 3, offered minus asked
 ([`PendingStep.grid_balance_kwh`](../core/market/lem.py#L126-L130)).
-[`_charged`](../core/market/dso.py#L244-L262) splits the total: a peer trade's
+[`_charged`](../core/market/dso.py#L246-L264) splits the total: a peer trade's
 fee 50/50 (`fee_buyer_share`), a DSO trade's fee all to the participant; nothing
 is paid when `fees_charged` is off.
 
@@ -374,7 +374,7 @@ In [`advance`](../core/market/lem.py#L314-L338), once the fees are known (the re
 - the step's clearing price,
   [`_clearing_price`](../core/market/lem.py#L553-L562): volume-weighted price of the
   peer trades, or the previous one when there were none;
-- the DSO's step, [`Dso.settle`](../core/market/dso.py#L341-L360):
+- the DSO's step, [`Dso.settle`](../core/market/dso.py#L343-L362):
   $B_\text{DSO} = \sum (E_\text{sold} - E_\text{bought})$ (eq. 7), energy revenue,
   fees collected;
 - everything into one [`StepRecord`](../core/market/lem.py#L133-L197): inputs,
@@ -419,7 +419,7 @@ trade when the market is balanced ($|B_\text{grid}| < 0.1$ kWh)
 **8b. Advance.** [`_advance`](../core/market/lem.py#L649-L658): the clearing price
 becomes next step's $p_\text{ref}$; the record joins `history`, so `current_step`
 moves on; and the DSO's tariffs move to the next step's hour
-([`Dso.set_hour`](../core/market/dso.py#L143-L146)), which phase 1 of the next
+([`Dso.set_hour`](../core/market/dso.py#L144-L147)), which phase 1 of the next
 step reads. After the day's last step that is midnight of the next day, as the
 final observation shows.
 
@@ -438,15 +438,15 @@ Every quantity of the environment step and the market step, with the phase that 
 
 | Quantity | Symbol | Phase | Code | Kept in |
 |---|---|---|---|---|
-| Action → intent | $a_t$ | E1 | [`MarketEnv.decode`](../core/env/market_env.py#L412-L445) | `PendingStep.intents` |
-| Reward | $r_t$ | E2 | [`MarketEnv.step`](../core/env/market_env.py#L359-L409) | `rewards`, `infos` |
-| Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../core/env/market_env.py#L533-L559) | – |
+| Action → intent | $a_t$ | E1 | [`MarketEnv.decode`](../core/env/market_env.py#L411-L444) | `PendingStep.intents` |
+| Reward | $r_t$ | E2 | [`MarketEnv.step`](../core/env/market_env.py#L358-L408) | `rewards`, `infos` |
+| Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../core/env/market_env.py#L532-L558) | – |
 | Market and agent signals, KPIs | [P1] Table 2, eq. 19-27 | E3 | [`signals.py`](../core/market/signals.py) | – |
 | Generation, demand of a step | $G_t$, $D_t$ | 0, 1 | [`profiles_from_elements`](../core/market/agent/der.py#L88-L120), [`_inputs`](../core/market/lem.py#L394-L405) | `StepInputs`, `ParticipantOutcome` |
-| Tariffs | $p_\text{FiT}$, $p_\text{utility}$ | 0, 8b, 1 | `DsoSetup`, [`Dso.set_hour`](../core/market/dso.py#L143-L146), [`price_at`](../core/config/scenario.py#L174-L186) | `StepInputs` |
+| Tariffs | $p_\text{FiT}$, $p_\text{utility}$ | 0, 8b, 1 | `DsoSetup`, [`Dso.set_hour`](../core/market/dso.py#L144-L147), [`price_at`](../core/config/scenario.py#L206-L212) | `StepInputs` |
 | Chargeable, dischargeable energy | $E_\text{ch}$, $E_\text{dis}$ | 2 | [`Battery`](../core/market/agent/battery.py#L112-L124) | – |
 | Order bounds | $q_\text{sell,max}$, $q_\text{buy,max}$ | 2 | [`max_sell_kwh`, `max_buy_kwh`](../core/market/agent/der.py#L185-L191) | – |
-| Intent from an action | | 2 | [`MarketEnv.decode`](../core/env/market_env.py#L412-L445) | `PendingStep.intents` |
+| Intent from an action | | 2 | [`MarketEnv.decode`](../core/env/market_env.py#L411-L444) | `PendingStep.intents` |
 | Intent from the bidding rule | | 2 | [`rule_based_bid.net_position`](../core/market/agent/rule_based_bid.py#L64-L107) | `PendingStep.intents` |
 | Preferred partner | $\beta$ | 2 | [`choose_partner`](../core/market/agent/der.py#L194-L233) | `Order.partner_id` |
 | Validated order | $p$, $q$ | 2 | [`_validate`](../core/market/lem.py#L487-L519), [`_orders`](../core/market/lem.py#L521-L537) | `StepRecord.orders`, `notes` |
@@ -454,7 +454,7 @@ Every quantity of the environment step and the market step, with the phase that 
 | Trade price | $p_{ij}$ | 3 | [`clearing_price.py`](../core/market/clearing_price.py) | `Trade.price` |
 | Trade quantity | $q_{ij}$ | 3 | [`clearing.py`](../core/market/clearing.py) | `Trade.quantity` |
 | Distance, path, zones | $d_{ij}$ | 3 | [`SimBenchGrid.path`](../core/grid/powerflow.py#L171-L181) | `Trade.distance` |
-| Loss of a trade | $l_{ij}$ | 3 | [`Dso.transmission_loss`](../core/market/dso.py#L189-L191) | `Trade.transmission_loss` |
+| Loss of a trade | $l_{ij}$ | 3 | [`Dso.transmission_loss`](../core/market/dso.py#L191-L193) | `Trade.transmission_loss` |
 | Participant balance | $B_i$ | 4 | [`settle`](../core/market/agent/der.py#L236-L273) | `ParticipantOutcome.balance_kwh` |
 | Battery charge, discharge, energy | | 4 | [`Battery.charge`, `discharge`](../core/market/agent/battery.py#L127-L145) | `ParticipantOutcome` |
 | Untraded exchange, deferred demand | | 4 | [`settle`](../core/market/agent/der.py#L236-L273), [properties](../core/market/agent/der.py#L64-L82) | `ParticipantOutcome` |
@@ -462,9 +462,9 @@ Every quantity of the environment step and the market step, with the phase that 
 | Injection at the bus | | 5 | [`injection`](../core/market/agent/der.py#L288-L299) | – |
 | Bus voltages, line loading, network losses | | 5 | [`SimBenchGrid.assess`](../core/grid/powerflow.py#L123-L163) | `StepRecord.grid` |
 | Graph line loading | $\zeta_e$ | 5 (graph) | [`GraphGrid.assess`](../core/grid/graph.py#L52-L82) | `StepRecord.signal` |
-| Congestion of a trade | $C_t$ | 6 | [`Dso.congestion`](../core/market/dso.py#L182-L187) | – |
-| Voltage drop | $V_\text{drop}$ | 6 | [`Dso.voltage_drop_of`](../core/market/dso.py#L171-L180) | – |
-| Fee parts, total, split | eq. 8 | 6 | [`fees_of`](../core/market/dso.py#L194-L223), [`imbalance_fee`](../core/market/dso.py#L225-L242), [`_charged`](../core/market/dso.py#L244-L262) | `Trade.fee_parts`, `fees`, `buyer_fee`, `seller_fee` |
+| Congestion of a trade | $C_t$ | 6 | [`Dso.congestion`](../core/market/dso.py#L184-L189) | – |
+| Voltage drop | $V_\text{drop}$ | 6 | [`Dso.voltage_drop_of`](../core/market/dso.py#L173-L182) | – |
+| Fee parts, total, split | eq. 8 | 6 | [`fees_of`](../core/market/dso.py#L196-L225), [`imbalance_fee`](../core/market/dso.py#L227-L244), [`_charged`](../core/market/dso.py#L246-L264) | `Trade.fee_parts`, `fees`, `buyer_fee`, `seller_fee` |
 | Clearing price (next $p_\text{ref}$) | $p_\text{clear}$ | 7 | [`_clearing_price`](../core/market/lem.py#L553-L562) | `StepRecord.clearing_price` |
-| DSO balance, revenue, fees | $B_\text{DSO}$ | 7 | [`Dso.settle`](../core/market/dso.py#L341-L360) | `StepRecord.dso` |
+| DSO balance, revenue, fees | $B_\text{DSO}$ | 7 | [`Dso.settle`](../core/market/dso.py#L343-L362) | `StepRecord.dso` |
 | Reputation components, score, reputation | $\delta$, $s$, $r$ | 8 | [`ReputationHandler`](../core/market/reputation.py#L55-L297) | `StepRecord.reputation`, `Participant.reputation` |

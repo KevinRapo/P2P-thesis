@@ -73,12 +73,13 @@ episode; the held-out evaluation on its one test day), 15 minutes per run and th
 defaults). Traced days that the test version has no longer are left out.
 
 Inputs of a started experiment: an experiment is started as ``resolve`` gives it, with
-the scenario file read into ``scenario`` (``Experiment.inline_scenario``). The
+the scenario file read into ``scenario`` and its price file into the scenario's
+``dso.prices`` (``Experiment.inline_scenario``). The
 ``experiment.json`` of its folder then holds every input of its runs, the scenario
 included, and the runs read the copy ``scenario.json`` next to it (``SCENARIO_FILE``),
 not the file in ``config/scenarios/``. So an experiment can be sent to a cluster as one JSON
 object, without its files being in the cluster's checkout, and a later change to
-the scenario file does not change an experiment already started.
+the scenario or price file does not change an experiment already started.
 """
 
 from __future__ import annotations
@@ -92,6 +93,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from core import settings as machine
+from core.config.scenario import GridSetup, load_prices
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -527,6 +529,15 @@ class Experiment:
 
         if not isinstance(data, dict):
             raise SpecError(f"{path}: a scenario file holds one JSON object")
+
+        dso = data.get("dso", {})
+
+        if isinstance(dso.get("prices"), str):
+            try:
+                step = data.get("grid", {}).get("step_hours", GridSetup.step_hours)
+                dso["prices"] = load_prices(dso["prices"], step)
+            except (OSError, ValueError, KeyError) as error:
+                raise SpecError(f"{path}: prices cannot be read ({error})") from None
 
         return replace(copy.deepcopy(self), scenario=data)
 

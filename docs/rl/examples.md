@@ -154,7 +154,7 @@ batch keeps $-1.3$.
 }
 ```
 
-**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L412-L445)</span>).
+**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L411-L444)</span>).
 Say `agent_10` may buy at most 2.5 kWh this step, and the step's tariffs are a
 feed-in tariff of 0.05 and a utility price of 0.25 €/kWh:
 
@@ -239,7 +239,7 @@ and DTDE each agent's carry its own.
 
 The market pays each agent its bill for the step,
 <span class="ours">$(\text{profit} - p_\text{utility} \cdot \text{unmet demand}) / \text{reward scale}$</span>
-([`step`](../../core/env/market_env.py#L376-L381)). Say:
+([`step`](../../core/env/market_env.py#L375-L380)). Say:
 
 $$
 r_2 = 1.50, \qquad r_{10} = -0.50, \qquad r_1 = 0.25 .
@@ -288,7 +288,7 @@ threshold); <span class="ours">"net position"</span> is the market's own bidding
 rule: offer the surplus, or ask for the deficit, left after the battery, priced 30 %
 of the way from the feed-in tariff (selling) or the utility price (buying) into the
 spread, with no partner
-([`net_position_policy`](../../core/env/market_env.py#L667-L706)).
+([`net_position_policy`](../../core/env/market_env.py#L666-L705)).
 
 **The team score** ([`Episode`](../../core/rl/policy.py#L227-L248)). Every
 paradigm is scored in the original multi-agent environment, from the per-agent

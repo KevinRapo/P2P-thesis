@@ -1,9 +1,10 @@
 """Inspect: get to know networks in depth and compare two of them.
 
-Read-only: nothing here changes the scenario. Three tabs, each built by
+Read-only: nothing here changes the scenario. Four tabs, each built by
 its own function: "Network" (one network in depth), "Profiles" (SimBench's
-complete profile catalogue) and "Compare" (two networks side by side). Built
-from the network blocks in ``components/network.py``, shared with the Grid page.
+complete profile catalogue), "Compare" (two networks side by side) and "Prices"
+(the saved price files). Built from the network blocks in
+``components/network.py``, shared with the Grid page.
 """
 
 from nicegui import run, ui
@@ -12,7 +13,7 @@ from core.grid.contract import NetworkRef
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileClass, ProfileType, Series
 from studio.components.cards import busy, failed, section
-from studio.components.charts import SeriesModelChart
+from studio.components.charts import SeriesChart, SeriesModelChart
 from studio.components.network import (
     DEFAULT_SOURCE,
     ElementsTable,
@@ -30,28 +31,29 @@ COMPARE_DEFAULT = NetworkRef("simbench", "1-LV-rural1--0-sw")
 
 
 # --------------------------------------------------------------------------------------
-# The page: three tabs
+# The page: four tabs
 # --------------------------------------------------------------------------------------
 def page() -> None:
     """Inspect: the "Network" tab shows one network in depth, the
     "Profiles" tab SimBench's complete profile catalogue, the "Compare" tab two
-    networks side by side.
+    networks side by side, the "Prices" tab the saved price files.
     """
     s = services()
     with shell(
         "inspect",
         "Inspect",
         "Explore networks and their data in depth; compare two networks; browse "
-        "all SimBench profiles. "
+        "all SimBench profiles; plot the price files. "
         "Nothing here changes the scenario.",
     ):
         # ui.tabs is the tab bar; ui.tab_panels holds one panel per tab and shows
         # the selected one. Every panel is built when the page opens.
-        # Tab bar: Network | Profiles | Compare
+        # Tab bar: Network | Profiles | Compare | Prices
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             network_tab = ui.tab("Network", icon="travel_explore")
             profiles_tab = ui.tab("Profiles", icon="show_chart")
             compare_tab = ui.tab("Compare", icon="compare_arrows")
+            prices_tab = ui.tab("Prices", icon="payments")
         # keep_alive=False: a hidden panel is removed from the browser and drawn
         # again when its tab is opened, so its Plotly charts are never resized
         # while invisible. The Python side (state, handlers) stays as it is.
@@ -69,6 +71,10 @@ def page() -> None:
             # Compare tab
             with ui.tab_panel(compare_tab).classes("p-0 gap-4"):
                 _compare_tab(s)
+
+            # Prices tab
+            with ui.tab_panel(prices_tab).classes("p-0 gap-4"):
+                _prices_tab(s)
 
         # The catalogue (about 460 profiles) is read only when its tab is opened.
         tabs.on_value_change(
@@ -305,6 +311,42 @@ def _profiles_tab(s: Services) -> ProfileInspector:
         "show_chart",
     ):
         return ProfileInspector(s, catalogue=True)
+
+
+# --------------------------------------------------------------------------------------
+# Prices tab: the saved price files
+# --------------------------------------------------------------------------------------
+class PriceChart(SeriesChart):
+    """A price file's series, each price held over its market step. Options:
+    ``name`` (the file), ``read`` (name -> ``Series``)."""
+
+    height = 340
+
+    def draw(self) -> None:
+        s = self.o.read(self.o.name)
+        self.titles(x=s.x_label, y=s.y_label)
+
+        for label, values in s.y.items():
+            self.line(s.x, values, label, shape="hv")
+
+
+def _prices_tab(s: Services) -> None:
+    """A dropdown of the price files and the chosen file's series."""
+    files = s.profiles.price_files()
+
+    with section(
+        "Price files",
+        "The DSO's tariffs saved in config/data/; a scenario names one in its "
+        "DSO prices",
+        "payments",
+    ):
+        if not files:
+            ui.label("No price files in config/data/.").classes("mls-card-caption")
+            return
+
+        chart = PriceChart(name=files[0], read=s.profiles.price_series)
+        chart.select("name", files, "Price file").classes("w-80")
+        chart.show()
 
 
 # --------------------------------------------------------------------------------------

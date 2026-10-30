@@ -264,7 +264,7 @@ network elements a participant owns, for the scenario's day (`GridSetup.day`), a
 ([der.py](../../core/market/agent/der.py#L88-L115)). Eq. 17 is not used. A
 different day per episode is the RL environment's job: `MarketEnv.reset` draws a
 day from its configured `days`, sets it on the scenario and rebuilds the market
-([market_env.py](../../core/env/market_env.py#L324-L335)), so training and
+([market_env.py](../../core/env/market_env.py#L323-L334)), so training and
 held-out days are separate lists ([v1.md §3](../v1.md#3-the-market-as-an-environment)).
 
 ## 2. Orders and feasibility
@@ -361,7 +361,7 @@ either.
 **Code · Fixed**
 
 [`src/market/matching.py` L347-L348](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L347-L348),
-[`src/market/dso.py` L232, L253](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L212-L253)
+[`src/market/dso.py` L232, L253](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L214-L255)
 
 ```python
 # Stage 2
@@ -924,7 +924,7 @@ step's start), so it is not a per-period quantity either.
 
 **In `marlem-v1`.** `Dso.settle` computes eq. 7 from every DSO trade, per step
 and over the day, with the DSO's revenue and fees
-([dso.py](../../core/market/dso.py#L293-L309)).
+([dso.py](../../core/market/dso.py#L295-L311)).
 
 ### M-25: two opposite sign conventions for the DSO balance
 
@@ -980,7 +980,7 @@ construction.
 
 **Fidelity · Fixed**
 
-[`src/market/dso.py` L342-L345](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L342-L345),
+[`src/market/dso.py` L342-L345](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L344-L347),
 [`src/market/matching.py` L319-L332](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/matching.py#L319-L332)
 
 ```python
@@ -1023,7 +1023,7 @@ first step of the day is charged like any other.
 
 <mark class="review">Review</mark> How to calculate transmission fee? what examples are used in other literature?
 
-[`src/market/dso.py` L293, L314](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L293-L314)
+[`src/market/dso.py` L293, L314](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L295-L316)
 
 ```python
 transmission_fee = 0.0
@@ -1042,7 +1042,7 @@ hints. The text of eq. 8 calls $F_{\text{trans}}$ a charge for "usage per unit o
 distance of the transmission lines (predefined by the DSO)", and §3.5.2 says the
 losses "are incorporated into trading fees". Both give a fee of quantity ×
 distance × a price factor. Here it is the lost energy (eq. 18) at the trade price
-([dso.py](../../core/market/dso.py#L181)):
+([dso.py](../../core/market/dso.py#L183)):
 
 $$
 F_{\text{trans}} = l_{ij}\, p_{ij} = \kappa\, d_{ij}\, q_{ij}\, p_{ij}
@@ -1057,7 +1057,7 @@ with the DSO, along the path to the transformer (M-31).
 
 **Fidelity · Decided**
 
-[`src/market/dso.py` L326-L333](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L326-L333)
+[`src/market/dso.py` L326-L333](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L328-L335)
 
 ```python
 voltage_drop = distance * self.voltage_factor
@@ -1077,15 +1077,15 @@ $V_{\text{drop}} = 0.15 \cdot 0.2\ \text{km} = 0.03$ is below the gate, so the v
 0. The thermal cap 0.3 is $f_{\text{threshold}}$ of eq. 8d, which [P1] leaves undefined.
 
 **In `marlem-v1`.** $F_{\text{volt}}$ exactly as eq. 8c; the thermal cap kept at the
-original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso.py#L161-L185)).
+original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso.py#L163-L187)).
 
 ### M-30: the imbalance fee can never apply
 
 **Fidelity / Paper · Decided**
 
-[`src/market/dso.py` L336-L339](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L336-L339),
-[L421-L425](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L411-L442),
-[L227-L229](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L219-L226)
+[`src/market/dso.py` L336-L339](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L338-L341),
+[L421-L425](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L413-L444),
+[L227-L229](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L221-L228)
 
 ```python
 # calculate_fees, called only for peer trades
@@ -1112,7 +1112,7 @@ $F_{\text{imb}}$ is 0 in every possible run.
 
 **In `marlem-v1`.** The imbalance fee is charged on DSO trades that worsen the
 market's balance $B_{\text{grid}}$ (the DSO buying in excess demand, or selling in excess
-supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L187-L200)).
+supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L189-L202)).
 
 <mark class="review">Review</mark> What trade could exactly help at the same time while bringing in more of the quantity that already exists in the P2P market? I dont see a situation
 
@@ -1122,7 +1122,7 @@ supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L187
 
 <mark class="review">Review</mark> What options do we have here? It would make sense to atleast use the feeder distance from the bus as the closest point to the DSO but im not sure if that is good enough, in any case some dynamics instead of nothing!?
 
-[`src/market/dso.py` L224-L226, L371](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L219-L226)
+[`src/market/dso.py` L224-L226, L371](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L221-L228)
 
 ```python
 # every DSO trade
@@ -1145,7 +1145,7 @@ quantity to the balance whatever the trade's direction, so a trade that would
 the network, the transformer's low-voltage busbar. A trade with the DSO runs along
 the participant's path to that busbar
 ([powerflow.py](../../core/grid/powerflow.py#L170-L181),
-[dso.py](../../core/market/dso.py#L254-L262)). It has a distance, a loss (eq. 18)
+[dso.py](../../core/market/dso.py#L256-L264)). It has a distance, a loss (eq. 18)
 and the fees of that path: congestion and thermal on its lines, voltage and
 transmission by its length. It gets no zone bonus, since the DSO is in no
 participant's zone. A neighbour is closer than the transformer, so a peer trade
@@ -1162,7 +1162,7 @@ shows the physical result of all energy.
 
 <mark class="review">Review</mark> How is this usually handeled in real life? Who is to say that the thermal fee cant start much earlier, I understand congestion might be more important but they are different effects.
 
-[`src/market/dso.py` L65-L67](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L65-L67)
+[`src/market/dso.py` L65-L67](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L66-L68)
 
 ```python
 self.congestion_threshold: float = 0.8  # Threshold for congestion intervention
@@ -1203,7 +1203,7 @@ choice does not matter.
 
 **Paper · Flagged**
 
-[`src/market/dso.py` L317-L319, L72](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L317-L319)
+[`src/market/dso.py` L317-L319, L72](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L319-L321)
 
 ```python
 self.zone_factor: float = 0.15  # Factor for cross-zone fees
@@ -1230,7 +1230,7 @@ percent of a trade's value.
 
 <mark class="review">Review</mark> I need suggestions here on options to see if they make sense, Im not sure how zones make sense on these small scale experiments but then again simbench has large networks also, how big were the zones for salazar or did he even use them?
 
-[`src/market/dso.py` L317](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L317)
+[`src/market/dso.py` L317](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L319)
 
 ```python
 buy_order.location.zone == sell_order.location.zone
@@ -1338,7 +1338,7 @@ used.
 **Paper · Replaced**
 
 [`src/grid/network.py` L348](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/grid/network.py#L331-L348),
-[`src/market/dso.py` L326](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L326)
+[`src/market/dso.py` L326](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/market/dso.py#L328)
 
 ```python
 return distance * quantity * np.clip(loss_factor, 0.0, 1.0)   # loss
@@ -1432,7 +1432,7 @@ configuration reaches, in "distance units" of whatever graph is used. [P1] gives
 no value.
 
 **In `marlem-v1`.** `loss_factor` is a DSO setting, per km of line
-([scenario.py](../../core/config/scenario.py#L187)). Every trade also records its
+([scenario.py](../../core/config/scenario.py#L251)). Every trade also records its
 distance $d_{ij}$, along the network's lines.
 
 ## 8. Reputation

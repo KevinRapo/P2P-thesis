@@ -19,6 +19,7 @@ from pathlib import Path
 import psutil
 import pytest
 
+from core.config.scenario import load_prices
 from core.runner import registry
 from core.runner.spec import (
     ALGORITHMS,
@@ -155,6 +156,8 @@ def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):
     path = tmp_path / "x.json"
     path.write_text(json.dumps(spec()), encoding="utf-8")
     scenario = json.loads((REPO / SCENARIO).read_text(encoding="utf-8"))
+    prices, step = scenario["dso"]["prices"], scenario["grid"]["step_hours"]
+    scenario["dso"]["prices"] = load_prices(prices, step)  # read in too
     experiment = resolve(path)
     assert experiment.scenario == scenario and experiment.name == "x"
     assert resolve(path, "test").scenario == scenario
