@@ -51,11 +51,11 @@ class ClearingMechanism(Enum):
             case ClearingMechanism.SELLER:
                 return sell.price
             
-            case ClearingMechanism.BID_ASK_SPREAD:
+            case ClearingMechanism.BID_ASK_SPREAD: # OPEN same as average with 0.5
                 factor = max(0.0, min(factor, 1.0))
                 return sell.price + (buy.price - sell.price) * factor
             
-            case ClearingMechanism.NASH_BARGAINING:
+            case ClearingMechanism.NASH_BARGAINING: # OPEN same as average with 0.5
                 spread = buy.price - sell.price
                 if spread <= 0:
                     return (buy.price + sell.price) / 2

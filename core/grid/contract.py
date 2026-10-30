@@ -272,7 +272,7 @@ class GridAssessment:
     line_loading_percent: Mapping[str, float] = field(default_factory=dict)
 
 
-class GridModel(Protocol):
+class GridModel(Protocol): # OPEN still a point to use?
     """Step-time grid: one power flow per market step."""
 
     def reset(self, episode_seed: int | None = None, day: str | None = None) -> None:

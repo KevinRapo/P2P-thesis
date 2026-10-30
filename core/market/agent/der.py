@@ -172,6 +172,7 @@ class Participant:
         self.reputation = self.initial_reputation
 
     # --- Position and feasibility (eq. 15) -------------------------------------------
+    # OPEN should include battery power constraint here also?
     def net_kwh(self, step: int) -> float:
         """G_t − D_t: + surplus, − deficit."""
         return self.generation_kwh[step] - self.demand_kwh[step]
