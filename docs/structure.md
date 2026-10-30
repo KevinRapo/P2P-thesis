@@ -75,7 +75,7 @@ flowchart TD
 
   root --> notebooks["notebooks/"]
   notebooks --> nm["market/"]
-  nm --> n1["validate_market.ipynb"]:::done
+  nm --> n1["market_1_formulas · market_2_step<br/>market_3_days (.ipynb)"]:::done
   nm --> n3["benchmark_market_step.ipynb<br/>results/market_step.csv"]:::done
   nm --> n4["grid_methods.ipynb"]:::done
   notebooks --> nr["rl/"]
@@ -297,7 +297,9 @@ their setup cell finds the repository root from wherever they run. Runs go to
 
 | Notebook | What it does | State |
 |---|---|---|
-| [`market/validate_market.ipynb`](../notebooks/market/validate_market.ipynb) | Scenario, inputs per step, one step part by part, the whole day, rule checks, experiments side by side | done |
+| [`market/market_1_formulas.ipynb`](../notebooks/market/market_1_formulas.ipynb) | Market validation, level 1: every equation of the market step (tariffs, eq. 15, eq. 16, partner choice, prices, the three stages, settlement, injection, the graph model, eq. 8 fees, eq. 7, eq. 12) on small numbers worked out by hand next to the core function's result; no network | done |
+| [`market/market_2_step.ipynb`](../notebooks/market/market_2_step.ipynb) | Market validation, level 2: one step of the reference scenario played phase by phase as in the full cycle, with checks that each phase gets the right inputs (this step's trades, this step's power flow, the battery as the last step left it); what validation does with an invalid order; the same step with the graph model | done |
+| [`market/market_3_days.ipynb`](../notebooks/market/market_3_days.ipynb) | Market validation, level 3: the 14 test days, 22 rules checked on every step (clearing, energy, money, grid and fees, reputation), the network's energy balance with the background off; how the market behaves over the days (energy by hour, batteries, fees by part, participants); one-setting experiments | done |
 | [`market/benchmark_market_step.ipynb`](../notebooks/market/benchmark_market_step.ipynb) | Time per market step on SimBench LV networks of 13 to 118 participants (random orders), split into market logic, grid preparation and the power flow; the floor under a training run on the market | done |
 | [`market/results/market_step.csv`](../notebooks/market/results/market_step.csv) | That notebook's summary, read by the RL speed benchmark (`notebooks/rl/benchmark_speed.ipynb`, removed 24 Oct 2026; last at [90839c2](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/notebooks/rl/benchmark_speed.ipynb)) | done |
 | [`market/grid_methods.ipynb`](../notebooks/market/grid_methods.ipynb) | The grid-method arms on `validate_market.json`, 14 test days, with the net-position baseline (no learning): same physics in every arm; fees per part; the loading the fees saw against the measured loading; losses of eq. 18 against the power flow | done |

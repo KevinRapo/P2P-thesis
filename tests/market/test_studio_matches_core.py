@@ -1,4 +1,5 @@
-"""The Studio plays the same market as the core: validate_market.ipynb's scenario,
+"""The Studio plays the same market as the core: the reference scenario
+(``config/scenarios/validate_market.json``, the market notebooks' scenario),
 read the way the Studio reads it and stepped the way the Step page steps it, gives
 the same day as ``LocalEnergyMarket`` called directly.
 
