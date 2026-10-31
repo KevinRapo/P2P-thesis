@@ -1,6 +1,7 @@
 """Loading a box must not let an obsolete request replace the current content."""
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from nicegui import ui
@@ -41,7 +42,10 @@ async def test_card_containers_keep_content_in_the_right_parent():
 @pytest.mark.anyio
 @pytest.mark.parametrize("obsolete", [False, True])
 @pytest.mark.parametrize("fails", [False, True])
-async def test_fill_handles_current_and_obsolete_results(monkeypatch, obsolete, fails):
+@pytest.mark.parametrize("view", ["helper", "results"])
+async def test_fill_handles_current_and_obsolete_results(
+    monkeypatch, obsolete, fails, view
+):
     started, release = asyncio.Event(), asyncio.Event()
     state = {"current": True}
 
@@ -59,10 +63,27 @@ async def test_fill_handles_current_and_obsolete_results(monkeypatch, obsolete, 
     def root():
         state["box"] = ui.column()
 
+        if view == "results":
+            from studio.pages.results.page import ResultsView
+
+            page = ResultsView.__new__(ResultsView)
+            page.box = state["box"]
+            page.table = SimpleNamespace(selected=["run"])
+            page.bar = SimpleNamespace(value="tab")
+            page.tabs = {
+                "tab": SimpleNamespace(
+                    read=lambda keys: None, build=lambda keys, data: ui.label(data)
+                )
+            }
+            page._drawn = 0
+            state["page"] = page
+
     async with user_simulation(root) as user:
         await user.open("/")
         task = asyncio.create_task(
-            cards.fill(
+            state["page"].show()
+            if view == "results"
+            else cards.fill(
                 state["box"],
                 lambda: None,
                 ui.label,
@@ -73,6 +94,10 @@ async def test_fill_handles_current_and_obsolete_results(monkeypatch, obsolete, 
 
         if obsolete:
             state["current"] = False
+
+            if view == "results":
+                state["page"]._drawn += 1
+
             state["box"].clear()
 
             with state["box"]:
@@ -86,7 +111,8 @@ async def test_fill_handles_current_and_obsolete_results(monkeypatch, obsolete, 
             else ("Failed: read failed" if fails else "Read result")
         )
         await user.should_see(expected)
-        assert result == (None if obsolete or fails else "Read result")
+        if view == "helper":
+            assert result == (None if obsolete or fails else "Read result")
 
         if obsolete:
             await user.should_not_see("Read result")

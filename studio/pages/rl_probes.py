@@ -14,12 +14,12 @@ Learning.
 
 from __future__ import annotations
 
-from nicegui import run, ui
+from nicegui import ui
 
 from core.runner.probe_runs import ProbeRunInfo
 from studio.adapters.results_service import ResultsService
 from studio.adapters.validation_service import ValidationService
-from studio.components.cards import key_values, placeholder, section
+from studio.components.cards import fill, key_values, placeholder, section
 from studio.components.run_table import RUN_COLUMNS, RunTable, labels_of
 from studio.components.tables import data_table
 from studio.layout import shell
@@ -188,15 +188,10 @@ class ProbesView:
         keys = list(self.selected)
         self._drawn += 1
         draw = self._drawn
-        self.probes.clear()
-        found = await run.io_bound(self.validation.probe_runs, keys)
-
-        if draw != self._drawn:  # ticked again meanwhile
-            return
 
         # The Probes tab, top to bottom: summary card, probe-run picker, that run's
         # probe card
-        with self.probes:
+        def show_probes(found: dict[str, ProbeRunInfo]) -> None:
             if not found:
                 placeholder(
                     "Tick probe runs in the table (an experiment probes_<preset>) to "
@@ -239,6 +234,14 @@ class ProbesView:
 
             chosen.on_value_change(lambda _: show())
             show()
+
+        await fill(
+            self.probes,
+            lambda: self.validation.probe_runs(keys),
+            show_probes,
+            "Reading the probes …",
+            current=lambda: draw == self._drawn,
+        )
 
 
 def page() -> None:

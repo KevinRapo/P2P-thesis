@@ -355,21 +355,17 @@ def _grid_settings(on_change=None) -> None:
         "profiles, or be switched off so only the market is seen."
     ).classes("mls-card-caption")
 
-    # Limits, three number fields in one row: V min | V max | Line max
-    with ui.row().classes("w-full gap-2 no-wrap"):
-        for field, label in (
-            ("v_min_pu", "V min (pu)"),
-            ("v_max_pu", "V max (pu)"),
-            ("line_max_percent", "Line max (%)"),
-        ):
-            ui.number(
-                label,
-                value=getattr(g, field),
-                step=0.01 if field.startswith("v_") else 5,
-                on_change=lambda e, f=field: (
-                    save(f, float(e.value)) if e.value is not None else None
-                ),
-            ).classes("grow basis-0")
+    _numbers(
+        "grid",
+        [
+            [
+                ("v_min_pu", "V min (pu)", 0.01),
+                ("v_max_pu", "V max (pu)", 0.01),
+                ("line_max_percent", "Line max (%)", 5),
+            ]
+        ],
+        save=save,
+    )
 
     def method(e) -> None:
         save("method", e.value)
@@ -643,11 +639,11 @@ def _saver(section_name: str):
     return save
 
 
-def _numbers(section_name: str, rows: list[list[tuple]]) -> None:
+def _numbers(section_name: str, rows: list[list[tuple]], *, save=None) -> None:
     """Number fields of ``scenario.<section_name>``, each row of ``(field, label,
-    step)`` side by side."""
+    step)`` side by side. A supplied ``save`` also handles page-specific updates."""
     values = getattr(services().scenario.current(), section_name)
-    save = _saver(section_name)
+    save = save or _saver(section_name)
 
     for row in rows:
         with ui.row().classes("w-full gap-2 no-wrap"):

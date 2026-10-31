@@ -30,7 +30,7 @@ from nicegui import run, ui
 from core.runner.results import LOCAL
 from studio.adapters.results_service import ResultsService
 from studio.adapters.run_service import RunService
-from studio.components.cards import placeholder
+from studio.components.cards import fill, placeholder
 from studio.components.run_table import RunTable
 from studio.layout import shell
 from studio.pages.results.common import Tab
@@ -103,25 +103,25 @@ class ResultsView:
         keys, tab = list(self.table.selected), self.tab
         self._drawn += 1
         drawn = self._drawn
-        self.box.clear()
 
-        with self.box:
-            if not keys:
+        if not keys:
+            self.box.clear()
+
+            with self.box:
                 placeholder("Tick runs in the table to see their results.", "checklist")
-                return
-
-            ui.label("Reading the runs …").classes("mls-card-caption")
-
-        data = await run.io_bound(tab.read, keys)
-
-        if drawn != self._drawn:  # ticked again, or another tab, meanwhile
             return
 
-        self.box.clear()
-        tab.watched = []
-
-        with self.box:
+        def build(data) -> None:
+            tab.watched = []
             tab.build(keys, data)
+
+        await fill(
+            self.box,
+            lambda: tab.read(keys),
+            build,
+            "Reading the runs …",
+            current=lambda: drawn == self._drawn,
+        )
 
     async def tick(self) -> None:
         """One live refresh: follow the active cluster experiments, read the runs
