@@ -17,6 +17,9 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
                                         or the scenario itself (a JSON object)
       "train_days": {"from": "2016-06-01", "to": "2016-06-30"},   or a list
       "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
+      "test_periods": {"summer": {"from": "2016-07-01", "to": "2016-07-14"}},
+                                        instead of test_days: named continuous
+                                        periods, left out of train_days
       "env_config": {},                 extra environment settings
       "algorithms": ["ppo"], "paradigms": ["dtde"], "seeds": [0],
       "variants": {"lr3": {"lr": 0.001}},   name -> training overrides;
@@ -56,7 +59,9 @@ budget of 24000 evaluate at 6000, 12000, 18000 and 24000). Neither: only at the
 end.
 
 Held-out evaluation: after training, the trained policy and the baselines play every
-test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...). Its
+test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...). In
+a test period the batteries and reputations carry from day to day, and every policy
+starts each period from the scenario's initial state (``heldout_options``). Its
 results are kept per day and participant (``launch.py``); with ``results_detail``
 ``"detailed"`` the days of ``trace_days`` are also kept step by step.
 
@@ -116,9 +121,17 @@ TEST_DEFAULT_BUDGET = 100
 # The settings of the market environment an experiment may give in ``env_config``
 # (``core/env/market_env.py``), written out with ``written_out``; None: computed by
 # the environment from the training days, recorded in the run's run.json and reused
-# for its held-out evaluation. ``scenario``, ``days`` and ``seed`` come from the
-# experiment.
-MARKET_ENV_CONFIG = {"energy_scale": None, "reward_scale": None}
+# for its held-out evaluation, or the environment's default; False: off. ``scenario``,
+# ``days`` and ``seed`` come from the experiment.
+MARKET_ENV_CONFIG = {
+    "energy_scale": None,
+    "reward_scale": None,
+    "episode_days": None,
+    "truncate_episode": False,
+    "random_start_soc": False,
+    "terminal_value": False,
+    "stored_kwh_value": None,
+}
 TEST_KEYS = (
     "seeds",
     "train_days",
@@ -221,6 +234,7 @@ class Experiment:
     env: str = "market"
     train_days: list[str] = field(default_factory=list)
     test_days: list[str] = field(default_factory=list)
+    test_periods: dict[str, list[str]] = field(default_factory=dict)
     env_config: dict = field(default_factory=dict)
     variants: dict[str, dict] = field(default_factory=dict)
     eval_every: int | dict[str, int] | None = None
@@ -276,6 +290,16 @@ class Experiment:
 
         for key in ("train_days", "test_days"):
             data[key] = _days(data.get(key), key)
+
+        data["test_periods"] = _periods(data)
+        held_out = [d for days in data["test_periods"].values() for d in days]
+
+        if held_out:
+            if data["test_days"] not in ([], held_out):
+                raise SpecError("give 'test_days' or 'test_periods', not both")
+
+            data["test_days"] = held_out
+            data["train_days"] = [d for d in data["train_days"] if d not in held_out]
 
         for key in ("algorithms", "paradigms", "seeds", "budget"):
             if key not in data:
@@ -474,6 +498,18 @@ class Experiment:
         with its seed (2000, 2001, ...)."""
         return [(HELDOUT_SEED_START + i, day) for i, day in enumerate(self.test_days)]
 
+    def heldout_options(self) -> list[dict]:
+        """The ``reset`` options of ``heldout_episodes``: the day, and in a test
+        period its name and whether it carries on from the day before."""
+        if not self.test_periods:
+            return [{"day": day} for day in self.test_days]
+
+        return [
+            {"day": day, "period": name, "carry": index > 0}
+            for name, days in self.test_periods.items()
+            for index, day in enumerate(days)
+        ]
+
     def traced_days(self) -> list[str]:
         """The test days kept step by step (none unless ``results_detail`` is
         ``"detailed"``)."""
@@ -605,6 +641,7 @@ class Experiment:
             seeds=list(test.get("seeds", self.seeds[:1])),
             train_days=self.train_days[: test.get("train_days", 1)],
             test_days=test_days,
+            test_periods={},
             budget=budget,
             eval_every=None,
             eval_points=None,
@@ -726,6 +763,7 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
         "scenario": e.scenario,
         "train_days": data.get("train_days", []),
         "test_days": data.get("test_days", []),
+        "test_periods": data.get("test_periods", {}),
         "env_config": (MARKET_ENV_CONFIG if e.is_market else {}) | e.env_config,
         "algorithms": e.algorithms,
         "paradigms": e.paradigms,
@@ -825,6 +863,16 @@ def _check_resources(value, where: str) -> None:
 # --------------------------------------------------------------------------------------
 # Days
 # --------------------------------------------------------------------------------------
+def _periods(data: dict) -> dict[str, list[str]]:
+    """The experiment's ``test_periods``, each with its days written out."""
+    periods = data.get("test_periods") or {}
+
+    if not isinstance(periods, dict):
+        raise SpecError("'test_periods' must map a name to its days")
+
+    return {name: _days(days, "test_periods") for name, days in periods.items()}
+
+
 def _days(value, key: str) -> list[str]:
     """A list of ISO dates, or ``{"from": ..., "to": ...}`` (both included)."""
     if value is None:

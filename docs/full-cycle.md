@@ -120,7 +120,11 @@ agent's profile or order; the grid only as the mean line loading the fees used
 (RP-1f): the return ends at midnight and nothing is bootstrapped into the next day,
 because each day starts fresh (batteries at their initial charge, reputations at
 0.5). Energy left in a battery at midnight is therefore worth nothing to the agents
-(MP-1c).
+(MP-1c). Environment settings change this for an experiment: `episode_days` plays
+consecutive days with the batteries and reputations carried over midnight,
+`truncate_episode` bootstraps the return from the next day's start, and
+`terminal_value` pays for the stored energy; a test period is played without a reset
+([`day_end.json`](../config/experiments/day_end.json) compares them).
 
 | | |
 |---|---|

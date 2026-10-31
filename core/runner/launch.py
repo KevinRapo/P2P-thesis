@@ -427,7 +427,7 @@ def _heldout(
         config,
         policies,
         [seed for seed, _ in episodes],
-        options=[{"day": day} for _, day in episodes],
+        options=experiment.heldout_options(),
         trace=[i for i, (_, day) in enumerate(episodes) if day in traced],
     )
 

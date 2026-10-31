@@ -253,11 +253,24 @@ class LocalEnergyMarket:
         """Whether every step of the day is played."""
         return self.current_step >= self.n_steps
 
-    def reset(self) -> None:
+    def reset(
+        self,
+        battery_kwh: Optional[Mapping[str, float]] = None,
+        reputation: Optional[Mapping[str, float]] = None,
+    ) -> None:
         """Build the participants from their profiles (batteries at their initial
-        state of charge), the DSO, prepare the grid and go back to step 0."""
+        state of charge and reputations at their start value, or the values in
+        ``battery_kwh`` and ``reputation`` per participant: a day that carries on
+        from the last, MP-1c), the DSO, prepare the grid and go back to step 0."""
         g = self.scenario.grid
         self.participants = self._build_participants()
+
+        for pid, kwh in (battery_kwh or {}).items():
+            self.participants[pid].battery.energy_kwh = kwh
+
+        for pid, value in (reputation or {}).items():
+            self.participants[pid].reputation = value
+
         self.dso.reset()
         self.dso.set_hour(0.0)
         self.clearing_price = self.dso.market_price()

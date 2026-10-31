@@ -143,6 +143,7 @@ nav:
       - marlem-v1: v1.md
       - marlem-v2: v2.md
       - Code structure: structure.md
+      - Config: config.md
       - The full cycle: full-cycle.md
       - Plans:
           - plan/index.md

@@ -1,0 +1,70 @@
+{
+  "name": "day_end",
+  "description": "How the end of the training episode affects continuous operation (MP-1c, RP-1f): PPO-CTDE on random days or windows of the year, all four arms played on the same uninterrupted test periods. Compare the held-out bill and adjusted_bill. stored_kwh_value: the mean utility price of synthetic_day. The autumn period is for tuning, summer and winter for the results.",
+  "scenario": "config/scenarios/validate_market.json",
+  "train_days": {
+    "from": "2016-01-01",
+    "to": "2016-12-31"
+  },
+  "test_periods": {
+    "winter": {
+      "from": "2016-01-11",
+      "to": "2016-01-24"
+    },
+    "summer": {
+      "from": "2016-07-01",
+      "to": "2016-07-14"
+    },
+    "autumn_validation": {
+      "from": "2016-10-03",
+      "to": "2016-10-16"
+    }
+  },
+  "env_config": {
+    "stored_kwh_value": 0.2833
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctde"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "variants": {
+    "daily": {},
+    "daily_terminal_value": {
+      "env_config": {
+        "terminal_value": true
+      }
+    },
+    "one_day_bootstrap": {
+      "env_config": {
+        "truncate_episode": true,
+        "random_start_soc": true
+      }
+    },
+    "windows": {
+      "env_config": {
+        "episode_days": 7,
+        "truncate_episode": true,
+        "random_start_soc": true
+      }
+    }
+  },
+  "budget": 240000,
+  "eval_points": 10,
+  "eval_episodes": 10,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "train_batch_size_per_learner": 2400,
+      "minibatch_size": 240,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 3
+}

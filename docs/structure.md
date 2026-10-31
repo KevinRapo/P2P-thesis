@@ -66,7 +66,7 @@ flowchart TD
   cfg --> pricedata["data/"]
   pricedata --> pd1["synthetic_day.json · synthetic_day_15min.json"]:::data
   cfg --> exps["experiments/"]
-  exps --> ex1["smoke.json · market_ppo.json<br/>market_ppo_detailed.json · grid_methods.json"]:::data
+  exps --> ex1["smoke.json · market_ppo.json<br/>market_ppo_detailed.json · grid_methods.json<br/>day_end.json"]:::data
 
   root --> hpc["hpc/"]
   hpc --> hp1["targets.toml"]:::data
@@ -262,6 +262,8 @@ It comes from saved pre-migration results, not a new full-suite or UI test.
 | [`market_ppo_detailed.json`](../config/experiments/market_ppo_detailed.json) | The same with a short budget (8,000 steps) and `"results_detail": "detailed"`: the traced test days show each participant's partner and stage-1 trades | not run yet |
 | [`grid_methods.json`](../config/experiments/grid_methods.json) | PPO-CTDE with three seeds in three arms (variants): fees from the power flow, from the paper's graph model, and from the graph model with real line ratings ([grid-method comparison](experiments/grid-methods.md)) | test profile run locally; full profile not started |
 
+| [`day_end.json`](../config/experiments/day_end.json) | PPO-CTDE with three seeds in four arms (variants) on random days of 2016 without the test periods: single days terminated, with a terminal value, or truncated, and 7-day windows; all played on the same uninterrupted winter, summer and validation periods (MP-1c, RP-1f) | not run yet |
+
 ## studio/: the user interface
 
 NiceGUI, port 8091. A page is one file in `pages/`, or a folder of its own when
@@ -374,6 +376,7 @@ market or pandapower directly.
 |---|---|
 | `docs/` | This documentation (Markdown); `docs/networks.py` generates the network catalogue |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets; [`export_drawio.py`](../docs_site/export_drawio.py) exports the `.drawio` diagrams under `docs/` to the SVGs the pages show |
+| [`docs/config.md`](config.md) | Every configuration file and section as raw JSON | started |
 | [`docs/experiments/`](experiments/grid-methods.md) | The thesis's experiments: the grid-method comparison (proposal) with its diagram (`diagrams/grid_methods.drawio`, exported to `grid-methods.svg`) |
 | [`docs/full-cycle.md`](full-cycle.md) | The full cycle on one page: a master diagram of the training iteration, the environment step and the market step; one card per phase (reads, computes, writes, code, paper, decisions) and where every quantity is calculated |
 | `run_studio.py` | Starts the Studio with auto-reload |

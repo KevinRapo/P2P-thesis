@@ -146,6 +146,21 @@ def test_a_variants_env_config_reaches_its_runs_and_held_out_evaluation():
     assert experiment.heldout_config(variant="graph")["grid"] == graph["grid"]
 
 
+def test_test_periods_leave_training_and_carry_inside_each_period():
+    days = {"from": "2016-06-01", "to": "2016-06-05"}
+    periods = {"a": ["2016-06-02", "2016-06-03"], "b": ["2016-06-05"]}
+    data = spec(train_days=days, test_days=[], test_periods=periods)
+    experiment = Experiment.from_dict(data, "x")
+    assert experiment.train_days == ["2016-06-01", "2016-06-04"]
+    assert experiment.test_days == ["2016-06-02", "2016-06-03", "2016-06-05"]
+    assert [(o["period"], o["carry"]) for o in experiment.heldout_options()] == [
+        ("a", False),
+        ("a", True),
+        ("b", False),
+    ]
+    assert Experiment.from_dict(experiment.to_dict()) == experiment
+
+
 def test_a_variants_env_config_must_be_a_dict():
     data = spec(variants={"graph": {"env_config": ["grid"]}})
     with pytest.raises(SpecError, match="env_config"):
@@ -358,9 +373,9 @@ def test_written_out_shows_every_setting_and_makes_the_same_runs():
         for a, b in zip(before, after):
             assert SETTINGS[a.algorithm] | a.training == b.training
             assert NETWORK | a.model == b.model
-            # null in env_config: computed by the environment, as when absent
+            # null or false in env_config: the environment's default, as when absent
             given = [
-                {k: v for k, v in run.env_config.items() if v is not None}
+                {k: v for k, v in run.env_config.items() if v not in (None, False)}
                 for run in (a, b)
             ]
             assert given[0] == given[1]

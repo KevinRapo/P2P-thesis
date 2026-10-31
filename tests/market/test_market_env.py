@@ -403,3 +403,74 @@ def test_order_prices_are_whole_cents_and_ties_go_by_reputation():
         Order("3", "c", 0.20, 1.0, False, 2.0),
     ]
     assert Clearing(rules).double_auction(orders).trades[0].buyer_id == "b"
+
+
+def play(env, steps):
+    """``steps`` steps with the net-position rule: their flags and summed amounts."""
+    obs = env._observe()
+    policy = net_position_policy(env)
+    stored = dict.fromkeys(env.agents_id, 0.0)
+
+    for _ in range(steps):
+        obs, rewards, terminated, truncated, infos = env.step(policy(obs))
+        for pid in stored:
+            stored[pid] += infos[pid]["stored_change_kwh"]
+
+    return rewards, terminated, truncated, stored
+
+
+def test_a_window_carries_its_state_over_midnight_and_ends_on_the_next_day():
+    days = ["2016-06-01", "2016-06-02"]
+    env = MarketEnv(
+        {
+            "scenario": str(SCENARIO),
+            "days": days + ["2016-06-05"],  # a gap: no window starts on the 2nd or 5th
+            "episode_days": 2,
+            "truncate_episode": True,
+            "random_start_soc": True,
+        }
+    )
+    assert env.windows == [days]
+    env.reset(seed=0)
+    start = env._stored_kwh()
+    _, terminated, truncated, _ = play(env, 24)
+    assert not truncated["__all__"] and env.market.scenario.grid.day == days[1]
+    midnight = env._stored_kwh()
+    assert midnight != start and env.market.current_step == 0
+    assert env._reputations() != dict.fromkeys(env.agents_id, 0.5)
+    _, terminated, truncated, stored = play(env, 24)
+    assert truncated["__all__"] and not terminated["__all__"]
+    assert env.market.scenario.grid.day == "2016-06-03"  # the bootstrap state
+    end = env._stored_kwh()
+    assert end != midnight
+    assert {a: end[a] - start[a] for a in end} != {}
+    assert sum(stored.values()) == pytest.approx(
+        sum(end.values()) - sum(midnight.values())
+    )
+
+
+def test_terminal_value_adds_the_stored_energy_to_a_drawn_days_last_reward():
+    config = {"scenario": str(SCENARIO), "stored_kwh_value": 0.3}
+    env = MarketEnv(config | {"terminal_value": True})
+    plain = MarketEnv(config | {"energy_scale": env.energy_scale, "reward_scale": env.reward_scale})
+    env.reset(seed=0)
+    plain.reset(seed=0)
+    last, *_, stored = play(env, 24)
+    expected, *_ = play(plain, 24)
+
+    for pid in stored:
+        gain = 0.3 * stored[pid] / env.reward_scale
+        assert last[pid] == pytest.approx(expected[pid] + gain)
+
+
+def test_a_test_period_carries_the_state_and_starts_from_the_initial_one():
+    env = MarketEnv({"scenario": str(SCENARIO)})
+    env.reset(options={"day": env.days[0]})
+    initial = env._stored_kwh()
+    play(env, 24)
+    end = env._stored_kwh()
+    assert end != initial
+    _, infos = env.reset(options={"day": env.days[0], "carry": True, "period": "p"})
+    assert env._stored_kwh() == end and infos[env.agents_id[0]]["period"] == "p"
+    env.reset(options={"day": env.days[0]})
+    assert env._stored_kwh() == initial

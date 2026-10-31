@@ -118,7 +118,9 @@ the initial state of charge (0.5).
   import unpriced.
 - **MP-1c** The battery at the end of the day: energy left at midnight is worth
   nothing, because the next day starts at 0.5 again. Keep, value the stored energy
-  at the end, or carry the state of charge over between days.
+  at the end, or carry the state of charge over between days. The settings
+  `episode_days`, `truncate_episode` and `terminal_value` exist; the experiment
+  `day_end.json` is to decide.
 
 **Hands to RL.** What the agent physically controls; the terms of the reward
 (MP-1b); the end-of-day effect (MP-1c), which a learning agent will exploit if it

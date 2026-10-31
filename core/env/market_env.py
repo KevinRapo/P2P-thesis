@@ -92,17 +92,32 @@ both once, on its training days, and keeps them (``resolved_config``):
 validation, the held-out days and a restored policy use
 the training values, so an observation and a reward mean the same everywhere.
 
-Episodes. ``reset`` draws a day from ``days`` (or plays ``options["day"]``, one
-of them: the held-out evaluation plays each test day once) and rebuilds the market
-for it (changing the day and resetting is cheap; the first reset of a process
-loads the SimBench network). The day ends the episode: ``terminateds`` is True for
-every agent and ``__all__`` after the last step, ``truncateds`` is always False.
-Each day is a task of its own: the return ends at midnight, and the next episode
-starts a fresh day (the battery at its initial state of charge). The agents
-therefore optimise one day; energy left in the battery at midnight is worth
-nothing to them (MP-1c). Truncating instead, so the return bootstraps into the
-next day, was tried and reverted on 26 Oct 2026 (RP-1f): it is only consistent
-with days that carry their state over, a larger redesign kept for later.
+Episodes. ``reset`` draws a window of ``episode_days`` consecutive days from
+``days`` and rebuilds the market for its first day (changing the day and resetting
+is cheap; the first reset of a process loads the SimBench network). Inside a window
+each day follows the last with the batteries and reputations as they were at
+midnight. Settings (MP-1c, RP-1f; the experiment ``day_end.json`` compares them):
+
+    episode_days      days in a window, default 1
+    truncate_episode  False: the window's end sets ``terminateds``, the return ends
+                      there and energy left in a battery is worth nothing to the
+                      agents. True: it sets ``truncateds``, and the final observation
+                      is the start of the next calendar day with the batteries and
+                      reputations carried over: the state the return bootstraps
+                      from is one the critic trains on
+    random_start_soc  each window starts with the batteries at a random charge in
+                      their window, so that those states are seen
+    terminal_value    the window's last reward adds the change of the stored energy
+                      at ``stored_kwh_value`` per kWh
+    stored_kwh_value  what a stored kWh is worth (default 0): ``adjusted_bill``, and
+                      ``terminal_value``
+
+``options["day"]`` plays that one day, one of ``days``, instead of drawing: the
+batteries start at their initial charge, none of the settings above changes the
+rewards, and the final observation stays on that day. With ``options["carry"]`` the
+batteries and reputations start as the last episode of this environment left them,
+which is how the held-out evaluation plays a period; ``options["period"]`` is passed
+on to the ``reset`` infos.
 
 Infos, per agent and step, in the layout ``core/rl/policy.py`` reads (amounts
 are summed over an episode, states only kept step by step; kWh and the scenario's
@@ -114,6 +129,8 @@ money unit):
     preference_kwh                 traded in stage 1 (mutual preferences)
     deferred_demand_kwh            demand drawn untraded from the upstream grid
     deferred_supply_kwh            surplus spilled untraded
+    stored_change_kwh              change of the energy stored in the battery
+    adjusted_bill                  bill + stored_change_kwh · ``stored_kwh_value``
     state: order_kwh               the order placed, as the market took it after
                                    validation: + sell, − buy, 0 none
            order_price             its price (NaN without an order)
@@ -161,6 +178,8 @@ gives both to the RL layer's evaluation.
     energy_scale  E in kWh (default: computed from ``days``)
     reward_scale  default ``p_utility · E``
     seed          seed of the day draw for the first reset
+    episode_days, truncate_episode, random_start_soc, terminal_value,
+    stored_kwh_value: see Episodes
     grid, dso     settings that replace the scenario's (``GridSetup``, ``DsoSetup``
                   fields), e.g. ``{"grid": {"method": "graph"}}``: the arms of an
                   experiment as variants of one scenario
@@ -169,6 +188,7 @@ gives both to the RL layer's evaluation.
 from __future__ import annotations
 
 from dataclasses import fields
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional
 
@@ -225,6 +245,20 @@ class MarketEnv(MultiAgentEnv):
         _override(scenario.dso, config.get("dso"), "dso")
         self.market = LocalEnergyMarket(scenario)
         self.days: list[str] = list(config.get("days") or [scenario.grid.day])
+        self.episode_days: int = int(config.get("episode_days") or 1)
+        self.truncate_episode: bool = bool(config.get("truncate_episode"))
+        self.random_start_soc: bool = bool(config.get("random_start_soc"))
+        self.terminal_value: bool = bool(config.get("terminal_value"))
+        self.stored_kwh_value: float = float(config.get("stored_kwh_value") or 0.0)
+
+        if self.terminal_value and not self.stored_kwh_value:
+            raise ValueError("terminal_value needs a stored_kwh_value")
+
+        self.windows = _windows(self.days, self.episode_days)
+        self.window: list[str] = []
+        self.window_day = 0
+        self.one_day = False
+        self.start_kwh: dict[str, float] = {}
         self.agents_id: list[str] = [p.id for p in scenario.participants]
         self.agents = self.possible_agents = list(self.agents_id)
         # The day's lowest p_FiT and highest p_utility: the fixed scale of prices
@@ -336,24 +370,41 @@ class MarketEnv(MultiAgentEnv):
 
     # --- Episodes --------------------------------------------------------------------
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
-        """Draw a day (or play ``options["day"]``), rebuild the market for it,
-        return the first observations and ``{"day": day}`` per agent."""
+        """Draw a window of days (or play ``options["day"]``, see the module), rebuild
+        the market for its first day, return the first observations and ``{"day":
+        day}`` per agent (with the ``period`` of ``options``, if any)."""
+        options = options or {}
+
         if seed is not None:
             self.rng = np.random.default_rng(seed)
 
-        day = (options or {}).get("day")
+        day = options.get("day")
+        self.one_day = day is not None
 
         if day is None:
-            day = self.days[int(self.rng.integers(len(self.days)))]
-        elif day not in self.days:
+            self.window = self.windows[int(self.rng.integers(len(self.windows)))]
+        elif day in self.days:
+            self.window = [day]
+        else:
             raise ValueError(f"day {day} is not one of the environment's days")
 
-        self.market.scenario.grid.day = day
-        self.market.reset()
-        self.last_record = None
-        infos = {a: {"day": day} for a in self.agents_id}
+        self.window_day = 0
 
-        return self._observe(), infos
+        if options.get("carry"):
+            self._play(self.window[0], self._stored_kwh(), self._reputations())
+        elif self.random_start_soc and not self.one_day:
+            self._play(self.window[0], self._random_kwh())
+        else:
+            self._play(self.window[0])
+
+        self.start_kwh = self._stored_kwh()
+        self.last_record = None
+        info = {"day": self.window[0]}
+
+        if "period" in options:
+            info["period"] = options["period"]
+
+        return self._observe(), {a: dict(info) for a in self.agents_id}
 
     def step(self, action_dict: dict[str, Any]):
         """Play one market step with the agents' orders."""
@@ -365,6 +416,7 @@ class MarketEnv(MultiAgentEnv):
             if intent is not None:
                 intents[pid] = intent
 
+        stored = self._stored_kwh()
         record = self.market.step(intents)
         self.last_record = record
 
@@ -379,6 +431,7 @@ class MarketEnv(MultiAgentEnv):
             rewards[pid] = bill / self.reward_scale
             order = orders.get(pid)
             battery = self.market.participants[pid].battery
+            change = float((o.soc_kwh or 0.0) - stored.get(pid, 0.0))
             infos[pid] = {
                 "profit": float(o.profit),
                 "bill": float(bill),
@@ -387,6 +440,8 @@ class MarketEnv(MultiAgentEnv):
                 "preference_kwh": float(preference.get(pid, 0.0)),
                 "deferred_demand_kwh": float(o.deferred_demand_kwh),
                 "deferred_supply_kwh": float(o.deferred_supply_kwh),
+                "stored_change_kwh": change,
+                "adjusted_bill": float(bill + self.stored_kwh_value * change),
                 "state": {
                     "order_kwh": _order_kwh(order),
                     "order_price": float(order.price) if order else float("nan"),
@@ -401,11 +456,68 @@ class MarketEnv(MultiAgentEnv):
                 "shared_state": shared_state,
             }
 
-        done = self.market.done
-        terminateds = {a: done for a in self.agents_id} | {"__all__": done}
-        truncateds = {a: False for a in self.agents_id} | {"__all__": False}
+        day_over = self.market.done
+        done = day_over and self.window_day == len(self.window) - 1
+        cut, ended = (done, False) if self.truncate_episode else (False, done)
+        terminateds = {a: ended for a in self.agents_id} | {"__all__": ended}
+        truncateds = {a: cut for a in self.agents_id} | {"__all__": cut}
+
+        if done and self.terminal_value and not self.one_day:
+            for pid, kwh in self._stored_kwh().items():
+                gain = kwh - self.start_kwh[pid]
+                rewards[pid] += self.stored_kwh_value * gain / self.reward_scale
+
+        if day_over and not self.one_day and (not done or self.truncate_episode):
+            self._next_day()
 
         return self._observe(), rewards, terminateds, truncateds, infos
+
+    # --- Days -------------------------------------------------------------------------
+    def _play(
+        self,
+        day: str,
+        battery_kwh: Optional[dict] = None,
+        reputation: Optional[dict] = None,
+    ) -> None:
+        """Rebuild the market for ``day``."""
+        self.market.scenario.grid.day = day
+        self.market.reset(battery_kwh, reputation)
+
+    def _next_day(self) -> None:
+        """Move on to the window's next day, or after its last one to the next
+        calendar day (the first of the window at the end of the profile year), with
+        the batteries and reputations as they are."""
+        self.window_day += 1
+
+        if self.window_day < len(self.window):
+            day = self.window[self.window_day]
+        else:
+            following = date.fromisoformat(self.window[-1]) + timedelta(days=1)
+            same_year = following.year == date.fromisoformat(self.window[0]).year
+            day = following.isoformat() if same_year else self.window[0]
+
+        self._play(day, self._stored_kwh(), self._reputations())
+
+    def _stored_kwh(self) -> dict[str, float]:
+        """The energy in each participant's battery."""
+        people = self.market.participants.items()
+        return {pid: p.battery.energy_kwh for pid, p in people if p.battery}
+
+    def _reputations(self) -> dict[str, float]:
+        """Each participant's reputation."""
+        return {pid: p.reputation for pid, p in self.market.participants.items()}
+
+    def _random_kwh(self) -> dict[str, float]:
+        """A random energy for each battery, inside its state-of-charge window."""
+        out = {}
+
+        for p in self.market.scenario.participants:
+            b = p.battery
+            if b is not None:
+                soc = self.rng.uniform(b.min_soc, b.max_soc)
+                out[p.id] = float(soc * b.capacity_kwh)
+
+        return out
 
     # --- Actions ---------------------------------------------------------------------
     def decode(self, pid: str, action: dict) -> Optional[OrderIntent]:
@@ -605,6 +717,26 @@ def _preference_kwh(record: StepRecord) -> dict[str, float]:
             out[t.seller_id] = out.get(t.seller_id, 0.0) + t.quantity
 
     return out
+
+
+def _windows(days: list[str], length: int) -> list[list[str]]:
+    """Every run of ``length`` consecutive calendar days inside ``days``; the shorter
+    runs when there is none (a test profile with a single training day)."""
+    known = set(days)
+    runs = []
+
+    for first in days:
+        run, day = [first], date.fromisoformat(first)
+
+        while len(run) < length:
+            day += timedelta(days=1)
+            if day.isoformat() not in known:
+                break
+            run.append(day.isoformat())
+
+        runs.append(run)
+
+    return [run for run in runs if len(run) == length] or runs
 
 
 def _number(value: Optional[float]) -> float:
