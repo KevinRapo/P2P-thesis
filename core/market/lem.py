@@ -490,7 +490,7 @@ class LocalEnergyMarket:
     ) -> tuple[dict[str, OrderIntent], list[str]]:
         """Phase 1 ([P1] §3.9): limit each intent to the market bounds ([P1] eq. 2,
         §3.2.3) and to what the participant can physically deliver or take ([P1]
-        eq. 15a-b)."""
+        eq. 15a-b), and round its price (MP-5d)."""
         m = self.scenario.market
         valid, notes = {}, []
 
@@ -515,6 +515,9 @@ class LocalEnergyMarket:
             if quantity <= max(m.min_quantity, 1e-9):
                 continue
 
+            # DEVIATION MP-5d: order prices in whole cents, so that equal prices occur
+            # and reputation, the auction's tie-break, can decide between them.
+            price = round(price, m.price_decimals)
             valid[pid] = OrderIntent(pid, i.is_buy, price, quantity, i.partner_id)
 
         return valid, notes

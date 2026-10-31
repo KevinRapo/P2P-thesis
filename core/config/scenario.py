@@ -99,6 +99,7 @@ class MarketSetup:
         max_price: Highest order price, p_max ([P1] eq. 2).
         min_quantity: Smallest order quantity (kWh), q_min ([P1] eq. 2).
         max_quantity: Largest order quantity (kWh), q_max ([P1] eq. 2).
+        price_decimals: Decimals an order price is rounded to (2: whole cents).
         partner_preference: Participants name a preferred partner β on the other
             side ([P1] eq. 2; stage 1 of the clearing, §3.3.2).
         partner_reputation_weight: How the partner is chosen ([P1] §3.4): weight of
@@ -126,6 +127,7 @@ class MarketSetup:
     max_price: float = 1.0
     min_quantity: float = 0.0
     max_quantity: float = 100.0
+    price_decimals: int = 2
     partner_preference: bool = False
     partner_reputation_weight: float = 0.5
     bid_margin: float = 0.3

@@ -17,7 +17,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from core.config import store
 from core.env import OBS_NAMES, MarketEnv, net_position_policy, zero_policy
+from core.market.clearing import Clearing, ClearingRules
+from core.market.dso import Dso
+from core.market.lem import LocalEnergyMarket, OrderIntent
+from core.market.order import Order
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAYS = ["2016-06-15", "2016-01-10"]
@@ -380,3 +385,21 @@ def test_paradigm_wrappers_over_the_market(env):
     assert space.contains(joint)
     _, rewards, _, _, infos = grouped.step({GROUP: joint})
     assert rewards[GROUP] == pytest.approx(sum(infos[GROUP]["rewards"].values()))
+
+
+def test_order_prices_are_whole_cents_and_ties_go_by_reputation():
+    market = LocalEnergyMarket(store.load(SCENARIO))
+    market.reset()
+    pid = next(iter(market.participants))
+    pending = market.start_step({pid: OrderIntent(pid, True, 0.2341, 1.0)})
+    assert [o.price for o in pending.orders] == [0.23]
+
+    rules = ClearingRules(
+        "average", Dso(0.08, 0.30), 0.2, reputation={"a": 0.4, "b": 0.9}
+    )
+    orders = [
+        Order("1", "a", 0.23, 1.0, True, 0.0),
+        Order("2", "b", 0.23, 1.0, True, 1.0),
+        Order("3", "c", 0.20, 1.0, False, 2.0),
+    ]
+    assert Clearing(rules).double_auction(orders).trades[0].buyer_id == "b"

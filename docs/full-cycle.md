@@ -182,7 +182,8 @@ stages, then the rest).
 
 ### 2. Orders
 
-Three sub-steps, all inside [`start_step`](../core/market/lem.py#L274-L297).
+Order prices are rounded to whole cents when the intents are limited to the bounds
+(MP-5d). Three sub-steps, all inside [`start_step`](../core/market/lem.py#L274-L297).
 
 **2a. Intents.** What each participant wants: buy or sell, price, quantity, and
 optionally a preferred partner $\beta$. They come from outside or from the market's
