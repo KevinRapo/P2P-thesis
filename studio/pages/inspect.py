@@ -107,7 +107,6 @@ def _network_tab(s: Services) -> None:
                 s,
                 DEFAULT_SOURCE,
                 on_pick=lambda source: load(source),
-                allow_file=False,
             )
             summary_box = ui.column().classes("w-full gap-1")
 
@@ -188,7 +187,6 @@ def _compare_tab(s: Services) -> None:
                     s,
                     initial,
                     on_pick=lambda source, side=side: load(side, source),
-                    allow_file=False,
                 ).start()
 
     # Full-width card below: the comparison, drawn by show() once both are loaded

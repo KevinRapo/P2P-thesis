@@ -17,7 +17,7 @@ from nicegui import run, ui
 from core.grid.contract import NetworkRef, NetworkSummary, TopologyView
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileType
-from studio.components.cards import busy, failed, fill, not_implemented
+from studio.components.cards import busy, failed, fill
 from studio.components.charts import NetworkChart, SeriesModelChart
 from studio.components.profiles import ProfileOverview
 from studio.components.tables import data_table
@@ -28,7 +28,6 @@ from studio.components.tables import data_table
 SOURCE_LABELS = {
     "simbench": "SimBench",
     "pandapower_builtin": "Built-in",
-    "pandapower_file": "File",
 }
 DEFAULT_SOURCE = NetworkRef("simbench", "1-LV-semiurb4--0-sw")
 
@@ -156,7 +155,6 @@ class NetworkPicker:
         services: The services (``grid.list_networks`` fills the dropdowns).
         initial: The network shown first.
         on_pick: Called with the picked ``NetworkRef`` (also for ``initial``).
-        allow_file: Show the "File" source and its (not yet working) upload.
     """
 
     def __init__(
@@ -164,20 +162,15 @@ class NetworkPicker:
         services: Services,
         initial: NetworkRef,
         on_pick: Callable[[NetworkRef], Awaitable[None]],
-        allow_file: bool = True,
     ) -> None:
         self.services = services
         self.source = initial
         self.on_pick = on_pick
         self.networks: list = []
-        labels = dict(SOURCE_LABELS)
-
-        if not allow_file:
-            labels.pop("pandapower_file")
 
         # Top to bottom: source toggle, voltage level, the SimBench filters, the
-        # network list, (File) upload, status
-        self.toggle = ui.toggle(labels, value=initial.source_type).props(
+        # network list, status
+        self.toggle = ui.toggle(SOURCE_LABELS, value=initial.source_type).props(
             "no-caps dense"
         )
         self.level = ui.select([], label="Voltage level").classes("w-full")
@@ -204,13 +197,6 @@ class NetworkPicker:
             .classes("w-full")
             .props("options-dense")
         )
-        # Only shown for the "File" source; uploading is not implemented yet.
-        self.upload = ui.upload(
-            label="pandapower JSON",
-            auto_upload=True,
-            on_upload=lambda: not_implemented("Upload network"),
-        ).classes("w-full")
-        self.upload.set_visibility(False)
         self.status = ui.column().classes("w-full gap-1")
         self.toggle.on_value_change(self._on_source)
         self.level.on_value_change(lambda: self._fill_networks())
@@ -226,7 +212,6 @@ class NetworkPicker:
 
     async def _on_source(self, _: Any = None) -> None:
         source_type = self.toggle.value
-        self.upload.set_visibility(source_type == "pandapower_file")
         busy(self.status, "Reading catalog …")
         self.networks = await run.io_bound(
             self.services.grid.list_networks, source_type

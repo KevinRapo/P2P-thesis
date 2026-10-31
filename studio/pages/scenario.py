@@ -262,7 +262,6 @@ def page() -> None:
             s,
             NetworkRef("simbench", scenario.grid.code),
             on_pick=load,
-            allow_file=False,
         ).start()
 
 
