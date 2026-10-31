@@ -52,26 +52,40 @@ PRESET_KEYS = (
     "resources",
 )
 PRESETS = ("test", "full")
-# The settings the Experiments page offers as fields, by their path in the JSON (V2:
-# PPO's settings under training.ppo); the rest is edited in the JSON itself.
-QUICK_SETTINGS: dict[str, tuple[str, ...]] = {
-    "paradigms": ("paradigms",),
-    "seeds": ("seeds",),
-    "budget": ("budget",),
-    "lr": ("training", "ppo", "lr"),
-    "train_batch_size_per_learner": ("training", "ppo", "train_batch_size_per_learner"),
-    "minibatch_size": ("training", "ppo", "minibatch_size"),
-    "num_epochs": ("training", "ppo", "num_epochs"),
-    "entropy_coeff": ("training", "ppo", "entropy_coeff"),
-    "clip_param": ("training", "ppo", "clip_param"),
-    "gamma": ("training", "ppo", "gamma"),
-    "num_env_runners": ("num_env_runners",),
-    "max_parallel": ("max_parallel",),
-    "torch_threads": ("torch_threads",),
-    "cpus": ("resources", "cpus"),
-    "mem_gb": ("resources", "mem_gb"),
-    "minutes": ("resources", "minutes"),
+# Quick settings: group -> name -> (label, input kind, dotted JSON path).
+# Both the page's fields and the editor's reads/writes use this catalog.
+QUICK_GROUPS = {
+    "Runs": {
+        "paradigms": ("Paradigms", "paradigms", "paradigms"),
+        "seeds": ("Seeds (comma-separated)", "seeds", "seeds"),
+        "budget": ("Budget (env steps per run)", "int", "budget"),
+    },
+    "PPO": {
+        "lr": ("Learning rate", "float", "training.ppo.lr"),
+        "train_batch_size_per_learner": (
+            "Batch (env steps)",
+            "int",
+            "training.ppo.train_batch_size_per_learner",
+        ),
+        "minibatch_size": ("Minibatch", "int", "training.ppo.minibatch_size"),
+        "num_epochs": ("Epochs", "int", "training.ppo.num_epochs"),
+        "entropy_coeff": ("Entropy coefficient", "float", "training.ppo.entropy_coeff"),
+        "clip_param": ("Clip", "float", "training.ppo.clip_param"),
+        "gamma": ("Discount γ", "float", "training.ppo.gamma"),
+    },
+    "Workers and cluster resources (per run)": {
+        "num_env_runners": ("Environment runners", "int", "num_env_runners"),
+        "max_parallel": ("Runs in parallel (this PC)", "int", "max_parallel"),
+        "torch_threads": ("Torch threads", "int", "torch_threads"),
+        "cpus": ("CPUs (SLURM)", "int", "resources.cpus"),
+        "mem_gb": ("Memory GB (SLURM)", "float", "resources.mem_gb"),
+        "minutes": ("Minutes (SLURM)", "int", "resources.minutes"),
+    },
 }
+QUICK_SETTINGS: dict[str, tuple[str, str, str]] = {}
+
+for fields in QUICK_GROUPS.values():
+    QUICK_SETTINGS.update(fields)
 
 
 # --------------------------------------------------------------------------------------
@@ -327,10 +341,10 @@ def quick_settings(text: str) -> dict:
 
     found = {}
 
-    for name, path in QUICK_SETTINGS.items():
+    for name, (_, _, path) in QUICK_SETTINGS.items():
         value: object = data
 
-        for key in path:
+        for key in path.split("."):
             value = value.get(key) if isinstance(value, dict) else None
 
         if name == "budget" and isinstance(value, dict):
@@ -352,7 +366,7 @@ def apply_settings(text: str, values: dict) -> str:
         if name not in QUICK_SETTINGS:
             raise ValueError(f"unknown quick setting {name!r}")
 
-        *parents, last = QUICK_SETTINGS[name]
+        *parents, last = QUICK_SETTINGS[name][2].split(".")
         node = data
 
         for key in parents:

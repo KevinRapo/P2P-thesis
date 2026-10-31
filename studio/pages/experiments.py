@@ -23,7 +23,7 @@ from typing import Any, Optional
 
 from nicegui import run, ui
 
-from studio.adapters.run_service import RunService
+from studio.adapters.run_service import QUICK_GROUPS, QUICK_SETTINGS, RunService
 from studio.components.cards import key_values, placeholder, section
 from studio.components.run_check import (
     experiment_facts,
@@ -42,32 +42,6 @@ PRESET_BUTTONS = {
 }
 
 PARADIGM_CHOICES = {"ctce": "CTCE", "ctde": "CTDE", "dtde": "DTDE"}
-# The page's fields (``RunService.QUICK_SETTINGS``): name -> (label, kind),
-# in groups; "int" and "float" are numbers, the others are their own kind.
-QUICK_GROUPS = {
-    "Runs": {
-        "paradigms": ("Paradigms", "paradigms"),
-        "seeds": ("Seeds (comma-separated)", "seeds"),
-        "budget": ("Budget (env steps per run)", "int"),
-    },
-    "PPO": {
-        "lr": ("Learning rate", "float"),
-        "train_batch_size_per_learner": ("Batch (env steps)", "int"),
-        "minibatch_size": ("Minibatch", "int"),
-        "num_epochs": ("Epochs", "int"),
-        "entropy_coeff": ("Entropy coefficient", "float"),
-        "clip_param": ("Clip", "float"),
-        "gamma": ("Discount γ", "float"),
-    },
-    "Workers and cluster resources (per run)": {
-        "num_env_runners": ("Environment runners", "int"),
-        "max_parallel": ("Runs in parallel (this PC)", "int"),
-        "torch_threads": ("Torch threads", "int"),
-        "cpus": ("CPUs (SLURM)", "int"),
-        "mem_gb": ("Memory GB (SLURM)", "float"),
-        "minutes": ("Minutes (SLURM)", "int"),
-    },
-}
 
 
 # --------------------------------------------------------------------------------------
@@ -196,7 +170,7 @@ class ExperimentForm:
 
             # The group's fields in one row
             with ui.row().classes("w-full gap-2"):
-                for name, (label, kind) in fields.items():
+                for name, (label, kind, _) in fields.items():
                     if kind == "paradigms":
                         field = ui.select(
                             PARADIGM_CHOICES, multiple=True, label=label
@@ -231,9 +205,7 @@ class ExperimentForm:
         if self._filling:
             return
 
-        kind = next(
-            k for g in QUICK_GROUPS.values() for n, (_, k) in g.items() if n == name
-        )
+        kind = QUICK_SETTINGS[name][1]
         value = self.quick[name].value
 
         try:
