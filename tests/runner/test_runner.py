@@ -40,7 +40,7 @@ def spec(**changes) -> dict:
     base = {
         "scenario": SCENARIO,
         "train_days": {"from": "2016-06-01", "to": "2016-06-03"},
-        "test_days": ["2016-07-01", "2016-07-02"],
+        "test_periods": {"july": ["2016-07-01", "2016-07-02"]},
         "algorithms": ["ppo"],
         "paradigms": ["dtde", "ctde"],
         "seeds": [0, 1],
@@ -93,10 +93,10 @@ def test_env_runners_must_be_a_nonnegative_integer(value):
 def test_budget_and_eval_every_per_algorithm():
     runs = {r.algorithm: r for r in Experiment.from_dict(spec(), "x").expand()}
     assert (runs["ppo"].budget, runs["ppo"].eval_every) == (2000, 500)
-    data = spec(eval_points=None, eval_every={"ppo": 700})
+    data = spec(eval_points={"ppo": 5})
     runs = {r.algorithm: r for r in Experiment.from_dict(data, "x").expand()}
-    assert runs["ppo"].eval_every == 700
-    data = spec(eval_points=None, budget=900, eval_every=300)
+    assert runs["ppo"].eval_every == 400
+    data = spec(budget=900, eval_points=3)
     runs = Experiment.from_dict(data, "x").expand()
     assert {(r.budget, r.eval_every) for r in runs} == {(900, 300)}
 
@@ -105,7 +105,10 @@ def test_variants_merge_over_the_algorithm_settings():
     data = spec(
         paradigms=["dtde"],
         seeds=[3],
-        variants={"e1": {"entropy_coeff": 0.1}, "lr1": {"lr": 0.1}},
+        variants={
+            "e1": {"training": {"ppo": {"entropy_coeff": 0.1}}},
+            "lr1": {"training": {"ppo": {"lr": 0.1}}},
+        },
         training={"ppo": {"lr": 0.0003, "entropy_coeff": 0.01}},
     )
     runs = Experiment.from_dict(data, "x").expand()
@@ -128,28 +131,54 @@ def test_env_config_and_date_ranges():
     assert experiment.heldout_config()["days"] == ["2016-07-01", "2016-07-02"]
 
 
-def test_a_variants_env_config_reaches_its_runs_and_held_out_evaluation():
-    graph = {"grid": {"method": "graph"}}
+def test_a_variant_overwrites_only_what_it_names_in_a_complete_arm():
     data = spec(
         paradigms=["dtde"],
         seeds=[0],
-        variants={"ac": {}, "graph": {"env_config": graph, "lr": 0.1}},
+        variants={
+            "base": {},
+            "big": {
+                "budget": 9000,
+                "model": {"fcnet_hiddens": [8]},
+                "env_config": {"episode_days": 7},
+                "scenario": {"grid": {"method": "graph"}},
+            },
+        },
         env_config={"energy_scale": 7.0},
+        training={"ppo": {"lr": 0.1}},
     )
-    experiment = Experiment.from_dict(data, "x")
-    ac, gr = experiment.expand()
-    assert "grid" not in ac.env_config
-    assert gr.env_config["grid"] == graph["grid"]
-    assert gr.env_config["energy_scale"] == 7.0
-    assert "env_config" not in gr.training and gr.training["lr"] == 0.1
-    assert "grid" not in experiment.heldout_config(variant="ac")
-    assert experiment.heldout_config(variant="graph")["grid"] == graph["grid"]
+    experiment = Experiment.from_dict(data, "x").inline_scenario()
+    base, big = experiment.expand()
+    assert (base.budget, base.model) == (2000, {})
+    assert (big.budget, big.model) == (9000, {"fcnet_hiddens": [8]})
+    assert big.training == {"lr": 0.1}
+    assert big.env_config["energy_scale"] == 7.0
+    assert big.env_config["episode_days"] == 7
+    assert "episode_days" not in base.env_config
+    assert Path(big.env_config["scenario"]).name == "scenario_big.json"
+    arm = experiment.arm("big")
+    assert arm.scenario["grid"]["method"] == "graph"
+    assert arm.scenario["grid"]["code"] == experiment.scenario["grid"]["code"]
+    assert experiment.heldout_config(variant="big")["episode_days"] == 7
+
+
+def test_a_variant_cannot_change_the_grid_and_settings_are_checked():
+    for changes, message in (
+        ({"seeds": [1]}, "cannot overwrite"),
+        ({"lr": 0.1}, "cannot overwrite"),
+        ({"env_config": {"episode_dayz": 7}}, "unknown env_config"),
+    ):
+        with pytest.raises(SpecError, match=message):
+            Experiment.from_dict(spec(variants={"a": changes}), "x")
+
+    with pytest.raises(SpecError, match="unknown env_config"):
+        Experiment.from_dict(spec(env_config={"grid": {}}), "x")
 
 
 def test_test_periods_leave_training_and_carry_inside_each_period():
     days = {"from": "2016-06-01", "to": "2016-06-05"}
     periods = {"a": ["2016-06-02", "2016-06-03"], "b": ["2016-06-05"]}
-    data = spec(train_days=days, test_days=[], test_periods=periods)
+    data = spec(train_days=days, test_periods=periods)
     experiment = Experiment.from_dict(data, "x")
     assert experiment.train_days == ["2016-06-01", "2016-06-04"]
     assert experiment.test_days == ["2016-06-02", "2016-06-03", "2016-06-05"]
@@ -159,12 +188,6 @@ def test_test_periods_leave_training_and_carry_inside_each_period():
         ("b", False),
     ]
     assert Experiment.from_dict(experiment.to_dict()) == experiment
-
-
-def test_a_variants_env_config_must_be_a_dict():
-    data = spec(variants={"graph": {"env_config": ["grid"]}})
-    with pytest.raises(SpecError, match="env_config"):
-        Experiment.from_dict(data, "x")
 
 
 def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):
@@ -235,13 +258,15 @@ def test_the_heldout_evaluation_plays_every_test_day_once():
 
 def test_traced_days_only_with_detailed_results():
     days = {"from": "2016-07-01", "to": "2016-07-05"}
-    assert Experiment.from_dict(spec(test_days=days), "x").traced_days() == []
+    assert (
+        Experiment.from_dict(spec(test_periods={"t": days}), "x").traced_days() == []
+    )
     detailed = Experiment.from_dict(
-        spec(test_days=days, results_detail="detailed"), "x"
+        spec(test_periods={"t": days}, results_detail="detailed"), "x"
     )
     assert detailed.traced_days() == ["2016-07-01", "2016-07-02", "2016-07-03"]
     chosen = spec(
-        test_days=days,
+        test_periods={"t": days},
         results_detail="detailed",
         trace_days=["2016-07-04", "2016-07-02"],
     )
@@ -279,10 +304,11 @@ def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):
         ({"scenario": "config/scenarios/nope.json"}, "scenario file not found"),
         ({"scenario": None}, "needs a 'scenario'"),
         ({"budget": {"sac": 10}}, "no entry for algorithm 'ppo'"),
-        ({"eval_every": 10}, "not both"),
+        ({"eval_every": 10}, "unknown field"),
+        ({"test_days": ["2016-07-01"]}, "'test_days' is gone"),
         ({"seeds": []}, "seeds"),
         ({"seeds": [0, 0]}, "seeds"),
-        ({"test_days": {"from": "2016-07-05", "to": "2016-07-01"}}, "before"),
+        ({"test_periods": {"t": {"from": "2016-07-05", "to": "2016-07-01"}}}, "before"),
         ({"train_days": ["2016-13-01"]}, "bad date"),
         ({"training": {"dqn": {}}}, "'training' maps"),
         ({"trainning": {}}, "unknown field"),
@@ -365,7 +391,10 @@ def test_written_out_shows_every_setting_and_makes_the_same_runs():
         full = written_out(data, path.stem)
         assert written_out(full, path.stem) == full, path  # twice: the same
         assert json.loads(to_text(full)) == full
-        assert set(full) >= set(Experiment.__dataclass_fields__) - {"name"}
+        assert set(full) >= set(Experiment.__dataclass_fields__) - {
+            "name",
+            "test_days",
+        }
         before = Experiment.from_dict(data, path.stem).expand()
         after = Experiment.from_dict(full, path.stem).expand()
         assert len(before) == len(after)
@@ -414,7 +443,7 @@ def test_to_dict_writes_days_out_as_dates():
 def test_test_version_is_the_smallest_version():
     data = spec(
         description="Everything",
-        variants={"a": {"lr": 0.1}},
+        variants={"a": {"training": {"ppo": {"lr": 0.1}}}},
         env_config={"energy_scale": 7.0},
         training={"ppo": {"train_batch_size_per_learner": 2400}},
         resources={"cpus": 8, "mem_gb": 16, "minutes": 600},
@@ -427,7 +456,7 @@ def test_test_version_is_the_smallest_version():
     assert version.train_days == ["2016-06-01"]
     assert version.test_days == ["2016-07-01"]
     assert version.budget == {"ppo": 2400}  # one batch
-    assert (version.eval_every, version.eval_points) == (None, None)
+    assert version.eval_points is None
     assert version.eval_episodes == 1
     assert version.heldout_episodes() == [(2000, "2016-07-01")]
     assert version.run_resources == {
@@ -479,11 +508,11 @@ def test_test_budget_comes_from_the_effective_settings():
 
 def test_test_budget_is_the_largest_over_the_variants():
     variants = {
-        "small": {"train_batch_size_per_learner": 200},
-        "batch": {"train_batch_size_per_learner": 4000},
+        "small": {"training": {"ppo": {"train_batch_size_per_learner": 200}}},
+        "batch": {"training": {"ppo": {"train_batch_size_per_learner": 4000}}},
     }
     assert budgets(variants=variants) == {"ppo": 4000}
-    only = {"v": {"train_batch_size_per_learner": 64}}
+    only = {"v": {"training": {"ppo": {"train_batch_size_per_learner": 64}}}}
     assert budgets(variants=only) == {"ppo": 64}
     assert budgets(test={"budget": 7}) == 7  # an explicit test budget wins
 

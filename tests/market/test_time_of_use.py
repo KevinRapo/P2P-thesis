@@ -40,7 +40,7 @@ def test_quarter_hour_steps_trade_at_their_prices():
 
 @pytest.fixture(scope="module")
 def env() -> MarketEnv:
-    return MarketEnv({"scenario": str(SCENARIO), "dso": {"prices": "synthetic_day"}})
+    return MarketEnv({"scenario": str(SCENARIO)})
 
 
 def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):

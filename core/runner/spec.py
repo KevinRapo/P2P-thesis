@@ -16,21 +16,17 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "scenario": "config/scenarios/validate_market.json",   relative to the repo root,
                                         or the scenario itself (a JSON object)
       "train_days": {"from": "2016-06-01", "to": "2016-06-30"},   or a list
-      "test_days":  {"from": "2016-07-01", "to": "2016-07-14"},   held-out days
       "test_periods": {"summer": {"from": "2016-07-01", "to": "2016-07-14"}},
-                                        instead of test_days: named continuous
-                                        periods, left out of train_days
+                                        the held-out days: named continuous
+                                        periods (a range or a list each), left out
+                                        of train_days
       "env_config": {},                 extra environment settings
       "algorithms": ["ppo"], "paradigms": ["dtde"], "seeds": [0],
-      "variants": {"lr3": {"lr": 0.001}},   name -> training overrides;
-                                        "env_config" in a variant: environment
-                                        settings of its runs (also held out), e.g.
-                                        {"graph": {"env_config": {"grid":
-                                        {"method": "graph"}}}}
+      "variants": {"lr3": {"training": {"ppo": {"lr": 0.001}}}},   name -> what the
+                                        arm overwrites (see Variants)
       "budget": 24000,                  environment steps; int or {algorithm: int}
-      "eval_every": 6000,               int or {algorithm: int}, or instead
-      "eval_points": 4,                 number of evaluations, eval_every =
-                                        budget // eval_points (give one of the two)
+      "eval_points": 4,                 evaluations during training; int or
+                                        {algorithm: int}
       "eval_episodes": 10,
       "results_detail": "standard",     or "detailed": also the held-out
                                         evaluation step by step on trace_days
@@ -52,15 +48,24 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "test": {"budget": 500}           changes to the test profile, see below
     }
 
+Variants: the file is the base case, and a variant is an arm of it: the fields it
+gives overwrite the base (``overwrite``: inside a section only the values it names,
+a list as a whole). It may give any field but ``NOT_IN_A_VARIANT``, so that the
+grid of runs stays algorithms x paradigms x variants x seeds, e.g.
+{"big": {"model": {"fcnet_hiddens": [768, 768]}, "budget": 480000},
+"graph": {"scenario": {"grid": {"method": "graph"}}}}. ``scenario`` may also name
+another file. ``Experiment.arm`` gives an arm as a complete experiment; a started
+experiment saves it as ``experiment_<variant>.json`` and ``scenario_<variant>.json``
+in its folder, and the arm's runs read that scenario.
+
 Evaluation points: the trainer always evaluates at step 0 (the untrained policy and
-the baselines) and at the end of the budget; ``eval_every`` / ``eval_points`` add
-the evaluations in between (``eval_points`` counts the final one: 4 points on a
-budget of 24000 evaluate at 6000, 12000, 18000 and 24000). Neither: only at the
-end.
+the baselines) and at the end of the budget; ``eval_points`` adds the evaluations in
+between and counts the final one: 4 points on a budget of 24000 evaluate at 6000,
+12000, 18000 and 24000. Without it: only at the end.
 
 Held-out evaluation: after training, the trained policy and the baselines play every
-test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...). In
-a test period the batteries and reputations carry from day to day, and every policy
+test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...).
+Inside a test period the batteries and reputations carry from day to day, and every policy
 starts each period from the scenario's initial state (``heldout_options``). Its
 results are kept per day and participant (``launch.py``); with ``results_detail``
 ``"detailed"`` the days of ``trace_days`` are also kept step by step.
@@ -113,6 +118,29 @@ RESULTS_DETAILS = ("standard", "detailed")
 TRACE_DAYS = 3  # the default of ``trace_days``
 # The scenario of a started experiment, in its folder (see the module).
 SCENARIO_FILE = "scenario.json"
+# What a variant cannot overwrite: the axes of the grid of runs, and what belongs to
+# the experiment as a whole.
+NOT_IN_A_VARIANT = (
+    "name",
+    "description",
+    "algorithms",
+    "paradigms",
+    "seeds",
+    "variants",
+    "test_days",
+    "max_parallel",
+    "resources",
+    "test",
+)
+# What a variant keeps out of the test version, which is the smallest run of any arm.
+NOT_IN_A_TEST_VARIANT = (
+    "train_days",
+    "test_periods",
+    "budget",
+    "eval_points",
+    "eval_episodes",
+    "trace_days",
+)
 # Per run on a SLURM cluster; ``resources`` in the spec overrides these.
 RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
 # What the test profile uses where the ``test`` block says nothing.
@@ -233,11 +261,10 @@ class Experiment:
     scenario: str | dict | None = None
     env: str = "market"
     train_days: list[str] = field(default_factory=list)
-    test_days: list[str] = field(default_factory=list)
+    test_days: list[str] = field(default_factory=list)  # from test_periods
     test_periods: dict[str, list[str]] = field(default_factory=dict)
     env_config: dict = field(default_factory=dict)
     variants: dict[str, dict] = field(default_factory=dict)
-    eval_every: int | dict[str, int] | None = None
     eval_points: int | dict[str, int] | None = None
     eval_episodes: int = 10
     results_detail: str = "standard"
@@ -294,12 +321,11 @@ class Experiment:
         data["test_periods"] = _periods(data)
         held_out = [d for days in data["test_periods"].values() for d in days]
 
-        if held_out:
-            if data["test_days"] not in ([], held_out):
-                raise SpecError("give 'test_days' or 'test_periods', not both")
+        if data["test_days"] not in ([], held_out):
+            raise SpecError("'test_days' is gone: give the days as 'test_periods'")
 
-            data["test_days"] = held_out
-            data["train_days"] = [d for d in data["train_days"] if d not in held_out]
+        data["test_days"] = held_out
+        data["train_days"] = [d for d in data["train_days"] if d not in held_out]
 
         for key in ("algorithms", "paradigms", "seeds", "budget"):
             if key not in data:
@@ -349,16 +375,25 @@ class Experiment:
         if not isinstance(self.variants, dict) or not all(
             isinstance(v, dict) for v in self.variants.values()
         ):
-            raise SpecError("'variants' maps a name to a dict of training overrides")
+            raise SpecError("'variants' maps a name to what the arm overwrites")
 
-        if not all(
-            isinstance(v.get("env_config", {}), dict) for v in self.variants.values()
-        ):
-            raise SpecError("a variant's 'env_config' must be a dict")
-
-        for variant in self.variants:
+        for variant, changes in self.variants.items():
             if not variant or any(c in variant for c in '/\\:*?"<>| '):
                 raise SpecError(f"variant name {variant!r} must be a plain word")
+
+            allowed = set(self.__dataclass_fields__) - set(NOT_IN_A_VARIANT)
+            unknown = sorted(set(changes) - allowed)
+
+            if unknown:
+                raise SpecError(
+                    f"variant {variant!r} cannot overwrite {unknown}; "
+                    f"it may give {sorted(allowed)}"
+                )
+
+            if check_files or not isinstance(self.scenario, str):
+                self.arm(variant)
+
+        self._check_env_config()
 
         if not isinstance(self.training, dict) or not set(self.training) <= set(
             ALGORITHMS
@@ -368,17 +403,17 @@ class Experiment:
                 '{"ppo": {"lr": 0.0003}}; keys must be among ' + str(list(ALGORITHMS))
             )
 
-        if self.eval_every is not None and self.eval_points is not None:
-            raise SpecError("give 'eval_every' or 'eval_points', not both")
-
         for algorithm in self.algorithms:
             budget = self._per_algorithm(self.budget, algorithm, "budget")
             if not isinstance(budget, int) or budget <= 0:
                 raise SpecError(f"budget for {algorithm} must be a positive integer")
-            for key in ("eval_every", "eval_points"):
-                value = self._per_algorithm(getattr(self, key), algorithm, key, True)
-                if value is not None and (not isinstance(value, int) or value < 0):
-                    raise SpecError(f"'{key}' for {algorithm} must be an integer >= 0")
+            points = self._per_algorithm(
+                self.eval_points, algorithm, "eval_points", True
+            )
+            if points is not None and (not isinstance(points, int) or points < 0):
+                raise SpecError(
+                    f"'eval_points' for {algorithm} must be an integer >= 0"
+                )
 
         if self.max_parallel < 1 or self.torch_threads < 1 or self.eval_episodes < 1:
             raise SpecError("max_parallel, torch_threads, eval_episodes must be >= 1")
@@ -456,6 +491,20 @@ class Experiment:
             except SpecError as error:
                 raise SpecError(f"'test' block: {error}") from None
 
+    def _check_env_config(self) -> None:
+        """A market's ``env_config`` holds only its known settings: a misspelt one
+        would otherwise do nothing."""
+        if not isinstance(self.env_config, dict):
+            raise SpecError("'env_config' must be a dict")
+
+        unknown = sorted(set(self.env_config) - set(MARKET_ENV_CONFIG))
+
+        if self.is_market and unknown:
+            raise SpecError(
+                f"unknown env_config setting(s) {unknown}; "
+                f"the settings are {sorted(MARKET_ENV_CONFIG)}"
+            )
+
     @staticmethod
     def _per_algorithm(value, algorithm: str, key: str, optional: bool = False):
         if isinstance(value, dict):
@@ -480,12 +529,34 @@ class Experiment:
         """The experiment's folder: ``exp_dir``, default ``<runs root>/<name>``."""
         return Path(exp_dir) if exp_dir else runs_root() / self.name
 
-    def scenario_file(self, exp_dir: Optional[Path] = None) -> Path:
-        """The scenario file the runs read: ``SCENARIO_FILE`` in the experiment's
-        folder when ``scenario`` is the scenario itself, else the file it names."""
-        if isinstance(self.scenario, dict):
-            return self.folder(exp_dir) / SCENARIO_FILE
-        return self.scenario_path
+    def scenario_file(
+        self, exp_dir: Optional[Path] = None, variant: Optional[str] = None
+    ) -> Path:
+        """The scenario file the runs of ``variant`` read: the arm's or
+        ``SCENARIO_FILE`` in the experiment's folder when ``scenario`` is the scenario
+        itself, else the file it names."""
+        if isinstance(self.arm(variant).scenario, dict):
+            name = f"scenario_{variant}.json" if variant else SCENARIO_FILE
+            return self.folder(exp_dir) / name
+
+        return self.arm(variant).scenario_path
+
+    def arm(self, variant: Optional[str]) -> "Experiment":
+        """The arm of ``variant`` as a complete experiment: this one with what the
+        variant gives overwritten (see the module); itself for ``None``."""
+        if variant is None:
+            return self
+
+        changes = self.variants[variant]
+        given = changes.get("scenario")
+        base = self.inline_scenario() if isinstance(given, dict) else self
+        data = overwrite(base.to_dict(), changes)
+        data |= {"variants": {}, "test": {}}
+
+        if "test_periods" in changes:
+            data["test_days"] = []
+
+        return Experiment.from_dict(data, self.name, check_files=False)
 
     @property
     def run_resources(self) -> dict:
@@ -499,11 +570,8 @@ class Experiment:
         return [(HELDOUT_SEED_START + i, day) for i, day in enumerate(self.test_days)]
 
     def heldout_options(self) -> list[dict]:
-        """The ``reset`` options of ``heldout_episodes``: the day, and in a test
-        period its name and whether it carries on from the day before."""
-        if not self.test_periods:
-            return [{"day": day} for day in self.test_days]
-
+        """The ``reset`` options of ``heldout_episodes``: the day, its period's name
+        and whether it carries on from the day before."""
         return [
             {"day": day, "period": name, "carry": index > 0}
             for name, days in self.test_periods.items()
@@ -526,18 +594,13 @@ class Experiment:
     ) -> dict:
         """The environment config of the held-out evaluation (test days) of a run of
         ``variant``; ``exp_dir`` as in ``expand``."""
-        config: dict = {"days": self.test_days}
+        arm = self.arm(variant)
+        config: dict = {"days": arm.test_days}
 
-        if self.scenario:
-            config["scenario"] = str(self.scenario_file(exp_dir))
+        if arm.scenario:
+            config["scenario"] = str(self.scenario_file(exp_dir, variant))
 
-        return config | self.env_config | self._variant_env(variant)
-
-    def _variant_env(self, variant: Optional[str]) -> dict:
-        """The environment settings a variant adds (its ``env_config``)."""
-        if variant is None:
-            return {}
-        return dict(self.variants.get(variant, {}).get("env_config", {}))
+        return config | arm.env_config
 
     # --- Writing and profiles ---------------------------------------------------------
     def to_dict(self) -> dict:
@@ -546,36 +609,28 @@ class Experiment:
         return asdict(self)
 
     def inline_scenario(self) -> "Experiment":
-        """This experiment with its scenario file read into ``scenario``, so that it
-        holds every input of its runs (itself if ``scenario`` is no file name)."""
-        if not isinstance(self.scenario, str):
+        """This experiment with every scenario file read in: its own into ``scenario``
+        and a variant's into that variant, so that it holds every input of its runs
+        (itself if there is no file name to read)."""
+        named = {
+            name: changes
+            for name, changes in self.variants.items()
+            if isinstance(changes.get("scenario"), str)
+        }
+
+        if not isinstance(self.scenario, str) and not named:
             return self
 
-        path = self.scenario_path
+        out = copy.deepcopy(self)
 
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except FileNotFoundError:
-            raise SpecError(
-                f"scenario file not found: {path} "
-                "('scenario' is relative to the repository root)"
-            ) from None
-        except json.JSONDecodeError as error:
-            raise SpecError(f"{path}: not valid JSON ({error})") from None
+        if isinstance(self.scenario, str):
+            out.scenario = _read_scenario(self.scenario_path)
 
-        if not isinstance(data, dict):
-            raise SpecError(f"{path}: a scenario file holds one JSON object")
+        for name, changes in named.items():
+            path = (REPO / changes["scenario"]).resolve()
+            out.variants[name]["scenario"] = _read_scenario(path)
 
-        dso = data.get("dso", {})
-
-        if isinstance(dso.get("prices"), str):
-            try:
-                step = data.get("grid", {}).get("step_hours", GridSetup.step_hours)
-                dso["prices"] = load_prices(dso["prices"], step)
-            except (OSError, ValueError, KeyError) as error:
-                raise SpecError(f"{path}: prices cannot be read ({error})") from None
-
-        return replace(copy.deepcopy(self), scenario=data)
+        return out
 
     def dated(self, when: datetime) -> "Experiment":
         """This experiment named ``<name>-<YYYYMMDD>-<HHMMSS>`` at ``when``: a new
@@ -595,18 +650,16 @@ class Experiment:
 
     def test_budget(self, algorithm: str) -> int:
         """The test profile's budget for ``algorithm``: enough environment steps for
-        learning to happen, from the settings each variant really uses.
+        learning to happen, from the settings each arm really uses.
 
-        For each variant (or the algorithm's ``training`` settings alone, without
-        variants) the settings are merged as in ``expand``; the budget is one training
-        batch (``train_batch_size_per_learner``, else ``TEST_DEFAULT_BUDGET``). The
-        largest over the variants wins.
+        For each arm (or the experiment alone, without variants) the budget is one
+        training batch (``train_batch_size_per_learner``, else
+        ``TEST_DEFAULT_BUDGET``). The largest over the arms wins.
         """
-        base = self.training.get(algorithm, {})
         budgets = []
 
-        for overrides in list(self.variants.values()) or [{}]:
-            settings = base | _training(overrides)
+        for variant in list(self.variants) or [None]:
+            settings = self.arm(variant).training.get(algorithm, {})
             budgets.append(
                 settings.get("train_batch_size_per_learner") or TEST_DEFAULT_BUDGET
             )
@@ -624,7 +677,8 @@ class Experiment:
         resources = (
             self.run_resources | {"minutes": TEST_MINUTES} | test.get("resources", {})
         )
-        test_days = self.test_days[: test.get("test_days", 1)]
+        periods = _first_days(self.test_periods, test.get("test_days", 1))
+        test_days = [day for days in periods.values() for day in days]
         trace_days = self.trace_days
 
         if isinstance(trace_days, list):  # those the test version still has
@@ -641,9 +695,14 @@ class Experiment:
             seeds=list(test.get("seeds", self.seeds[:1])),
             train_days=self.train_days[: test.get("train_days", 1)],
             test_days=test_days,
-            test_periods={},
+            test_periods=periods,
+            variants={
+                name: {
+                    k: v for k, v in changes.items() if k not in NOT_IN_A_TEST_VARIANT
+                }
+                for name, changes in self.variants.items()
+            },
             budget=budget,
-            eval_every=None,
             eval_points=None,
             eval_episodes=test.get("eval_episodes", 1),
             trace_days=trace_days,
@@ -664,17 +723,11 @@ class Experiment:
         specs: list[RunSpec] = []
 
         for algorithm in self.algorithms:
-            budget = self._per_algorithm(self.budget, algorithm, "budget")
-            every = self._per_algorithm(self.eval_every, algorithm, "eval_every", True)
-            points = self._per_algorithm(
-                self.eval_points, algorithm, "eval_points", True
-            )
-
-            if every is None:
-                every = budget // points if points else 0
-
             for paradigm in self.paradigms:
-                for variant, overrides in variants.items():
+                for variant in variants:
+                    arm = self.arm(variant)
+                    budget, every = arm._budgets(algorithm)
+
                     for seed in self.seeds:
                         name = f"{algorithm}_{paradigm}_s{seed}"
                         if variant is not None:
@@ -686,40 +739,82 @@ class Experiment:
                                 paradigm=paradigm,
                                 seed=seed,
                                 variant=variant,
-                                env=self.env,
-                                env_config=self._env_config(seed, exp_dir)
-                                | self._variant_env(variant),
+                                env=arm.env,
+                                env_config=self._env_config(seed, exp_dir, variant),
                                 budget=budget,
                                 eval_every=every,
-                                eval_episodes=self.eval_episodes,
-                                training=dict(self.training.get(algorithm, {}))
-                                | _training(overrides),
-                                model=dict(self.model),
+                                eval_episodes=arm.eval_episodes,
+                                training=dict(arm.training.get(algorithm, {})),
+                                model=dict(arm.model),
                                 out_dir=exp_dir / name,
                                 index=len(specs),
-                                num_env_runners=self.num_env_runners,
+                                num_env_runners=arm.num_env_runners,
                             )
                         )
 
         return specs
 
-    def _env_config(self, seed: int, exp_dir: Path) -> dict:
+    def _budgets(self, algorithm: str) -> tuple[int, int]:
+        """The budget of ``algorithm`` and the steps between its evaluations."""
+        budget = self._per_algorithm(self.budget, algorithm, "budget")
+        points = self._per_algorithm(self.eval_points, algorithm, "eval_points", True)
+
+        return budget, budget // points if points else 0
+
+    def _env_config(self, seed: int, exp_dir: Path, variant: Optional[str]) -> dict:
+        arm = self.arm(variant)
         config: dict = {}
 
-        if self.scenario:
-            config["scenario"] = str(self.scenario_file(exp_dir))
+        if arm.scenario:
+            config["scenario"] = str(self.scenario_file(exp_dir, variant))
 
-        if self.train_days:
-            config["days"] = list(self.train_days)
+        if arm.train_days:
+            config["days"] = list(arm.train_days)
 
         config["seed"] = seed
 
-        return config | self.env_config
+        return config | arm.env_config
 
 
-def _training(overrides: dict) -> dict:
-    """A variant's training overrides: all but its ``env_config``."""
-    return {k: v for k, v in overrides.items() if k != "env_config"}
+def _read_scenario(path: Path) -> dict:
+    """The scenario at ``path`` with its price file read in."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise SpecError(
+            f"scenario file not found: {path} "
+            "('scenario' is relative to the repository root)"
+        ) from None
+    except json.JSONDecodeError as error:
+        raise SpecError(f"{path}: not valid JSON ({error})") from None
+
+    if not isinstance(data, dict):
+        raise SpecError(f"{path}: a scenario file holds one JSON object")
+
+    dso = data.get("dso", {})
+
+    if isinstance(dso.get("prices"), str):
+        try:
+            step = data.get("grid", {}).get("step_hours", GridSetup.step_hours)
+            dso["prices"] = load_prices(dso["prices"], step)
+        except (OSError, ValueError, KeyError) as error:
+            raise SpecError(f"{path}: prices cannot be read ({error})") from None
+
+    return data
+
+
+def overwrite(base: dict, changes: dict) -> dict:
+    """``base`` with the values of ``changes``: inside a section only those it names,
+    any other value (a list too) as a whole."""
+    out = dict(base)
+
+    for key, value in changes.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = overwrite(out[key], value)
+        else:
+            out[key] = value
+
+    return out
 
 
 def resolve(spec: str | Path | Experiment, profile: str = "full") -> Experiment:
@@ -742,8 +837,7 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
     algorithm with the RL layer's defaults (``core.rl_defaults.SETTINGS``) under the
     overrides, ``model`` with the network settings (``NETWORK``), ``resources``
     with ``RESOURCE_DEFAULTS`` and, for the market, ``env_config`` with
-    ``MARKET_ENV_CONFIG``. ``eval_every`` and ``eval_points`` are both written, the
-    one not given as null. Days, the scenario, the budget and the ``test`` block
+    ``MARKET_ENV_CONFIG``. Days, the scenario, the budget and the ``test`` block
     stay as written. Other RLlib ``training`` keys may still be added; they have
     RLlib's defaults until they are.
 
@@ -762,7 +856,6 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
         "env": e.env,
         "scenario": e.scenario,
         "train_days": data.get("train_days", []),
-        "test_days": data.get("test_days", []),
         "test_periods": data.get("test_periods", {}),
         "env_config": (MARKET_ENV_CONFIG if e.is_market else {}) | e.env_config,
         "algorithms": e.algorithms,
@@ -770,7 +863,6 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
         "seeds": e.seeds,
         "variants": e.variants,
         "budget": e.budget,
-        "eval_every": e.eval_every,
         "eval_points": e.eval_points,
         "eval_episodes": e.eval_episodes,
         "results_detail": e.results_detail,
@@ -863,6 +955,18 @@ def _check_resources(value, where: str) -> None:
 # --------------------------------------------------------------------------------------
 # Days
 # --------------------------------------------------------------------------------------
+def _first_days(periods: dict, count: int) -> dict[str, list[str]]:
+    """The first ``count`` days of ``periods``, in their periods."""
+    out = {}
+
+    for name, days in periods.items():
+        if count > 0:
+            out[name] = days[:count]
+            count -= len(out[name])
+
+    return out
+
+
 def _periods(data: dict) -> dict[str, list[str]]:
     """The experiment's ``test_periods``, each with its days written out."""
     periods = data.get("test_periods") or {}

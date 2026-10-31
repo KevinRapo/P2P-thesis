@@ -377,7 +377,8 @@ def test_preset_keys_are_the_settings_the_test_version_changes():
     for record in RunService().spec_files():
         full = record["experiment"].to_dict()
         test = record["experiment"].test_version().to_dict()
-        changed = {key for key in full if full[key] != test[key]} - {"test"}
+        changed = {key for key in full if full[key] != test[key]}
+        changed -= {"test", "test_days"}  # test_days follows from test_periods
         assert changed <= set(PRESET_KEYS), record["path"]
 
 
@@ -430,7 +431,7 @@ def test_quick_settings_read_and_rewrite_the_editors_json():
     assert data["training"]["ppo"]["lr"] == 0.001
     assert "clip_param" not in data["training"]["ppo"]
     assert data["resources"]["cpus"] == 6
-    assert data["test_days"] == json.loads(text)["test_days"]  # untouched
+    assert data["test_periods"] == json.loads(text)["test_periods"]  # untouched
     experiment = Experiment.from_dict(data, "x")
     assert [r.name for r in experiment.expand()] == ["ppo_ctde_s0", "ppo_ctde_s1"]
     per_algorithm = apply_settings(to_text_budget(text), {"budget": 900})

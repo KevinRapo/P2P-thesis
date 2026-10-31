@@ -13,6 +13,8 @@ Run with ``python -m pytest tests/market/test_grid_methods.py -q`` in the
 
 from __future__ import annotations
 
+import json
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -20,6 +22,7 @@ import pytest
 from core.env import MarketEnv, net_position_policy
 from core.grid.contract import GridAssessment, GridPath
 from core.grid.graph import GraphGrid, capacities
+from core.runner.spec import overwrite
 from core.market.dso import Dso
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
@@ -79,15 +82,20 @@ def test_measured_voltage_drop_is_the_difference_at_the_paths_ends():
 # --------------------------------------------------------------------------------------
 # The market with each method
 # --------------------------------------------------------------------------------------
+def graph_scenario(method: str, **grid) -> str:
+    """The path of a copy of the scenario with ``method``, as a variant writes it."""
+    data = overwrite(
+        json.loads(SCENARIO.read_text(encoding="utf-8")),
+        {"grid": {"method": method, **grid}},
+    )
+    path = Path(tempfile.mkdtemp()) / "scenario.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return str(path)
+
+
 def play(method: str, **grid) -> list:
     """One day with the net-position baseline; the step records."""
-    env = MarketEnv(
-        {
-            "scenario": str(SCENARIO),
-            "days": [DAY],
-            "grid": {"method": method, **grid},
-        }
-    )
+    env = MarketEnv({"scenario": graph_scenario(method, **grid), "days": [DAY]})
     policy = net_position_policy(env)
     obs, _ = env.reset(options={"day": DAY})
     records = []
@@ -151,9 +159,7 @@ _PATHS: dict = {}
 def _lines(trade) -> tuple[str, ...]:
     """The lines the fee of ``trade`` used, from a market of the graph arm."""
     if not _PATHS:
-        env = MarketEnv(
-            {"scenario": str(SCENARIO), "days": [DAY], "grid": {"method": "graph"}}
-        )
+        env = MarketEnv({"scenario": graph_scenario("graph"), "days": [DAY]})
         env.reset(options={"day": DAY})
         _PATHS["market"] = env.market
 

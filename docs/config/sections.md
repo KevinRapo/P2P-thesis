@@ -1,10 +1,10 @@
-# Config
+# Sections
 
 > Every configuration file and section, as raw JSON. An overview for now: the
 > examples are copies, taken on 31 Oct 2026 from
-> [`validate_market.json`](../config/scenarios/validate_market.json),
-> [`synthetic_day.json`](../config/data/synthetic_day.json) and
-> [`day_end.json`](../config/experiments/day_end.json), with every setting written
+> [`validate_market.json`](../../config/scenarios/validate_market.json),
+> [`synthetic_day.json`](../../config/data/synthetic_day.json) and
+> [`day_end.json`](../../config/experiments/day_end.json), with every setting written
 > out. The files themselves are what runs read.
 
 A scenario is the world: the network, the participants, the market and the DSO. An
@@ -12,9 +12,9 @@ experiment says what is done in it. Price files hold the DSO's tariffs.
 
 | File | Folder | Says |
 |---|---|---|
-| Scenario | [`config/scenarios/`](../config/scenarios/validate_market.json) | The network, participants, market rules and DSO |
-| Prices | [`config/data/`](../config/data/synthetic_day.json) | The DSO's tariffs per market step |
-| Experiment | [`config/experiments/`](../config/experiments/day_end.json) | Days, RL settings, seeds, arms and how the runs are run |
+| Scenario | [`config/scenarios/`](../../config/scenarios/validate_market.json) | The network, participants, market rules and DSO |
+| Prices | [`config/data/`](../../config/data/synthetic_day.json) | The DSO's tariffs per market step |
+| Experiment | [`config/experiments/`](../../config/experiments/day_end.json) | Days, RL settings, seeds, arms and how the runs are run |
 
 ## Scenario
 
@@ -158,13 +158,11 @@ default:
   "paradigms": ["ctde"],
   "seeds": [0, 1, 2],
   "budget": 240000,
-  "eval_every": 24000,
   "eval_points": 10,
   "eval_episodes": 10,
   "results_detail": "standard",
   "trace_days": 3,
   "train_days": {},
-  "test_days": {},
   "test_periods": {},
   "env_config": {},
   "variants": {},
@@ -179,8 +177,6 @@ default:
 }
 ```
 
-`eval_every` and `eval_points` are alternatives: give one of the two.
-
 ### Run
 
 ```json
@@ -193,7 +189,6 @@ default:
   "paradigms": ["ctde"],
   "seeds": [0, 1, 2],
   "budget": 240000,
-  "eval_every": null,
   "eval_points": 10,
   "eval_episodes": 10,
   "results_detail": "standard",
@@ -229,15 +224,6 @@ a period the batteries and reputations carry from day to day.
 }
 ```
 
-Without `test_periods`, `test_days` is a range or a list:
-
-```json
-{
-  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
-  "test_days": {"from": "2016-07-01", "to": "2016-07-14"}
-}
-```
-
 ### env_config
 
 The environment's settings. `null`: computed by the environment or its default.
@@ -254,18 +240,29 @@ The environment's settings. `null`: computed by the environment or its default.
 }
 ```
 
-`grid` and `dso` may also be given here, to replace settings of the scenario:
+### variants
+
+The file is the base case, and a variant is an arm of it: runs are algorithms ×
+paradigms × variants × seeds. A variant may give any experiment field except
+`name`, `description`, `algorithms`, `paradigms`, `seeds`, `variants`, `max_parallel`,
+`resources` and `test`. Inside a section it overwrites only the values it names, and a
+list as a whole. `scenario` works the same way, or names another file:
 
 ```json
 {
-  "env_config": {"grid": {"method": "graph"}}
+  "base": {},
+  "big_net": {"model": {"fcnet_hiddens": [768, 768]}},
+  "nash": {"scenario": {"market": {"mechanism": "nash_bargaining"}}},
+  "graph": {"scenario": {"grid": {"method": "graph"}}},
+  "low_lr": {"training": {"ppo": {"lr": 0.0001}}},
+  "long": {"budget": 480000}
 }
 ```
 
-### variants
+A started experiment saves each arm complete, as `experiment_<variant>.json` and
+`scenario_<variant>.json` in its folder.
 
-The arms of the experiment. Each gives its own `env_config` or training settings on
-top of the experiment's.
+The variants of `day_end.json`:
 
 ```json
 {

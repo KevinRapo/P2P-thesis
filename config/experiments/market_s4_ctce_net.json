@@ -6,10 +6,10 @@
     "from": "2016-06-01",
     "to": "2016-06-30"
   },
-  "test_days": {
+  "test_periods": {"july": {
     "from": "2016-07-01",
     "to": "2016-07-14"
-  },
+  }},
   "algorithms": [
     "ppo"
   ],
@@ -23,11 +23,19 @@
   ],
   "variants": {
     "net": {
-      "entropy_coeff": 0.000769
+      "training": {
+        "ppo": {
+          "entropy_coeff": 0.000769
+        }
+      }
     },
     "clipnet": {
-      "entropy_coeff": 0.000769,
-      "clip_param": 0.721
+      "training": {
+        "ppo": {
+          "entropy_coeff": 0.000769,
+          "clip_param": 0.721
+        }
+      }
     }
   },
   "budget": 480000,

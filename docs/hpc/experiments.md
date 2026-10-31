@@ -32,14 +32,13 @@ fields that rewrite the JSON:
   "env": "market",
   "scenario": "config/scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
-  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "test_periods": {"july": {"from": "2016-07-01", "to": "2016-07-14"}},
   "env_config": {"energy_scale": null, "reward_scale": null},
   "algorithms": ["ppo"],
   "paradigms": ["ctce", "ctde", "dtde"],
   "seeds": [0],
   "variants": {},
   "budget": 240000,
-  "eval_every": null,
   "eval_points": 10,
   "eval_episodes": 10,
   "results_detail": "standard",
@@ -82,9 +81,9 @@ fields that rewrite the JSON:
 |---|---|---|
 | `name`, `description` | The experiment's folder name (default: the file's name) and free text | |
 | `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's `energy_scale` and `reward_scale` (null: computed on the training days, recorded in each run's `run.json` and reused for its held-out days, [market_env.py](../../core/env/market_env.py)) | [spec.py](../../core/runner/spec.py) `MARKET_ENV_CONFIG` |
-| `train_days`, `test_days` | Days drawn from in training, and the held-out days (`{"from", "to"}` or a list) | |
-| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (V2: `algorithms` is `["ppo"]`); a variant is a name with `training` overrides on top | |
-| `budget`, `eval_every` or `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training (give one of `eval_every` and `eval_points`; the other stays null) | |
+| `train_days`, `test_periods` | Days drawn from in training, and the held-out days as named continuous periods (`{"from", "to"}` or a list each) | |
+| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (V2: `algorithms` is `["ppo"]`); a variant is an arm: it overwrites the base file's settings ([Config](../config/sections.md#variants)) | |
+| `budget`, `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training | |
 | `results_detail`, `trace_days` | `"standard"`: held-out results per day and participant; `"detailed"`: also step by step on the first `trace_days` test days (or a list) | |
 | `training` | Per algorithm (`ppo`), RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's PPO `training()` can be added (e.g. `vf_loss_coeff`) and has RLlib's default until it is; `run.json` records every PPO setting with the value it ran with (`settings_effective`) | [rl_defaults.py](../../core/rl_defaults.py) `SETTINGS` |
 | `model` | The network, the same for every paradigm | [rl_defaults.py](../../core/rl_defaults.py) `NETWORK` |

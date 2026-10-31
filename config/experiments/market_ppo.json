@@ -3,7 +3,7 @@
   "description": "PPO in the three paradigms (CTCE, CTDE, DTDE) on the market with the mixed action.",
   "scenario": "config/scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
-  "test_days": {"from": "2016-07-01", "to": "2016-07-14"},
+  "test_periods": {"july": {"from": "2016-07-01", "to": "2016-07-14"}},
   "algorithms": ["ppo"],
   "paradigms": ["ctce", "ctde", "dtde"],
   "seeds": [0],

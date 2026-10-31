@@ -24,7 +24,7 @@ def spec_file(tmp_path: Path, name: str = "exp", **changes) -> Path:
     data = {
         "scenario": SCENARIO,
         "train_days": ["2016-06-01", "2016-06-02"],
-        "test_days": ["2016-07-01"],
+        "test_periods": {"july": ["2016-07-01"]},
         "algorithms": ["ppo"],
         "paradigms": ["dtde", "ctde"],
         "seeds": [0, 1],

@@ -180,14 +180,10 @@ gives both to the RL layer's evaluation.
     seed          seed of the day draw for the first reset
     episode_days, truncate_episode, random_start_soc, terminal_value,
     stored_kwh_value: see Episodes
-    grid, dso     settings that replace the scenario's (``GridSetup``, ``DsoSetup``
-                  fields), e.g. ``{"grid": {"method": "graph"}}``: the arms of an
-                  experiment as variants of one scenario
 """
 
 from __future__ import annotations
 
-from dataclasses import fields
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -217,6 +213,16 @@ SIDES = ("sell", "buy")  # α: index 0 sells, 1 buys ([P1] eq. 2)
 NO_PREFERENCE = "none"  # the last partner candidate: no partner named
 NO_ORDER_SHARE = 0.05  # quantity share below this places no order
 SCALE_KEYS = ("energy_scale", "reward_scale")
+ENV_CONFIG_KEYS = SCALE_KEYS + (
+    "scenario",
+    "days",
+    "seed",
+    "episode_days",
+    "truncate_episode",
+    "random_start_soc",
+    "terminal_value",
+    "stored_kwh_value",
+)
 _OBS_LIMIT = 10.0
 _MIN_ORDER_KWH = 1e-9
 
@@ -239,10 +245,13 @@ class MarketEnv(MultiAgentEnv):
         if "scenario" not in config:
             raise ValueError("env_config needs 'scenario': the path of a scenario JSON")
 
+        unknown = sorted(set(config) - set(ENV_CONFIG_KEYS))
+
+        if unknown:
+            raise ValueError(f"unknown env_config setting(s) {unknown}")
+
         self.config = dict(config)
         scenario = store.load(Path(config["scenario"]))
-        _override(scenario.grid, config.get("grid"), "grid")
-        _override(scenario.dso, config.get("dso"), "dso")
         self.market = LocalEnergyMarket(scenario)
         self.days: list[str] = list(config.get("days") or [scenario.grid.day])
         self.episode_days: int = int(config.get("episode_days") or 1)
@@ -741,17 +750,6 @@ def _windows(days: list[str], length: int) -> list[list[str]]:
 
 def _number(value: Optional[float]) -> float:
     return float("nan") if value is None else float(value)
-
-
-def _override(setup: Any, values: Optional[dict], name: str) -> None:
-    """Replace fields of a scenario part (``env_config["grid"]`` or ``["dso"]``)."""
-    known = {f.name for f in fields(setup)}
-    for key, value in (values or {}).items():
-        if key not in known:
-            raise ValueError(
-                f"env_config[{name!r}]: {setup.__class__.__name__} has no {key!r}"
-            )
-        setattr(setup, key, value)
 
 
 def _market_infos(record: StepRecord) -> tuple[dict, dict]:

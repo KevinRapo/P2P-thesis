@@ -160,7 +160,8 @@ def prepare(
     exists and differs from ``experiment``, ``SpecError`` is raised before anything is
     written or reset. Otherwise ``experiment.json`` is written from the experiment,
     ``scenario.json`` from its scenario when the experiment holds it (``spec.resolve``),
-    and every run that is not completed or running is reset to ``queued``. ``slurm`` is
+    ``experiment_<variant>.json`` and ``scenario_<variant>.json`` from each arm
+    (``Experiment.arm``), and every run that is not completed or running is reset to ``queued``. ``slurm`` is
     the SLURM state of each task (see ``registry``) for runs that were submitted to a
     cluster.
 
@@ -175,6 +176,13 @@ def prepare(
 
     if isinstance(experiment.scenario, dict):
         write_json(exp_dir / SCENARIO_FILE, experiment.scenario)
+
+    for variant in experiment.variants:
+        arm = experiment.arm(variant)
+        write_json(exp_dir / f"experiment_{variant}.json", arm.to_dict())
+
+        if isinstance(arm.scenario, dict):
+            write_json(exp_dir / f"scenario_{variant}.json", arm.scenario)
 
     for spec in specs:
         state = registry.current_state(spec.out_dir, slurm=slurm)
@@ -366,7 +374,7 @@ def job(run_dir: str | Path) -> None:
         run = spec.run()
         train(run)
 
-        if experiment.test_days and experiment.is_market:
+        if experiment.arm(spec.variant).test_days and experiment.is_market:
             _heldout(experiment, run, run_dir, spec.variant)
 
         write_status(
@@ -420,14 +428,15 @@ def _heldout(
         "zero": zero_policy(env),
         "net_position": net_position_policy(env),
     }
-    episodes = experiment.heldout_episodes()
-    traced = set(experiment.traced_days())
+    arm = experiment.arm(variant)
+    episodes = arm.heldout_episodes()
+    traced = set(arm.traced_days())
     found = evaluation(
         run.env_class,
         config,
         policies,
         [seed for seed, _ in episodes],
-        options=experiment.heldout_options(),
+        options=arm.heldout_options(),
         trace=[i for i, (_, day) in enumerate(episodes) if day in traced],
     )
 

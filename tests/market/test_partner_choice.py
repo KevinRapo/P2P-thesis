@@ -230,7 +230,7 @@ def test_heldout_config_uses_the_runs_training_scales(tmp_path):
         {
             "scenario": "config/scenarios/validate_market.json",
             "train_days": ["2016-06-15"],
-            "test_days": ["2016-01-10"],
+            "test_periods": {"january": ["2016-01-10"]},
             "algorithms": ["ppo"],
             "paradigms": ["dtde"],
             "seeds": [0],

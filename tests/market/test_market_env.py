@@ -405,7 +405,7 @@ def test_order_prices_are_whole_cents_and_ties_go_by_reputation():
     assert Clearing(rules).double_auction(orders).trades[0].buyer_id == "b"
 
 
-def play(env, steps):
+def steps_of(env, steps):
     """``steps`` steps with the net-position rule: their flags and summed amounts."""
     obs = env._observe()
     policy = net_position_policy(env)
@@ -433,12 +433,12 @@ def test_a_window_carries_its_state_over_midnight_and_ends_on_the_next_day():
     assert env.windows == [days]
     env.reset(seed=0)
     start = env._stored_kwh()
-    _, terminated, truncated, _ = play(env, 24)
+    _, terminated, truncated, _ = steps_of(env, 24)
     assert not truncated["__all__"] and env.market.scenario.grid.day == days[1]
     midnight = env._stored_kwh()
     assert midnight != start and env.market.current_step == 0
     assert env._reputations() != dict.fromkeys(env.agents_id, 0.5)
-    _, terminated, truncated, stored = play(env, 24)
+    _, terminated, truncated, stored = steps_of(env, 24)
     assert truncated["__all__"] and not terminated["__all__"]
     assert env.market.scenario.grid.day == "2016-06-03"  # the bootstrap state
     end = env._stored_kwh()
@@ -455,8 +455,8 @@ def test_terminal_value_adds_the_stored_energy_to_a_drawn_days_last_reward():
     plain = MarketEnv(config | {"energy_scale": env.energy_scale, "reward_scale": env.reward_scale})
     env.reset(seed=0)
     plain.reset(seed=0)
-    last, *_, stored = play(env, 24)
-    expected, *_ = play(plain, 24)
+    last, *_, stored = steps_of(env, 24)
+    expected, *_ = steps_of(plain, 24)
 
     for pid in stored:
         gain = 0.3 * stored[pid] / env.reward_scale
@@ -467,7 +467,7 @@ def test_a_test_period_carries_the_state_and_starts_from_the_initial_one():
     env = MarketEnv({"scenario": str(SCENARIO)})
     env.reset(options={"day": env.days[0]})
     initial = env._stored_kwh()
-    play(env, 24)
+    steps_of(env, 24)
     end = env._stored_kwh()
     assert end != initial
     _, infos = env.reset(options={"day": env.days[0], "carry": True, "period": "p"})
