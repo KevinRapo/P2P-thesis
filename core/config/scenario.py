@@ -67,6 +67,31 @@ class BatterySetup:
     initial_soc: float = 0.5
     max_power_kw: Optional[float] = None
 
+    def problems(self) -> list[str]:
+        """What makes the battery's capacity, SoC window, efficiencies, start or
+        power limit invalid for eq. 16."""
+        found = []
+
+        if self.capacity_kwh <= 0:
+            found.append(f"capacity {self.capacity_kwh} kWh is not positive")
+
+        if not 0 <= self.min_soc < self.max_soc <= 1:
+            found.append(
+                f"SoC window {self.min_soc}-{self.max_soc} is not inside 0-1"
+            )
+
+        for name in ("charge_efficiency", "discharge_efficiency"):
+            if not 0 < getattr(self, name) <= 1:
+                found.append(f"{name} {getattr(self, name)} is not in (0, 1]")
+
+        if not self.min_soc <= self.initial_soc <= self.max_soc:
+            found.append(f"initial SoC {self.initial_soc} is outside the window")
+
+        if self.max_power_kw is not None and self.max_power_kw <= 0:
+            found.append(f"power limit {self.max_power_kw} kW is not positive")
+
+        return found
+
 
 @dataclass
 class ParticipantSetup:
@@ -335,6 +360,10 @@ class Scenario:
                         f"{p.id} takes over {', '.join(storage)} but has no "
                         "battery: the storage unit would disappear."
                     )
+
+        for p in self.participants:
+            if p.battery is not None:
+                found.extend(f"{p.id} battery: {s}" for s in p.battery.problems())
 
         return (
             found

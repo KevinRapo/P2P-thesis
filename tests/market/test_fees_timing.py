@@ -32,7 +32,7 @@ def played():
 
 def test_fees_see_the_same_steps_power_flow(played):
     market, records = played
-    dso = market.dso
+    setup = market.dso.setup
     assert any(t.fee_parts.thermal > 0 for r in records for t in r.trades)
 
     for record in records:
@@ -48,9 +48,9 @@ def test_fees_see_the_same_steps_power_flow(played):
             c = min(1.0, highest / 100)
             expected = 0.0
 
-            if c > dso.thermal_threshold:
-                f = (c - dso.thermal_threshold) / (1 - dso.thermal_threshold)
-                expected = min(f, dso.thermal_cap) * t.quantity * t.price
+            if c > setup.thermal_threshold:
+                f = (c - setup.thermal_threshold) / (1 - setup.thermal_threshold)
+                expected = min(f, setup.thermal_cap) * t.quantity * t.price
 
             assert t.fee_parts.thermal == pytest.approx(expected, abs=1e-12)
 

@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+from core.config.scenario import DsoSetup
 from core.env import MarketEnv, net_position_policy
 from core.grid.contract import GridAssessment, GridPath
 from core.grid.graph import GraphGrid, capacities
@@ -63,7 +64,7 @@ def test_unknown_capacity_rule_is_refused():
 # The measured voltage drop
 # --------------------------------------------------------------------------------------
 def test_measured_voltage_drop_is_the_difference_at_the_paths_ends():
-    dso = Dso(0.08, 0.30, voltage_drop="measured")
+    dso = Dso(DsoSetup(voltage_drop="measured"))
     grid = GridAssessment(
         step=0, converged=True, min_voltage_pu=1.0, max_voltage_pu=1.03,
         max_line_loading_percent=0.0, max_trafo_loading_percent=None,
@@ -75,7 +76,7 @@ def test_measured_voltage_drop_is_the_difference_at_the_paths_ends():
     assert dso.voltage_drop_of(path) == pytest.approx(0.02)
     fees = dso.fees_of(quantity=2.0, price=0.2, path=path, loss_kwh=0.0)
     assert fees.voltage == pytest.approx(0.02 * 2.0 * 0.2)
-    distance = Dso(0.08, 0.30)
+    distance = Dso(DsoSetup())
     assert distance.voltage_drop_of(path) == pytest.approx(0.15 * 0.2)
 
 
@@ -113,7 +114,7 @@ def arms() -> dict:
 
 
 def test_graph_mode_charges_fees_from_the_graph_loading(arms):
-    dso = Dso(0.08, 0.30)
+    setup = DsoSetup()
     for record in arms["graph"]:
         assert record.signal is not None and record.grid.bus_voltage_pu
         for trade in record.trades:
@@ -130,9 +131,9 @@ def test_graph_mode_charges_fees_from_the_graph_loading(arms):
             )
             thermal = 0.0
 
-            if c > dso.thermal_threshold:
-                f = (c - dso.thermal_threshold) / (1 - dso.thermal_threshold)
-                thermal = min(f, dso.thermal_cap) * trade.quantity * trade.price
+            if c > setup.thermal_threshold:
+                f = (c - setup.thermal_threshold) / (1 - setup.thermal_threshold)
+                thermal = min(f, setup.thermal_cap) * trade.quantity * trade.price
 
             assert trade.fee_parts.thermal == pytest.approx(thermal)
 

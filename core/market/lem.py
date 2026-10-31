@@ -37,7 +37,7 @@ A step can run at once (``step``) or one stage at a time (``start_step``, then
 from __future__ import annotations
 
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, replace
 from typing import Mapping, Optional
 
 from core.config.scenario import BatterySetup, Scenario
@@ -223,7 +223,7 @@ class LocalEnergyMarket:
         )
         self.participants: dict[str, Participant] = {}
         d, m = scenario.dso, scenario.market
-        self.dso = Dso(**asdict(d), step_hours=scenario.grid.step_hours)
+        self.dso = Dso(d, step_hours=scenario.grid.step_hours)
         self.reputation_handler = ReputationHandler(
             reliability_weight=m.reliability_weight,
             fairness_weight=m.fairness_weight,
@@ -403,7 +403,7 @@ class LocalEnergyMarket:
         one."""
         if b is None:
             return None
-        return Battery(**asdict(b), step_hours=self.scenario.grid.step_hours)
+        return Battery(b, step_hours=self.scenario.grid.step_hours)
 
     def _inputs(self, step: int) -> StepInputs:
         """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are the DSO's

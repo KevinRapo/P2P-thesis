@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 
 from core.config import store
+from core.config.scenario import DsoSetup
 from core.env import OBS_NAMES, MarketEnv, net_position_policy, zero_policy
 from core.market.clearing import Clearing, ClearingRules
 from core.market.dso import Dso
@@ -395,7 +396,7 @@ def test_order_prices_are_whole_cents_and_ties_go_by_reputation():
     assert [o.price for o in pending.orders] == [0.23]
 
     rules = ClearingRules(
-        "average", Dso(0.08, 0.30), 0.2, reputation={"a": 0.4, "b": 0.9}
+        "average", Dso(DsoSetup()), 0.2, reputation={"a": 0.4, "b": 0.9}
     )
     orders = [
         Order("1", "a", 0.23, 1.0, True, 0.0),

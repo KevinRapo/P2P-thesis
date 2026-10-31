@@ -19,10 +19,11 @@ What belongs to the DSO and nobody else:
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, replace
 from typing import Callable, Mapping, Optional, Sequence
 
-from core.config.scenario import load_prices, price_at
+from core.config.scenario import DsoSetup, load_prices, price_at
 from core.grid.contract import GridAssessment, GridPath
 from core.market.order import GridFees, Order, Trade
 
@@ -54,70 +55,27 @@ class Dso:
     """The DSO of one market day.
 
     Args:
-        feed_in_tariff: p_FiT, what the DSO pays per kWh it buys ([P1] §3.3.1).
-        utility_price: p_utility, what the DSO charges per kWh it sells ([P1]
-            §3.3.1).
-        prices: p_utility and p_FiT per market step (``DsoSetup``);
-            ``utility_price`` and ``feed_in_tariff`` then hold the step's prices,
-            set by ``set_hour``.
-        step_hours: Hours per market step, which ``prices`` must match.
-        fees_charged: Whether the participants pay the fees.
-        fee_buyer_share: Share of a peer-to-peer fee the buyer pays.
-        loss_factor: κ of eq. 18, per km.
-        congestion_factor: f_cong of eq. 8a.
-        congestion_threshold: C_threshold of eq. 8a.
-        voltage_factor: f_volt of eq. 8f, per km.
-        voltage_threshold: V_threshold of eq. 8c.
-        thermal_threshold: T_threshold of eq. 8g.
-        thermal_cap: f_threshold of eq. 8d.
-        imbalance_factor: f_imb of eq. 8b.
-        zone_factor: f_zone of eq. 8e.
-        voltage_drop: V_drop of eq. 8c: ``"distance"`` (eq. 8f) or ``"measured"``
-            (between the path's two buses in the step's power flow).
+        setup: Tariffs and fee parameters (``DsoSetup``), copied so later edits
+            to the caller's settings do not change this DSO. The current hourly
+            tariffs, observed grid and running totals are kept separately.
+        step_hours: Hours per market step, which the price series must match.
         id: The DSO's ID in trades and partner preferences.
     """
 
     def __init__(
         self,
-        feed_in_tariff: float,
-        utility_price: float,
-        prices: Optional[str | dict] = None,
+        setup: DsoSetup,
         step_hours: float = 1.0,
-        fees_charged: bool = True,
-        fee_buyer_share: float = 0.5,
-        loss_factor: float = 0.03,
-        congestion_factor: float = 0.5,
-        congestion_threshold: float = 0.8,
-        voltage_factor: float = 0.15,
-        voltage_threshold: float = 0.05,
-        thermal_threshold: float = 0.2,
-        thermal_cap: float = 0.3,
-        imbalance_factor: float = 0.15,
-        zone_factor: float = 0.15,
-        voltage_drop: str = "distance",
         id: str = DSO_ID,
     ) -> None:
-        if voltage_drop not in ("distance", "measured"):
+        if setup.voltage_drop not in ("distance", "measured"):
             raise ValueError("voltage_drop must be 'distance' or 'measured'")
 
-        self.flat_feed_in_tariff = feed_in_tariff
-        self.flat_utility_price = utility_price
-        self.prices = load_prices(prices, step_hours)
+        self.setup = deepcopy(setup)
+        self.prices = load_prices(self.setup.prices, step_hours)
         self.step_hours = step_hours
-        self.feed_in_tariff = feed_in_tariff
-        self.utility_price = utility_price
-        self.fees_charged = fees_charged
-        self.fee_buyer_share = fee_buyer_share
-        self.loss_factor = loss_factor
-        self.congestion_factor = congestion_factor
-        self.congestion_threshold = congestion_threshold
-        self.voltage_factor = voltage_factor
-        self.voltage_threshold = voltage_threshold
-        self.thermal_threshold = thermal_threshold
-        self.thermal_cap = thermal_cap
-        self.imbalance_factor = imbalance_factor
-        self.zone_factor = zone_factor
-        self.voltage_drop = voltage_drop
+        self.feed_in_tariff = setup.feed_in_tariff
+        self.utility_price = setup.utility_price
         self.id = id
         self.line_loading_percent: Mapping[str, float] = {}
         self.bus_voltage_pu: Mapping[str, float] = {}
@@ -137,8 +95,8 @@ class Dso:
     def tariffs_at(self, hour: float) -> tuple[float, float]:
         """``(p_FiT, p_utility)`` at ``hour`` of the day (flat or time-of-use)."""
         return (
-            price_at(self.flat_feed_in_tariff, self.prices["feed_in"], hour),
-            price_at(self.flat_utility_price, self.prices["utility"], hour),
+            price_at(self.setup.feed_in_tariff, self.prices["feed_in"], hour),
+            price_at(self.setup.utility_price, self.prices["utility"], hour),
         )
 
     def set_hour(self, hour: float) -> None:
@@ -173,8 +131,8 @@ class Dso:
     def voltage_drop_of(self, path: GridPath) -> float:
         """V_drop of a trade ([P1] eq. 8c): f_volt · d_ij (eq. 8f), or the measured
         |V_a − V_b| between the path's two buses (0 when not known)."""
-        if self.voltage_drop == "distance":
-            return self.voltage_factor * path.distance_km
+        if self.setup.voltage_drop == "distance":
+            return self.setup.voltage_factor * path.distance_km
 
         a = self.bus_voltage_pu.get(path.bus_a)
         b = self.bus_voltage_pu.get(path.bus_b)
@@ -190,7 +148,7 @@ class Dso:
 
     def transmission_loss(self, distance_km: float, quantity: float) -> float:
         """[P1] eq. 18: l_ij = d_ij · q_ij · κ."""
-        return distance_km * quantity * self.loss_factor
+        return distance_km * quantity * self.setup.loss_factor
 
     # --- Fees (eq. 8) ----------------------------------------------------------------
     def fees_of(
@@ -200,28 +158,29 @@ class Dso:
         ``path``. F_trans has no formula in [P1]: here it is the lost energy at the
         trade price ("the loss ... is included in the DSO fees", §3.5.2). F_imb
         is 0: eq. 8h gives a balance impact only to trades with the DSO."""
+        s = self.setup
         value = quantity * price
         c = self.congestion(path.lines)
         congestion = 0.0
 
-        if c > self.congestion_threshold:  # 8a
-            congestion = self.congestion_factor * (c - self.congestion_threshold)
+        if c > s.congestion_threshold:  # 8a
+            congestion = s.congestion_factor * (c - s.congestion_threshold)
             congestion *= value
 
         thermal = 0.0
 
-        if c > self.thermal_threshold:  # 8g, 8d
-            f_thermal = (c - self.thermal_threshold) / (1 - self.thermal_threshold)
-            thermal = min(f_thermal, self.thermal_cap) * value
+        if c > s.thermal_threshold:  # 8g, 8d
+            f_thermal = (c - s.thermal_threshold) / (1 - s.thermal_threshold)
+            thermal = min(f_thermal, s.thermal_cap) * value
 
         v_drop = self.voltage_drop_of(path)  # 8f, or measured
 
         return GridFees(
             congestion=congestion,
             transmission=loss_kwh * price,
-            voltage=min(v_drop, self.voltage_threshold) * value,  # 8c
+            voltage=min(v_drop, s.voltage_threshold) * value,  # 8c
             thermal=thermal,
-            zone=-self.zone_factor * value if path.same_zone else 0.0,  # 8e
+            zone=-s.zone_factor * value if path.same_zone else 0.0,  # 8e
         )
 
     def imbalance_fee(self, trade: Trade, grid_balance_kwh: float) -> GridFees:
@@ -241,7 +200,7 @@ class Dso:
         impact = min(trade.quantity / abs(grid_balance_kwh), 1.0)
         value = trade.quantity * trade.price
 
-        return GridFees(imbalance=self.imbalance_factor * impact * value)
+        return GridFees(imbalance=self.setup.imbalance_factor * impact * value)
 
     def _charged(self, trade: Trade, parts: GridFees) -> Trade:
         """The trade with its fee, split between who pays it: the buyer's share of
@@ -249,14 +208,14 @@ class Dso:
         paid when the fees are not charged."""
         total = parts.total
 
-        if not self.fees_charged:
+        if not self.setup.fees_charged:
             buyer = seller = 0.0
         elif trade.buyer_id == self.id:
             buyer, seller = 0.0, total
         elif trade.seller_id == self.id:
             buyer, seller = total, 0.0
         else:
-            buyer = total * self.fee_buyer_share
+            buyer = total * self.setup.fee_buyer_share
             seller = total - buyer
 
         return replace(

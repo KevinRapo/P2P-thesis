@@ -491,7 +491,9 @@ def _people_table(m: LocalEnergyMarket, view: dict) -> None:
                 ),
                 "sold": round(sum(t.quantity for t in trades if t.seller_id == pid), 2),
                 "battery": (
-                    "—" if soc is None else f"{soc:.1f} / {p.battery.capacity_kwh:g}"
+                    "—"
+                    if soc is None
+                    else f"{soc:.1f} / {p.battery.setup.capacity_kwh:g}"
                 ),
                 "external": round(out.external_kwh, 2) if out else "",
                 "profit": round(out.profit, 3) if out else "",

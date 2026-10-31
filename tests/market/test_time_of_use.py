@@ -7,12 +7,26 @@ from pathlib import Path
 import pytest
 
 from core.config import store
-from core.config.scenario import load_prices, price_at
+from core.config.scenario import DsoSetup, load_prices, price_at
 from core.env.market_env import MarketEnv, zero_policy
+from core.market.dso import Dso
 from core.market.lem import LocalEnergyMarket
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 TOU_UTILITY = load_prices("synthetic_day", 1.0)["utility"]
+
+
+def test_dso_keeps_its_setup_and_current_tariffs_separate():
+    setup = DsoSetup(prices=load_prices("synthetic_day", 1.0), loss_factor=0.07)
+    dso = Dso(setup)
+    setup.loss_factor = 0.9
+    setup.prices["utility"][17] = 9.0
+    dso.set_hour(17)
+
+    assert dso.setup.loss_factor == 0.07
+    assert dso.transmission_loss(0.5, 2.0) == pytest.approx(0.07)
+    assert dso.utility_price == 0.40
+    assert dso.setup.utility_price == 0.30
 
 
 def test_prices_must_fit_the_market_step():
