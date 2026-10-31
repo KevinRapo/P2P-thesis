@@ -23,7 +23,7 @@ flowchart TD
 
   root --> core["core/"]
 
-  core --> cs["settings.py · rl_defaults.py · files.py"]:::done
+  core --> cs["settings.py · env_defaults.py · rl_defaults.py · files.py"]:::done
 
   core --> config["config/"]
   config --> c1["scenario.py"]:::data
@@ -124,6 +124,7 @@ imports point to the old layout).
 
 | Script | What it does | State |
 |---|---|---|
+| [`env_defaults.py`](../core/env_defaults.py) | Market environment settings, accepted keys and scale keys shared by `MarketEnv` and the runner without importing Ray; outside `core/env/` because its public imports load RLlib | done |
 | [`files.py`](../core/files.py) | Atomic file replacement and JSON writing shared by training and the runner; preserves the Windows retry behavior without importing either layer | done |
 | [`settings.py`](../core/settings.py) | The values that belong to a person or a site (cluster account, SSH host, ports, folders): `get(key, default)` from the environment variable, else `.env` in the root, else the default; `expand` fills `${KEY}` / `${KEY:-default}` (used by `hpc/targets.toml`). Standard library only, so any layer may import it | done |
 

@@ -701,6 +701,14 @@ def test_header_only_metrics_and_summary(root):
     assert info["runs"] == 1 and info["counts"] == {"running": 1}
 
 
+def test_environment_defaults_and_specs_do_not_load_training_dependencies():
+    code = (
+        "import sys; import core.env_defaults; import core.runner.spec; "
+        "assert not {'ray', 'torch', 'pandapower', 'core.env'} & sys.modules.keys()"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True)
+
+
 def test_registry_is_cheap(root):
     for i in range(30):
         write(root / "exp" / f"r{i}" / "status.json", {"state": "queued"})

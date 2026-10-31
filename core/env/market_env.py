@@ -193,6 +193,7 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
+from core.env_defaults import ENV_CONFIG_KEYS, SCALE_KEYS as SCALE_KEYS
 from core.market import signals
 from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepRecord
@@ -212,17 +213,6 @@ ACTION_COMPONENTS = ("side", "quantity", "price", "partner")
 SIDES = ("sell", "buy")  # α: index 0 sells, 1 buys ([P1] eq. 2)
 NO_PREFERENCE = "none"  # the last partner candidate: no partner named
 NO_ORDER_SHARE = 0.05  # quantity share below this places no order
-SCALE_KEYS = ("energy_scale", "reward_scale")
-ENV_CONFIG_KEYS = SCALE_KEYS + (
-    "scenario",
-    "days",
-    "seed",
-    "episode_days",
-    "truncate_episode",
-    "random_start_soc",
-    "terminal_value",
-    "stored_kwh_value",
-)
 _OBS_LIMIT = 10.0
 _MIN_ORDER_KWH = 1e-9
 

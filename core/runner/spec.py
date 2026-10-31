@@ -104,6 +104,7 @@ from typing import Any, Optional
 
 from core import settings as machine
 from core.config.scenario import GridSetup, load_prices
+from core.env_defaults import MARKET_ENV_CONFIG
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -146,20 +147,6 @@ RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
 # What the test profile uses where the ``test`` block says nothing.
 TEST_MINUTES = 15
 TEST_DEFAULT_BUDGET = 100
-# The settings of the market environment an experiment may give in ``env_config``
-# (``core/env/market_env.py``), written out with ``written_out``; None: computed by
-# the environment from the training days, recorded in the run's run.json and reused
-# for its held-out evaluation, or the environment's default; False: off. ``scenario``,
-# ``days`` and ``seed`` come from the experiment.
-MARKET_ENV_CONFIG = {
-    "energy_scale": None,
-    "reward_scale": None,
-    "episode_days": None,
-    "truncate_episode": False,
-    "random_start_soc": False,
-    "terminal_value": False,
-    "stored_kwh_value": None,
-}
 TEST_KEYS = (
     "seeds",
     "train_days",
