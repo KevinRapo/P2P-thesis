@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-import numpy as np
 from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.utils.typing import MultiAgentDict
@@ -65,9 +64,6 @@ class CTCEEnv(MultiAgentEnv):
         config = env_config or {}
         self.env = config["env_class"](config.get("env_config", {}))
         self.agents_id = list(self.env.agents_id)
-        self.obs_dims = [
-            int(np.prod(self.env.observation_spaces[a].shape)) for a in self.agents_id
-        ]
         self.agents = self.possible_agents = [GROUP]
         self.observation_spaces = {
             GROUP: join_spaces([self.env.observation_spaces[a] for a in self.agents_id])
