@@ -34,6 +34,27 @@ def test_runs_are_read_once_until_refresh(where):  # noqa: F811
     assert len(service.results()) == 5
 
 
+def test_an_experiment_in_a_folder_is_a_run_like_any_other(tmp_path):
+    root = tmp_path / "runs"
+    make_run(root / "plain", "ppo_dtde_s0", 0, [-1, -1])
+    make_run(root / "test" / "moved", "ppo_dtde_s0", 0, [-1, -1])
+    make_run(root / "@cluster" / "theirs", "ppo_dtde_s0", 0, [-1, -1])
+    make_run(root / "@cluster" / "test" / "moved", "ppo_dtde_s0", 0, [-1, -1])
+    make_run(root / "@cluster" / "test" / "one" / "deep", "ppo_dtde_s0", 0, [-1, -1])
+    service = ResultsService({"local": root, "cluster": root / "@cluster"})
+
+    assert sorted(service.overview().key) == [
+        "cluster/test/moved/ppo_dtde_s0",
+        "cluster/test/one/deep/ppo_dtde_s0",
+        "cluster/theirs/ppo_dtde_s0",
+        "local/plain/ppo_dtde_s0",
+        "local/test/moved/ppo_dtde_s0",
+    ]  # the mirror's runs once, under its target
+    assert len(service.table("local/test/moved/ppo_dtde_s0", "heldout")) == 3
+    service.refresh([("local", "test/moved")])
+    assert "local/test/moved/ppo_dtde_s0" in {r.key for r in service.results()}
+
+
 def test_a_narrow_refresh_reads_only_the_experiments_named(where):  # noqa: F811
     service = ResultsService(where)
     before = {r.key: r for r in service.results()}

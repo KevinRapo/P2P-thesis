@@ -92,3 +92,66 @@ async def test_showing_and_ticking_are_separate(tmp_path):
         await table.tick_shown()
         assert all("dtde" in k for k in table.selected) and len(table.selected) == 2
         assert changes  # the page was told every time
+
+
+@pytest.mark.anyio
+async def test_targets_and_folders_narrow_the_experiments_offered(tmp_path):
+    local, cluster = tmp_path / "local", tmp_path / "cluster"
+    _runs(local, "plain", ["ppo_ctde_s0"])
+    _runs(cluster, "plain", ["ppo_ctde_s0"])
+    _runs(cluster, "test/one", ["ppo_ctde_s0"])
+    _runs(cluster, "final/two", ["ppo_ctde_s0", "ppo_dtde_s0"])
+    _runs(cluster, "deep/er/three", ["ppo_ctde_s0"])
+    found: dict = {}
+
+    async def changed() -> None:
+        pass
+
+    def root() -> None:
+        found["table"] = RunTable(
+            ResultsService({"local": local, "cluster": cluster}),
+            changed,
+            "test_show_tests",
+        )
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        table: RunTable = found["table"]
+        await table.load()
+        shown = lambda: sorted(r["key"] for r in table.runs.rows)  # noqa: E731
+        assert len(shown()) == 6 and table.target.options == ["cluster", "local"]
+        assert table.folder.options == {
+            "": "(top level)",
+            "deep": "deep",
+            "deep/er": "deep/er",
+            "final": "final",
+            "test": "test",
+        }
+
+        # A target narrows the folders and the experiments offered.
+        table.target.set_value(["local"])
+        assert shown() == ["local/plain/ppo_ctde_s0"]
+        assert list(table.folder.options) == [""]
+        assert table.experiment.options == ["local/plain"]
+
+        # A folder inside the target narrows them further.
+        table.target.set_value(["cluster"])
+        table.folder.set_value(["final"])
+        assert table.experiment.options == ["cluster/final/two"]
+        assert len(shown()) == 2
+
+        # A folder includes those under it; the lower one narrows further.
+        table.folder.set_value(["deep"])
+        assert shown() == ["cluster/deep/er/three/ppo_ctde_s0"]
+        table.folder.set_value(["deep/er"])
+        assert shown() == ["cluster/deep/er/three/ppo_ctde_s0"]
+
+        # The top level: the experiments in no folder.
+        table.folder.set_value([""])
+        assert shown() == ["cluster/plain/ppo_ctde_s0"]
+
+        # A choice the narrower selection no longer offers is dropped, not stuck.
+        table.experiment.set_value(["cluster/plain"])
+        table.folder.set_value(["test"])
+        assert table.experiment.value == []
+        assert shown() == ["cluster/test/one/ppo_ctde_s0"]

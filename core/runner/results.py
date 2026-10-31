@@ -110,7 +110,9 @@ def find_runs(
 ) -> list[RunRef]:
     """Every run folder of every source (default ``sources()``), by target,
     experiment and run name; with ``experiments`` (``(target, experiment)`` pairs)
-    only theirs. A mirror inside the runs root is not read twice."""
+    only theirs. An experiment in a folder is named ``<folder>/<experiment>``
+    (``registry.grouped_experiments``). A mirror inside the runs root is not read
+    twice."""
     where = where or sources()
     mirrors = {Path(p).resolve() for t, p in where.items() if t != LOCAL}
     found = []
@@ -119,13 +121,14 @@ def find_runs(
         root = Path(root)
 
         if experiments is None:
-            names = registry.experiments(root)
+            names = registry.grouped_experiments(root)
         else:
             names = [e for t, e in experiments if t == target and (root / e).is_dir()]
 
         for experiment in names:
             folder = root / experiment
-            if folder.resolve() in mirrors and target == LOCAL:
+            inside = {folder.resolve(), *folder.resolve().parents}
+            if inside & mirrors and target == LOCAL:
                 continue
             for run_dir in sorted(folder.iterdir()):
                 if registry._is_run_dir(run_dir):

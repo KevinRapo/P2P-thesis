@@ -3,7 +3,9 @@
 Every run of this PC and of each cluster after *Sync results* on the Runs page
 (``ResultsService.overview``). Showing and ticking are separate:
 
-- what is shown: one or more experiments (all when none), the text filter, test-profile runs
+- what is shown: the targets, the folders inside them (at every level; a folder
+  includes those under it) and the experiments (each one or more, all when none,
+  each offering what the one before it leaves), the text filter, test-profile runs
   (``<name>--test``) or not, and *Ticked only*;
 - what is ticked: each run by its box, *Tick shown* (every run the table shows now,
   on every page of it) and *Untick all*.
@@ -35,6 +37,28 @@ RUN_COLUMNS = [
     ("heldout_zero", "zero"),
     ("heldout_net_position", "net position"),
 ]
+TOP_LEVEL = "(top level)"  # the Folder option of experiments in no folder
+
+
+def folder_of(experiments: pd.Series) -> pd.Series:
+    """The folder of each experiment name (``<folder>/<experiment>``), else empty."""
+    return experiments.str.rpartition("/")[0]
+
+
+def with_parents(folder: str) -> list[str]:
+    """A folder and the folders above it: ``a/b`` gives ``a`` and ``a/b``."""
+    parts = folder.split("/")
+    return ["/".join(parts[: i + 1]) for i in range(len(parts))]
+
+
+def offer(choice: ui.select, options: list | dict) -> None:
+    """Give a multiple select new options, dropping what it no longer offers."""
+    chosen = choice.value or []
+    kept = [value for value in chosen if value in options]
+    choice.set_options(options)
+
+    if kept != chosen:
+        choice.set_value(kept)
 
 
 def labels_of(keys: list[str]) -> dict[str, str]:
@@ -93,10 +117,34 @@ class RunTable:
         self.overview = pd.DataFrame()
         self.selected: list[str] = []
 
-        # Filter row: Refresh | experiments | search | Show test runs
+        # Filter row: Refresh | targets | folders | experiments | search | Show test runs
         with ui.row().classes("w-full items-center gap-3"):
             ui.button("Refresh", icon="refresh", on_click=self.refresh).props(
                 "flat no-caps dense"
+            )
+            self.target = (
+                ui.select(
+                    [],
+                    label="Targets",
+                    on_change=lambda _: self._fill(),
+                    multiple=True,
+                    clearable=True,
+                    value=[],
+                )
+                .props("use-chips")
+                .style("min-width: 140px")
+            )
+            self.folder = (
+                ui.select(
+                    [],
+                    label="Folders",
+                    on_change=lambda _: self._fill(),
+                    multiple=True,
+                    clearable=True,
+                    value=[],
+                )
+                .props("use-chips")
+                .style("min-width: 140px")
             )
             self.experiment = (
                 ui.select(
@@ -164,11 +212,26 @@ class RunTable:
 
         return table if self.show_tests.value else table[~table.test]
 
+    def _of_targets(self, table: pd.DataFrame) -> pd.DataFrame:
+        if table.empty or not self.target.value:
+            return table
+
+        return table[table.target.isin(self.target.value)]
+
+    def _of_folders(self, table: pd.DataFrame) -> pd.DataFrame:
+        if table.empty or not self.folder.value:
+            return table
+
+        chosen = set(self.folder.value)
+        folders = folder_of(table.experiment)
+
+        return table[folders.map(lambda f: bool(chosen & set(with_parents(f))))]
+
     def visible(self) -> pd.DataFrame:
-        """The runs the table shows: those offered, narrowed to the chosen
-        experiments, to the filter text (in any column shown) and, with *Ticked
-        only*, to the ticked runs."""
-        table = self._offered()
+        """The runs the table shows: those offered, narrowed to the chosen targets,
+        folders and experiments, to the filter text (in any column shown) and, with
+        *Ticked only*, to the ticked runs."""
+        table = self._of_folders(self._of_targets(self._offered()))
 
         if table.empty:
             return table
@@ -193,10 +256,27 @@ class RunTable:
 
         return table
 
+    def _offer_choices(self, offered: pd.DataFrame) -> None:
+        """Each select offers what the one before it leaves: targets, then their
+        folders, then those folders' experiments."""
+        offer(self.target, sorted(set(offered.target)) if len(offered) else [])
+        table = self._of_targets(offered)
+        folders = set(folder_of(table.experiment)) if len(table) else set()
+        folders = sorted({up for folder in folders for up in with_parents(folder)})
+        offer(self.folder, {folder: folder or TOP_LEVEL for folder in folders})
+        table = self._of_folders(table)
+        experiments = (
+            sorted({f"{t}/{e}" for t, e in zip(table.target, table.experiment)})
+            if len(table)
+            else []
+        )
+        offer(self.experiment, experiments)
+
     def _fill(self) -> None:
         offered = self._offered()
         keys = set(offered.key) if len(offered) else set()
         self.selected = [k for k in self.selected if k in keys]
+        self._offer_choices(offered)
         table = self.visible()
         self.runs.rows = [
             {"key": row["key"]} | {f: cell(row.get(f)) for f, _ in self.columns}
@@ -204,12 +284,6 @@ class RunTable:
         ]
         self.runs.selected = [r for r in self.runs.rows if r["key"] in self.selected]
         self.runs.update()
-        experiments = (
-            sorted({f"{t}/{e}" for t, e in zip(offered.target, offered.experiment)})
-            if len(offered)
-            else []
-        )
-        self.experiment.set_options(experiments)
         text = f"{len(table)} of {len(offered)} runs shown"
         text += f" · {len(self.selected)} ticked"
         out_of_view = len(set(self.selected) - set(table.key if len(table) else []))

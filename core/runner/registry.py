@@ -9,6 +9,9 @@ they like (every 2 seconds is fine) and see the same thing:
     runs/<experiment>/<run>/status.json  state of one run (written by the runner)
     runs/<experiment>/<run>/run.json     the trainer's record (also in old runs)
 
+An experiment may be moved by hand into folders of its own, ``runs/<folder>/<experiment>``
+at any depth (``grouped_experiments``), to keep related experiments together.
+
 States: ``queued``, ``running``, ``completed``, ``failed``, ``stopped``; ``lost``
 is derived: the run says it is running but its process is gone (killed, machine
 restarted), or it is queued but the worker that should start it is gone. Old run
@@ -341,6 +344,21 @@ def experiments(root: Optional[Path] = None) -> list[str]:
             continue
 
     return found
+
+
+def grouped_experiments(root: Optional[Path] = None) -> list[str]:
+    """``experiments``, and those in folders at any depth, sorted: a folder that holds
+    no runs itself can group experiments moved into it by hand, named
+    ``<folder>/<experiment>`` (``<folder>/<folder>/<experiment>`` and so on). The
+    Results page reads these; the runner only starts and watches top-level ones."""
+    root = Path(root) if root else runs_root()
+    found = experiments(root)
+
+    for folder in root.iterdir() if root.is_dir() else []:
+        if folder.is_dir() and folder.name not in found:
+            found += [f"{folder.name}/{n}" for n in grouped_experiments(folder)]
+
+    return sorted(found)
 
 
 def runs(

@@ -228,6 +228,14 @@ through [results.py](../../core/runner/results.py): this PC's runs and a cluster
 **after Sync results** (`runs/@taltech/`, listed under the cluster's name, never
 twice). Nothing is trained, no market is built and nothing connects to the cluster.
 
+To keep experiments apart, move their folders by hand into folders of your own
+(`runs/@taltech/test/<experiment>`, or `runs/test/<experiment>` on this PC; at any
+depth). The Results and RL probes pages read them as `test/<experiment>`, and their
+run table narrows by target, then folder, then experiment. Every folder level is an
+option, and a folder includes those under it. The runner does not see
+inside these folders, and the cluster keeps its copy at the top level: **Sync
+results** on such an experiment brings a second copy back to the mirror's top level.
+
 | Question | What is shown |
 |---|---|
 | Did it learn? | The trained policy's evaluation return over environment steps, per run, with each run's own baselines at step 0 (one line when they are the same); team or per participant; optionally the training return |
