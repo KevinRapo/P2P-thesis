@@ -63,6 +63,7 @@ COMPARED = (
     "scenario",
     "train_days",
     "test_days",
+    "env_config",
     "budget",
     "overrides",
     "model",
@@ -176,7 +177,8 @@ class RunResult:
         if isinstance(scenario, dict):
             scenario = scenario.get("name", "(unnamed)")
 
-        shown = {k: v for k, v in settings.items() if k not in ("overrides", "model")}
+        apart = ("env_config", "overrides", "model")
+        shown = {k: v for k, v in settings.items() if k not in apart}
 
         return shown | {
             "scenario": scenario,
@@ -213,16 +215,19 @@ def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
 
 
 def load_run(ref: RunRef) -> RunResult:
-    """A run's settings and state, from its folder and its experiment's."""
+    """A run's settings and state, from its folder and its experiment's: a variant's
+    from its own ``experiment_<variant>.json``, which older runs do not have."""
     record = registry.read_json(ref.folder / "run.json") or {}
-    spec = registry.read_json(ref.folder.parent / "experiment.json") or {}
     name = _RUN_NAME.match(ref.run)
     seed = record.get("seed", int(name["seed"]) if name else None)
     variant = None
+    spec = None
 
     if name and len(ref.run) > name.end():
         variant = ref.run[name.end() + 1 :]
+        spec = registry.read_json(ref.folder.parent / f"experiment_{variant}.json")
 
+    spec = spec or registry.read_json(ref.folder.parent / "experiment.json") or {}
     git = record.get("git") or {}
     settings = {
         "kind": run_kind(record.get("env_class") or spec.get("env")),
@@ -234,6 +239,7 @@ def load_run(ref: RunRef) -> RunResult:
         "scenario": spec.get("scenario"),
         "train_days": spec.get("train_days"),
         "test_days": spec.get("test_days"),
+        "env_config": spec.get("env_config"),
         "budget": record.get("budget_env_steps"),
         "overrides": record.get("settings"),
         # The gradient clip the run trained with (given or RLlib's default), and

@@ -35,6 +35,7 @@ import shlex
 import shutil
 import stat
 import threading
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional, Sequence
 
@@ -48,6 +49,7 @@ PULL_TIMEOUT_S = 900
 # learner, the evaluations) and the held-out tables at the end; not the traces.
 FOLLOWED = (
     "experiment.json",
+    "experiment_*.json",
     "run.json",
     "status.json",
     "metrics.csv",
@@ -149,8 +151,8 @@ async def copy_tree(sftp: Any, folder: str, local: Path, skip: Sequence[str]) ->
 async def follow_tree(
     sftp: Any, folder: str, local: Path, names: Sequence[str], skip: Sequence[str]
 ) -> int:
-    """Bring the files called ``names`` under ``folder`` on the cluster up to date in
-    ``local`` (``follow_file``), at any depth but in the folders called in ``skip``.
+    """Bring the files matching ``names`` under ``folder`` on the cluster up to date
+    in ``local`` (``follow_file``), at any depth but in the folders called in ``skip``.
 
     Returns:
         The number of files that changed here.
@@ -164,7 +166,7 @@ async def follow_tree(
 
         if stat.S_ISDIR(mode) and name not in (".", "..", *skip):
             changed += await follow_tree(sftp, source, local / name, names, skip)
-        elif stat.S_ISREG(mode) and name in names:
+        elif stat.S_ISREG(mode) and any(fnmatch(name, n) for n in names):
             changed += await follow_file(sftp, source, local / name, attrs)
 
     return changed

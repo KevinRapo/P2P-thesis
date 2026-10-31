@@ -166,6 +166,27 @@ def test_settings_come_from_the_saved_files(where):
     assert not runs["local/grid/ppo_dtde_s0"].has("heldout_trace_steps")
 
 
+def test_a_variant_reads_its_own_arm(where):
+    exp = where["local"] / "grid"
+    write(
+        exp / "experiment_v2.json",
+        {
+            "scenario": {"name": "s1", "grid": {"method": "graph"}},
+            "test_days": DAYS,
+            "env_config": {"episode_days": 7},
+        },
+    )
+    make_run(exp, "ppo_dtde_s0_v2", 0, [-8, -9])
+    runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
+    arm = runs["local/grid/ppo_dtde_s0_v2"].settings
+    assert arm["scenario"]["grid"] == {"method": "graph"}
+    assert arm["env_config"] == {"episode_days": 7}
+    assert runs["local/grid/ppo_dtde_s0"].settings["scenario"] == {"name": "s1"}
+    assert "env_config" not in runs["local/grid/ppo_dtde_s0_v2"].labels
+    # a variant from before the arm files: the base experiment's
+    assert runs["cluster/grid/ppo_dtde_s0_v1"].settings["scenario"] == {"name": "s2"}
+
+
 def test_differences_are_found_in_the_full_values_not_the_labels():
     base = {
         "scenario": {"name": "s", "participants": [1, 2]},

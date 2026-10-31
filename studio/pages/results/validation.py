@@ -203,6 +203,7 @@ class ValidationTab(Tab):
                     key_values(shown)
 
                     for name, title in (
+                        ("env_config", "Environment settings"),
                         ("overrides", "Training settings"),
                         ("model", "Model"),
                     ):
