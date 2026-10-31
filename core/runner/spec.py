@@ -618,13 +618,19 @@ class Experiment:
             if isinstance(changes.get("scenario"), str)
         }
 
-        if not isinstance(self.scenario, str) and not named:
+        prices = isinstance(self.scenario, dict) and isinstance(
+            self.scenario.get("dso", {}).get("prices"), str
+        )
+
+        if not isinstance(self.scenario, str) and not named and not prices:
             return self
 
         out = copy.deepcopy(self)
 
         if isinstance(self.scenario, str):
             out.scenario = _read_scenario(self.scenario_path)
+        elif prices:
+            _read_prices(out.scenario, "scenario")
 
         for name, changes in named.items():
             path = (REPO / changes["scenario"]).resolve()
@@ -791,6 +797,13 @@ def _read_scenario(path: Path) -> dict:
     if not isinstance(data, dict):
         raise SpecError(f"{path}: a scenario file holds one JSON object")
 
+    _read_prices(data, path)
+
+    return data
+
+
+def _read_prices(data: dict, where: Any) -> None:
+    """Read a scenario's price file, if it names one, into its ``dso.prices``."""
     dso = data.get("dso", {})
 
     if isinstance(dso.get("prices"), str):
@@ -798,9 +811,7 @@ def _read_scenario(path: Path) -> dict:
             step = data.get("grid", {}).get("step_hours", GridSetup.step_hours)
             dso["prices"] = load_prices(dso["prices"], step)
         except (OSError, ValueError, KeyError) as error:
-            raise SpecError(f"{path}: prices cannot be read ({error})") from None
-
-    return data
+            raise SpecError(f"{where}: prices cannot be read ({error})") from None
 
 
 def overwrite(base: dict, changes: dict) -> dict:

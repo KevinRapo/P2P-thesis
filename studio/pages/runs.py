@@ -15,12 +15,8 @@ each card (results are copied only when asked), and a line at the top with what 
 runner's ``check`` found: "Ready", or the problems that stop a start. A read that fails
 is not a notification: a line says why and when the data shown was last updated, and
 goes away with the next read that works. Start, Stop and Sync show their errors as
-notifications. The "Start experiment" button starts an experiment on either target,
-with an experiment file from ``config/experiments/`` as the template, its JSON edited before
-the start (``StartDialog``), with the paradigms, seeds, budget, PPO settings,
-workers and cluster resources also offered as fields that rewrite the JSON;
-"Restart failed runs" starts an experiment again from the settings saved in its
-folder.
+notifications. Experiments are started on the Experiments page; "Restart failed
+runs" starts one again from the settings saved in its folder.
 """
 
 from __future__ import annotations
@@ -28,14 +24,14 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Optional
 
 from nicegui import run, ui
 
 from core.runner.registry import RunState
 from studio.adapters.run_service import RunService
-from studio.components.cards import key_values, placeholder, section
+from studio.components.cards import placeholder, section
+from studio.components.run_check import fail, read_check, show_report
 from studio.layout import shell
 from studio.state import services
 
@@ -44,43 +40,9 @@ LOCAL_REFRESH_S = 2.0
 RECENT = 8  # experiments shown unless all are asked for (and those running)
 REMOTE_REFRESH_S = 10.0  # every read of a cluster is a round trip over SSH
 START_HINT = (
-    "Start an experiment with the button above, or "
+    "Start an experiment on the Experiments page, or "
     "`python -m core.runner start config/experiments/<name>.json [--target taltech]`"
 )
-# preset -> (button, icon, what it is for)
-PRESET_BUTTONS = {
-    "test": ("Test preset", "science", "the smallest version, to check the pipeline"),
-    "full": ("Full preset", "rocket_launch", "the template's run size"),
-}
-
-PARADIGM_CHOICES = {"ctce": "CTCE", "ctde": "CTDE", "dtde": "DTDE"}
-# The start dialog's fields (``RunService.QUICK_SETTINGS``): name -> (label, kind),
-# in groups; "int" and "float" are numbers, the others are their own kind.
-QUICK_GROUPS = {
-    "Runs": {
-        "paradigms": ("Paradigms", "paradigms"),
-        "seeds": ("Seeds (comma-separated)", "seeds"),
-        "budget": ("Budget (env steps per run)", "int"),
-    },
-    "PPO": {
-        "lr": ("Learning rate", "float"),
-        "train_batch_size_per_learner": ("Batch (env steps)", "int"),
-        "minibatch_size": ("Minibatch", "int"),
-        "num_epochs": ("Epochs", "int"),
-        "entropy_coeff": ("Entropy coefficient", "float"),
-        "clip_param": ("Clip", "float"),
-        "gamma": ("Discount γ", "float"),
-    },
-    "Workers and cluster resources (per run)": {
-        "num_env_runners": ("Environment runners", "int"),
-        "max_parallel": ("Runs in parallel (this PC)", "int"),
-        "torch_threads": ("Torch threads", "int"),
-        "cpus": ("CPUs (SLURM)", "int"),
-        "mem_gb": ("Memory GB (SLURM)", "float"),
-        "minutes": ("Minutes (SLURM)", "int"),
-    },
-}
-
 # state -> (Quasar colour of the badge, colour of its text)
 STATE_STYLE = {
     "queued": ("grey-6", "white"),
@@ -192,12 +154,6 @@ def _row(run_state: RunState) -> dict[str, Any]:
     }
 
 
-def _fail(message: str) -> None:
-    """The error of an action the user asked for: a notification that stays until it
-    is closed."""
-    ui.notify(message, type="negative", multi_line=True, close_button=True)
-
-
 # --------------------------------------------------------------------------------------
 # One experiment: its card
 # --------------------------------------------------------------------------------------
@@ -303,55 +259,6 @@ class ExperimentCard:
                 ui.badge("worker alive", color="positive").props("outline")
             else:
                 ui.badge("no worker", color="grey-6").props("outline")
-
-
-# --------------------------------------------------------------------------------------
-# What ``check`` found
-# --------------------------------------------------------------------------------------
-async def _read_check(
-    service: RunService, target: str, spec_path: Optional[str]
-) -> dict:
-    """``service.check`` in a worker thread. A target that cannot even be made
-    (incomplete ``targets.toml``) is a report that is not ok, with the reason."""
-    try:
-        return await run.io_bound(service.check_target, target, spec_path)
-    except (OSError, RuntimeError, ValueError) as error:
-        return {
-            "ok": False,
-            "problems": [str(error)],
-            "local_commit": None,
-            "cluster_commit": None,
-            "active": None,
-        }
-
-
-def _short(commit: Optional[str]) -> str:
-    return commit[:8] if commit else "unknown"
-
-
-def _show_report(report: dict) -> None:
-    """A report of ``check`` in the current container: Ready, or the problems that
-    stop a start; the two commits; and the experiments that are queued or running, as
-    a reminder not to update the cluster's checkout while they are."""
-    # Icon | "Ready" or the list of problems
-    with ui.row().classes("items-start gap-2 no-wrap"):
-        if report["ok"]:
-            ui.icon("check_circle", size="20px", color="positive")
-            ui.label("Ready").classes("text-body2")
-        else:
-            ui.icon("warning", size="20px", color="orange-8")
-            with ui.column().classes("gap-0"):
-                for problem in report["problems"]:
-                    ui.label(problem).classes("text-body2")
-
-    cluster, local = report["cluster_commit"], report["local_commit"]
-    ui.label(f"cluster {_short(cluster)} · this PC {_short(local)}").classes("mls-mono")
-
-    if report["active"]:
-        ui.label(
-            f"Queued or running: {', '.join(report['active'])}. Do not update or edit "
-            "the cluster's checkout while they run."
-        ).classes("mls-card-caption")
 
 
 # --------------------------------------------------------------------------------------
@@ -499,11 +406,11 @@ class RunsMonitor:
         with self.status:
             ui.label(f"Checking {self.label} ...").classes("mls-card-caption")
 
-        report = await _read_check(self.service, self.target, None)
+        report = await read_check(self.service, self.target, None)
         self.status.clear()
 
         with self.status:
-            _show_report(report)
+            show_report(report)
 
     # --- Syncing ---------------------------------------------------------------------
     async def on_sync(self, experiment: str, button: ui.button) -> None:
@@ -514,7 +421,7 @@ class RunsMonitor:
                 self.service.sync_experiment, self.target, experiment
             )
         except (OSError, RuntimeError) as error:
-            _fail(f"Could not sync {experiment}: {error}")
+            fail(f"Could not sync {experiment}: {error}")
         else:
             ui.notify(f"Synced {copied} files to {folder}", type="positive")
         finally:
@@ -527,7 +434,7 @@ class RunsMonitor:
         try:
             await run.io_bound(self.service.restart_experiment, self.target, experiment)
         except (OSError, RuntimeError, ValueError) as error:
-            _fail(f"Could not restart {experiment}: {error}")
+            fail(f"Could not restart {experiment}: {error}")
         else:
             ui.notify(f"Restarted the failed runs of {experiment}", type="positive")
             await self.refresh(True)
@@ -583,7 +490,7 @@ class RunsMonitor:
                 self.service.stop_experiment, self.target, experiment, name
             )
         except (OSError, RuntimeError) as error:
-            _fail(f"Could not stop {label}: {error}")
+            fail(f"Could not stop {label}: {error}")
             return
 
         done = "cancelled" if "cancelled" in result else "killed"
@@ -596,381 +503,12 @@ class RunsMonitor:
 
 
 # --------------------------------------------------------------------------------------
-# Starting an experiment: the dialog
-# --------------------------------------------------------------------------------------
-def _budget(budget: int | dict) -> str:
-    """The environment steps of each run: one number, or one per algorithm."""
-    if isinstance(budget, dict):
-        steps = ", ".join(f"{algorithm} {n:,}" for algorithm, n in budget.items())
-    else:
-        steps = f"{budget:,}"
-    return f"{steps} env steps"
-
-
-def _resources(resources: dict) -> str:
-    text = (
-        f"{resources['cpus']} cpus, {resources['mem_gb']:g} GB, "
-        f"{resources['minutes']} min"
-    )
-    return f"{text}, node {resources['node']}" if resources.get("node") else text
-
-
-class StartDialog:
-    """The dialog that starts an experiment on a target. An experiment file from
-    ``config/experiments/`` is the template: its JSON is shown in an editor, and every edit is
-    checked as a start would check it (``RunService.describe``), with the runs it
-    makes or what is wrong. The file itself is never changed. The Test and Full
-    presets rewrite the run size settings in the editor (``RunService.apply_preset``)
-    and leave every other edit; the text can be edited again after. What the editor
-    holds is what starts.
-
-    Start starts the edited experiment as a new one (``RunService.start_new``): if the
-    target has an experiment of that name, the date and time are added to it. For a
-    cluster the dialog checks the target when it opens and when the target changes,
-    and keeps Start disabled until the check has no problems.
-
-    Args:
-        service: The Runs service.
-        targets: ``(name, label)`` of every target.
-        on_started: Called with the target's name once the experiment has started (the
-            page then shows that target's tab).
-    """
-
-    def __init__(
-        self,
-        service: RunService,
-        targets: list[tuple[str, str]],
-        on_started: Callable[[str], Awaitable[None]],
-    ) -> None:
-        self.service = service
-        self.targets = dict(targets)
-        self.on_started = on_started
-        self.templates: dict[str, dict] = {}  # the experiment files, by path
-        self.record: Optional[dict] = None  # ``describe`` of the editor's text
-        self.report: Optional[dict] = None  # the check of the chosen cluster
-        self.fit: list[str] = []  # what that cluster cannot give the experiment
-        self.starting = False  # a start request is running: one at a time
-        self.quick: dict[str, Any] = {}  # the fields of the quick settings
-        self._filling = False  # the fields are being set from the editor
-
-        # The pop-up window; its contents are built by _build() each time it opens
-        with ui.dialog() as self.dialog:
-            with ui.card().classes("w-[760px] max-w-full gap-3"):
-                self.body = ui.column().classes("w-full gap-3")  # filled by ``show``
-
-    async def show(self) -> None:
-        """Open the dialog with the experiment files as they are now."""
-        records = await run.io_bound(self.service.spec_files)
-        self.templates = {str(r["path"]): r for r in records}
-        self.body.clear()
-
-        with self.body:
-            self._build()
-
-        self.dialog.open()
-        self._template_changed()
-        await self._on_check()
-
-    def _build(self) -> None:
-        """The fields, made again each time the dialog opens."""
-        # Top to bottom: title, template, preset buttons, quick settings, JSON
-        # editor, what it starts, where to run, the check, Cancel | Start
-        ui.label("Start an experiment").classes("text-h6")
-        self.template = ui.select(
-            {path: Path(path).stem for path in self.templates},
-            label="Template (an experiment file; it is not changed)",
-            value=next(iter(self.templates), None),
-            on_change=self._template_changed,
-        ).classes("w-full")
-
-        # One row of preset buttons
-        with ui.row().classes("w-full items-center gap-2"):
-            for preset, (label, icon, purpose) in PRESET_BUTTONS.items():
-                ui.button(
-                    label, icon=icon, on_click=lambda p=preset: self._apply_preset(p)
-                ).props("outline no-caps dense").tooltip(
-                    f"Overwrite name, seeds, days, budget, evaluation and resources "
-                    f"in the editor with {purpose}; other edits stay"
-                )
-
-        # Collapsible quick settings (open at first)
-        with ui.expansion(
-            "Paradigms, PPO and resources", icon="tune", value=True
-        ).classes("w-full"):
-            self._build_quick()
-
-        ui.label(
-            "Edit the experiment as JSON: every setting is written out, with its "
-            "default where the template gives none (docs: Training experiments, The "
-            "experiment file). What the editor holds is what starts. If "
-            "the target has an experiment of this name, the start adds the date and "
-            "time to it."
-        ).classes("mls-card-caption")
-        self.editor = (
-            ui.textarea(on_change=self._changed)
-            .classes("w-full mls-mono")
-            .props("outlined rows=24")
-        )
-        # What the experiment starts, or what is wrong (filled by _show_details)
-        self.details = ui.column().classes("w-full gap-1")
-        self.target = ui.select(
-            self.targets,
-            label="Where to run",
-            value=LOCAL,
-            on_change=self._on_check,
-        ).classes("w-full")
-        # The cluster's check report (filled by _check)
-        self.check_box = ui.column().classes("w-full gap-1")
-
-        # Bottom buttons, right-aligned: Cancel | Start
-        with ui.row().classes("w-full justify-end"):
-            ui.button("Cancel", on_click=self.dialog.close).props("flat no-caps")
-            self.start = ui.button(
-                "Start", icon="play_arrow", on_click=self._on_start
-            ).props("unelevated no-caps")
-
-    def _build_quick(self) -> None:
-        """The quick settings: each field rewrites its setting in the JSON."""
-        for group, fields in QUICK_GROUPS.items():
-            ui.label(group).classes("mls-card-caption")
-
-            # The group's fields in one row
-            with ui.row().classes("w-full gap-2"):
-                for name, (label, kind) in fields.items():
-                    if kind == "paradigms":
-                        field = ui.select(
-                            PARADIGM_CHOICES, multiple=True, label=label
-                        ).props("use-chips dense")
-                        field.classes("min-w-[260px]")
-                    elif kind == "seeds":
-                        field = ui.input(label).props("dense").classes("w-40")
-                    else:
-                        field = ui.number(label).props("dense").classes("w-40")
-                    field.on_value_change(lambda e, n=name: self._quick_changed(n))
-                    self.quick[name] = field
-
-    def _fill_quick(self) -> None:
-        """Show the editor's values in the quick settings."""
-        values = self.service.quick_settings(self.editor.value or "")
-        self._filling = True
-
-        try:
-            for name, field in self.quick.items():
-                value = values.get(name)
-                if name == "seeds":
-                    value = ", ".join(str(s) for s in value) if value else ""
-                elif name == "paradigms":
-                    value = list(value or [])
-                if field.value != value:
-                    field.set_value(value)
-        finally:
-            self._filling = False
-
-    def _quick_changed(self, name: str) -> None:
-        """A quick setting was edited: write it into the editor's JSON."""
-        if self._filling:
-            return
-
-        kind = next(
-            k for g in QUICK_GROUPS.values() for n, (_, k) in g.items() if n == name
-        )
-        value = self.quick[name].value
-
-        try:
-            if kind == "seeds":
-                value = [
-                    int(s) for s in str(value or "").replace(" ", "").split(",") if s
-                ]
-            elif kind == "int" and value is not None:
-                value = int(value)
-            elif kind == "float" and value is not None:
-                value = float(value)
-            text = self.service.apply_settings(self.editor.value or "", {name: value})
-        except ValueError as error:
-            _fail(f"Cannot set {name}: {error}")
-            return
-
-        self.editor.set_value(text)  # checked again by ``_changed``
-
-    def _default_target(self, preset: str) -> str:
-        """A test runs on this PC; a full experiment on the first cluster, if any."""
-        clusters = [name for name in self.targets if name != LOCAL]
-        return clusters[0] if preset == "full" and clusters else LOCAL
-
-    # --- The experiment ---------------------------------------------------------------
-    def _template_changed(self) -> None:
-        """Put the chosen template's text in the editor."""
-        template = self.templates.get(self.template.value)
-
-        if template is None:
-            self.editor.set_value("")
-        else:
-            name = Path(self.template.value).stem
-            self.editor.set_value(self.service.editable(template["text"], name))
-
-        self._changed()
-
-    def _apply_preset(self, preset: str) -> None:
-        """Rewrite the editor's run size settings as the preset's, and pick the
-        target that suits it."""
-        template = self.templates.get(self.template.value)
-
-        if template is None:
-            return
-
-        name = Path(self.template.value).stem
-
-        try:
-            text = self.service.apply_preset(
-                self.editor.value or "",
-                preset,
-                self.service.editable(template["text"], name),  # written out
-                name,
-            )
-        except ValueError as error:
-            _fail(f"Cannot apply the {preset} preset: {error}")
-            return
-
-        self.editor.set_value(text)  # checked again by ``_changed``
-        self.target.set_value(self._default_target(preset))
-
-    def _changed(self) -> None:
-        """Check the editor's text and show what it makes."""
-        template = self.templates.get(self.template.value)
-
-        if template is None:
-            self.record = None
-        else:
-            name = Path(self.template.value).stem  # as for a file without a name
-            self.record = self.service.describe(self.editor.value or "", name)
-
-        self._fill_quick()
-        self._refit()
-
-    def _refit(self) -> None:
-        """Check the experiment against the chosen cluster's last report (what it
-        asks that the cluster cannot give, e.g. a node it does not have), then show
-        the details and update Start."""
-        experiment = self.record["experiment"] if self.record else None
-        self.fit = []
-
-        if experiment is not None and self.report is not None:
-            nodes = self.report.get("nodes")
-            self.fit = self.service.check_fit(self.target.value, experiment, nodes)
-
-        self._show_details()
-        self._update_start()
-
-    def _show_details(self) -> None:
-        """The runs the experiment makes, or what is wrong; and what the chosen
-        cluster cannot give."""
-        self.details.clear()
-        record = self.record
-
-        if record is None:
-            return
-
-        with self.details:
-            if record["error"]:
-                # Error icon | message
-                with ui.row().classes("items-start gap-2 no-wrap"):
-                    ui.icon("error_outline", size="20px", color="negative")
-                    ui.label(record["error"]).classes("text-body2 text-negative")
-                return
-
-            key_values(
-                {
-                    "Starts as": record["name"],
-                    "Runs": str(record["runs"]),
-                    "Budget per run": _budget(record["budget"]),
-                    "Cluster resources per run": _resources(record["resources"]),
-                }
-            )
-            label = self.targets.get(self.target.value, self.target.value)
-
-            for problem in self.fit:
-                # Error icon | what the cluster cannot give
-                with ui.row().classes("items-start gap-2 no-wrap"):
-                    ui.icon("error_outline", size="20px", color="negative")
-                    ui.label(f"On {label}: {problem}").classes(
-                        "text-body2 text-negative"
-                    )
-
-    # --- Checking and starting -------------------------------------------------------
-    async def _on_check(self) -> None:
-        """Check the chosen cluster (this PC needs no check) and show the report; the
-        experiment itself is checked here on every edit. Start stays disabled until
-        the report is ok."""
-        asked = self.target.value
-        self.report = None
-        self.check_box.clear()
-        self._refit()
-
-        if asked == LOCAL:
-            return
-
-        with self.check_box:
-            ui.label(f"Checking {self.targets[asked]} ...").classes("mls-card-caption")
-
-        report = await _read_check(self.service, asked, None)
-
-        if asked != self.target.value:  # changed in the meantime
-            return
-
-        self.report = report
-        self.check_box.clear()
-
-        with self.check_box:
-            _show_report(report)
-            ui.button("Check again", icon="refresh", on_click=self._on_check).props(
-                "flat no-caps dense"
-            )
-
-        self._refit()
-
-    def _update_start(self) -> None:
-        """Start needs an experiment that loads, for a cluster a report that is ok
-        and nothing the cluster cannot give, and no start that is still running."""
-        ready = bool(self.record and self.record["experiment"]) and (
-            self.target.value == LOCAL
-            or bool(self.report and self.report["ok"] and not self.fit)
-        )
-        self.start.set_enabled(ready and not self.starting)
-
-    async def _on_start(self) -> None:
-        target, label = self.target.value, self.targets[self.target.value]
-        experiment = self.record["experiment"]
-        self.starting = True
-        self._update_start()
-
-        try:
-            name = await run.io_bound(
-                self.service.start_new_experiment, target, experiment, "full"
-            )
-        except (OSError, RuntimeError, ValueError) as error:
-            self.starting = False
-            _fail(f"Could not start: {error}")
-            await self._on_check()  # what was true a moment ago may not be now
-
-            return
-
-        self.starting = False
-        ui.notify(f"started {name} on {label}", type="positive")
-        self.dialog.close()
-        await self.on_started(target)
-
-
-# --------------------------------------------------------------------------------------
 # The page
 # --------------------------------------------------------------------------------------
-def page() -> None:
-    """The experiments of each target, read at once and then every few seconds."""
+def page(target: str = "") -> None:
+    """The experiments of each target, read at once and then every few seconds;
+    ``/runs?target=taltech`` opens that target's tab."""
     service = services().runs
-
-    async def show_target(target: str) -> None:
-        """Open a target's tab (after starting an experiment on it) and read it."""
-        tabs.set_value(target)
-        await monitors[target].refresh(True)
 
     async def opened(e) -> None:
         """A tab was chosen: only its monitor reads from now on."""
@@ -990,18 +528,13 @@ def page() -> None:
             placeholder(f"The targets cannot be read: {error}", "error_outline")
             return
 
-        # Top: Start experiment… (opens the StartDialog built below)
-        ui.button(
-            "Start experiment…", icon="play_arrow", on_click=lambda: dialog.show()
-        ).props("unelevated no-caps")
-
         # Tab bar: one tab per target (this PC, then each cluster)
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             for name, label in names:
                 icon = "computer" if name == LOCAL else "cloud"
                 ui.tab(name, label=label, icon=icon)
 
-        first = names[0][0]
+        first = target if target in dict(names) else names[0][0]
         monitors: dict[str, RunsMonitor] = {}
 
         # One panel per target, each filled by its RunsMonitor
@@ -1012,6 +545,5 @@ def page() -> None:
                         service, name, label, panel, active=name == first
                     )
 
-        dialog = StartDialog(service, names, show_target)
         tabs.on_value_change(opened)
         ui.timer(0.05, monitors[first].show, once=True)

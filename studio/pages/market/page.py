@@ -22,7 +22,7 @@ def page(tab: str = "step") -> None:
         "market",
         "Market",
         "Play the market one clearing stage at a time, or check it on scripted cases "
-        "with known outcomes. Reset builds the market from the Grid & Participants "
+        "with known outcomes. Reset builds the market from the Scenario "
         "page.",
     ):
         # Tab bar: Step | Probes

@@ -67,7 +67,7 @@ def build_services(home: Path | None = None) -> Services:
         profiles=ProfileService(),
         scenario=ScenarioService(workspace.scenario_file, SCENARIO_LIBRARY),
         market=MarketService(),
-        runs=RunService(),
+        runs=RunService(selected=workspace.experiment_file),
         results=results,
         validation=ValidationService(results),
     )

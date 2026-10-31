@@ -80,7 +80,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
         "The elements no participant took over. They do not trade; in the power "
         "flow they follow their profiles"
         + (
-            " (switched off here: the Grid & Participants page)."
+            " (switched off here: the Scenario page)."
             if background_off
             else "."
         ),

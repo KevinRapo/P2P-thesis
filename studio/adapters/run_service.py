@@ -7,7 +7,7 @@ connection open) and passes the calls on, each named for what it does to an
 experiment (``experiments``, ``check_target``, ``check_fit``,
 ``start_experiment``, ``start_new_experiment``, ``restart_experiment``,
 ``stop_experiment``, ``sync_experiment``, ``follow_experiment``) to the target's
-method of the plain verb (``Target.start`` and so on). The start dialog edits an experiment
+method of the plain verb (``Target.start`` and so on). The Experiments page edits an experiment
 file's text; ``apply_preset`` rewrites the text as the test or the full experiment,
 ``quick_settings`` / ``apply_settings`` read and write the settings the dialog
 offers as fields (paradigms, seeds, budget, PPO, workers, cluster resources), and
@@ -19,11 +19,13 @@ them through ``run.io_bound``.
 from __future__ import annotations
 
 import threading
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
 import json
 
+from core.config.scenario import Scenario
 from core.runner import targets
 from core.runner.spec import (
     REPO,
@@ -34,7 +36,7 @@ from core.runner.spec import (
     written_out,
 )
 
-# The settings a preset of the start dialog replaces: those the test version changes
+# The settings a preset of the Experiments page replaces: those the test version changes
 # (``Experiment.test_version``); the test block itself stays, so it can be edited.
 PRESET_KEYS = (
     "name",
@@ -50,7 +52,7 @@ PRESET_KEYS = (
     "resources",
 )
 PRESETS = ("test", "full")
-# The settings the start dialog offers as fields, by their path in the JSON (V2:
+# The settings the Experiments page offers as fields, by their path in the JSON (V2:
 # PPO's settings under training.ppo); the rest is edited in the JSON itself.
 QUICK_SETTINGS: dict[str, tuple[str, ...]] = {
     "paradigms": ("paradigms",),
@@ -88,9 +90,11 @@ class RunService:
         self,
         root: Optional[Path] = None,
         specs: Optional[Path] = None,
+        selected: Optional[Path] = None,
     ) -> None:
         self._root = Path(root) if root else None
         self._specs = Path(specs) if specs else REPO / "config" / "experiments"
+        self._selected = selected
         self._targets: dict[str, targets.Target] = {}
         self._made = threading.Lock()  # a target is made once, from whichever thread
         self._syncing = threading.Lock()  # one copy at a time: ``copied`` is per target
@@ -191,7 +195,7 @@ class RunService:
 
     # --- Experiment specs ------------------------------------------------------------
     def spec_files(self) -> list[dict]:
-        """The specs in the specs folder, by file name, with what the start dialog
+        """The specs in the specs folder, by file name, with what the Experiments page
         shows. Each: ``path``, ``name``, ``description``, ``runs``, ``budget``
         (environment steps per run, an int or one per algorithm), ``resources`` (cpus,
         mem_gb, minutes and node per run on a cluster), ``text`` (the file as it is
@@ -210,6 +214,44 @@ class RunService:
 
         return found
 
+    # --- The experiment being prepared -------------------------------------------------
+    def selected(self, scenario: Optional[Scenario] = None) -> Optional[dict]:
+        """The experiment on the Experiments page: its ``template`` (a file's path),
+        its ``text``, ``active`` (it plays the active scenario, ``scenario``, not the
+        one in its text), and ``describe`` of what would start. None if there is
+        none."""
+        try:
+            saved = json.loads(self._selected.read_text(encoding="utf-8"))
+        except (AttributeError, OSError, ValueError):
+            return None
+
+        saved = {"active": True} | saved
+        name = Path(saved["template"] or "experiment").stem
+        played = scenario if saved["active"] else None
+
+        return saved | self.describe(self.with_scenario(saved["text"], played), name)
+
+    def save_selected(self, template: Optional[str], text: str, active: bool) -> None:
+        """Keep the experiment on the Experiments page, for the Summary page and for
+        the next time it opens."""
+        if self._selected is not None:
+            self._selected.parent.mkdir(parents=True, exist_ok=True)
+            data = {"template": template, "text": text, "active": active}
+            self._selected.write_text(json.dumps(data), encoding="utf-8")
+
+    def with_scenario(self, text: str, scenario: Optional[Scenario]) -> str:
+        """The editor's text playing ``scenario``, in its ``scenario`` field. The
+        text itself if there is no scenario, or it is no experiment (``describe`` then
+        says why)."""
+        if scenario is None:
+            return text
+
+        try:
+            return to_text(_json_object(text) | {"scenario": asdict(scenario)})
+        except ValueError:
+            return text
+
+    # --- The editor -------------------------------------------------------------------
     def apply_preset(
         self, text: str, preset: str, template_text: str, default_name: str
     ) -> str:
@@ -226,11 +268,11 @@ class RunService:
         return apply_settings(text, values)
 
     def editable(self, text: str, default_name: str = "experiment") -> str:
-        """A template's text as the start dialog edits it (``editable``)."""
+        """A template's text as the Experiments page edits it (``editable``)."""
         return editable(text, default_name)
 
     def describe(self, text: str, default_name: str = "experiment") -> dict:
-        """An experiment file's text, as edited in the start dialog: the record of
+        """An experiment file's text, as edited in the Experiments page: the record of
         ``spec_files`` (without ``path`` and ``text``), with ``experiment``, the
         ``Experiment`` to start (None, and ``error`` says why, if the text is not an
         experiment or its scenario cannot be read, as a start would read it).
@@ -360,7 +402,7 @@ def _replaced(data: dict, values: dict) -> dict:
 
 
 def _record(experiment: Optional[Experiment], error: Optional[str] = None) -> dict:
-    """What the start dialog shows of an experiment (see ``spec_files``)."""
+    """What the Experiments page shows of an experiment (see ``spec_files``)."""
     if experiment is None:
         keys = ("name", "description", "runs", "budget", "resources", "experiment")
         return dict.fromkeys(keys) | {"error": error}

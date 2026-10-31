@@ -25,6 +25,13 @@ class TwoLines(SeriesChart):
         self.level(1.0, "limit", color=LIMIT)
 
 
+def test_participants_get_a_red_ring_that_still_clicks_their_bus():
+    fig = NetworkChart(topology=TOPOLOGY, participants={"B2": "P1"}).figure()
+    ring = next(t for t in fig.data if t.name == "Participant")
+    assert ring.marker.color == LIMIT and ring.marker.symbol == "circle-open"
+    assert (ring.customdata[0], ring.text[0]) == ("B2", "P1")
+
+
 def test_a_series_chart_draws_its_lines_levels_and_look():
     fig = TwoLines(right=False).figure()
 

@@ -14,3 +14,15 @@ BACKGROUNDS = {
     "off": "Off: only the participants",
 }
 STEP_LENGTHS = {1.0: "1 hour (24 steps)", 0.25: "15 minutes (96 steps)"}
+GRID_METHODS = {
+    "powerflow": "AC power flow",
+    "graph": "Graph model of the paper",
+}
+GRAPH_CAPACITIES = {
+    "paper": "A total spread over the lines",
+    "ratings": "Each line's rating",
+}
+VOLTAGE_DROPS = {
+    "distance": "From the distance",
+    "measured": "Measured in the power flow",
+}

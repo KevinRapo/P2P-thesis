@@ -4,6 +4,7 @@ the current scenario and opens another from a scenario file."""
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Optional
 
 from nicegui import app, ui
 
@@ -83,21 +84,34 @@ def _summary(scenario: Scenario) -> str:
 
 
 def _scenario_button() -> None:
-    """The current scenario's name; a click opens another from a file."""
-    current = services().scenario.current()
-    ui.button(
-        f"Scenario: {current.name}",
+    """The active scenario's name, and whether it is saved (kept up to date, as other
+    pages change it); a click opens another from a file."""
+    s = services().scenario
+    current = s.current()
+    button = ui.button(
+        f"Scenario: {s.shown_name()}",
         icon="folder_open",
         on_click=_open_dialog,
-    ).props("flat no-caps color=white").tooltip(
-        f"{_summary(current)}. Click to open a scenario file."
+    ).props("flat no-caps color=white")
+    button.tooltip(f"{_summary(current)}. Click to open a scenario file.")
+    badge = ui.badge("unsaved", color="amber-8").tooltip(
+        "The active scenario has no file, or differs from the one it came from "
+        "(-mod). It can be played and started all the same; the Scenario page saves "
+        "it."
     )
 
+    def show_state() -> None:
+        button.set_text(f"Scenario: {s.shown_name()}")
+        badge.set_visibility(s.unsaved())
 
-def _open(scenario: Scenario, source: str) -> None:
+    show_state()
+    ui.timer(1.0, show_state)
+
+
+def _open(scenario: Scenario, source: str, path: Optional[Path] = None) -> None:
     """Make ``scenario`` the Studio's, on every page, and start the pages again."""
     s = services()
-    s.scenario.open(scenario)
+    s.scenario.open(scenario, source, path)
     s.market.clear()  # the Step page's market was built from the old scenario
     ui.notify(f"Opened {source}: {_summary(scenario)}")
     ui.navigate.reload()
@@ -110,9 +124,10 @@ def _open_dialog() -> None:
     with ui.dialog() as dialog, ui.card().classes("w-[640px] max-w-full gap-3"):
         ui.label("Open a scenario file").classes("text-h6")
         ui.label(
-            "Replaces the scenario on every page: network, day, participants, market "
-            "and DSO. The file itself is not changed; edits here go to the Studio's "
-            "own copy. The Step page starts again from the opened scenario."
+            "Replaces the active scenario on every page: network, day, participants, "
+            "market and DSO. The file itself is not changed: edits stay in the active "
+            "scenario, marked unsaved. The Step page starts again from the opened "
+            "scenario."
         ).classes("mls-card-caption")
         files = s.files()
 
@@ -163,7 +178,7 @@ def _file_row(path: Path, dialog: ui.dialog) -> None:
 
     def choose() -> None:
         dialog.close()
-        _open(scenario, path.name)
+        _open(scenario, path.name, path)
 
     # One row: file name with its summary under it (left) | Open (right)
     with ui.row().classes("w-full items-center no-wrap gap-3"):

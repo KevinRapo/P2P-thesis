@@ -169,12 +169,12 @@ shows the `check` line with a Check button, and each experiment has a *Sync
 results* button. When the cluster cannot be read, the page keeps the last data with
 its time.
 
-*Start experiment* takes a spec from `config/experiments/` as a **template** and shows its
+The *Experiments* page takes a spec from `config/experiments/` as a **template** and shows its
 JSON in an editor: change anything. The editor writes out every setting, each at
 its default where the template gives none ([The experiment
 file](#the-experiment-file)), so all that can be set is in front of you. Every
 edit is checked as a start would check it,
-and the dialog shows the runs it makes, or what is wrong. The template file is
+and the page shows the runs it makes, or what is wrong. The template file is
 never changed. Two presets rewrite the editor's run size settings (name,
 description, seeds, train and test days, budget, evaluation, traced days,
 resources) and leave every other edit: **Test preset** makes them the template's

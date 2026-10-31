@@ -224,7 +224,7 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
 
             if n == 0:
                 ui.label(
-                    "Place participants on the Grid & Participants page first."
+                    "Place participants on the Scenario page first."
                 ).classes("text-warning text-caption")
 
             ui.button(

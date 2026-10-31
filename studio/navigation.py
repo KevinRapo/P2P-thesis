@@ -25,7 +25,8 @@ NAV: list[tuple[str | None, list[NavItem]]] = [
         "Build",
         [
             NavItem("inspect", "Inspect", "travel_explore", "/inspect"),
-            NavItem("grid", "Grid & Participants", "hub", "/grid"),
+            NavItem("scenario", "Scenario", "hub", "/scenario"),
+            NavItem("experiments", "Experiments", "science", "/experiments"),
             NavItem("summary", "Summary", "fact_check", "/summary"),
         ],
     ),

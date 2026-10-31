@@ -14,9 +14,11 @@ from pathlib import Path
 
 import pytest
 
+from core.config import store
 from core.runner import targets
 from core.runner.registry import RunState
 from core.runner.spec import REPO, Experiment, written_out
+from studio.adapters.scenario_service import ScenarioService
 from studio.adapters.run_service import (
     PRESET_KEYS,
     RunService,
@@ -445,3 +447,38 @@ def to_text_budget(text: str) -> str:
     data = json.loads(text)
     data["budget"] = {"ppo": 100}
     return json.dumps(data)
+
+
+def test_the_selected_experiment_plays_the_active_scenario(tmp_path):
+    service = RunService(selected=tmp_path / "selected.json")
+    assert service.selected() is None
+    text = (REPO / "config" / "experiments" / "smoke.json").read_text("utf-8")
+    active = store.load(REPO / "config" / "scenarios" / "validate_market.json")
+    active.market.mechanism = "buyer"  # unsaved: it runs all the same
+    service.save_selected("smoke.json", text, True)
+    selected = service.selected(active)
+    assert (selected["template"], selected["error"]) == ("smoke.json", None)
+    assert selected["experiment"].scenario["market"]["mechanism"] == "buyer"
+    service.save_selected("smoke.json", text, False)
+    assert isinstance(service.selected(active)["experiment"].scenario, str)  # its file
+
+
+def test_a_scenario_is_unsaved_until_it_matches_its_file(tmp_path):
+    service = ScenarioService(tmp_path / "current.json", tmp_path)
+    assert service.unsaved()  # no file yet
+    service.save_as("mine")
+    assert not service.unsaved()
+    service.current().market.seed = 7
+    assert service.unsaved()
+    assert service.played().name == "mine-mod"
+    assert service.current().name == "mine"
+    service.save_as("mine")  # its own file can be replaced
+    assert not service.unsaved()
+    assert service.shown_name() == "mine"
+    assert store.load(tmp_path / "mine.json").market.seed == 7
+    reopened = ScenarioService(tmp_path / "current.json", tmp_path)
+    assert not reopened.unsaved()  # also after a restart
+
+    with pytest.raises(ValueError, match="exists already"):
+        store.save(reopened.current(), tmp_path / "other.json")
+        reopened.save_as("other")

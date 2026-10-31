@@ -626,7 +626,7 @@ def _network() -> None:
     ):
         key_values(
             {
-                "NetworkPicker (network.py)": "Grid & Participants, Inspect",
+                "NetworkPicker (network.py)": "Scenario, Inspect",
                 "ElementsTable, ProfileInspector (network.py)": "Inspect",
                 "ProfileOverview (profiles.py)": "Inspect → Profiles",
                 "show_day_profiles (day_profiles.py)": "Summary → Day profiles",

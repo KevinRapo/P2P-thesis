@@ -138,6 +138,11 @@ class Workspace:
         return self.home / "cache" / "networks"
 
     @property
+    def experiment_file(self) -> Path:
+        """``<home>/experiments/selected.json``: the experiment the Studio prepares."""
+        return self.home / "experiments" / "selected.json"
+
+    @property
     def scenario_file(self) -> Path:
         """``<home>/scenarios/current.json``: the scenario the Studio edits."""
         return self.home / "scenarios" / "current.json"

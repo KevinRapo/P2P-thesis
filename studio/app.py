@@ -22,12 +22,13 @@ from nicegui import app, ui  # noqa: E402
 
 from studio.pages import (  # noqa: E402
     components,
-    grid_participants,
+    experiments,
     inspect,
     market,
     results,
     rl_probes,
     runs,
+    scenario,
     settings,
     summary,
 )
@@ -45,7 +46,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 ROUTES = {
     "/inspect": inspect.page,
-    "/grid": grid_participants.page,
+    "/scenario": scenario.page,
+    "/experiments": experiments.page,
     "/summary": summary.page,
     "/market": market.page,
     "/rl-probes": rl_probes.page,

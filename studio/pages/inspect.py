@@ -13,7 +13,7 @@ from core.grid.contract import NetworkRef
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileClass, ProfileType, Series
 from studio.components.cards import busy, failed, section
-from studio.components.charts import SeriesChart, SeriesModelChart
+from studio.components.charts import PriceChart, SeriesModelChart
 from studio.components.network import (
     DEFAULT_SOURCE,
     ElementsTable,
@@ -316,20 +316,6 @@ def _profiles_tab(s: Services) -> ProfileInspector:
 # --------------------------------------------------------------------------------------
 # Prices tab: the saved price files
 # --------------------------------------------------------------------------------------
-class PriceChart(SeriesChart):
-    """A price file's series, each price held over its market step. Options:
-    ``name`` (the file), ``read`` (name -> ``Series``)."""
-
-    height = 340
-
-    def draw(self) -> None:
-        s = self.o.read(self.o.name)
-        self.titles(x=s.x_label, y=s.y_label)
-
-        for label, values in s.y.items():
-            self.line(s.x, values, label, shape="hv")
-
-
 def _prices_tab(s: Services) -> None:
     """A dropdown of the price files and the chosen file's series."""
     files = s.profiles.price_files()

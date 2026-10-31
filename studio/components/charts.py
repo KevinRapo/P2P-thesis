@@ -408,6 +408,20 @@ class SeriesModelChart(SeriesChart):
                 self.line(s.x, values, name, dash=dash)
 
 
+class PriceChart(SeriesChart):
+    """A price file's series, each price held over its market step. Options:
+    ``name`` (the file), ``read`` (name -> ``Series``)."""
+
+    height = 340
+
+    def draw(self) -> None:
+        s = self.o.read(self.o.name)
+        self.titles(x=s.x_label, y=s.y_label)
+
+        for label, values in s.y.items():
+            self.line(s.x, values, label, shape="hv")
+
+
 # --------------------------------------------------------------------------------------
 # NetworkChart: the topology, and what is drawn on it
 # --------------------------------------------------------------------------------------
@@ -434,7 +448,8 @@ class NetworkChart(Chart):
 
     Options: ``topology`` (``TopologyView``); ``voltages`` (bus -> pu, coloured on
     a fixed 0.93 to 1.05 scale); ``highlight`` (buses ringed in amber:
-    participants, the selected bus); ``violating`` (buses ringed in red).
+    participants, the selected bus); ``participants`` (bus -> participant, a red
+    ring around each, with its legend entry); ``violating`` (buses ringed in red).
 
     Args:
         on_bus: Called with the bus ID when a bus is clicked.
@@ -460,6 +475,8 @@ class NetworkChart(Chart):
         self.pos = {b.id: (b.x, b.y) for b in topology.buses}
         self._branches(topology)
         self._buses(topology)
+        marked = self.o.get("participants") or {}
+        self.rings(list(marked.items()), LIMIT, "Participant", size=18)
 
     def _finish(self) -> None:
         self.fig.update_xaxes(visible=False)
@@ -527,6 +544,7 @@ class NetworkChart(Chart):
                 name=name,
                 hoverinfo="text",
                 text=[text for _, text in drawn],
+                customdata=[bus for bus, _ in drawn],  # a click on a ring is its bus's
                 marker=dict(
                     size=size, symbol="circle-open", color=color, line=dict(width=3)
                 ),
