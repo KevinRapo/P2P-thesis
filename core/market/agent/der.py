@@ -224,7 +224,7 @@ class Participant:
         rep = {c: reputation.get(c, 0.5) for c in others}
         low, high = min(rep.values()), max(rep.values())
 
-        def score(c: str) -> tuple[float, float]:
+        def score(c: str) -> tuple[float, float]: #OPEN scale or not for rule based?
             closeness = (far - km[c]) / (far - near) if far > near else 1.0
             standing = (rep[c] - low) / (high - low) if high > low else 1.0
             weighted = reputation_weight * standing

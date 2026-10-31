@@ -1,4 +1,5 @@
-"""The three clearing stages of one market step ([P1] §3.3.2, Algorithm 1).
+"""The clearing of one market step ([P1] §3.3.2, Algorithm 1): ``Clearing`` and its
+three stages.
 
 Each stage takes the orders still open and returns its trades and the orders left
 over, so the Studio can show the market after every stage:
@@ -79,117 +80,122 @@ class ClearingRules:
     threshold_kwh: float = 1e-6
 
 
-def _trade(
-    buy: Order,
-    sell: Order,
-    quantity: float,
-    price: float,
-    stage: int,
-    rules: ClearingRules,
-) -> Trade:
-    """A peer-to-peer trade with the DSO's distance and loss (its fee comes after
-    the step's power flow)."""
-    trade = Trade(
-        buyer_id=buy.agent_id,
-        seller_id=sell.agent_id,
-        price=price,
-        quantity=quantity,
-        timestamp=max(buy.timestamp, sell.timestamp),
-        stage=stage,
-    )
-    return rules.dso.assess(trade, rules.path(buy.agent_id, sell.agent_id))
-
-
-def _open(orders: Sequence[Order], rules: ClearingRules) -> tuple[Order, ...]:
-    return tuple(o for o in orders if o.quantity > rules.threshold_kwh)
-
-
 # --------------------------------------------------------------------------------------
-# Stage 1: mutual preferences
+# The clearing: one method per stage
 # --------------------------------------------------------------------------------------
-def preferences(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """Stage 1 ([P1] §3.3.2; PreferenceMatch in Algorithm 1): pairs that named each
-    other as preferred partner (β, [P1] eq. 2) trade first, at the mechanism's
-    price, when the bid reaches the ask (as the original's
-    ``validate_grid_constraints``). Orders that prefer the DSO wait for stage 3."""
-    work = [replace(o) for o in orders]
-    pricing = ClearingMechanism(rules.mechanism)
-    trades = []
-    by_agent = {o.agent_id: o for o in work}
+class Clearing:
+    """The clearing of one market step, under its rules.
 
-    for buy in work:
-        if not buy.is_buy or buy.partner_id in (None, DSO_ID):
-            continue
+    Args:
+        rules: What the stages need besides the orders.
+    """
 
-        sell = by_agent.get(buy.partner_id)
+    def __init__(self, rules: ClearingRules) -> None:
+        self.rules = rules
+        self.pricing = ClearingMechanism(rules.mechanism)
 
-        if sell is None or sell.is_buy or sell.partner_id != buy.agent_id:
-            continue
+    @property
+    def stages(self) -> tuple[Callable[[Sequence[Order]], StageResult], ...]:
+        """The three stages, in the order they run."""
+        return (self.preferences, self.double_auction, self.dso)
 
-        if buy.price < sell.price:
-            continue
+    # --- Stage 1: mutual preferences -------------------------------------------------
+    def preferences(self, orders: Sequence[Order]) -> StageResult:
+        """Stage 1 ([P1] §3.3.2; PreferenceMatch in Algorithm 1): pairs that named
+        each other as preferred partner (β, [P1] eq. 2) trade first, at the
+        mechanism's price, when the bid reaches the ask (as the original's
+        ``validate_grid_constraints``). Orders that prefer the DSO wait for stage 3."""
+        work = [replace(o) for o in orders]
+        trades = []
+        by_agent = {o.agent_id: o for o in work}
 
-        quantity = min(buy.quantity, sell.quantity)
+        for buy in work:
+            if not buy.is_buy or buy.partner_id in (None, DSO_ID):
+                continue
 
-        if quantity <= rules.threshold_kwh:
-            continue
+            sell = by_agent.get(buy.partner_id)
 
-        price = pricing.calculate_price(buy, sell, rules.reference_price)
-        trades.append(_trade(buy, sell, quantity, price, 1, rules))
-        buy.quantity -= quantity
-        sell.quantity -= quantity
+            if sell is None or sell.is_buy or sell.partner_id != buy.agent_id:
+                continue
 
-    return StageResult(1, STAGE_NAMES[1], tuple(trades), _open(work, rules))
+            if buy.price < sell.price:
+                continue
 
+            quantity = min(buy.quantity, sell.quantity)
 
-# --------------------------------------------------------------------------------------
-# Stage 2: double auction
-# --------------------------------------------------------------------------------------
-def double_auction(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """Stage 2 ([P1] §3.3.2; PriceMatch in Algorithm 1): bids sorted by price (high
-    first), asks by price (low first); reputation ([P1] eq. 12) and arrival break
-    ties. Pairs trade while the bid is at least the ask. Orders that prefer the DSO
-    stay out."""
-    work = [replace(o) for o in orders]
-    pricing = ClearingMechanism(rules.mechanism)
-    rep = rules.reputation
-    auction = [o for o in work if o.partner_id != DSO_ID]
-    buys = sorted(
-        (o for o in auction if o.is_buy),
-        key=lambda o: (-o.price, -rep.get(o.agent_id, 0.5), o.timestamp),
-    )
-    sells = sorted(
-        (o for o in auction if not o.is_buy),
-        key=lambda o: (o.price, -rep.get(o.agent_id, 0.5), o.timestamp),
-    )
-    trades = []
-    b = s = 0
+            if quantity <= self.rules.threshold_kwh:
+                continue
 
-    while b < len(buys) and s < len(sells) and buys[b].price >= sells[s].price:
-        buy, sell = buys[b], sells[s]
-        quantity = min(buy.quantity, sell.quantity)
-        price = pricing.calculate_price(buy, sell, rules.reference_price)
-        trades.append(_trade(buy, sell, quantity, price, 2, rules))
-        buy.quantity -= quantity
-        sell.quantity -= quantity
+            price = self.pricing.calculate_price(
+                buy, sell, self.rules.reference_price
+            )
+            trades.append(self._trade(buy, sell, quantity, price, 1))
+            buy.quantity -= quantity
+            sell.quantity -= quantity
 
-        if buy.quantity <= rules.threshold_kwh:
-            b += 1
+        return StageResult(1, STAGE_NAMES[1], tuple(trades), self._open(work))
 
-        if sell.quantity <= rules.threshold_kwh:
-            s += 1
+    # --- Stage 2: double auction -----------------------------------------------------
+    def double_auction(self, orders: Sequence[Order]) -> StageResult:
+        """Stage 2 ([P1] §3.3.2; PriceMatch in Algorithm 1): bids sorted by price
+        (high first), asks by price (low first); reputation ([P1] eq. 12) and arrival
+        break ties. Pairs trade while the bid is at least the ask. Orders that prefer
+        the DSO stay out."""
+        work = [replace(o) for o in orders]
+        rep = self.rules.reputation
+        auction = [o for o in work if o.partner_id != DSO_ID]
+        buys = sorted(
+            (o for o in auction if o.is_buy),
+            key=lambda o: (-o.price, -rep.get(o.agent_id, 0.5), o.timestamp),
+        )
+        sells = sorted(
+            (o for o in auction if not o.is_buy),
+            key=lambda o: (o.price, -rep.get(o.agent_id, 0.5), o.timestamp),
+        )
+        trades = []
+        b = s = 0
 
-    return StageResult(2, STAGE_NAMES[2], tuple(trades), _open(work, rules))
+        while b < len(buys) and s < len(sells) and buys[b].price >= sells[s].price:
+            buy, sell = buys[b], sells[s]
+            quantity = min(buy.quantity, sell.quantity)
+            price = self.pricing.calculate_price(
+                buy, sell, self.rules.reference_price
+            )
+            trades.append(self._trade(buy, sell, quantity, price, 2))
+            buy.quantity -= quantity
+            sell.quantity -= quantity
 
+            if buy.quantity <= self.rules.threshold_kwh:
+                b += 1
 
-# --------------------------------------------------------------------------------------
-# Stage 3: the DSO clears the rest
-# --------------------------------------------------------------------------------------
-def dso(orders: Sequence[Order], rules: ClearingRules) -> StageResult:
-    """Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in
-    Algorithm 1; ``Dso.clear``)."""
-    trades = rules.dso.clear(_open(orders, rules), rules.upstream)
-    return StageResult(3, STAGE_NAMES[3], trades, ())
+            if sell.quantity <= self.rules.threshold_kwh:
+                s += 1
 
+        return StageResult(2, STAGE_NAMES[2], tuple(trades), self._open(work))
 
-STAGES = (preferences, double_auction, dso)
+    # --- Stage 3: the DSO clears the rest --------------------------------------------
+    def dso(self, orders: Sequence[Order]) -> StageResult:
+        """Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in
+        Algorithm 1; ``Dso.clear``)."""
+        trades = self.rules.dso.clear(self._open(orders), self.rules.upstream)
+        return StageResult(3, STAGE_NAMES[3], trades, ())
+
+    # --- Shared by the stages --------------------------------------------------------
+    def _trade(
+        self, buy: Order, sell: Order, quantity: float, price: float, stage: int
+    ) -> Trade:
+        """A peer-to-peer trade with the DSO's distance and loss (its fee comes after
+        the step's power flow)."""
+        trade = Trade(
+            buyer_id=buy.agent_id,
+            seller_id=sell.agent_id,
+            price=price,
+            quantity=quantity,
+            timestamp=max(buy.timestamp, sell.timestamp),
+            stage=stage,
+        )
+        path = self.rules.path(buy.agent_id, sell.agent_id)
+        return self.rules.dso.assess(trade, path)
+
+    def _open(self, orders: Sequence[Order]) -> tuple[Order, ...]:
+        return tuple(o for o in orders if o.quantity > self.rules.threshold_kwh)

@@ -45,7 +45,6 @@ from core.grid import simbench
 from core.grid.contract import GridAssessment, GridPath, NetworkRef
 from core.grid.graph import GraphGrid
 from core.grid.powerflow import SimBenchGrid
-from core.market import clearing
 from core.market.agent import rule_based_bid
 from core.market.agent.battery import Battery
 from core.market.agent.der import (
@@ -53,7 +52,7 @@ from core.market.agent.der import (
     ParticipantOutcome,
     profiles_from_elements,
 )
-from core.market.clearing import ClearingRules, StageResult
+from core.market.clearing import Clearing, ClearingRules, StageResult
 from core.market.dso import DSO_ID, Dso, DsoOutcome
 from core.market.order import Order, Trade
 from core.market.reputation import ReputationHandler, ReputationScore
@@ -306,8 +305,10 @@ class LocalEnergyMarket:
         if p is None:
             raise RuntimeError("No step is being played; call start_step")
 
-        if len(p.stages) < len(clearing.STAGES):
-            result = clearing.STAGES[len(p.stages)](p.open_orders, self._rules(p))
+        stages = Clearing(self._rules(p)).stages
+
+        if len(p.stages) < len(stages):
+            result = stages[len(p.stages)](p.open_orders)
             p.stages.append(result)
             return result
 

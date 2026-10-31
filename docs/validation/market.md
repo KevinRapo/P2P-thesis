@@ -121,7 +121,7 @@ period 23 (the last hour of the day) never does (T1). Every episode loses its la
 hour of demand and generation.
 
 **In `marlem-v1`.** A day is $24 / \text{step_hours}$ steps, and `done` is true only
-after all of them are recorded ([lem.py](../../core/market/lem.py#L246-L254)).
+after all of them are recorded ([lem.py](../../core/market/lem.py#L245-L253)).
 
 ### M-02: an invalid order stops the simulation
 
@@ -146,7 +146,7 @@ raises an exception, which ends the whole episode.
 
 **In `marlem-v1`.** `_validate` clips the price to the market bounds and the
 quantity to eq. 15, drops what is left at or below $q_{\min}$, and records each change
-as a note ([lem.py](../../core/market/lem.py#L465-L490)).
+as a note ([lem.py](../../core/market/lem.py#L466-L491)).
 
 ### M-03: units and time step are mixed
 
@@ -391,7 +391,7 @@ ratio 0. This is the root cause of the RL layer's E-15.
 
 **In `marlem-v1`.** Every stage works on copies, `work = [replace(o) for o in
 orders]`, and returns the remaining orders separately; the submitted orders are
-never changed ([clearing.py](../../core/market/clearing.py#L115)).
+never changed ([clearing.py](../../core/market/clearing.py#L108)).
 
 ## 3. Clearing stages
 
@@ -420,7 +420,7 @@ are the worst in the market.
 
 **In `marlem-v1`.** Orders that prefer the DSO skip stages 1 and 2 and are
 cleared in stage 3 with the rest
-([clearing.py](../../core/market/clearing.py#L120), [L144](../../core/market/clearing.py#L148)).
+([clearing.py](../../core/market/clearing.py#L113), [L144](../../core/market/clearing.py#L146)).
 
 ### M-11: partner choice is a sort and a random pick, not a weighted score
 
@@ -462,7 +462,7 @@ $$
 Without the rescaling, reputations that all start at 0.5 and drift by a few
 hundredths would lose to distance every time. Ties go to the nearer candidate
 ([der.py](../../core/market/agent/der.py#L187-L223),
-[lem.py](../../core/market/lem.py#L417-L435)).
+[lem.py](../../core/market/lem.py#L418-L436)).
 
 ### M-12: the stage-2 capacity check can never trigger
 
@@ -592,7 +592,7 @@ fairness (M-42 to M-44), and the reference price of the proportional mechanism (
 [P1] does not define the clearing price.
 
 **In `marlem-v1`.** Volume-weighted price of the peer trades only, and the
-previous price when there were none ([lem.py](../../core/market/lem.py#L524-L531)).
+previous price when there were none ([lem.py](../../core/market/lem.py#L525-L532)).
 
 ## 5. Settlement, battery and balances
 
@@ -972,7 +972,7 @@ computes it. Every "grid balance" in the info, the observation, the reputation a
 the reward is the DSO balance, which is itself always 0 (M-24).
 
 **In `marlem-v1`.** `grid_balance_kwh` is the energy offered minus the energy
-asked in the step's orders ([lem.py](../../core/market/lem.py#L184-L187)). It is taken
+asked in the step's orders ([lem.py](../../core/market/lem.py#L183-L186)). It is taken
 *before* stage 3 on purpose: after the DSO clears every order, eq. 20 is 0 by
 construction.
 
@@ -1493,7 +1493,7 @@ the day goes on, the opposite of the paper.
 blends with a fixed factor, $r \leftarrow \delta\, r + (1 - \delta)\, \text{score}$
 ([reputation.py](../../core/market/reputation.py#L119-L142)), and the market sets
 $\delta = 0.8^{\Delta t}$ with $\Delta t$ the step length in hours
-([lem.py](../../core/market/lem.py#L227-L232)). Reversing the original's weights
+([lem.py](../../core/market/lem.py#L226-L231)). Reversing the original's weights
 would still tie the memory to the hour of the day; a per-hour decay keeps the
 memory the same when the step length changes (M-03). With 0.8 the old reputation
 halves in about 3.1 hours ($\ln 0.5 / \ln 0.8$), whether the step is an hour or a

@@ -136,7 +136,7 @@ cannot place?
 the surplus or deficit plus what the battery can give or take) and to the
 scenario's price and quantity bounds; the cut is noted, an order at or below the
 minimum quantity is dropped
-([`_validate`](../../core/market/lem.py#L465-L490)). Submitting nothing is
+([`_validate`](../../core/market/lem.py#L466-L491)). Submitting nothing is
 allowed. The scenario's price bounds are 0 and 1, the tariffs 0.08 (FiT) and
 0.30 (utility).
 
@@ -165,10 +165,10 @@ eq. 15 bound, the price range (MP-2b), what an out-of-range action does (MP-2a).
 
 **Now** ([clearing.py](../../core/market/clearing.py)):
 
-1. [**Preferences**](../../core/market/clearing.py#L110-L134): a buyer and a
+1. [**Preferences**](../../core/market/clearing.py#L103-L136): a buyer and a
    seller that named each other trade first, if bid ≥ ask. An order naming the
    DSO waits for stage 3.
-2. [**Double auction**](../../core/market/clearing.py#L140-L170): bids from the
+2. [**Double auction**](../../core/market/clearing.py#L139-L174): bids from the
    highest price down, asks from the lowest up, ties broken by reputation, then
    arrival; pairs trade while bid ≥ ask.
 3. [**DSO**](../../core/market/dso.py#L271-L292): every open order clears with
@@ -178,7 +178,7 @@ eq. 15 bound, the price range (MP-2b), what an out-of-range action does (MP-2a).
 A pair's price follows the scenario's mechanism (`average`: the midpoint of bid
 and ask, [clearing_price.py](../../core/market/clearing_price.py)). The step's
 clearing price is the volume-weighted price of the peer trades
-([`_clearing_price`](../../core/market/lem.py#L524-L531)). Orders made by the
+([`_clearing_price`](../../core/market/lem.py#L525-L532)). Orders made by the
 market's own rule name a partner by a 50/50 score of reputation and closeness
 ([`choose_partner`](../../core/market/agent/der.py#L187-L223)); an RL agent's
 partner is never replaced.
@@ -223,7 +223,7 @@ buyer and seller for a peer trade:
 A trade with the DSO runs from the participant to the transformer's busbar. With
 `grid.method = "graph"` the fees read the line loading of the paper's graph model
 from the step's trades instead of the power flow's
-([`_grid_signal`](../../core/market/lem.py#L565-L578),
+([`_grid_signal`](../../core/market/lem.py#L566-L579),
 [graph.py](../../core/grid/graph.py)); the power flow still runs and is recorded.
 
 **Check.** A step with a loaded line by hand: each fee part of one trade; the
