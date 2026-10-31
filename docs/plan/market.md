@@ -55,15 +55,14 @@ days.
 **Question.** Does the reference describe the code that runs, and on what do we
 check it?
 
-**Now.** The [full cycle](../full-cycle.md) still opens with a "V2 note": its
-environment section describes V1's two-number action. The reference scenario is
+**Now.** The reference scenario is
 `validate_market.json`: five households on `1-LV-rural1--0-sw`, P1 and P5 with
 PV and a 10 kWh battery **without a power limit** (`max_power_kw: null`), hourly
 steps, June 2016 to train, 1-14 July 2016 to test.
 
 **Check.**
 
-- The full cycle describes V2 (the note removed, the environment section with the
+- The full cycle describes V2 (the environment section with the
   mixed action, line links current).
 - `python -m pytest tests/market` passes.
 - One step in the Studio's Step page shows the phases in the full cycle's order
@@ -73,7 +72,7 @@ steps, June 2016 to train, 1-14 July 2016 to test.
 
 - **MP-0a** The reference scenario and days. Its batteries: keep them unlimited,
   or give them SimBench's sizing (power = capacity ÷ 2 h,
-  [`simbench_battery`](../../core/config/placement.py#L35-L40); a SimBench storage
+  [`simbench_battery`](../../core/config/placement.py#L36-L40); a SimBench storage
   unit brings its own limit, [`storage_battery`](../../core/config/placement.py#L49-L58)).
   Hourly or 15-minute steps (both supported, `grid.step_hours`).
 
@@ -88,7 +87,7 @@ the battery's role the one we want?
 
 **Now.** After the trades a participant has
 $B = (G - D) + (\text{bought} - \text{sold})$ left at its bus
-([`Participant.settle`](../../core/market/agent/der.py#L226-L260)). A surplus
+([`Participant.settle`](../../core/market/agent/der.py#L237-L274)). A surplus
 charges the battery, a deficit discharges it, within its room and power limit
 ([`charge`, `discharge`](../../core/market/agent/battery.py#L121-L138)); the rest
 is exchanged with the upstream grid untraded (`external`). The battery has no
@@ -96,7 +95,7 @@ decision of its own: the agent steers it only through its trade quantity
 (selling beyond the surplus discharges it, buying beyond the deficit charges it,
 trading exactly the net position leaves it alone). Untraded energy has no price in
 the market's profit; the RL reward charges an untraded import at the utility price
-([`MarketEnv.step`](../../core/env/market_env.py#L354-L357)). Every day starts at
+([`MarketEnv.step`](../../core/env/market_env.py#L410-L474)). Every day starts at
 the initial state of charge (0.5).
 
 **Check.**
@@ -138,7 +137,7 @@ cannot place?
 the surplus or deficit plus what the battery can give or take) and to the
 scenario's price and quantity bounds; the cut is noted, an order at or below the
 minimum quantity is dropped
-([`_validate`](../../core/market/lem.py#L466-L491)). Submitting nothing is
+([`_validate`](../../core/market/lem.py#L501-L536)). Submitting nothing is
 allowed. The scenario's price bounds are 0 and 1, the tariffs 0.08 (FiT) and
 0.30 (utility).
 
@@ -180,9 +179,9 @@ eq. 15 bound, the price range (MP-2b), what an out-of-range action does (MP-2a).
 A pair's price follows the scenario's mechanism (`average`: the midpoint of bid
 and ask, [clearing_price.py](../../core/market/clearing_price.py)). The step's
 clearing price is the volume-weighted price of the peer trades
-([`_clearing_price`](../../core/market/lem.py#L525-L532)). Orders made by the
+([`_clearing_price`](../../core/market/lem.py#L570-L579)). Orders made by the
 market's own rule name a partner by a 50/50 score of reputation and closeness
-([`choose_partner`](../../core/market/agent/der.py#L187-L223)); an RL agent's
+([`choose_partner`](../../core/market/agent/der.py#L195-L234)); an RL agent's
 partner is never replaced.
 
 **Check.** A small hand-cleared example per stage: two agents that name each
@@ -209,8 +208,8 @@ differ on the same step?
 
 **Now.** After the trades, the AC power flow runs on what the participants
 physically did. Every trade then pays eq. 8 on its path
-([`Dso.fees_of`](../../core/market/dso.py#L163-L187),
-[`Dso.charge`](../../core/market/dso.py#L240-L268)), split 50/50 between
+([`Dso.fees_of`](../../core/market/dso.py#L154-L184),
+[`Dso.charge`](../../core/market/dso.py#L243-L273)), split 50/50 between
 buyer and seller for a peer trade:
 
 | Part | V2 now | Scenario value |
@@ -220,12 +219,12 @@ buyer and seller for a peer trade:
 | Voltage | $f_\text{volt} \cdot d_{ij}$, capped (`voltage_drop = "distance"`; `"measured"` uses the power flow's voltages) | factor 0.15, cap 0.05 |
 | Transmission | the trade's loss $\kappa \cdot d_{ij} \cdot q$ at the trade price | κ 0.03 per km |
 | Zone bonus | a discount when both ends hang on the same feeder | 0.15 |
-| Imbalance | only trades with the DSO, only when they worsen $B_\text{grid}$ = offered − asked ([`imbalance_fee`](../../core/market/dso.py#L189-L202)) | 0.15 |
+| Imbalance | only trades with the DSO, only when they worsen $B_\text{grid}$ = offered − asked ([`imbalance_fee`](../../core/market/dso.py#L186-L203)) | 0.15 |
 
 A trade with the DSO runs from the participant to the transformer's busbar. With
 `grid.method = "graph"` the fees read the line loading of the paper's graph model
 from the step's trades instead of the power flow's
-([`_grid_signal`](../../core/market/lem.py#L566-L579),
+([`_grid_signal`](../../core/market/lem.py#L617-L633),
 [graph.py](../../core/grid/graph.py)); the power flow still runs and is recorded.
 
 **Check.** A step with a loaded line by hand: each fee part of one trade; the
@@ -262,7 +261,7 @@ each participant's score is 0.3 · reliability (its order volume matched by peer
 \+ 0.2 · fairness (its peer prices against the clearing price) + 0.5 · grid
 contribution (its trades against $B_\text{grid}$); reputation moves towards the
 score with a constant decay of 0.8 per hour
-([`update_reputation`](../../core/market/reputation.py#L119-L142)). Every
+([`update_reputation`](../../core/market/reputation.py#L120-L144)). Every
 participant starts every day at 0.5. Reputation acts in two places only: as the
 **tie-break** of the double auction (bids and asks at exactly the same price) and
 in the market rule's partner score (MP-3b). The RL agents see every partner's

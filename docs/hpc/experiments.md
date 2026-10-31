@@ -20,7 +20,7 @@ also kept step by step. The [Results](#results) page compares the runs.
 
 A spec gives only what differs from the defaults. Written out in full, with every
 setting at the value its runs use, [market_ppo.json](../../config/experiments/market_ppo.json)
-is the one below; the Studio's start dialog shows every template this way
+is the one below; the Studio's Experiments page shows every template this way
 ([`written_out`](../../core/runner/spec.py), the same runs as the file), with the
 paradigms, seeds, budget, PPO settings, workers and cluster resources also as
 fields that rewrite the JSON:
@@ -82,7 +82,7 @@ fields that rewrite the JSON:
 | `name`, `description` | The experiment's folder name (default: the file's name) and free text | |
 | `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's `energy_scale` and `reward_scale` (null: computed on the training days, recorded in each run's `run.json` and reused for its held-out days, [market_env.py](../../core/env/market_env.py)) | [spec.py](../../core/runner/spec.py) `MARKET_ENV_CONFIG` |
 | `train_days`, `test_periods` | Days drawn from in training, and the held-out days as named continuous periods (`{"from", "to"}` or a list each) | |
-| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (V2: `algorithms` is `["ppo"]`); a variant is an arm: it overwrites the base file's settings ([Config](../config/sections.md#variants)) | |
+| `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (`algorithms` is `["ppo"]`); a variant is an arm: it overwrites the base file's settings ([Config](../config/sections.md#variants)) | |
 | `budget`, `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training | |
 | `results_detail`, `trace_days` | `"standard"`: held-out results per day and participant; `"detailed"`: also step by step on the first `trace_days` test days (or a list) | |
 | `training` | Per algorithm (`ppo`), RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's PPO `training()` can be added (e.g. `vf_loss_coeff`) and has RLlib's default until it is; `run.json` records every PPO setting with the value it ran with (`settings_effective`) | [rl_defaults.py](../../core/rl_defaults.py) `SETTINGS` |
@@ -150,7 +150,7 @@ target = targets.get("taltech")
 try:
     print(target.check("config/experiments/smoke.json"))
     # name = target.start("config/experiments/smoke.json", profile="test")
-    # A changed copy, as the Studio's start dialog makes it; a taken name is dated:
+    # A changed copy, as the Studio's Experiments page makes it; a taken name is dated:
     # experiment = Experiment.load("config/experiments/smoke.json")
     # experiment.seeds = [0, 1, 2]
     # name = target.start_new(experiment, profile="test")
@@ -270,18 +270,3 @@ before the per-day tables show their means only.
 5. **No retries over SSH.** A failed call raises its error and the next call
    reconnects; after a lost answer to `start`, look at `status` before starting
    again.
-
-## Existing execution evidence
-
-V1 evidence (APPO and SAC are not in V2): test-profile runs, inspected on 17
-October 2026 in the former `marlem-slurm` worktree (results not in git). V2's own
-runs are in [v2.md](../v2.md#7-validation):
-
-| Workload | Outcome |
-|---|---|
-| `market_3x3--test`, this PC | All nine runs completed (no remote environment runners, no GPU) |
-| `market_3x3--test`, TalTech | Array `1042752`: all nine tasks completed |
-| `sac_alpha--test`, TalTech | Array `1042740`: two runs completed with learner metrics past the warm-up, one stopped |
-
-They show the pipeline working end to end, not learning results. The earlier
-market results are in [v1.md §5](../v1.md#5-validation).

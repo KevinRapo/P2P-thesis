@@ -1,10 +1,9 @@
 # AGENTS.md: implementation guide for MARLEM v2
 
-Branch `marlem-v2`, built from `marlem-v1` (9cdca93, 21 Oct 2026): the same market,
-grid, Studio and runner, with the RL layer narrowed to RLlib's PPO and the paper's
-mixed market action (continuous price and quantity, categorical side and partner).
-What changed and why is in [docs/v2.md](docs/v2.md). On the cluster this branch is
-its own checkout, `~/marlem-v2`, with its own `runs/`.
+Branch `marlem-v2`: the market, grid, Studio and runner, with RLlib's PPO and the
+paper's mixed market action (continuous price and quantity, categorical side and
+partner). What it does and why is in [docs/v2.md](docs/v2.md). On the cluster this
+branch is its own checkout, `~/marlem-v2`, with its own `runs/`.
 
 Where things are in this repository and the rules for changing them. What the
 thesis is about, where the work stands and what comes next are in the workspace's
@@ -52,7 +51,7 @@ runs/        training runs and results (git-ignored); the runner's one source of
   `train(Run(...))` (`core/rl/train.py`), `evaluation` (`core/rl/policy.py`).
 - **Experiments**: `python -m core.runner start / status / stop / sync / check`;
   the JSON spec's fields are in `core/runner/spec.py`, usage in
-  [docs/v1.md §4](docs/v1.md) and [docs/hpc/](docs/hpc/).
+  [docs/v2.md §6](docs/v2.md#6-studio-runner-and-slurm) and [docs/hpc/](docs/hpc/).
 - **Settings**: `core/settings.py` reads the environment, else `.env` (keys in
   `.env.example`), else a default. Never hard-code a machine or account value: add
   a key.
@@ -144,20 +143,21 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 
 ## Keep the paper's grid functionality
 
-The paper's graph grid model is to be added as a second grid method on the same
-SimBench network (see the top-level `AGENTS.md`). Until it exists, do not delete
+The paper's graph grid model is built as a second grid method on the same SimBench
+network and is under review (see the top-level `AGENTS.md`). Until the review is
+done, do not delete
 original-paper grid or market functionality, or anything it could use, only
 because nothing calls it today (e.g. `electrical_distance`, the paths and zones of
 `core/grid/powerflow.py`, the reputation helpers). The original's profile
 generators (`core/market/profile/`) and its blockchain-style trade ledger
-(`validation.py`, with the `ledger_difficulty` setting) were removed in V2: the
-ledger changes no market result. The generators are on the `main` and `clean`
-branches, the ledger also on `marlem-v1`. When unsure, keep it and ask.
+(`validation.py`, with the `ledger_difficulty` setting) were removed: the ledger
+changes no market result. The generators are on the `main` branch, the ledger on
+`marlem-v1`. When unsure, keep it and ask.
 
 ## RL layer
 
 - RLlib's own PPO with RLlib's own modules and distributions: no custom losses,
-  distributions or training loops. APPO and SAC are not part of V2 (V1 keeps them).
+  distributions or training loops. PPO is the only algorithm.
   Only the environment and, for CTDE, what the actor reads differ between
   paradigms, each in its own module: `core/rl/ctce.py` (`CTCEEnv`),
   `core/rl/ctde.py` (`CTDEEnv`, `CTDEPPOModule`), both on the global state of
@@ -189,7 +189,7 @@ branches, the ledger also on `marlem-v1`. When unsure, keep it and ask.
   isolate one feature of the market (a gated choice, mutual partner choice, a
   side-dependent part, the 24-step day).
 - The original RL code with its `FAULT`, `DECIDE` and `DEVIATION` annotations is
-  on the `clean` branch, under `RL/core/rl/`.
+  at commit `bbef313`, under `RL/core/rl/`.
 
 ## Running
 

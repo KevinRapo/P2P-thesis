@@ -96,7 +96,7 @@ def runner_command(repo: str, python: str, args: Sequence[str]) -> str:
 
 def sftp_path(repo: str, folder: str) -> str:
     """A folder of the repository as SFTP wants it: relative paths start in the home
-    directory, so ``~/marlem-slurm`` and ``runs/x`` give ``marlem-slurm/runs/x``."""
+    directory, so ``~/marlem-v2`` and ``runs/x`` give ``marlem-v2/runs/x``."""
     if repo == "~":
         base = ""
     else:

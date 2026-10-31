@@ -29,14 +29,14 @@ target. An observation, action or reward delivered to the wrong agent then gives
 wrong answer. That is the defect L-05 found in the original's grouping.
 
 **An episode.** A probe defines four things on a common base
-([`_Probe`](../../core/rl/envs/probes.py#L98-L178)): the observation of each step
+([`_Probe`](../../core/rl/envs/probes.py#L98-L175)): the observation of each step
 (`_draw`), the reward of an action (`_reward`), the episode's length (`length`:
 1 step, 2 in probe 3, 24 in probe 10) and its checks (`checks`). An episode ends by
 termination after `length` steps, never by truncation.
 
 **What a run must output.** A probe's `checks` list states, each with the value
 and the action the trained networks must give there
-([`Check`](../../core/rl/envs/probes.py#L74-L95)). A run is judged by reading its
+([`Check`](../../core/rl/envs/probes.py#L73-L92)). A run is judged by reading its
 networks in those states, not by its return, which mixes in exploration noise:
 
 | Output | Read as | Passes when |
@@ -48,7 +48,7 @@ networks in those states, not by its return, which mixes in exploration noise:
 | A part expected as `Follows` | its target depends on the category the policy chose for another part | within 0.15 of that target |
 
 The comparison is a plain function,
-[`compare`](../../core/rl/scripts/probe_check.py#L274-L320), so it is tested
+[`compare`](../../core/rl/scripts/probe_check.py#L417-L463), so it is tested
 without training.
 
 **How much training.** Each probe has a budget in environment steps for the
@@ -102,7 +102,7 @@ own networks, in each paradigm.
 ### 1. Constant
 
 **Definition.** Observation 0, one step, reward +1 whatever the action
-([`ConstantProbe`](../../core/rl/envs/probes.py#L181-L190)).
+([`ConstantProbe`](../../core/rl/envs/probes.py#L181-L189)).
 
 **What it tests.** That the reward reaches the learner, that the episode's end is
 treated as final, and that the value loss and the optimiser can fit a constant.
@@ -114,7 +114,7 @@ reaches it almost exactly.
 ### 2. Observation
 
 **Definition.** Each agent observes $+1$ or $-1$ at random; reward = its own
-observation; one step ([`ObservationProbe`](../../core/rl/envs/probes.py#L192-L216)).
+observation; one step ([`ObservationProbe`](../../core/rl/envs/probes.py#L192-L215)).
 
 **What it tests.** That the observation reaches the critic, and the right agent's
 critic. Checked in three states: all $+1$, all $-1$, and mixed ($+1, -1, +1$); a
@@ -126,7 +126,7 @@ mixed state wrong.
 ### 3. Discount
 
 **Definition.** Two steps: observation 0, then 1; reward 0, then +1; trained with
-$\gamma = 0.5$ ([`DiscountProbe`](../../core/rl/envs/probes.py#L218-L237)).
+$\gamma = 0.5$ ([`DiscountProbe`](../../core/rl/envs/probes.py#L218-L236)).
 
 **What it tests.** Bootstrapping from the next state, the discount, and where the
 episode ends.
@@ -137,7 +137,7 @@ episode ends.
 
 **Definition.** Observation 0, one step, reward $1 - (a_i - t_i)^2$ with targets
 $t_i = -0.6, 0, 0.6$ for the three agents
-([`ActionProbe`](../../core/rl/envs/probes.py#L239-L249)).
+([`ActionProbe`](../../core/rl/envs/probes.py#L239-L248)).
 
 **What it tests.** The policy gradient, and that each agent's action reaches its
 own reward.
@@ -153,7 +153,7 @@ reward, which pulls the mean outwards.
 
 **Definition.** Each agent observes $\pm 1$ at random; reward
 $1 - (a_i - o_i/2)^2$; one step
-([`ObsActionProbe`](../../core/rl/envs/probes.py#L251-L275)).
+([`ObsActionProbe`](../../core/rl/envs/probes.py#L251-L274)).
 
 **What it tests.** That each agent's policy uses its own observation, and that
 observation, action and reward stay aligned through batching.
@@ -177,7 +177,7 @@ means for the market, one feature at a time.
 **Definition.** Observation 0, one step, action `{"choice": Discrete(3), "level":
 Box(-1, 1)}`; reward $[\text{choice} = c_i] + 1 - (\text{level} - t_i)^2$, with a
 different category $c_i$ and level $t_i$ per agent
-([`MixedActionProbe`](../../core/rl/envs/probes.py#L277-L330)).
+([`MixedActionProbe`](../../core/rl/envs/probes.py#L277-L327)).
 
 **Why the market needs it.** Every market action has categorical and continuous
 parts. This is the smallest case: one of each, independent, each with its own
@@ -192,7 +192,7 @@ checks that RLlib's composite distribution keeps each agent's parts apart.
 **Definition.** Observation 0, one step, action `{"choice": Discrete(3), "gate":
 Box(-1, 1)}`. A closed gate ($g < 0$) pays 0.2 whatever the choice; an open gate
 pays $[\text{choice} = c_i] \cdot (1 - (g - 0.5)^2)$
-([`GatedActionProbe`](../../core/rl/envs/probes.py#L359-L395)).
+([`GatedActionProbe`](../../core/rl/envs/probes.py#L359-L394)).
 
 **Why the market needs it.** In the market, a quantity below the no-order
 threshold places no order, and then side, price and partner have no effect at all.
@@ -213,7 +213,7 @@ Discrete(3)}`: side 0 sells, 1 buys; partner 0 names the pair-mate, 1 the DSO, 2
 nobody. Reward: 1 when both name each other on opposite sides; `dso_reward` for
 naming the DSO; else 0; plus 0.1 for the agent's own side (the first of a pair
 sells, the second buys), which makes the best answer unique
-([`MutualChoiceProbe`](../../core/rl/envs/probes.py#L397-L485)).
+([`MutualChoiceProbe`](../../core/rl/envs/probes.py#L397-L484)).
 
 **Why the market needs it.** Stage 1 of the clearing trades only between a buyer
 and a seller that named each other. Learning that is a coordination problem: one
@@ -250,7 +250,7 @@ partner action therefore has a weaker signal, not a stronger one.
 **Definition.** Observation 0, one step, action `{"side": Discrete(2), "level":
 Box(-1, 1)}`; reward $1 - (\text{level} - t_\text{side})^2$ with
 $t_\text{sell} = -0.5$ and $t_\text{buy} = +0.5$, plus 0.05 for the agent's own
-side ([`ConditionalPartProbe`](../../core/rl/envs/probes.py#L487-L523)).
+side ([`ConditionalPartProbe`](../../core/rl/envs/probes.py#L487-L522)).
 
 **Why the market needs it.** The market's best price and quantity depend on the
 side: an ask is not a bid. The policy samples them independently of the side, so
@@ -267,7 +267,7 @@ so taking it is not a learner fault. $V$ is checked against 1.05, whose toleranc
 
 **Definition.** 24 steps, observation $t / 23$ (the hour), reward +1 at the last
 step only, the action ignored; trained with $\gamma = 0.95$
-([`LongEpisodeProbe`](../../core/rl/envs/probes.py#L525-L555)).
+([`LongEpisodeProbe`](../../core/rl/envs/probes.py#L525-L554)).
 
 **Why the market needs it.** The market's episode is one day of 24 steps;
 probes 1-9 have one or two. The probe checks that discounting and bootstrapping

@@ -4,7 +4,7 @@ Read-only: nothing here changes the scenario. Four tabs, each built by
 its own function: "Network" (one network in depth), "Profiles" (SimBench's
 complete profile catalogue), "Compare" (two networks side by side) and "Prices"
 (the saved price files). Built from the network blocks in
-``components/network.py``, shared with the Grid page.
+``components/network.py``, shared with the Scenario page.
 """
 
 from nicegui import run, ui
@@ -99,7 +99,7 @@ def _network_tab(s: Services) -> None:
         # Left card: network picker, then the network's facts (filled by load())
         with section(
             "Network",
-            "Any network; the experiment's network is chosen on the Grid page",
+            "Any network; the experiment's network is chosen on the Scenario page",
             "hub",
             classes="basis-1/3 min-w-[360px]",
         ):

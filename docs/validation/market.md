@@ -2,7 +2,7 @@
 
 > Every problem found in the **market layer** of MARLEM: in the original code, in
 > the paper [P1], or in the method itself. For each one, what was wrong, where it
-> came from, and what `marlem-v1` does about it. The reinforcement-learning layer
+> came from, and what `marlem-v2` does about it. The reinforcement-learning layer
 > (actions, observations, reward, KPIs, training) is validated separately, starting
 > with the training layer in [rl.md](rl.md), and is left out here.
 
@@ -38,7 +38,7 @@ energy:
 | Fidelity | The original code does not do what the paper says |
 | Code | A programming defect that the paper has nothing to say about |
 
-**Status in `marlem-v1`:**
+**Status in `marlem-v2`:**
 
 | Status | Meaning |
 |---|---|
@@ -81,7 +81,7 @@ The most consequential ones for any result produced with the original:
 
 Each issue below has the same parts:
 
-- **Header**: ID, title, origin and status in `marlem-v1`.
+- **Header**: ID, title, origin and status in `marlem-v2`.
 - **Original code**: the lines at fault, copied from the original repository
   (salazarna/marlem, commit `15d6715`). The caption links to them on GitHub with
   their line numbers. `# ...` stands for lines cut for length, and a few long
@@ -89,7 +89,7 @@ Each issue below has the same parts:
 - **Why it is wrong**: what the lines do, which other code calls them or reads
   their result, and how that differs from [P1]. Where a definition looks harmless
   on its own, this part shows the call site that makes it wrong.
-- **In `marlem-v1`**: what the rebuild does, with a link, and the new code
+- **In `marlem-v2`**: what the rebuild does, with a link, and the new code
   when it is short enough to compare.
 
 <mark class="ok">Fixed</mark>        green: fixed, and you're fine with what was done
@@ -120,7 +120,7 @@ raises the counter to 23, and $23 \ge 23$ ends the episode. Periods 0-22 run, an
 period 23 (the last hour of the day) never does (T1). Every episode loses its last
 hour of demand and generation.
 
-**In `marlem-v1`.** A day is $24 / \text{step_hours}$ steps, and `done` is true only
+**In `marlem-v2`.** A day is $24 / \text{step_hours}$ steps, and `done` is true only
 after all of them are recorded ([lem.py](../../core/market/lem.py#L245-L253)).
 
 ### M-02: an invalid order stops the simulation
@@ -144,7 +144,7 @@ for id in self.agents_id:
 S_t)`: an invalid order is dropped, and the market goes on. Here one bad action
 raises an exception, which ends the whole episode.
 
-**In `marlem-v1`.** `_validate` clips the price to the market bounds and the
+**In `marlem-v2`.** `_validate` clips the price to the market bounds and the
 quantity to eq. 15, drops what is left at or below $q_{\min}$, and records each change
 as a note ([lem.py](../../core/market/lem.py#L466-L491)).
 
@@ -181,7 +181,7 @@ actual charging, and the DER capacity is in W. [P1]'s case study prices in \$/MW
 the code and the two papers, a price differs by up to a factor of a million (\$/Wh
 vs \$/MWh), and any number that mixes energy, power and price is ambiguous.
 
-**In `marlem-v1`.** Energy is kWh per step, power is kW, prices are per kWh,
+**In `marlem-v2`.** Energy is kWh per step, power is kW, prices are per kWh,
 and the step length is explicit: `GridSetup.step_hours`, 1 h or 15 min
 ([scenario.py](../../core/config/scenario.py#L42)). Power becomes energy with
 $\text{kW} \cdot \text{step_hours}$ ([der.py](../../core/market/agent/der.py#L113-L114)).
@@ -258,14 +258,14 @@ whatever day is played. The original offers no such reset.
 > layer chooses the day, the market builds it. Under [P2]'s fixed seed, the
 > original instead trains on the same profiles in every episode.
 
-**In `marlem-v1`.** Generation and demand come from the SimBench profiles of the
+**In `marlem-v2`.** Generation and demand come from the SimBench profiles of the
 network elements a participant owns, for the scenario's day (`GridSetup.day`), and
 `reset()` rebuilds exactly that day every time
 ([der.py](../../core/market/agent/der.py#L88-L115)). Eq. 17 is not used. A
 different day per episode is the RL environment's job: `MarketEnv.reset` draws a
 day from its configured `days`, sets it on the scenario and rebuilds the market
 ([market_env.py](../../core/env/market_env.py#L323-L334)), so training and
-held-out days are separate lists ([v1.md §3](../v1.md#3-the-market-as-an-environment)).
+held-out days are separate lists ([v2.md](../v2.md#the-market-as-an-environment)).
 
 ## 2. Orders and feasibility
 
@@ -302,7 +302,7 @@ $G = 0,\ D = 5$ that asks for 2 kWh is not limited to 5 + its battery room: its
 0. A seller with $G = 10,\ D = 1$ asking to sell 3 kWh gets $3 - 1 = 2$. The limit
 has nothing to do with what the agent can actually deliver or take.
 
-**In `marlem-v1`.** Eq. 15a-b, with the battery's room from eq. 15c-d
+**In `marlem-v2`.** Eq. 15a-b, with the battery's room from eq. 15c-d
 ([der.py](../../core/market/agent/der.py#L172-L184)):
 
 ```python
@@ -333,7 +333,7 @@ code reads it as *truthy* (any non-zero value is a buy); the submitting code rea
 it as `> 0.5`. A raw value of 0.3 is sized with the buy logic, then submitted as a
 sell order (T8): the quantity was computed for the wrong side of the market.
 
-**In `marlem-v1`.** The side is a boolean in `OrderIntent`, set once. Turning a
+**In `marlem-v2`.** The side is a boolean in `OrderIntent`, set once. Turning a
 continuous action into a side is RL-layer work.
 
 ### M-08: no way to submit nothing
@@ -352,7 +352,7 @@ is then raised to `min_quantity`. With $q_{\min} > 0$, an agent that has nothing
 trade still submits an order of $q_{\min}$. [P1] eq. 2 has no "no order" action
 either.
 
-**In `marlem-v1`.** A participant with nothing to trade places no order, and
+**In `marlem-v2`.** A participant with nothing to trade places no order, and
 `_validate` drops orders at or below $q_{\min}$. Whether an RL action can express
 "nothing" is left to the RL layer.
 
@@ -389,7 +389,7 @@ afterwards (the reward, the KPIs, the info dictionary) sees 0 instead of what wa
 submitted (T3). The reward's `order.quantity > 0` guard then makes every execution
 ratio 0. This is the root cause of the RL layer's E-15.
 
-**In `marlem-v1`.** Every stage works on copies, `work = [replace(o) for o in
+**In `marlem-v2`.** Every stage works on copies, `work = [replace(o) for o in
 orders]`, and returns the remaining orders separately; the submitted orders are
 never changed ([clearing.py](../../core/market/clearing.py#L108)).
 
@@ -418,9 +418,9 @@ not have: an order naming the DSO is cleared with the DSO first, before any peer
 matching. The paper gives no reason for naming the DSO at all, since its prices
 are the worst in the market.
 
-**In `marlem-v1`.** Orders that prefer the DSO skip stages 1 and 2 and are
+**In `marlem-v2`.** Orders that prefer the DSO skip stages 1 and 2 and are
 cleared in stage 3 with the rest
-([clearing.py](../../core/market/clearing.py#L113), [L144](../../core/market/clearing.py#L146)).
+([clearing.py](../../core/market/clearing.py#L113), [L146](../../core/market/clearing.py#L146)).
 
 ### M-11: partner choice is a sort and a random pick, not a weighted score
 
@@ -449,7 +449,7 @@ does three other things:
 - its candidates include agents on the *same* side of the market, so a seller can
   name another seller, a preference stage 1 can never match.
 
-**In `marlem-v1`.** A weighted score of reputation and closeness, over
+**In `marlem-v2`.** A weighted score of reputation and closeness, over
 participants on the other side of the market only. Both are rescaled over the
 candidates, 1 for the best and 0 for the worst, so the weight $w$
 (`partner_reputation_weight`, 0.5) gives each the same say:
@@ -488,7 +488,7 @@ balance, not with the balance after the trade, and that balance is the DSO
 balance, which stays 0 (M-24). The check never fires, so stage 2 has no grid
 constraint at all.
 
-**In `marlem-v1`.** The check is gone. [P1] says violating trades "can be
+**In `marlem-v2`.** The check is gone. [P1] says violating trades "can be
 penalized or disallowed by the DSO" without choosing. **Decided: penalized.** The
 congestion and thermal fees (eq. 8a, 8d) price the loading of the lines on a
 trade's path in the step's own power flow, which runs before the fees are charged; trades with the DSO included (M-31). The
@@ -526,7 +526,7 @@ first. The parameter named `sell_order` receives the *buy* order, and the real s
 order disappears into `*args`. `SELLER` therefore returns the buyer's bid: buy 200,
 sell 50 gives 200 (T6). It behaves exactly like `BUYER`.
 
-**In `marlem-v1`.** Every mechanism has one fixed signature, `(buy_order,
+**In `marlem-v2`.** Every mechanism has one fixed signature, `(buy_order,
 sell_order, reference_price)`, so an argument can no longer land in the wrong
 parameter ([clearing_price.py](../../core/market/clearing_price.py#L27-L34)).
 
@@ -555,7 +555,7 @@ buyer's bid: buy 200, sell 50, market 100 gives 200 (T12). With prices below 1 t
 trade price lands at a meaningless point of the spread. This is the mechanism
 [P1]'s Case 5 uses, and §3.3.3 does not define it.
 
-**In `marlem-v1`.** `factor` is a constructor argument (default 0.5), not a
+**In `marlem-v2`.** `factor` is a constructor argument (default 0.5), not a
 call argument:
 
 ```python
@@ -591,7 +591,7 @@ then used as the market signal everywhere: observations, the reputation's
 fairness (M-42 to M-44), and the reference price of the proportional mechanism (eq. 11).
 [P1] does not define the clearing price.
 
-**In `marlem-v1`.** Volume-weighted price of the peer trades only, and the
+**In `marlem-v2`.** Volume-weighted price of the peer trades only, and the
 previous price when there were none ([lem.py](../../core/market/lem.py#L525-L532)).
 
 ## 5. Settlement, battery and balances
@@ -647,7 +647,7 @@ household that sells its 5 kWh surplus still charges 10 kWh into its battery, an
 one that buys its deficit still drains 10 kWh from it (T7). Every result involving
 batteries is affected.
 
-**In `marlem-v1`.** Eq. 13, then the battery
+**In `marlem-v2`.** Eq. 13, then the battery
 ([der.py](../../core/market/agent/der.py#L240-L245)):
 
 ```python
@@ -686,8 +686,8 @@ $SoC_{\max}$, so that cap is never used. A battery with 1 kWh of room offered 1.
 takes nothing. [P1] eq. 16 is $\min(E + E_{\text{in}} \cdot \eta,\ SoC_{\max} \cdot C)$: it fills to the
 limit. `_can_discharge` has the same problem at $SoC_{\min}$.
 
-**In `marlem-v1`.** The battery takes what it can and returns how much
-([battery.py](../../core/market/agent/battery.py#L121-L128)).
+**In `marlem-v2`.** The battery takes what it can and returns how much
+([battery.py](../../core/market/agent/battery.py#L89-L97)).
 
 ### M-18: discharge efficiency is applied the wrong way
 
@@ -710,8 +710,8 @@ from storage, *more* than is delivered. The code drains $E_{\text{out}} \cdot \e
 delivered: at $\eta = 0.95$, delivering 10 kWh removes only 9.5 kWh from the battery.
 The battery creates energy on every discharge.
 
-**In `marlem-v1`.** $E \leftarrow E - E_{\text{out}} / \eta_{\text{discharge}}$
-([battery.py](../../core/market/agent/battery.py#L130-L137)):
+**In `marlem-v2`.** $E \leftarrow E - E_{\text{out}} / \eta_{\text{discharge}}$
+([battery.py](../../core/market/agent/battery.py#L99-L107)):
 
 ```python
 given = min(max(0.0, kwh), self.dischargeable_kwh)
@@ -737,9 +737,9 @@ with $\eta_{\text{charge}} = 0.95$ the battery can take $\text{room} / 0.95$ fro
 $\text{room} \cdot 0.95$ to it. [P1] §3.4 also says operations are bound by "maximum
 charge/discharge rates", but eq. 16 has no rate, and neither does the code.
 
-**In `marlem-v1`.** The room is seen from the bus, $(E_{\max} - E) / \eta_{\text{charge}}$
+**In `marlem-v2`.** The room is seen from the bus, $(E_{\max} - E) / \eta_{\text{charge}}$
 and $(E - E_{\min}) \cdot \eta_{\text{discharge}}$, and an optional `max_power_kw` caps both
-([battery.py](../../core/market/agent/battery.py#L107-L119)).
+([battery.py](../../core/market/agent/battery.py#L67-L86)).
 
 The power limit comes from SimBench. A participant that takes over a SimBench
 storage unit gets it as its battery, with its energy capacity and power rating.
@@ -771,7 +771,7 @@ whatever the battery refuses (M-17) or cannot hold simply disappears. Nothing sa
 where it went, and nothing checks that the energy adds up. [P1] gives eq. 13 but
 no conservation rule.
 
-**In `marlem-v1`.** Eq. 13 → battery → the rest is exchanged with the upstream
+**In `marlem-v2`.** Eq. 13 → battery → the rest is exchanged with the upstream
 grid untraded and recorded as `external_kwh`. The power flow uses this physical
 outcome, never the trades ([der.py](../../core/market/agent/der.py#L226-L284)).
 The notebook checks it every step ("nothing left untraded").
@@ -823,7 +823,7 @@ It is an **inconsistency**, not a fault:
   previous step's value. In the first step it is the random start
   $U(-C, C)$ that `reset()` puts there ([der.py](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/agent/der.py#L108)).
 
-**In `marlem-v1`.** `balance_kwh` is eq. 13 ([der.py](../../core/market/agent/der.py#L241)).
+**In `marlem-v2`.** `balance_kwh` is eq. 13 ([der.py](../../core/market/agent/der.py#L241)).
 
 ### M-22: profit is never updated
 
@@ -847,7 +847,7 @@ original code base, the agent's `profit` is assigned only twice, both times 0.
 Nothing adds the trades to it. The observation reports it every step, and it is
 always 0 (T5). (The DSO's profit, by contrast, is updated.)
 
-**In `marlem-v1`.** `settle` adds each step's revenue minus cost minus grid
+**In `marlem-v2`.** `settle` adds each step's revenue minus cost minus grid
 fees ([der.py](../../core/market/agent/der.py#L235-L271)). The participants' and
 the DSO's money adds up to 0 every step (notebook check "money adds up").
 
@@ -873,7 +873,7 @@ An agent that covers its night demand from its battery is counted as having
 `update_battery_from_trades` (lem.py L416-L423), so the discharge is not even known
 yet when this runs.
 
-**In `marlem-v1`.** [P1] §3.4.1 tracks "the total demand satisfied versus the
+**In `marlem-v2`.** [P1] §3.4.1 tracks "the total demand satisfied versus the
 demand deferred, providing a measure of the agent's energy security", and [P1]
 and [P2] list the cumulative values among the observations. Every participant's
 outcome now has its demand and supply satisfied and deferred
@@ -922,7 +922,7 @@ never does. Stage 3, where *all* DSO trades normally happen, does not touch
 (T4). It also carries over from step to step (it is passed back in as the next
 step's start), so it is not a per-period quantity either.
 
-**In `marlem-v1`.** `Dso.settle` computes eq. 7 from every DSO trade, per step
+**In `marlem-v2`.** `Dso.settle` computes eq. 7 from every DSO trade, per step
 and over the day, with the DSO's revenue and fees
 ([dso.py](../../core/market/dso.py#L295-L311)).
 
@@ -951,7 +951,7 @@ in the two functions: when the DSO sells, `match_orders` raises the balance and
 `_match_preferred_partners` lowers it. Which one a trade passes through decides
 the sign.
 
-**In `marlem-v1`.** One convention everywhere: sold − bought, so + means the
+**In `marlem-v2`.** One convention everywhere: sold − bought, so + means the
 market imported from the DSO.
 
 ### M-26: the market balance $B_{\text{grid}}$ is never computed
@@ -971,7 +971,7 @@ $B_{\text{grid}} = \sum_i (G_i - D_i + E_{\text{bought},i} - E_{\text{sold},i})$
 computes it. Every "grid balance" in the info, the observation, the reputation and
 the reward is the DSO balance, which is itself always 0 (M-24).
 
-**In `marlem-v1`.** `grid_balance_kwh` is the energy offered minus the energy
+**In `marlem-v2`.** `grid_balance_kwh` is the energy offered minus the energy
 asked in the step's orders ([lem.py](../../core/market/lem.py#L183-L186)). It is taken
 *before* stage 3 on purpose: after the DSO clears every order, eq. 20 is 0 by
 construction.
@@ -1000,7 +1000,7 @@ and stored on the trade, and then nothing reads it. Settlement
 updated anyway (M-22). No agent ever pays a fee, so the fees cannot shape any
 incentive, which is their purpose in [P1].
 
-**In `marlem-v1`.** After the step's power flow, the DSO puts the fee on every
+**In `marlem-v2`.** After the step's power flow, the DSO puts the fee on every
 trade from that power flow's line loading (`Dso.charge`) and says who pays it,
 split 50/50 between peers or paid in full by the participant on a DSO trade.
 Each participant pays its share out of its profit, and the DSO collects it
@@ -1037,7 +1037,7 @@ formula. The code computes the trade's distance under the comment "calculate
 transmission distance and fee", then never uses it for a fee: `transmission_fee`
 stays 0. (The distance does feed the voltage fee.)
 
-**In `marlem-v1`.** The form is set; its values are open. [P1] gives two
+**In `marlem-v2`.** The form is set; its values are open. [P1] gives two
 hints. The text of eq. 8 calls $F_{\text{trans}}$ a charge for "usage per unit of
 distance of the transmission lines (predefined by the DSO)", and §3.5.2 says the
 losses "are incorporated into trading fees". Both give a fee of quantity ×
@@ -1076,7 +1076,7 @@ uses the threshold as a *gate* (no fee at all below 0.05) and a different cap
 $V_{\text{drop}} = 0.15 \cdot 0.2\ \text{km} = 0.03$ is below the gate, so the voltage fee is always
 0. The thermal cap 0.3 is $f_{\text{threshold}}$ of eq. 8d, which [P1] leaves undefined.
 
-**In `marlem-v1`.** $F_{\text{volt}}$ exactly as eq. 8c; the thermal cap kept at the
+**In `marlem-v2`.** $F_{\text{volt}}$ exactly as eq. 8c; the thermal cap kept at the
 original's 0.3 as `thermal_cap` ([dso.py](../../core/market/dso.py#L163-L187)).
 
 ### M-30: the imbalance fee can never apply
@@ -1110,7 +1110,7 @@ trade is created with a fee of 0. On top, the impact is measured on
 `self.balance`, which is always 0 (M-24), so even that branch is never reached.
 $F_{\text{imb}}$ is 0 in every possible run.
 
-**In `marlem-v1`.** The imbalance fee is charged on DSO trades that worsen the
+**In `marlem-v2`.** The imbalance fee is charged on DSO trades that worsen the
 market's balance $B_{\text{grid}}$ (the DSO buying in excess demand, or selling in excess
 supply); a trade that helps pays nothing ([dso.py](../../core/market/dso.py#L189-L202)).
 
@@ -1141,7 +1141,7 @@ and are never checked against the grid. The check that does exist adds the
 quantity to the balance whatever the trade's direction, so a trade that would
 *reduce* an imbalance is treated as increasing it.
 
-**In `marlem-v1`.** The DSO's energy enters where the upstream grid feeds
+**In `marlem-v2`.** The DSO's energy enters where the upstream grid feeds
 the network, the transformer's low-voltage busbar. A trade with the DSO runs along
 the participant's path to that busbar
 ([powerflow.py](../../core/grid/powerflow.py#L170-L181),
@@ -1175,7 +1175,7 @@ the congestion fee (eq. 8a) at 80 %. A line at 50 % already pays a thermal fee f
 "thermal instability" while it is far from congested. [P1] gives no values; these
 are the original's.
 
-**In `marlem-v1`.** Kept as defaults (`thermal_threshold`,
+**In `marlem-v2`.** Kept as defaults (`thermal_threshold`,
 `congestion_threshold`), each its own setting.
 
 Real distribution grids have no fee that starts at 20 % loading. "Congestion" means
@@ -1220,7 +1220,7 @@ DSO pays peers to trade locally. In the notebook's example day the peer trades'
 fees add up to about −1.1: a zone bonus of −1.6 against 0.5 of other fees. [P1]
 gives no factor values; whether a subsidy is intended is not said.
 
-**In `marlem-v1`.** Kept at the original's 0.15 for now. `zone_factor` is one
+**In `marlem-v2`.** Kept at the original's 0.15 for now. `zone_factor` is one
 setting, and its value is open: it should be of the size of the other fees, a few
 percent of a trade's value.
 
@@ -1240,7 +1240,7 @@ buy_order.location.zone == sell_order.location.zone
 topologies (mesh, ring, line, IEEE feeders). A real distribution network has no
 such labels, so the zone bonus needs a definition that fits it.
 
-**In `marlem-v1`.** A zone is a feeder: the branch a bus hangs on, named by the
+**In `marlem-v2`.** A zone is a feeder: the branch a bus hangs on, named by the
 first bus after the transformer's low-voltage busbar
 ([powerflow.py](../../core/grid/powerflow.py#L246-L264)).
 
@@ -1285,7 +1285,7 @@ reduces the flows, so congestion only grows within an episode (T10) until lines 
 at the capacity cap. [P1] §3.5.3 describes a per-period update; congestion here
 measures the episode's history, not the current period.
 
-**In `marlem-v1`.** One AC power flow per step on a fresh state of the network
+**In `marlem-v2`.** One AC power flow per step on a fresh state of the network
 ([powerflow.py](../../core/grid/powerflow.py#L118-L151)).
 
 ### M-36: only stage-1 trades reach the grid
@@ -1308,7 +1308,7 @@ calls. Stage 2, where most peer trades happen, appends `Trade(...)` objects itse
 and never updates the flows. So the congestion the fees and the grid check rely on
 ignores almost all peer energy.
 
-**In `marlem-v1`.** The flow comes from each participant's physical injection
+**In `marlem-v2`.** The flow comes from each participant's physical injection
 at its bus, whichever stage its trades came from.
 
 ### M-37: the IEEE-34 graph is disconnected
@@ -1331,7 +1331,7 @@ an island (T13): agents there have no path to anyone, and distances to them fall
 back to Euclidean (M-39). The impedance table defined next to the edges is never
 used.
 
-**In `marlem-v1`.** SimBench networks.
+**In `marlem-v2`.** SimBench networks.
 
 ### M-38: the grid physics is linear and unbounded
 
@@ -1351,7 +1351,7 @@ voltage drop is a distance times a constant, independent of the load. Flows are
 quantities moved along graph edges, not power flow. [P1] nevertheless calls its
 grid "high-fidelity". This is the paper's model, not a coding slip.
 
-**In `marlem-v1`.** The physics is a pandapower AC power flow. The paper's
+**In `marlem-v2`.** The physics is a pandapower AC power flow. The paper's
 linear forms remain only inside the market's fee formulas (eq. 8f, eq. 18), where
 [P1] defines them.
 
@@ -1380,7 +1380,7 @@ graph, M-37, or a wrong node ID) silently becomes a straight-line distance in
 made-up coordinates, so the fee and loss calculations go on with a number that
 has nothing to do with the grid.
 
-**In `marlem-v1`.** The grid code is new. Elements reject impossible settings
+**In `marlem-v2`.** The grid code is new. Elements reject impossible settings
 instead of correcting them (`Battery._check`, `Scenario.problems()`), and a missing
 bus raises an error ([powerflow.py](../../core/grid/powerflow.py#L130-L131)).
 
@@ -1408,7 +1408,7 @@ counts the full trade quantity as delivered. The household receives $q$ from the
 peer *and* the loss from the DSO, so energy bought exceeds what the agent needed.
 [P1] says only that the loss "derates the delivered quantity".
 
-**In `marlem-v1`.** The market is lossless. Each trade **records** its loss
+**In `marlem-v2`.** The market is lossless. Each trade **records** its loss
 (eq. 18) and pays for it in the fee (M-28); the physical losses are the power
 flow's.
 
@@ -1431,7 +1431,7 @@ transmission_loss = self.grid_network.transmission_loss(distance, proposed_quant
 configuration reaches, in "distance units" of whatever graph is used. [P1] gives
 no value.
 
-**In `marlem-v1`.** `loss_factor` is a DSO setting, per km of line
+**In `marlem-v2`.** `loss_factor` is a DSO setting, per km of line
 ([scenario.py](../../core/config/scenario.py#L251)). Every trade also records its
 distance $d_{ij}$, along the network's lines.
 
@@ -1461,12 +1461,12 @@ orders, because the DSO clears everything. So for any agent with a trade,
 reliability is $n / (n + 0) = 1$. [P1] eq. 12 calls it "the ratio of matched to
 total order volume", and it never varies.
 
-**In `marlem-v1`.** Order volume matched by peers ÷ order volume
+**In `marlem-v2`.** Order volume matched by peers ÷ order volume
 ([reputation.py](../../core/market/reputation.py#L193-L197)).
 
 ### M-43: the decay follows the time of day
 
-**Fidelity · <mark>Decided</mark>** (marlem-v1)
+**Fidelity · <mark>Decided</mark>** (marlem-v2)
 
 <mark class="review">Review</mark> If and what formula to use? Just reverse salazars to the proper form?
 
@@ -1489,7 +1489,7 @@ and the new score almost everything; in the last hour the old reputation counts
 23/24 and that hour's behaviour almost nothing. Recent behaviour weighs *less* as
 the day goes on, the opposite of the paper.
 
-**Decided (marlem-v1).** A constant decay per **hour**. `update_reputation`
+**Decided (marlem-v2).** A constant decay per **hour**. `update_reputation`
 blends with a fixed factor, $r \leftarrow \delta\, r + (1 - \delta)\, \text{score}$
 ([reputation.py](../../core/market/reputation.py#L119-L142)), and the market sets
 $\delta = 0.8^{\Delta t}$ with $\Delta t$ the step length in hours
@@ -1536,7 +1536,7 @@ if (trade.buyer_id == dso_id) or (trade.seller_id == dso_id):
   includes the DSO's tariffs (M-15). An agent forced to the DSO at night looks
   "unfair" for a price it did not choose.
 
-**In `marlem-v1`.** The grid part uses the step's $B_{\text{grid}}$, and DSO trades count
+**In `marlem-v2`.** The grid part uses the step's $B_{\text{grid}}$, and DSO trades count
 0. Fairness uses the agent's peer trades against the peer clearing price
 ([reputation.py](../../core/market/reputation.py#L199-L230)).
 
@@ -1565,7 +1565,7 @@ seed before every agent's draw, so every agent draws the same number. The start
 looks random but is identical for all, and it also resets the global random state
 everything else uses. [P1] does not say how reputation starts.
 
-**In `marlem-v1`.** Everyone starts at 0.5. `reset` is kept with its own random
+**In `marlem-v2`.** Everyone starts at 0.5. `reset` is kept with its own random
 generator (`np.random.default_rng(seed)`), but is not used.
 
 ## 9. Trade ledger
@@ -1598,10 +1598,6 @@ breaking the chain. The matcher also calls the validator's *private*
 `_create_new_block` to force one block per step, and the "proof of work" is a loop
 in one process, not a consensus between parties. [P1] §3.3.4 presents it as an
 emulation, which is fair, but the hash should cover everything that moves money.
-
-**In `marlem-v1`.** Original code, with a public `seal_block` in place of the
-private call; off by default (`ledger_difficulty = 0`). The ledger changes no market
-result.
 
 **In `marlem-v2`.** Removed (`validation.py`, `LocalEnergyMarket.ledger` and the
 `ledger_difficulty` setting): the ledger changes no market result and the thesis
@@ -1641,7 +1637,7 @@ independently:
 - **No money moved:** no profit (M-22), no fees (M-27), no DSO balance (M-24).
 
 So the paper's conclusion that batteries stabilise prices is **not supported** by the
-original market. A thesis built on `marlem-v1` is a corrected reimplementation
+original market. A thesis built on `marlem-v2` is a corrected reimplementation
 of the paper's market, not a reproduction of its results.
 
 ## Outside this document

@@ -29,17 +29,17 @@ runner's own settings are in [resources](resources.md).
 ## Parallel training
 
 The probe notebook ([probe_paradigms.ipynb](../../notebooks/rl/probe_paradigms.ipynb)),
-`"thorough"` preset, 45 runs (3 algorithms × 3 paradigms × 5 probes):
+`"thorough"` preset, 45 runs:
 
 | Where | Runs at once | Ray | Total |
 |---|---|---|---|
 | This PC, 13 Oct | 3 | one per run | about 91 min; 4 of 45 failed (Ray start-up, memory) |
 | green28, 16 Oct | 16 | one per run | 27 min, capped by the thread limit |
 | green node | 38 | one shared | not measured yet; about 20 min expected (the slowest run) |
-| green24, 23 Oct (V2, PPO, probes 1-10 × 3 paradigms, `"fast"`) | 30 | one shared | 301 s for all 30; with `escalate` (failures again at 2×, 4×, 8×) 1 h 05 min; peak memory 22 GB on `-c 78 --mem=60G` (job 1047329) |
+| green24, 23 Oct (PPO, probes 1-10 × 3 paradigms, `"fast"`) | 30 | one shared | 301 s for all 30; with `escalate` (failures again at 2×, 4×, 8×) 1 h 05 min; peak memory 22 GB on `-c 78 --mem=60G` (job 1047329) |
 
 - A run is one process on one core (about 95 % CPU) and about 0.75 GB. A green core
-  is as fast as this PC's (SAC DTDE about 1100–1200 s).
+  is as fast as this PC's.
 - Ray sizes its thread pools by the machine's cores: about 1000 threads per
   instance on blackwell1, about 175 with every pool at one thread. 38 instances
   broke the 4096 limit (`Resource temporarily unavailable`, `Failed to connect to
@@ -81,7 +81,7 @@ and DTDE (one network per agent); CTCE has one network.
 
 ### Per run
 
-PPO, 240,000 steps as in [market_3x3.json](../../config/experiments/market_3x3.json). The
+PPO, 240,000 steps as in [market_ppo.json](../../config/experiments/market_ppo.json). The
 earlier 5-agent market runs on this PC took about twice the sum of the benchmarks
 (evaluation, runs sharing a 6-core PC), so the table uses a factor 1.5. The euro
 column assumes 2 CPUs per run; the runner's default is 4, which doubles it.
@@ -99,10 +99,9 @@ $$
 | Grid | Runs | CPU-hours | EUR | Wall clock, all at once |
 |---|---|---|---|---|
 | PPO, 3 paradigms, 1 seed | 3 | 54 | 0.45 | about 14 h (DTDE) |
-| PPO + APPO, 3 paradigms, 5 seeds | 30 | 545 | 4.4 | about 14 h on one node |
-| + SAC | 45 | ? | ? | ? |
+| PPO, 3 paradigms, 5 seeds | 15 | 272 | 2.2 | about 14 h on one node |
 
-APPO is assumed to cost what PPO does (not benchmarked). Add about 20 % for idle
+Add about 20 % for idle
 booked CPUs at start-up and in the tail.
 
 ### What follows
@@ -116,15 +115,12 @@ booked CPUs at start-up and in the tail.
   spends about 70 % learning: at most 1.4 × faster for nearly 4 × the CPU-hours.
 - **No GPU at 50 agents.** The GPU was slower than the CPU up to 39 agents and
   clearly faster only for CTDE at 118.
-- **SAC is the unknown.** Its 5-agent market runs took 150–400 ms per step. If its
-  learner grows with the agents like PPO's, SAC DTDE at 50 agents is about 4 s per
-  step: about a day for 24,000 steps, about 0.4 EUR.
 
 ### What to measure first
 
 1. A 50-agent scenario on a green node: the market step
    ([benchmark_market_step.ipynb](../../notebooks/market/benchmark_market_step.ipynb))
-   and the RL benchmark for PPO, APPO and SAC at N = 50
+   and the RL benchmark for PPO at N = 50
    ([benchmark_speed.ipynb](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/notebooks/rl/benchmark_speed.ipynb), removed; commit 90839c2).
 2. One short real run per paradigm (e.g. 10,000 steps) through `core.runner`, to
    replace the factor 1.5.
@@ -133,8 +129,8 @@ booked CPUs at start-up and in the tail.
 ## Node types on the market
 
 Measured 20–21 October 2026 with [benchmark.py](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/core/rl/scripts/benchmark.py) (removed; commit 90839c2) on
-`MarketEnv` (`validate_market`, first week of June), the PPO and SAC settings of
-[market_3x3.json](../../config/experiments/market_3x3.json), one torch thread, no
+`MarketEnv` (`validate_market`, first week of June), the PPO settings in use then,
+one torch thread, no
 remote samplers. Seconds per 1000 environment steps; one measurement each.
 
 ### Blackwell1 against a green node
@@ -146,11 +142,9 @@ Both jobs at the same time, 4 CPUs each.
 | PPO CTCE | 29.7 | 10.1 | 2.96 × |
 | PPO CTDE | 32.6 | 12.1 | 2.69 × |
 | PPO DTDE | 34.0 | 12.7 | 2.69 × |
-| SAC CTCE | 148.2 | 68.0 | 2.18 × |
-| SAC DTDE | 528.2 | 243.1 | 2.17 × |
 
 - The market and power flow take about 10 s on blackwell1 and 24–32 s on green
-  (about 3 ×); SAC's learner gains about 2 ×.
+  (about 3 ×).
 - TalTech bills per core-hour at the same price on every node, so a run on
   blackwell1 costs about half as much. It is only in `short` (4 h), and it is one
   node: choose it with `resources.node` ([resources](resources.md#what-a-run-gets)).
@@ -164,10 +158,8 @@ amp1, one A100, the same job for both:
 | PPO CTCE | 21.0 | 18.8 | 0.65 | 0.74 |
 | PPO CTDE | 23.6 | 23.6 | 2.25 | 2.68 |
 | PPO DTDE | 23.4 | 23.4 | 2.18 | 2.58 |
-| SAC CTCE | 116.0 | 114.6 | 97.1 | 93.7 |
 
-No gain: PPO's step is about 90 % market, and SAC's networks are too small for the
-GPU (learning 3 % faster). The market is CPU bound; use CPU nodes.
+No gain: PPO's step is about 90 % market. The market is CPU bound; use CPU nodes.
 
 ## Sizing
 

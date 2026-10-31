@@ -344,7 +344,7 @@ class Scenario:
         found = []
 
         if not self.participants:
-            found.append("No participants: place them on the Grid & Participants page.")
+            found.append("No participants: place them on the Scenario page.")
         elif element_types is not None and not any(
             element_types.get(e) == "sgen" for p in self.participants for e in p.owns
         ):

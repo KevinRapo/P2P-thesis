@@ -1,16 +1,16 @@
 # Grid-method comparison
 
-> **Status: built on the `marlem-slurm` branch, for review.** The two arms, their
-> settings, the experiment and a first comparison without learning are in the code
-> there (see [Implementation](#implementation)). The diagram's *to build* tags
-> describe the state before that branch.
+> **Status: built, for review.** The two arms, their settings, the experiment and a
+> first comparison without learning are in the code (see
+> [Implementation](#implementation)). The diagram's *to build* tags describe the
+> state before they were built.
 
 The thesis compares two ways of letting the grid into the market, on the **same
 SimBench network** with the same participants, profiles, days, seeds and learning
 setup:
 
 - **Arm A, power flow** (built): the pandapower AC power flow of what the
-  participants physically did, as `marlem-v1` runs it now.
+  participants physically did.
 - **Arm B, graph model**: Salazar's grid method ([P1] §3.5,
   [methodology §6](../marlem/methodology.md#6-grid-p1-35)) placed on the SimBench
   network: flows of the trades along shortest paths, capacity spread over the lines,

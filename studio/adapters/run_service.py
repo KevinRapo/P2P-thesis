@@ -1,19 +1,12 @@
-"""RunService: what the Runs page reads about training experiments, and what it starts.
+"""Studio access to experiment editing, execution and run status through ``core.runner``.
 
-A thin wrapper over ``core.runner``. An experiment runs on a **target** (``targets.py``,
-named in ``hpc/targets.toml``): this PC, or a cluster driven over SSH. The service holds
-one target object per name for the life of the Studio (a cluster's target keeps its SSH
-connection open) and passes the calls on, each named for what it does to an
-experiment (``experiments``, ``check_target``, ``check_fit``,
-``start_experiment``, ``start_new_experiment``, ``restart_experiment``,
-``stop_experiment``, ``sync_experiment``, ``follow_experiment``) to the target's
-method of the plain verb (``Target.start`` and so on). The Experiments page edits an experiment
-file's text; ``apply_preset`` rewrites the text as the test or the full experiment,
-``quick_settings`` / ``apply_settings`` read and write the settings the dialog
-offers as fields (paradigms, seeds, budget, PPO, workers, cluster resources), and
-``describe`` turns it into the ``Experiment`` to start. The runner's records (the target's entries and report) are returned as they
-are; every method is synchronous and may take seconds on a cluster, so the pages call
-them through ``run.io_bound``.
+The service keeps one target per name in ``hpc/targets.toml`` for the Studio's lifetime
+and closes its SSH connection on shutdown. Target operations return the runner's
+records unchanged; slow calls run through ``run.io_bound`` in the pages.
+
+The Experiments page edits a template's JSON using presets and quick settings, checks
+it with ``describe`` and starts it on a target. The selected experiment is saved for
+the Summary page. Runs reads status and offers restart, stop and sync operations.
 """
 
 from __future__ import annotations

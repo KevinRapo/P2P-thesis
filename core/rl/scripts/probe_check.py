@@ -140,11 +140,21 @@ PRESETS = {
         "training": {"lr": 3e-4, "train_batch_size_per_learner": 1000},
         "budget_scale": 2.0,
     },
-    # The settings every market run uses (core/rl_defaults.py: RLlib's 2 x 256
-    # network, lr 1e-5, one minibatch of 4000 steps, 5 epochs), nothing changed.
+    # The original's training settings on RLlib's 2 x 256 network: lr 1e-5, one
+    # minibatch of 4000 steps, 5 epochs (the market's own are in core/rl_defaults.py).
     # The budget is a number of PPO iterations for every probe, not the probe's
     # own budget: with batches of 4000 steps those would be 1-6 updates.
-    "paper": {"model": {}, "training": {}, "budget_scale": 1.0, "iterations": 100},
+    "paper": {
+        "model": {},
+        "training": {
+            "lr": 1e-5,
+            "train_batch_size_per_learner": 4000,
+            "minibatch_size": 4000,
+            "num_epochs": 5,
+        },
+        "budget_scale": 1.0,
+        "iterations": 100,
+    },
     # The market's network and defaults (2 x 256, SM, core/rl_defaults.py) with the
     # training settings varied by a variant (``SCREEN``), at 4 times each probe's
     # budget in environment steps: the same samples for every variant.

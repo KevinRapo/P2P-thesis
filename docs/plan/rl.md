@@ -92,7 +92,7 @@ cluster), the results in [v2.md §7](../v2.md); Andy Jones, *Debugging RL, Witho
 the Agonizing Pain* (the probe method).
 
 **What exists.** Probes 1-6 pass in every paradigm, apart from a few continuous
-means just outside the 0.15 tolerance (V1 behaves identically). Probes 7-10 (built
+means just outside the 0.15 tolerance. Probes 7-10 (built
 23 Oct 2026), one market feature each, every one with an exact answer:
 
 | Probe | What it isolates | Why the market needs it |
@@ -195,7 +195,7 @@ Deep Policy Gradients* (ICLR 2020).
 **Question.** Does PPO learn the market at all, and which action part stops it?
 
 **Approach.** One paradigm as the control: **DTDE** (no grouping, no central
-critic; V1's best). One seed, a budget long enough for the curve to level off.
+critic). One seed, a budget long enough for the curve to level off.
 Compare with zero, the net-position rule and the market plan's headroom (MP-6b).
 
 **If it does not beat the net-position rule**, the action ladder: learn one more

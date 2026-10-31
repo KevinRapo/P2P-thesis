@@ -22,7 +22,7 @@ repository root: git-ignored, one `KEY=VALUE` per line.
 |---|---|---|
 | `MARLEM_SLURM_ACCOUNT` | none (required to submit) | `targets.toml`, `hpc start` |
 | `MARLEM_SSH_HOST` | `taltech` | `targets.toml`, `hpc` |
-| `MARLEM_CLUSTER_REPO` | `~/marlem-v2` (V1: `~/marlem-v1`) | `targets.toml` |
+| `MARLEM_CLUSTER_REPO` | `~/marlem-v2` | `targets.toml` |
 | `MARLEM_CLUSTER_PYTHON` | `~/miniforge3/envs/marlem/bin/python` | `targets.toml` |
 | `MARLEM_JUPYTER_PORT` | `9437` | `hpc`, the Jupyter job |
 | `MARLEM_RUNS` | `<repo>/runs` | the runner |
@@ -40,8 +40,8 @@ one to submit, so put a `.env` there too (`~/marlem-v2/.env`, at least
 | Thing | Where |
 |---|---|
 | Notebook files you edit | This PC |
-| Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v2`, a clone of branch `marlem-v2` (V1: `~/marlem-v1`) |
-| Results (`runs/`) | Cluster: `~/marlem-v2/runs/`; synced experiments on this PC in the V2 worktree's `runs/@taltech/` (V1's stay in V1's) |
+| Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v2`, a clone of branch `marlem-v2` |
+| Results (`runs/`) | Cluster: `~/marlem-v2/runs/`; synced experiments on this PC in `runs/@taltech/` |
 | Python environment | Cluster: `~/miniforge3/envs/marlem` |
 | Jupyter job script | [hpc/jupyter.slurm](../../hpc/jupyter.slurm), in the cluster's checkout |
 | Jupyter token, logs | Cluster: `~/.jupyter_token`, `~/jupyter-<jobid>.out` |
@@ -113,9 +113,9 @@ wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge
 bash Miniforge3-Linux-x86_64.sh -b -p ~/miniforge3
 ~/miniforge3/bin/conda init bash
 source ~/.bashrc
-git clone -b marlem-v1 https://github.com/KevinRapo/P2P-thesis.git ~/marlem-v1
-conda env create -f ~/marlem-v1/environment.yml
-echo "MARLEM_SLURM_ACCOUNT=<account>" > ~/marlem-v1/.env
+git clone -b marlem-v2 https://github.com/KevinRapo/P2P-thesis.git ~/marlem-v2
+conda env create -f ~/marlem-v2/environment.yml
+echo "MARLEM_SLURM_ACCOUNT=<account>" > ~/marlem-v2/.env
 openssl rand -hex 16 > ~/.jupyter_token
 chmod 600 ~/.jupyter_token
 ```

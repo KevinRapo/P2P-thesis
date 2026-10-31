@@ -35,7 +35,7 @@ that broke the original,
 [L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
 Each observes $d_o = 42 + (N - 1) = 44$ numbers: the paper's 42 signals and its two
 peers' reputations ([Observation](observation.md)). Each acts with the `Dict`
-<span class="ours">([`_action_space`](../../core/env/market_env.py#L268-L279))</span>:
+<span class="ours">([`_action_space`](../../core/env/market_env.py#L303-L313))</span>:
 
 | Part | Space | Meaning |
 |---|---|---|
@@ -45,7 +45,7 @@ peers' reputations ([Observation](observation.md)). Each acts with the `Dict`
 | `partner` | `Discrete(N + 1) = Discrete(4)` | an index into the agent's candidates |
 
 The candidates are the other participants in scenario order, then the DSO, then
-"no preference" ([`partners`](../../core/env/market_env.py#L281-L286)):
+"no preference" ([`partners`](../../core/env/market_env.py#L316-L320)):
 
 | Agent | 0 | 1 | 2 | 3 |
 |---|---|---|---|---|
@@ -69,7 +69,7 @@ observation, and so on.
 | Actor reads | $s$ (132) | <span class="ours">the first 44 entries, $o_{10}$</span> | $o_{10}$ (44) |
 | Critic reads | $s$ (132) | all 176 | $o_{10}$ (44) |
 | Action space | <span class="ours">`Tuple` of the three agents' `Dict`s, in environment order</span> | its own `Dict` | its own `Dict` |
-| Wrapper | <span class="ours">[`CTCEEnv`](../../core/rl/ctce.py#L46-L110)</span> | <span class="ours">[`CTDEEnv`](../../core/rl/ctde.py#L55-L103), [`CTDEPPOModule`](../../core/rl/ctde.py#L143-L149)</span> | none |
+| Wrapper | <span class="ours">[`CTCEEnv`](../../core/rl/ctce.py#L45-L106)</span> | <span class="ours">[`CTDEEnv`](../../core/rl/ctde.py#L55-L103), [`CTDEPPOModule`](../../core/rl/ctde.py#L143-L149)</span> | none |
 
 **Sizes** (2 × 256 tanh encoders, <span class="ours">actor and critic
 separate</span>, linear heads):
@@ -144,7 +144,7 @@ leaves them as they are. A $u_q = -1.3$ would reach the market as $-1$ while the
 batch keeps $-1.3$.
 
 **CTCE first** splits the group's `Tuple` by position
-(<span class="ours">[`ungroup`](../../core/rl/ctce.py#L36-L43)</span>):
+(<span class="ours">[`ungroup`](../../core/rl/ctce.py#L35-L42)</span>):
 
 ```python
 {
@@ -154,7 +154,7 @@ batch keeps $-1.3$.
 }
 ```
 
-**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L411-L444)</span>).
+**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L524-L557)</span>).
 Say `agent_10` may buy at most 2.5 kWh this step, and the step's tariffs are a
 feed-in tariff of 0.05 and a utility price of 0.25 €/kWh:
 
@@ -239,7 +239,7 @@ and DTDE each agent's carry its own.
 
 The market pays each agent its bill for the step,
 <span class="ours">$(\text{profit} - p_\text{utility} \cdot \text{unmet demand}) / \text{reward scale}$</span>
-([`step`](../../core/env/market_env.py#L375-L380)). Say:
+([`step`](../../core/env/market_env.py#L410-L474)). Say:
 
 $$
 r_2 = 1.50, \qquad r_{10} = -0.50, \qquad r_1 = 0.25 .
@@ -264,7 +264,7 @@ own bid for that.
 
 ## 7. Evaluating a trained policy
 
-<span class="ours">[`Policy`](../../core/rl/policy.py#L92-L173)</span> acts with the
+<span class="ours">[`Policy`](../../core/rl/policy.py#L92-L170)</span> acts with the
 trained modules outside RLlib, the same way RLlib does in training, but without
 noise: each part takes its most likely value. It builds each module's input as the
 paradigm's wrapper does ($o_i$, $x_i$ or $s$) and always runs in the original
@@ -282,15 +282,15 @@ and training can order quite different amounts: here 2.06 kWh against the sample
 1.00. During training the noise spreads the quantity around the mean; in
 evaluation it is the mean every time.
 
-**Baselines** ([`baselines`](../../core/rl/policy.py#L450-L466)): "random" draws
+**Baselines** ([`baselines`](../../core/rl/policy.py#L450-L460)): "random" draws
 every part uniformly; "zero" places no orders (quantity share 0, below the
 threshold); <span class="ours">"net position"</span> is the market's own bidding
 rule: offer the surplus, or ask for the deficit, left after the battery, priced 30 %
 of the way from the feed-in tariff (selling) or the utility price (buying) into the
 spread, with no partner
-([`net_position_policy`](../../core/env/market_env.py#L666-L705)).
+([`net_position_policy`](../../core/env/market_env.py#L788-L827)).
 
-**The team score** ([`Episode`](../../core/rl/policy.py#L227-L248)). Every
+**The team score** ([`Episode`](../../core/rl/policy.py#L226-L247)). Every
 paradigm is scored in the original multi-agent environment, from the per-agent
 rewards. Over a day, say the three agents' returns are 2.10, 0.90 and 0.55: team
 score $= 3.55$, reported with the three returns. The same number for CTCE, CTDE and
@@ -301,7 +301,7 @@ the runner's held-out evaluation plays test days training never sees.
 
 ## 8. The run: budget, NaN stop, evaluation
 
-<span class="ours">[`train`](../../core/rl/train.py#L408-L558)</span> repeats
+<span class="ours">[`train`](../../core/rl/train.py#L408-L555)</span> repeats
 RLlib's iteration until the budget of environment steps is used up.
 
 **Budget.** `market_s2`: 240 000 environment steps with 500 per iteration, 480

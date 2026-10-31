@@ -400,7 +400,7 @@ on top of the unit problems inside the code (register M-03).
 
 ## What the rebuild follows
 
-- **Market layer (`marlem-v1`):** [P1] alone, since [P2] restates none of it.
+- **Market layer:** [P1] alone, since [P2] restates none of it.
   Its gaps are listed in the [market validation](market.md#problems-in-the-papers-market-method).
 - **RL layer:** the reward must be chosen, because the papers give two. The choices
   to record:

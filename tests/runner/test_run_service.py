@@ -312,7 +312,7 @@ def test_start_new_and_restart_go_to_the_target_asked(fakes):
 
 
 # --------------------------------------------------------------------------------------
-# The experiment text edited in the start dialog
+# The experiment text edited on the Experiments page
 # --------------------------------------------------------------------------------------
 def test_describe_turns_edited_text_into_the_experiment():
     (smoke,) = [r for r in RunService().spec_files() if r["name"] == "smoke"]
@@ -405,7 +405,7 @@ def test_a_preset_on_text_that_is_no_experiment_says_why():
 
 
 def test_quick_settings_read_and_rewrite_the_editors_json():
-    """The start dialog's fields: the paradigms, seeds, budget, PPO settings,
+    """The Experiments page's fields: the paradigms, seeds, budget, PPO settings,
     workers and cluster resources are read from the editor's JSON and written back
     into it, every other setting keeping its edit; None removes a setting (its
     default then applies), and the result is still an experiment."""

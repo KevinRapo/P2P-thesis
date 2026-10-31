@@ -26,8 +26,8 @@ anchors. Those links point at the `marlem-v2` branch, so they work once it is pu
 
 ## Publishing
 
-The docs are **not published online** (the former GitHub Pages site of
-`marlem-v1` was taken down on 21 October 2026): read them locally with
+The docs are **not published online** (the former GitHub Pages site was
+taken down on 21 October 2026): read them locally with
 `python run_docs.py`, and run `python run_docs.py build` after a change to catch
 broken internal links and API documentation warnings. The generated `site/`
 folder is ignored.

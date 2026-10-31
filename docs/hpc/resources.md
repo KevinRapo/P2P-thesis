@@ -12,8 +12,8 @@ independent run with its own model, seed, replay buffer, metrics and checkpoint.
 [market_ppo.json](../../config/experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
 [grid_methods.json](../../config/experiments/grid_methods.json) 1 × 1 × 3 seeds × 3
 variants = 9. Five seeds would make `market_ppo` 15 runs. (The measurements below
-were taken in V1 with `market_3x3`, three algorithms × three paradigms; they
-describe one PPO run's resources the same way.)
+were taken on nine-run market experiments; they describe one PPO run's resources
+the same way.)
 
 ```mermaid
 flowchart TD
@@ -57,8 +57,7 @@ samplers and the driver. The 4096 limit counts every thread that exists, asleep 
 not, so only the peak matters for sizing.
 
 Measured with [core/rl/scripts/thread_probe.py](https://github.com/KevinRapo/P2P-thesis/blob/90839c2/core/rl/scripts/thread_probe.py) (removed 24 Oct 2026; commit 90839c2) on green
-nodes (SLURM jobs 1043952, 1044568, 1044587–1044591; 19–20 October 2026): one run
-of the test profile of [market_3x3.json](../../config/experiments/market_3x3.json) with
+nodes (SLURM jobs 1043952, 1044568, 1044587–1044591; 19–20 October 2026): one short market run with
 one setting changed (base: PPO, DTDE, 5 agents), counting the threads of the run's
 own process tree once a second. "Capped" sets Ray's pools to one thread
 ([below](#capping-rays-thread-pools)).
@@ -69,20 +68,18 @@ own process tree once a second. "Capped" sets Ray's pools to one thread
 | | 1 | 556 | 191 |
 | | 3 | 700–707 | 236–244 |
 | | 6 | | 309 |
-| Algorithm ($k = 3$) | PPO / APPO / SAC | 706 / 706 / 707 | 240 / 236 / 242 |
 | Paradigm ($k = 3$) | CTCE / CTDE / DTDE | | 237 / 236 / 240 |
 | Agents ($k = 3$) | 5 / 13 / 40 | | 240 / 236 / 236 |
 | CPUs allocated ($k = 3$) | 4 / 6 / 8 | 706 / 705 / 700 | |
-| Length (SAC, $k = 3$) | 1,100 / 3,000 steps | | 242 / 239 |
 
 - **Only the number of processes counts**: about **480 + 75 $k$** threads by
   default and **165 + 24 $k$** capped, with $k$ = `num_env_runners`.
-- Algorithm, paradigm, the number of agents (40 agents: the same 236 threads),
-  the CPUs allocated and the length of the run change nothing. The networks and
+- The paradigm, the number of agents (40 agents: the same 236 threads) and the
+  CPUs allocated change nothing. The networks and
   the market live inside the same processes; the count holds steady through a
-  run (median within 2 % of the peak at 3,000 SAC steps).
+  run.
 - A run in a runner job has about **60 more** (the SLURM step and submitit):
-  the five runs of `market_3x3_3envRuns` that kept going on 19 October held 3815
+  five runs that kept going on 19 October held 3815
   threads, 763 each, against 705 measured alone.
 - Your own other jobs on the node (a Jupyter session, a second experiment) count
   against the same 4096.
@@ -118,14 +115,12 @@ one I/O thread, Ray's log pipes) has no setting. The caps do not slow training
 |---|---:|---:|
 | PPO, 7,200 steps, default | 706, 707 | 154 s, 157 s |
 | PPO, 7,200 steps, capped | 243, 243 | 143 s, 146 s |
-| SAC, 1,632 steps, default | 707, 707 | 167 s, 171 s |
-| SAC, 1,632 steps, capped | 244, 240 | 166 s, 171 s |
 
 At zero samplers PPO sampled 41 steps/s capped against 34 default (job 1044587).
 The runner sets them in every job by default (20 October 2026):
 `RAY_THREAD_CAPS` in [launch.py](../../core/runner/launch.py), applied by
 `launch.job` before Ray starts. `"ray_thread_caps": false` in the spec leaves Ray's
-own sizes; the start dialog shows the setting.
+own sizes; the Experiments page shows the setting.
 
 ### Where SLURM puts the runs
 
@@ -135,7 +130,7 @@ know the thread limit: tasks over it are not held in the queue, they start and
 crash in `ray.init` with `pthread_create failed: Resource temporarily unavailable`
 and `Failed to register worker to Raylet`, and the Studio shows them as `lost`.
 
-That happened on 19 October: `market_3x3_3envRuns` with `max_parallel: 9`,
+That happened on 19 October: a nine-run experiment with `max_parallel: 9`,
 `num_env_runners: 3` and 6 CPUs per run put all nine tasks on green31 (54 of 78
 CPUs). Four failed in their first minute; five ran.
 
@@ -165,7 +160,7 @@ Setting 2 reserves CPUs a run does not use: they count towards billing, and a
 large request can wait longer in the queue. Memory has to fit as well: $n$ ×
 `mem_gb` ≤ 95, so 16 runs on a node take at most 5 GB each.
 
-For `market_3x3_3envRuns` (nine runs, $k = 3$, capped), all nine fit on one node:
+For nine runs ($k = 3$, capped), all nine fit on one node:
 
 ```json
 "max_parallel": 9,
@@ -211,7 +206,7 @@ the report's `nodes`), and a check with an experiment refuses one the cluster
 cannot give: a node it does not have (with the closest names: "no node
 'blackwell13'; did you mean 'blackwell1'?"), or more minutes than the node's
 partitions, or any listed partition, allow. `start` runs the same check, so nothing
-is submitted. The Studio's start dialog checks every edit against the nodes of the
+is submitted. The Studio's Experiments page checks every edit against the nodes of the
 last check, and keeps Start disabled while a problem is shown. On this PC
 `resources` is ignored, so nothing is checked there. Per run, blackwell1 was
 2.2–3 × faster than a green node at the same price per core-hour
@@ -231,14 +226,14 @@ With [`build_config`](../../core/rl/config.py):
 | `num_gpus` | 0 | CPU only |
 | Ray `num_cpus` | `num_env_runners + 1` | Samplers plus the driver/learner; Ray bookkeeping, not a CPU pin |
 
-At zero runners, one run is essentially one busy core (APPO adds learner threads). Raising
+At zero runners, one run is essentially one busy core. Raising
 `resources.cpus` alone does not make it faster; 4 is an allowance for Ray's own
 threads and processes. A larger request does spread runs over more nodes
 ([how many runs fit](#how-many-runs-fit-at-once)). The five market participants are agents inside the one
 environment, not processes; training days are what an episode draws from, not
 parallel environments. `budget` counts environment steps (one market step for all
-agents) and is checked after each training iteration, so a run can overshoot it
-(APPO: 480 asked, 500 done). Evaluation stays in the job's driver process.
+agents) and is checked after each training iteration, so a run can overshoot it.
+Evaluation stays in the job's driver process.
 
 For example, these top-level experiment fields request three remote samplers per
 run and four SLURM CPUs for the samplers and driver/learner:
@@ -263,24 +258,22 @@ this setting for an existing experiment.
 
 ## Full and test profiles
 
-For `market_3x3`:
+For [market_ppo.json](../../config/experiments/market_ppo.json):
 
 | | Full | Test |
 |---|---:|---:|
-| Runs, at once | 9, 3 | 9, 3 |
+| Runs, at once | 3, 3 | 3, 3 |
 | CPUs / memory per run | 4 / 4 GB | 4 / 4 GB |
 | Minutes per run | 120 | 15 |
 | Train / test days | 30 / 14 | 1 / 1 |
-| Budget SAC / PPO / APPO | 24,000 / 240,000 / 240,000 | 1,100 / 2,400 / 480 |
+| Budget | 240,000 | 2,400 |
 
 The test profile keeps algorithms, paradigms, variants and settings (including
 `num_env_runners`), and takes the
 first seed, one evaluation episode and one test day (played once, as every test
 day is). Its budget per algorithm
-is one training batch (`train_batch_size_per_learner`, else 100), or the warm-up
-plus 100 steps where learning starts after a warm-up (SAC: the spec's 1,000, else
-RLlib's 1,500), the largest over the variants, so every test run really updates
-its networks. A `test` block in the spec overrides seeds, days, budget, evaluation
+is one training batch (`train_batch_size_per_learner`, else 100), the largest over
+the variants, so every test run really updates its networks. A `test` block in the spec overrides seeds, days, budget, evaluation
 and resources.
 
 ## What the spec can set
@@ -311,19 +304,19 @@ memory) and size from that: five agents say little about fifty.
 ## Comparing sampling and learning time
 
 `metrics.csv` records reports that advance sampled environment steps or lifetime
-learner environment steps. Idle APPO polls are omitted; non-finite learner metrics
+learner environment steps. Other reports are omitted; non-finite learner metrics
 still stop the run and are recorded. `iteration` remains the number of calls to
 `algo.train()`, so gaps in that column are expected and are not missing updates.
 
 | Column | Meaning |
 |---|---|
 | `sampler_sample_s_mean` | RLlib's mean sample-call duration on the environment runners, aggregated across runners |
-| `sampling_s_mean` | RLlib's driver sampling timer (PPO/SAC), including waiting for samples |
-| `learner_call_s_mean` | RLlib's driver learner-call timer; for APPO this queues work, not the background update duration |
-| `async_learner_update_s_mean` | APPO's background learner update timer |
+| `sampling_s_mean` | RLlib's driver sampling timer, including waiting for samples |
+| `learner_call_s_mean` | RLlib's driver learner-call timer |
+| `async_learner_update_s_mean` | An asynchronous learner's update timer; PPO's learner is synchronous |
 | `learner_env_steps` | Lifetime environment steps processed by the learner; replay and reuse can count data repeatedly |
 | `train_call_s` | Wall time of the reported `algo.train()` call |
-| `train_calls_s_total` | Cumulative wall time of all training calls, including omitted idle polls |
+| `train_calls_s_total` | Cumulative wall time of all training calls, including omitted reports |
 | `sampled_steps_per_train_s` | Collected environment steps divided by cumulative training-call time; includes learning/communication, so this is not pure rollout throughput |
 | `elapsed_s` | Wall time since the training loop began, including intermediate evaluation and reporting |
 

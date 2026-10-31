@@ -1,4 +1,4 @@
-<mxfile host="marlem-v1">
+<mxfile host="marlem-v2">
   <diagram name="Grid-method experiment" id="grid-methods">
     <mxGraphModel dx="1600" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1480" math="0" shadow="0">
       <root>
@@ -61,7 +61,7 @@
         <mxCell id="measure" value="&lt;b&gt;Measurement, both arms&lt;/b&gt; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[proposed]&lt;/b&gt;&lt;/font&gt;: the AC power flow of arm A runs in arm B too and is recorded there, but sets no fee&lt;br&gt;grid: peak line loading, overload hours, voltage-band violations, line and transformer losses, import / export · market: fees per part, peer-to-peer share, prices, profits&lt;br&gt;arm B only: its C&lt;sub&gt;t&lt;/sub&gt; next to the measured loading of the same lines (how well the paper&#x27;s signal follows the physics)" style="rounded=1;whiteSpace=wrap;html=1;fontSize=14;arcSize=6;align=left;verticalAlign=top;spacingLeft=10;spacingRight=8;spacingTop=6;fillColor=#dae8fc;strokeColor=#6c8ebf;fillColor=#eef3fb;" vertex="1" parent="1">
           <mxGeometry x="40" y="1300" width="1520" height="95" as="geometry"/>
         </mxCell>
-        <mxCell id="legend" value="&lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt; in marlem-v1 &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#d79b00&quot;&gt;&lt;b&gt;[to build]&lt;/b&gt;&lt;/font&gt; dashed border: not in the code yet &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[decision]&lt;/b&gt;&lt;/font&gt; a value or rule still to choose &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[proposed]&lt;/b&gt;&lt;/font&gt; suggested, not agreed &amp;nbsp;&amp;nbsp; blue: arm A · orange: arm B · grey: shared · green: fees · purple: learning" style="text;html=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
+        <mxCell id="legend" value="&lt;font color=&quot;#2d7a2d&quot;&gt;&lt;b&gt;[built]&lt;/b&gt;&lt;/font&gt; in marlem-v2 &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#d79b00&quot;&gt;&lt;b&gt;[to build]&lt;/b&gt;&lt;/font&gt; dashed border: not in the code yet &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[decision]&lt;/b&gt;&lt;/font&gt; a value or rule still to choose &amp;nbsp;&amp;nbsp; &lt;font color=&quot;#b85450&quot;&gt;&lt;b&gt;[proposed]&lt;/b&gt;&lt;/font&gt; suggested, not agreed &amp;nbsp;&amp;nbsp; blue: arm A · orange: arm B · grey: shared · green: fees · purple: learning" style="text;html=1;fontSize=13;align=center;verticalAlign=middle;" vertex="1" parent="1">
           <mxGeometry x="40" y="1415" width="1520" height="40" as="geometry"/>
         </mxCell>
         <mxCell id="e0" value="" style="endArrow=block;endFill=1;html=1;fontSize=13;edgeStyle=orthogonalEdgeStyle;rounded=1;exitX=1;exitY=0.5;entryX=0;entryY=0.4;" edge="1" parent="1" source="agents" target="market">

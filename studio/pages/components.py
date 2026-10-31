@@ -412,7 +412,7 @@ def badge_demo() -> None:
 
 def selection_demo() -> None:
     """data_table with single selection
-    The Grid page's participant table opens the battery editor this way."""
+    The Scenario page's participant table opens the battery editor this way."""
     table = data_table(ROWS, [("id", "Participant"), ("bus", "Bus")])
     table.props("selection=single")
     table.on_select(lambda e: ui.notify([r["id"] for r in e.selection]))
@@ -579,7 +579,7 @@ def _series() -> None:
 def network_demo() -> None:
     """NetworkChart
     Buses coloured by kind (BUS in theme.py), highlighted ones ringed in amber; a
-    click on a bus calls on_bus with its ID (the Grid page places participants
+    click on a bus calls on_bus with its ID (the Scenario page places participants
     so)."""
     NetworkChart(
         320, on_bus=ui.notify, topology=TOPOLOGY, highlight={"B2", "B4"}

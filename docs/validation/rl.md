@@ -24,7 +24,7 @@ the original RL code was copied out of the original repository unchanged and tes
 on small environments with known answers instead of the market (see
 [The test bench](#the-test-bench)). That copy, with its issue markers and the test
 notebooks, is kept in `RL/` at commit [`bbef313`](https://github.com/KevinRapo/P2P-thesis/tree/bbef31315e4c762d94bfd6600e29d38d61684c85/RL)
-of the `clean` branch; the fixed layer is `core/rl/` here, still independent of the
+of the repository; the fixed layer is `core/rl/` here, still independent of the
 market.
 
 **Sources.**
@@ -32,7 +32,7 @@ market.
 - **IDs** are those of the [issue register](register.md), the single list of
   every issue in the original; this page gives the detail for the RL layer
   (`L-xx`), in the register's order.
-- **The RL folder** (`RL/` at commit `bbef313` of the `clean` branch) holds the
+- **The RL folder** (`RL/` at commit `bbef313`) holds the
   copied RL code, test environments, test bench and notebooks. Links below to the
   copied code and its notebooks point into it on GitHub, pinned to that commit.
 - **The original code** is the authors' MARLEM repository,
@@ -68,15 +68,15 @@ market.
 | **Read** | Found by reading the code; not tested yet. The issue says how it would be tested |
 | **Judgment** | A question about the method that no test can settle; it needs a decision |
 
-**Status.** This register describes the original implementation in `RL/core/rl/` (on the `clean` branch).
+**Status.** This register describes the original implementation in `RL/core/rl/` (commit `bbef313`).
 The rebuilt layer (`core/rl/` in this branch) names the issues it fixes in its module
-docstrings, and [v1.md](../v1.md) gives its design and its probe and market results.
+docstrings, and [v2.md](../v2.md) gives its design and its validation.
 Nothing on this page describes the rebuilt layer unless it says so.
 The only changes to the copied code isolate it from the market (the trainer takes
 the environment class as an argument); each is marked `DEVIATION:` in the code, and
 none changes how training works.
 
-**In the code.** In `RL/core/rl/` (on the `clean` branch) every issue below is marked above the
+**In the code.** In `RL/core/rl/` (commit `bbef313`) every issue below is marked above the
 lines at fault in `core/rl/`: `FAULT <ID>:` for a defect, `DECIDE <ID>:` for a
 *Judgment* issue, so the document and the code can be read side by side. The markers use the
 IDs from before October 2026 ([Earlier identifiers](register.md#earlier-identifiers)). The comments are the only
@@ -843,9 +843,10 @@ passes it. The register's L-18 covers the whole test suite; this is its RL part.
 
 **What replaces it.** The probe notebooks are the first learning tests: each probe
 has an exact answer, and the parameter-change check fails a frozen actor. They are
-notebooks, not automated tests. In marlem-v1, `tests/rl/` checks the probe
-environments and the CTDE structure; learning on the probes still runs from
-`notebooks/rl/probe_paradigms.ipynb` (results in [v1.md §5](../v1.md#5-validation)).
+notebooks, not automated tests. Here, `tests/rl/` checks the probe environments and
+the CTDE structure; learning on the probes runs from
+`core/rl/scripts/probe_ppo.py` and `notebooks/rl/probe_paradigms.ipynb` (results in
+[How the probes work](../rl/probes.md#results)).
 
 ## Problems in the papers' RL method
 
@@ -898,8 +899,8 @@ paradigms need the fixes above before they can be repeated.
 
 ## Not tested yet
 
-Open checks of the **original** code. The rebuilt layer passes all five probes in
-all nine combinations of algorithm and paradigm ([v1.md §5](../v1.md#5-validation)).
+Open checks of the **original** code. The rebuilt layer's results are in
+[How the probes work](../rl/probes.md#results).
 
 | What | Why it matters | Issues |
 |---|---|---|
@@ -915,9 +916,9 @@ all nine combinations of algorithm and paradigm ([v1.md §5](../v1.md#5-validati
 ## Outside this document
 
 How the market and the RL layer connect is not covered here; its issues are listed
-in the [register, part B](register.md#b-environment-and-cooperation). marlem-v1's
+in the [register, part B](register.md#b-environment-and-cooperation). The
 choices for the environment (objective, reward, action, days; E-04, E-05, L-17) are
-in [v1.md §3](../v1.md#3-the-market-as-an-environment).
+in [v2.md](../v2.md#the-market-as-an-environment).
 
 - **Actions and observations:** E-04 to E-07
 - **Reward:** E-01, E-13 to E-22

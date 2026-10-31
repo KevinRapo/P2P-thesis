@@ -81,7 +81,7 @@ flowchart LR
 3. **Update.** 10 epochs over the batch in shuffled minibatches of 64: one loss,
    one gradient-norm clip and one Adam step per minibatch.
 4. **Sync.** The new weights go to the env runners; the batch is discarded.
-5. **<span class="ours">Our trainer</span>** ([`train`](../../core/rl/train.py#L408-L558))
+5. **<span class="ours">Our trainer</span>** ([`train`](../../core/rl/train.py#L408-L555))
    repeats RLlib's iteration until the budget of environment steps is used, stops
    on a non-finite loss, evaluates against baselines and records each action
    part's distribution.
@@ -100,12 +100,12 @@ code in `core/rl/`.
 
 | What | RLlib does | <span class="ours">Ours</span> | Why | ID |
 |---|---|---|---|---|
-| CTCE environment | trains the environment's agents as they are | <span class="ours">[`CTCEEnv`](../../core/rl/ctce.py#L46-L110)</span>: one agent, `"group"`, observing $s_t$, acting with a `Tuple` of every agent's `Dict`, rewarded with $R_t$ | CTCE is one controller for everyone (the social planner); the `Tuple` keeps each agent's parts and bounds in agent order | L-02, L-05 |
+| CTCE environment | trains the environment's agents as they are | <span class="ours">[`CTCEEnv`](../../core/rl/ctce.py#L45-L106)</span>: one agent, `"group"`, observing $s_t$, acting with a `Tuple` of every agent's `Dict`, rewarded with $R_t$ | CTCE is one controller for everyone (the social planner); the `Tuple` keeps each agent's parts and bounds in agent order | L-02, L-05 |
 | CTDE environment and module | – | <span class="ours">[`CTDEEnv`](../../core/rl/ctde.py#L55-L103)</span> gives agent $i$ the input $x_{i,t} = (o_{i,t}, s_t)$; <span class="ours">[`CTDEPPOModule`](../../core/rl/ctde.py#L143-L149)</span>'s actor reads only $o_{i,t}$, its critic all of $x_{i,t}$ | MAPPO with one central critic per agent: the actor can act on its own observation after training, the critic uses everything; each agent keeps its own reward and ratio | L-01, RP-3e |
 | Policy head of a continuous part | mean = linear output, unbounded; $\log\sigma$ = linear output, a function of the state (clipped to ±20 only for a single `Box` action, not for a `Dict`) | <span class="ours">[`BoundedHead`](../../core/rl/modules.py#L121-L173)</span>: mean $= \tanh(\text{output}) \in (-1, 1)$; $\log\sigma$ = **one learned number per part**, the same in every state, starting at 0 | RLlib's state-dependent $\log\sigma$ collapsed before the side was decided, after which the price/quantity mean could no longer move (probe 9: 0 of 6 → 6 of 6); the tanh keeps the mean inside the bounds, where the clipped reward is not flat | RP-3h |
 | Learner | RLlib's PPO loss and update | <span class="ours">[`PPOLearner`](../../core/rl/learner.py#L27-L52)</span>: the same loss, also logs the **clip fraction** (share of samples whose ratio left $[0.8, 1.2]$) | shows how often the clip stops the gradient, above all for CTCE's joint ratio | L-02 |
-| Training loop | `algo.train()`, one iteration per call | <span class="ours">[`train`](../../core/rl/train.py#L408-L558)</span>: budget in environment steps, stop on NaN/inf losses, evaluation against baselines on unseen seeds, per-part distribution statistics, `run.json` | comparable budgets across paradigms; a NaN cannot pass silently; a run is judged against baselines and can be repeated | L-14, L-07, L-16 |
-| Evaluation policy | – | <span class="ours">[`Policy`](../../core/rl/policy.py#L92-L173)</span>: acts without noise, each part's most likely value (the Gaussian's mean, the categorical's mode) | a trained policy acts the same way in evaluation as when sampling, minus the noise | L-15 |
+| Training loop | `algo.train()`, one iteration per call | <span class="ours">[`train`](../../core/rl/train.py#L408-L555)</span>: budget in environment steps, stop on NaN/inf losses, evaluation against baselines on unseen seeds, per-part distribution statistics, `run.json` | comparable budgets across paradigms; a NaN cannot pass silently; a run is judged against baselines and can be repeated | L-14, L-07, L-16 |
+| Evaluation policy | – | <span class="ours">[`Policy`](../../core/rl/policy.py#L92-L170)</span>: acts without noise, each part's most likely value (the Gaussian's mean, the categorical's mode) | a trained policy acts the same way in evaluation as when sampling, minus the noise | L-15 |
 
 ### Settings
 

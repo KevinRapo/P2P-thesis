@@ -109,11 +109,11 @@ The market returns one observation per agent, $o_{i,t} \in \mathbb{R}^{d_o}$, it
 entries already scaled to about $[-1, 1]$ and clipped to $[-10, 10]$ by
 <span class="ours">`MarketEnv`</span>. RLlib passes it to the network as it comes
 (no `MeanStdFilter`). The <span class="ours">paradigm's wrapper</span> decides what
-each module receives ([`env_spec`](../../core/rl/config.py#L82-L95)):
+each module receives ([`env_spec`](../../core/rl/config.py#L80-L93)):
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| What the module receives | <span class="ours">$s_t$, all observations joined in the environment's agent order, one input for the group ([`CTCEEnv`](../../core/rl/ctce.py#L46-L110))</span> | <span class="ours">$x_{i,t} = (o_{i,t}, s_t)$, agent $i$'s module ([`CTDEEnv`](../../core/rl/ctde.py#L55-L103))</span> | $o_{i,t}$, each agent's module its own |
+| What the module receives | <span class="ours">$s_t$, all observations joined in the environment's agent order, one input for the group ([`CTCEEnv`](../../core/rl/ctce.py#L45-L106))</span> | <span class="ours">$x_{i,t} = (o_{i,t}, s_t)$, agent $i$'s module ([`CTDEEnv`](../../core/rl/ctde.py#L55-L103))</span> | $o_{i,t}$, each agent's module its own |
 
 ### A2. Actor forward pass
 
@@ -222,11 +222,11 @@ the `Tuple` (L-05).
 
 <span class="ours">Entirely ours: the market environment.</span> In CTCE
 `CTCEEnv` first splits the group's `Tuple` into the agents' actions
-([`ungroup`](../../core/rl/ctce.py#L36-L43)). Then
-[`MarketEnv.step`](../../core/env/market_env.py#L358-L409), per agent:
+([`ungroup`](../../core/rl/ctce.py#L35-L42)). Then
+[`MarketEnv.step`](../../core/env/market_env.py#L410-L474), per agent:
 
 1. **Decode** the action into an order
-   ([`decode`](../../core/env/market_env.py#L411-L444)):
+   ([`decode`](../../core/env/market_env.py#L524-L557)):
     - side $\alpha$: 0 sell, 1 buy;
     - quantity share $\textcolor{mediumpurple}{s = (q + 1)/2}$; **no order** when
       $\textcolor{mediumpurple}{s < 0.05}$, otherwise $s$ rescaled to $(0, 1]$ and
@@ -243,7 +243,7 @@ the `Tuple` (L-05).
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| Reward stored | <span class="ours">$R_t = \sum_i r_{i,t}$ ([`CTCEEnv.step`](../../core/rl/ctce.py#L85-L107))</span> | $r_{i,t}$ in agent $i$'s episode | $r_{i,t}$ in agent $i$'s episode |
+| Reward stored | <span class="ours">$R_t = \sum_i r_{i,t}$ ([`CTCEEnv.step`](../../core/rl/ctce.py#L81-L103))</span> | $r_{i,t}$ in agent $i$'s episode | $r_{i,t}$ in agent $i$'s episode |
 | Done flag | one, `__all__` | per agent, and `__all__` | per agent, and `__all__` |
 
 The day ends **terminated** after its last step (RP-1f): the return stops at
@@ -497,8 +497,8 @@ quantity, written out once.
 
 **What it is.** One `torch.nn.Parameter` $\bar\ell$ per continuous part, created at
 0 ($\sigma = 1$) in
-[`BoundedHead`](../../core/rl/modules.py#L149-L150) and written into every row's
-distribution inputs ([L164-L166](../../core/rl/modules.py#L164-L166)), whatever the
+[`BoundedHead`](../../core/rl/modules.py#L121-L173) and written into every row's
+distribution inputs ([L164-L167](../../core/rl/modules.py#L164-L167)), whatever the
 observation. It has **no bounds**: `log_std_bounds` is `None`, and RLlib does not
 clip $\log\sigma$ for a `Dict` action.
 
@@ -590,7 +590,7 @@ again after its iteration.
 ### D3. Between iterations
 
 <span class="ours">Our trainer</span>
-([`train`](../../core/rl/train.py#L408-L558)) records the iteration's metrics
+([`train`](../../core/rl/train.py#L408-L555)) records the iteration's metrics
 (learner metrics per module, and each action part's mean, $\log\sigma$, share
 outside the bounds or entropy in fixed states,
 [`part_stats`](../../core/rl/policy.py#L492-L542)), stops the run on a NaN or

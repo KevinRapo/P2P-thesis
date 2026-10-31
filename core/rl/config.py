@@ -1,6 +1,6 @@
 """The PPO configuration of one paradigm.
 
-V2 uses RLlib's PPO only (APPO and SAC are not part of V2; V1 keeps them). Only
+PPO is the only algorithm. Only
 RLlib's algorithm, loss, modules and distributions are used; what changes between
 paradigms is the environment PPO sees and, for CTDE, what the actor reads:
 
@@ -32,10 +32,8 @@ schedule changed:
 - No population-based training and no Ray Tune (fixes L-10 and part of L-11):
   one run has fixed hyperparameters and one seed; tuning and seeds are loops
   around ``core/rl/train.py``.
-- 5 epochs, each on one minibatch of the whole batch (4000 environment steps), in
-  place of the original's 30 epochs of 128-step minibatches: fewer, larger updates
-  work better for PPO with several agents (Yu et al., "The Surprising Effectiveness
-  of PPO in Cooperative Multi-Agent Games", NeurIPS 2022).
+- The learning rate, batch, minibatch and epochs are those chosen on the probes
+  (``core/rl_defaults.py``, RP-6b in ``docs/plan/decisions.md``), not the original's.
 - Iterations are not tied to wall-clock time (``min_time_s_per_iteration=0``),
   and the budget is counted in environment steps by the trainer (fixes L-14).
 """

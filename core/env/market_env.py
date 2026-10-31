@@ -1,7 +1,8 @@
 """MarketEnv: the local energy market as a multi-agent RLlib environment.
 
-One agent per scenario participant. An episode is one market day; one step is one
-market step (24 hourly or 96 quarter-hourly). The environment only translates: it
+One agent per scenario participant. An episode is one market day, or a window of
+``episode_days`` days (below); one step is one market step (24 hourly or 96
+quarter-hourly a day). The environment only translates: it
 turns the agents' actions into ``OrderIntent`` s, lets ``LocalEnergyMarket`` play
 the step, and turns the step's record back into observations and rewards. No
 market rule lives here (``core/market/`` stays the one place for those).
@@ -224,8 +225,9 @@ class MarketEnv(MultiAgentEnv):
     """The local energy market, one agent per participant (see the module docstring).
 
     Args:
-        env_config: ``scenario`` (path, required), ``days``, ``energy_scale``,
-            ``reward_scale``, ``seed``, ``grid``, ``dso``.
+        env_config: ``scenario`` (path, required), ``days`` and ``seed``, plus the
+            scaling and episode settings described above. Accepted keys are defined
+            in ``core.env_defaults``; grid and DSO settings belong to the scenario.
     """
 
     def __init__(self, env_config: Optional[dict[str, Any]] = None) -> None:

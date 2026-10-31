@@ -140,7 +140,6 @@ nav:
           - The two papers: validation/papers.md
   # This thesis's implementation.
   - Implementation:
-      - marlem-v1: v1.md
       - marlem-v2: v2.md
       - Code structure: structure.md
       - Config:

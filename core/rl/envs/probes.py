@@ -176,7 +176,7 @@ class _Probe(MultiAgentEnv):
 
 
 # --------------------------------------------------------------------------------------
-# The five probes
+# The probes
 # --------------------------------------------------------------------------------------
 class ConstantProbe(_Probe):
     """1. Zero observation, one step, reward +1. Checks the value loss and the

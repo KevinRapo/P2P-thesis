@@ -25,7 +25,7 @@ elsewhere. Checkpoints, `slurm/` and anything outside an experiment (e.g. notebo
 runs) need a copy by hand, from the repository root:
 
 ```powershell
-scp -r taltech:~/marlem-v1/runs/probes_thorough .\runs\
+scp -r taltech:~/marlem-v2/runs/probes_thorough .\runs\
 ```
 
 Without a job, files can also be browsed at <https://ondemand.hpc.taltech.ee>
