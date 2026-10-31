@@ -30,8 +30,6 @@ class GridCatalogService:
     Real network catalog: SimBench codes and pandapower built-in networks.
     """
 
-    SAMPLE_DATA = False
-
     def __init__(self, cache: Path | None = None) -> None:
         """Args:
         cache: Folder for built networks (``Workspace.network_cache``); ``None``

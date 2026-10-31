@@ -25,8 +25,6 @@ from studio.adapters.profile_classes import CLASSES, category, description
 class ProfileService:
     """SimBench profiles: a network's, the complete catalogue, their classes."""
 
-    SAMPLE_DATA = False
-
     # --- Classes ----------------------------------------------------------------------
     def profile_classes(self) -> list[ProfileClass]:
         """SimBench's profile classes, grouped as in SimBench's own overview.

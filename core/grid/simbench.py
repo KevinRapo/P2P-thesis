@@ -53,7 +53,6 @@ SIMBENCH_YEAR = 2016
 # Line ratings at or above this value are placeholders (e.g. case33bw uses 99999 kA).
 PLACEHOLDER_MAX_I_KA = 9999.0
 DEFAULT_V_LIMITS = (0.95, 1.05)
-BACKGROUNDS = ("mapped_replacement", "scaled_background", "no_background")
 
 # SimBench network families that are far larger than a local energy market needs.
 EXCLUDED_SIMBENCH_LEVELS = {"complete_data", "EHVHVMVLV"}
@@ -164,16 +163,6 @@ def list_networks(
         out.append(info)
 
     return out
-
-
-def voltage_levels(source_type: str) -> list[str]:
-    """Distinct voltage levels offered for one source type, in catalog order."""
-    seen: dict[str, None] = {}
-
-    for n in list_networks(source_type):
-        seen.setdefault(n.voltage_level, None)
-
-    return list(seen)
 
 
 # --------------------------------------------------------------------------------------

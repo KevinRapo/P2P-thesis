@@ -55,16 +55,6 @@ TRACE_COLUMNS = [
     ("reward", "Reward"),
 ]
 # The participant outcomes of ``heldout_agents.csv`` the Participants view offers.
-OUTCOMES = {
-    "return": "Return",
-    "profit": "Profit",
-    "bill": "Bill",
-    "bought_kwh": "Bought kWh",
-    "sold_kwh": "Sold kWh",
-    "preference_kwh": "Stage 1 (preference) kWh",
-    "deferred_demand_kwh": "Deferred demand kWh",
-    "deferred_supply_kwh": "Deferred supply kWh",
-}
 OUTCOMES = {m: m.replace("_", " ") for m in PARTICIPANT_METRICS}
 MOST_PARTICIPANTS = 30  # shown at once; the rest through the filter
 

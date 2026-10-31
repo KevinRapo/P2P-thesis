@@ -214,11 +214,6 @@ def category(name: str, table: str) -> str:
     return "other"
 
 
-def load_class(profile: str) -> str:
-    """Class of a load profile, e.g. ``household`` for H0-A."""
-    return category(profile, "load")
-
-
 def description(category: str) -> str:
     """Readable name of a class, empty for ``"other"``."""
     return BY_KEY[category].name if category in BY_KEY else ""

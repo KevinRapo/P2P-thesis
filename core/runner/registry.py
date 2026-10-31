@@ -39,7 +39,6 @@ import psutil
 
 from core.runner.spec import runs_root
 
-STATES = ("queued", "running", "completed", "failed", "stopped", "lost", "unknown")
 # SLURM task states that end a task / that mean it is on a node.
 SLURM_TERMINAL = (
     "COMPLETED",
