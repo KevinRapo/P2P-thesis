@@ -133,22 +133,22 @@ nav:
       - Paper overview:
           - Methodology: marlem/methodology.md
           - Learning layer: marlem/learning.md
-      - Validation:
-          - Issue register: validation/register.md
-          - Market layer: validation/market.md
-          - RL layer: validation/rl.md
-          - The two papers: validation/papers.md 
+          - Validation:
+              - Issue register: validation/register.md
+              - Market layer: validation/market.md
+              - RL layer: validation/rl.md
+              - The two papers: validation/papers.md 
       - Our version:   
           - marlem-v2: v2.md
           - Code structure: structure.md
           - The full cycle: full-cycle.md
+          - Plans:
+              - plan/index.md
+              - Market plan: plan/market.md
+              - RL plan: plan/rl.md
+              - Decision log: plan/decisions.md
       - Config:
           - config/reference.md
-      - Plans:
-          - plan/index.md
-          - Market plan: plan/market.md
-          - RL plan: plan/rl.md
-          - Decision log: plan/decisions.md
       - Reinforcement learning:
           - Observation: rl/observation.md
           - Probes:

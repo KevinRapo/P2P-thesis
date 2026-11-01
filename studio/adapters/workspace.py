@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -112,6 +114,70 @@ def is_synced_folder(path: Path) -> bool:
         part.lower() == "onedrive" or part.lower().startswith("onedrive - ")
         for part in resolved.parts
     )
+
+
+# --------------------------------------------------------------------------------------
+# The system's folder dialog
+# --------------------------------------------------------------------------------------
+# Tk belongs on a main thread and dies with its process, so each dialog is a small
+# Python process of its own. It stays on top: the browser would otherwise cover it.
+_FOLDER_DIALOG = """
+import sys
+from tkinter import Tk, filedialog
+
+root = Tk()
+root.withdraw()
+root.attributes("-topmost", True)
+print(filedialog.askdirectory(parent=root, initialdir=sys.argv[1], title=sys.argv[2]))
+"""
+
+
+def nearest_folder(path: str | Path) -> Path:
+    """``path``, or the closest parent of it that exists, else the user's home."""
+    start = Path(str(path).strip() or Path.home()).expanduser().resolve()
+
+    for folder in (start, *start.parents):
+        if folder.is_dir():
+            return folder
+
+    return Path.home()
+
+
+def choose_folder(start: str | Path, title: str = "Choose a folder") -> Path | None:
+    """Ask for a folder in the system's dialog, on the computer the Studio runs on.
+
+    Waits until the dialog is closed, so call it in a thread.
+
+    Args:
+        start: The folder the dialog opens in (or the closest one that exists).
+        title: The dialog's title.
+
+    Returns:
+        The folder, or ``None`` if the dialog was cancelled.
+
+    Raises:
+        OSError: The dialog could not be shown.
+    """
+    done = subprocess.run(
+        [
+            sys.executable,
+            "-X",
+            "utf8",
+            "-c",
+            _FOLDER_DIALOG,
+            str(nearest_folder(start)),
+            title,
+        ],
+        capture_output=True,
+        encoding="utf-8",
+    )
+
+    if done.returncode != 0:
+        raise OSError(done.stderr.strip().splitlines()[-1])
+
+    chosen = done.stdout.strip()
+
+    return Path(chosen) if chosen else None
 
 
 # --------------------------------------------------------------------------------------

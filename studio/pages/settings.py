@@ -170,6 +170,14 @@ def _workspace_section() -> None:
     ):
         folder = ui.input("Folder", value=str(home)).classes("w-full mls-mono")
 
+        with folder.add_slot("append"):
+            browse = (
+                ui.button(icon="folder_open", on_click=lambda: pick())
+                .props("flat round dense")
+                .tooltip("Browse")
+                .mark("browse")
+            )
+
         for name, what in (
             ("cache/networks", "built networks"),
             ("studio-state", "per-browser state (dark mode)"),
@@ -178,6 +186,7 @@ def _workspace_section() -> None:
 
         if source == "environment":
             folder.disable()
+            browse.disable()
             ui.label(
                 "Set by MARLEM_HOME (an environment variable or .env), which takes "
                 "precedence; remove it to choose the folder here."
@@ -195,6 +204,23 @@ def _workspace_section() -> None:
             f"Remembered in {workspace.settings_path()}. Existing files are not "
             "moved. The per-browser state moves after a restart."
         ).classes("mls-card-caption")
+
+        async def pick() -> None:
+            """Fill the field from the system's folder dialog; a cancel leaves it."""
+            browse.disable()
+
+            try:
+                chosen = await run.io_bound(
+                    workspace.choose_folder, folder.value, "Workspace folder"
+                )
+            except OSError as error:
+                ui.notify(f"Cannot open the folder dialog: {error}", type="negative")
+                chosen = None
+            finally:
+                browse.enable()
+
+            if chosen:
+                folder.set_value(str(chosen))
 
         def use(path: str | None) -> None:
             """Remember ``path`` as the workspace folder (``None`` = default),
