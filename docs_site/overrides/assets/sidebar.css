@@ -1,0 +1,23 @@
+/* Left sidebar: section titles (Config, Plans, ...) stand out from the page links
+   under them. A title that opens a page (Plans) is a link inside the entry, so it
+   needs its own selector; the current page and hover keep Material's colors. */
+
+:root {
+  --sidebar-title: #1f5f99;
+}
+
+[data-md-color-scheme="slate"] {
+  --sidebar-title: #8ab4f8;
+}
+
+.md-sidebar--primary .md-nav__item--section > .md-nav__link[for],
+.md-sidebar--primary
+  .md-nav__item--section
+  > .md-nav__container
+  > a.md-nav__link:not(.md-nav__link--active):not(:hover) {
+  color: var(--sidebar-title);
+}
+
+.md-sidebar--primary .md-nav__item--section > .md-nav__link {
+  font-size: 0.75rem;
+}

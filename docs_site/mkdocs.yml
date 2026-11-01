@@ -94,6 +94,7 @@ markdown_extensions:
 extra_css:
   - assets/diagrams.css
   - assets/marks.css
+  - assets/sidebar.css
 
 extra_javascript:
   - javascripts/mathjax.js
@@ -128,8 +129,7 @@ validation:
 
 nav:
   - Home: index.md
-  # The MARLEM papers and what was found in them and in their code.
-  - MARLEM:
+  - Implementation:
       - Paper overview:
           - Methodology: marlem/methodology.md
           - Learning layer: marlem/learning.md
@@ -137,14 +137,13 @@ nav:
           - Issue register: validation/register.md
           - Market layer: validation/market.md
           - RL layer: validation/rl.md
-          - The two papers: validation/papers.md
-  # This thesis's implementation.
-  - Implementation:
-      - marlem-v2: v2.md
-      - Code structure: structure.md
-      - The full cycle: full-cycle.md
+          - The two papers: validation/papers.md 
+      - Our version:   
+          - marlem-v2: v2.md
+          - Code structure: structure.md
+          - The full cycle: full-cycle.md
       - Config:
-          - Sections: config/sections.md
+          - config/sections.md
           - Master example: config/master.md
       - Plans:
           - plan/index.md
@@ -163,11 +162,9 @@ nav:
           - simbench/README.md
           - Network catalogue: simbench/networks.md
           - Profiles: simbench/profiles.md
-  # What the thesis compares, and how.
   - Experiments:
       - Grid-method comparison: experiments/grid-methods.md
       - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
-  # Running on the TalTech cluster.
   - HPC:
       - Overview: hpc.md
       - Getting started:
