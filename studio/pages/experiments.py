@@ -6,9 +6,10 @@ an editor, and every edit is checked as a start would check it
 never changed. The Test and Full presets rewrite the run size settings in the editor
 (``RunService.apply_preset``) and leave every other edit, and the paradigms, seeds,
 budget, PPO settings, workers and cluster resources are also offered as fields that
-rewrite the JSON. The experiment plays the active scenario, saved or not, unless the
-scenario in its text is chosen. It stays selected (``RunService.save_selected``): the
-Summary page shows it.
+rewrite the JSON. The experiment plays the active scenario, saved or not, and its JSON
+follows it. What was loaded last decides: opening a scenario turns this on, choosing an
+experiment file turns it off, so the file's own scenario plays. It stays selected
+(``RunService.save_selected``): the Summary page shows it.
 
 Start starts the edited experiment as a new one (``RunService.start_new_experiment``):
 if the target has an experiment of that name, the date and time are added to it. For a
@@ -73,6 +74,10 @@ class ExperimentForm:
         records = await run.io_bound(self.service.spec_files)
         self.templates = {str(r["path"]): r for r in records}
         selected = self.service.selected()
+
+        if selected and selected["template"]:  # a file from elsewhere is not listed
+            self.templates.setdefault(selected["template"], selected)
+
         kept = selected and selected["template"] in self.templates
         first = selected["template"] if kept else next(iter(self.templates), None)
         self.body.clear()
@@ -100,7 +105,7 @@ class ExperimentForm:
                 {path: Path(path).stem for path in self.templates},
                 label="Experiment file",
                 value=template,
-                on_change=self._template_changed,
+                on_change=self._template_chosen,
             ).classes("w-full")
 
             self.active = ui.switch(
@@ -230,6 +235,11 @@ class ExperimentForm:
         return clusters[0] if preset == "full" and clusters else LOCAL
 
     # --- The experiment ---------------------------------------------------------------
+    def _template_chosen(self) -> None:
+        """A file was chosen: everything shown is now the file's, its scenario too."""
+        self.active.set_value(False)
+        self._template_changed()
+
     def _template_changed(self) -> None:
         """Put the chosen template's text in the editor."""
         template = self.templates.get(self.template.value)
@@ -268,6 +278,14 @@ class ExperimentForm:
 
     def _changed(self) -> None:
         """Check the editor's text and show what it makes."""
+        if self.active.value:
+            text = self.editor.value or ""
+            shown = self.service.showing_scenario(text, services().scenario.reference())
+
+            if shown != text:
+                self.editor.set_value(shown)  # checked again by ``_changed``
+                return
+
         template = self.templates.get(self.template.value)
 
         if template is None:
@@ -295,7 +313,7 @@ class ExperimentForm:
         self.scenario_note.set_text(
             f"Plays the active scenario, {scenario.shown_name()}"
             + (" (unsaved)" if scenario.unsaved() else "")
-            + ", whatever the JSON below names."
+            + "; the JSON below follows it."
             if self.active.value
             else "Plays the scenario the JSON below names."
         )

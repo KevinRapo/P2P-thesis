@@ -118,6 +118,20 @@ class ScenarioService:
         record tells a changed scenario from its file."""
         return replace(self.current(), name=self.shown_name())
 
+    def reference(self) -> str | dict:
+        """The active scenario as an experiment's ``scenario`` field shows it: the
+        path of its file while it is unchanged and in the repository, else its
+        contents."""
+        path = self.origin()["path"]
+
+        if path and self.library and not self.unsaved():
+            try:
+                return Path(path).relative_to(self.library.parents[1]).as_posix()
+            except ValueError:
+                pass
+
+        return asdict(self.played())
+
     def save_as(self, name: str) -> Path:
         """Write the active scenario to the library as ``<name>.json``, for an
         experiment to name; it is then that file's. ``ValueError`` if the name is no

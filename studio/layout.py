@@ -1,9 +1,9 @@
 """Shared page shell: header, navigation drawer and page heading. The header shows
-whether the cluster answers, names the current scenario and opens another from a
-scenario file."""
+whether the cluster answers, names the current scenario and experiment and opens
+another from a file."""
 
 import time
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
@@ -53,7 +53,7 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                         ui.item_label(item.label)
 
     # Top bar, left to right: menu button, logo and name, (space), cluster status,
-    # scenario button, dark-mode button
+    # experiment button, scenario button, dark-mode button
     with ui.header(elevated=False).classes("mls-header items-center q-px-md gap-3"):
         ui.button(icon="menu", on_click=drawer.toggle).props(
             "flat round dense color=white"
@@ -66,6 +66,7 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
             _cluster_status(name, label)
 
         _scenario_button()
+        _experiment_button()
         ui.button(icon="dark_mode", on_click=lambda: _toggle_dark(dark)).props(
             "flat round dense color=white"
         )
@@ -146,6 +147,91 @@ def _cluster_status(name: str, label: str) -> None:
 
 
 # --------------------------------------------------------------------------------------
+# The experiment: which one is selected, and opening another from a file
+# --------------------------------------------------------------------------------------
+def _experiment_button() -> None:
+    """The selected experiment's name (kept up to date, as the Experiments page
+    changes it); a click opens another from a file."""
+    runs = services().runs
+    button = ui.button(icon="science", on_click=_open_experiment_dialog).props(
+        "flat no-caps color=white"
+    )
+    button.tooltip("The experiment being prepared. Click to open an experiment file.")
+
+    def show_state() -> None:
+        button.set_text(f"Experiment: {runs.selected_name() or 'none'}")
+
+    show_state()
+    ui.timer(1.0, show_state)
+
+
+def _open_experiment(template: str, text: str) -> None:
+    """Make the experiment file the selected one, and start the pages again."""
+    services().runs.open_experiment(template, text)
+    ui.notify(f"Opened {Path(template).name}")
+    ui.navigate.reload()
+
+
+async def _open_experiment_dialog() -> None:
+    runs = services().runs
+    files = await run.io_bound(runs.spec_files)  # each is checked, as a start would
+
+    # Pop-up window: the experiment files, an upload field, Cancel
+    with ui.dialog() as dialog, ui.card().classes("w-[640px] max-w-full gap-3"):
+        ui.label("Open an experiment file").classes("text-h6")
+        ui.label(
+            "Replaces the experiment on the Experiments page, with its edits, and "
+            "plays the scenario in the file; the active scenario stays open. The file "
+            "itself is not changed."
+        ).classes("mls-card-caption")
+        ui.label("In config/experiments/").classes("text-subtitle2")
+
+        def choose(record: dict) -> None:
+            dialog.close()
+            _open_experiment(str(record["path"]), record["text"])
+
+        with ui.scroll_area().classes("w-full h-80"):
+            for record in files:
+                name = record["path"].name
+
+                if record["error"]:
+                    ui.label(f"{name}: cannot be read ({record['error']})").classes(
+                        "text-negative"
+                    )
+                    continue
+
+                _row(
+                    name,
+                    f"{record['runs']} runs · {record['description']}",
+                    lambda record=record: choose(record),
+                )
+
+        ui.label("Or a file from elsewhere").classes("text-subtitle2")
+
+        async def uploaded(e) -> None:
+            text = await e.file.text()
+            error = runs.describe(text, Path(e.file.name).stem)["error"]
+
+            if error:
+                ui.notify(
+                    f"{e.file.name}: not an experiment ({error})", type="negative"
+                )
+                return
+
+            dialog.close()
+            _open_experiment(e.file.name, text)
+
+        ui.upload(label="Experiment JSON", auto_upload=True, on_upload=uploaded).props(
+            "accept=.json flat bordered"
+        ).classes("w-full")
+
+        # Bottom: Cancel, right-aligned
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Cancel", on_click=dialog.close).props("flat no-caps")
+    dialog.open()
+
+
+# --------------------------------------------------------------------------------------
 # The scenario: which one is open, and opening another from a file
 # --------------------------------------------------------------------------------------
 def _summary(scenario: Scenario) -> str:
@@ -186,6 +272,7 @@ def _open(scenario: Scenario, source: str, path: Optional[Path] = None) -> None:
     s = services()
     s.scenario.open(scenario, source, path)
     s.market.clear()  # the Step page's market was built from the old scenario
+    s.runs.play_active()
     ui.notify(f"Opened {source}: {_summary(scenario)}")
     ui.navigate.reload()
 
@@ -253,11 +340,16 @@ def _file_row(path: Path, dialog: ui.dialog) -> None:
         dialog.close()
         _open(scenario, path.name, path)
 
+    _row(path.name, _summary(scenario), choose)
+
+
+def _row(name: str, summary: str, on_open: Callable[[], None]) -> None:
+    """One file in an open dialog."""
     # One row: file name with its summary under it (left) | Open (right)
     with ui.row().classes("w-full items-center no-wrap gap-3"):
         with ui.column().classes("grow gap-0"):
-            ui.label(path.name).classes("text-body1")
-            ui.label(_summary(scenario)).classes("mls-card-caption")
-        ui.button("Open", icon="folder_open", on_click=choose).props(
+            ui.label(name).classes("text-body1")
+            ui.label(summary).classes("mls-card-caption")
+        ui.button("Open", icon="folder_open", on_click=on_open).props(
             "unelevated no-caps"
         )

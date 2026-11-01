@@ -257,9 +257,9 @@ class RunService:
         its ``text``, ``active`` (it plays the active scenario, ``scenario``, not the
         one in its text), and ``describe`` of what would start. None if there is
         none."""
-        try:
-            saved = json.loads(self._selected.read_text(encoding="utf-8"))
-        except (AttributeError, OSError, ValueError):
+        saved = self._saved()
+
+        if saved is None:
             return None
 
         saved = {"active": True} | saved
@@ -268,6 +268,25 @@ class RunService:
 
         return saved | self.describe(self.with_scenario(saved["text"], played), name)
 
+    def _saved(self) -> Optional[dict]:
+        """The experiment as ``save_selected`` kept it, None if there is none."""
+        try:
+            return json.loads(self._selected.read_text(encoding="utf-8"))
+        except (AttributeError, OSError, ValueError):
+            return None
+
+    def selected_name(self) -> Optional[str]:
+        """The file name of the selected experiment, without reading the experiment
+        itself: the top bar asks all the time."""
+        saved = self._saved()
+
+        return Path(saved["template"]).stem if saved and saved["template"] else None
+
+    def open_experiment(self, template: str, text: str) -> None:
+        """Make an experiment file the selected experiment, as the Experiments page
+        edits it. It plays the scenario in the file."""
+        self.save_selected(template, editable(text, Path(template).stem), False)
+
     def save_selected(self, template: Optional[str], text: str, active: bool) -> None:
         """Keep the experiment on the Experiments page, for the Summary page and for
         the next time it opens."""
@@ -275,6 +294,29 @@ class RunService:
             self._selected.parent.mkdir(parents=True, exist_ok=True)
             data = {"template": template, "text": text, "active": active}
             self._selected.write_text(json.dumps(data), encoding="utf-8")
+
+    def play_active(self) -> None:
+        """The selected experiment plays the active scenario from now on (another
+        scenario was opened). Nothing if there is none."""
+        saved = self._saved()
+
+        if saved is not None:
+            self.save_selected(saved["template"], saved["text"], True)
+
+    def showing_scenario(self, text: str, scenario: str | dict) -> str:
+        """The editor's text with ``scenario`` in its ``scenario`` field. The text
+        itself, as it is written, if the field holds it already or the text is no
+        experiment yet: this runs on every edit and must not reformat what is being
+        typed."""
+        try:
+            data = _json_object(text)
+        except ValueError:
+            return text
+
+        if data.get("scenario") == scenario:
+            return text
+
+        return to_text(data | {"scenario": scenario})
 
     def with_scenario(self, text: str, scenario: Optional[Scenario]) -> str:
         """The editor's text playing ``scenario``, in its ``scenario`` field. The

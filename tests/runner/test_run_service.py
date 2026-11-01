@@ -228,6 +228,7 @@ async def test_the_top_bar_shows_the_cluster_and_a_click_checks_it(monkeypatch):
 
     monkeypatch.setattr(layout, "services", lambda: SimpleNamespace(runs=Runs()))
     monkeypatch.setattr(layout, "_scenario_button", lambda: None)
+    monkeypatch.setattr(layout, "_experiment_button", lambda: None)
 
     def root() -> None:
         with layout.shell("results", "Title"):
@@ -531,6 +532,49 @@ def test_the_selected_experiment_plays_the_active_scenario(tmp_path):
     assert selected["experiment"].scenario["market"]["mechanism"] == "buyer"
     service.save_selected("smoke.json", text, False)
     assert isinstance(service.selected(active)["experiment"].scenario, str)  # its file
+
+
+def test_opening_an_experiment_file_selects_it_with_its_own_scenario(tmp_path):
+    service = RunService(selected=tmp_path / "selected.json")
+    assert service.selected_name() is None
+    path = REPO / "config" / "experiments" / "smoke.json"
+    service.open_experiment(str(path), path.read_text("utf-8"))
+    selected = service.selected()
+    assert service.selected_name() == "smoke"
+    assert (selected["template"], selected["active"]) == (str(path), False)
+    assert selected["error"] is None
+    assert isinstance(selected["experiment"].scenario, str)  # the file's
+
+
+def test_opening_a_scenario_makes_the_selected_experiment_play_it(tmp_path):
+    service = RunService(selected=tmp_path / "selected.json")
+    service.play_active()  # no experiment yet: nothing to change
+    assert service.selected() is None
+    text = (REPO / "config" / "experiments" / "smoke.json").read_text("utf-8")
+    service.save_selected("smoke.json", text, False)
+    service.play_active()
+    assert service.selected()["active"] is True
+
+
+def test_the_editor_shows_the_scenario_and_keeps_what_is_being_typed():
+    service = RunService()
+    spaced = '{"name":   "x",  "scenario": "a.json"}'
+    assert service.showing_scenario(spaced, "a.json") == spaced  # not rewritten
+    shown = json.loads(service.showing_scenario(spaced, "b.json"))
+    assert shown == {"name": "x", "scenario": "b.json"}
+    assert service.showing_scenario('{"name": ', "b.json") == '{"name": '  # half typed
+
+
+def test_an_experiment_names_a_scenario_by_its_file_until_it_changes(tmp_path):
+    library = tmp_path / "config" / "scenarios"
+    library.mkdir(parents=True)
+    service = ScenarioService(tmp_path / "current.json", library)
+    assert isinstance(service.reference(), dict)  # no file yet
+    service.save_as("mine")
+    assert service.reference() == "config/scenarios/mine.json"
+    service.current().market.seed = 7
+    assert service.reference()["market"]["seed"] == 7
+    assert service.reference()["name"] == "mine-mod"
 
 
 def test_a_scenario_is_unsaved_until_it_matches_its_file(tmp_path):
