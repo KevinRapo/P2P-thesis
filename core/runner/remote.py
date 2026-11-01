@@ -13,6 +13,9 @@ services):
     pull(remote_dir, local_dir)  a fresh copy of a folder of the checkout here
     follow(remote_dir, local_dir)  bring a copy up to date with only what is new: a
                                  running experiment's files, as training writes them
+    ping(quiet_s)                learn whether the connection works, if nothing else
+                                 has lately
+    contact                      how the last use of the connection went (``Contact``)
     close()                      close the connection and stop the thread
 
 The connection is opened by the first call and reused by the next ones. Nothing is
@@ -35,6 +38,8 @@ import shlex
 import shutil
 import stat
 import threading
+import time
+from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional, Sequence
@@ -61,6 +66,7 @@ FOLLOWED = (
     "heldout_agents.csv",
 )
 FOLLOW_TIMEOUT_S = 60
+PING_TIMEOUT_S = 10
 TAIL_CHARS = 600  # how much of a failed command's output goes into the message
 # What asyncssh, the network and the clock raise; anything else is a bug and passes.
 _FAILURES = (asyncssh.Error, OSError, EOFError, TimeoutError)
@@ -69,6 +75,22 @@ _FAILURES = (asyncssh.Error, OSError, EOFError, TimeoutError)
 class RemoteError(RuntimeError):
     """An operation on the cluster failed, or the cluster cannot be reached; the
     message says which and carries the cluster's own error text."""
+
+
+@dataclass(frozen=True)
+class Contact:
+    """How the last use of the connection went: every operation updates it, so it
+    says what really happened, and ``ping`` updates it when nothing else does.
+
+    Attributes:
+        at: When the last operation ended (``time.time()``; 0: none yet).
+        ok_at: When the cluster last answered (None: not yet).
+        error: Why the last operation could not reach it (None: it answered).
+    """
+
+    at: float = 0.0
+    ok_at: Optional[float] = None
+    error: Optional[str] = None
 
 
 # --------------------------------------------------------------------------------------
@@ -269,7 +291,10 @@ class Remote:
         self.keepalive_s = keepalive_s
         self.connect_timeout_s = connect_timeout_s
         self.command_timeout_s = command_timeout_s
+        self.contact = Contact()
         self._guard = threading.Lock()  # starting and stopping the loop thread
+        self._pinging = threading.Lock()  # one ping at a time
+        self._busy = 0  # operations under way
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._thread: Optional[threading.Thread] = None
         # The two below belong to the loop thread.
@@ -351,6 +376,27 @@ class Remote:
             raise RemoteError(f"{what} failed on {self.host}: {reason}")
 
         return out
+
+    def ping(self, quiet_s: float = 0) -> None:
+        """Learn whether the connection works, opening it if needed: the answer is
+        in ``contact``, so this never raises. Nothing is sent if the last operation
+        ended less than ``quiet_s`` ago, while another operation is under way (a ping
+        that timed out would close the connection under it) or while another ping is.
+        """
+        if self._busy or not self._pinging.acquire(blocking=False):
+            return
+
+        try:
+            if time.time() - self.contact.at >= quiet_s:
+                self._call(
+                    "connection check",
+                    lambda conn: conn.run("true", check=False),
+                    PING_TIMEOUT_S,
+                )
+        except RemoteError:
+            pass
+        finally:
+            self._pinging.release()
 
     # --- Files ------------------------------------------------------------------------
     def pull(
@@ -472,15 +518,35 @@ class Remote:
         self, what: str, operation: Callable[[Any], Awaitable[Any]], timeout: float
     ) -> Any:
         """The one place where a failure becomes a ``RemoteError``: the connection is
-        closed, so the next call opens a new one."""
+        closed, so the next call opens a new one. A missing file on the cluster is
+        a failed operation but still an answer, for ``contact``."""
         limit = timeout + self.connect_timeout_s
+        self._busy += 1
+
         try:
-            return await asyncio.wait_for(self._use(operation), limit)
+            found = await asyncio.wait_for(self._use(operation), limit)
         except _FAILURES as error:
             hint = " (is the VPN on?)" if self._conn is None else ""
             self._drop_connection()
             reason = _reason(error, limit)
-            raise RemoteError(f"{what} failed on {self.host}: {reason}{hint}") from None
+            message = f"{what} failed on {self.host}: {reason}{hint}"
+
+            if isinstance(error, asyncssh.SFTPError):
+                self._answered()
+            else:
+                self.contact = Contact(time.time(), self.contact.ok_at, message)
+
+            raise RemoteError(message) from None
+        finally:
+            self._busy -= 1
+
+        self._answered()
+
+        return found
+
+    def _answered(self) -> None:
+        now = time.time()
+        self.contact = Contact(now, now)
 
     async def _use(self, operation: Callable[[Any], Awaitable[Any]]) -> Any:
         assert self._connecting is not None

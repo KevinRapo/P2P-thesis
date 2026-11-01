@@ -583,6 +583,83 @@ def test_follow_copies_a_changed_status_of_the_same_size(
 # --------------------------------------------------------------------------------------
 # Closing
 # --------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+# Contact: how the last use of the connection went
+# --------------------------------------------------------------------------------------
+def test_every_operation_updates_the_contact(cluster, connections):
+    assert cluster.contact == remote.Contact()
+    connections.queue.append(FakeConnection([(0, "", ""), OSError("gone")]))
+    cluster.execute("true")
+    worked = cluster.contact
+    assert worked.ok_at == worked.at > 0 and worked.error is None
+
+    with pytest.raises(RemoteError):
+        cluster.execute("true")
+
+    assert "gone" in cluster.contact.error
+    assert cluster.contact.ok_at == worked.ok_at  # when it last answered is kept
+
+
+def test_a_failed_command_is_still_an_answer(cluster, connections):
+    connections.queue.append(FakeConnection([(1, "", "no")]))
+    assert cluster.execute("false")[0] == 1
+    assert cluster.contact.error is None and cluster.contact.ok_at
+
+
+def test_a_missing_file_on_the_cluster_is_still_an_answer(
+    cluster, connections, tmp_path
+):
+    connections.queue.append(FakeConnection(sftp=FakeSFTP({})))
+
+    with pytest.raises(RemoteError):
+        cluster.pull("runs/none", tmp_path / "mirror")
+
+    assert cluster.contact.error is None and cluster.contact.ok_at
+
+
+def test_ping_reports_in_the_contact_and_never_raises(cluster, connections):
+    connections.queue.append(OSError("no route"))
+    cluster.ping()
+    assert "VPN" in cluster.contact.error and cluster.contact.ok_at is None
+    connection = FakeConnection([(0, "", "")])
+    connections.queue.append(connection)
+    cluster.ping()  # the next ping opens a new connection
+    assert connection.commands == ["true"] and cluster.contact.error is None
+
+
+def test_ping_sends_nothing_after_recent_contact(cluster, connections):
+    connection = FakeConnection([(0, "", ""), (0, "", "")])
+    connections.queue.append(connection)
+    cluster.ping(60)  # never in contact: it asks
+    cluster.ping(60)
+    assert len(connection.commands) == 1
+    cluster.ping()  # a click: it asks
+    assert len(connection.commands) == 2
+
+
+def test_ping_leaves_a_running_operation_alone(cluster, connections):
+    connection = FakeConnection()
+    connections.queue.append(connection)
+    cluster._busy = 1
+    cluster.ping()
+    assert connection.commands == [] and connections.calls == []
+
+
+def test_the_top_bar_says_what_the_contact_says():
+    from studio.layout import contact_shown
+
+    assert contact_shown(None, "TalTech", 100)[:2] == ("grey-5", "TalTech")
+    worked = remote.Contact(70, 70)
+    colour, text, tip = contact_shown(worked, "TalTech", 100)
+    assert (colour, text) == ("green-5", "TalTech") and "(30 s ago)" in tip
+    failed = remote.Contact(90, 70, "no answer")
+    colour, text, tip = contact_shown(failed, "TalTech", 100)
+    assert (colour, text) == ("red-5", "TalTech: no connection")
+    assert tip.startswith("no answer.") and "(30 s ago)" in tip
+    never = remote.Contact(90, None, "no route")
+    assert "not answered" in contact_shown(never, "TalTech", 100)[2]
+
+
 def test_close_stops_the_thread_and_the_object_can_be_used_again(cluster, connections):
     first = FakeConnection([(0, "a", "")])
     second = FakeConnection([(0, "b", "")])

@@ -53,6 +53,12 @@ class FakeTarget:
         self.closed = False
         self.copied = copied  # files the last sync copied; None for a LocalTarget
 
+    def contact(self):
+        return "the contact"
+
+    def ping(self, quiet_s=0):
+        self.calls.append(("ping", quiet_s))
+
     def overview(self, recent=None):
         self.calls.append(("overview",))
         return list(self.entries)
@@ -169,6 +175,70 @@ def test_target_names_and_labels_come_from_targets_toml(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(targets, "TARGETS_FILE", elsewhere)
     assert service.target_names() == [("local", "local"), ("x", "The X"), ("y", "y")]
+
+
+def test_only_clusters_complete_on_this_machine_have_a_status(monkeypatch):
+    needed = {"host": "h", "repo": "r", "python": "p", "mirror": "m"}
+    monkeypatch.setattr(
+        targets,
+        "settings",
+        lambda: {
+            "local": {"kind": "local"},
+            "taltech": {"kind": "slurm", "label": "TalTech"} | needed,
+            "half": {"kind": "slurm"} | needed | {"host": object()},
+        },
+    )
+    assert RunService().clusters() == [("taltech", "TalTech")]
+
+
+def test_the_status_reads_only_a_target_already_made(fakes):
+    service = RunService()
+    assert service.contact("taltech") is None and fakes["made"] == []
+    service.check_connection("taltech", 60)
+    assert fakes["taltech"].calls == [("ping", 60)]
+    assert service.contact("taltech") == "the contact"
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
+@pytest.mark.anyio
+async def test_the_top_bar_shows_the_cluster_and_a_click_checks_it(monkeypatch):
+    from types import SimpleNamespace
+
+    from nicegui import ui
+    from nicegui.testing.user_simulation import user_simulation
+
+    from core.runner.remote import Contact
+    from studio import layout
+
+    checks: list[tuple] = []
+
+    class Runs:
+        def clusters(self):
+            return [("taltech", "TalTech")]
+
+        def contact(self, target):
+            return Contact(50, 50, "no route") if checks else None
+
+        def check_connection(self, target, quiet_s=0):
+            checks.append((target, quiet_s))
+
+    monkeypatch.setattr(layout, "services", lambda: SimpleNamespace(runs=Runs()))
+    monkeypatch.setattr(layout, "_scenario_button", lambda: None)
+
+    def root() -> None:
+        with layout.shell("results", "Title"):
+            ui.label("Content")
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        await user.should_see("TalTech: no connection")  # the timer checked at once
+        assert checks[0] == ("taltech", layout.CONTACT_QUIET_S)
+        user.find(content="TalTech: no connection").click()
+        await user.should_see("TalTech: no connection")
 
 
 def test_a_target_is_made_once_and_closed_with_the_service(fakes, tmp_path):

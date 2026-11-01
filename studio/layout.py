@@ -1,17 +1,22 @@
-"""Shared page shell: header, navigation drawer and page heading. The header names
-the current scenario and opens another from a scenario file."""
+"""Shared page shell: header, navigation drawer and page heading. The header shows
+whether the cluster answers, names the current scenario and opens another from a
+scenario file."""
 
+import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-from nicegui import app, ui
+from nicegui import app, run, ui
 
 from core.config.scenario import Scenario
 from studio.navigation import NAV
 from studio.state import services
 from studio.theme import apply_theme
+
+CONTACT_QUIET_S = 60  # seconds without contact before the status checks by itself
+CONTACT_SHOW_S = 5  # seconds between looks at the status
 
 
 def _toggle_dark(dark: ui.dark_mode) -> None:
@@ -47,8 +52,8 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
                     with ui.item_section():
                         ui.item_label(item.label)
 
-    # Top bar, left to right: menu button, logo and name, (space), scenario button,
-    # dark-mode button
+    # Top bar, left to right: menu button, logo and name, (space), cluster status,
+    # scenario button, dark-mode button
     with ui.header(elevated=False).classes("mls-header items-center q-px-md gap-3"):
         ui.button(icon="menu", on_click=drawer.toggle).props(
             "flat round dense color=white"
@@ -56,6 +61,10 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
         ui.icon("bolt", size="26px").classes("text-amber-4")
         ui.label("MARLEM Studio").classes("mls-brand")
         ui.space()
+
+        for name, label in services().runs.clusters():
+            _cluster_status(name, label)
+
         _scenario_button()
         ui.button(icon="dark_mode", on_click=lambda: _toggle_dark(dark)).props(
             "flat round dense color=white"
@@ -70,6 +79,70 @@ def shell(active: str, title: str, subtitle: str = "") -> Generator[None, None, 
             if subtitle:
                 ui.label(subtitle).classes("mls-subtitle")
         yield
+
+
+# --------------------------------------------------------------------------------------
+# The cluster: whether it answers over SSH
+# --------------------------------------------------------------------------------------
+def _ago(seconds: float) -> str:
+    return f"{seconds:.0f} s" if seconds < 90 else f"{seconds / 60:.0f} min"
+
+
+def contact_shown(contact, label: str, now: float) -> tuple[str, str, str]:
+    """A cluster's status as the top bar shows it: ``(colour, text, tooltip)``, from
+    its ``Contact`` (None: nothing has used the connection yet). Says when it last
+    answered, not "connected": the connection is used, not watched."""
+    if contact is None or not contact.at:
+        return "grey-5", label, "Not checked yet."
+
+    if contact.ok_at is None:
+        last = "It has not answered since the Studio started."
+    else:
+        clock = time.strftime("%H:%M:%S", time.localtime(contact.ok_at))
+        last = f"Last contact {clock} ({_ago(now - contact.ok_at)} ago)."
+
+    if contact.error:
+        return "red-5", f"{label}: no connection", f"{contact.error}. {last}"
+
+    return "green-5", label, last
+
+
+def _cluster_status(name: str, label: str) -> None:
+    """One cluster's dot and name, kept up to date; a click checks it now. The status
+    lives in the connection, so it stays the same from page to page. Green says SSH
+    works, nothing more: whether an experiment can start is on the Runs page."""
+    runs = services().runs
+
+    # One button: dot | name, with what is known in the tooltip
+    with ui.button().props("flat no-caps dense color=white") as button:
+        dot = ui.icon("circle", size="12px").classes("q-mr-xs")
+        text = ui.label()
+        hint = ui.tooltip()
+
+    def show() -> None:
+        colour, shown, tip = contact_shown(runs.contact(name), label, time.time())
+        dot.props(f"color={colour}")
+        text.set_text(shown)
+        hint.set_text(f"{tip} Click to check now.")
+
+    async def tick() -> None:
+        await run.io_bound(runs.check_connection, name, CONTACT_QUIET_S)
+
+        if not button.is_deleted:
+            show()
+
+    async def on_check() -> None:
+        button.props("loading")
+
+        try:
+            await run.io_bound(runs.check_connection, name)
+        finally:
+            button.props(remove="loading")
+            show()
+
+    button.on_click(on_check)
+    show()
+    ui.timer(CONTACT_SHOW_S, tick)
 
 
 # --------------------------------------------------------------------------------------

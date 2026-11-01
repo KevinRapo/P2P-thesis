@@ -64,7 +64,7 @@ from core.runner.registry import RunState
 from core.runner.spec import REPO, Experiment, SpecError, resolve, runs_root
 
 if TYPE_CHECKING:  # remote.py loads asyncssh: imported only where a Remote is built
-    from core.runner.remote import Remote
+    from core.runner.remote import Contact, Remote
 
 TARGETS_FILE = REPO / "hpc" / "targets.toml"
 Spec = str | Path | Experiment  # an experiment file, or the experiment itself
@@ -98,6 +98,13 @@ class Target(ABC):
 
     name: str
     copied: Optional[int] = None  # files the last ``sync`` copied (None: no copying)
+
+    def contact(self) -> Optional["Contact"]:
+        """How the last use of its connection went (None: it has no connection)."""
+        return None
+
+    def ping(self, quiet_s: float = 0) -> None:
+        """Check its connection, if it has one (``Remote.ping``)."""
 
     @abstractmethod
     def check(
@@ -548,6 +555,12 @@ class RemoteTarget(Target):
 
     def close(self) -> None:
         self.remote.close()
+
+    def contact(self) -> "Contact":
+        return self.remote.contact
+
+    def ping(self, quiet_s: float = 0) -> None:
+        self.remote.ping(quiet_s)
 
     # --- Ready? -----------------------------------------------------------------------
     def check(

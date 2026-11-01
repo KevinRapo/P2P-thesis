@@ -14,7 +14,7 @@ from __future__ import annotations
 import threading
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import json
 
@@ -29,6 +29,11 @@ from core.runner.spec import (
     written_out,
 )
 
+if TYPE_CHECKING:
+    from core.runner.remote import Contact
+
+# What a cluster needs to be reached from this PC.
+CLUSTER_KEYS = ("host", "repo", "python", "mirror")
 # The settings a preset of the Experiments page replaces: those the test version changes
 # (``Experiment.test_version``); the test block itself stays, so it can be edited.
 PRESET_KEYS = (
@@ -114,6 +119,16 @@ class RunService:
             (name, cfg.get("label", name)) for name, cfg in targets.settings().items()
         ]
 
+    def clusters(self) -> list[tuple[str, str]]:
+        """``(name, label)`` of every cluster in ``targets.toml`` whose settings are
+        complete on this machine."""
+        return [
+            (name, cfg.get("label", name))
+            for name, cfg in targets.settings().items()
+            if cfg.get("kind") == "slurm"
+            and all(isinstance(cfg.get(key), str) for key in CLUSTER_KEYS)
+        ]
+
     def target(self, name: str) -> targets.Target:
         """The target called ``name``, made on first use and kept (nothing connects
         until a call needs it)."""
@@ -130,6 +145,21 @@ class RunService:
             made, self._targets = list(self._targets.values()), {}
         for target in made:
             target.close()
+
+    # --- The connection --------------------------------------------------------------
+    def contact(self, target: str) -> Optional[Contact]:
+        """How the last use of the target's connection went (``Remote.contact``),
+        None if nothing has used it yet. Reads no file and sends nothing, so a page
+        may call it while it is being built."""
+        with self._made:
+            found = self._targets.get(target)
+
+        return found.contact() if found else None
+
+    def check_connection(self, target: str, quiet_s: float = 0) -> None:
+        """Check the target's connection, if nothing has for ``quiet_s`` seconds
+        (``Remote.ping``); the answer is in ``contact``. May take seconds."""
+        self.target(target).ping(quiet_s)
 
     # --- On a target -----------------------------------------------------------------
     def experiments(self, target: str, recent: Optional[int] = None) -> list[dict]:
