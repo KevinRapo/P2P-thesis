@@ -170,6 +170,8 @@ gives both to the RL layer's evaluation.
     reward        which reward agents learn from: ``"bill"`` (default) or ``"salazar"``
     grid_capacity_kwh  the grid capacity C of the ``"salazar"`` reward
     observation   which signals agents see: ``"paper"`` (default) or ``"pruned"``
+    tariff_range  [lowest p_FiT, highest p_utility] scaling prices (default: from
+                  ``days``)
     seed          seed of the day draw for the first reset
     episode_days, truncate_episode, random_start_soc, terminal_value,
     stored_kwh_value: see Episodes
@@ -259,9 +261,11 @@ class MarketEnv(MultiAgentEnv):
         self.start_kwh: dict[str, float] = {}
         self.agents_id: list[str] = [p.id for p in scenario.participants]
         self.agents = self.possible_agents = list(self.agents_id)
-        # The day's lowest p_FiT and highest p_utility: the fixed scale of prices
+        # The days' lowest p_FiT and highest p_utility: the fixed scale of prices
         # and rewards (the step's own tariffs are the DSO's, ``self.market.dso``).
-        self.feed_in_tariff, self.utility_price = self.market.dso.tariff_range()
+        self.feed_in_tariff, self.utility_price = config.get(
+            "tariff_range"
+        ) or self.market.dso.tariff_range(self.days)
         self.energy_scale: float = float(
             config.get("energy_scale") or self._largest_energy()
         )
@@ -340,6 +344,7 @@ class MarketEnv(MultiAgentEnv):
         return self.config | {
             "energy_scale": self.energy_scale,
             "reward_scale": self.reward_scale,
+            "tariff_range": [self.feed_in_tariff, self.utility_price],
         }
 
     def contract(self) -> dict[str, Any]:
@@ -358,10 +363,14 @@ class MarketEnv(MultiAgentEnv):
                     "price": {
                         "kind": "continuous",
                         "bounds": [-1.0, 1.0],
-                        "means": "FiT + (p + 1) / 2 · (utility − FiT), the step's",
+                        "means": "FiT + (p + 1) / 2 · (peer ceiling − FiT), the step's",
                         "feed_in_tariff": self.feed_in_tariff,
                         "utility_price": self.utility_price,
-                        "prices": self.market.dso.prices,
+                        "prices": {
+                            kind: series
+                            for kind, series in self.market.dso.prices.items()
+                            if kind != "days"
+                        },
                     },
                     "partner": {
                         "kind": "categorical",
@@ -567,8 +576,8 @@ class MarketEnv(MultiAgentEnv):
         if quantity <= _MIN_ORDER_KWH:
             return None
 
-        fit, utility = self.market.dso.feed_in_tariff, self.market.dso.utility_price
-        price = fit + (p + 1.0) / 2.0 * (utility - fit)
+        fit, top = self.market.dso.feed_in_tariff, self.market.dso.peer_ceiling()
+        price = fit + (p + 1.0) / 2.0 * (top - fit)
 
         return OrderIntent(
             pid, is_buy, float(price), float(quantity), self._candidates[pid][partner]
@@ -774,6 +783,7 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
         "bought_from_dso_kwh": float(record.dso.sold_kwh),
         "trade_losses_kwh": float(record.losses_kwh),
         "fees": float(record.fees),
+        "peer_charge": float(sum(t.fee_parts.peer_charge for t in record.trades)),
         "grid_import_kwh": float(max(exchange, 0.0)),
         "grid_export_kwh": float(max(-exchange, 0.0)),
         "grid_losses_kwh": float(grid.losses_kwh or 0.0) if grid.converged else 0.0,

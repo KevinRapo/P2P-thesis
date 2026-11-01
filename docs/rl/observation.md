@@ -56,7 +56,7 @@ $R$ is `reward_scale`, $p_{\text{util}} \cdot E$.
 | 13 | `dso_sell_price` | $p_{\text{util}}$ | $(p - p_{\text{FiT}}) / \Delta p$ |
 | 14 | `mean_local_price` | $\bar{p}^{\text{P2P}} = \sum_{\mathcal{T}^{\text{P2P}}_{t-1}} p\,q \,/\, V^{\text{P2P}}$ | $(p - p_{\text{FiT}}) / \Delta p$ |
 | 15 | `price_spread` | $\Delta p$ | $/\, \Delta p$ |
-| 16 | `local_price_advantage` | $\tfrac{1}{2}(p_{\text{FiT}} + p_{\text{util}}) - \bar{p}^{\text{P2P}}$ | $/\, \Delta p$ |
+| 16 | `local_price_advantage` | $\tfrac{1}{2}(p_{\text{FiT}} + p_{\text{util}}) - \bar{p}^{\text{P2P}}$, all of the last step | $/\, \Delta p$ |
 
 ## Agent signals (16, the agent's own)
 
@@ -102,7 +102,7 @@ $\mathcal{O}$ and $\mathcal{T}$ are the orders and trades of those steps.
 | 5 | `supply_demand_imbalance` | $\sum_{\tau} \lvert Q^{\text{buy}}_\tau - Q^{\text{sell}}_\tau \rvert \,/\, \sum_{\tau} (Q^{\text{buy}}_\tau + Q^{\text{sell}}_\tau)$, with $Q$ a step's ordered energy (E-08, E-11) | as is |
 | 6 | `grid_congestion` | mean over $\mathcal{H}$ of the mean line loading $F_e / \max(C_e)$ ([P1] eq. 19), as the fees saw it | as is |
 | 7 | `coordination_score` | $1 - $ row 5 ([P1] eq. 27) | as is |
-| 8 | `coordination_convergence` | standard deviation over $\mathcal{H}$ of each step's coordination score | as is |
+| 8 | `coordination_convergence` | $1 - \min(1, \sigma / \mu)$ of the traded energy of the last three steps, 0 before the third (the original's; [P1] gives no formula) | as is |
 | 9 | `der_self_consumption` | $\sum_{\mathcal{T}^{\text{P2P}}} q \,/\, \sum_{\mathcal{T}} q$ ([P1] eq. 25; E-12) | as is |
 | 10 | `flexibility_utilization` | $\sum_{\mathcal{T}^{\text{P2P}}} q \,/\, \sum_{\mathcal{O}} (q \mid \text{sell})$: the share of the energy offered that found a peer | as is |
 
@@ -126,12 +126,15 @@ be told apart. This is open (`# OPEN E-07` in `_observe`).
 | Row | marlem-v2 | MARLEM |
 |---|---|---|
 | Market 1-2 | sin and cos of the hour | the step and the hour as numbers |
-| Market 3 | peer trades only | the DSO's trades included (M-15) |
+| Market 3 | peer trades only, carried over without any | the DSO's trades included (M-15), the tariffs' midpoint without any |
+| Market 5 | before the DSO clears | after it clears |
+| Market 12, 13, 15 | the step about to be played | the step just played |
 | Agent 3-4, 6-7 | the battery counts | the battery left out |
 | Agent 9 | the mean | the sum |
 | KPI 3 | ask minus bid, as eq. 23 | bid minus ask |
+| KPI 4 | over the peer clearing price, every step | over the clearing price with the DSO's trades, those above 0 |
 | KPI 5, 7 | over the orders | over the trades, divided by $C_{\text{grid}}$ (E-08) |
-| KPI 8 | spread of the coordination score | stability of the last three clearing volumes |
+| KPI 6 | mean line loading, as eq. 19 | the DSO's congestion level |
 | KPI 10 | over the energy offered | over each agent's surplus or deficit plus its battery |
-| KPIs | over the day so far | over the last step (volatility over all steps) |
+| KPIs 1, 2, 3, 5, 6, 7, 9, 10 | over the day so far | over the last step |
 | All | scaled to about $[-1, 1]$ | raw (E-06) |

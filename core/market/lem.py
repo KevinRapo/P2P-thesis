@@ -272,6 +272,7 @@ class LocalEnergyMarket:
             self.participants[pid].reputation = value
 
         self.dso.reset()
+        self.dso.set_day(g.day)
         self.dso.set_hour(0.0)
         self.clearing_price = self.dso.market_price()
         self.grid = SimBenchGrid(
@@ -433,7 +434,7 @@ class LocalEnergyMarket:
             views,
             self.scenario.market,
             inputs.feed_in_tariff,
-            inputs.utility_price,
+            self.dso.peer_ceiling(),
             inputs.step,
         )
         intents = {
@@ -561,7 +562,11 @@ class LocalEnergyMarket:
         return ClearingRules(
             mechanism=self.scenario.market.mechanism,
             dso=self.dso,
-            reference_price=self.clearing_price,
+            # Last step's price, inside this step's range: the tariffs move each hour.
+            reference_price=min(
+                self.dso.peer_ceiling(),
+                max(self.dso.feed_in_tariff, self.clearing_price),
+            ),
             reputation={pid: q.reputation for pid, q in self.participants.items()},
             path=self._path,
             upstream=self._upstream,

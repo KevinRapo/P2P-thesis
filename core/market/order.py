@@ -34,6 +34,7 @@ class GridFees:
     voltage: float = 0.0  # F_volt (8c, 8f)
     thermal: float = 0.0  # F_thermal (8d, 8g)
     zone: float = 0.0  # F_zone (8e): same-zone bonus, negative
+    peer_charge: float = 0.0  # Not in [P1]: DsoSetup.peer_charge_kwh, the buyer's
 
     @property
     def total(self) -> float:
@@ -45,6 +46,7 @@ class GridFees:
             + self.voltage
             + self.thermal
             + self.zone
+            + self.peer_charge
         )
 
 

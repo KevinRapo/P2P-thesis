@@ -148,12 +148,14 @@ def test_imbalance_adds_the_steps_so_a_surplus_does_not_cancel_a_deficit():
     assert kpi("coordination_score", [surplus, deficit]) == pytest.approx(1 - both)
 
 
-def test_convergence_is_the_spread_of_the_score_over_the_steps_with_orders():
-    even = step([order("a", False, 0.1, 5.0), order("b", True, 0.4, 5.0)])  # 1.0
-    gap = step([order("a", False, 0.1, 10.0)])  # 0.0
-    quiet = step()  # no orders: left out
-    assert kpi("coordination_convergence", [even, gap, quiet]) == pytest.approx(0.5)
-    assert kpi("coordination_convergence", [even]) == 0.0
+def test_convergence_is_the_stability_of_the_last_three_volumes():
+    a, b, c = (step(trades=[trade(0.2, q)]) for q in (10.0, 20.0, 30.0))
+    spread = math.sqrt(200.0 / 3.0) / 20.0
+    assert kpi("coordination_convergence", [c, c, c]) == pytest.approx(1.0)
+    assert kpi("coordination_convergence", [a, b, c]) == pytest.approx(1.0 - spread)
+    assert kpi("coordination_convergence", [c, a, b, c]) == pytest.approx(1.0 - spread)
+    assert kpi("coordination_convergence", [a, b]) == 0.0  # before the third step
+    assert kpi("coordination_convergence", [step(), step(), step()]) == 0.0
 
 
 def test_self_consumption_is_the_peer_share_of_the_energy_traded():
@@ -186,7 +188,10 @@ def test_congestion_reads_the_loading_the_fees_used_and_skips_steps_without():
 def test_nothing_to_measure_is_nan_and_sums_are_zero(history):
     found = signals.kpis(history)
     assert found["social_welfare"] == 0.0 and found["liquidity"] == 0.0
+    assert found["coordination_convergence"] == 0.0  # as in the original
     for name in KPI_NAMES[2:]:
+        if name == "coordination_convergence":
+            continue
         if name == "price_volatility" and history:
             continue  # one clearing price: no spread, so 0
         assert math.isnan(found[name]), name
@@ -202,6 +207,7 @@ def market_after_one_step(**record):
         grid_balance_kwh=3.0,
         dso=SimpleNamespace(bought_kwh=1.5, sold_kwh=0.5),
         trades=[trade(0.15, 8.0), trade(0.3, 2.0, stage=3)],
+        inputs=SimpleNamespace(feed_in_tariff=0.1, utility_price=0.4),
     )
     last.__dict__.update(record)
     return SimpleNamespace(
@@ -225,7 +231,8 @@ def test_market_signals_of_the_last_step():
     assert (found["dso_buy_price"], found["dso_sell_price"]) == (0.1, 0.3)
     assert found["mean_local_price"] == pytest.approx(0.15)
     assert found["price_spread"] == pytest.approx(0.2)
-    assert found["local_price_advantage"] == pytest.approx(0.2 - 0.15)
+    # The midpoint of the step played, as its local price, not of the step to come.
+    assert found["local_price_advantage"] == pytest.approx(0.25 - 0.15)
 
 
 def test_market_signals_before_the_first_step_are_nan_but_the_tariffs():

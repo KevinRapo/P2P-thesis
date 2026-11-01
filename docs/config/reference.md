@@ -90,6 +90,7 @@ Read by [`core/config/store.py`](../../core/config/store.py) into the records of
     "feed_in_tariff": 0.08,
     "utility_price": 0.3,
     "prices": null,
+    "peer_charge_kwh": 0.0,
     "fees_charged": true,
     "fee_buyer_share": 0.5,
     "loss_factor": 0.03,
@@ -174,7 +175,8 @@ not read `bid_margin`.
 |---|---|---|
 | `feed_in_tariff` | number | `p_FiT`, what the DSO pays per kWh. Ignored when `prices` is given |
 | `utility_price` | number | `p_utility`, what the DSO charges per kWh. Ignored when `prices` is given |
-| `prices` | file name, the series themselves, `null` | Tariffs per step: the name of a [price file](#price-file) without `.json`. `null`: the two flat tariffs. `feed_in_tariff` must stay below `utility_price` at every step |
+| `prices` | file name, the series themselves, `null` | Tariffs per step: the name of a [price file](#price-file) without `.json`. `null`: the two flat tariffs. `feed_in_tariff` must stay below `utility_price`, less `peer_charge_kwh`, at every step |
+| `peer_charge_kwh` | non-negative | Grid and tax charge per kWh on a peer trade, paid by the buyer; not in [P1]. Order prices stop at `utility_price − peer_charge_kwh`, so a buyer never pays more than the DSO asks. `0`: the paper's market |
 | `fees_charged` | `true`, `false` | Whether fees are paid. They are calculated and recorded either way |
 | `fee_buyer_share` | `0` to `1` | The buyer's share of a peer trade's fee; the seller pays the rest. A trade with the DSO is paid by the participant |
 | `loss_factor` | per km | `κ` of [P1] eq. 18: `l_ij = d_ij · q_ij · κ` |
@@ -193,6 +195,14 @@ not read `bid_margin`.
 A JSON file in `config/data/`, one price per market step from 00:00, per kWh in the
 scenario's money unit: 24 prices for hourly steps, 96 for quarter-hourly. Time-of-use
 tariffs are decided in MP-0b.
+
+A file can also hold every date's own prices under `days`, as
+`{"2016-06-01": {"utility": [...], "feed_in": [...]}, ...}`. The market then trades at
+the prices of the day it plays, and refuses a day the file does not have; `utility`
+and `feed_in` at the top are the mean day. `de_2024.json` and `de_2024_flat.json` are
+such files, from
+[`build_de_2024.py`](../../config/data/build_de_2024.py): German day-ahead prices of
+2024 as a dynamic household tariff, with spot-based or flat feed-in.
 
 ```json
 {
@@ -249,6 +259,7 @@ in the Studio shows the same settings with the values it runs with.
     "observation": "paper",
     "energy_scale": null,
     "reward_scale": null,
+    "tariff_range": null,
     "episode_days": null,
     "truncate_episode": false,
     "random_start_soc": false,
@@ -401,6 +412,7 @@ The environment's settings, in
 | `observation` | `"paper"`, `"pruned"` | Which signals the agents see ([The observation vector](../rl/observation.md)). `"paper"`: all 42. `"pruned"`: the 22 of `PRUNED_OBS` in [`signals.py`](../../core/market/signals.py). The partners' reputations follow either way, and the rewards do not depend on this setting |
 | `energy_scale` | kWh, `null` | `E`, which scales the energy signals of the observation. `null`: the largest generation or demand of any participant in any step of any training day |
 | `reward_scale` | number, `null` | What the reward is divided by. `null`: `max(p_utility) · E`, the bill for `E` kWh bought from the DSO at its dearest |
+| `tariff_range` | `[low, high]`, `null` | The lowest feed-in tariff and the highest utility price, which scale the prices of the observation. `null`: from the training days, kept for every later evaluation |
 | `episode_days` | integer, `null` | Days per training episode ([Days](#days)). `null`: 1 |
 | `truncate_episode` | `true`, `false` | Ends a window with truncation, not termination ([Days](#days), step 5) |
 | `random_start_soc` | `true`, `false` | Each window starts with the batteries at a random charge in their window |

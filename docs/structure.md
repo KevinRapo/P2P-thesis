@@ -310,6 +310,7 @@ It comes from saved pre-migration results, not a new full-suite or UI test.
 |---|---|---|
 | [`synthetic_day.json`](../config/data/synthetic_day.json) | One day of hourly prices, a time-of-use `utility` series and a flat `feed_in` series (synthetic); a scenario names a file in its `dso.prices`, and a started experiment holds a copy of the series | data |
 | [`synthetic_day_15min.json`](../config/data/synthetic_day_15min.json) | The same day with one price per quarter-hour. A series must have one price per market step, so `step_hours` 0.25 needs this file | data |
+| [`de_2024.json`](../config/data/de_2024.json), [`de_2024_flat.json`](../config/data/de_2024_flat.json) | Each day of 2016 with its own hourly prices: German day-ahead prices of 2024 as a dynamic household tariff, with spot-based or flat feed-in. Built from [`de_day_ahead_2024.csv`](../config/data/de_day_ahead_2024.csv) by [`build_de_2024.py`](../config/data/build_de_2024.py) | data |
 
 ## config/experiments/: what to train
 

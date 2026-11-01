@@ -105,10 +105,15 @@ def coordination_score(history) -> float:
 
 
 def coordination_convergence(history) -> float:
-    """Standard deviation of the per-step coordination score."""
-    # OPEN MP-6a: not defined in [P1].
-    scores = [s for r in history if (s := 1.0 - _imbalance([r])) == s]
-    return statistics.pstdev(scores) if scores else NAN
+    """Stability of the last three steps' traded energy, the original's: 1 minus their
+    standard deviation over their mean, at least 0; 0 before the third step."""
+    # [P1] says only "calculated similarly to the price volatility".
+    volumes = [sum(t.quantity for t in r.trades) for r in history[-3:]]
+
+    if len(volumes) < 3 or statistics.fmean(volumes) <= 0:
+        return 0.0
+
+    return 1.0 - min(1.0, statistics.pstdev(volumes) / statistics.fmean(volumes))
 
 
 def der_self_consumption(history) -> float:
@@ -216,15 +221,21 @@ def mean_local_price(market) -> float:
 
 
 def price_spread(market) -> float:
-    """Utility price minus feed-in tariff: the room peers trade in."""
+    """Utility price minus feed-in tariff; peers trade in this, less any peer charge."""
     return dso_sell_price(market) - dso_buy_price(market)
 
 
 def local_price_advantage(market) -> float:
-    """The tariffs' midpoint minus the local price; > 0 when trading locally pays."""
-    return (dso_buy_price(market) + dso_sell_price(market)) / 2 - mean_local_price(
-        market
-    )
+    """The last step's tariffs' midpoint minus its local price, as the original: > 0
+    when the local price was below the midpoint, which favours the buyers."""
+    r = _last(market)
+
+    if r is None:
+        return NAN
+
+    midpoint = (r.inputs.feed_in_tariff + r.inputs.utility_price) / 2
+
+    return midpoint - mean_local_price(market)
 
 
 MARKET_SIGNALS = {

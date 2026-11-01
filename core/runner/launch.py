@@ -399,9 +399,8 @@ def heldout_env_config(
     experiment: Experiment, exp_dir: Path, variant: Optional[str], record: dict
 ) -> dict:
     """The environment config of a run's held-out evaluation: the test days
-    (``Experiment.heldout_config``) with the energy and reward scales the run
-    resolved on its training days (``record``, its run.json), never scales
-    computed from the test days."""
+    (``Experiment.heldout_config``) with the scales the run resolved on its training
+    days (``record``, its run.json), never scales computed from the test days."""
     from core.env import SCALE_KEYS
 
     trained = record.get("env_config", {})

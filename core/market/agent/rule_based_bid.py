@@ -76,7 +76,8 @@ def net_position(
         views: What each participant knows.
         market: The margin, jitter and seed.
         feed_in_tariff: The DSO's feed-in tariff this step.
-        utility_price: The DSO's utility price this step.
+        utility_price: The top of the peers' range this step: the DSO's utility
+            price, less any peer charge (``Dso.peer_ceiling``).
         step: The step, so each step draws its own jitter.
         partners: Preferred partner per participant, if any.
     """

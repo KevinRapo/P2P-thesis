@@ -10,7 +10,9 @@ from core.config import store
 from core.config.scenario import DsoSetup, load_prices, price_at
 from core.env.market_env import MarketEnv, zero_policy
 from core.market.dso import Dso
+from core.grid.contract import GridPath
 from core.market.lem import LocalEnergyMarket
+from core.market.order import Trade
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 TOU_UTILITY = load_prices("synthetic_day", 1.0)["utility"]
@@ -27,6 +29,77 @@ def test_dso_keeps_its_setup_and_current_tariffs_separate():
     assert dso.transmission_loss(0.5, 2.0) == pytest.approx(0.07)
     assert dso.utility_price == 0.40
     assert dso.setup.utility_price == 0.30
+
+
+def dated_prices() -> dict:
+    day = {"utility": [0.3] * 24, "feed_in": [0.1] * 24}
+    dear = {"utility": [0.5] * 24, "feed_in": [0.2] * 24}
+    return day | {"days": {"2016-06-01": day, "2016-06-02": dear}}
+
+
+def test_a_dated_file_trades_at_each_days_prices():
+    dso = Dso(DsoSetup(prices=dated_prices()))
+    dso.set_day("2016-06-02")
+    dso.set_hour(5)
+    assert (dso.feed_in_tariff, dso.utility_price) == (0.2, 0.5)
+    assert dso.tariff_range(["2016-06-01", "2016-06-02"]) == (0.1, 0.5)
+
+    with pytest.raises(ValueError, match="no day 2016-06-03"):
+        dso.set_day("2016-06-03")
+
+
+def test_the_price_files_of_2024_hold_every_day_with_room_for_peers():
+    for name in ("de_2024", "de_2024_flat"):
+        prices = load_prices(name, 1.0)
+        assert len(prices["days"]) == 366
+        assert not DsoSetup(prices=prices, peer_charge_kwh=0.2294).problems(1.0)
+
+
+def test_a_peer_charge_above_the_tariffs_gap_is_a_problem():
+    setup = DsoSetup(prices=dated_prices(), peer_charge_kwh=0.2)
+    assert any("no gain from peers" in p for p in setup.problems(1.0))
+    assert any("negative" in p for p in DsoSetup(peer_charge_kwh=-1).problems(1.0))
+
+
+def test_the_peer_charge_is_the_buyers_and_lowers_the_peers_ceiling():
+    dso = Dso(DsoSetup(peer_charge_kwh=0.1, fee_buyer_share=0.5))
+    assert dso.peer_ceiling() == pytest.approx(0.2)
+    assert dso.market_price() == pytest.approx((0.08 + 0.2) / 2)
+    parts = dso.fees_of(2.0, 0.15, GridPath(), 0.0)
+    trade = Trade("b", "s", 0.15, 2.0, 0.0, stage=1)
+    charged = dso._charged(trade, parts)
+    assert parts.peer_charge == pytest.approx(0.2)
+    assert charged.seller_fee == pytest.approx((parts.total - 0.2) * 0.5)
+    assert charged.buyer_fee == pytest.approx(0.2 + (parts.total - 0.2) * 0.5)
+    unpaid = Dso(DsoSetup(peer_charge_kwh=0.1, fees_charged=False))
+    assert unpaid.peer_ceiling() == pytest.approx(0.3)  # nobody pays: no ceiling
+
+
+def test_the_price_action_stops_at_the_peer_ceiling():
+    scenario = store.load(SCENARIO)
+    scenario.dso.peer_charge_kwh = 0.1
+    path = Path(__file__).parent / "_peer_charge.json"
+    store.save(scenario, path)
+
+    try:
+        market = MarketEnv({"scenario": str(path)})
+    finally:
+        path.unlink()
+
+    market.reset(seed=0)
+    pid = market.agents_id[0]
+    top = market.decode(pid, market.encode(pid, "buy", 1.0, 1.0))
+    assert top is not None
+    assert top.price == pytest.approx(market.market.dso.utility_price - 0.1)
+
+
+def test_later_environments_keep_the_training_tariff_range():
+    days = ["2016-06-01", "2016-06-02"]
+    env = MarketEnv({"scenario": str(SCENARIO), "days": days})
+    resolved = env.resolved_config()
+    assert resolved["tariff_range"] == [0.08, 0.40]
+    moved = MarketEnv(resolved | {"tariff_range": [0.0, 1.0]})
+    assert (moved.feed_in_tariff, moved.utility_price) == (0.0, 1.0)
 
 
 def test_prices_must_fit_the_market_step():

@@ -211,7 +211,9 @@ def read_prices(name: str) -> dict:
 def load_prices(prices: Optional[str | dict], step_hours: float) -> dict:
     """The ``utility`` and ``feed_in`` series of ``prices``: the name of a file in
     ``config/data/``, the series themselves, or ``None`` (both ``None``: flat).
-    Each series must have one price per market step of ``step_hours`` hours."""
+    Each series must have one price per market step of ``step_hours`` hours. A file
+    may add ``days``, the two series of each date; those are what the market trades
+    at (``price_days``), and the ones at the top are then the mean day."""
     if prices is None:
         return {"utility": None, "feed_in": None}
 
@@ -220,14 +222,20 @@ def load_prices(prices: Optional[str | dict], step_hours: float) -> dict:
 
     steps = round(24 / step_hours)
 
-    for name in ("utility", "feed_in"):
-        if len(prices[name]) != steps:
-            raise ValueError(
-                f"The {name} series has {len(prices[name])} prices, but a day has "
-                f"{steps} steps of {step_hours} h"
-            )
+    for series in [prices, *prices.get("days", {}).values()]:
+        for name in ("utility", "feed_in"):
+            if len(series[name]) != steps:
+                raise ValueError(
+                    f"The {name} series has {len(series[name])} prices, but a day "
+                    f"has {steps} steps of {step_hours} h"
+                )
 
     return prices
+
+
+def price_days(prices: dict) -> list[dict]:
+    """The days of ``load_prices``' result: each date's series, or the one day."""
+    return list(prices.get("days", {}).values()) or [prices]
 
 
 def price_at(flat: float, series: Optional[list], hour: float) -> float:
@@ -253,6 +261,10 @@ class DsoSetup:
         prices: p_utility and p_FiT per market step of the day: the name of a file
             in ``config/data/``, or the series themselves (``load_prices``);
             ``None``: the flat tariffs. [P1] §3.4.4 lets the tariffs change per step.
+        peer_charge_kwh: Grid and tax charge per kWh on a peer-to-peer trade, paid
+            by the buyer; a trade with the DSO has it in the utility price. Peers
+            trade below p_utility − this charge, so the buyer never pays more than
+            the DSO would ask. Not in [P1]: 0 is the paper's market.
         fees_charged: Whether the fees are paid (always calculated and recorded).
         fee_buyer_share: Share of a peer-to-peer trade's fee the buyer pays; the
             seller pays the rest. A trade with the DSO is paid by the participant.
@@ -273,6 +285,7 @@ class DsoSetup:
     feed_in_tariff: float = 0.08
     utility_price: float = 0.30
     prices: Optional[str | dict] = None
+    peer_charge_kwh: float = 0.0
     fees_charged: bool = True
     fee_buyer_share: float = 0.5
     loss_factor: float = 0.03
@@ -297,16 +310,23 @@ class DsoSetup:
         except (OSError, ValueError, KeyError) as error:
             return [f"The prices cannot be read: {error}"]
 
-        for step in range(round(24 / step_hours)):
-            hour = step * step_hours
-            fit = price_at(self.feed_in_tariff, prices["feed_in"], hour)
-            utility = price_at(self.utility_price, prices["utility"], hour)
-            if fit >= utility:
-                found.append(
-                    f"Feed-in tariff is not below the utility price at {hour:g} h: "
-                    "no gain from peers."
-                )
-                break
+        hours = [step * step_hours for step in range(round(24 / step_hours))]
+        below = (
+            (hour, day)
+            for day in price_days(prices)
+            for hour in hours
+            if price_at(self.feed_in_tariff, day["feed_in"], hour)
+            >= price_at(self.utility_price, day["utility"], hour) - self.peer_charge_kwh
+        )
+
+        if (found_hour := next(below, None)) is not None:
+            found.append(
+                "Feed-in tariff is not below the utility price, less the peer "
+                f"charge, at {found_hour[0]:g} h: no gain from peers."
+            )
+
+        if self.peer_charge_kwh < 0:
+            found.append("Peer charge is negative.")
 
         if not 0 <= self.fee_buyer_share <= 1:
             found.append("Fee buyer share is not in 0-1.")

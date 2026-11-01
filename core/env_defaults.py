@@ -11,6 +11,7 @@ MARKET_ENV_CONFIG = {
     "observation": "paper",
     "energy_scale": None,
     "reward_scale": None,
+    "tariff_range": None,
     "episode_days": None,
     "truncate_episode": False,
     "random_start_soc": False,
@@ -21,5 +22,5 @@ MARKET_ENV_CONFIG = {
 REWARD_NAMES = ("bill", "salazar")
 # Kept in step with core.env.market_env.OBSERVATIONS (a test compares them).
 OBSERVATION_NAMES = ("paper", "pruned")
-SCALE_KEYS = ("energy_scale", "reward_scale")
+SCALE_KEYS = ("energy_scale", "reward_scale", "tariff_range")
 ENV_CONFIG_KEYS = tuple(MARKET_ENV_CONFIG) + ("scenario", "days", "seed")

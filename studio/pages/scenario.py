@@ -899,6 +899,7 @@ def _fees() -> None:
         [
             [
                 ("fee_buyer_share", "Buyer's share of a fee", 0.1),
+                ("peer_charge_kwh", "Peer charge (per kWh, buyer pays)", 0.01),
                 ("loss_factor", "Loss factor (per km)", 0.01),
             ],
             [

@@ -73,6 +73,7 @@ class Dso:
 
         self.setup = deepcopy(setup)
         self.prices = load_prices(self.setup.prices, step_hours)
+        self.day_prices = self.prices
         self.step_hours = step_hours
         self.feed_in_tariff = setup.feed_in_tariff
         self.utility_price = setup.utility_price
@@ -92,11 +93,32 @@ class Dso:
         self.fees = 0.0
 
     # --- Tariffs ---------------------------------------------------------------------
-    def tariffs_at(self, hour: float) -> tuple[float, float]:
-        """``(p_FiT, p_utility)`` at ``hour`` of the day (flat or time-of-use)."""
+    def prices_of(self, day: str) -> dict:
+        """The series of ``day`` ("YYYY-MM-DD"): its own in a file with ``days``."""
+        days = self.prices.get("days")
+
+        if days is None:
+            return self.prices
+
+        if day not in days:
+            raise ValueError(f"The prices have no day {day}")
+
+        return days[day]
+
+    def set_day(self, day: str) -> None:
+        """Trade at the prices of ``day`` from now on."""
+        self.day_prices = self.prices_of(day)
+
+    def tariffs_at(
+        self, hour: float, prices: Optional[dict] = None
+    ) -> tuple[float, float]:
+        """``(p_FiT, p_utility)`` at ``hour`` of the current day, or of ``prices``
+        (a day's series; flat or time-of-use)."""
+        day = prices or self.day_prices
+
         return (
-            price_at(self.setup.feed_in_tariff, self.prices["feed_in"], hour),
-            price_at(self.setup.utility_price, self.prices["utility"], hour),
+            price_at(self.setup.feed_in_tariff, day["feed_in"], hour),
+            price_at(self.setup.utility_price, day["utility"], hour),
         )
 
     def set_hour(self, hour: float) -> None:
@@ -104,18 +126,32 @@ class Dso:
         ``utility_price``): what the step about to be played trades at."""
         self.feed_in_tariff, self.utility_price = self.tariffs_at(hour)
 
-    def tariff_range(self) -> tuple[float, float]:
-        """The lowest p_FiT and the highest p_utility of the day: the fixed range
-        prices are scaled by (observation, reward)."""
+    def tariff_range(self, days: Sequence[str] = ()) -> tuple[float, float]:
+        """The lowest p_FiT and the highest p_utility over ``days`` (default: the
+        current day): the fixed range prices are scaled by (observation, reward)."""
         steps = range(round(24 / self.step_hours))
-        prices = [self.tariffs_at(step * self.step_hours) for step in steps]
+        series = [self.prices_of(day) for day in days] or [self.day_prices]
+        prices = [
+            self.tariffs_at(step * self.step_hours, day)
+            for day in series
+            for step in steps
+        ]
 
         return min(f for f, _ in prices), max(u for _, u in prices)
 
+    def peer_ceiling(self) -> float:
+        """The highest peer-to-peer price: above it the buyer, who pays the peer
+        charge on top, would pay more than the DSO asks. The utility price when the
+        fees are not charged."""
+        charge = self.setup.peer_charge_kwh if self.setup.fees_charged else 0.0
+
+        return self.utility_price - charge
+
     def market_price(self) -> float:
-        """The midpoint of p_FiT and p_utility: the reference price before any
-        peer-to-peer trade (the original's ``get_market_price``; not in [P1])."""
-        return (self.feed_in_tariff + self.utility_price) / 2
+        """The midpoint of p_FiT and the peer ceiling: the reference price before any
+        peer-to-peer trade (the original's ``get_market_price``; not in [P1]); with
+        no peer charge, of the two tariffs."""
+        return (self.feed_in_tariff + self.peer_ceiling()) / 2
 
     # --- The grid it operates --------------------------------------------------------
     def observe(
@@ -181,6 +217,7 @@ class Dso:
             voltage=min(v_drop, s.voltage_threshold) * value,  # 8c
             thermal=thermal,
             zone=-s.zone_factor * value if path.same_zone else 0.0,  # 8e
+            peer_charge=s.peer_charge_kwh * quantity,
         )
 
     def imbalance_fee(self, trade: Trade, grid_balance_kwh: float) -> GridFees:
@@ -204,8 +241,8 @@ class Dso:
 
     def _charged(self, trade: Trade, parts: GridFees) -> Trade:
         """The trade with its fee, split between who pays it: the buyer's share of
-        a peer-to-peer fee, the participant's whole fee with the DSO. Nothing is
-        paid when the fees are not charged."""
+        a peer-to-peer fee and the whole peer charge, the participant's whole fee
+        with the DSO. Nothing is paid when the fees are not charged."""
         total = parts.total
 
         if not self.setup.fees_charged:
@@ -215,8 +252,9 @@ class Dso:
         elif trade.seller_id == self.id:
             buyer, seller = total, 0.0
         else:
-            buyer = total * self.setup.fee_buyer_share
-            seller = total - buyer
+            shared = total - parts.peer_charge
+            seller = shared * (1.0 - self.setup.fee_buyer_share)
+            buyer = total - seller
 
         return replace(
             trade, fees=total, fee_parts=parts, buyer_fee=buyer, seller_fee=seller
@@ -267,7 +305,9 @@ class Dso:
             )
             if self.id in (t.buyer_id, t.seller_id):
                 imbalance = self.imbalance_fee(t, grid_balance_kwh).imbalance
-                parts = replace(parts, zone=0.0, imbalance=imbalance)
+                parts = replace(
+                    parts, zone=0.0, imbalance=imbalance, peer_charge=0.0
+                )
             out.append(self._charged(t, parts))
 
         return tuple(out)
