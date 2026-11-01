@@ -17,108 +17,81 @@ one place that knows both: it starts, watches and stops training experiments
 `hpc/targets.toml`: this machine, or a SLURM cluster (used from the cluster
 itself, or from here over SSH).
 
+**The folders.** Click a folder to go to its section, which lists its files.
+
 ```mermaid
-flowchart TD
-  root(["marlem-v2"])
+%%{init: {"flowchart": {"rankSpacing": 10, "nodeSpacing": 24, "padding": 8, "subGraphTitleMargin": {"top": 4, "bottom": 6}}}}%%
+flowchart TB
+  subgraph other["top level"]
+    direction TB
+    nb["notebooks/"]:::code ~~~ tests["tests/"]:::code ~~~ hpc["hpc/"]:::data ~~~ runs["runs/ (not in git)"]:::data
+  end
 
-  root --> core["core/"]
+  subgraph studio["studio/"]
+    direction TB
+    s1["pages/ · components/"]:::code ~~~ s2["adapters/"]:::code
+  end
 
-  core --> cs["settings.py · env_defaults.py · rl_defaults.py · files.py"]:::done
+  subgraph cfg["config/"]
+    direction TB
+    f1["data/"]:::data ~~~ f2["experiments/"]:::data ~~~ f3["scenarios/"]:::data
+  end
 
-  core --> config["config/"]
-  config --> c1["scenario.py"]:::data
-  config --> c2["store.py"]:::done
-  config --> c3["placement.py"]:::done
+  subgraph core["core/"]
+    direction TB
+    c0["shared helpers"]:::code ~~~ c1["config/"]:::code ~~~ c2["grid/"]:::code ~~~ c3["market/"]:::code
+    c3 ~~~ c4["env/"]:::code ~~~ c5["rl/"]:::code ~~~ c6["runner/"]:::code
+  end
 
-  core --> grid["grid/"]
-  grid --> g1["contract.py"]:::done
-  grid --> g2["simbench.py"]:::done
-  grid --> g3["powerflow.py"]:::done
-  grid --> g4["graph.py"]:::done
+  click c0 href "#core-shared-helpers" _self
+  click c1 href "#coreconfig-the-scenario" _self
+  click c2 href "#coregrid-the-simbench-network" _self
+  click c3 href "#coremarket-the-marlem-market" _self
+  click c4 href "#coreenv-the-market-as-an-rl-environment" _self
+  click c5 href "#corerl-the-reinforcement-learning-layer" _self
+  click c6 href "#corerunner-experiments" _self
+  click f1 href "#configdata-the-tariffs" _self
+  click f2 href "#configexperiments-what-to-train" _self
+  click f3 href "#configscenarios-saved-scenarios" _self
+  click s1 href "#studio-the-user-interface" _self
+  click s2 href "#studioadapters-what-the-pages-call" _self
+  click nb href "#notebooks-the-core-without-the-studio" _self
+  click tests href "#tests-market-and-rl-checks" _self
+  click hpc href "#around-the-code" _self
+  click runs href "#around-the-code" _self
 
-  core --> market["market/"]
-  market --> m1["lem.py"]:::done
-  market --> m7["clearing.py"]:::done
-  market --> m4["clearing_price.py"]:::done
-  market --> m2["order.py"]:::done
-  market --> m5["reputation.py"]:::done
-  market --> m9["signals.py"]:::done
-  market --> agent["agent/"]
-  agent --> a1["der.py"]:::done
-  agent --> a2["battery.py"]:::done
-  agent --> a3["rule_based_bid.py"]:::done
-  market --> d1["dso.py"]:::done
-
-  core --> env["env/"]
-  env --> e1["market_env.py"]:::done
-
-  core --> rlcore["rl/"]
-  rlcore --> r1["config.py · state.py · ctce.py · ctde.py<br/>modules.py · learner.py · policy.py · train.py"]:::done
-  rlcore --> renvs["envs/"]
-  renvs --> r2["probes.py"]:::done
-  rlcore --> rscripts["scripts/"]
-  rscripts --> r3["probe_check.py · probe_ppo.py"]:::done
-
-  core --> runnercore["runner/"]
-  runnercore --> ru1["spec.py · launch.py · registry.py · results.py<br/>slurm.py · targets.py · remote.py · __main__.py"]:::done
-
-  root --> cfg["config/"]
-  cfg --> pricedata["data/"]
-  pricedata --> pd1["synthetic_day.json · synthetic_day_15min.json"]:::data
-  cfg --> exps["experiments/"]
-  exps --> ex1["smoke.json · market_ppo.json<br/>market_ppo_detailed.json · grid_methods.json<br/>day_end.json"]:::data
-
-  root --> hpc["hpc/"]
-  hpc --> hp1["targets.toml"]:::data
-  hpc --> hs["hpc.ps1 / hpc.cmd<br/>jupyter.slurm"]:::done
-
-  cfg --> scen["scenarios/"]
-  scen --> s1["validate_market.json"]:::done
-
-  root --> notebooks["notebooks/"]
-  notebooks --> nm["market/"]
-  nm --> n1["market_1_formulas · market_2_step<br/>market_3_days (.ipynb)"]:::done
-  nm --> n3["benchmark_market_step.ipynb<br/>results/market_step.csv"]:::done
-  nm --> n4["grid_methods.ipynb"]:::done
-  notebooks --> nr["rl/"]
-  nr --> nr1["probe_paradigms"]:::done
-  notebooks --> nu["runner/"]
-  nu --> nu1["targets_demo.ipynb · results.ipynb"]:::done
-
-  root --> tests["tests/"]
-  tests --> tm["market/"]
-  tm --> x1["test_studio_matches_core.py · test_market_env.py<br/>test_partner_choice.py · test_powerflow_recycle.py<br/>test_fees_timing.py · test_grid_methods.py"]:::done
-  tests --> tr["rl/"]
-  tr --> x2["test_0 to test_8 · test_training_metrics.py<br/>test_evaluation_tables.py · probe_helpers.py · conftest.py"]:::done
-  tests --> tru["runner/"]
-  tru --> x3["test_runner.py · test_run_service.py · test_results.py<br/>test_results_service.py · test_slurm.py · test_targets.py · test_remote.py"]:::done
-  tests --> tst["studio/"]
-  tst --> x4["test_charts.py"]:::done
-
-  root --> runs["runs/ (local results, not in git)"]:::data
-
-  root --> studio["studio/"]
-  studio --> t1["app.py · layout.py · navigation.py<br/>state.py · theme.py · static/"]:::done
-  studio --> pages["pages/"]
-  pages --> pg1["inspect.py · settings.py · components.py"]:::done
-  pages --> pg2["scenario.py · experiments.py<br/>summary.py · market/ (page.py · step.py · probes.py)<br/>rl_probes.py · runs.py · results/ (page.py · one file per tab)"]:::done
-  studio --> comps["components/"]
-  comps --> k1["network.py · profiles.py · charts.py · cards.py<br/>tables.py · run_table.py · labels.py · day_profiles.py"]:::done
-  studio --> adapters["adapters/"]
-  adapters --> v1["container.py · workspace.py · models.py"]:::done
-  adapters --> v2["grid_catalog_service.py · profile_service.py<br/>profile_classes.py"]:::done
-  adapters --> v3["scenario_service.py · market_service.py<br/>run_service.py · results_service.py<br/>validation_service.py"]:::done
-
-  classDef done fill:#dcfce7,stroke:#15803d,color:#111
+  classDef code fill:#dcfce7,stroke:#15803d,color:#111
   classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
-  classDef stub fill:#fef3c7,stroke:#b45309,color:#111
-  classDef orig fill:#e5e7eb,stroke:#6b7280,color:#111
 ```
 
-Green: implemented; this is not a fresh test report for every component. Blue: data definitions only. Amber: stub, methods raise
-`NotImplementedError` or the page shows a placeholder. Grey: original MARLEM code,
-copied unchanged, kept as the reference; most of it is **not importable** (its
-imports point to the old layout).
+Green holds code, blue holds data and settings. How far each file is built is in
+the State column of its section.
+
+**The layers.** An arrow means "imports", and only the main imports are drawn.
+
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 34, "nodeSpacing": 18, "padding": 8}}}%%
+flowchart LR
+  ui["studio/pages/<br/>components/"]:::code --> ad["studio/adapters/"]:::code
+  nb["notebooks/"]:::code --> runner
+  nb --> rl
+  nb --> market
+  ad --> runner["core/runner/"]:::code
+  ad --> market["core/market/"]:::code
+  runner --> env["core/env/"]:::code
+  runner --> rl["core/rl/"]:::code
+  env --> market
+  market --> base["core/config/ ↔<br/>core/grid/"]:::code
+
+  classDef code fill:#dcfce7,stroke:#15803d,color:#111
+  classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
+```
+
+`core/rl/` has no arrow to the market: the environment arrives as a class, so the
+probes test it alone. Pages, adapters and notebooks also read `core/config/` and
+`core/grid/` directly, and any layer may use the shared helpers. `core/config/` and
+`core/grid/` import each other: `placement.py` needs the network, and
+`powerflow.py` reads `GridSetup`.
 
 ## core/: shared helpers
 
@@ -143,6 +116,20 @@ Everything the user sets before stepping the market, as plain data.
 The only place that imports pandapower and simbench. It hands out plain records,
 never pandapower objects.
 
+An arrow means "imports".
+
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 34, "nodeSpacing": 18, "padding": 8}}}%%
+flowchart LR
+  powerflow["powerflow.py"]:::code --> simbench["simbench.py"]:::code
+  powerflow --> contract["contract.py"]:::data
+  simbench --> contract
+  graphmodel["graph.py"]:::code --> contract
+
+  classDef code fill:#dcfce7,stroke:#15803d,color:#111
+  classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
+```
+
 | Script | What it does | State |
 |---|---|---|
 | [`contract.py`](../core/grid/contract.py) | The plain records that cross the grid seam: networks, topology, elements, profiles, power-flow results, the path between two buses (`GridPath`) | done |
@@ -156,6 +143,27 @@ The market of the paper ([methodology](marlem/methodology.md)). `lem.py` is the
 one class that runs it (`LocalEnergyMarket`, as in the original); `clearing.py`,
 `agent/rule_based_bid.py`, `clearing_price.py` and `reputation.py` are its rebuilt pieces, and
 the remaining original files (profiles) are the reference.
+
+An arrow means "imports". Left out: `order.py`, which nearly every file here
+imports; `signals.py`, which imports nothing from the market; and `probes.py`,
+which plays the market through `lem.py` and `dso.py`.
+
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 34, "nodeSpacing": 18, "padding": 8}}}%%
+flowchart LR
+  lem["lem.py"]:::code --> reputation["reputation.py"]:::code
+  lem --> bid["agent/rule_based_bid.py"]:::code
+  lem --> der["agent/der.py"]:::code
+  lem --> battery["agent/battery.py"]:::code
+  der --> battery
+  lem --> clearing["clearing.py"]:::code
+  lem --> dso["dso.py"]:::code
+  clearing --> dso
+  clearing --> price["clearing_price.py"]:::code
+
+  classDef code fill:#dcfce7,stroke:#15803d,color:#111
+  classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
+```
 
 | Script | What it does | State |
 |---|---|---|
@@ -189,6 +197,30 @@ The three paradigms (CTCE, CTDE, DTDE) on RLlib's own PPO. It
 imports no market module: the environment is passed in as a class. Each file's
 docstring names the issues it fixes ([validation/rl.md](validation/rl.md)). The
 original code with its annotations is at commit `bbef313`, under `RL/core/rl/`.
+
+An arrow means "imports", and only the main imports are drawn: `policy.py` also
+imports `ctce.py`, `ctde.py`, `modules.py` and `state.py`. `scripts/probe_ppo.py`
+is the command around `scripts/probe_check.py`.
+
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 34, "nodeSpacing": 18, "padding": 8}}}%%
+flowchart LR
+  check["scripts/probe_check.py"]:::code --> train["train.py"]:::code
+  check --> probes["envs/probes.py"]:::code
+  train --> policy["policy.py"]:::code
+  train --> config["config.py"]:::code
+  policy --> config
+  config --> ctce["ctce.py"]:::code
+  config --> ctde["ctde.py"]:::code
+  config --> modules["modules.py"]:::code
+  config --> learner["learner.py"]:::code
+  ctce --> state["state.py"]:::code
+  ctde --> state
+  ctde --> modules
+
+  classDef code fill:#dcfce7,stroke:#15803d,color:#111
+  classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
+```
 
 | Script | What it does | State |
 |---|---|---|
@@ -231,6 +263,30 @@ one training batch, 15 minutes, named `<name>--test`), to prove the pipeline
 with a small amount of actual training. [The resource guide](hpc/resources.md)
 separates run concurrency from within-run sampling; [the workflow guide](hpc/experiments.md)
 describes restart, sync and the inspected execution evidence.
+
+An arrow means "imports". Left out: `spec.py`, which nearly every file here
+imports, and `probe_runs.py`, which imports nothing from the runner. `launch.py`
+is where `core/env/` and `core/rl/` come in.
+
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 34, "nodeSpacing": 18, "padding": 8}}}%%
+flowchart LR
+  main["__main__.py"]:::code --> targets["targets.py"]:::code
+  main --> launch["launch.py"]:::code
+  main --> registry["registry.py"]:::code
+  results["results.py"]:::code --> targets
+  results --> registry
+  targets --> launch
+  targets --> registry
+  targets --> slurm["slurm.py"]:::code
+  targets --> remote["remote.py"]:::code
+  slurm --> launch
+  slurm --> registry
+  launch --> registry
+
+  classDef code fill:#dcfce7,stroke:#15803d,color:#111
+  classDef data fill:#dbeafe,stroke:#1d4ed8,color:#111
+```
 
 | Script | What it does | State |
 |---|---|---|

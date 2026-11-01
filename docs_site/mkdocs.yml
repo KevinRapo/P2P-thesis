@@ -142,10 +142,10 @@ nav:
   - Implementation:
       - marlem-v2: v2.md
       - Code structure: structure.md
+      - The full cycle: full-cycle.md
       - Config:
           - Sections: config/sections.md
           - Master example: config/master.md
-      - The full cycle: full-cycle.md
       - Plans:
           - plan/index.md
           - Market plan: plan/market.md

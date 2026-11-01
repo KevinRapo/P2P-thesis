@@ -28,16 +28,17 @@
     return b;
   }
 
-  // Box height for the current width: the diagram's own aspect ratio (read
-  // once, before svg-pan-zoom takes over the viewBox), within 240px..80% of
-  // the window height.
+  // Box height for the current width: the diagram's own aspect ratio and size
+  // (read once, before svg-pan-zoom takes over the viewBox), so a small diagram
+  // is not blown up to the box's width; within 120px..80% of the window height.
   function fitHeight(box, svg) {
     if (!box.ratio) {
       const vb = svg.viewBox.baseVal;
       box.ratio = vb && vb.width ? vb.height / vb.width : 0.5;
+      box.naturalWidth = vb && vb.width ? vb.width : box.clientWidth;
     }
-    const natural = box.clientWidth * box.ratio;
-    return Math.max(240, Math.min(natural, window.innerHeight * 0.8));
+    const natural = Math.min(box.clientWidth, box.naturalWidth) * box.ratio;
+    return Math.max(120, Math.min(natural, window.innerHeight * 0.8));
   }
 
   async function renderOne(box) {
@@ -63,6 +64,11 @@
       maxZoom: 20,
       zoomScaleSensitivity: 0.3,
     });
+    // The fit option alone is wrong on a redraw (new colours): the zoom comes out
+    // set by the width only, cropping a wide, low diagram.
+    pz.resize();
+    pz.fit();
+    pz.center();
     box.panZoom = pz;
   }
 
