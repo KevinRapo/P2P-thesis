@@ -70,20 +70,7 @@ Under RLlib the policy is factorised over the components (one distribution each,
 
 An agent missing from the action dict places no order.
 
-Reward, per agent and step: the net energy bill, scaled,
-
-    r = (profit − p_utility · deferred_demand) / reward_scale
-
-``profit`` is eq. 14 for the step (revenue − cost of its trades − its grid fees);
-p_utility is the step's (time-of-use tariffs change by hour).
-``deferred_demand`` is the demand that generation, purchases and battery left
-uncovered; it is drawn from the upstream grid untraded. Settlement leaves that
-energy unpriced, so profit alone would make not buying free: an agent that
-orders nothing would pay nothing for its imports, while one that buys pays for
-them. The untraded import is therefore charged at the utility price, what the
-DSO would have charged for it. Untraded exports (``deferred_supply``) earn
-nothing: the surplus is spilled. Buying and selling then only pay off against
-these two outside options.
+Reward, per agent and step: defined in ``core/env/reward.py``.
 
 Scales. ``energy_scale`` E defaults to the largest generation or demand of any
 participant in any step of any day in ``days``; ``reward_scale`` defaults to
@@ -194,6 +181,7 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
+from core.env.reward import net_bill, step_rewards, terminal_reward
 from core.env_defaults import ENV_CONFIG_KEYS, SCALE_KEYS as SCALE_KEYS
 from core.market import signals
 from core.market.dso import DSO_ID
@@ -424,12 +412,12 @@ class MarketEnv(MultiAgentEnv):
         shared, shared_state = _market_infos(record)
         orders = {order.agent_id: order for order in record.orders}
         preference = _preference_kwh(record)
-        rewards, infos = {}, {}
+        rewards = step_rewards(record, self.reward_scale)
+        infos = {}
 
         for pid in self.agents_id:
             o = record.participants[pid]
-            bill = o.profit - record.inputs.utility_price * o.deferred_demand_kwh #! Reward calc
-            rewards[pid] = bill / self.reward_scale
+            bill = net_bill(record, pid)
             order = orders.get(pid)
             battery = self.market.participants[pid].battery
             change = float((o.soc_kwh or 0.0) - stored.get(pid, 0.0))
@@ -466,7 +454,9 @@ class MarketEnv(MultiAgentEnv):
         if done and self.terminal_value and not self.one_day:
             for pid, kwh in self._stored_kwh().items():
                 gain = kwh - self.start_kwh[pid]
-                rewards[pid] += self.stored_kwh_value * gain / self.reward_scale
+                rewards[pid] += terminal_reward(
+                    gain, self.stored_kwh_value, self.reward_scale
+                )
 
         if day_over and not self.one_day and (not done or self.truncate_episode):
             self._next_day()

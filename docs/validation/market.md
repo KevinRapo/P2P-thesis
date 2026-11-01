@@ -264,7 +264,7 @@ network elements a participant owns, for the scenario's day (`GridSetup.day`), a
 ([der.py](../../core/market/agent/der.py#L88-L115)). Eq. 17 is not used. A
 different day per episode is the RL environment's job: `MarketEnv.reset` draws a
 day from its configured `days`, sets it on the scenario and rebuilds the market
-([market_env.py](../../core/env/market_env.py#L323-L334)), so training and
+([market_env.py](../../core/env/market_env.py#L311-L322)), so training and
 held-out days are separate lists ([v2.md](../v2.md#the-market-as-an-environment)).
 
 ## 2. Orders and feasibility

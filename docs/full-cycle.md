@@ -19,7 +19,7 @@ joins it to the market.
 **Keeping it true.** The market sections follow
 [`LocalEnergyMarket.start_step`](../core/market/lem.py#L287-L310) and
 [`advance`](../core/market/lem.py#L312-L352), the environment section
-[`MarketEnv.step`](../core/env/market_env.py#L410-L474), the training section
+[`MarketEnv.step`](../core/env/market_env.py#L398-L464), the training section
 [`train`](../core/rl/train.py#L408-L555). When one of them changes, its section
 changes. Line links point at branch `marlem-v2`.
 
@@ -44,8 +44,8 @@ VS Code's Draw.io extension, then run `python docs_site/export_drawio.py`.
 |---|---|---|---|---|
 | Training | one iteration: collect, targets, update | until `budget` environment steps | [`train`](../core/rl/train.py#L408-L555) → RLlib `algo.train()` | [One training iteration](rl/cycle.md) |
 | Collect (A) | one environment step for every agent | until the batch is full (`train_batch_size_per_learner`) | RLlib env runners | [A1-A5](rl/cycle.md#a-collect-from-observation-to-environment-step) |
-| Episode | one day | 24 steps (96 with quarter hours) | [`MarketEnv.reset`](../core/env/market_env.py#L373-L408) | [0. Before the day](#0-before-the-day-reset) |
-| Environment step (A5) | decode, market step, reward, observation | once per collect step | [`MarketEnv.step`](../core/env/market_env.py#L410-L474) | [The environment step](#the-environment-step) |
+| Episode | one day | 24 steps (96 with quarter hours) | [`MarketEnv.reset`](../core/env/market_env.py#L361-L396) | [0. Before the day](#0-before-the-day-reset) |
+| Environment step (A5) | decode, market step, reward, observation | once per collect step | [`MarketEnv.step`](../core/env/market_env.py#L398-L464) | [The environment step](#the-environment-step) |
 | Market step | phases 1 to 8 | once per environment step | [`LocalEnergyMarket.step`](../core/market/lem.py#L354-L361) | [The market step](#the-market-step) |
 
 The paradigms (CTCE, CTDE, DTDE) change only A1 to A4 and the update: what each
@@ -66,10 +66,10 @@ In outline; every calculation is in [One training iteration](rl/cycle.md).
 
 ## The environment step
 
-[`MarketEnv.step`](../core/env/market_env.py#L410-L474): the agents' actions in,
+[`MarketEnv.step`](../core/env/market_env.py#L398-L464): the agents' actions in,
 observations and rewards out, one market step in the middle.
 
-**E1. Decode.** [`decode`](../core/env/market_env.py#L524-L557), per agent. The
+**E1. Decode.** [`decode`](../core/env/market_env.py#L514-L547), per agent. The
 action's four parts ([P1] eq. 2; [v2.md §2](v2.md#2-the-mixed-action)) become an
 intent: `side` picks sell or buy, `partner` one of the agent's candidates (a peer,
 the DSO or none), and the continuous `quantity` and `price` $a_q, a_p \in [-1, 1]$
@@ -104,7 +104,7 @@ environment of the run, held-out days included ([v2.md §5](v2.md#5-the-run-cont
 CTCE's `CTCEEnv` sums the agents' rewards, $R = \sum_i r_i$; DTDE and CTDE keep
 each agent's own.
 
-**E3. Observation.** [`_observe`](../core/env/market_env.py#L645-L671), per agent
+**E3. Observation.** [`_observe`](../core/env/market_env.py#L635-L661), per agent
 for the step about to be played: the paper's 16 market signals, the agent's own 16
 agent signals and the 10 implicit-cooperation KPIs over the day so far, all from
 [`signals.py`](../core/market/signals.py), then the other agents' reputations;
@@ -193,7 +193,7 @@ Order prices are rounded to whole cents when the intents are limited to the boun
 optionally a preferred partner $\beta$. They come from outside or from the market's
 own rule:
 
-- **from the RL agents**: [`MarketEnv.decode`](../core/env/market_env.py#L524-L557)
+- **from the RL agents**: [`MarketEnv.decode`](../core/env/market_env.py#L514-L547)
   turns each action into an intent (quantity as a share of eq. 15a-b's bound, price
   between $p_\text{FiT}$ and $p_\text{utility}$);
 - **from the bidding rule** when none are given:
@@ -443,15 +443,15 @@ Every quantity of the environment step and the market step, with the phase that 
 
 | Quantity | Symbol | Phase | Code | Kept in |
 |---|---|---|---|---|
-| Action → intent | $a_t$ | E1 | [`MarketEnv.decode`](../core/env/market_env.py#L524-L557) | `PendingStep.intents` |
-| Reward | $r_t$ | E2 | [`MarketEnv.step`](../core/env/market_env.py#L410-L474) | `rewards`, `infos` |
-| Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../core/env/market_env.py#L645-L671) | – |
+| Action → intent | $a_t$ | E1 | [`MarketEnv.decode`](../core/env/market_env.py#L514-L547) | `PendingStep.intents` |
+| Reward | $r_t$ | E2 | [`step_rewards`](../core/env/reward.py) | `rewards`, `infos` |
+| Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../core/env/market_env.py#L635-L661) | – |
 | Market and agent signals, KPIs | [P1] Table 2, eq. 19-27 | E3 | [`signals.py`](../core/market/signals.py) | – |
 | Generation, demand of a step | $G_t$, $D_t$ | 0, 1 | [`profiles_from_elements`](../core/market/agent/der.py#L88-L120), [`_inputs`](../core/market/lem.py#L408-L419) | `StepInputs`, `ParticipantOutcome` |
 | Tariffs | $p_\text{FiT}$, $p_\text{utility}$ | 0, 8b, 1 | `DsoSetup`, [`Dso.set_hour`](../core/market/dso.py#L102-L105), [`price_at`](../core/config/scenario.py#L233-L239) | `StepInputs` |
 | Chargeable, dischargeable energy | $E_\text{ch}$, $E_\text{dis}$ | 2 | [`Battery`](../core/market/agent/battery.py#L22-L107) | – |
 | Order bounds | $q_\text{sell,max}$, $q_\text{buy,max}$ | 2 | [`max_sell_kwh`, `max_buy_kwh`](../core/market/agent/der.py#L185-L191) | – |
-| Intent from an action | | 2 | [`MarketEnv.decode`](../core/env/market_env.py#L524-L557) | `PendingStep.intents` |
+| Intent from an action | | 2 | [`MarketEnv.decode`](../core/env/market_env.py#L514-L547) | `PendingStep.intents` |
 | Intent from the bidding rule | | 2 | [`rule_based_bid.net_position`](../core/market/agent/rule_based_bid.py#L64-L107) | `PendingStep.intents` |
 | Preferred partner | $\beta$ | 2 | [`choose_partner`](../core/market/agent/der.py#L195-L234) | `Order.partner_id` |
 | Validated order | $p$, $q$ | 2 | [`_validate`](../core/market/lem.py#L501-L536), [`_orders`](../core/market/lem.py#L538-L554) | `StepRecord.orders`, `notes` |

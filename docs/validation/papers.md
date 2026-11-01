@@ -50,7 +50,7 @@ confirms nor contradicts it.
 | **DSO penalty $\gamma_{\text{DSO}}$** | fixed, $p_{\text{dso}} = 15$ | scaled by grid imbalance | **Differ**; [P2] matches the code |
 | **Trading reward, P2P vs DSO weight** | 0.3 / 0.3 | "a higher weight for P2P" | **Differ**; the code meant [P2]'s, ran [P1]'s |
 | Base reward $R_{\text{base}}$, components | five, with weights and ranges | the same five, no weights | Agree; only [P1] has numbers |
-| Cooperation factor $f_{\text{coop}}$ | eq. 5, weights given | text only | Agree in words; only [P1] has the formula |
+| Cooperation factor $f_{\text{coop}}$ | eq. 5, three of ten weights | text only | Agree in words; only [P1] has the formula, the code all the weights |
 | KPIs | eq. 21-27 | eq. 4-10 | Agree, the same formulas |
 | Paradigms CTCE, CTDE, DTDE | §3.7.1, words | §3.4, eq. 16-20 | Agree; [P2] adds the formulas |
 | Algorithms PPO, APPO, SAC | §3.7.2, words | §3.3, eq. 11-15 | Agree; [P2] adds the formulas |
@@ -183,6 +183,13 @@ $$
   ran on the code (register E-14), so the bonus the trained agents saw was the
   code's, not [P2]'s.
 
+**What [P1] says the constants are for** (§3.2.4). The log compression "serves to
+bound the gradient magnitude for large raw rewards", so that rare high rewards do
+not destabilise the value estimates. The scale 20 was chosen from a tested range of
+$[10, 40]$: lower values compressed too much, higher ones risked unstable gradients.
+Penalties are scaled so that they stay proportional to the incentives. [P1] gives
+no reason for the $/\,5$ in the bonus.
+
 ### Contribution factor $f_{\text{contrib}}$: [P1] matches the code, [P2] does not
 
 | | [P1] eq. 6 | [P2] §3.1 |
@@ -303,18 +310,212 @@ reward therefore runs as 0.3 / 0.3 (register E-17).
 - **The weights in the code are right for $f_{\text{contrib}}$,** which matches [P1]
   eq. 6 (above).
 
-### $R_{\text{base}}$ and $f_{\text{coop}}$: agree, numbers only in [P1]
+### The full calculation, term by term
 
-Both list the same five base components: economic efficiency, grid balance,
-resource allocation, trading and stability. Only [P1] gives weights (10, 1.5, 5,
-2, 3) and ranges, and its weights match the code's.
+This section writes every term out. The papers give the top level; below that the
+code is the only formula (register E-21), so each term says where it comes from.
+[P2] restates no factor as a formula, so its reward uses the same terms, apart from
+the two differences in the table.
 
-Both describe $f_{\text{coop}}$ as a weighted sum of normalised system KPIs. Only [P1] gives
-the formula and weights (eq. 5, total weight 56). The code
-([L176-L198](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L170-L192))
-computes it as [P1] eq. 5 but feeds it raw, unnormalised KPIs, so $f_{\text{coop}}$ is
-nowhere near [0, 1]: about 1811 in a traced episode (register E-13, E-20). Neither
-paper gives the normalisation ranges.
+| Term | [P1] | [P2] | Formula below taken from |
+|---|---|---|---|
+| Overall form | eq. 3-4 | eq. 3 | each its own, [above](#overall-form-three-versions) |
+| $R_{\text{base}}$ | sum and all five weights, parts in words with ranges | the five names only | [P1] for the sum and weights, code for the parts |
+| $f_{\text{coop}}$ | eq. 5, three of the ten weights, total 56 | words only | [P1] eq. 5, code for the other seven weights |
+| $f_{\text{contrib}}$ | eq. 6, parts in words | words, a different grid part | [P1] eq. 6, code for the parts |
+| $\gamma_{\text{DSO}}$ | "reliance on the DSO", $p_{\text{dso}} = 15$ | words, "scaled by the current grid imbalance" | code |
+| $\gamma_{\text{UD}}$ | "unmet demand", $p_{\text{no_trades}} = 5$ | words | code |
+
+**Notation**, for agent $i$ in one step:
+
+| Symbol | Meaning | Code |
+|---|---|---|
+| $q_i$, $\alpha_i$ | its order's quantity and side (1 buy, 0 sell) | `order` |
+| $\mathcal{K}_i$, $\mathcal{K}^{L}_i$, $\mathcal{K}^{D}_i$ | its trades, those with peers, those with the DSO | `agent_trades` |
+| $Q^{L}_i$, $Q^{D}_i$, $Q_i$ | the energy of each set, $Q_i = Q^{L}_i + Q^{D}_i$ | `local_quantity`, `dso_quantity`, `total_quantity` |
+| $E^{b}_i$, $E^{s}_i$ | the energy it bought and sold | |
+| $p_k$, $q_k$ | a trade's price and quantity | |
+| $\bar{p}_i$ | its mean trade price, $\sum_{k \in \mathcal{K}_i} p_k q_k / Q_i$ | `avg_trade_price` |
+| $p_c$ | the market's clearing price | `clearing_price` |
+| $p_{\text{FiT}}$, $p_{\text{util}}$, $p_{\min}$, $p_{\max}$ | the DSO's prices and the market's price bounds | |
+| $B$ | the balance, **always 0** after clearing (register M-24) | `dso.balance`, `matching.grid_balance` |
+| $b_i$ | the agent's position, from the previous step | `agent.balance` |
+| $C$ | the grid capacity | `grid_network.capacity` |
+
+`clip` limits a value to the range in its subscript; $[x]^+ = \max(0, x)$.
+
+#### Base reward $R_{\text{base}}$
+
+$$
+R_{\text{base},i} = 10\, r_{\text{grid},i} + 1.5\, r_{\text{res},i} + 5\, r_{\text{trade},i} + 2\, r_{\text{stab},i} + 3\, r_{\text{econ},i}
+$$
+
+The weights are [P1]'s and the code's. Each part below is the code's
+([`reward.py`](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L148-L166)).
+
+**Grid balance** ([L253-L309](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L253-L309)).
+[P1]: "a contribution score normalized by grid capacity and a penalty for increasing
+imbalance", range $[-1, 2]$.
+
+$$
+\begin{aligned}
+r_{\text{grid},i} &= 1 - \min\!\left(\frac{\lvert B \rvert}{C},\, 1\right) + \frac{c_i}{C} - 10\, \operatorname{clip}_{[0,1]}\!\left(\frac{\lvert B \rvert}{C}\right) + 0.5\, h_i \\
+c_i &= \begin{cases} q_i & \text{buying with } B > 0, \text{ or selling with } B < 0 \\ -q_i & \text{otherwise} \end{cases} \\
+h_i &= \operatorname{clip}_{[-1,1]}\!\left(\frac{\lvert B - b_i \rvert - \lvert B \rvert}{0.1\, C}\right)
+\end{aligned}
+$$
+
+The $-10$ term alone can take it well below [P1]'s range. With $B = 0$, as always
+in the code, it is $1 - q_i / C + 0.5\, h_i$ (register E-16).
+
+**Resource allocation** ([L388-L412](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L388-L412)).
+[P1]: "the execution ratio minus a penalty for the unexecuted portion", range
+$[-1.5, 1]$. With $e_i$ the share of the order executed on its own side:
+
+$$
+r_{\text{res},i} = e_i - 1.5\,(1 - e_i)
+$$
+
+**Trading** ([L234-L251](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L234-L251)).
+[P1]'s $0.3\,\rho_{\text{local}} + 0.3\,\rho_{\text{dso}}$, range $[0, 0.6]$, with the code's fill rates:
+
+$$
+r_{\text{trade},i} = 0.3 \min\!\left(\frac{Q^{L}_i}{q_i},\, 1\right) + 0.3 \min\!\left(\frac{Q^{D}_i}{q_i},\, 1\right)
+$$
+
+**Stability** ([L414-L446](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L414-L446)).
+[P1]: price stability (0.3) and grid improvement (0.7), "normalized to $[0, 1]$".
+The code does not limit the first part, so it can go below 0.
+
+$$
+\begin{aligned}
+r_{\text{stab},i} &= 0.3\,(1 - 2\, v_i) + 0.7\, u_i \\
+v_i &= \frac{\operatorname{std}\{p_k : k \in \mathcal{K}_i\}}{p_c} \\
+u_i &= \frac{\left[\lvert B \rvert - \lvert B + E^{b}_i - E^{s}_i \rvert\right]^+}{\lvert B \rvert} \qquad (0 \text{ if } B = 0)
+\end{aligned}
+$$
+
+**Economic efficiency** ([L311-L386](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L311-L386)).
+[P1]: price efficiency against the clearing price (0.4) and profit relative to DSO
+prices (0.6), normalised to $[0, 1]$.
+
+$$
+\begin{aligned}
+r_{\text{econ},i} &= 0.4\, e^{p}_i + 0.6\, z_i \\
+e^{p}_i &= 1 - \min\!\left(2\, \frac{\lvert \bar{p}_i - p_c \rvert}{p_c},\, 1\right) \\
+z_i &= \begin{cases}
+\operatorname{clip}_{[0,1]}\!\left(\dfrac{p_{\text{util}} - \bar{p}_i}{p_{\text{util}} - p_{\min}}\right) & \text{buying} \\[2ex]
+\operatorname{clip}_{[0,1]}\!\left(\dfrac{\bar{p}_i - p_{\text{FiT}}}{p_{\max} - p_{\text{FiT}}}\right) & \text{selling}
+\end{cases}
+\end{aligned}
+$$
+
+$r_{\text{econ}} = 0$ when $p_c = 0$.
+
+Apart from $c_i / C$ and $h_i$ in the grid part, every part is a ratio or a price,
+so none of them grows with the amount of energy traded.
+
+#### Cooperation factor $f_{\text{coop}}$
+
+$$
+f_{\text{coop}} = \frac{1}{56} \sum_{k} f_k \cdot \tilde{k}
+\qquad \text{with } \tilde{k} = 1 - k \text{ for the KPIs where lower is better, else } \tilde{k} = k
+$$
+
+This is [P1] eq. 5; the same value for every agent. [P1] states the total (56) and
+three weights, marked below; the code
+([L168-L192](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L168-L192))
+has all ten. Both papers call the KPIs normalised, but neither gives the ranges,
+and the code uses them raw, so $f_{\text{coop}}$ is nowhere near $[0, 1]$: about 1811 in
+a traced episode (register E-13, E-20).
+
+| KPI $k$ | $f_k$ | Inverted | [P1] definition, §4 above | [Code](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/coordination/implicit_cooperation.py#L83-L226), one step |
+|---|---|---|---|---|
+| Social welfare | 7 ([P1]) | | $\sum p\, q$ | as [P1] |
+| Market liquidity | 1.5 | | $\sum q$ | as [P1] |
+| Mean bid-ask spread | 1.5 | yes | $\mathbb{E}[p_{\text{ask}}] - \mathbb{E}[p_{\text{bid}}]$ | mean price of the buy orders minus that of the sell orders |
+| Price volatility | 3 | yes | std of the clearing price over a window | std over all steps with a price |
+| Supply-demand imbalance | 10 ([P1]) | yes | $\lvert \sum q_{\text{buy}} - \sum q_{\text{sell}} \rvert / C_{\text{grid}}$ | $\min(\sum q / C,\ 1)$ over the trades (register E-08) |
+| Grid congestion | 9 ([P1]) | yes | mean of $F_e / \max(C_e)$ over the lines | the congestion level, limited to $[0, 1]$ |
+| Coordination score | 5 | | $1 - \text{imbalance}$ | $\operatorname{clip}_{[0,1]}(1 - \sum q / C)$ |
+| Coordination convergence | 8 | | "calculated similarly to the price volatility" | $1 - \min(\operatorname{std}/\text{mean},\ 1)$ of the last 3 clearing volumes |
+| DER self-consumption | 5 | | $\sum q_{\text{P2P}} / \sum (q_{\text{P2P}} + q_{\text{DSO}})$ | as [P1] |
+| Flexibility utilization | 6 | | $\sum q_{\text{P2P}} / \sum q_{\text{available}}$ | $q_{\text{available}}$ is each agent's surplus or deficit plus its battery room, both directions added |
+
+The imbalance enters twice: once inverted, and again as the coordination score,
+which is the same quantity, so together they weigh 15 of the 56.
+
+#### Contribution factor $f_{\text{contrib}}$
+
+$$
+f_{\text{contrib},i} = 0.5\, c_{\text{grid},i} + 0.3\, c_{\text{share},i} + 0.2\, c_{\text{dev},i}
+$$
+
+This is [P1] eq. 6, which calls the three parts $r_{\text{grid}}$, $r_{\text{share}}$ and
+$r_{\text{dev}}$; they are renamed here because $r_{\text{grid}}$ is also the base reward's
+first part, with a different formula. The parts are the code's
+([L448-L499](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L448-L499)):
+
+$$
+\begin{aligned}
+c_{\text{grid},i} &= \begin{cases}
+0.5 & B = 0 \\
+0.5 + 0.5\, s_i & \text{the net trade } n_i \text{ opposes } B \\
+0.5 - 0.5\, s_i & \text{otherwise}
+\end{cases}
+\qquad n_i = E^{s}_i - E^{b}_i, \quad s_i = \min\!\left(\frac{\lvert n_i \rvert}{\lvert B \rvert},\, 1\right) \\[1ex]
+c_{\text{share},i} &= \frac{\lvert \mathcal{K}^{L}_i \rvert}{\lvert \mathcal{K}_i \rvert} \\[1ex]
+c_{\text{dev},i} &= \operatorname{clip}_{[0,1]}\!\left(1 - \frac{2}{\lvert \mathcal{K}_i \rvert} \sum_{k \in \mathcal{K}_i} \frac{\lvert p_k - p_c \rvert}{p_c}\right) \qquad (0.5 \text{ if } p_c = 0)
+\end{aligned}
+$$
+
+$c_{\text{share}}$ counts trades, not energy, as [P1] says. "Opposes $B$" means selling
+on net when $B < 0$ or buying on net when $B > 0$. [P2] replaces the grid part with
+$-\partial \lvert B_{\text{grid}} \rvert / \partial a_i$ and names price efficiency and local volume
+for the other two, without weights ([above](#contribution-factor-f_textcontrib-p1-matches-the-code-p2-does-not)).
+
+#### Penalties and the no-trade case
+
+The code's penalties
+([L200-L214](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L200-L214)):
+
+$$
+\begin{aligned}
+\gamma_{\text{DSO},i} &= 15 \cdot \frac{Q^{D}_i}{Q_i} \cdot \frac{\lvert B \rvert}{\max(C,\, 1)} \\
+\gamma_{\text{UD},i} &= \begin{cases}
+15 \left(\dfrac{\left[D^{\text{req}}_i - D^{\text{sat}}_i\right]^+}{D^{\text{req}}_i}\right)^2 & \text{at the terminal step} \\[2ex]
+0 & \text{otherwise}
+\end{cases}
+\end{aligned}
+$$
+
+$D^{\text{req}}_i$ is the agent's total demand of the episode and $D^{\text{sat}}_i$ what was satisfied
+of it. [P2]'s words fit $\gamma_{\text{DSO}}$; [P1] gives no formula for either, and its
+$p_{\text{no_trades}} = 5$ is not what $\gamma_{\text{UD}}$ uses (register E-18).
+
+An agent with no trades skips everything above and gets a fixed reward
+([L134-L136](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/reward.py#L134-L136)):
+
+$$
+R_i = -20 \ln\!\left(1 + \frac{5}{20}\right) \approx -4.46
+$$
+
+#### Putting it together
+
+With the terms above, each version computes, for an agent with at least one trade:
+
+| | $r_{\text{raw},i}$ | Reward |
+|---|---|---|
+| [P1] | $R_{\text{base},i} \left(1 + \ln\!\left(1 + \dfrac{[f_{\text{coop}} f_{\text{contrib},i} - 1]^+}{5}\right)\right) - \gamma_{\text{DSO},i} - \gamma_{\text{UD},i}$ | $\operatorname{sign}(r_{\text{raw}}) \cdot 20 \ln\!\left(1 + \dfrac{\lvert r_{\text{raw}} \rvert}{20}\right)$ |
+| [P2] | not separate | $R_{\text{base},i} \left(1 + f_{\text{coop}} f_{\text{contrib},i}\right) - \gamma_{\text{DSO},i} - \gamma_{\text{UD},i}$ |
+| Code | $R^{+}_i - s_i\, \gamma_{\text{DSO},i} - s_i\, \dfrac{\gamma_{\text{UD},i}}{15}$ | $\operatorname{sign}(r_{\text{raw}}) \cdot 20 \ln\!\left(1 + \dfrac{\lvert r_{\text{raw}} \rvert}{20}\right)$ |
+
+where, for the code,
+
+$$
+R^{+}_i = R_{\text{base},i} \left(1 + \frac{\ln\!\left(1 + [f_{\text{coop}} f_{\text{contrib},i}]^+\right)}{5}\right),
+\qquad s_i = 0.3 \max\!\left(\lvert R^{+}_i \rvert,\, 1\right).
+$$
 
 ## 4. KPIs
 

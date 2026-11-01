@@ -223,10 +223,10 @@ the `Tuple` (L-05).
 <span class="ours">Entirely ours: the market environment.</span> In CTCE
 `CTCEEnv` first splits the group's `Tuple` into the agents' actions
 ([`ungroup`](../../core/rl/ctce.py#L35-L42)). Then
-[`MarketEnv.step`](../../core/env/market_env.py#L410-L474), per agent:
+[`MarketEnv.step`](../../core/env/market_env.py#L398-L464), per agent:
 
 1. **Decode** the action into an order
-   ([`decode`](../../core/env/market_env.py#L524-L557)):
+   ([`decode`](../../core/env/market_env.py#L514-L547)):
     - side $\alpha$: 0 sell, 1 buy;
     - quantity share $\textcolor{mediumpurple}{s = (q + 1)/2}$; **no order** when
       $\textcolor{mediumpurple}{s < 0.05}$, otherwise $s$ rescaled to $(0, 1]$ and

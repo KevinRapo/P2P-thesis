@@ -57,7 +57,7 @@ what does it get for it, and is that the problem the thesis means? The market
 plan has fixed the market side (its *Hands to RL* lines); this stage turns that
 into the action, reward and observation of `MarketEnv`.
 
-**Read.** [market_env.py](../../core/env/market_env.py): the module docstring is
+**Read.** [market_env.py](../../core/env/market_env.py) and [reward.py](../../core/env/reward.py): the module docstring is
 the contract; then `decode` (action → order), `step` (reward), `_observe`.
 
 | Part | Check | Decisions |

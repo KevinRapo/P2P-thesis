@@ -95,7 +95,7 @@ decision of its own: the agent steers it only through its trade quantity
 (selling beyond the surplus discharges it, buying beyond the deficit charges it,
 trading exactly the net position leaves it alone). Untraded energy has no price in
 the market's profit; the RL reward charges an untraded import at the utility price
-([`MarketEnv.step`](../../core/env/market_env.py#L410-L474)). Every day starts at
+([`MarketEnv.step`](../../core/env/market_env.py#L398-L464)). Every day starts at
 the initial state of charge (0.5).
 
 **Check.**

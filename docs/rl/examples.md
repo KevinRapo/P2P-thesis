@@ -23,7 +23,8 @@ up for the example.
 | [state.py](../../core/rl/state.py) | <span class="ours">the global state: all observations joined in agent order</span> | 1 |
 | [ctce.py](../../core/rl/ctce.py), [ctde.py](../../core/rl/ctde.py) | <span class="ours">the CTCE and CTDE wrappers, CTDE's own-observation actor</span> | 1, 4, 6 |
 | [modules.py](../../core/rl/modules.py) | <span class="ours">the policy head: tanh mean, one learned log σ per part</span> | 2, 5 |
-| [market_env.py](../../core/env/market_env.py) | <span class="ours">the action space, decoding an action into an order, the reward</span> | 1, 4, 6 |
+| [market_env.py](../../core/env/market_env.py) | <span class="ours">the action space, decoding an action into an order</span> | 1, 4 |
+| [reward.py](../../core/env/reward.py) | <span class="ours">the reward</span> | 6 |
 | [learner.py](../../core/rl/learner.py) | <span class="ours">RLlib's PPO learner, also logging the clip fraction</span> | 5 |
 | [policy.py](../../core/rl/policy.py), [train.py](../../core/rl/train.py) | <span class="ours">evaluation, baselines, the budget and the NaN stop</span> | 7, 8 |
 
@@ -35,7 +36,7 @@ that broke the original,
 [L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
 Each observes $d_o = 42 + (N - 1) = 44$ numbers: the paper's 42 signals and its two
 peers' reputations ([Observation](observation.md)). Each acts with the `Dict`
-<span class="ours">([`_action_space`](../../core/env/market_env.py#L303-L313))</span>:
+<span class="ours">([`_action_space`](../../core/env/market_env.py#L291-L301))</span>:
 
 | Part | Space | Meaning |
 |---|---|---|
@@ -45,7 +46,7 @@ peers' reputations ([Observation](observation.md)). Each acts with the `Dict`
 | `partner` | `Discrete(N + 1) = Discrete(4)` | an index into the agent's candidates |
 
 The candidates are the other participants in scenario order, then the DSO, then
-"no preference" ([`partners`](../../core/env/market_env.py#L316-L320)):
+"no preference" ([`partners`](../../core/env/market_env.py#L304-L308)):
 
 | Agent | 0 | 1 | 2 | 3 |
 |---|---|---|---|---|
@@ -154,7 +155,7 @@ batch keeps $-1.3$.
 }
 ```
 
-**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L524-L557)</span>).
+**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L514-L547)</span>).
 Say `agent_10` may buy at most 2.5 kWh this step, and the step's tariffs are a
 feed-in tariff of 0.05 and a utility price of 0.25 €/kWh:
 
@@ -239,7 +240,7 @@ and DTDE each agent's carry its own.
 
 The market pays each agent its bill for the step,
 <span class="ours">$(\text{profit} - p_\text{utility} \cdot \text{unmet demand}) / \text{reward scale}$</span>
-([`step`](../../core/env/market_env.py#L410-L474)). Say:
+([`step_rewards`](../../core/env/reward.py)). Say:
 
 $$
 r_2 = 1.50, \qquad r_{10} = -0.50, \qquad r_1 = 0.25 .
@@ -288,7 +289,7 @@ threshold); <span class="ours">"net position"</span> is the market's own bidding
 rule: offer the surplus, or ask for the deficit, left after the battery, priced 30 %
 of the way from the feed-in tariff (selling) or the utility price (buying) into the
 spread, with no partner
-([`net_position_policy`](../../core/env/market_env.py#L788-L827)).
+([`net_position_policy`](../../core/env/market_env.py#L778-L817)).
 
 **The team score** ([`Episode`](../../core/rl/policy.py#L226-L247)). Every
 paradigm is scored in the original multi-agent environment, from the per-agent
