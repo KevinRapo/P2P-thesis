@@ -20,6 +20,10 @@ import pytest
 from core.config import store
 from core.config.scenario import DsoSetup
 from core.env import OBS_NAMES, MarketEnv, net_position_policy, zero_policy
+from core.env.market_env import OBSERVATIONS
+from core.env.reward import REWARDS, NetBillReward, SalazarReward
+from core.env_defaults import OBSERVATION_NAMES, REWARD_NAMES
+from core.market.signals import PRUNED_OBS
 from core.market.clearing import Clearing, ClearingRules
 from core.market.dso import Dso
 from core.market.lem import LocalEnergyMarket, OrderIntent
@@ -171,6 +175,86 @@ def test_reset_plays_the_day_asked_for(env):
     assert infos["P1"]["day"] == DAYS[-1]
     with pytest.raises(ValueError, match="not one of the environment's days"):
         env.reset(options={"day": "2016-12-31"})
+
+
+def test_the_reward_setting_chooses_the_calculation(env):
+    """The default is the bill. ``"salazar"`` plays the same market and reports the
+    same money, with a reward of its own; its names match the runner's."""
+    assert isinstance(env.reward, NetBillReward)
+    assert set(REWARDS) == set(REWARD_NAMES)
+    salazar = MarketEnv(
+        {
+            "scenario": str(SCENARIO),
+            "days": DAYS,
+            "reward": "salazar",
+            "grid_capacity_kwh": 50.0,
+        }
+    )
+    assert isinstance(salazar.reward, SalazarReward)
+    assert salazar.contract()["reward"] == "salazar"
+    rng = np.random.default_rng(3)
+    env.reset(seed=3, options={"day": DAYS[0]})
+    salazar.reset(seed=3, options={"day": DAYS[0]})
+    done = False
+
+    while not done:
+        actions = random_actions(env, rng)
+        _, plain, _, _, infos = env.step(actions)
+        _, shaped, ended, _, others = salazar.step(actions)
+        done = ended["__all__"]
+        for a in AGENTS:
+            assert others[a]["bill"] == pytest.approx(infos[a]["bill"])
+            assert np.isfinite(shaped[a])
+
+    assert any(shaped[a] != pytest.approx(plain[a]) for a in AGENTS)
+
+
+def test_the_observation_setting_chooses_the_signals(env):
+    """The default is the paper's 42. ``"pruned"`` gives the same values under its
+    22 names, with the peers' reputations after them, and the baseline still reads its
+    signals by name; its names match the runner's."""
+    assert set(OBSERVATIONS) == set(OBSERVATION_NAMES)
+    assert env.obs_names[:42] == OBS_NAMES
+    assert set(PRUNED_OBS) <= set(OBS_NAMES) and len(PRUNED_OBS) == 22
+    pruned = MarketEnv(
+        {"scenario": str(SCENARIO), "days": DAYS, "observation": "pruned"}
+    )
+    assert pruned.observation_spaces[AGENTS[0]].shape == (22 + len(AGENTS) - 1,)
+    full, _ = env.reset(seed=3, options={"day": DAYS[0]})
+    small, _ = pruned.reset(seed=3, options={"day": DAYS[0]})
+    baseline = net_position_policy(env)
+    reduced = net_position_policy(pruned)
+    done = False
+
+    while not done:
+        for a in AGENTS:
+            assert pruned.observation_spaces[a].contains(small[a])
+            for i, name in enumerate(pruned.obs_names):
+                assert small[a][i] == full[a][env.obs_names.index(name)]
+
+        actions = baseline(full)
+        same = reduced(small)
+        for a in AGENTS:
+            assert same[a]["side"] == actions[a]["side"]
+            assert same[a]["quantity"] == pytest.approx(actions[a]["quantity"])
+
+        full, _, ended, _, _ = env.step(actions)
+        small, _, _, _, _ = pruned.step(same)
+        done = ended["__all__"]
+
+
+def test_an_unknown_observation_is_refused():
+    with pytest.raises(ValueError, match="unknown observation"):
+        MarketEnv({"scenario": str(SCENARIO), "days": DAYS, "observation": "nope"})
+
+
+def test_a_reward_is_refused_without_what_it_needs():
+    """An unknown name, and the salazar reward without a capacity."""
+    with pytest.raises(ValueError, match="unknown reward"):
+        MarketEnv({"scenario": str(SCENARIO), "days": DAYS, "reward": "nope"})
+
+    with pytest.raises(ValueError, match="grid_capacity_kwh"):
+        MarketEnv({"scenario": str(SCENARIO), "days": DAYS, "reward": "salazar"})
 
 
 def test_reward_is_the_scaled_net_bill(env):

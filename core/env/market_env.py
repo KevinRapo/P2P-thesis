@@ -8,9 +8,10 @@ the step, and turns the step's record back into observations and rewards. No
 market rule lives here (``core/market/`` stays the one place for those).
 
 Observation (``obs_names``, one vector per agent, values clipped to [-10, 10]),
-computed for the step about to be played: the paper's 42 signals ([P1] Table 2,
-computed in ``core/market/signals.py``) in its three groups, then the other agents'
-reputations, which [P1] adds when partner preference is on:
+computed for the step about to be played: with the default ``observation = "paper"``
+the paper's 42 signals ([P1] Table 2, computed in ``core/market/signals.py``) in its
+three groups, with ``"pruned"`` the 22 of ``signals.PRUNED_OBS``; then the other
+agents' reputations, which [P1] adds when partner preference is on:
 
     market (16, public)   ``MARKET_OBS``: hour_sin, hour_cos (sin and cos of the day
                           gone by, in place of the signals step and time of day),
@@ -70,7 +71,8 @@ Under RLlib the policy is factorised over the components (one distribution each,
 
 An agent missing from the action dict places no order.
 
-Reward, per agent and step: defined in ``core/env/reward.py``.
+Reward, per agent and step: the ``reward`` setting chooses it, by default the scaled
+net bill (``core/env/reward.py``).
 
 Scales. ``energy_scale`` E defaults to the largest generation or demand of any
 participant in any step of any day in ``days``; ``reward_scale`` defaults to
@@ -165,6 +167,9 @@ gives both to the RL layer's evaluation.
                   scenario's day; ``reset(options={"day": ...})`` plays one of them)
     energy_scale  E in kWh (default: computed from ``days``)
     reward_scale  default ``p_utility · E``
+    reward        which reward agents learn from: ``"bill"`` (default) or ``"salazar"``
+    grid_capacity_kwh  the grid capacity C of the ``"salazar"`` reward
+    observation   which signals agents see: ``"paper"`` (default) or ``"pruned"``
     seed          seed of the day draw for the first reset
     episode_days, truncate_episode, random_start_soc, terminal_value,
     stored_kwh_value: see Episodes
@@ -181,7 +186,7 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
-from core.env.reward import net_bill, step_rewards, terminal_reward
+from core.env.reward import build_reward, net_bill
 from core.env_defaults import ENV_CONFIG_KEYS, SCALE_KEYS as SCALE_KEYS
 from core.market import signals
 from core.market.dso import DSO_ID
@@ -198,6 +203,10 @@ MARKET_OBS: tuple[str, ...] = ("hour_sin", "hour_cos") + tuple(
 AGENT_OBS: tuple[str, ...] = tuple(signals.AGENT_SIGNALS)
 KPI_OBS: tuple[str, ...] = tuple(signals.KPIS)
 OBS_NAMES: tuple[str, ...] = MARKET_OBS + AGENT_OBS + KPI_OBS
+OBSERVATIONS: dict[str, tuple[str, ...]] = {
+    "paper": OBS_NAMES,
+    "pruned": signals.PRUNED_OBS,
+}
 ACTION_COMPONENTS = ("side", "quantity", "price", "partner")
 SIDES = ("sell", "buy")  # α: index 0 sells, 1 buys ([P1] eq. 2)
 NO_PREFERENCE = "none"  # the last partner candidate: no partner named
@@ -259,13 +268,29 @@ class MarketEnv(MultiAgentEnv):
         self.reward_scale: float = float(
             config.get("reward_scale") or self.utility_price * self.energy_scale
         )
+        self.reward_name: str = config.get("reward") or "bill"
+        self.reward = build_reward(
+            self.reward_name,
+            self.market,
+            self.reward_scale,
+            config.get("grid_capacity_kwh"),
+        )
         self._candidates = {
             a: [b for b in self.agents_id if b != a] + [DSO_ID, None]
             for a in self.agents_id
         }
-        self.obs_names: tuple[str, ...] = OBS_NAMES + tuple(
+        observation = config.get("observation") or "paper"
+
+        if observation not in OBSERVATIONS:
+            raise ValueError(
+                f"unknown observation {observation!r}; "
+                f"choose from {sorted(OBSERVATIONS)}"
+            )
+
+        self.obs_names: tuple[str, ...] = OBSERVATIONS[observation] + tuple(
             f"partner_rep_{k}" for k in range(1, len(self.agents_id))
         )
+        self._signal_names = OBSERVATIONS[observation]
         self._scales = self._obs_scales()
         obs_box = spaces.Box(
             -_OBS_LIMIT, _OBS_LIMIT, (len(self.obs_names),), np.float32
@@ -346,6 +371,7 @@ class MarketEnv(MultiAgentEnv):
                 "policy": "factorised over the components",
             },
             "partners": {a: self.partners(a) for a in self.agents_id},
+            "reward": self.reward_name,
             "scales": {
                 "energy_scale": self.energy_scale,
                 "reward_scale": self.reward_scale,
@@ -412,7 +438,7 @@ class MarketEnv(MultiAgentEnv):
         shared, shared_state = _market_infos(record)
         orders = {order.agent_id: order for order in record.orders}
         preference = _preference_kwh(record)
-        rewards = step_rewards(record, self.reward_scale)
+        rewards = self.reward.step(record)
         infos = {}
 
         for pid in self.agents_id:
@@ -458,9 +484,7 @@ class MarketEnv(MultiAgentEnv):
         if done and self.terminal_value and not self.one_day:
             for pid, kwh in self._stored_kwh().items():
                 gain = kwh - self.start_kwh[pid]
-                rewards[pid] += terminal_reward(
-                    gain, self.stored_kwh_value, self.reward_scale
-                )
+                rewards[pid] += self.reward.stored_energy(gain, self.stored_kwh_value)
 
         if day_over and not self.one_day and (not done or self.truncate_episode):
             self._next_day()
@@ -634,7 +658,7 @@ class MarketEnv(MultiAgentEnv):
             "social_welfare": (0.0, self.reward_scale * n * t),
         }
 
-        return {name: kinds.get(name, (0.0, 1.0)) for name in OBS_NAMES}
+        return {name: kinds.get(name, (0.0, 1.0)) for name in self._signal_names}
 
     def _observe(self) -> dict[str, np.ndarray]:
         """Every agent's observation for the step about to be played (see the module
@@ -793,7 +817,7 @@ def net_position_policy(
     its whole surplus or asks for its whole deficit.
     """
     agents = list(env.agents_id)
-    index = {name: i for i, name in enumerate(OBS_NAMES)}
+    index = {name: i for i, name in enumerate(env.obs_names)}
 
     def policy(obs: dict[str, np.ndarray]) -> dict[str, Any]:
         actions = {}

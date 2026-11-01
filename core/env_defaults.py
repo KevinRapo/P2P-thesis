@@ -6,6 +6,9 @@ These sit outside ``core/env/`` because that package imports ``MarketEnv`` and R
 """
 
 MARKET_ENV_CONFIG = {
+    "reward": "bill",
+    "grid_capacity_kwh": None,
+    "observation": "paper",
     "energy_scale": None,
     "reward_scale": None,
     "episode_days": None,
@@ -14,5 +17,9 @@ MARKET_ENV_CONFIG = {
     "terminal_value": False,
     "stored_kwh_value": None,
 }
+# Kept in step with core.env.reward.REWARDS (a test compares them).
+REWARD_NAMES = ("bill", "salazar")
+# Kept in step with core.env.market_env.OBSERVATIONS (a test compares them).
+OBSERVATION_NAMES = ("paper", "pruned")
 SCALE_KEYS = ("energy_scale", "reward_scale")
 ENV_CONFIG_KEYS = tuple(MARKET_ENV_CONFIG) + ("scenario", "days", "seed")

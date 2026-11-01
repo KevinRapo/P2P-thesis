@@ -11,12 +11,18 @@ Two places compute it:
 - **[`signals.py`](../../core/market/signals.py)**: each signal as a plain function
   of the market's data, in three dictionaries (`KPIS`, `MARKET_SIGNALS`,
   `AGENT_SIGNALS`). A value with nothing to measure is NaN.
-- **[`MarketEnv._observe`](../../core/env/market_env.py#L635-L661)**: puts them in order,
-  scales each ([`_obs_scales`](../../core/env/market_env.py#L576-L633)), turns NaN into
+- **[`MarketEnv._observe`](../../core/env/market_env.py#L663-L689)**: puts them in order,
+  scales each ([`_obs_scales`](../../core/env/market_env.py#L604-L661)), turns NaN into
   0 and clips to $[-10, 10]$.
 
 The observation is computed for the step about to be played, $t$. "The last step"
 is $t - 1$, the one just played.
+
+The `observation` setting chooses which signals the agents see: `"paper"` (the
+default) gives all 42, and `"pruned"` the 22 of
+[`PRUNED_OBS`](../../core/market/signals.py), to compare the two. Every signal is still
+computed either way, so a reward can read one the agents do not see, and the partner
+block follows both.
 
 ## Notation
 

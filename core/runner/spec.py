@@ -104,7 +104,7 @@ from typing import Any, Optional
 
 from core import settings as machine
 from core.config.scenario import GridSetup, load_prices
-from core.env_defaults import MARKET_ENV_CONFIG
+from core.env_defaults import MARKET_ENV_CONFIG, OBSERVATION_NAMES, REWARD_NAMES
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -490,6 +490,24 @@ class Experiment:
             raise SpecError(
                 f"unknown env_config setting(s) {unknown}; "
                 f"the settings are {sorted(MARKET_ENV_CONFIG)}"
+            )
+
+        reward = self.env_config.get("reward") or "bill"
+
+        if self.is_market and reward not in REWARD_NAMES:
+            raise SpecError(
+                f"unknown reward {reward!r}; choose from {list(REWARD_NAMES)}"
+            )
+
+        if reward == "salazar" and not self.env_config.get("grid_capacity_kwh"):
+            raise SpecError("the 'salazar' reward needs 'grid_capacity_kwh'")
+
+        observation = self.env_config.get("observation") or "paper"
+
+        if self.is_market and observation not in OBSERVATION_NAMES:
+            raise SpecError(
+                f"unknown observation {observation!r}; "
+                f"choose from {list(OBSERVATION_NAMES)}"
             )
 
     @staticmethod

@@ -384,6 +384,7 @@ def test_the_rl_defaults_are_those_the_trainer_uses():
 
 
 def test_written_out_shows_every_setting_and_makes_the_same_runs():
+    from core.env_defaults import MARKET_ENV_CONFIG
     from core.rl_defaults import NETWORK, SETTINGS
 
     for path in sorted((REPO / "config" / "experiments").glob("*.json")):
@@ -402,9 +403,13 @@ def test_written_out_shows_every_setting_and_makes_the_same_runs():
         for a, b in zip(before, after):
             assert SETTINGS[a.algorithm] | a.training == b.training
             assert NETWORK | a.model == b.model
-            # null or false in env_config: the environment's default, as when absent
+            # A default in env_config, or null or false: as when absent
             given = [
-                {k: v for k, v in run.env_config.items() if v not in (None, False)}
+                {
+                    k: v
+                    for k, v in run.env_config.items()
+                    if v not in (None, False, MARKET_ENV_CONFIG.get(k))
+                }
                 for run in (a, b)
             ]
             assert given[0] == given[1]

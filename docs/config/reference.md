@@ -244,6 +244,9 @@ in the Studio shows the same settings with the values it runs with.
     "summer": ["2016-07-01", "2016-07-02", "2016-07-03"]
   },
   "env_config": {
+    "reward": "bill",
+    "grid_capacity_kwh": null,
+    "observation": "paper",
     "energy_scale": null,
     "reward_scale": null,
     "episode_days": null,
@@ -393,6 +396,9 @@ The environment's settings, in
 
 | Setting | Values | What it does |
 |---|---|---|
+| `reward` | `"bill"`, `"salazar"` | What the agents learn from ([`reward.py`](../../core/env/reward.py)). `"bill"`: the net bill over `reward_scale`. `"salazar"`: the original code's reward, not scaled by `reward_scale`. The money is reported either way |
+| `grid_capacity_kwh` | positive, `null` | The grid capacity `C` of `"salazar"`, which needs it. SimBench has no single capacity, so a run states one. `"bill"` does not read it |
+| `observation` | `"paper"`, `"pruned"` | Which signals the agents see ([The observation vector](../rl/observation.md)). `"paper"`: all 42. `"pruned"`: the 22 of `PRUNED_OBS` in [`signals.py`](../../core/market/signals.py). The partners' reputations follow either way, and the rewards do not depend on this setting |
 | `energy_scale` | kWh, `null` | `E`, which scales the energy signals of the observation. `null`: the largest generation or demand of any participant in any step of any training day |
 | `reward_scale` | number, `null` | What the reward is divided by. `null`: `max(p_utility) · E`, the bill for `E` kWh bought from the DSO at its dearest |
 | `episode_days` | integer, `null` | Days per training episode ([Days](#days)). `null`: 1 |

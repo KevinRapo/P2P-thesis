@@ -344,6 +344,39 @@ AGENT_SIGNALS = {
 
 
 # --------------------------------------------------------------------------------------
+# The pruned observation: the signals an agent sees with ``observation = "pruned"``
+# --------------------------------------------------------------------------------------
+# Edit this list to change that observation; every signal stays computed above.
+PRUNED_OBS: tuple[str, ...] = (
+    # Market. hour_sin and hour_cos are the environment's, from time_of_day.
+    "hour_sin",
+    "hour_cos",
+    "clearing_price",
+    "grid_balance",
+    "dso_total_volume",
+    "p2p_volume",
+    "dso_sell_price",
+    # Agent
+    "generation",
+    "demand",
+    "cumulative_demand_satisfied",
+    "cumulative_demand_deferred",
+    "remaining_demand",
+    "remaining_supply",
+    "reputation",
+    "battery_soc",
+    "available_charge",
+    "available_discharge",
+    # KPIs
+    "bid_ask_spread",
+    "supply_demand_imbalance",
+    "grid_congestion",
+    "der_self_consumption",
+    "flexibility_utilization",
+)
+
+
+# --------------------------------------------------------------------------------------
 # All of a group at once
 # --------------------------------------------------------------------------------------
 def kpis(history) -> dict[str, float]:

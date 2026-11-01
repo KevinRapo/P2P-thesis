@@ -240,7 +240,7 @@ and DTDE each agent's carry its own.
 
 The market pays each agent its bill for the step,
 <span class="ours">$(\text{profit} - p_\text{utility} \cdot \text{unmet demand}) / \text{reward scale}$</span>
-([`step_rewards`](../../core/env/reward.py)). Say:
+([`NetBillReward`](../../core/env/reward.py)). Say:
 
 $$
 r_2 = 1.50, \qquad r_{10} = -0.50, \qquad r_1 = 0.25 .

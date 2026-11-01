@@ -444,7 +444,7 @@ Every quantity of the environment step and the market step, with the phase that 
 | Quantity | Symbol | Phase | Code | Kept in |
 |---|---|---|---|---|
 | Action → intent | $a_t$ | E1 | [`MarketEnv.decode`](../core/env/market_env.py#L514-L547) | `PendingStep.intents` |
-| Reward | $r_t$ | E2 | [`step_rewards`](../core/env/reward.py) | `rewards`, `infos` |
+| Reward | $r_t$ | E2 | [`NetBillReward`](../core/env/reward.py), by default | `rewards`, `infos` |
 | Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../core/env/market_env.py#L635-L661) | – |
 | Market and agent signals, KPIs | [P1] Table 2, eq. 19-27 | E3 | [`signals.py`](../core/market/signals.py) | – |
 | Generation, demand of a step | $G_t$, $D_t$ | 0, 1 | [`profiles_from_elements`](../core/market/agent/der.py#L88-L120), [`_inputs`](../core/market/lem.py#L408-L419) | `StepInputs`, `ParticipantOutcome` |
