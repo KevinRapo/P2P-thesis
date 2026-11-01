@@ -451,6 +451,10 @@ class MarketEnv(MultiAgentEnv):
         terminateds = {a: ended for a in self.agents_id} | {"__all__": ended}
         truncateds = {a: cut for a in self.agents_id} | {"__all__": cut}
 
+        # On the window's last step, pay each battery the energy it gained since reset
+        # (a loss counts as negative): stored energy would otherwise be worth nothing
+        # to the agents. Never on a played day (``options["day"]``), so evaluation
+        # rewards stay the plain bill.
         if done and self.terminal_value and not self.one_day:
             for pid, kwh in self._stored_kwh().items():
                 gain = kwh - self.start_kwh[pid]

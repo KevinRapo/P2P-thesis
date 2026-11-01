@@ -436,7 +436,7 @@ market or pandapower directly.
 |---|---|
 | `docs/` | This documentation (Markdown); `docs/networks.py` generates the network catalogue |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets; [`export_drawio.py`](../docs_site/export_drawio.py) exports the `.drawio` diagrams under `docs/` to the SVGs the pages show |
-| [`docs/config/`](config/sections.md) | Every configuration file and section as raw JSON, and a master example with every setting | started |
+| [`docs/config/`](config/reference.md) | Every setting of the scenario, price and experiment files: full examples, defaults and what each does, including how the days work | done |
 | [`docs/experiments/`](experiments/grid-methods.md) | The thesis's experiments: the grid-method comparison (proposal) with its diagram (`diagrams/grid_methods.drawio`, exported to `grid-methods.svg`) |
 | [`docs/full-cycle.md`](full-cycle.md) | The full cycle on one page: a master diagram of the training iteration, the environment step and the market step; one card per phase (reads, computes, writes, code, paper, decisions) and where every quantity is calculated |
 | `run_studio.py` | Starts the Studio with auto-reload |

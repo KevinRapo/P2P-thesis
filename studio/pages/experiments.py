@@ -130,7 +130,7 @@ class ExperimentForm:
         with section(
             "Experiment",
             "Every setting is written out, with its default where the template gives "
-            "none (docs: Config, Master example). What the editor holds is what "
+            "none (docs: Config). What the editor holds is what "
             "starts.",
             "data_object",
         ):

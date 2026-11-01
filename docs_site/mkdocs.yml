@@ -143,8 +143,7 @@ nav:
           - Code structure: structure.md
           - The full cycle: full-cycle.md
       - Config:
-          - config/sections.md
-          - Master example: config/master.md
+          - config/reference.md
       - Plans:
           - plan/index.md
           - Market plan: plan/market.md
