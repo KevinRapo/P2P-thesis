@@ -6,12 +6,15 @@ The Markdown source is `docs/` in the repository, readable on its own in VS Code
 and on GitHub. The site is built with MkDocs Material from `docs_site/`:
 
 ```text
-pip install -r docs_site/requirements.txt        # once, in the marlem env
-mkdocs serve -f docs_site/mkdocs.yml -a 127.0.0.1:8001   # live preview
-mkdocs build -f docs_site/mkdocs.yml             # static site in site/
+pip install -r docs_site/requirements.txt   # once, in the marlem env
+python run_docs.py                          # live preview, http://127.0.0.1:8001
+python run_docs.py build                    # check (--strict) and build into site/
+python run_docs.py diagrams                 # export draw.io diagrams, then build
 ```
 
-`python run_all.py docs` starts the preview at http://127.0.0.1:8001. A new document appears on the site once it is added
+[`run_docs.py`](../run_docs.py) is the whole pipeline; run it from the marlem
+environment (`conda run -n marlem python run_docs.py ...`). `python run_all.py docs`
+also starts the preview, in its own window. A new document appears on the site once it is added
 to `nav` in `docs_site/mkdocs.yml`. After editing `docs_site/hooks.py`, restart
 `mkdocs serve`; changes to the docs, the code and `docs_site/overrides/` are
 picked up while it runs.
@@ -23,20 +26,11 @@ anchors. Those links point at the `marlem-v1` branch, so they work once it is pu
 
 ## Publishing
 
-The active source is branch `marlem-v1`. Commit and push documentation and any
-referenced code there before deploying, so GitHub source links resolve:
-
-```powershell
-git push origin marlem-v1
-$sourceCommit = git rev-parse --short HEAD
-conda run -n marlem mkdocs gh-deploy -f docs_site/mkdocs.yml -m "Deploy docs from marlem-v1 $sourceCommit"
-```
-
-`gh-deploy` builds and updates `gh-pages`; do not check out or edit that branch
-manually. Check the changed pages at the published site after deployment.
-The generated `site/` folder is ignored. Use
-`mkdocs build -f docs_site/mkdocs.yml --strict` before publishing to catch broken
-internal links and API documentation warnings.
+The docs are **not published online**: the GitHub Pages site and its `gh-pages`
+branch were taken down on 21 October 2026, because the docs change too often to
+keep a public copy current. Read them locally with `python run_docs.py`, and run
+`python run_docs.py build` after a change to catch broken internal links and API
+documentation warnings. The generated `site/` folder is ignored.
 
 The HPC guide keeps `hpc.md` as its overview and old public entry point, with
 subpages under `docs/hpc/`. Windows helper source lives in `scripts/` alongside
