@@ -7,6 +7,10 @@
 > [`day_end.json`](../../config/experiments/day_end.json), with every setting written
 > out. The files themselves are what runs read.
 
+A setting left out of a file takes its default. The values shown are the defaults,
+except those a section lists as the file's own. Below each example: what a `null`
+or a missing setting becomes, and how it is computed.
+
 A scenario is the world: the network, the participants, the market and the DSO. An
 experiment says what is done in it. Price files hold the DSO's tariffs.
 
@@ -47,6 +51,10 @@ One JSON object with `name` and four sections:
 }
 ```
 
+`graph_total_kw`: `null` is the sum of the line ratings. It is only read with
+`method` `"graph"` and `graph_capacity` `"paper"`, where each line `e` of length
+`ℓ_e` gets `C_e = C_total · (1/ℓ_e) / Σ_k (1/ℓ_k)`.
+
 ### participants
 
 One entry per participant. `battery` is `null` without one.
@@ -76,6 +84,10 @@ One entry per participant. `battery` is `null` without one.
 ]
 ```
 
+`max_power_kw`: `null` is no power limit, so only the SoC window and the efficiencies
+bound what the battery takes or gives in a step. `capacity_kwh` has no default.
+`owns` defaults to `[]`.
+
 ### market
 
 ```json
@@ -97,6 +109,8 @@ One entry per participant. `battery` is `null` without one.
   "reputation_decay": 0.8
 }
 ```
+
+The file's own value: `partner_preference`, whose default is `false`.
 
 ### dso
 
@@ -122,6 +136,7 @@ One entry per participant. `battery` is `null` without one.
 
 `prices` is the name of a file in `config/data/`, the series themselves, or `null`
 for the flat `feed_in_tariff` and `utility_price`.
+The file's own value: `prices`, whose default is `null`.
 
 ## Prices
 
@@ -196,6 +211,16 @@ default:
 }
 ```
 
+| Setting | Left out or `null` |
+|---|---|
+| `name` | The file's name |
+| `description` | Empty |
+| `eval_points` | No evaluations in between: only at step 0 and the end of the budget. The value shown is the file's own |
+| `scenario` | Required for the market |
+| `algorithms`, `paradigms`, `seeds`, `budget` | Required |
+
+`trace_days` is only read with `results_detail` `"detailed"`.
+
 ### Days
 
 Each period's days are left out of `train_days` when the experiment is read. Inside
@@ -224,6 +249,11 @@ a period the batteries and reputations carry from day to day.
 }
 ```
 
+| Setting | Left out |
+|---|---|
+| `train_days` | The scenario's `grid.day` alone |
+| `test_periods` | No held-out days |
+
 ### env_config
 
 The environment's settings. `null`: computed by the environment or its default.
@@ -239,6 +269,17 @@ The environment's settings. `null`: computed by the environment or its default.
   "stored_kwh_value": 0.2833
 }
 ```
+
+| Setting | `null` |
+|---|---|
+| `energy_scale` | The largest generation or demand in kWh of any participant in any step of any training day |
+| `reward_scale` | `max(p_utility) · energy_scale`, with the highest utility price of the day: the bill for `energy_scale` kWh bought from the DSO at its dearest |
+| `episode_days` | 1 |
+| `stored_kwh_value` | 0: stored energy is worth nothing, and `adjusted_bill` equals the bill. The value shown is the file's own |
+
+A run computes the two scales once, on its training days, and keeps them: validation,
+the held-out days and a restored policy use the training values. `terminal_value`
+`true` needs a `stored_kwh_value` other than 0.
 
 ### variants
 
@@ -309,6 +350,10 @@ The variants of `day_end.json`:
 }
 ```
 
+The file's own values: `train_batch_size_per_learner` and `minibatch_size`, whose
+defaults are 500 and 64. Any other key of RLlib's `training()` may be given too, and
+has RLlib's default until it is.
+
 ### model
 
 ```json
@@ -325,6 +370,9 @@ The variants of `day_end.json`:
   "free_log_std_parts": true
 }
 ```
+
+`log_std_bounds`: `null` keeps the log σ in no range. Any other key of RLlib's
+`DefaultModelConfig` has RLlib's default.
 
 ### Resources
 
@@ -343,6 +391,8 @@ The variants of `day_end.json`:
 }
 ```
 
+`node`: `null` is any node of the partition.
+
 ### test
 
 Changes to the experiment's test version:
@@ -359,3 +409,13 @@ Changes to the experiment's test version:
   }
 }
 ```
+
+| Setting | Left out |
+|---|---|
+| `seeds` | The experiment's first seed |
+| `train_days`, `test_days` | 1: the first training day and the first test day |
+| `budget` | One training batch: the largest `train_batch_size_per_learner` any arm gives, or 100 where none does |
+| `eval_episodes` | 1 |
+| `resources` | 15 minutes, and the experiment's other resources |
+
+The test version always evaluates only at the end of its budget.
