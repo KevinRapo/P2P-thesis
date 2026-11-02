@@ -19,6 +19,7 @@ from nicegui import run, ui
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import section
 from studio.components.charts import Chart, SeriesChart
+from studio.components.memory import remember
 from studio.components.run_table import labels_of
 from studio.pages.results.common import BASELINES, BY, Tab, metric_card
 
@@ -149,6 +150,10 @@ class OneRun:
                 text = ui.input(placeholder="Only participants containing").props(
                     "dense clearable"
                 )
+
+            remember(outcome, "results_Market_outcome")
+            remember(baseline, "results_Market_baseline")
+            remember(text, "results_Market_participants")
 
             # The chart under the filters, redrawn by draw()
             box = ui.column().classes("w-full gap-1")
@@ -342,7 +347,8 @@ class MarketTab(Tab):
                         traced = self.service.result(key).has("heldout_trace_steps")
                         one.traces(key, traced)
 
-            ui.select(labels, label="Run", on_change=lambda e: show(e.value)).classes(
-                "w-full"
-            )
+            picker = ui.select(
+                labels, label="Run", on_change=lambda e: show(e.value)
+            ).classes("w-full")
             box = ui.column().classes("w-full gap-4")  # under the picker
+            remember(picker, "results_Market_run")

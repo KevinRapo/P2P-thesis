@@ -21,6 +21,7 @@ from nicegui import run, ui
 from core.market.probes import Check, ProbeRun
 from studio.adapters.validation_service import ValidationService
 from studio.components.cards import key_values, placeholder, section
+from studio.components.memory import keep, recalled, remember
 from studio.components.tables import data_table, trades_table
 from studio.state import services
 
@@ -186,6 +187,11 @@ class ProbesView:
 
         # The selected probe's cards (filled by _draw())
         self.detail = ui.column().classes("w-full gap-4")
+        remember(self.method, "market_probes_method")
+
+        # The probes and steps are not known yet: load() brings those two back
+        self.probe.on_value_change(lambda e: keep("market_probes_probe", e.value))
+        self.step.on_value_change(lambda e: keep("market_probes_step", e.value))
 
     async def load(self, again: bool = False) -> None:
         self.again.props("loading")
@@ -215,9 +221,11 @@ class ProbesView:
             _summary(self.runs, self.service)
 
         probes = {r.probe.key: f"{r.probe.key} · {r.probe.title}" for r in self.runs}
-        self.probe.set_options(probes, value=self.probe.value or next(iter(probes)))
+        first = recalled("market_probes_probe", next(iter(probes)), probes)
+        self.probe.set_options(probes, value=self.probe.value or first)
         steps = {r.step: f"{r.step:02d}:00" for r in self.runs[0].records}
-        self.step.set_options(steps, value=self.step.value or next(iter(steps)))
+        first = recalled("market_probes_step", next(iter(steps)), steps)
+        self.step.set_options(steps, value=self.step.value or first)
         self._draw()
 
     def _run(self) -> Optional[ProbeRun]:

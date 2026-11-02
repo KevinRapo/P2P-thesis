@@ -26,6 +26,7 @@ from nicegui import run, ui
 
 from studio.adapters.run_service import QUICK_GROUPS, QUICK_SETTINGS, RunService
 from studio.components.cards import key_values, placeholder, section
+from studio.components.memory import remember
 from studio.components.run_check import (
     experiment_facts,
     fail,
@@ -157,8 +158,9 @@ class ExperimentForm:
                 self.targets,
                 label="Where to run",
                 value=LOCAL,
-                on_change=self._on_check,
             ).classes("w-full")
+            remember(self.target, "experiments_target")
+            self.target.on_value_change(self._on_check)  # show() checks it once
             # The cluster's check report (filled by _check)
             self.check_box = ui.column().classes("w-full gap-1")
 

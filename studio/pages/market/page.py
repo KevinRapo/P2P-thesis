@@ -10,14 +10,15 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from studio.components.memory import remember
 from studio.layout import shell
 from studio.pages.market import probes as probes_tab
 from studio.pages.market import step
 
 
-def page(tab: str = "step") -> None:
-    """The two tabs; ``/market?tab=probes`` opens the Probes tab. The probes play
-    only when their tab is first opened."""
+def page(tab: str = "") -> None:
+    """The two tabs; ``/market?tab=probes`` opens the Probes tab, else the one open
+    last. The probes play only when their tab is first opened."""
     with shell(
         "market",
         "Market",
@@ -30,9 +31,14 @@ def page(tab: str = "step") -> None:
             ui.tab("step", label="Step", icon="skip_next")
             ui.tab("probes", label="Probes", icon="rule")
 
+        remember(tabs, "market_tab", ("step", "probes"))
+
+        if tab in ("step", "probes"):  # a link says which
+            tabs.value = tab
+
         # keep_alive=False: a hidden tab is drawn again when opened, so its Plotly
         # charts get the right width
-        shown = tab if tab in ("step", "probes") else "step"
+        shown = tabs.value or "step"
 
         with ui.tab_panels(tabs, value=shown, keep_alive=False).classes(
             "w-full bg-transparent"

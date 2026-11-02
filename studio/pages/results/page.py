@@ -18,7 +18,8 @@ of those experiments and of this PC's running ones are read again, once more aft
 they stop running (every other run stays as read; an unchanged file is not read),
 and the open tab's charts redraw in place. *Refresh* above the table reads every
 run again. A finished experiment not followed while it ran: Sync results on the
-Runs page.
+Runs page. The ticks, the filters, the open tab, Live and the tabs' controls are
+remembered between visits (``components/memory.py``).
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from core.runner.results import LOCAL
 from studio.adapters.results_service import ResultsService
 from studio.adapters.run_service import RunService
 from studio.components.cards import fill, placeholder
+from studio.components.memory import remember
 from studio.components.run_table import RunTable
 from studio.layout import shell
 from studio.pages.results.common import Tab
@@ -41,7 +43,6 @@ from studio.pages.results.market import MarketTab
 from studio.pages.results.validation import ValidationTab
 from studio.state import services
 
-SHOW_TESTS = "results_show_tests"  # app.storage.user key
 LIVE_S = 10  # seconds between live refreshes
 ACTIVE = ("queued", "running")  # runs whose experiment the live view follows
 
@@ -69,14 +70,13 @@ class ResultsView:
 
         # The run table at the top, with a tick box per run: market runs only
         # (the RL probes' are on their own page)
-        self.table = RunTable(service, self.show, SHOW_TESTS, kind="market")
+        self.table = RunTable(service, self.show, "results", kind="market")
 
         # Live row: switch | when it last read the runs
         with ui.row().classes("w-full items-center gap-3"):
-            self.live = ui.switch(
-                f"Live (every {LIVE_S} s)",
-                on_change=lambda e: self.tick() if e.value else None,
-            )
+            self.live = ui.switch(f"Live (every {LIVE_S} s)")
+            remember(self.live, "results_live")
+            self.live.on_value_change(lambda e: self.tick() if e.value else None)
             self.note = ui.label().classes("mls-card-caption")
 
         # Tab bar; only the open tab is built, into the box under it
@@ -86,6 +86,7 @@ class ResultsView:
             for label, tab in self.tabs.items():
                 ui.tab(label, icon=tab.icon)
 
+        remember(self.bar, "results_tab", self.tabs)
         self.bar.on_value_change(lambda _: self.show())
         self.box = ui.column().classes("w-full gap-4")
         ui.timer(LIVE_S, self.tick)
@@ -97,6 +98,9 @@ class ResultsView:
     async def load(self) -> None:
         await self.table.load()
         await self.show()
+
+        if self.live.value:  # remembered on: at once, not after the first 10 s
+            await self.tick()
 
     async def show(self) -> None:
         """Build the open tab for the ticked runs (after a tick or a tab change)."""

@@ -156,6 +156,7 @@ def metric_card(
             **options,
         ).show()
         tab.watch(chart, table=data_key)
+        chart.memory = f"results_{tab.label}_{title}"
 
         with controls:
             chart.select("metric", metrics, "Metric").classes("w-64")

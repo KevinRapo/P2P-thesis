@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import asdict
+from datetime import date
 from typing import Any
 
 from nicegui import run, ui
@@ -19,6 +20,7 @@ from studio.adapters.container import Services
 from studio.adapters.models import ProfileType
 from studio.components.cards import busy, failed, fill
 from studio.components.charts import NetworkChart, SeriesModelChart
+from studio.components.memory import keep, recalled, remember
 from studio.components.profiles import ProfileOverview
 from studio.components.tables import data_table
 
@@ -156,6 +158,8 @@ class NetworkPicker:
         services: The services (``grid.list_networks`` fills the dropdowns).
         initial: The network shown first.
         on_pick: Called with the picked ``NetworkRef`` (also for ``initial``).
+        memory: What the network is kept under; ``None``: not remembered (the
+            Scenario page's network is the scenario's).
     """
 
     def __init__(
@@ -163,15 +167,20 @@ class NetworkPicker:
         services: Services,
         initial: NetworkRef,
         on_pick: Callable[[NetworkRef], Awaitable[None]],
+        memory: str | None = None,
     ) -> None:
+        kept = recalled(memory) if memory else None
         self.services = services
-        self.source = initial
+        self.source = (
+            NetworkRef(*kept) if kept and kept[0] in SOURCE_LABELS else initial
+        )
         self.on_pick = on_pick
+        self.memory = memory
         self.networks: list = []
 
         # Top to bottom: source toggle, voltage level, the SimBench filters, the
         # network list, status
-        self.toggle = ui.toggle(SOURCE_LABELS, value=initial.source_type).props(
+        self.toggle = ui.toggle(SOURCE_LABELS, value=self.source.source_type).props(
             "no-caps dense"
         )
         self.level = ui.select([], label="Voltage level").classes("w-full")
@@ -269,6 +278,10 @@ class NetworkPicker:
         if not e.value:
             return
         self.source = NetworkRef(self.toggle.value, e.value)
+
+        if self.memory:
+            keep(self.memory, [self.source.source_type, self.source.code])
+
         await self.on_pick(self.source)
 
 
@@ -341,11 +354,16 @@ class ProfileInspector:
     Args:
         services: The services (``profiles.profile_types`` / ``profile_series``).
         catalogue: Show the complete catalogue instead of one network's profiles.
+        memory: The first part of what its choices are kept under; ``None``: not
+            remembered.
     """
 
-    def __init__(self, services: Services, catalogue: bool = False) -> None:
+    def __init__(
+        self, services: Services, catalogue: bool = False, memory: str | None = None
+    ) -> None:
         self.services = services
         self.catalogue = catalogue
+        self.memory = memory
         self.source: NetworkRef | None = None
         self.selected: list[str] = []
         self.loaded = False
@@ -405,6 +423,17 @@ class ProfileInspector:
         for element in (self.power_header, self.scale_hint, self.power_box):
             element.set_visibility(not catalogue)
 
+        if memory:
+            remember(self.day, f"{memory}_day", is_day)
+
+            for control, name in (
+                (self.span, "window"),
+                (self.resolution, "resolution"),
+                (self.quantity, "quantity"),
+                (self.per_element, "per_element"),
+            ):
+                remember(control, f"{memory}_{name}")
+
         self._explain()
 
         for control in (
@@ -431,7 +460,8 @@ class ProfileInspector:
         self.scale_hint.set_text(SCALE_HINTS[bool(self.per_element.value)])
 
     async def show(self, source: NetworkRef | None = None) -> None:
-        """Load the profiles (of ``source``, or the catalogue); plot the first two."""
+        """Load the profiles (of ``source``, or the catalogue); plot those ticked last
+        time that it has, else the first two."""
         self._plot_request = object()  # any plots still loading belong to the old list
         self.source = source
         busy(self.table_box, "Reading profiles …")
@@ -484,10 +514,15 @@ class ProfileInspector:
             )
             search.bind_value(table, "filter")
             self.rows, self.table = rows, table
-            table.selected = rows[:2]
+            kept = recalled(f"{self.memory}_ticked", []) if self.memory else []
+            ticked = [r for r in rows if r["code"] in kept] or rows[:2]
+            table.selected = ticked
             table.on_select(lambda e: self.plot([r["code"] for r in e.selection]))
 
-        await self.plot([r["code"] for r in rows[:2]])
+            if self.memory:
+                remember(search, f"{self.memory}_search")
+
+        await self.plot([r["code"] for r in ticked])
 
     async def only(self, categories: set[str]) -> None:
         """List only the profiles of the given classes (empty: all); plot the
@@ -511,6 +546,9 @@ class ProfileInspector:
 
         if codes is not None:
             self.selected = codes
+
+            if self.memory:
+                keep(f"{self.memory}_ticked", list(codes))
 
         if not self.loaded:
             return
@@ -570,6 +608,16 @@ class ProfileInspector:
         await fill(
             box, lambda: read(*args), draw, "Reading profiles …", current=current
         )
+
+
+def is_day(text: str) -> bool:
+    """Whether ``text`` is a whole date (a start day may be kept half typed)."""
+    try:
+        date.fromisoformat(text)
+    except (TypeError, ValueError):
+        return False
+
+    return True
 
 
 def start_day(value: str = "2016-06-15") -> ui.input:

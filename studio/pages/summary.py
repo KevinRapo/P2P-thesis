@@ -35,6 +35,7 @@ from studio.components.labels import (
     STEP_LENGTHS,
     VOLTAGE_DROPS,
 )
+from studio.components.memory import remember
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
@@ -64,8 +65,12 @@ def page() -> None:
             settings_tab = ui.tab("Settings", icon="fact_check")
             profiles_tab = ui.tab("Day profiles", icon="show_chart")
 
+        remember(tabs, "summary_tab", ("Settings", "Day profiles"))
+
         # The tabs' contents, one panel per tab
-        with ui.tab_panels(tabs, value=settings_tab).classes("w-full bg-transparent"):
+        with ui.tab_panels(tabs, value=tabs.value or settings_tab).classes(
+            "w-full bg-transparent"
+        ):
             # Settings tab
             with ui.tab_panel(settings_tab).classes("p-0 gap-4"):
                 # Row 1: three cards side by side (network, market, DSO)

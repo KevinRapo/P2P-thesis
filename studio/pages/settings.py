@@ -182,7 +182,7 @@ def _workspace_section() -> None:
             ("cache/networks", "built networks"),
             ("scenarios", "the scenario being edited"),
             ("experiments", "the experiment being prepared"),
-            ("studio-state", "per-browser state (dark mode, switches)"),
+            ("studio-state", "per-browser state (dark mode, each page's choices)"),
         ):
             ui.label(f"{home / name}  ·  {what}").classes("mls-card-caption mls-mono")
 

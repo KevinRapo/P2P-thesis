@@ -31,6 +31,7 @@ from nicegui import run, ui
 from core.runner.registry import RunState
 from studio.adapters.run_service import RunService
 from studio.components.cards import placeholder, section
+from studio.components.memory import remember
 from studio.components.run_check import fail, read_check, show_report
 from studio.layout import shell
 from studio.state import services
@@ -320,9 +321,10 @@ class RunsMonitor:
 
                 ui.space()
                 self.all = ui.switch(
-                    f"All experiments (else the {RECENT} newest and those running)",
-                    on_change=lambda: self.refresh(True),
+                    f"All experiments (else the {RECENT} newest and those running)"
                 )
+                remember(self.all, f"runs_all_{target}")
+                self.all.on_value_change(lambda: self.refresh(True))
 
             # The experiment cards, newest first (built by _build)
             self.box = ui.column().classes("w-full gap-4")
@@ -507,7 +509,7 @@ class RunsMonitor:
 # --------------------------------------------------------------------------------------
 def page(target: str = "") -> None:
     """The experiments of each target, read at once and then every few seconds;
-    ``/runs?target=taltech`` opens that target's tab."""
+    ``/runs?target=taltech`` opens that target's tab, else the one open last."""
     service = services().runs
 
     async def opened(e) -> None:
@@ -534,7 +536,12 @@ def page(target: str = "") -> None:
                 icon = "computer" if name == LOCAL else "cloud"
                 ui.tab(name, label=label, icon=icon)
 
-        first = target if target in dict(names) else names[0][0]
+        remember(tabs, "runs_tab", dict(names))
+
+        if target in dict(names):  # a link says which
+            tabs.value = target
+
+        first = tabs.value or names[0][0]
         monitors: dict[str, RunsMonitor] = {}
 
         # One panel per target, each filled by its RunsMonitor

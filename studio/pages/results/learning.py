@@ -17,6 +17,7 @@ from nicegui import ui
 
 from studio.components.cards import placeholder, section
 from studio.components.charts import SeriesChart
+from studio.components.memory import remember
 from studio.components.run_table import labels_of
 from studio.pages.results.common import Tab
 from studio.theme import SERIES
@@ -205,6 +206,7 @@ class LearningTab(Tab):
 
         modules = metrics[metrics.module != ""].module.nunique()
         mean = ui.switch("Mean over modules", value=modules > 3)
+        remember(mean, "results_Learning_mean")
         ui.label(
             "One colour per run, one line per module (agent, or the group in CTCE)."
         ).classes("mls-card-caption")
@@ -265,6 +267,7 @@ class LearningTab(Tab):
                 metrics=metrics, key=next(iter(options)), labels=labels
             ).show()
             self.watch(chart, metrics="metrics")
+            chart.memory = "results_Learning_parts"
 
             with picker:
                 chart.select("key", options, "Run").classes("w-full")

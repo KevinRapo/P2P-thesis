@@ -14,6 +14,7 @@ from studio.adapters.container import Services
 from studio.adapters.models import ProfileClass, ProfileType, Series
 from studio.components.cards import busy, failed, section
 from studio.components.charts import PriceChart, SeriesModelChart
+from studio.components.memory import remember
 from studio.components.network import (
     DEFAULT_SOURCE,
     WINDOWS,
@@ -56,12 +57,15 @@ def page() -> None:
             profiles_tab = ui.tab("Profiles", icon="show_chart")
             compare_tab = ui.tab("Compare", icon="compare_arrows")
             prices_tab = ui.tab("Prices", icon="payments")
+
+        remember(tabs, "inspect_tab", ("Network", "Profiles", "Compare", "Prices"))
+
         # keep_alive=False: a hidden panel is removed from the browser and drawn
         # again when its tab is opened, so its Plotly charts are never resized
         # while invisible. The Python side (state, handlers) stays as it is.
-        with ui.tab_panels(tabs, value=network_tab, keep_alive=False).classes(
-            "w-full bg-transparent"
-        ):
+        with ui.tab_panels(
+            tabs, value=tabs.value or network_tab, keep_alive=False
+        ).classes("w-full bg-transparent"):
             # Network tab
             with ui.tab_panel(network_tab).classes("p-0 gap-4"):
                 _network_tab(s)
@@ -87,6 +91,9 @@ def page() -> None:
             )
         )
 
+        if tabs.value == "Profiles":  # came back to it: no change of tab reads it
+            ui.timer(0.05, catalogue.show, once=True)
+
 
 # --------------------------------------------------------------------------------------
 # Network tab: one network in depth
@@ -109,6 +116,7 @@ def _network_tab(s: Services) -> None:
                 s,
                 DEFAULT_SOURCE,
                 on_pick=lambda source: load(source),
+                memory="inspect_network",
             )
             summary_box = ui.column().classes("w-full gap-1")
 
@@ -136,7 +144,7 @@ def _network_tab(s: Services) -> None:
         "(1.0 = rated power); select one or more to plot",
         "show_chart",
     ):
-        profiles = ProfileInspector(s)
+        profiles = ProfileInspector(s, memory="inspect_network_profiles")
 
     async def load(source: NetworkRef) -> None:
         """Show the picked network's facts, topology, elements and profiles."""
@@ -189,6 +197,7 @@ def _compare_tab(s: Services) -> None:
                     s,
                     initial,
                     on_pick=lambda source, side=side: load(side, source),
+                    memory=f"inspect_compare_{side}",
                 ).start()
 
     # Full-width card below: the comparison, drawn by show() once both are loaded
@@ -310,7 +319,7 @@ def _profiles_tab(s: Services) -> ProfileInspector:
         "power; a network ships only the ones its elements use",
         "show_chart",
     ):
-        return ProfileInspector(s, catalogue=True)
+        return ProfileInspector(s, catalogue=True, memory="inspect_catalogue")
 
 
 # --------------------------------------------------------------------------------------
@@ -339,13 +348,17 @@ def _prices_tab(s: Services) -> None:
         with ui.row().classes("items-center gap-3 w-full"):
             file = ui.select(files, value=files[0], label="Price file").classes("w-80")
             file.mark("price-file")
+            remember(file, "inspect_prices_file")
             day = start_day(PRICE_START)
+            remember(day, "inspect_prices_day", s.profiles.price_dates(file.value))
             span = ui.select(
                 {0: "Mean day"} | WINDOWS, value=7, label="Window"
             ).classes("w-28")
             resolution = ui.toggle(
                 {"step": "per market step", "daily": "daily mean"}, value="step"
             ).props("no-caps dense")
+            remember(span, "inspect_prices_window")
+            remember(resolution, "inspect_prices_resolution")
 
         hint = ui.label().classes("mls-card-caption")
 
@@ -353,7 +366,7 @@ def _prices_tab(s: Services) -> None:
             start = day.value if span.value else None
             return s.profiles.price_series(name, start, span.value, resolution.value)
 
-        chart = PriceChart(name=files[0], read=read)
+        chart = PriceChart(name=file.value, read=read)
         chart.show()
 
         def show() -> None:

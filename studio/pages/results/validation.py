@@ -15,6 +15,7 @@ from nicegui import ui
 
 from studio.components.cards import key_values, section
 from studio.components.charts import Chart, SeriesChart
+from studio.components.memory import remember
 from studio.components.run_table import cell, labels_of
 from studio.pages.results.common import BASELINES, Tab, frame_table
 from studio.theme import MUTED, SERIES
@@ -152,6 +153,7 @@ class ValidationTab(Tab):
                 train=False,
             ).show()
             self.watch(chart, curves="curves", training="training")
+            chart.memory = "results_Validation_training"
 
             with ui.row().classes("gap-4"):
                 chart.switch("per", "Per participant")
@@ -216,9 +218,10 @@ class ValidationTab(Tab):
                                     }
                                 )
 
-            ui.select(
+            picker = ui.select(
                 labels_of(keys),
                 label="One run's settings",
                 on_change=lambda e: show(e.value),
             ).classes("w-full")
             box = ui.column().classes("w-full")  # under the picker, filled by show
+            remember(picker, "results_Validation_run")

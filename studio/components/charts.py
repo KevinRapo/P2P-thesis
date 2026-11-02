@@ -11,8 +11,9 @@
 A page's chart is a small subclass that only says what to draw (``DayChart``
 below; the Results page's ``LearningChart``). A switch, dropdown or slider that
 changes a chart comes from the chart itself (``chart.switch("training", ...)``),
-so a page writes no redraw code. Every figure gets the Studio's look from
-``styled``; the colours with a meaning are in ``studio/theme.py``.
+so a page writes no redraw code; with ``memory`` set, those controls are remembered
+between visits. Every figure gets the Studio's look from ``styled``; the colours with
+a meaning are in ``studio/theme.py``.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from nicegui import ui
 from plotly.subplots import make_subplots
 
 from core.grid.contract import BusView, TopologyView
+from studio.components.memory import remember
 from studio.theme import BUS, ENERGY, HIGHLIGHT, LIMIT, MUTED, SERIES
 
 
@@ -84,7 +86,8 @@ class Chart:
 
     Class attributes a subclass may set: ``height``, ``x_title``, ``y_title`` and
     ``layout`` (Plotly layout settings applied after the Studio's look, e.g.
-    ``{"hovermode": "closest"}``).
+    ``{"hovermode": "closest"}``). A page sets ``memory``, a name for this chart,
+    before making its controls, to have them remembered.
 
     Args:
         height: Overrides the class' height.
@@ -99,6 +102,7 @@ class Chart:
     def __init__(self, height: Optional[int] = None, **options: Any) -> None:
         self.o = Options(options)
         self.plot: Optional[ui.plotly] = None
+        self.memory: Optional[str] = None
 
         if height is not None:
             self.height = height
@@ -154,19 +158,25 @@ class Chart:
     # --- Controls that change one option ----------------------------------------------
     def switch(self, option: str, label: str) -> ui.switch:
         """A switch for a yes/no option."""
-        return ui.switch(
-            label,
-            value=bool(self.o.get(option)),
-            on_change=lambda e: self.set(**{option: bool(e.value)}),
+        return self._remembered(
+            option,
+            ui.switch(
+                label,
+                value=bool(self.o.get(option)),
+                on_change=lambda e: self.set(**{option: bool(e.value)}),
+            ),
         )
 
     def select(self, option: str, choices: Any, label: str = "") -> ui.select:
         """A dropdown for an option with a few choices (a list, or value -> name)."""
-        return ui.select(
-            choices,
-            value=self.o.get(option),
-            label=label,
-            on_change=lambda e: self.set(**{option: e.value}),
+        return self._remembered(
+            option,
+            ui.select(
+                choices,
+                value=self.o.get(option),
+                label=label,
+                on_change=lambda e: self.set(**{option: e.value}),
+            ),
         )
 
     def slider(
@@ -176,13 +186,23 @@ class Chart:
         if label:
             ui.label(label).classes("mls-card-caption")
 
-        return ui.slider(
-            min=low,
-            max=high,
-            step=step,
-            value=self.o.get(option, low),
-            on_change=lambda e: self.set(**{option: e.value}),
+        return self._remembered(
+            option,
+            ui.slider(
+                min=low,
+                max=high,
+                step=step,
+                value=self.o.get(option, low),
+                on_change=lambda e: self.set(**{option: e.value}),
+            ),
         )
+
+    def _remembered(self, option: str, control: Any) -> Any:
+        """Bring back a control's value, which sets the option and redraws."""
+        if self.memory:
+            remember(control, f"{self.memory}_{option}")
+
+        return control
 
 
 # --------------------------------------------------------------------------------------

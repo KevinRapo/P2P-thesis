@@ -11,7 +11,9 @@ Every run of this PC and of each cluster after *Sync results* on the Runs page
   on every page of it) and *Untick all*.
 
 A ticked run stays ticked when a filter hides it, so runs of several experiments
-can be compared. Nothing is read again until Refresh.
+can be compared. Nothing is read again until Refresh. The ticks and the filters are
+remembered (``memory.py``) once the runs are read: the filters' options and which
+ticks still exist depend on them.
 """
 
 from __future__ import annotations
@@ -19,9 +21,10 @@ from __future__ import annotations
 from typing import Any, Awaitable, Callable, Optional
 
 import pandas as pd
-from nicegui import app, run, ui
+from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
+from studio.components.memory import keep, recalled, remember
 from studio.components.tables import data_table
 
 RUN_COLUMNS = [
@@ -92,7 +95,7 @@ class RunTable:
     Args:
         service: The Results service.
         on_change: Called without arguments; it reads ``selected``.
-        storage_key: ``app.storage.user`` key of the *Show test runs* switch.
+        memory: The first part of what this table's choices are kept under.
         columns: ``(field, label)`` of the overview to show.
         read: The overview to show (default ``service.overview``).
         kind: Only runs of this kind (``results.run_kind``: ``"market"`` or
@@ -103,14 +106,15 @@ class RunTable:
         self,
         service: ResultsService,
         on_change: Callable[[], Awaitable[None]],
-        storage_key: str,
+        memory: str,
         columns: list[tuple[str, str]] = RUN_COLUMNS,
         read: Optional[Callable[[], pd.DataFrame]] = None,
         kind: Optional[str] = None,
     ) -> None:
         self.service = service
         self.on_change = on_change
-        self.storage_key = storage_key
+        self.memory = memory
+        self._restored = False
         self.columns = columns
         self.read = read or service.overview
         self.kind = kind
@@ -166,7 +170,7 @@ class RunTable:
             )
             self.show_tests = ui.switch(
                 "Show test runs",
-                value=app.storage.user.get(storage_key, True),
+                value=recalled(f"{memory}_show_tests", True),
                 on_change=self._tests_changed,
             )
 
@@ -190,8 +194,32 @@ class RunTable:
     async def load(self) -> None:
         """Read the runs (once; ``refresh`` reads them again) and fill the table."""
         self.note.set_text("Reading the runs ...")
-        self.overview = await run.io_bound(self.read)
+        overview = await run.io_bound(self.read)
+
+        if overview is None:  # the page closed or the server stopped during the read
+            return
+
+        self.overview = overview
+        self._restore()
         self._fill()
+
+    def _restore(self) -> None:
+        """Bring back the ticks and the filters, once, after the first read: a filter
+        changed before it would find no runs and drop them all."""
+        if self._restored:
+            return
+
+        self._restored = True
+        self.selected = list(recalled(f"{self.memory}_ticked", []))
+
+        for control, name in (
+            (self.target, "targets"),
+            (self.folder, "folders"),
+            (self.experiment, "experiments"),
+            (self.search, "search"),
+            (self.only_ticked, "ticked_only"),
+        ):
+            remember(control, f"{self.memory}_{name}")
 
     async def refresh(self) -> None:
         """Read every run again, and draw from what is read now."""
@@ -276,6 +304,10 @@ class RunTable:
         offered = self._offered()
         keys = set(offered.key) if len(offered) else set()
         self.selected = [k for k in self.selected if k in keys]
+
+        if len(self.overview):  # with no runs read, the ticks kept stay
+            keep(f"{self.memory}_ticked", list(self.selected))
+
         self._offer_choices(offered)
         table = self.visible()
         self.runs.rows = [
@@ -304,7 +336,7 @@ class RunTable:
         self.note.set_text(text)
 
     async def _tests_changed(self) -> None:
-        app.storage.user[self.storage_key] = bool(self.show_tests.value)
+        keep(f"{self.memory}_show_tests", bool(self.show_tests.value))
         self._fill()
         await self._selected()
 

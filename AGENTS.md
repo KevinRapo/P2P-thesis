@@ -107,6 +107,10 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   (`studio/pages/market/`: `page.py` with the frame and the tab bar, one file per
   tab, `__init__.py` exporting `page`). A component goes in `studio/components/`
   only once a second place uses it, not before.
+- **What a page remembers.** A page is built anew on every visit. A choice that
+  decides what a page shows goes through `remember` (`studio/components/memory.py`),
+  before its handlers are connected; the scenario, the experiment and the market stay
+  in the services.
 - **Charts.** A chart on a page is a small subclass of `SeriesChart`,
   `NetworkChart` or `Chart` (`studio/components/charts.py`) whose `draw()` says
   what to draw from its options; `show()` places it and a control that changes it

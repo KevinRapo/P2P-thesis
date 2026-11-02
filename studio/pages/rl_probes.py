@@ -20,12 +20,12 @@ from core.runner.probe_runs import ProbeRunInfo
 from studio.adapters.results_service import ResultsService
 from studio.adapters.validation_service import ValidationService
 from studio.components.cards import fill, key_values, placeholder, section
+from studio.components.memory import remember
 from studio.components.run_table import RUN_COLUMNS, RunTable, labels_of
 from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
 
-SHOW_TESTS = "rl_probes_show_tests"  # app.storage.user key
 # The run table's columns: what the run was, its probe and result, its state.
 COLUMNS = RUN_COLUMNS[:7] + [("probe", "Probe"), ("result", "Result"), RUN_COLUMNS[7]]
 
@@ -163,7 +163,7 @@ class ProbesView:
         self.table = RunTable(
             service,
             self._selected,
-            SHOW_TESTS,
+            "rl_probes",
             columns=COLUMNS,
             read=validation.rl_overview,
             kind="probe",
@@ -232,6 +232,7 @@ class ProbesView:
                 with card:
                     _probe_card(labels[chosen.value], found[chosen.value])
 
+            remember(chosen, "rl_probes_run")
             chosen.on_value_change(lambda _: show())
             show()
 
