@@ -205,6 +205,77 @@ when a run ends, so each arrives whole, a few MB at this size. On a much larger 
 refresh could outlast its 60 s limit, but the files finished by then stay and the next
 refresh goes on from there, so it only delays them.
 
+## Stage 5: the last look at what is saved
+
+**Status: proposed, not built.** A final pass over stage 1, against the original's
+figures and against what a network replay needs, so that what is saved stops changing.
+
+The test: a table is saved if a question in the thesis needs it, it cannot be computed
+from what is saved without reimplementing a market rule, and it does not slow training.
+Everything here is written only by the held-out evaluation. Reviewed by the reward
+session; its changes are in.
+
+| Add | One row per | Holds | Needed for | Size per run |
+|---|---|---|---|---|
+| `heldout_trades.csv.gz` | policy, day, step, trade | Buyer, seller, price, kWh, stage, distance, loss, buyer and seller fee, and the fee's parts (`GridFees`) | Who traded with whom, trade prices, how each fee term acts: the mechanism by which a grid method changes behaviour | At most 1.5 MB, estimated |
+| `heldout_grid.csv.gz` | policy, day, step | Voltage per bus, measured loading per line, loading per transformer; with `grid.method = "graph"` also the fees' loading per line | The network replay; which line is congested; the graph model against the power flow on every line | 2.3 MB measured before compression |
+| Two columns of `heldout_agent_steps` | | `action_quantity`, `action_price`: the raw network outputs | What the policy asked for without an order: the no-order threshold is an open choice | 0.3 MB, estimated |
+| Three columns of `heldout_agent_steps` | | `reputation_reliability`, `reputation_fairness`, `reputation_grid` | Whether reputation means anything (M-45) | 0.4 MB, estimated |
+
+`run.json` gains nothing, but a run also saves `git diff` beside it, so a run with
+uncommitted changes can be rebuilt. With these a run keeps about 10 MB, about 170 MB for
+16 runs, less when compressed; a 43-participant 15-minute run should be measured before
+this is called settled. Not added: step tables of
+the periodic evaluation, which nothing would read; the observation, which is computed
+from what is saved in all that a thesis question needs; anything per step in training.
+
+### What to take from the original
+
+[P1] shows four results figures, all from non-learning agents, and the original's
+`plotter.py` has more.
+
+| Original | Take? | As |
+|---|---|---|
+| Fig. 5: distribution of clearing prices and trade volumes | Yes | Market: a box per version of trade sizes and of prices as a place in the tariffs' band, because with day-varying tariffs a raw price shows the spot price |
+| Fig. 6: grid balance over time | Yes | Market, step by step: offered minus asked |
+| Fig. 7: peer-to-peer ratio over time | Yes | Market, step by step |
+| Fig. 8: trading network | Yes | Grid replay: the trades on the real network |
+| `spatial_heatmap`: agent-to-agent trading matrix | Yes | Market: the common heatmap, which works at 43 participants, unlike a network drawn from trades |
+| Market concentration | Yes | Market indicator, from traded energy |
+| Welfare Gini | No, as written | Bills change sign and sum near 0, and mainly measure who owns PV. Worst participant's gain instead |
+| Load factor, peak reduction | Yes | Grid indicators: mean over peak import, and peak against `zero`, labelled as batteries' doing (see below) |
+| Self-sufficiency | Yes, as its own | Share of demand met by own generation, peers and batteries; not the same as `local_coverage` |
+| DSO dependency, avoided DSO cost | Already covered | DSO energy, the gain over `zero` |
+| Summary dashboards of bars | No | The overview table does this |
+| Composite scores: stability index, emergent efficiency, strategy alignment and the like | No | Weighted mixes of the numbers above, with no definition in the papers |
+| Trend slopes; KDE, CDF and histogram variants | No | Same information as the box and the curves |
+
+### Replay from a checkpoint
+
+A runner command plays a finished run's held-out evaluation again from its checkpoint,
+and checks that it reproduces the saved team money. That is what lets the saved tables
+stop changing: anything missed can be produced later, without training. It also gives
+what no table can: a policy trained under one grid method played under the other, or on
+other prices. Checkpoints are not synced, so they must be kept on the cluster, about
+50 MB per run.
+
+### What the grid tables can show
+
+A participant's injection is built from its generation, demand and battery, never from
+its trades ([`der.py`](../../core/market/agent/der.py)). So peer trades change no flow:
+only battery dispatch does, and only 5 of 13 participants have one. Versions differ in
+the replay only through batteries, and a grid method reaches the network only that way;
+its effect on behaviour is in the fees of `heldout_trades`. Spilled surplus still flows.
+
+### What the reader adds
+
+- **The network replay**, on Grid: the real network with lines coloured by loading, buses
+  by voltage, participants ringed and the step's trades drawn, stepped by a slider or
+  played through a day, for any run and policy. It reuses `NetworkChart`, and needs line
+  colours added.
+- **The mean day**, in the step views: *All days* in the day selector, the mean of each
+  step over the test days, so that a fortnight has a shape, not only a day.
+
 ## Order
 
 | Stage | Before tomorrow's runs? | Done when |

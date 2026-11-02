@@ -3,8 +3,8 @@ training return next to the periodic evaluation (on seeds training did not use),
 return or money, with the baselines of step 0; from ``metrics.csv``
 (``core/runner/results.learner_metrics``), for any environment, per module the policy
 and value losses, the critic's explained variance, the entropy, the KL of each update
-and the gradient norm against the run's clip; and one run's action parts, each one's
-distribution over training. Every chart follows the live view.
+and the gradient norm against the run's clip; and one run's action parts over training,
+over the agents and agent by agent. Every chart follows the live view.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from studio.components.cards import placeholder, section
 from studio.components.charts import SeriesChart
 from studio.components.memory import remember
 from studio.components.run_table import labels_of
-from studio.pages.results.common import Tab
+from studio.pages.results.common import ParticipantChart, Tab, by_number
 from studio.theme import MUTED, SERIES
 
 # --------------------------------------------------------------------------------------
@@ -84,6 +84,8 @@ class CurveChart(SeriesChart):
 # Figures: the learner
 # --------------------------------------------------------------------------------------
 DASHES = ["solid", "dot", "dash", "dashdot", "longdash", "longdashdot"]
+# What the heatmap of an action part can show (a part has some of them).
+GRID_STATISTICS = ("mean", "log_std", "entropy", "top")
 
 
 class LearnerChart(SeriesChart):
@@ -137,29 +139,40 @@ def _agent_part(module: str, part: str) -> tuple[str, str]:
     return module, part
 
 
-def _part_series(
-    metrics: pd.DataFrame, key: str, part: str
-) -> dict[str, dict[str, pd.Series]]:
-    """Per agent, the statistics of action part ``part`` of run ``key`` over
-    environment steps: ``{agent: {metric: series}}``."""
+def _part_rows(metrics: pd.DataFrame, key: str) -> pd.DataFrame:
+    """Run ``key``'s action-part statistics, each row with its ``agent`` and ``base``,
+    the part's name (``_agent_part``)."""
     rows = metrics[(metrics.key == key) & (metrics.part != "")]
-    found: dict[str, dict[str, pd.Series]] = {}
+    names = [_agent_part(m, p) for m, p in zip(rows.module, rows.part)]
 
-    for (module, name, metric), frame in rows.groupby(["module", "part", "metric"]):
-        agent, base = _agent_part(module, name)
-        if base == part:
-            found.setdefault(agent, {})[metric] = frame.set_index("env_steps").value
+    return rows.assign(agent=[a for a, _ in names], base=[b for _, b in names])
 
-    return found
+
+def _part_grid(rows: pd.DataFrame, part: str, metric: str) -> pd.DataFrame:
+    """One statistic of one part (from ``_part_rows``): environment steps × agents."""
+    found = rows[(rows.base == part) & (rows.metric == metric)]
+
+    return found.pivot_table(index="env_steps", columns="agent", values="value")
+
+
+def part_statistics(metrics: pd.DataFrame, key: str) -> dict[str, list[str]]:
+    """Run ``key``'s action parts, each with the ``GRID_STATISTICS`` it has."""
+    rows = _part_rows(metrics, key)
+
+    return {
+        part: [s for s in GRID_STATISTICS if s in set(found.metric)]
+        for part, found in rows.groupby("base")
+    }
 
 
 class PartsChart(SeriesChart):
     """Every action part of one run over environment steps, in panels stacked on
-    one time axis, a colour per agent (the same in every panel):
+    one time axis: each statistic's mean over the agents, with a band of their min to
+    max, a colour per statistic:
 
-    - a continuous part: its mean with a band of ±σ (the bounds ±1 dashed), then
-      its log σ (solid; σ itself in the hover) and the share of means outside
-      [-1, 1] (dotted, right axis);
+    - a continuous part: its mean (the bounds ±1 dashed), then its log σ (solid; σ
+      itself in the hover) and the share of means outside [-1, 1] (dotted, right
+      axis);
     - a categorical part: its entropy (solid) and its most likely category's
       probability (dashed).
 
@@ -167,22 +180,24 @@ class PartsChart(SeriesChart):
     """
 
     TITLES = {
-        "mean": "{} · mean ± σ",
+        "mean": "{} · mean",
         "spread": "{} · log σ, share outside [-1, 1]",
         "categorical": "{} · entropy, top probability",
     }
+    # A panel's statistics: (name, dash, on the right axis).
+    LINES = {
+        "mean": [("mean", "solid", False)],
+        "spread": [("log_std", "solid", False), ("outside", "dot", True)],
+        "categorical": [("entropy", "solid", False), ("top", "dash", False)],
+    }
+    COLORS = dict(zip(("mean", "log_std", "outside", "entropy", "top"), SERIES))
 
     def draw(self) -> None:
-        metrics, key = self.o.metrics, self.o.key
-        rows = metrics[(metrics.key == key) & (metrics.part != "")]
-        parts = sorted({_agent_part(m, p)[1] for m, p in zip(rows.module, rows.part)})
-        series = {part: _part_series(metrics, key, part) for part in parts}
-        agents = list(dict.fromkeys(a for s in series.values() for a in s))
-        colors = {a: SERIES[i % len(SERIES)] for i, a in enumerate(agents)}
+        rows = _part_rows(self.o.metrics, self.o.key)
         panels = []  # (part, kind)
 
-        for part in parts:
-            if any("mean" in s for s in series[part].values()):
+        for part, found in rows.groupby("base"):
+            if "mean" in set(found.metric):
                 panels += [(part, "mean"), (part, "spread")]
             else:
                 panels.append((part, "categorical"))
@@ -192,41 +207,41 @@ class PartsChart(SeriesChart):
             right=[kind == "spread" for _, kind in panels],
         )
         self.height = 230 * len(panels) + 80
-        self.after(title=dict(text=self.o.labels[key], font_size=13), showlegend=True)
-        shown = set()  # agents already in the legend
+        self.after(
+            title=dict(text=self.o.labels[self.o.key], font_size=13), showlegend=True
+        )
+        shown = set()  # statistics already in the legend
 
         for row, (part, kind) in enumerate(panels, start=1):
-            for agent, stats in series[part].items():
-                look = dict(color=colors[agent], group=agent, row=row)
-                look["legend"] = agent not in shown
-                shown.add(agent)
+            for metric, dash, right in self.LINES[kind]:
+                grid = _part_grid(rows, part, metric)
 
-                if kind == "mean":
-                    mean, sigma = stats["mean"], stats["log_std"].pipe(np.exp)
-                    band = (mean - sigma, mean + sigma)
-                    self.line(mean.index, mean, agent, band=band, **look)
-                elif kind == "spread":
-                    log_std = stats["log_std"]
-                    self.line(
-                        log_std.index,
-                        log_std,
-                        agent,
-                        customdata=np.exp(log_std.to_numpy()),
+                if grid.empty:
+                    continue
+
+                mean, trace = grid.mean(axis=1), {}
+
+                if metric == "log_std":
+                    trace = dict(
+                        customdata=np.exp(mean.to_numpy()),
                         hovertemplate="log σ %{y:.2f} (σ %{customdata:.4f})"
                         "<extra>%{fullData.name}</extra>",
-                        **look,
                     )
 
-                    if "outside" in stats:
-                        look["legend"] = False
-                        out = stats["outside"]
-                        self.line(out.index, out, agent, dash="dot", right=True, **look)
-                else:
-                    for name, dash in (("entropy", "solid"), ("top", "dash")):
-                        if name in stats:
-                            values = stats[name]
-                            self.line(values.index, values, agent, dash=dash, **look)
-                            look["legend"] = False
+                self.line(
+                    grid.index,
+                    mean,
+                    metric,
+                    self.COLORS[metric],
+                    dash,
+                    band=(grid.min(axis=1), grid.max(axis=1)),
+                    group=metric,
+                    legend=metric not in shown,
+                    right=right,
+                    row=row,
+                    **trace,
+                )
+                shown.add(metric)
 
             if kind == "mean":
                 self.level(-1.0, row=row)
@@ -238,6 +253,26 @@ class PartsChart(SeriesChart):
                 )
 
         self.fig.update_xaxes(title="environment steps", row=len(panels), col=1)
+
+
+class PartGrid(ParticipantChart):
+    """One statistic of one action part, agent by agent over training. Options:
+    ``metrics``, ``key`` (the run), ``part``, ``metric``."""
+
+    x_title = "environment steps"
+
+    def draw(self) -> None:
+        o = self.o
+        grid = _part_grid(_part_rows(o.metrics, o.key), o.part, o.metric).T
+        grid = grid.reindex(sorted(grid.index, key=by_number))
+        o.update(
+            rows=list(grid.index),
+            columns=list(grid.columns),
+            cells=grid.to_numpy(),
+            title=o.metric,
+            centred=o.metric == "mean",
+        )
+        super().draw()
 
 
 # --------------------------------------------------------------------------------------
@@ -318,11 +353,12 @@ class LearningTab(Tab):
 
         with section(
             "Each action part",
-            "Every action part of one run, every agent in its own colour, read in "
-            "the same fixed states every report: a continuous part's mean ± σ "
-            "(network units: ±1 are its bounds), then its log σ and the share of "
-            "means outside the bounds; a categorical part's entropy and its most "
-            "likely category's probability.",
+            "Every action part of one run, read in the same fixed states every "
+            "report: the mean over the agents, with a band of their min to max, of a "
+            "continuous part's mean (network units: ±1 are its bounds), its log σ and "
+            "the share of means outside the bounds; of a categorical part's entropy "
+            "and its most likely category's probability. Under it, one statistic "
+            "agent by agent.",
             "tune",
         ):
             if not options:
@@ -331,7 +367,7 @@ class LearningTab(Tab):
                 )
                 return
 
-            # The run picker above the chart; it changes the chart's run
+            # The run picker above the charts; it changes both charts' run
             picker = ui.row().classes("w-full")
             chart = PartsChart(
                 metrics=metrics, key=next(iter(options)), labels=labels
@@ -340,4 +376,40 @@ class LearningTab(Tab):
             chart.memory = "results_Learning_parts"
 
             with picker:
-                chart.select("key", options, "Run").classes("w-full")
+                run_picker = chart.select("key", options, "Run").classes("w-full")
+
+            self._part_grid(metrics, run_picker)
+
+    def _part_grid(self, metrics: pd.DataFrame, run_picker: ui.select) -> None:
+        """The heatmap under the action parts and its selectors, for the picked run."""
+        found = part_statistics(metrics, run_picker.value)
+
+        # Selector row: part | statistic
+        with ui.row().classes("items-center gap-3"):
+            part = ui.select(list(found), value=next(iter(found)), label="Part")
+            part.classes("w-40")
+            remember(part, "results_Learning_grid_part")
+            choices = found[part.value]
+            statistic = ui.select(choices, value=choices[0], label="Statistic")
+            statistic.classes("w-40")
+            remember(statistic, "results_Learning_grid_statistic")
+
+        grid = PartGrid(
+            metrics=metrics,
+            key=run_picker.value,
+            part=part.value,
+            metric=statistic.value,
+        ).show()
+        self.watch(grid, metrics="metrics")
+
+        def follow() -> None:
+            parts = part_statistics(grid.o.metrics, run_picker.value)
+            kept = part.value if part.value in parts else next(iter(parts))
+            part.set_options(list(parts), value=kept)
+            names = parts[kept]
+            named = statistic.value if statistic.value in names else names[0]
+            statistic.set_options(names, value=named)
+            grid.set(key=run_picker.value, part=kept, metric=named)
+
+        for field in (run_picker, part, statistic):
+            field.on_value_change(follow)

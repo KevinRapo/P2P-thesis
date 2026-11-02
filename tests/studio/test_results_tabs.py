@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from nicegui.testing import user_simulation
 
+from core.runner import results
 from studio.adapters.results_service import ResultsService
 from studio.pages.results import validation
 from studio.pages.results.common import DayChart, Selection
@@ -162,6 +163,54 @@ async def test_one_row_has_nothing_to_differ_from():
         view.reference.set_options({"": "Nothing", "a": "a"}, value="a")
         view.draw()
         await user.should_see("Nothing to compare it with.")
+
+
+PEOPLE = [
+    {"id": "P1", "owns": ["Load 1", "SGen 1"], "battery": None},
+    {"id": "P2", "owns": ["Load 2", "SGen 2"], "battery": {"capacity": 5}},
+    {"id": "P3", "owns": ["Load 3"], "battery": None},
+]
+
+
+def run_with(people, bills: dict[str, tuple[float, float]]):
+    """A run's reader with a scenario of ``people``; ``bills``: per agent, its bill
+    under the trained policy and under zero."""
+    table = pd.DataFrame(
+        {
+            "policy": ["trained", "zero"] * len(bills) * 2,
+            "day": [d for d in ("d1", "d2") for _ in range(2 * len(bills))],
+            "agent": [a for a in bills for _ in range(2)] * 2,
+            "bill": [b for one in bills.values() for b in one] * 2,
+        }
+    )
+
+    return SimpleNamespace(
+        key="k",
+        settings={"scenario": people},
+        table=lambda name: table if name == "heldout_agents" else None,
+    )
+
+
+def test_participants_are_grouped_by_what_they_own():
+    result = run_with({"participants": PEOPLE}, {})
+    assert results.participant_groups(result) == {
+        "P1": "PV",
+        "P2": "battery",
+        "P3": "other",
+    }
+    assert results.participant_groups(run_with("scenario.json", {})) == {}
+
+
+def test_a_participant_gains_its_bill_over_zero():
+    bills = {"P1": (-1.0, -4.0), "P2": (-3.0, -2.0)}
+    found = results.participant_gains([run_with({"participants": PEOPLE}, bills)])
+    assert list(found.key) == ["k", "k"]
+    assert list(found.agent) == ["P1", "P2"]
+    assert list(found.group) == ["PV", "battery"]
+    assert list(found.gain) == [3.0, -1.0]
+    other = results.participant_gains([run_with("scenario.json", bills)])
+    assert list(other.group) == [results.UNKNOWN_GROUP] * 2
+    assert results.participant_gains([]).empty
 
 
 @pytest.mark.anyio

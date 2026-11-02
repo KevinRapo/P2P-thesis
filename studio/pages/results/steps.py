@@ -5,14 +5,14 @@ for (``heldout_steps.csv``, ``heldout_agent_steps.csv``).
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Sequence
+from typing import Callable, Collection, Optional, Sequence
 
 import pandas as pd
 from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
 from studio.components.charts import SeriesChart
-from studio.pages.results.common import POLICIES, Selection
+from studio.pages.results.common import POLICIES, Selection, by_number
 from studio.theme import SERIES
 
 
@@ -92,11 +92,12 @@ class StepView:
     async def _rows(self, key: str, table: str) -> Optional[pd.DataFrame]:
         return await run.io_bound(self.service.table, key, table)
 
-    def _pick(self, field: ui.select, options: list, wanted=None) -> None:
-        """Offer ``options``, keeping the choice when it is one of them; a new choice
-        draws again."""
+    def _pick(self, field: ui.select, options: Collection, wanted=None) -> None:
+        """Offer ``options`` (a list, or value -> name), keeping the choice when it is
+        one of them; a new choice draws again."""
         kept = field.value if field.value in options else wanted
-        field.set_options(options, value=kept if kept in options else options[0])
+        kept = kept if kept in options else next(iter(options))
+        field.set_options(options, value=kept)
 
     async def draw(self) -> None:
         self._drawn += 1
@@ -134,7 +135,12 @@ class StepView:
             return
 
         if self.person_charts and people is not None:
-            self._pick(self.agent, sorted(people.agent.unique(), key=_number))
+            groups = self.service.participant_groups(self.run.value)
+            names = sorted(people.agent.unique(), key=by_number)
+            self._pick(
+                self.agent,
+                {a: f"{a} ({groups[a]})" if a in groups else a for a in names},
+            )
 
         self.box.clear()
 
@@ -156,10 +162,3 @@ class StepView:
 
                 if self.details:
                     self.details(person)
-
-
-def _number(agent: str) -> tuple[int, str]:
-    """A participant's sort key: P2 before P10."""
-    digits = "".join(c for c in agent if c.isdigit())
-
-    return int(digits or 0), agent

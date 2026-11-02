@@ -25,6 +25,8 @@ days or the participants of one run.
     participant_metrics(results) every number of a participant on a test day, long
                                  format
     participant_days(result)     one run, per test day and participant: the same
+    participant_groups(result)   what kind each participant is: battery, PV or other
+    participant_gains(results)   per run and participant: its gain over ``zero``
     day_indicators(results)      every indicator per run, policy and test day, long
                                  format, with what the run was (``indicators.py``)
     differing_settings(results)  the settings that are not the same in all runs
@@ -51,6 +53,7 @@ from core.runner.spec import MARKET_ENVS, REPO, runs_root
 LOCAL = "local"
 BASELINES = ("zero", "net_position")
 TRAINED = "trained"
+UNKNOWN_GROUP = "unknown"  # a participant the run's scenario does not list
 # A run folder's name: <algorithm>_<paradigm>_s<seed>[_<variant>] (``spec.expand``).
 _RUN_NAME = re.compile(r"^(?P<algorithm>[a-z]+)_(?P<paradigm>[a-z]+)_s(?P<seed>\d+)")
 
@@ -503,9 +506,33 @@ def _learner_rows(
     return pd.concat(rows, ignore_index=True) if rows else None
 
 
+def participant_groups(result: RunResult) -> dict[str, str]:
+    """What kind each participant of the run's scenario is: ``battery``, else ``PV``,
+    else ``other``. Empty when the run saved only the scenario's file name."""
+    scenario = result.settings["scenario"]
+
+    if not isinstance(scenario, dict):
+        return {}
+
+    def group(person: dict[str, Any]) -> str:
+        if person.get("battery"):
+            return "battery"
+
+        return "PV" if any("SGen" in e for e in person.get("owns", [])) else "other"
+
+    return {p["id"]: group(p) for p in scenario.get("participants", [])}
+
+
+def _groups(result: RunResult, agents: pd.Series) -> list[str]:
+    """The group of each of ``agents``."""
+    groups = participant_groups(result)
+
+    return [groups.get(agent, UNKNOWN_GROUP) for agent in agents]
+
+
 def participant_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
     """Every number of ``heldout_agents.csv``, long format: per run, ``policy``,
-    ``day``, ``agent``, ``metric`` and ``value``."""
+    ``day``, ``agent``, its ``group``, ``metric`` and ``value``."""
     ids = ["policy", "day", "agent"]
     frames = []
 
@@ -516,7 +543,32 @@ def participant_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
             numbers = frame.drop(columns=[*ids, "episode", "seed"], errors="ignore")
             numbers = numbers.select_dtypes("number").columns
             long = frame.melt(ids, numbers, var_name="metric", value_name="value")
-            frames.append(long.assign(**_head(result)))
+            frames.append(
+                long.assign(**_head(result), group=_groups(result, long.agent))
+            )
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def participant_gains(results: Sequence[RunResult]) -> pd.DataFrame:
+    """A row per run and participant: ``key``, ``agent``, ``group`` and ``gain``, its
+    mean bill minus its mean bill under ``zero`` over the test days."""
+    frames = []
+
+    for result in results:
+        frame = result.table("heldout_agents")
+
+        if frame is None or not {"policy", "bill"} <= set(frame):
+            continue
+
+        bills = frame.pivot_table(index="agent", columns="policy", values="bill")
+
+        if {TRAINED, "zero"} <= set(bills):
+            gain = bills[TRAINED] - bills["zero"]
+            gains = gain.rename("gain").reset_index()
+            frames.append(
+                gains.assign(key=result.key, group=_groups(result, gains.agent))
+            )
 
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
@@ -577,6 +629,7 @@ def _factors(result: RunResult) -> dict[str, Any]:
         "network": grid.get("code"),
         "grid_method": grid.get("method"),
         "test_days": _days(settings["test_days"]),
+        "participants": len(scenario.get("participants", [])),
     }
 
 

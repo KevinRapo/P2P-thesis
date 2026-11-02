@@ -1,6 +1,9 @@
 """What the Results page's tabs share: the tab base, what they have selected, the
 chart per test day and a table of a frame.
 
+No chart draws a line per participant: a group is its mean, every participant at
+once is a row of a heatmap (``ParticipantChart``), one participant is picked.
+
 A tab reads its data off the UI thread (``read``), builds its cards once
 (``build``) and registers the charts the live view refreshes (``watch``); on every
 refresh ``update`` hands each watched chart the data read again, so the charts
@@ -12,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
+import numpy as np
 import pandas as pd
 from nicegui import ui
 
@@ -189,6 +193,47 @@ def indicator_card(
         labels,
         metrics,
     )
+
+
+# --------------------------------------------------------------------------------------
+# ParticipantChart: every participant at once, one row each
+# --------------------------------------------------------------------------------------
+class ParticipantChart(Chart):
+    """A heatmap with a row per participant, the first on top; red to blue around 0, or
+    a plain scale with ``centred`` off. Options: ``rows`` and ``columns`` (their
+    names), ``cells`` (rows × columns), ``title`` (the colour bar's), ``centred``."""
+
+    layout = {"hovermode": "closest"}
+
+    def draw(self) -> None:
+        o = self.o
+        cells = np.asarray(o.cells, dtype=float)
+
+        if not np.isfinite(cells).any():
+            return
+
+        scale: dict[str, Any] = {"colorscale": "Viridis"}
+
+        if o.get("centred", True):
+            limit = float(np.nanmax(np.abs(cells))) or 1.0
+            scale = {"colorscale": "RdBu", "zmin": -limit, "zmax": limit}
+
+        self.height = max(260, 26 * len(o.rows) + 120)
+        self.fig.add_heatmap(
+            z=cells,
+            x=list(o.columns),
+            y=list(o.rows),
+            colorbar=dict(title=o.title),
+            **scale,
+        )
+        self.fig.update_yaxes(autorange="reversed")
+
+
+def by_number(agent: str) -> tuple[int, str]:
+    """A participant's sort key: P2 before P10."""
+    digits = "".join(c for c in agent if c.isdigit())
+
+    return int(digits or 0), agent
 
 
 # --------------------------------------------------------------------------------------

@@ -14,12 +14,12 @@ from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import section
-from studio.components.charts import Chart
 from studio.components.memory import remember
 from studio.components.run_table import labels_of
 from studio.pages.results.common import (
     BASELINES,
     BY,
+    ParticipantChart,
     Tab,
     indicator_card,
     indicator_rows,
@@ -64,50 +64,20 @@ TRACE_COLUMNS = [
 ]
 # The participant outcomes of ``heldout_agents.csv`` the Participants view offers.
 OUTCOMES = {m: m.replace("_", " ") for m in PARTICIPANT_METRICS}
-MOST_PARTICIPANTS = 30  # shown at once; the rest through the filter
 
 
 # --------------------------------------------------------------------------------------
 # One run: participants against a baseline, orders of a day
 # --------------------------------------------------------------------------------------
-def shown_participants(
-    table: pd.DataFrame, column: str, text: str = "", most: int = MOST_PARTICIPANTS
-) -> list[str]:
+def shown_participants(table: pd.DataFrame, column: str, text: str = "") -> list[str]:
     """The participants the heatmap shows: those whose name contains ``text`` (all
-    without), at most ``most``, the largest mean absolute ``column`` first."""
+    without), the largest mean absolute ``column`` first."""
     sizes = table.groupby("agent")[column].apply(lambda v: v.abs().mean())
 
     if text:
         sizes = sizes[[text.lower() in str(a).lower() for a in sizes.index]]
 
-    return list(sizes.sort_values(ascending=False).index[:most])
-
-
-class ParticipantChart(Chart):
-    """The ``agents`` × test days: ``column`` (trained minus a baseline), red to
-    blue around 0, the largest difference on top. Options: ``table``, ``column``,
-    ``agents``, ``title`` (the colour bar's)."""
-
-    layout = {"hovermode": "closest"}
-
-    def draw(self) -> None:
-        o = self.o
-        grid = o.table[o.table.agent.isin(o.agents)].pivot(
-            index="agent", columns="day", values=o.column
-        )
-        grid = grid.reindex([a for a in o.agents if a in grid.index])
-        limit = float(grid.abs().max().max() or 1.0)
-        self.height = max(260, 26 * len(grid) + 120)
-        self.fig.add_heatmap(
-            z=grid.values,
-            x=list(grid.columns),
-            y=list(grid.index),
-            colorscale="RdBu",
-            zmin=-limit,
-            zmax=limit,
-            colorbar=dict(title=o.title),
-        )
-        self.fig.update_yaxes(autorange="reversed")
+    return list(sizes.sort_values(ascending=False).index)
 
 
 def _orders(person: pd.DataFrame) -> None:
@@ -140,9 +110,8 @@ class OneRun:
             "Participants",
             "An outcome of the trained policy minus the same of a baseline, per "
             "participant and test day (blue: higher for the trained policy). A "
-            "better team total can hide participants that lose. With many "
-            f"participants, the {MOST_PARTICIPANTS} with the largest difference, or "
-            "those the filter names.",
+            "better team total can hide participants that lose. The largest "
+            "difference is on top; the filter narrows it by name.",
             "groups",
         ):
             if people is None:
@@ -183,16 +152,18 @@ class OneRun:
                         return
 
                     agents = shown_participants(table, column, text.value or "")
-                    total = table.agent.nunique()
-                    ui.label(f"{len(agents)} of {total} participants").classes(
-                        "mls-card-caption"
+                    grid = table[table.agent.isin(agents)].pivot(
+                        index="agent", columns="day", values=column
                     )
                     title = (
                         f"{OUTCOMES[outcome.value]}:<br>trained −<br>"
                         + BASELINES[baseline.value]
                     )
                     ParticipantChart(
-                        table=table, column=column, agents=agents, title=title
+                        rows=agents,
+                        columns=grid.columns,
+                        cells=grid.reindex(agents).to_numpy(),
+                        title=title,
                     ).show()
 
             for field in (outcome, baseline, text):
@@ -221,13 +192,13 @@ class MarketTab(Tab):
         metric_card(
             self,
             "Per participant",
-            "The same per participant on the test days; a line per participant "
-            "with 'A line per: Participant'",
+            "The same per participant on the test days: the mean over them, or a "
+            "line per kind with 'A line per: Participant group'",
             "people",
             data,
             labels,
             {m: m.replace("_", " ") for m in PARTICIPANT_METRICS},
-            by=BY | {"agent": "Participant"},
+            by=BY | {"group": "Participant group"},
         )
 
         with section("One run", "Its participants against a baseline", "search"):

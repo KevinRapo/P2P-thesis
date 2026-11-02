@@ -3,7 +3,8 @@
 The tab opened first: any ticked runs in one table, a row per what the reader picks and
 a column per headline indicator (``core/runner/indicators.py``), as values, against
 each run's own baseline, or as differences from a reference row; and the gain per test
-day. A row opens in Market or Grid, on its median seed.
+day. A row opens in Market or Grid, on its median seed. Each participant's gain shows who
+wins and who loses at any size.
 """
 
 from __future__ import annotations
@@ -24,6 +25,8 @@ from studio.pages.results.common import BASELINES, Tab
 from studio.theme import MUTED, SERIES
 
 HEADLINES = {i.name: i for i in INDICATORS if i.headline}
+# What grows with the number of participants, so ``Per participant`` divides it.
+AMOUNTS = {i.name for i in INDICATORS if i.unit in ("EUR", "kWh")}
 # What a row can stand for, in the order offered.
 ROWS = {
     "key": "Run",
@@ -93,7 +96,7 @@ class Overview:
     def __init__(self, table: pd.DataFrame, tab: "ValidationTab") -> None:
         self.table, self.tab = table, tab
 
-        # Controls: a row per | view | difference from
+        # Controls: a row per | view | difference from | per participant
         with ui.row().classes("w-full items-center gap-3"):
             self.rows = ui.select(
                 ROWS, value=row_columns(table), multiple=True, label="A row per"
@@ -102,9 +105,11 @@ class Overview:
             self.reference = ui.select(
                 {"": "Nothing"}, value="", label="Difference from"
             ).classes("w-96")
+            self.per_participant = ui.switch("Per participant")
 
         remember(self.rows, "results_rows", ROWS)
         remember(self.view, "results_view")
+        remember(self.per_participant, "results_per_participant")
         self.box = ui.column().classes("w-full")
 
         # Open a row: which | Market | Grid
@@ -116,7 +121,7 @@ class Overview:
                     "outline no-caps dense"
                 )
 
-        for field in (self.rows, self.view, self.reference):
+        for field in (self.rows, self.view, self.reference, self.per_participant):
             field.on_value_change(self.draw)
 
         self.draw()
@@ -126,13 +131,26 @@ class Overview:
         self.table = table
         self.draw()
 
-    def _labelled(self) -> pd.DataFrame:
-        """The table with a ``row`` column: the row's name."""
-        rows = list(self.rows.value or ["key"])
+    def _scaled(self) -> pd.DataFrame:
+        """The table, with ``Per participant`` its ``AMOUNTS`` divided by the run's
+        participants (missing for a run that does not say how many)."""
+        table = self.table
 
-        return self.table.assign(
-            row=self.table[rows].astype(str).agg(" · ".join, axis=1)
+        if not self.per_participant.value:
+            return table
+
+        each = table.value / table.participants.where(table.participants > 0)
+
+        return table.assign(
+            value=table.value.where(~table.indicator.isin(AMOUNTS), each)
         )
+
+    def _labelled(self) -> pd.DataFrame:
+        """The scaled table with a ``row`` column: the row's name."""
+        rows = list(self.rows.value or ["key"])
+        table = self._scaled()
+
+        return table.assign(row=table[rows].astype(str).agg(" · ".join, axis=1))
 
     def draw(self) -> None:
         rows = list(self.rows.value or ["key"])
@@ -177,7 +195,7 @@ class Overview:
         frame = wide(found, rows)
         names = ROWS | {"row": "Row", "paired": "Paired"}
         columns = [(c, names[c]) for c in rows]
-        columns += [(n, f"{i.label} {i.unit}".strip()) for n, i in HEADLINES.items()]
+        columns += [(n, self._heading(n, i)) for n, i in HEADLINES.items()]
 
         if baselines:
             frame = pd.concat([frame, self._baselines(rows[0])], ignore_index=True)
@@ -188,9 +206,16 @@ class Overview:
         ]
         data_table(records, columns, row_key="_row", pagination=15)
 
+    def _heading(self, name: str, indicator: indicators.Indicator) -> str:
+        """A headline's column heading."""
+        each = self.per_participant.value and name in AMOUNTS
+        heading = f"{indicator.label} {indicator.unit}".strip()
+
+        return f"{heading} per participant" if each else heading
+
     def _baselines(self, column: str) -> pd.DataFrame:
         """A row per baseline, days and prices, named in the table's first column."""
-        found = indicators.baselines(self.table)
+        found = indicators.baselines(self._scaled())
         found = found[found.indicator.isin(HEADLINES)]
         groups = ["policy", *indicators.PLAYED_ON]
         table = found.pivot(index=groups, columns="indicator", values="value")
@@ -239,6 +264,33 @@ class GainChart(Chart):
         self.fig.add_hline(y=0, line_color=MUTED)
 
 
+class ParticipantGainChart(Chart):
+    """Per run, each participant's gain over zero, as a box with every participant a
+    point named in its hover. Options: ``gains`` (``participant_gains``), ``labels``."""
+
+    height = 380
+    y_title = "EUR per test day, trained − zero"
+    layout = {"hovermode": "closest"}
+
+    def draw(self) -> None:
+        o = self.o
+
+        if o.gains.empty:
+            return
+
+        self.fig.add_box(
+            x=[o.labels[k] for k in o.gains.key],
+            y=o.gains.gain,
+            text=o.gains.agent + " (" + o.gains.group + ")",
+            hovertemplate="%{text}: %{y:.3f}<extra></extra>",
+            hoveron="points",
+            boxpoints="all",
+            jitter=0.3,
+            marker_color=SERIES[1],
+        )
+        self.fig.add_hline(y=0, line_color=MUTED)
+
+
 def gains(table: pd.DataFrame) -> pd.DataFrame:
     """A row per run and test day, a column per gain."""
     if table.empty:
@@ -255,7 +307,8 @@ def gains(table: pd.DataFrame) -> pd.DataFrame:
 # The tab
 # --------------------------------------------------------------------------------------
 class ValidationTab(Tab):
-    """What differs, the overview, the gain per day, one run's settings."""
+    """What differs, the overview, the gain per day and per participant, one run's
+    settings."""
 
     label, icon = "Validation", "verified"
 
@@ -268,6 +321,7 @@ class ValidationTab(Tab):
             "results": s.results(keys),
             "table": table,
             "days": gains(table),
+            "gains": s.participant_gains(keys),
         }
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
@@ -295,6 +349,17 @@ class ValidationTab(Tab):
         ):
             chart = GainChart(days=data["days"], labels=labels_of(keys)).show()
             self.watch(chart, days="days")
+
+        with section(
+            "Per participant",
+            "Each participant's mean bill over the test days minus the same under "
+            "zero (above 0: better off); hover over a point for who it is.",
+            "groups",
+        ):
+            chart = ParticipantGainChart(
+                gains=data["gains"], labels=labels_of(keys)
+            ).show()
+            self.watch(chart, gains="gains")
 
         self._settings(keys, data)
 

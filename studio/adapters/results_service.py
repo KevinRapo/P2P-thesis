@@ -102,6 +102,9 @@ class ResultsService:
     def participant_metrics(self, keys: list[str]) -> pd.DataFrame:
         return results.participant_metrics(self.results(keys))
 
+    def participant_gains(self, keys: list[str]) -> pd.DataFrame:
+        return results.participant_gains(self.results(keys))
+
     def differing_settings(self, keys: list[str]) -> list[str]:
         return results.differing_settings([r.settings for r in self.results(keys)])
 
@@ -111,6 +114,9 @@ class ResultsService:
 
     def participant_days(self, key: str, value: str = "return") -> pd.DataFrame:
         return results.participant_days(self.result(key), value)
+
+    def participant_groups(self, key: str) -> dict[str, str]:
+        return results.participant_groups(self.result(key))
 
     def table(self, key: str, name: str) -> Optional[pd.DataFrame]:
         """One of the run's tables (``RunResult.table``), e.g. ``heldout_episodes``

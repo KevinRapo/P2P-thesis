@@ -86,7 +86,7 @@ def test_runs_of_two_targets_keep_their_target_in_the_labels():
     assert labels_of(two) == {k: k for k in two}  # apart, not one box
 
 
-def test_the_heatmap_shows_the_largest_differences_or_the_filtered():
+def test_the_heatmap_shows_every_participant_or_the_filtered():
     import pandas as pd
 
     from studio.pages.results.market import shown_participants
@@ -97,10 +97,10 @@ def test_the_heatmap_shows_the_largest_differences_or_the_filtered():
             "d": [(-1) ** i * i for i in range(50) for _ in range(2)],
         }
     )
-    top = shown_participants(table, "d", most=3)
-    assert top == ["P49", "P48", "P47"]  # by size, either sign
-    assert shown_participants(table, "d", "p1", most=30)[:2] == ["P19", "P18"]
-    assert len(shown_participants(table, "d")) == 30
+    top = shown_participants(table, "d")
+    assert top[:3] == ["P49", "P48", "P47"]  # by size, either sign
+    assert shown_participants(table, "d", "p1")[:2] == ["P19", "P18"]
+    assert len(top) == 50
 
 
 def test_baselines_are_each_runs_own_unless_they_are_the_same():
