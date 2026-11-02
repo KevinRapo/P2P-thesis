@@ -96,17 +96,11 @@ class ResultsService:
     # The learner's metric groups, as the reader defines them (title, metrics, note).
     learner_groups = LEARNER_GROUPS
 
-    def heldout_days(self, keys: list[str]) -> pd.DataFrame:
-        return results.heldout_days(self.results(keys))
-
-    def day_metrics(self, keys: list[str]) -> pd.DataFrame:
-        return results.day_metrics(self.results(keys))
+    def day_indicators(self, keys: list[str]) -> pd.DataFrame:
+        return results.day_indicators(self.results(keys))
 
     def participant_metrics(self, keys: list[str]) -> pd.DataFrame:
         return results.participant_metrics(self.results(keys))
-
-    def seed_groups(self, keys: list[str]) -> pd.DataFrame:
-        return results.seed_groups(self.results(keys))
 
     def differing_settings(self, keys: list[str]) -> list[str]:
         return results.differing_settings([r.settings for r in self.results(keys)])
@@ -120,5 +114,5 @@ class ResultsService:
 
     def table(self, key: str, name: str) -> Optional[pd.DataFrame]:
         """One of the run's tables (``RunResult.table``), e.g. ``heldout_episodes``
-        or ``heldout_trace_steps``."""
+        or ``heldout_steps``."""
         return self.result(key).table(name)

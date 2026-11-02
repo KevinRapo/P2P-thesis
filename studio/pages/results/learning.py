@@ -1,10 +1,10 @@
-"""Results → Learning: did it learn? The learner of the ticked runs over
-environment steps, from their ``metrics.csv`` (``core/runner/results.learner_metrics``),
-for any environment: the training return (the sampled episodes, with
-exploration); per module the policy and value losses, the critic's explained
-variance, the entropy, the KL of each update and the gradient norm against the
-run's clip; and one run's action parts, each one's distribution over training.
-Every chart follows the live view.
+"""Results → Learning: did it learn? Everything here is on the training days. The
+training return next to the periodic evaluation (on seeds training did not use), in
+return or money, with the baselines of step 0; from ``metrics.csv``
+(``core/runner/results.learner_metrics``), for any environment, per module the policy
+and value losses, the critic's explained variance, the entropy, the KL of each update
+and the gradient norm against the run's clip; and one run's action parts, each one's
+distribution over training. Every chart follows the live view.
 """
 
 from __future__ import annotations
@@ -20,7 +20,65 @@ from studio.components.charts import SeriesChart
 from studio.components.memory import remember
 from studio.components.run_table import labels_of
 from studio.pages.results.common import Tab
-from studio.theme import SERIES
+from studio.theme import MUTED, SERIES
+
+# --------------------------------------------------------------------------------------
+# Figures: the curve
+# --------------------------------------------------------------------------------------
+# What the curve can show: column of ``learning_curves`` -> the y axis.
+CURVES = {
+    "team_return_mean": "return (team)",
+    "per_participant": "return (per participant)",
+    "team_money": "money (team, EUR per day)",
+}
+
+
+class CurveChart(SeriesChart):
+    """Each run's trained policy over environment steps, and its baselines at step 0,
+    dashed in its colour (one grey level when every run has the same); with
+    ``train``, in return, its training return too, dotted.
+
+    Options: ``curves``, ``training`` (``learning_curves`` / ``training_curves``),
+    ``labels`` (run key -> name), ``value`` (a column of ``CURVES``), ``train``.
+    """
+
+    height = 380
+    x_title = "environment steps"
+
+    def draw(self) -> None:
+        o = self.o
+
+        if o.curves.empty or o.value not in o.curves:
+            return
+
+        self.titles(y=CURVES[o.value])
+        keys = list(dict.fromkeys(o.curves.key))
+        colors = {k: SERIES[i % len(SERIES)] for i, k in enumerate(keys)}
+
+        for key in keys:
+            rows = o.curves[(o.curves.key == key) & (o.curves.policy == "trained")]
+            self.line(
+                rows.env_steps, rows[o.value], o.labels[key], colors[key], markers=True
+            )
+
+            if o.train and o.value in o.training and not o.training.empty:
+                own = o.training[o.training.key == key]
+                name = f"{o.labels[key]} (training)"
+                self.line(own.env_steps, own[o.value], name, colors[key], dash="dot")
+
+        start = o.curves[(o.curves.env_steps == 0) & (o.curves.policy != "trained")]
+
+        for policy, rows in start.groupby("policy"):
+            if rows[o.value].round(9).nunique() == 1:  # the same for every run
+                self.level(rows[o.value].iloc[0], f"{policy} (step 0)", color=MUTED)
+                continue
+
+            for _, row in rows.iterrows():
+                end = o.curves[o.curves.key == row.key].env_steps.max()
+                name = f"{o.labels[row.key]}: {policy}"
+                y = [row[o.value]] * 2
+                self.line([0, end], y, name, colors[row.key], dash="dash", width=1)
+
 
 # --------------------------------------------------------------------------------------
 # Figures: the learner
@@ -186,7 +244,7 @@ class PartsChart(SeriesChart):
 # The tab
 # --------------------------------------------------------------------------------------
 class LearningTab(Tab):
-    """Training return, the learner's metrics in groups, one run's action parts."""
+    """The return and money curves, the learner's metrics, one run's action parts."""
 
     label, icon = "Learning", "psychology"
 
@@ -195,6 +253,8 @@ class LearningTab(Tab):
         return {
             "metrics": self.service.learner_metrics(keys),
             "clip": {r.key: r.settings.get("grad_clip") for r in results},
+            "curves": self.service.learning_curves(keys),
+            "training": self.service.training_curves(keys),
         }
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
@@ -213,14 +273,24 @@ class LearningTab(Tab):
         charts = []  # the module charts, which the mean switch changes
 
         with section(
-            "Training return",
-            "The sampled episodes' team return while learning (with exploration).",
+            "Return",
+            "The periodic evaluation on the training days, on seeds training did not "
+            "use, next to the sampled episodes' return (with exploration), which is "
+            "lower while the policy still explores. The baselines at step 0, dashed.",
             "show_chart",
         ):
-            chart = LearnerChart(
-                metrics=metrics, names=["team_return_mean"], labels=labels, mean=True
+            chart = CurveChart(
+                curves=data["curves"],
+                training=data["training"],
+                labels=labels,
+                value="team_return_mean",
+                train=True,
             ).show()
-            self.watch(chart, metrics="metrics")
+            self.watch(chart, curves="curves", training="training")
+
+            with ui.row().classes("items-center gap-4"):
+                chart.select("value", CURVES, "Show").classes("w-64")
+                chart.switch("train", "Training return")
 
         # Two columns of cards, one per group of learner metrics
         with ui.grid(columns=2).classes("w-full gap-4"):

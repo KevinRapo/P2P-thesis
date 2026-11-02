@@ -46,7 +46,6 @@ PRESET_KEYS = (
     "budget",
     "eval_points",
     "eval_episodes",
-    "trace_days",
     "resources",
 )
 PRESETS = ("test", "full")

@@ -115,10 +115,14 @@ money unit):
 
     profit, bill                   the step's profit (eq. 14) and the net bill of
                                    the reward, before scaling
+    fees                           the grid fees it paid (eq. 8)
+    generation_kwh, demand_kwh     its own generation and demand
     bought_kwh, sold_kwh           traded energy, peers and DSO together
+    peer_bought_kwh, peer_sold_kwh of it, with peers
     preference_kwh                 traded in stage 1 (mutual preferences)
     deferred_demand_kwh            demand drawn untraded from the upstream grid
     deferred_supply_kwh            surplus spilled untraded
+    charge_kwh, discharge_kwh      energy into and out of the battery
     stored_change_kwh              change of the energy stored in the battery
     adjusted_bill                  bill + stored_change_kwh · ``stored_kwh_value``
     state: order_kwh               the order placed, as the market took it after
@@ -135,6 +139,7 @@ money unit):
            soc                     battery state of charge after the step, 0 to 1
                                    (NaN without a battery)
            reputation              reputation after the step (eq. 12)
+           reward_*                what the reward was made of (``Reward.parts``)
     shared: p2p_kwh                energy traded between participants
             preference_kwh         of it, traded in stage 1
             sold_to_dso_kwh        energy participants sold to the DSO (stage 3)
@@ -144,13 +149,19 @@ money unit):
             grid_import_kwh        energy the network drew from the upstream grid
             grid_export_kwh        energy it fed into the upstream grid
             grid_losses_kwh        line and transformer losses of the power flow
-            grid_violations        voltage and loading limits the flow broke
+            voltage_violations     buses outside their voltage limits
+            loading_violations     lines and transformers over their limits
             not_converged          1 if the power flow did not converge
-    shared_state: clearing_price   the step's clearing price
-                  min_voltage_pu, max_voltage_pu, max_line_loading_percent
+    shared_state: clearing_price   the step's clearing price (the last one kept
+                                   when no peers traded)
+                  peer_price       the same, NaN when no peers traded
+                  feed_in_tariff, utility_price
+                  min_voltage_pu, max_voltage_pu, max_line_loading_percent,
+                  max_trafo_loading_percent
                   fee_max_line_loading_percent: the highest line loading the
                   fees were charged on (the graph model's with ``grid.method =
                   "graph"``, else the power flow's)
+    final: the ten KPIs (``signals.KPIS``) over the day, on its last step
 
 The grid amounts are the AC power flow's (the whole network, background
 included), whatever ``grid.method``; a flow that did not converge counts 0 for
@@ -188,7 +199,7 @@ from gymnasium import spaces
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 
 from core.config import store
-from core.env.reward import build_reward, net_bill
+from core.env.reward import build_reward, net_bill, side_kwh
 from core.env_defaults import ENV_CONFIG_KEYS, SCALE_KEYS as SCALE_KEYS
 from core.market import signals
 from core.market.dso import DSO_ID
@@ -448,10 +459,13 @@ class MarketEnv(MultiAgentEnv):
         orders = {order.agent_id: order for order in record.orders}
         preference = _preference_kwh(record)
         rewards = self.reward.step(record)
+        peer_trades = [t for t in record.trades if t.stage < 3]
+        final = {"final": signals.kpis(self.market.history)} if self.market.done else {}
         infos = {}
 
         for pid in self.agents_id:
             o = record.participants[pid]
+            peer_bought, peer_sold = side_kwh(peer_trades, pid)
             bill = net_bill(record, pid)
             order = orders.get(pid)
             battery = self.market.participants[pid].battery
@@ -459,11 +473,18 @@ class MarketEnv(MultiAgentEnv):
             infos[pid] = {
                 "profit": float(o.profit),
                 "bill": float(bill),
+                "fees": float(o.fees),
+                "generation_kwh": float(o.generation_kwh),
+                "demand_kwh": float(o.demand_kwh),
                 "bought_kwh": float(o.bought_kwh),
                 "sold_kwh": float(o.sold_kwh),
+                "peer_bought_kwh": float(peer_bought),
+                "peer_sold_kwh": float(peer_sold),
                 "preference_kwh": float(preference.get(pid, 0.0)),
                 "deferred_demand_kwh": float(o.deferred_demand_kwh),
                 "deferred_supply_kwh": float(o.deferred_supply_kwh),
+                "charge_kwh": float(o.charge_kwh),
+                "discharge_kwh": float(o.discharge_kwh),
                 "stored_change_kwh": change,
                 "adjusted_bill": float(bill + self.stored_kwh_value * change),
                 "state": {
@@ -475,9 +496,11 @@ class MarketEnv(MultiAgentEnv):
                     "partner_mutual": _mutual(order, orders),
                     "soc": float(battery.soc) if battery else float("nan"),
                     "reputation": float(self.market.participants[pid].reputation),
+                    **self.reward.parts.get(pid, {}),
                 },
                 "shared": shared,
                 "shared_state": shared_state,
+                **final,
             }
 
         day_over = self.market.done
@@ -776,6 +799,7 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
     grid = record.grid
     exchange = grid.external_grid_kwh if grid.converged else None
     exchange = exchange or 0.0
+    limits = [v.code for v in grid.violations] if grid.converged else []
     shared = {
         "p2p_kwh": float(record.p2p_kwh),
         "preference_kwh": float(sum(t.quantity for t in record.trades if t.stage == 1)),
@@ -787,14 +811,21 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
         "grid_import_kwh": float(max(exchange, 0.0)),
         "grid_export_kwh": float(max(-exchange, 0.0)),
         "grid_losses_kwh": float(grid.losses_kwh or 0.0) if grid.converged else 0.0,
-        "grid_violations": float(len(grid.violations)) if grid.converged else 0.0,
+        "voltage_violations": float(sum(c in ("V_LOW", "V_HIGH") for c in limits)),
+        "loading_violations": float(
+            sum(c in ("LINE_OVERLOAD", "TRAFO_OVERLOAD") for c in limits)
+        ),
         "not_converged": 0.0 if grid.converged else 1.0,
     }
     state = {
         "clearing_price": float(record.clearing_price),
+        "peer_price": float(record.clearing_price if record.p2p_kwh else "nan"),
+        "feed_in_tariff": float(record.inputs.feed_in_tariff),
+        "utility_price": float(record.inputs.utility_price),
         "min_voltage_pu": _number(grid.min_voltage_pu),
         "max_voltage_pu": _number(grid.max_voltage_pu),
         "max_line_loading_percent": _number(grid.max_line_loading_percent),
+        "max_trafo_loading_percent": _number(grid.max_trafo_loading_percent),
         "fee_max_line_loading_percent": _number(
             (record.signal or grid).max_line_loading_percent
         ),

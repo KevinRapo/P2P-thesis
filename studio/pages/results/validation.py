@@ -1,109 +1,236 @@
-"""Results → Validation: is the learned policy any good, and can that be trusted?
+"""Results → Validation: how good is each version on the test days?
 
-The trained policy against the zero and net-position baselines: on the periodic
-evaluation during training (the training days, on seeds training did not use), on
-every held-out test day at the end (the difference paired per day), and each
-configuration over its training seeds; with the settings that differ between the
-ticked runs. The evaluation and held-out charts follow the live view.
+The tab opened first: any ticked runs in one table, a row per what the reader picks and
+a column per headline indicator (``core/runner/indicators.py``), as values, against
+each run's own baseline, or as differences from a reference row; and the gain per test
+day. A row opens in Market or Grid, on its median seed.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
+import pandas as pd
 from nicegui import ui
 
+from core.runner import indicators
+from core.runner.indicators import INDICATORS
 from studio.components.cards import key_values, section
-from studio.components.charts import Chart, SeriesChart
+from studio.components.charts import Chart
 from studio.components.memory import remember
 from studio.components.run_table import cell, labels_of
-from studio.pages.results.common import BASELINES, Tab, frame_table
+from studio.components.tables import data_table
+from studio.pages.results.common import BASELINES, Tab
 from studio.theme import MUTED, SERIES
 
-# The configurations over their seeds (``seed_groups``), as shown.
-GROUP_COLUMNS = [
-    ("target", "Target"),
-    ("experiment", "Experiment"),
-    ("algorithm", "Algorithm"),
-    ("paradigm", "Paradigm"),
-    ("variant", "Variant"),
-    ("completed", "Seeds done"),
-    ("runs", "Runs"),
-    ("mean", "Mean"),
-    ("std", "Std over seeds"),
-    ("min", "Min"),
-    ("max", "Max"),
-    ("trained_minus_zero", "− zero"),
-    ("trained_minus_net_position", "− net position"),
-    ("differs", "Differs"),
-]
+HEADLINES = {i.name: i for i in INDICATORS if i.headline}
+# What a row can stand for, in the order offered.
+ROWS = {
+    "key": "Run",
+    "experiment": "Experiment",
+    "variant": "Variant",
+    "paradigm": "Paradigm",
+    "reward": "Reward",
+    "observation": "Observation",
+    "prices": "Prices",
+    "peer_charge": "Peer charge",
+    "network": "Network",
+    "grid_method": "Grid method",
+}
+VIEWS = {
+    "value": "Values",
+    "net_position": "Against own net position",
+    "zero": "Against own zero",
+}
+GAINS = {"gain_zero": "zero", "gain_net_position": "net_position"}
 
 
 # --------------------------------------------------------------------------------------
-# Figures
+# The overview
 # --------------------------------------------------------------------------------------
-class LearningChart(SeriesChart):
-    """Each run's trained policy over environment steps (evaluation; with ``train``
-    also its training return, dotted), and each run's own baselines at step 0,
-    dashed in its colour (one grey level when every run has the same).
+def row_columns(table: pd.DataFrame) -> list[str]:
+    """What a row stands for by default: the factors that differ, else what names the
+    versions, else the run."""
+    differs = [c for c in ROWS if c != "key" and table[c].nunique(dropna=False) > 1]
 
-    Options: ``curves``, ``training`` (``learning_curves`` / ``training_curves``),
-    ``labels`` (run key -> name), ``per`` (per participant instead of the team),
-    ``train`` (with the training return).
+    return (
+        [c for c in differs if c not in ("experiment", "variant")] or differs or ["key"]
+    )
+
+
+def number(row: pd.Series) -> str:
+    """A cell: the mean over seeds, with its interval or each seed's value."""
+    mean = cell(float(row["mean"]))
+
+    if pd.notna(row.get("low")):
+        return f"{mean} [{cell(float(row['low']))}, {cell(float(row['high']))}]"
+
+    seeds = row.get("values")
+
+    if isinstance(seeds, list) and len(seeds) > 1:
+        return f"{mean} ({', '.join(str(cell(float(v))) for v in seeds)})"
+
+    return str(mean)
+
+
+def wide(found: pd.DataFrame, rows: list[str]) -> pd.DataFrame:
+    """``found`` as a row per ``rows`` and a column per headline, in text."""
+    found = found[found.indicator.isin(HEADLINES)]
+    text = found.assign(text=found.apply(number, axis=1))
+    table = text.pivot(index=rows, columns="indicator", values="text")
+
+    return table.reindex(columns=list(HEADLINES)).reset_index()
+
+
+class Overview:
+    """The table and its controls.
+
+    Args:
+        table: ``day_indicators`` of the ticked runs.
+        tab: The tab, for the selection.
     """
 
-    height = 380
-    x_title = "environment steps"
+    def __init__(self, table: pd.DataFrame, tab: "ValidationTab") -> None:
+        self.table, self.tab = table, tab
+
+        # Controls: a row per | view | difference from
+        with ui.row().classes("w-full items-center gap-3"):
+            self.rows = ui.select(
+                ROWS, value=row_columns(table), multiple=True, label="A row per"
+            ).classes("w-96")
+            self.view = ui.select(VIEWS, value="value", label="Show").classes("w-64")
+            self.reference = ui.select(
+                {"": "Nothing"}, value="", label="Difference from"
+            ).classes("w-96")
+
+        remember(self.rows, "results_rows", ROWS)
+        remember(self.view, "results_view")
+        self.box = ui.column().classes("w-full")
+
+        # Open a row: which | Market | Grid
+        with ui.row().classes("w-full items-center gap-3"):
+            self.closer = ui.select([], label="Look closer at").classes("w-96")
+
+            for name in ("Market", "Grid"):
+                ui.button(name, on_click=lambda n=name: self.open(n)).props(
+                    "outline no-caps dense"
+                )
+
+        for field in (self.rows, self.view, self.reference):
+            field.on_value_change(self.draw)
+
+        self.draw()
+
+    def set(self, table: pd.DataFrame) -> None:
+        """The table read again, by the live view."""
+        self.table = table
+        self.draw()
+
+    def _labelled(self) -> pd.DataFrame:
+        """The table with a ``row`` column: the row's name."""
+        rows = list(self.rows.value or ["key"])
+
+        return self.table.assign(
+            row=self.table[rows].astype(str).agg(" · ".join, axis=1)
+        )
 
     def draw(self) -> None:
-        o = self.o
-        value = "per_participant" if o.per else "team_return_mean"
-        self.titles(y=f"return ({'per participant' if o.per else 'team'})")
-        keys = list(dict.fromkeys(o.curves.key))
-        colors = {k: SERIES[i % len(SERIES)] for i, k in enumerate(keys)}
+        rows = list(self.rows.value or ["key"])
+        labelled = self._labelled()
+        names = sorted(labelled.row.unique())
+        reference = self.reference.value if self.reference.value in names else ""
+        self.reference.set_options(
+            {"": "Nothing"} | {n: n for n in names}, value=reference
+        )
+        closer = self.closer.value if self.closer.value in names else names[0]
+        self.closer.set_options(names, value=closer)
+        self.box.clear()
+        failed = self.table[
+            (self.table.indicator == "not_converged") & (self.table.value > 0)
+        ]
 
-        for key in keys:
-            rows = o.curves[(o.curves.key == key) & (o.curves.policy == "trained")]
-            self.line(
-                rows.env_steps, rows[value], o.labels[key], colors[key], markers=True
-            )
+        with self.box:
+            if len(failed):
+                ui.label(
+                    f"{int(failed.value.sum())} steps did not converge: on those "
+                    "steps the loading and limits count nothing, so they read low."
+                ).classes("text-negative")
 
-            if o.train and not o.training.empty:
-                own = o.training[o.training.key == key]
-                name = f"{o.labels[key]} (training)"
-                self.line(own.env_steps, own[value], name, colors[key], dash="dot")
+            if reference:
+                found = indicators.difference(labelled, "row", reference, within=[])
+                self._table(found, ["row", "paired"])
+            elif self.view.value == "value":
+                self._table(
+                    indicators.side_by_side(labelled, rows), rows, baselines=True
+                )
+            else:
+                played = indicators.against_baseline(labelled, self.view.value)
+                self._table(indicators.side_by_side(played, rows), rows)
 
-        start = o.curves[(o.curves.env_steps == 0) & (o.curves.policy != "trained")]
+    def _table(
+        self, found: pd.DataFrame, rows: list[str], baselines: bool = False
+    ) -> None:
+        if found.empty:
+            ui.label("Nothing to compare it with.").classes("mls-card-caption")
+            return
 
-        for policy, rows in start.groupby("policy"):
-            if rows[value].round(9).nunique() == 1:  # the same for every run
-                self.level(rows[value].iloc[0], f"{policy} (step 0)")
-                continue
+        frame = wide(found, rows)
+        names = ROWS | {"row": "Row", "paired": "Paired"}
+        columns = [(c, names[c]) for c in rows]
+        columns += [(n, f"{i.label} {i.unit}".strip()) for n, i in HEADLINES.items()]
 
-            for _, row in rows.iterrows():
-                end = o.curves[o.curves.key == row.key].env_steps.max()
-                name = f"{o.labels[row.key]}: {policy}"
-                y = [row[value]] * 2
-                self.line([0, end], y, name, colors[row.key], dash="dash", width=1)
+        if baselines:
+            frame = pd.concat([frame, self._baselines(rows[0])], ignore_index=True)
+
+        records = [
+            {"_row": i} | {f: "" if pd.isna(v) else str(v) for f, v in row.items()}
+            for i, row in enumerate(frame.to_dict("records"))
+        ]
+        data_table(records, columns, row_key="_row", pagination=15)
+
+    def _baselines(self, column: str) -> pd.DataFrame:
+        """A row per baseline, days and prices, named in the table's first column."""
+        found = indicators.baselines(self.table)
+        found = found[found.indicator.isin(HEADLINES)]
+        groups = ["policy", *indicators.PLAYED_ON]
+        table = found.pivot(index=groups, columns="indicator", values="value")
+        table = table.reset_index()
+        differ = [c for c in indicators.PLAYED_ON if table[c].nunique(dropna=False) > 1]
+        name = table[["policy", *differ]].astype(str).agg(" · ".join, axis=1)
+        values = table.reindex(columns=list(HEADLINES)).map(lambda v: cell(float(v)))
+
+        return values.assign(**{column: name})
+
+    def open(self, tab: str) -> None:
+        """Select the row's median seed by team money, and go to ``tab``."""
+        labelled = self._labelled()
+        row = labelled[labelled.row == self.closer.value]
+        money = row[(row.indicator == "team_money") & (row.policy == "trained")]
+        means = money.groupby("key").value.mean().sort_values()
+
+        if len(means):
+            self.tab.selection.run = means.index[len(means) // 2]
+            self.tab.selection.open(tab)
 
 
-class HeldoutChart(Chart):
-    """Per run, the trained policy minus each baseline on every test day, as boxes.
-    Options: ``days`` (``heldout_days``), ``labels``."""
+# --------------------------------------------------------------------------------------
+# The gain per day
+# --------------------------------------------------------------------------------------
+class GainChart(Chart):
+    """Per run, the trained policy's money minus each baseline's on every test day, as
+    boxes. Options: ``days`` (``gains``), ``labels``."""
 
     height = 380
-    y_title = "difference per test day"
+    y_title = "EUR per test day"
     layout = {"boxmode": "group", "hovermode": "closest"}
 
     def draw(self) -> None:
-        for i, (baseline, label) in enumerate(BASELINES.items()):
-            column = f"trained_minus_{baseline}"
-
+        for i, (column, baseline) in enumerate(GAINS.items()):
             if column in self.o.days:
                 self.fig.add_box(
                     x=[self.o.labels[k] for k in self.o.days.key],
                     y=self.o.days[column],
-                    name=f"trained − {label}",
+                    name=f"trained − {BASELINES[baseline]}",
                     boxpoints="all",
                     jitter=0.3,
                     marker_color=SERIES[i + 1],
@@ -112,82 +239,69 @@ class HeldoutChart(Chart):
         self.fig.add_hline(y=0, line_color=MUTED)
 
 
+def gains(table: pd.DataFrame) -> pd.DataFrame:
+    """A row per run and test day, a column per gain."""
+    if table.empty:
+        return pd.DataFrame()
+
+    found = table[(table.policy == "trained") & table.indicator.isin(GAINS)]
+
+    return found.pivot_table(
+        index=["key", "day"], columns="indicator", values="value"
+    ).reset_index()
+
+
 # --------------------------------------------------------------------------------------
 # The tab
 # --------------------------------------------------------------------------------------
 class ValidationTab(Tab):
-    """The runs, the evaluation during training, the held-out days, the seeds."""
+    """What differs, the overview, the gain per day, one run's settings."""
 
     label, icon = "Validation", "verified"
 
     def read(self, keys: list[str]) -> dict[str, Any]:
         s = self.service
+        table = s.day_indicators(keys)
+
         return {
             "differs": s.differing_settings(keys),
             "results": s.results(keys),
-            "curves": s.learning_curves(keys),
-            "training": s.training_curves(keys),
-            "days": s.heldout_days(keys),
-            "groups": s.seed_groups(keys),
+            "table": table,
+            "days": gains(table),
         }
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
-        labels = labels_of(keys)
-        self._runs(keys, data)
+        shown = [d for d in data["differs"] if d != "seed"]
+        ui.label("These runs differ in: " + (", ".join(shown) or "nothing")).classes(
+            "text-body2"
+        )
 
         with section(
-            "During training",
-            "Each run's trained policy on the periodic evaluation episodes: the "
-            "training days, on seeds training did not use; its baselines at step 0, "
-            "dashed in its colour (one grey line when every run's is the same).",
-            "show_chart",
+            "Overview",
+            "Any ticked runs, on their test days. A cell is the mean over seeds, with "
+            "each seed's value, or an interval from 5 seeds.",
+            "table_chart",
         ):
-            if data["curves"].empty:
-                ui.label("No evaluation recorded yet.").classes("mls-card-caption")
-
-            chart = LearningChart(
-                curves=data["curves"],
-                training=data["training"],
-                labels=labels,
-                per=False,
-                train=False,
-            ).show()
-            self.watch(chart, curves="curves", training="training")
-            chart.memory = "results_Validation_training"
-
-            with ui.row().classes("gap-4"):
-                chart.switch("per", "Per participant")
-                chart.switch(
-                    "train", "Training return (the sampled episodes while learning)"
-                )
+            if data["table"].empty:
+                ui.label("No held-out results yet.").classes("mls-card-caption")
+            else:
+                self.watch(Overview(data["table"], self), table="table")
 
         with section(
             "On the test days",
-            "Every held-out test day: the trained policy minus each baseline on the "
+            "Every test day: the trained policy's money minus each baseline's on the "
             "same day (above 0: better). Written when a run has finished.",
             "leaderboard",
         ):
-            chart = HeldoutChart(days=data["days"], labels=labels).show()
+            chart = GainChart(days=data["days"], labels=labels_of(keys)).show()
             self.watch(chart, days="days")
 
-        with section(
-            "Over the seeds",
-            "Each configuration over its training seeds: the seeds' held-out means, "
-            "their spread (std over seeds, 0 with one), and the settings that differ "
-            "inside a group (it should be none).",
-            "stacked_line_chart",
-        ):
-            frame_table(data["groups"], GROUP_COLUMNS)
+        self._settings(keys, data)
 
     @staticmethod
-    def _runs(keys: list[str], data: dict[str, Any]) -> None:
-        """The settings that differ, and one run's settings on demand."""
-        with section("The runs", f"{len(keys)} ticked", "list"):
-            shown = [d for d in data["differs"] if d != "seed"]
-            ui.label(
-                "Settings that differ (their full saved values): "
-                + (", ".join(shown) or "none")
-            ).classes("text-body2")
+    def _settings(keys: list[str], data: dict[str, Any]) -> None:
+        """One run's settings on demand."""
+        with section("One run's settings", f"{len(keys)} ticked", "list"):
             results = {r.key: r for r in data["results"]}
 
             def show(key: str) -> None:
@@ -218,10 +332,7 @@ class ValidationTab(Tab):
                                     }
                                 )
 
-            picker = ui.select(
-                labels_of(keys),
-                label="One run's settings",
-                on_change=lambda e: show(e.value),
+            ui.select(
+                labels_of(keys), label="Run", on_change=lambda e: show(e.value)
             ).classes("w-full")
             box = ui.column().classes("w-full")  # under the picker, filled by show
-            remember(picker, "results_Validation_run")

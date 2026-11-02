@@ -14,15 +14,14 @@ def test_the_tables_are_the_readers(where):  # noqa: F811
     keys = ["local/grid/ppo_dtde_s0", "local/grid/ppo_dtde_s1"]
     assert list(service.overview().key) == [r.key for r in results.find_runs(where)]
     runs = results.load_runs([r for r in results.find_runs(where) if r.key in keys])
-    assert service.heldout_days(keys).equals(results.heldout_days(runs))
-    assert service.seed_groups(keys).equals(results.seed_groups(runs))
+    assert service.participant_metrics(keys).equals(results.participant_metrics(runs))
     assert service.differing_settings(keys) == ["seed"]
     one = keys[0]
     assert service.participant_days(one).equals(
         results.participant_days(service.result(one))
     )
     assert service.table(one, "heldout_episodes") is not None
-    assert service.table(one, "heldout_trace_steps") is None
+    assert service.table(one, "heldout_steps") is None
 
 
 def test_runs_are_read_once_until_refresh(where):  # noqa: F811
@@ -107,7 +106,7 @@ def test_the_heatmap_shows_the_largest_differences_or_the_filtered():
 def test_baselines_are_each_runs_own_unless_they_are_the_same():
     import pandas as pd
 
-    from studio.pages.results.validation import LearningChart
+    from studio.pages.results.learning import CurveChart
 
     def curves(zero_a, zero_b):
         rows = []
@@ -141,8 +140,12 @@ def test_baselines_are_each_runs_own_unless_they_are_the_same():
     labels = {"t/x/a": "x/a", "t/x/b": "x/b"}
 
     def figure(frame):
-        chart = LearningChart(
-            curves=frame, training=pd.DataFrame(), labels=labels, per=False, train=False
+        chart = CurveChart(
+            curves=frame,
+            training=pd.DataFrame(),
+            labels=labels,
+            value="team_return_mean",
+            train=False,
         )
         return chart.figure()
 

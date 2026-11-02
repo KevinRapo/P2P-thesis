@@ -30,6 +30,9 @@ follow it; one that does not still gets its returns):
         "shared": {<name>: amount over the step}       the same for every agent:
                                                        summed into the episode row
         "shared_state": {<name>: value at the step}    in the step rows only
+        "final": {<name>: value}                       the same for every agent, on
+                                                       a day's last step: the last
+                                                       one goes into the episode row
     }
 
 The infos of ``reset`` (e.g. the market's ``day``) are copied into every row of the
@@ -60,7 +63,7 @@ from core.rl.state import join
 
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
 # The nested parts of an agent's infos (see the module).
-STATE, SHARED, SHARED_STATE = "state", "shared", "shared_state"
+STATE, SHARED, SHARED_STATE, FINAL = "state", "shared", "shared_state", "final"
 
 
 # --------------------------------------------------------------------------------------
@@ -302,17 +305,17 @@ class Evaluation:
             its infos' amounts.
         episodes: One row per policy and episode: the team return and the sums of
             the shared amounts.
-        trace_agents: For the traced episodes, one row per policy, episode, step
-            and agent: reward, amounts and state (None if none was traced).
-        trace_steps: For the traced episodes, one row per policy, episode and step:
-            the team reward, shared amounts and shared state.
+        steps: With ``by_step``, one row per policy, episode and step: the team
+            reward, shared amounts and shared state.
+        agent_steps: With ``by_step``, one row per policy, episode, step and agent:
+            reward, amounts and state.
     """
 
     summary: pd.DataFrame
     agents: pd.DataFrame
     episodes: pd.DataFrame
-    trace_agents: Optional[pd.DataFrame] = None
-    trace_steps: Optional[pd.DataFrame] = None
+    steps: Optional[pd.DataFrame] = None
+    agent_steps: Optional[pd.DataFrame] = None
 
 
 def evaluation(
@@ -321,12 +324,11 @@ def evaluation(
     policies: dict[str, ActFn],
     seeds: list[int],
     options: Optional[Sequence[Optional[dict]]] = None,
-    trace: Sequence[int] = (),
+    by_step: bool = False,
 ) -> Evaluation:
     """Score several policies on the same episodes (one per seed, with its
-    ``reset`` options), keeping every episode; the episodes at the indices in
-    ``trace`` are also kept step by step."""
-    summary, agents, episodes, trace_agents, trace_steps = [], [], [], [], []
+    ``reset`` options), keeping every episode, and with ``by_step`` every step."""
+    summary, agents, episodes, step_rows, agent_step_rows = [], [], [], [], []
 
     for name, act in policies.items():
         played = rollout(env_class, env_config, act, seeds, options=options)
@@ -337,19 +339,17 @@ def evaluation(
             episodes.append(head | _episode_row(episode))
             agents.extend(head | row for row in _agent_rows(episode))
 
-            if index in trace:
-                steps, per_agent = _trace_rows(episode)
-                trace_steps.extend(head | row for row in steps)
-                trace_agents.extend(head | row for row in per_agent)
-
-    traced = bool(trace_steps)
+            if by_step:
+                steps, per_agent = _step_rows(episode)
+                step_rows.extend(head | row for row in steps)
+                agent_step_rows.extend(head | row for row in per_agent)
 
     return Evaluation(
         pd.DataFrame(summary),
         pd.DataFrame(agents),
         pd.DataFrame(episodes),
-        pd.DataFrame(trace_agents) if traced else None,
-        pd.DataFrame(trace_steps) if traced else None,
+        pd.DataFrame(step_rows) if by_step else None,
+        pd.DataFrame(agent_step_rows) if by_step else None,
     )
 
 
@@ -408,14 +408,16 @@ def _agent_rows(episode: Episode) -> list[dict[str, Any]]:
 
 def _episode_row(episode: Episode) -> dict[str, Any]:
     sums: dict[str, float] = {}
+    final: dict[str, float] = {}
     for infos in _step_infos(episode):
         first = next(iter(infos.values()), {})
+        final = first.get(FINAL, final)
         for k, v in _amounts(first.get(SHARED, {})).items():
             sums[k] = sums.get(k, 0.0) + v
-    return {"team_return": episode.team_return(), **sums}
+    return {"team_return": episode.team_return(), **sums, **_amounts(final)}
 
 
-def _trace_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
+def _step_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
     """The rows of one episode step by step: ``(steps, agents)``."""
     steps, agents = [], []
 

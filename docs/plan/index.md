@@ -16,6 +16,7 @@ Each kind of content has exactly one home; the other pages only point to it.
 |---|---|---|
 | [The full cycle](../full-cycle.md) | **What the code does now**: every phase of the market step, the environment step and training, with its code, equations and decisions. The reference to read the system from | the code changes |
 | [Market plan](market.md), [RL plan](rl.md) | **What is still to do, in which order**: stages, each with its question, check, the decisions it needs, and a status | a stage starts or ends |
+| [Results plan](results.md) | **How results are saved, compared and shown** (RP-7, MP-6a) | stages are done |
 | [Decision log](decisions.md) | **What was decided and why**: one row per decision, with its reason, evidence and where it is implemented | a decision is taken |
 | [Issue register](../validation/register.md) and the validation pages | **What was wrong in the original**: the evidence the thesis cites. History, not a to-do list | rarely: a status, or a new finding |
 | [v2.md](../v2.md) | **What this branch does**, and its validation runs | the scope changes |

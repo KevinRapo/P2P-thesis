@@ -247,8 +247,6 @@ in the Studio shows the same settings with the values it runs with.
   "budget": 240000,
   "eval_points": null,
   "eval_episodes": 10,
-  "results_detail": "standard",
-  "trace_days": 3,
   "train_days": {"from": "2016-01-01", "to": "2016-12-31"},
   "test_periods": {
     "winter": {"from": "2016-01-11", "to": "2016-01-24"},
@@ -339,8 +337,6 @@ in the Studio shows the same settings with the values it runs with.
 | `budget` | positive integer, or `{"ppo": integer}`; required | Environment steps per run |
 | `eval_points` | integer, `{"ppo": integer}`, `null` | Evaluations during training, the final one included: 4 on a budget of 24000 evaluate at 6000, 12000, 18000 and 24000. Every run also evaluates at step 0 and at the end. `null`: only those two |
 | `eval_episodes` | integer | Episodes per evaluation |
-| `results_detail` | `"standard"`, `"detailed"` | `"detailed"` also keeps the held-out evaluation step by step |
-| `trace_days` | integer, or a list of test days | With `"detailed"`: which test days, the first 3 by default |
 
 The number of runs is algorithms × paradigms × variants × seeds.
 

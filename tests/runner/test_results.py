@@ -77,6 +77,7 @@ def make_run(exp_dir: Path, name: str, seed: int, trained: list[float], **record
             "day": e["day"],
             "agent": a,
             "return": e["team_return"] / 2,
+            "bill": e["team_return"] / 2,
         }
         for e in episodes
         for a in ("P1", "P2")
@@ -163,7 +164,7 @@ def test_settings_come_from_the_saved_files(where):
     assert (old["algorithm"], old["seed"]) == ("sac", 3)  # from the folder's name
     assert runs["local/grid/ppo_dtde_s0"].table("missing") is None
     assert runs["local/grid/ppo_dtde_s0"].has("heldout_agents")
-    assert not runs["local/grid/ppo_dtde_s0"].has("heldout_trace_steps")
+    assert not runs["local/grid/ppo_dtde_s0"].has("heldout_steps")
 
 
 @pytest.mark.parametrize(
@@ -203,17 +204,17 @@ def test_differences_are_found_in_the_full_values_not_the_labels():
         "test_days": ["2016-07-01", "2016-07-05", "2016-07-03"],  # same ends
         "overrides": {"lr": 0.01, "gamma": 0.99},
     }
-    assert results.differing_settings([base, other], results.COMPARED) == [
+    assert results.differing_settings([base, other]) == [
+        "overrides",
         "scenario",
         "test_days",
-        "overrides",
     ]
 
 
 def test_overview_and_curves(where):
     runs = results.load_runs(results.find_runs(where))
     table = results.overview(runs).set_index("key")
-    assert table.loc["local/grid/ppo_dtde_s1", "heldout_trained"] == -6.5
+    assert table.loc["local/grid/ppo_dtde_s1", "money_trained"] == -6.5
     assert table.loc["local/grid/ppo_dtde_s1", "participants"] == 2
     assert table.loc["local/old/sac_ctce_s3", "state"] == "completed"
     curves = results.learning_curves(runs)
@@ -224,33 +225,14 @@ def test_overview_and_curves(where):
     assert len(results.training_curves(runs)) == 3 * 2  # the old run has none
 
 
-def test_heldout_days_are_paired_and_older_runs_give_their_means(where):
+def test_participant_metrics_are_long(where):
     runs = results.load_runs(results.find_runs(where))
-    days = results.heldout_days(runs).set_index(["key", "day"], drop=False)
-    row = days.loc[("local/grid/ppo_dtde_s0", "2016-07-02")]
-    assert (row.trained, row.zero, row.trained_minus_zero) == (-9, -10, 1)
-    assert row.trained_minus_net_position == -3
-    old = days[days.key == "local/old/sac_ctce_s3"]
-    assert (
-        len(old) == 1
-        and old.day.isna().all()
-        and old.trained_minus_zero.tolist() == [6]
-    )
-
-
-def test_day_and_participant_metrics_are_long_with_their_phase(where):
-    runs = results.load_runs(results.find_runs(where))
-    days = results.day_metrics(runs)
-    one = days[(days.key == "local/grid/ppo_dtde_s0") & (days.policy == "trained")]
-    assert set(one.phase) == {"heldout"}  # no evaluation_episodes.csv here
-    assert one.metric.unique().tolist() == ["team_return"]  # the episode seed is not
-    assert sorted(one.value) == [-9, -8] and set(one.seed) == {0}  # the run's seed
-    assert {"paradigm", "variant", "day", "episode"} <= set(days.columns)
-
     people = results.participant_metrics(runs)
     p1 = people[(people.key == "local/grid/ppo_dtde_s0") & (people.agent == "P1")]
-    assert len(p1) == 3 * 2  # policies x days, one metric
-    assert results.day_metrics([]).empty
+    assert len(p1) == 3 * 2 * 2  # policies x days x metrics
+    assert {"paradigm", "variant", "day"} <= set(people.columns)
+    assert "seed" in people and people.metric.nunique() == 2  # not the episode's seed
+    assert results.participant_metrics([]).empty
 
 
 def test_a_table_is_read_again_only_when_its_file_changed(where):
@@ -284,21 +266,6 @@ def test_participant_days(where):
     assert len(table) == 2 * 2  # days x participants
     assert set(table.trained_minus_zero) == {(-8 + 10) / 2, (-9 + 10) / 2}
     assert results.participant_days(runs["local/old/sac_ctce_s3"]).empty
-
-
-def test_seed_groups_spread_over_seeds_and_what_differs(where):
-    runs = results.load_runs(results.find_runs(where))
-    groups = results.seed_groups(runs).set_index(["target", "experiment"])
-    grid = groups.loc[("local", "grid")]
-    assert (grid.runs, grid.completed, grid.seeds) == (2, 2, [0, 1])
-    assert grid["mean"] == pytest.approx((-8.5 - 6.5) / 2)
-    assert grid["std"] == pytest.approx(1.0)  # over the two seeds, not the days
-    assert grid.trained_minus_zero == pytest.approx(10 - 7.5)
-    assert grid.differs == []
-    merged = results.seed_groups(runs, by=("algorithm", "paradigm")).set_index(
-        "algorithm"
-    )
-    assert merged.loc["ppo", "differs"] == ["scenario"]  # s1 here, s2 on the cluster
 
 
 def test_learner_metrics_per_module_and_part(tmp_path):

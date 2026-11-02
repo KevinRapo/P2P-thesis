@@ -36,9 +36,9 @@ RUN_COLUMNS = [
     ("seed", "Seed"),
     ("variant", "Variant"),
     ("state", "State"),
-    ("heldout_trained", "Held-out: trained"),
-    ("heldout_zero", "zero"),
-    ("heldout_net_position", "net position"),
+    ("money_trained", "Held-out money: trained"),
+    ("money_zero", "zero"),
+    ("money_net_position", "net position"),
 ]
 TOP_LEVEL = "(top level)"  # the Folder option of experiments in no folder
 

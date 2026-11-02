@@ -105,7 +105,7 @@ def _clip(value: float, low: float, high: float) -> float:
     return min(max(value, low), high)
 
 
-def _side_kwh(trades: list[Trade], pid: str) -> tuple[float, float]:
+def side_kwh(trades: list[Trade], pid: str) -> tuple[float, float]:
     """The energy ``pid`` bought and sold in ``trades``."""
     bought = sum(t.quantity for t in trades if t.buyer_id == pid)
     sold = sum(t.quantity for t in trades if t.seller_id == pid)
@@ -142,7 +142,7 @@ def grid_balance_reward(
 
 def resource_reward(order: Order, trades: list[Trade]) -> float:
     """r_res: the share of the order executed, minus a penalty for the rest."""
-    bought, sold = _side_kwh(trades, order.agent_id)
+    bought, sold = side_kwh(trades, order.agent_id)
     executed = (bought if order.is_buy else sold) / order.quantity
 
     return executed - (1.0 - executed) * P_UNUTILISED
@@ -165,7 +165,7 @@ def stability_reward(
     improvement = 0.0
 
     if balance != 0:
-        bought, sold = _side_kwh(trades, order.agent_id)
+        bought, sold = side_kwh(trades, order.agent_id)
         after = abs(balance + bought - sold)
         improvement = max(0.0, (abs(balance) - after) / abs(balance))
 
@@ -232,7 +232,7 @@ def contribution_factor(
     grid = NEUTRAL
 
     if balance != 0:
-        bought, sold = _side_kwh(trades, pid)
+        bought, sold = side_kwh(trades, pid)
         net = sold - bought
         share = min(1.0, abs(net) / abs(balance))
         helps = (balance > 0 and net < 0) or (balance < 0 and net > 0)
@@ -294,6 +294,9 @@ class Reward:
         self.market = market
         self.reward_scale = reward_scale
         self.grid_capacity_kwh = grid_capacity_kwh
+        # What the last step's reward was made of, per agent: the environment keeps
+        # these in its step rows (none for a reward that is one number).
+        self.parts: dict[str, dict[str, float]] = {}
 
     def step(self, record: StepRecord) -> dict[str, float]:
         """Every agent's reward for the step just played, ``record``."""
@@ -389,6 +392,8 @@ class SalazarReward(Reward):
         trades = [t for t in record.trades if pid in (t.buyer_id, t.seller_id)]
 
         if not trades:  # E-19: returned before any other term
+            self.parts[pid] = {"reward_no_trades": -P_NO_TRADES}
+
             return log_compress(-P_NO_TRADES)
 
         order = next(o for o in record.orders if o.agent_id == pid)
@@ -405,25 +410,35 @@ class SalazarReward(Reward):
             rules.min_price,
             rules.max_price,
         )
-        base = (
-            W_GRID * grid_balance_reward(order, balance, position, capacity)
-            + W_RESOURCE * resource_reward(order, trades)
-            + W_TRADING * trading_reward(order, local_kwh, dso_kwh)
-            + W_STABILITY * stability_reward(order, trades, clearing_price, balance)
-            + W_ECONOMIC * economic
-        )
+        terms = {
+            "reward_grid": W_GRID
+            * grid_balance_reward(order, balance, position, capacity),
+            "reward_resource": W_RESOURCE * resource_reward(order, trades),
+            "reward_trading": W_TRADING * trading_reward(order, local_kwh, dso_kwh),
+            "reward_stability": W_STABILITY
+            * stability_reward(order, trades, clearing_price, balance),
+            "reward_economic": W_ECONOMIC * economic,
+        }
+        base = sum(terms.values())
         cooperation = cooperation_factor(kpis)
         contribution = contribution_factor(pid, trades, local, clearing_price, balance)
         boosted = base * (
             1.0 + math.log1p(max(0.0, cooperation * contribution)) / BOOST_SCALE
         )
         scale = PENALTY_SCALE * max(abs(boosted), 1.0)
-        raw = boosted - scale * dso_penalty(local_kwh, dso_kwh, balance, capacity)
+        dso = scale * dso_penalty(local_kwh, dso_kwh, balance, capacity)
+        demand = 0.0
 
         if required_kwh is not None:
-            raw -= scale * demand_penalty(required_kwh, satisfied_kwh) / P_DSO
+            demand = scale * demand_penalty(required_kwh, satisfied_kwh) / P_DSO
 
-        return log_compress(raw)
+        self.parts[pid] = terms | {
+            "reward_boost": boosted - base,
+            "reward_dso_penalty": dso,
+            "reward_demand_penalty": demand,
+        }
+
+        return log_compress(boosted - dso - demand)
 
 
 REWARDS: dict[str, type[Reward]] = {

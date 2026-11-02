@@ -18,9 +18,8 @@ to run the same runs as a SLURM job array. State lives in files only (see
     runs/<experiment>/<run>/heldout_agents.csv, heldout_episodes.csv
                                          the same per test day and participant, and
                                          per test day (``core/rl/policy.py``)
-    runs/<experiment>/<run>/heldout_trace_agents.csv, heldout_trace_steps.csv
-                                         with ``results_detail`` "detailed": the
-                                         traced test days step by step
+    runs/<experiment>/<run>/heldout_steps.csv, heldout_agent_steps.csv
+                                         the same step by step
 
 Jobs are not killed when the worker dies: they run on to the end and write their
 own status, but nothing starts the queued runs behind them until ``start_worker`` is run
@@ -69,8 +68,8 @@ STALE = (
     "heldout.csv",
     "heldout_agents.csv",
     "heldout_episodes.csv",
-    "heldout_trace_agents.csv",
-    "heldout_trace_steps.csv",
+    "heldout_steps.csv",
+    "heldout_agent_steps.csv",
     "log.txt",
 )
 # Python orders sets of strings differently in every process unless its hash seed
@@ -418,38 +417,30 @@ def _heldout(
     ``heldout*.csv`` (see the module). The test days are played with the scales
     the run resolved on its training days (``run.json``), not ones computed from
     the test days, so observations and rewards mean what they meant in training."""
-    from core.env import net_position_policy, zero_policy
     from core.rl import evaluation, load_policy
+    from core.rl.policy import baselines
 
     policy, record = load_policy(run_dir)
     config = heldout_env_config(experiment, run_dir, variant, record)
-    env = run.env_class(config)
-    policies = {
-        "trained": policy,
-        "zero": zero_policy(env),
-        "net_position": net_position_policy(env),
-    }
+    policies = {"trained": policy} | baselines(run.env_class, config, record["seed"])
     arm = experiment.arm(variant)
-    episodes = arm.heldout_episodes()
-    traced = set(arm.traced_days())
     found = evaluation(
         run.env_class,
         config,
         policies,
-        [seed for seed, _ in episodes],
+        [seed for seed, _ in arm.heldout_episodes()],
         options=arm.heldout_options(),
-        trace=[i for i, (_, day) in enumerate(episodes) if day in traced],
+        by_step=True,
     )
 
     for name, frame in (
         ("heldout", found.summary),
         ("heldout_agents", found.agents),
         ("heldout_episodes", found.episodes),
-        ("heldout_trace_agents", found.trace_agents),
-        ("heldout_trace_steps", found.trace_steps),
+        ("heldout_steps", found.steps),
+        ("heldout_agent_steps", found.agent_steps),
     ):
-        if frame is not None:
-            frame.to_csv(run_dir / f"{name}.csv", index=False)
+        frame.to_csv(run_dir / f"{name}.csv", index=False)
 
 
 # --------------------------------------------------------------------------------------

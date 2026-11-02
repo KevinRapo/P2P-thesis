@@ -63,6 +63,8 @@ FOLLOWED = (
     "heldout.csv",
     "heldout_episodes.csv",
     "heldout_agents.csv",
+    "heldout_steps.csv",
+    "heldout_agent_steps.csv",
 )
 FOLLOW_TIMEOUT_S = 60
 PING_TIMEOUT_S = 10

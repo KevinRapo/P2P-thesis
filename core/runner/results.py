@@ -10,27 +10,23 @@ the cluster's name, never as a second run. Only the saved files are read
 a cluster, and a table is read only when it is asked for.
 
 Two different units: an evaluation episode (one day) and a training seed (one run).
-The spread over seeds comes from separate runs (``seed_groups``), never from the
+The spread over seeds comes from separate runs (``indicators.py``), never from the
 days or the participants of one run.
 
     find_runs()                  every run of this PC and of the synced mirrors
     load_runs(refs)              their ``RunResult``: settings, state, tables
-    overview(results)            one row per run: settings, state, held-out scores
-    learning_curves(results)     evaluation return over environment steps
+    overview(results)            one row per run: settings, state, held-out money
+    learning_curves(results)     evaluation return and money over environment steps
     training_curves(results)     training return over environment steps
     learner_metrics(results)     the learner over environment steps, long format:
                                  per module (losses, entropy, KL, gradient norm)
                                  and per action part (``LEARNER_GROUPS``,
                                  ``PART_STATS``); any environment
-    heldout_days(results)        per run and test day: each policy's team return
-                                 and the trained policy minus each baseline
-    day_metrics(results)         every market and grid amount per played day, during
-                                 training (evaluation) and on the test days
-                                 (held-out), long format
-    participant_metrics(results) the same per participant
+    participant_metrics(results) every number of a participant on a test day, long
+                                 format
     participant_days(result)     one run, per test day and participant: the same
-    seed_groups(results)         per configuration over its seeds: mean, spread,
-                                 number of seeds, and the settings that differ
+    day_indicators(results)      every indicator per run, policy and test day, long
+                                 format, with what the run was (``indicators.py``)
     differing_settings(results)  the settings that are not the same in all runs
                                  (their full saved values)
 """
@@ -38,15 +34,17 @@ days or the participants of one run.
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 import pandas as pd
 
-from core.runner import registry
+from core.config.scenario import flat_prices
+from core.runner import indicators, registry
 from core.runner.registry import RunState
 from core.runner.spec import MARKET_ENVS, REPO, runs_root
 
@@ -55,21 +53,6 @@ BASELINES = ("zero", "net_position")
 TRAINED = "trained"
 # A run folder's name: <algorithm>_<paradigm>_s<seed>[_<variant>] (``spec.expand``).
 _RUN_NAME = re.compile(r"^(?P<algorithm>[a-z]+)_(?P<paradigm>[a-z]+)_s(?P<seed>\d+)")
-# What a configuration is, for ``seed_groups``: everything but the seed.
-GROUP_BY = ("target", "experiment", "algorithm", "paradigm", "variant")
-# Settings that must match for runs to be compared as one configuration: their full
-# saved values (the scenario's contents, every day), not their labels.
-COMPARED = (
-    "scenario",
-    "train_days",
-    "test_days",
-    "env_config",
-    "budget",
-    "overrides",
-    "model",
-    "results_detail",
-    "commit",
-)
 
 
 # --------------------------------------------------------------------------------------
@@ -152,9 +135,8 @@ class RunResult:
             or its file name in older runs), ``train_days`` and ``test_days`` (every
             day), ``budget``, ``overrides`` (the training settings it ran with),
             ``grad_clip`` (the effective gradient clip), ``kl_logged`` (whether the
-            learner computed the KL), ``model``,
-            ``results_detail``, ``commit``, ``uncommitted``; None where the files do
-            not say. Compare these; show ``labels``.
+            learner computed the KL), ``model``, ``commit``, ``uncommitted``; None
+            where the files do not say. Compare these; show ``labels``.
         state: Its ``RunState`` (None if the folder cannot be read as a run).
     """
 
@@ -194,17 +176,36 @@ class RunResult:
         """The run's ``<name>.csv`` (e.g. ``"heldout_episodes"``), None if it has
         none; read again only when the file has changed (a running run's grow).
         Shared between callers: copy before changing it."""
-        path = self.ref.folder / f"{name}.csv"
-
-        try:
-            found = path.stat()
-        except OSError:
-            return None
-
-        return _read_csv(str(path), found.st_mtime_ns, found.st_size)
+        return _table(self.ref.folder / f"{name}.csv")
 
 
-@functools.lru_cache(maxsize=512)
+def _table(path: Path) -> Optional[pd.DataFrame]:
+    try:
+        found = path.stat()
+    except OSError:
+        return None
+
+    return _read_csv(str(path), found.st_mtime_ns, found.st_size)
+
+
+def _latest(build: Callable) -> Callable:
+    """``build(path, *stamp)`` remembered per path, only for the latest ``stamp``: a
+    file that keeps growing in a live view holds one entry, not one per version."""
+    kept: dict[str, tuple] = {}
+
+    @functools.wraps(build)
+    def cached(path: str, *stamp: Any) -> Any:
+        found = kept.get(path)
+
+        if found is None or found[0] != stamp:
+            found = kept[path] = (stamp, build(path, *stamp))
+
+        return found[1]
+
+    return cached
+
+
+@_latest
 def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
     """A table, cached by its file's path, time and size: an unchanged file is
     read once."""
@@ -249,7 +250,6 @@ def load_run(ref: RunRef) -> RunResult:
         "grad_clip": (record.get("settings_effective") or {}).get("grad_clip"),
         "kl_logged": (record.get("settings_effective") or {}).get("use_kl_loss"),
         "model": record.get("model"),
-        "results_detail": spec.get("results_detail", "standard"),
         "commit": (git.get("commit") or "")[:8] or None,
         "uncommitted": git.get("uncommitted_changes"),
     }
@@ -305,8 +305,8 @@ def _agents(frame: pd.DataFrame) -> int:
 
 
 def overview(results: Sequence[RunResult]) -> pd.DataFrame:
-    """One row per run: what it was, how far it got, and its held-out team return
-    for the trained policy and each baseline (``heldout.csv``)."""
+    """One row per run: what it was, how far it got, and its held-out team money per
+    day for the trained policy and each baseline (``heldout_agents.csv``)."""
     rows = []
 
     for result in results:
@@ -319,13 +319,14 @@ def overview(results: Sequence[RunResult]) -> pd.DataFrame:
             "budget": result.settings["budget"],
             "commit": result.settings["commit"],
         }
-        heldout = result.table("heldout")
+        people = result.table("heldout_agents")
 
-        if heldout is not None and "policy" in heldout:
-            scores = heldout.set_index("policy")["team_return_mean"]
-            row["participants"] = _agents(heldout)
-            for policy in (TRAINED, *BASELINES):
-                row[f"heldout_{policy}"] = scores.get(policy)
+        if people is not None and "bill" in people:
+            money = people.groupby(["policy", "day"]).bill.sum().groupby("policy")
+            row["participants"] = people.agent.nunique()
+
+            for policy, value in money.mean().items():
+                row[f"money_{policy}"] = value
 
         rows.append(row)
 
@@ -334,7 +335,8 @@ def overview(results: Sequence[RunResult]) -> pd.DataFrame:
 
 def learning_curves(results: Sequence[RunResult]) -> pd.DataFrame:
     """Evaluation during training (``evaluation.csv``): one row per run, evaluation
-    point and policy, with the team return and its mean per participant."""
+    point and policy, with the team return, its mean per participant and the team's
+    money (``evaluation_agents.csv``; empty for an environment without a bill)."""
     frames = []
 
     for result in results:
@@ -347,6 +349,13 @@ def learning_curves(results: Sequence[RunResult]) -> pd.DataFrame:
         frame["per_participant"] = frame.team_return_mean / _agents(
             result.table("evaluation")
         )
+        people = result.table("evaluation_agents")
+
+        if people is not None and "bill" in people:
+            days = people.groupby(["env_steps", "policy", "episode"]).bill.sum()
+            money = days.groupby(["env_steps", "policy"]).mean().rename("team_money")
+            frame = frame.join(money, on=["env_steps", "policy"])
+
         frames.append(frame.assign(**_head(result)))
 
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
@@ -437,125 +446,79 @@ def learner_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
     frames = []
 
     for result in results:
-        frame = result.table("metrics")
+        path = result.ref.folder / "metrics.csv"
 
-        if frame is None or "env_steps" not in frame:
-            continue
+        if path.is_file():
+            found = path.stat()
+            kl_logged = bool(result.settings.get("kl_logged"))
+            rows = _learner_rows(str(path), found.st_mtime_ns, found.st_size, kl_logged)
 
-        rows = []
-        kl_logged = bool(result.settings.get("kl_logged"))
-
-        for column in frame.columns:
-            pieces = column.split("/")
-
-            if pieces[-1] == "mean_kl_loss" and not kl_logged:
-                continue
-
-            if column == "team_return_mean":
-                module, part, metric = "", "", "team_return_mean"
-            elif len(pieces) == 2 and pieces[0] != "modules":
-                module, part, metric = pieces[0], "", pieces[1]
-            elif len(pieces) == 3 and pieces[2] in PART_STATS:
-                module, part, metric = pieces
-            else:
-                continue
-
-            values = frame[["env_steps", column]].dropna()
-            rows.append(
-                pd.DataFrame(
-                    {
-                        "env_steps": values.env_steps.to_numpy(),
-                        "module": module,
-                        "part": part,
-                        "metric": metric,
-                        "value": values[column].astype(float).to_numpy(),
-                    }
-                )
-            )
-
-        if rows:
-            frames.append(pd.concat(rows, ignore_index=True).assign(**_head(result)))
+            if rows is not None:
+                frames.append(rows.assign(**_head(result)))
 
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-def heldout_days(results: Sequence[RunResult]) -> pd.DataFrame:
-    """Per run and test day (``heldout_episodes.csv``): each policy's team return,
-    and ``trained_minus_<baseline>``, the paired difference on the same day. A run
-    without the per-day table gives one row with its means and no day."""
+@_latest
+def _learner_rows(
+    path: str, mtime_ns: int, size: int, kl_logged: bool
+) -> Optional[pd.DataFrame]:
+    """One ``metrics.csv`` long, built once: at every live refresh only the runs still
+    training cost anything."""
+    frame = _read_csv(path, mtime_ns, size)
+
+    if frame is None or "env_steps" not in frame:
+        return None
+
     rows = []
 
-    for result in results:
-        frame = result.table("heldout_episodes")
-        if frame is not None:
-            days = frame.pivot_table(
-                index="day", columns="policy", values="team_return"
+    for column in frame.columns:
+        pieces = column.split("/")
+
+        if pieces[-1] == "mean_kl_loss" and not kl_logged:
+            continue
+
+        if column == "team_return_mean":
+            module, part, metric = "", "", "team_return_mean"
+        elif len(pieces) == 2 and pieces[0] != "modules":
+            module, part, metric = pieces[0], "", pieces[1]
+        elif len(pieces) == 3 and pieces[2] in PART_STATS:
+            module, part, metric = pieces
+        else:
+            continue
+
+        values = frame[["env_steps", column]].dropna()
+        rows.append(
+            pd.DataFrame(
+                {
+                    "env_steps": values.env_steps.to_numpy(),
+                    "module": module,
+                    "part": part,
+                    "metric": metric,
+                    "value": values[column].astype(float).to_numpy(),
+                }
             )
-            scores = {day: dict(row) for day, row in days.iterrows()}
-        else:  # an older run: its means only
-            frame = result.table("heldout")
-            if frame is None or "policy" not in frame:
-                continue
-            scores = {None: dict(zip(frame.policy, frame.team_return_mean))}
-        for day, score in scores.items():
-            row = _head(result) | {"day": day}
+        )
 
-            for policy in (TRAINED, *BASELINES):
-                row[policy] = score.get(policy)
-
-            for baseline in BASELINES:
-                if row[TRAINED] is not None and row[baseline] is not None:
-                    row[f"trained_minus_{baseline}"] = row[TRAINED] - row[baseline]
-
-            rows.append(row)
-
-    return pd.DataFrame(rows)
-
-
-# The two phases of the per-day tables: during training on the training days
-# (``evaluation_*.csv``, at each evaluation point) and on the test days at the end
-# (``heldout_*.csv``); their columns are the same.
-PHASES = ("evaluation", "heldout")
-
-
-def _long(results: Sequence[RunResult], table: str, ids: Sequence[str]) -> pd.DataFrame:
-    """Every number of ``<phase>_<table>.csv`` of every run, one row per run, phase,
-    row of the table and column (``metric``, ``value``)."""
-    frames = []
-
-    for result in results:
-        for phase in PHASES:
-            frame = result.table(f"{phase}_{table}")
-
-            if frame is None or "policy" not in frame:
-                continue
-
-            frame = frame.drop(columns="seed", errors="ignore")  # the episode's
-            kept = ("env_steps", "policy", "episode", "day", *ids)
-            kept = [c for c in kept if c in frame]
-            numbers = [
-                c
-                for c in frame.columns
-                if c not in kept and pd.api.types.is_numeric_dtype(frame[c])
-            ]
-            long = frame.melt(kept, numbers, var_name="metric", value_name="value")
-            frames.append(long.assign(phase=phase, **_head(result)))
-
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-
-def day_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
-    """Every market and grid amount of every played day (``evaluation_episodes`` and
-    ``heldout_episodes``), long format: per run (``key`` and its settings),
-    ``phase`` (``"evaluation"``: during training, at ``env_steps``; ``"heldout"``:
-    the test days), ``policy``, ``episode``, ``day``, ``metric`` and ``value``."""
-    return _long(results, "episodes", ())
+    return pd.concat(rows, ignore_index=True) if rows else None
 
 
 def participant_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
-    """As ``day_metrics``, per participant (``agent``): its return, bill, energy
-    bought and sold (``evaluation_agents`` and ``heldout_agents``)."""
-    return _long(results, "agents", ("agent",))
+    """Every number of ``heldout_agents.csv``, long format: per run, ``policy``,
+    ``day``, ``agent``, ``metric`` and ``value``."""
+    ids = ["policy", "day", "agent"]
+    frames = []
+
+    for result in results:
+        frame = result.table("heldout_agents")
+
+        if frame is not None and "policy" in frame:
+            numbers = frame.drop(columns=[*ids, "episode", "seed"], errors="ignore")
+            numbers = numbers.select_dtypes("number").columns
+            long = frame.melt(ids, numbers, var_name="metric", value_name="value")
+            frames.append(long.assign(**_head(result)))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
 def participant_days(result: RunResult, value: str = "return") -> pd.DataFrame:
@@ -577,50 +540,71 @@ def participant_days(result: RunResult, value: str = "return") -> pd.DataFrame:
     return wide
 
 
-def seed_groups(
-    results: Sequence[RunResult], by: Sequence[str] = GROUP_BY
-) -> pd.DataFrame:
-    """Runs of one configuration (``by``: everything but the seed) over their seeds.
+# The held-out tables the indicators are computed from (``indicators.day_table``).
+INDICATOR_TABLES = (
+    "heldout_episodes",
+    "heldout_agents",
+    "heldout_steps",
+    "heldout_agent_steps",
+)
 
-    Per group: ``runs``, ``completed``, the ``seeds``; the trained policy's held-out
-    team return over the completed seeds (each seed's mean over its test days):
-    ``mean``, ``std`` (over seeds, 0 with one), ``min``, ``max``; the mean of
-    ``trained_minus_<baseline>``; and ``differs``: the settings of ``COMPARED`` that
-    are not the same in all its runs (a group should have none).
-    """
-    table = overview(results)
 
-    if table.empty:
-        return table
+@_latest
+def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
+    """One run's indicators, long format; ``stamp`` says its tables are unchanged."""
+    tables = [_table(Path(folder) / f"{name}.csv") for name in INDICATOR_TABLES]
 
-    settings = {r.key: r.settings for r in results}
-    rows = []
+    if tables[0] is None or tables[1] is None or "bill" not in tables[1]:
+        return None
 
-    for values, group in table.groupby(list(by), dropna=False, sort=False):
-        done = group[group.state == "completed"]
-        trained = done.get(f"heldout_{TRAINED}", pd.Series(dtype=float)).dropna()
-        row = dict(zip(by, values if isinstance(values, tuple) else (values,)))
-        row |= {
-            "runs": len(group),
-            "completed": len(done),
-            "seeds": sorted(int(s) for s in group.seed.dropna()),
-            "mean": trained.mean() if len(trained) else None,
-            "std": trained.std(ddof=0) if len(trained) else None,
-            "min": trained.min() if len(trained) else None,
-            "max": trained.max() if len(trained) else None,
-        }
+    days = indicators.day_table(*tables).reset_index()
 
-        for baseline in BASELINES:
-            column = f"heldout_{baseline}"
-            if column in done and len(trained):
-                row[f"trained_minus_{baseline}"] = (
-                    trained - done.loc[trained.index, column]
-                ).mean()
+    return days.melt(indicators.KEYS, var_name="indicator")
 
-        row["differs"] = differing_settings([settings[k] for k in group.key], COMPARED)
-        rows.append(row)
 
-    return pd.DataFrame(rows)
+def _factors(result: RunResult) -> dict[str, Any]:
+    """What the run was, as the columns ``indicators.FACTORS`` name."""
+    settings = result.settings
+    scenario = settings["scenario"] if isinstance(settings["scenario"], dict) else {}
+    grid, env = scenario.get("grid", {}), settings["env_config"] or {}
+    dso = scenario.get("dso", {})
+
+    return {
+        "reward": env.get("reward") or "bill",
+        "observation": env.get("observation") or "paper",
+        "prices": _prices_name(dso.get("prices")),
+        "peer_charge": dso.get("peer_charge_kwh", 0.0),
+        "network": grid.get("code"),
+        "grid_method": grid.get("method"),
+        "test_days": _days(settings["test_days"]),
+    }
+
+
+def _prices_name(prices: Any) -> Optional[str]:
+    """Prices as one name: the file's, the flat tariffs, or a series' own digest."""
+    if prices is None or isinstance(prices, str):
+        return prices
+
+    if flat_prices(prices):
+        return f"flat {prices['utility']:g} / {prices['feed_in']:g}"
+
+    return "series " + hashlib.sha1(_same(prices).encode()).hexdigest()[:6]
+
+
+def day_indicators(results: Sequence[RunResult]) -> pd.DataFrame:
+    """Every indicator of every run with held-out tables: a row per run, policy, test
+    day and indicator, with ``value`` and what the run was."""
+    frames = []
+
+    for result in results:
+        files = [result.ref.folder / f"{n}.csv" for n in INDICATOR_TABLES]
+        stamp = tuple(p.stat().st_mtime_ns if p.is_file() else 0 for p in files)
+        days = _day_table(str(result.ref.folder), stamp)
+
+        if days is not None:
+            frames.append(days.assign(**_head(result), **_factors(result)))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
 def differing_settings(

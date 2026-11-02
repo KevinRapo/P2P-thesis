@@ -1,17 +1,14 @@
-"""Results: the runs ticked in the table, in five tabs, live while they train.
+"""Results: the runs ticked in the table, in four tabs, live while they train.
 
-    Learning     did it learn? the learner over environment steps
-    Validation   is the policy any good? against the baselines, during training and
-                 on the test days, over the seeds
-    Market       what did the market do? its amounts per day, per participant, and
-                 one run in depth
-    Grid         what did the grid do? the power flow's amounts per day
-    Explore      any recorded number, with every control
+    Validation   how good is each version? any runs side by side, on the test days
+    Learning     did it learn? training, on the training days
+    Market       what did the market do? per test day, per participant, step by step
+    Grid         what did the grid do? per test day, step by step
 
 The runs are those of this PC and of each cluster's mirror, read from their
 folders (``core/runner/results.py``, the notebook ``notebooks/runner/results.ipynb``
 reads the same). Only the open tab is built. With *Live* on, at once and then
-every 10 s, each cluster is asked which of its experiments have runs queued or
+every 30 s, each cluster is asked which of its experiments have runs queued or
 running, and the mirror of each is brought up to date (``Target.follow``: only
 what training wrote since; an experiment new here appears in the table); the runs
 of those experiments and of this PC's running ones are read again, once more after
@@ -35,15 +32,14 @@ from studio.components.cards import fill, placeholder
 from studio.components.memory import remember
 from studio.components.run_table import RunTable
 from studio.layout import shell
-from studio.pages.results.common import Tab
-from studio.pages.results.explore import ExploreTab
+from studio.pages.results.common import Selection, Tab
 from studio.pages.results.grid import GridTab
 from studio.pages.results.learning import LearningTab
 from studio.pages.results.market import MarketTab
 from studio.pages.results.validation import ValidationTab
 from studio.state import services
 
-LIVE_S = 10  # seconds between live refreshes
+LIVE_S = 30  # seconds between live refreshes
 ACTIVE = ("queued", "running")  # runs whose experiment the live view follows
 
 
@@ -58,9 +54,10 @@ class ResultsView:
     def __init__(self, service: ResultsService, runs: RunService) -> None:
         self.service = service
         self.runs = runs
+        selection = Selection(open=self._open)
         self.tabs: dict[str, Tab] = {
-            tab.label: tab(service)
-            for tab in (LearningTab, ValidationTab, MarketTab, GridTab, ExploreTab)
+            tab.label: tab(service, selection)
+            for tab in (ValidationTab, LearningTab, MarketTab, GridTab)
         }
         self._drawn = 0  # the latest draw: an older one that finishes later stops
         self._ticking = False
@@ -91,6 +88,9 @@ class ResultsView:
         self.box = ui.column().classes("w-full gap-4")
         ui.timer(LIVE_S, self.tick)
 
+    def _open(self, label: str) -> None:
+        self.bar.value = label
+
     @property
     def tab(self) -> Tab:
         return self.tabs[self.bar.value]
@@ -99,7 +99,7 @@ class ResultsView:
         await self.table.load()
         await self.show()
 
-        if self.live.value:  # remembered on: at once, not after the first 10 s
+        if self.live.value:  # remembered on: at once, not after the first wait
             await self.tick()
 
     async def show(self) -> None:
@@ -185,7 +185,7 @@ def page() -> None:
         "results",
         "Results",
         "The ticked runs, of this PC and of the clusters. Live follows the "
-        "experiments training on a cluster and reads the runs again every 10 s.",
+        "experiments training on a cluster and reads the runs again every 30 s.",
     ):
         view = ResultsView(s.results, s.runs)
         ui.timer(0.05, view.load, once=True)

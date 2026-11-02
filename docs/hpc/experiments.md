@@ -12,9 +12,8 @@ runs on a target; the CLI, Python and the Studio's Runs page call the same runne
 
 Every run ends with a held-out evaluation: the trained policy and the baselines
 play **every test day once** (seeds 2000, 2001, ...), and the results are kept per
-day and per participant ([Files](#files)). With `"results_detail": "detailed"` in the
-spec the days of `trace_days` (default: the first 3 test days, or a list of them) are
-also kept step by step. The [Results](#results) page compares the runs.
+day, per participant and per step ([Files](#files)). The [Results](#results) page
+compares the runs.
 
 ## The experiment file
 
@@ -41,8 +40,6 @@ fields that rewrite the JSON:
   "budget": 240000,
   "eval_points": 10,
   "eval_episodes": 10,
-  "results_detail": "standard",
-  "trace_days": 3,
   "training": {
     "ppo": {
       "lr": 0.0003,
@@ -84,7 +81,6 @@ fields that rewrite the JSON:
 | `train_days`, `test_periods` | Days drawn from in training, and the held-out days as named continuous periods (`{"from", "to"}` or a list each) | |
 | `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (`algorithms` is `["ppo"]`); a variant is an arm: it overwrites the base file's settings ([Config](../config/reference.md#variants)) | |
 | `budget`, `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training | |
-| `results_detail`, `trace_days` | `"standard"`: held-out results per day and participant; `"detailed"`: also step by step on the first `trace_days` test days (or a list) | |
 | `training` | Per algorithm (`ppo`), RLlib's training settings: the project's defaults with the spec's overrides on top. Any other key of RLlib's PPO `training()` can be added (e.g. `vf_loss_coeff`) and has RLlib's default until it is; `run.json` records every PPO setting with the value it ran with (`settings_effective`) | [rl_defaults.py](../../core/rl_defaults.py) `SETTINGS` |
 | `model` | The network, the same for every paradigm | [rl_defaults.py](../../core/rl_defaults.py) `NETWORK` |
 | `max_parallel`, `torch_threads`, `num_env_runners`, `ray_thread_caps`, `resources` | How runs share this PC or a cluster node ([Resources and parallelism](resources.md)) | [spec.py](../../core/runner/spec.py) `RESOURCE_DEFAULTS` |
@@ -212,7 +208,7 @@ state:
 | `<run>/heldout.csv` | The held-out evaluation: one row per policy (means over the test days) |
 | `<run>/heldout_episodes.csv` | One row per policy and test day: team return, P2P and DSO energy, trade losses, fees, the power flow's grid import, export, losses, violations and non-converged steps |
 | `<run>/heldout_agents.csv` | One row per policy, test day and participant: return, profit, bill, bought, sold, deferred demand and supply |
-| `<run>/heldout_trace_steps.csv`, `heldout_trace_agents.csv` | Only with `"results_detail": "detailed"`: the traced test days per step (market, grid, clearing price, voltages) and per step and participant (order, trades, battery state of charge, reputation, reward) |
+| `<run>/heldout_steps.csv`, `heldout_agent_steps.csv` | Every test day step by step, for every policy: market, grid and tariffs per step, and each participant's energy, order, partner, battery and reward parts |
 | `<run>/checkpoint/` | The policy at the end of training |
 | `<run>/log.txt` | This PC: the job's output (on the cluster it is in `slurm/`) |
 

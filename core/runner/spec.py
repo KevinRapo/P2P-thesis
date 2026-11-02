@@ -28,10 +28,6 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
       "eval_points": 4,                 evaluations during training; int or
                                         {algorithm: int}
       "eval_episodes": 10,
-      "results_detail": "standard",     or "detailed": also the held-out
-                                        evaluation step by step on trace_days
-      "trace_days": 3,                  with "detailed": the first 3 test days, or
-                                        a list of test days
       "training": {"ppo": {...}},       overrides per algorithm; a variant's
                                         overrides are merged on top
       "model": {},                      network overrides
@@ -68,8 +64,8 @@ Held-out evaluation: after training, the trained policy and the baselines play e
 test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...).
 Inside a test period the batteries and reputations carry from day to day, and every policy
 starts each period from the scenario's initial state (``heldout_options``). Its
-results are kept per day and participant (``launch.py``); with ``results_detail``
-``"detailed"`` the days of ``trace_days`` are also kept step by step.
+results are kept per day and participant, and every step of every day
+(``launch.py``).
 
 Test profile: ``Experiment.test_version()`` is the smallest version of the same
 experiment, to prove the pipeline (start, train, evaluate, write the results), not
@@ -117,8 +113,8 @@ PARADIGMS = ("ctce", "ctde", "dtde")
 MARKET_ENVS = ("market", "core.env:MarketEnv", "core.env.market_env:MarketEnv")
 HELDOUT_SEED_START = 2000
 PROFILES = ("full", "test")
-RESULTS_DETAILS = ("standard", "detailed")
-TRACE_DAYS = 3  # the default of ``trace_days``
+# Fields of experiments saved before every test day was kept step by step.
+NO_LONGER_READ = ("results_detail", "trace_days")
 # The scenario of a started experiment, in its folder (see the module).
 SCENARIO_FILE = "scenario.json"
 # What a variant cannot overwrite: the axes of the grid of runs, and what belongs to
@@ -142,7 +138,6 @@ NOT_IN_A_TEST_VARIANT = (
     "budget",
     "eval_points",
     "eval_episodes",
-    "trace_days",
 )
 # Per run on a SLURM cluster; ``resources`` in the spec overrides these.
 RESOURCE_DEFAULTS = {"cpus": 4, "mem_gb": 4, "minutes": 120, "node": None}
@@ -256,8 +251,6 @@ class Experiment:
     variants: dict[str, dict] = field(default_factory=dict)
     eval_points: int | dict[str, int] | None = None
     eval_episodes: int = 10
-    results_detail: str = "standard"
-    trace_days: int | list[str] = TRACE_DAYS
     training: dict[str, dict] = field(default_factory=dict)
     model: dict = field(default_factory=dict)
     max_parallel: int = 3
@@ -294,14 +287,14 @@ class Experiment:
             raise SpecError(_GONE)
 
         known = set(cls.__dataclass_fields__)
-        unknown = sorted(set(data) - known)
+        unknown = sorted(set(data) - known - set(NO_LONGER_READ))
 
         if unknown:
             raise SpecError(
                 f"unknown field(s) {unknown}; the fields are {sorted(known)}"
             )
 
-        data = dict(data)
+        data = {k: v for k, v in data.items() if k not in NO_LONGER_READ}
         data.setdefault("name", default_name)
 
         for key in ("train_days", "test_days"):
@@ -436,22 +429,7 @@ class Experiment:
             raise SpecError(f"env {self.env!r} must be 'market' or 'module:Class'")
 
         _check_resources(self.resources, "resources")
-        self._validate_results()
         self._validate_test_block()
-
-    def _validate_results(self) -> None:
-        if self.results_detail not in RESULTS_DETAILS:
-            raise SpecError(
-                f"'results_detail' is one of {list(RESULTS_DETAILS)}, "
-                f"not {self.results_detail!r}"
-            )
-        days = self.trace_days
-        if isinstance(days, list):
-            missing = [d for d in days if d not in self.test_days]
-            if missing:
-                raise SpecError(f"'trace_days' {missing} are not test days")
-        elif isinstance(days, bool) or not isinstance(days, int) or days < 1:
-            raise SpecError("'trace_days' is a number of test days (>= 1) or a list")
 
     def _validate_test_block(self) -> None:
         test = self.test
@@ -589,17 +567,6 @@ class Experiment:
             for index, day in enumerate(days)
         ]
 
-    def traced_days(self) -> list[str]:
-        """The test days kept step by step (none unless ``results_detail`` is
-        ``"detailed"``)."""
-        if self.results_detail != "detailed":
-            return []
-
-        if isinstance(self.trace_days, list):
-            return [d for d in self.test_days if d in self.trace_days]
-
-        return self.test_days[: self.trace_days]
-
     def heldout_config(
         self, run_dir: Optional[Path] = None, variant: Optional[str] = None
     ) -> dict:
@@ -697,11 +664,6 @@ class Experiment:
         )
         periods = _first_days(self.test_periods, test.get("test_days", 1))
         test_days = [day for days in periods.values() for day in days]
-        trace_days = self.trace_days
-
-        if isinstance(trace_days, list):  # those the test version still has
-            trace_days = [d for d in trace_days if d in test_days] or 1
-
         description = f"Test version of {self.name}"
 
         if self.description:
@@ -723,7 +685,6 @@ class Experiment:
             budget=budget,
             eval_points=None,
             eval_episodes=test.get("eval_episodes", 1),
-            trace_days=trace_days,
             resources=dict(resources),
             test={},
             description=description,
@@ -894,8 +855,6 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
         "budget": e.budget,
         "eval_points": e.eval_points,
         "eval_episodes": e.eval_episodes,
-        "results_detail": e.results_detail,
-        "trace_days": e.trace_days,
         "training": training,
         "model": NETWORK | e.model,
         "max_parallel": e.max_parallel,

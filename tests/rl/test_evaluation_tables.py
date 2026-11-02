@@ -59,7 +59,7 @@ def found():
         {"one": one, "nothing": nothing},
         [7, 8],
         options=[{"day": "d1"}, {"day": "d2"}],
-        trace=[1],
+        by_step=True,
     )
 
 
@@ -100,18 +100,18 @@ def test_one_row_per_policy_and_episode(found):
     assert "price" not in episodes  # a state
 
 
-def test_only_the_traced_episodes_step_by_step(found):
-    steps, agents = found.trace_steps, found.trace_agents
-    assert set(steps.episode) == {1} and len(steps) == 2 * 3
-    assert steps[steps.policy == "one"].team_reward.tolist() == [3.0] * 3
-    assert steps.price.tolist() == [1.0, 2.0, 3.0] * 2
-    assert len(agents) == 2 * 3 * 2
-    soc = agents[(agents.policy == "one") & (agents.agent == "a")].soc.tolist()
-    assert soc == pytest.approx([0.1, 0.2, 0.3])
-    assert math.isclose(agents.reward.sum(), 9.0)
+def test_every_step_of_every_episode(found):
+    steps, agents = found.steps, found.agent_steps
+    assert set(steps.episode) == {0, 1} and len(steps) == 2 * 2 * 3
+    assert steps[steps.policy == "one"].team_reward.tolist() == [3.0] * 6
+    assert steps.price.tolist() == [1.0, 2.0, 3.0] * 4
+    assert len(agents) == 2 * 2 * 3 * 2
+    one_day = (agents.policy == "one") & (agents.agent == "a") & (agents.episode == 1)
+    assert agents[one_day].soc.tolist() == pytest.approx([0.1, 0.2, 0.3])
+    assert math.isclose(agents.reward.sum(), 18.0)
 
 
-def test_nothing_traced_means_no_trace_tables():
+def test_without_by_step_no_step_tables():
     plain = evaluation(Ledger, {}, {"one": one}, [1])
-    assert plain.trace_steps is None and plain.trace_agents is None
+    assert plain.steps is None and plain.agent_steps is None
     assert plain.agents.day.tolist() == ["none", "none"]  # no options

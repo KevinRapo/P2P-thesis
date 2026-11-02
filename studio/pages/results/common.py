@@ -1,5 +1,5 @@
-"""What the Results page's tabs share: the tab base, the metric chart and a table of
-a frame.
+"""What the Results page's tabs share: the tab base, what they have selected, the
+chart per test day and a table of a frame.
 
 A tab reads its data off the UI thread (``read``), builds its cards once
 (``build``) and registers the charts the live view refreshes (``watch``); on every
@@ -9,11 +9,13 @@ redraw in place and keep their controls.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
 
 import pandas as pd
 from nicegui import ui
 
+from core.runner.indicators import INDICATORS
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import section
 from studio.components.charts import Chart, SeriesChart
@@ -31,7 +33,23 @@ BY = {
     "seed": "Seed",
     "policy": "Policy",
 }
-AXES = {"env_steps": "environment steps", "day": "test day"}
+
+
+@dataclass
+class Selection:
+    """What the tabs look at, kept when the tab changes.
+
+    Attributes:
+        open: Go to a tab, by its label.
+        run: The run in depth.
+        day: The test day.
+        policy: The policy.
+    """
+
+    open: Callable[[str], None]
+    run: Optional[str] = None
+    day: Optional[str] = None
+    policy: str = "trained"
 
 
 # --------------------------------------------------------------------------------------
@@ -49,8 +67,9 @@ class Tab:
     label = ""
     icon = ""
 
-    def __init__(self, service: ResultsService) -> None:
+    def __init__(self, service: ResultsService, selection: Selection) -> None:
         self.service = service
+        self.selection = selection
         self.watched: list[tuple[Chart, dict[str, str]]] = []
 
     def read(self, keys: list[str]) -> dict[str, Any]:
@@ -71,50 +90,41 @@ class Tab:
 
 
 # --------------------------------------------------------------------------------------
-# MetricChart: one metric of a long table, a line per group
+# DayChart: one metric of a long table over the test days, a line per group
 # --------------------------------------------------------------------------------------
-class MetricChart(SeriesChart):
-    """One metric of a long table (``metric``, ``value``) along environment steps
-    (during training) or the test days (held out): a line per group, at each
-    point the mean over everything else in the group (days, episodes,
-    participants, runs), with ``band`` its ± one standard deviation.
+class DayChart(SeriesChart):
+    """One metric of a long table (``metric``, ``value``) over the test days: a line
+    per group, at each day the mean over everything else in the group (participants,
+    runs), with ``band`` its ± one standard deviation.
 
-    Options: ``table`` (``day_metrics``, ``participant_metrics`` or
-    ``learner_metrics``), ``metric``, ``by`` (the column a line stands for),
-    ``phase`` (``"evaluation"`` or ``"heldout"``, when the table has phases),
-    ``policy`` (one policy, or ``"all"``), ``band``, ``labels`` (run key ->
-    name).
+    Options: ``table`` (``indicator`` or ``participant_metrics``), ``metric``, ``by``
+    (the column a line stands for), ``policy`` (one policy, or ``"all"``), ``band``,
+    ``labels`` (run key -> name), ``title`` (the y axis).
     """
 
     height = 320
 
     def draw(self) -> None:
         o = self.o
-        table = o.table
 
-        if table is None or table.empty or not o.get("metric"):
+        if o.table is None or o.table.empty or not o.get("metric"):
             return
 
-        rows = table[table.metric == o.metric]
-        phase = o.get("phase")
+        rows = o.table[o.table.metric == o.metric]
 
-        if phase and "phase" in rows:
-            rows = rows[rows.phase == phase]
-
-        if o.get("policy", "all") != "all" and "policy" in rows:
+        if o.policy != "all":
             rows = rows[rows.policy == o.policy]
 
-        x = "day" if phase == "heldout" else "env_steps"
-        rows = rows.dropna(subset=[x])
-        self.titles(x=AXES[x], y=o.metric)
+        self.titles(x="test day", y=o.get("titles", {}).get(o.metric, o.metric))
 
         for value, group in rows.groupby(o.by, sort=False, dropna=False):
-            stats = group.groupby(x).value.agg(["mean", "std"]).fillna(0.0)
+            stats = group.groupby("day").value.agg(["mean", "std"])
             name = o.labels.get(value, value) if o.by == "key" else value
             band = None
 
-            if o.get("band"):
-                band = (stats["mean"] - stats["std"], stats["mean"] + stats["std"])
+            if o.band:
+                spread = stats["std"].fillna(0.0)
+                band = (stats["mean"] - spread, stats["mean"] + spread)
 
             self.line(stats.index, stats["mean"], str(name), markers=True, band=band)
 
@@ -126,53 +136,59 @@ def metric_card(
     data_key: str,
     data: dict[str, Any],
     labels: dict[str, str],
-    metrics: Optional[list[str]] = None,
+    metrics: dict[str, str],
     by: Optional[dict[str, str]] = None,
-    phases: Optional[dict[str, str]] = None,
-    **options: Any,
-) -> MetricChart:
-    """A card with a ``MetricChart`` of ``data[data_key]`` (watched by ``tab``) and
-    its controls above it: the metric (``metrics``, default every one in the
-    table), with ``phases`` the phase, what a line stands for (``by``), the policy
-    and the band."""
-    table = data[data_key]
-    found = list(table.metric.unique()) if not table.empty else []
-    metrics = [m for m in (metrics or found) if m in found]
-    by = by or BY
-
+) -> DayChart:
+    """A card with a ``DayChart`` of ``data[data_key]`` (watched by ``tab``) and its
+    controls above it: the metric (``metrics``: name -> label), what a line stands
+    for (``by``), the policy and the band."""
     with section(title, caption, "show_chart"):
         controls = ui.row().classes("w-full items-center gap-3")
-
-        if not metrics:
-            ui.label("Nothing recorded yet.").classes("mls-card-caption")
-
-        chart = MetricChart(
-            table=table,
+        chart = DayChart(
+            table=data[data_key],
             labels=labels,
-            metric=metrics[0] if metrics else None,
+            metric=next(iter(metrics), None),
+            titles=metrics,
             by="key",
             policy="trained",
             band=False,
-            **options,
         ).show()
         tab.watch(chart, table=data_key)
-        chart.memory = f"results_{tab.label}_{title}"
 
         with controls:
             chart.select("metric", metrics, "Metric").classes("w-64")
-
-            if phases:
-                chart.select("phase", phases, "Phase").classes("w-44")
-
-            chart.select("by", by, "A line per").classes("w-40")
-
-            if "policy" in table:
-                policies = {"all": "All"} | POLICIES
-                chart.select("policy", policies, "Policy").classes("w-40")
-
+            chart.select("by", by or BY, "A line per").classes("w-40")
+            chart.select("policy", {"all": "All"} | POLICIES, "Policy").classes("w-40")
             chart.switch("band", "± one std")
 
     return chart
+
+
+def indicator_rows(table: pd.DataFrame) -> pd.DataFrame:
+    """``day_indicators`` as the long table a ``DayChart`` reads."""
+    return table.rename(columns={"indicator": "metric"}) if len(table) else table
+
+
+def indicator_card(
+    tab: Tab, name: str, data: dict[str, Any], labels: dict[str, str]
+) -> DayChart:
+    """The tab ``name``'s indicators over the test days, from ``data["days"]``
+    (``indicator_rows``)."""
+    metrics = {
+        i.name: f"{i.label} ({i.unit})" if i.unit else i.label
+        for i in INDICATORS
+        if i.tab == name
+    }
+
+    return metric_card(
+        tab,
+        "On the test days",
+        "Each indicator per test day, at the end of training",
+        "days",
+        data,
+        labels,
+        metrics,
+    )
 
 
 # --------------------------------------------------------------------------------------

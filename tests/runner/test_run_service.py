@@ -435,7 +435,7 @@ def test_the_editable_text_writes_out_every_setting():
         data = json.loads(text)
         assert data == written_out(json.loads(template), name)
         assert data["resources"] == record["resources"]  # the defaults filled in
-        assert {"results_detail", "trace_days", "model", "training"} <= set(data)
+        assert {"eval_episodes", "model", "training"} <= set(data)
         assert editable(text, name) == text  # twice
         assert json.loads(apply_preset(text, "full", text, name)) == {
             k: v for k, v in data.items() if v is not None

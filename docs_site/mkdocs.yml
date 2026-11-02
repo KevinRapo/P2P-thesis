@@ -146,9 +146,17 @@ nav:
               - plan/index.md
               - Market plan: plan/market.md
               - RL plan: plan/rl.md
+              - Results plan: plan/results.md
               - Decision log: plan/decisions.md
       - Config:
           - config/reference.md
+          - Results:
+              - config/results/index.md
+              - Saved files: config/results/files.md
+              - Learning: config/results/learning.md
+              - Validation: config/results/validation.md
+              - Market: config/results/market.md
+              - Grid: config/results/grid.md
       - Reinforcement learning:
           - Observation: rl/observation.md
           - Probes:

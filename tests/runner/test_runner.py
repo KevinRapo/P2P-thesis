@@ -278,35 +278,12 @@ def test_the_heldout_evaluation_plays_every_test_day_once():
             Experiment.from_dict(gone, "x")
 
 
-def test_traced_days_only_with_detailed_results():
-    days = {"from": "2016-07-01", "to": "2016-07-05"}
-    assert (
-        Experiment.from_dict(spec(test_periods={"t": days}), "x").traced_days() == []
-    )
-    detailed = Experiment.from_dict(
-        spec(test_periods={"t": days}, results_detail="detailed"), "x"
-    )
-    assert detailed.traced_days() == ["2016-07-01", "2016-07-02", "2016-07-03"]
-    chosen = spec(
-        test_periods={"t": days},
-        results_detail="detailed",
-        trace_days=["2016-07-04", "2016-07-02"],
-    )
-    assert Experiment.from_dict(chosen, "x").traced_days() == [
-        "2016-07-02",  # in the order of the test days
-        "2016-07-04",
-    ]
-    version = Experiment.from_dict(chosen, "x").test_version()
-    assert version.test_days == ["2016-07-01"] and version.trace_days == 1
-    assert version.traced_days() == ["2016-07-01"]  # its one day instead
+def test_a_saved_experiment_keeps_loading_without_its_old_detail_fields():
+    data = spec(results_detail="detailed", trace_days=3)
+    assert not hasattr(Experiment.from_dict(data, "x"), "results_detail")
 
-    for bad, message in (
-        ({"results_detail": "all"}, "results_detail"),
-        ({"trace_days": 0}, "trace_days"),
-        ({"trace_days": ["2016-08-01"]}, "not test days"),
-    ):
-        with pytest.raises(SpecError, match=message):
-            Experiment.from_dict(spec(**bad), "x")
+    with pytest.raises(SpecError, match="unknown field"):
+        Experiment.from_dict(spec(results_details="typo"), "x")
 
 
 def test_out_dir_defaults_to_the_runs_root(tmp_path, monkeypatch):

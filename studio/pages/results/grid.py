@@ -1,62 +1,46 @@
 """Results → Grid: what did the grid do?
 
-Every grid amount of the played days (``core/runner/results.day_metrics``), from
-the AC power flow whatever the grid method charged the fees with: energy drawn
-from and fed into the upstream grid, line and transformer losses, limits broken,
-flows that did not converge, the fees charged and the trades' transmission losses;
-during training and on the held-out test days. The charts follow the live view.
+Its indicators per test day (``core/runner/indicators.py``), from the AC power flow
+whichever grid method charged the fees; then one run step by step, a second one over it
+if asked: loading against what the fees read, voltages, the upstream exchange.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from nicegui import ui
-
+from studio.components.cards import section
 from studio.components.run_table import labels_of
-from studio.pages.results.common import Tab, metric_card
+from studio.pages.results.common import Tab, indicator_card, indicator_rows
+from studio.pages.results.steps import StepView
 
-# The grid amounts of the per-day tables, in the order offered.
-GRID_METRICS = [
-    "grid_losses_kwh",
-    "grid_violations",
-    "grid_import_kwh",
-    "grid_export_kwh",
-    "fees",
-    "trade_losses_kwh",
-    "not_converged",
+GRID_CHARTS = [
+    (
+        "line loading, %",
+        [
+            "max_line_loading_percent",
+            "fee_max_line_loading_percent",
+            "max_trafo_loading_percent",
+        ],
+    ),
+    ("voltage, pu", ["min_voltage_pu", "max_voltage_pu"]),
+    ("upstream exchange, kWh", ["grid_import_kwh", "grid_export_kwh"]),
+    ("losses, kWh", ["grid_losses_kwh", "trade_losses_kwh"]),
+    ("limits broken", ["voltage_violations", "loading_violations"]),
 ]
 
 
 class GridTab(Tab):
-    """The grid per day, during training and on the test days."""
+    """The grid per test day, and one run step by step."""
 
     label, icon = "Grid", "hub"
 
     def read(self, keys: list[str]) -> dict[str, Any]:
-        return {"days": self.service.day_metrics(keys)}
+        return {"days": indicator_rows(self.service.day_indicators(keys))}
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
-        common = dict(data=data, labels=labels_of(keys), metrics=GRID_METRICS)
-        metric_card(
-            self,
-            "During training",
-            "On the evaluation days, over environment steps: the mean over the days "
-            "played at each point",
-            "days",
-            phase="evaluation",
-            **common,
-        )
-        metric_card(
-            self,
-            "On the test days",
-            "Each held-out test day, at the end of training",
-            "days",
-            phase="heldout",
-            **common,
-        )
-        ui.label(
-            "The line loading the fees were charged on against the loading the power "
-            "flow measured is kept per step on traced days only (Market → One run → "
-            "Traced days), not yet per day."
-        ).classes("mls-card-caption")
+        labels = labels_of(keys)
+        indicator_card(self, "grid", data, labels)
+
+        with section("Step by step", "One run, a test day at a time", "timeline"):
+            StepView(self.service, labels, self.selection, GRID_CHARTS)

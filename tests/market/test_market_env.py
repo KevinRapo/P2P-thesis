@@ -21,9 +21,9 @@ from core.config import store
 from core.config.scenario import DsoSetup
 from core.env import OBS_NAMES, MarketEnv, net_position_policy, zero_policy
 from core.env.market_env import OBSERVATIONS
-from core.env.reward import REWARDS, NetBillReward, SalazarReward
+from core.env.reward import REWARDS, NetBillReward, SalazarReward, log_compress
 from core.env_defaults import OBSERVATION_NAMES, REWARD_NAMES
-from core.market.signals import PRUNED_OBS
+from core.market.signals import KPIS, PRUNED_OBS
 from core.market.clearing import Clearing, ClearingRules
 from core.market.dso import Dso
 from core.market.lem import LocalEnergyMarket, OrderIntent
@@ -559,3 +559,32 @@ def test_a_test_period_carries_the_state_and_starts_from_the_initial_one():
     assert env._stored_kwh() == end and infos[env.agents_id[0]]["period"] == "p"
     env.reset(options={"day": env.days[0]})
     assert env._stored_kwh() == initial
+
+
+def test_a_step_keeps_what_the_results_need():
+    config = {"scenario": str(SCENARIO), "days": DAYS, "reward": "salazar"}
+    env = MarketEnv(config | {"grid_capacity_kwh": 100.0})
+    act = net_position_policy(env)
+    obs, _ = env.reset(seed=0)
+    done = False
+
+    while not done:
+        obs, rewards, terminated, _, infos = env.step(act(obs))
+        record, done = env.last_record, terminated["__all__"]
+        first = infos[env.agents_id[0]]
+        bought = sum(i["peer_bought_kwh"] for i in infos.values())
+        assert bought == pytest.approx(record.p2p_kwh)
+        assert bought == pytest.approx(sum(i["peer_sold_kwh"] for i in infos.values()))
+        assert ("final" in first) == env.market.done or done
+        state = first["shared_state"]
+        assert np.isnan(state["peer_price"]) == (record.p2p_kwh == 0)
+        assert state["utility_price"] == record.inputs.utility_price
+
+        for pid, info in infos.items():
+            parts = {k: v for k, v in info["state"].items() if k[:7] == "reward_"}
+            assert info["demand_kwh"] == record.inputs.demand_kwh[pid]
+            penalties = ("reward_dso_penalty", "reward_demand_penalty")
+            raw = sum(-v if k in penalties else v for k, v in parts.items())
+            assert rewards[pid] == pytest.approx(log_compress(raw))
+
+    assert set(first["final"]) == set(KPIS)
