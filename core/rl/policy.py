@@ -33,6 +33,9 @@ follow it; one that does not still gets its returns):
         "final": {<name>: value}                       the same for every agent, on
                                                        a day's last step: the last
                                                        one goes into the episode row
+        "tables": {<name>: [row, ...]}                 the same for every agent: the
+                                                       step's rows of a table of the
+                                                       environment's own
     }
 
 The infos of ``reset`` (e.g. the market's ``day``) are copied into every row of the
@@ -64,6 +67,7 @@ from core.rl.state import join
 ActFn = Callable[[dict[str, np.ndarray]], dict[str, np.ndarray]]
 # The nested parts of an agent's infos (see the module).
 STATE, SHARED, SHARED_STATE, FINAL = "state", "shared", "shared_state", "final"
+TABLES = "tables"
 
 
 # --------------------------------------------------------------------------------------
@@ -309,6 +313,8 @@ class Evaluation:
             reward, shared amounts and shared state.
         agent_steps: With ``by_step``, one row per policy, episode, step and agent:
             reward, amounts and state.
+        tables: With ``by_step``, the tables of the infos' ``tables`` by name, each
+            row with its policy, episode and step.
     """
 
     summary: pd.DataFrame
@@ -316,6 +322,7 @@ class Evaluation:
     episodes: pd.DataFrame
     steps: Optional[pd.DataFrame] = None
     agent_steps: Optional[pd.DataFrame] = None
+    tables: dict[str, pd.DataFrame] = field(default_factory=dict)
 
 
 def evaluation(
@@ -329,6 +336,7 @@ def evaluation(
     """Score several policies on the same episodes (one per seed, with its
     ``reset`` options), keeping every episode, and with ``by_step`` every step."""
     summary, agents, episodes, step_rows, agent_step_rows = [], [], [], [], []
+    table_rows: dict[str, list[dict]] = {}
 
     for name, act in policies.items():
         played = rollout(env_class, env_config, act, seeds, options=options)
@@ -344,12 +352,17 @@ def evaluation(
                 step_rows.extend(head | row for row in steps)
                 agent_step_rows.extend(head | row for row in per_agent)
 
+                for table, rows in _table_rows(episode).items():
+                    found = table_rows.setdefault(table, [])
+                    found.extend(head | row for row in rows)
+
     return Evaluation(
         pd.DataFrame(summary),
         pd.DataFrame(agents),
         pd.DataFrame(episodes),
         pd.DataFrame(step_rows) if by_step else None,
         pd.DataFrame(agent_step_rows) if by_step else None,
+        {table: pd.DataFrame(rows) for table, rows in table_rows.items()},
     )
 
 
@@ -437,6 +450,19 @@ def _step_rows(episode: Episode) -> tuple[list[dict], list[dict]]:
             )
 
     return steps, agents
+
+
+def _table_rows(episode: Episode) -> dict[str, list[dict]]:
+    """The rows of the infos' ``tables`` of one episode, with their step."""
+    rows: dict[str, list[dict]] = {}
+
+    for step, infos in enumerate(_step_infos(episode)):
+        first = next(iter(infos.values()), {})
+
+        for table, found in first.get(TABLES, {}).items():
+            rows.setdefault(table, []).extend({"step": step} | row for row in found)
+
+    return rows
 
 
 def evaluation_seeds(n: int, start: int = 1_000_000) -> list[int]:

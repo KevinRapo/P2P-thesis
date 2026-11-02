@@ -33,13 +33,41 @@ CURVES = {
 }
 
 
+VERSION = ["target", "experiment", "paradigm", "variant"]  # what the seeds share
+LINES = {"key": "Run", "version": "Version (seeds pooled)"}
+
+
+def _units(curves: pd.DataFrame, labels: dict[str, str], by: str) -> dict[str, list]:
+    """What a line stands for, name -> its run keys: each run, or each version."""
+    keys = list(dict.fromkeys(curves.key))
+
+    if by == "key":
+        return {labels[k]: [k] for k in keys}
+
+    heads = curves.drop_duplicates("key").set_index("key")[VERSION].fillna("")
+    names = heads.agg("/".join, axis=1)
+    units: dict[str, list] = {}
+
+    for key in keys:
+        units.setdefault(names[key], []).append(key)
+
+    return {f"{name} ({len(found)} seeds)": found for name, found in units.items()}
+
+
+def _spread(rows: pd.DataFrame, value: str) -> pd.DataFrame:
+    """A column's mean, min and max over the rows of each environment step."""
+    return rows.groupby("env_steps")[value].agg(["mean", "min", "max"])
+
+
 class CurveChart(SeriesChart):
-    """Each run's trained policy over environment steps, and its baselines at step 0,
-    dashed in its colour (one grey level when every run has the same); with
-    ``train``, in return, its training return too, dotted.
+    """Each run's (or version's) trained policy over environment steps, and its
+    baselines at step 0, dashed in its colour (one grey level when every line has the
+    same); with ``train``, in return, its training return too, dotted. A version
+    pools its seeds: their mean with a band of their min to max.
 
     Options: ``curves``, ``training`` (``learning_curves`` / ``training_curves``),
-    ``labels`` (run key -> name), ``value`` (a column of ``CURVES``), ``train``.
+    ``labels`` (run key -> name), ``value`` (a column of ``CURVES``), ``train``,
+    ``by`` (a key of ``LINES``).
     """
 
     height = 380
@@ -52,32 +80,43 @@ class CurveChart(SeriesChart):
             return
 
         self.titles(y=CURVES[o.value])
-        keys = list(dict.fromkeys(o.curves.key))
-        colors = {k: SERIES[i % len(SERIES)] for i, k in enumerate(keys)}
+        units = _units(o.curves, o.labels, o.get("by", "key"))
+        colors = {u: SERIES[i % len(SERIES)] for i, u in enumerate(units)}
+        training = o.training if o.value in o.training else None
 
-        for key in keys:
-            rows = o.curves[(o.curves.key == key) & (o.curves.policy == "trained")]
-            self.line(
-                rows.env_steps, rows[o.value], o.labels[key], colors[key], markers=True
-            )
+        for unit, keys in units.items():
+            rows = o.curves[o.curves.key.isin(keys) & (o.curves.policy == "trained")]
+            self._curve(rows, unit, colors[unit], markers=True)
 
-            if o.train and o.value in o.training and not o.training.empty:
-                own = o.training[o.training.key == key]
-                name = f"{o.labels[key]} (training)"
-                self.line(own.env_steps, own[o.value], name, colors[key], dash="dot")
+            if o.train and training is not None and not training.empty:
+                own = training[training.key.isin(keys)]
+                self._curve(own, f"{unit} (training)", colors[unit], dash="dot")
 
         start = o.curves[(o.curves.env_steps == 0) & (o.curves.policy != "trained")]
 
         for policy, rows in start.groupby("policy"):
-            if rows[o.value].round(9).nunique() == 1:  # the same for every run
+            if rows[o.value].round(9).nunique() == 1:  # the same for every line
                 self.level(rows[o.value].iloc[0], f"{policy} (step 0)", color=MUTED)
                 continue
 
-            for _, row in rows.iterrows():
-                end = o.curves[o.curves.key == row.key].env_steps.max()
-                name = f"{o.labels[row.key]}: {policy}"
-                y = [row[o.value]] * 2
-                self.line([0, end], y, name, colors[row.key], dash="dash", width=1)
+            for unit, keys in units.items():
+                own = rows[rows.key.isin(keys)][o.value]
+                end = o.curves[o.curves.key.isin(keys)].env_steps.max()
+                self.line(
+                    [0, end],
+                    [own.mean()] * 2,
+                    f"{unit}: {policy}",
+                    colors[unit],
+                    dash="dash",
+                    width=1,
+                )
+
+    def _curve(self, rows: pd.DataFrame, name: str, color: str, **look) -> None:
+        """One line: the mean over the keys of ``rows``, with a band when it pools."""
+        found = _spread(rows, self.o.value)
+        pooled = rows.key.nunique() > 1
+        band = (found["min"], found["max"]) if pooled else None
+        self.line(found.index, found["mean"], name, color, band=band, **look)
 
 
 # --------------------------------------------------------------------------------------
@@ -320,11 +359,13 @@ class LearningTab(Tab):
                 labels=labels,
                 value="team_return_mean",
                 train=True,
+                by="key",
             ).show()
             self.watch(chart, curves="curves", training="training")
 
             with ui.row().classes("items-center gap-4"):
                 chart.select("value", CURVES, "Show").classes("w-64")
+                chart.select("by", LINES, "Line per").classes("w-56")
                 chart.switch("train", "Training return")
 
         # Two columns of cards, one per group of learner metrics

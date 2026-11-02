@@ -26,6 +26,7 @@ from studio.pages.results.common import (
     metric_card,
 )
 from studio.pages.results.steps import StepView
+from studio.pages.results.trades import TradeMatrix, trade_card
 
 MARKET_CHARTS = [
     (
@@ -33,6 +34,9 @@ MARKET_CHARTS = [
         ["p2p_kwh", "preference_kwh", "bought_from_dso_kwh", "sold_to_dso_kwh"],
     ),
     ("prices, per kWh", ["peer_price", "feed_in_tariff", "utility_price"]),
+    ("peer share of the energy traded", ["peer_share"]),
+    ("grid balance, kWh", ["grid_balance_kwh"]),
+    ("peer trades", ["peer_trades"]),
 ]
 PERSON_CHARTS = [
     ("kWh", ["demand_kwh", "generation_kwh", "order_kwh", "bought_kwh", "sold_kwh"]),
@@ -184,6 +188,7 @@ class MarketTab(Tab):
         return {
             "days": indicator_rows(self.service.day_indicators(keys)),
             "people": self.service.participant_metrics(keys),
+            "trades": self.service.trade_table(keys),
         }
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
@@ -200,6 +205,16 @@ class MarketTab(Tab):
             {m: m.replace("_", " ") for m in PARTICIPANT_METRICS},
             by=BY | {"group": "Participant group"},
         )
+
+        trade_card(self, data, labels)
+
+        with section(
+            "Who trades with whom",
+            "Peer trades of one run and policy over all test days: a row per buyer, a "
+            "column per seller.",
+            "grid_on",
+        ):
+            TradeMatrix(self.service, labels, self.selection)
 
         with section("One run", "Its participants against a baseline", "search"):
             one = OneRun(self.service)

@@ -24,8 +24,9 @@ from core.env.market_env import OBSERVATIONS
 from core.env.reward import REWARDS, NetBillReward, SalazarReward, log_compress
 from core.env_defaults import OBSERVATION_NAMES, REWARD_NAMES
 from core.market.signals import KPIS, PRUNED_OBS
+from core.rl.policy import evaluation
 from core.market.clearing import Clearing, ClearingRules
-from core.market.dso import Dso
+from core.market.dso import DSO_ID, Dso
 from core.market.lem import LocalEnergyMarket, OrderIntent
 from core.market.order import Order
 
@@ -588,3 +589,47 @@ def test_a_step_keeps_what_the_results_need():
             assert rewards[pid] == pytest.approx(log_compress(raw))
 
     assert set(first["final"]) == set(KPIS)
+
+
+def test_a_played_day_keeps_its_tables_and_training_does_not():
+    config = {"scenario": str(SCENARIO), "days": DAYS}
+    env = MarketEnv(config)
+    act = net_position_policy(env)
+    played = evaluation(
+        MarketEnv, config, {"rule": act}, [0], [{"day": DAYS[0]}], by_step=True
+    )
+    trades, grid = played.tables["trades"], played.tables["grid"]
+    assert len(grid) == len(played.steps) == env.market.n_steps
+    assert (grid.step == played.steps.step).all()
+    assert list(trades.columns[:5]) == ["policy", "episode", "seed", "day", "step"]
+    assert any(c.startswith("bus_voltage/") for c in grid)
+    assert any(c.startswith("line_loading/") for c in grid)
+    assert not any(c.startswith("fee_line_loading/") for c in grid)  # the power flow
+    peer = trades[trades.stage < 3]
+    assert played.steps.peer_trades.sum() == len(peer)
+    assert played.steps.p2p_kwh.sum() == pytest.approx(peer.kwh.sum())
+    assert played.steps.mean_line_loading_percent.notna().all()
+    assert "grid_balance_kwh" in played.steps
+
+    obs, _ = env.reset(seed=0)
+    infos = env.step(act(obs))[-1]
+    assert "tables" not in infos[AGENTS[0]]
+    assert "peer_trades" in infos[AGENTS[0]]["shared"]
+
+
+def test_the_trades_add_up_to_the_dsos_profit():
+    env = MarketEnv({"scenario": str(SCENARIO), "days": DAYS})
+    obs, _ = env.reset(seed=0, options={"day": DAYS[0]})
+    act, money, profit = net_position_policy(env), 0.0, 0.0
+
+    for _ in range(env.market.n_steps):
+        obs, _, _, _, infos = env.step(act(obs))
+        profit += env.last_record.dso.profit
+
+        for t in infos[AGENTS[0]]["tables"]["trades"]:
+            money += t["buyer_fee"] + t["seller_fee"]
+
+            if t["stage"] == 3:
+                money += (1 if t["seller"] == DSO_ID else -1) * t["price"] * t["kwh"]
+
+    assert money == pytest.approx(profit)

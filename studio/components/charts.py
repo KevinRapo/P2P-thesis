@@ -23,11 +23,13 @@ from typing import Any, Callable, Optional, Sequence
 
 import plotly.graph_objects as go
 from nicegui import ui
+from plotly.colors import sample_colorscale
 from plotly.subplots import make_subplots
 
-from core.grid.contract import BusView, TopologyView
+from core.grid.contract import BranchView, BusView, TopologyView
+from core.market.clearing import DSO_ID
 from studio.components.memory import remember
-from studio.theme import BUS, ENERGY, HIGHLIGHT, LIMIT, MUTED, SERIES
+from studio.theme import BUS, ENERGY, HIGHLIGHT, LIMIT, MARKET, MUTED, SERIES
 
 
 # --------------------------------------------------------------------------------------
@@ -467,7 +469,8 @@ class NetworkChart(Chart):
     on top (the base draws nothing more).
 
     Options: ``topology`` (``TopologyView``); ``voltages`` (bus -> pu, coloured on
-    a fixed 0.93 to 1.05 scale); ``highlight`` (buses ringed in amber:
+    a fixed 0.93 to 1.05 scale); ``loading`` (line -> percent, the closed lines
+    coloured on a fixed 0 to 100 % scale); ``highlight`` (buses ringed in amber:
     participants, the selected bus); ``participants`` (bus -> participant, a red
     ring around each, with its legend entry); ``violating`` (buses ringed in red).
 
@@ -570,16 +573,49 @@ class NetworkChart(Chart):
                 ),
             )
 
+    def trade_links(
+        self,
+        trades: Sequence[tuple[str, str, float, float, int]],
+        bus_of: dict[str, str],
+    ) -> None:
+        """The trades as links, ``(seller, buyer, kWh, price, stage)`` each: peer
+        trades solid, the DSO's dashed, to the external grid (``bus_of``: participant
+        -> bus)."""
+        ext = self.o.topology.external_grid_bus
+
+        def bus(agent: str) -> str:
+            return ext if agent == DSO_ID else bus_of.get(agent, ext)
+
+        for stages, color, name, dash in (
+            ((1, 2), MARKET["p2p"], "Peer trade", "solid"),
+            ((3,), MARKET["dso"], "DSO trade", "dash"),
+        ):
+            links = [
+                (
+                    bus(seller),
+                    bus(buyer),
+                    kwh,
+                    f"{seller} → {buyer}: {kwh:.2f} kWh at {price:.3f}",
+                )
+                for seller, buyer, kwh, price, stage in trades
+                if stage in stages
+            ]
+            self.links(links, color, name, dash)
+
     # --- The network itself -----------------------------------------------------------
     def _branches(self, topology: TopologyView) -> None:
-        """Lines (dotted when open), then transformers and switches drawn thick."""
+        """Lines (dotted when open, coloured by loading when it is given), then
+        transformers and switches drawn thick."""
         lines = [br for br in topology.branches if br.kind == "line"]
+        loading = self.o.get("loading")
+        closed = [br for br in lines if br.closed]
+
+        if loading is not None:
+            self._loaded(closed, loading)
+            closed = []
 
         for branches, look in (
-            (
-                [br for br in lines if br.closed],
-                dict(color="rgba(100,116,139,0.6)", width=1.5),
-            ),
+            (closed, dict(color="rgba(100,116,139,0.6)", width=1.5)),
             (
                 [br for br in lines if not br.closed],
                 dict(color="rgba(100,116,139,0.45)", width=1, dash="dot"),
@@ -606,6 +642,49 @@ class NetworkChart(Chart):
                     hoverinfo="skip",
                     showlegend=False,
                 )
+
+    def _loaded(self, lines: list[BranchView], loading: dict[str, float]) -> None:
+        """Each line in the colour of its loading (grey without a value), and the
+        colour bar."""
+        scale = "YlOrRd"
+
+        for br in lines:
+            if br.from_bus not in self.pos or br.to_bus not in self.pos:
+                continue
+
+            percent = loading.get(br.id)
+            known = percent is not None and percent == percent
+            color = (
+                sample_colorscale(scale, [min(max(percent, 0.0), 100.0) / 100.0])[0]
+                if known
+                else "rgba(100,116,139,0.4)"
+            )
+            (x0, y0), (x1, y1) = self.pos[br.from_bus], self.pos[br.to_bus]
+            self.fig.add_scatter(
+                x=[x0, x1],
+                y=[y0, y1],
+                mode="lines",
+                line=dict(color=color, width=3),
+                hoverinfo="text",
+                text=f"{br.id}: {percent:.0f} %" if known else br.id,
+                showlegend=False,
+            )
+
+        self.fig.add_scatter(  # carries the colour bar
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(
+                color=[0],
+                colorscale=scale,
+                cmin=0,
+                cmax=100,
+                showscale=True,
+                colorbar=dict(title="Line loading %", thickness=12, x=1.1),
+            ),
+            hoverinfo="skip",
+            showlegend=False,
+        )
 
     def _buses(self, topology: TopologyView) -> None:
         """One trace per bus kind (so the legend explains the colours), or after a

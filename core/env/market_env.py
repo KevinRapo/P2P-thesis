@@ -152,6 +152,7 @@ money unit):
             voltage_violations     buses outside their voltage limits
             loading_violations     lines and transformers over their limits
             not_converged          1 if the power flow did not converge
+            peer_trades            number of trades between participants
     shared_state: clearing_price   the step's clearing price (the last one kept
                                    when no peers traded)
                   peer_price       the same, NaN when no peers traded
@@ -161,7 +162,16 @@ money unit):
                   fee_max_line_loading_percent: the highest line loading the
                   fees were charged on (the graph model's with ``grid.method =
                   "graph"``, else the power flow's)
+                  mean_line_loading_percent: the mean over the lines (NaN if the
+                  flow did not converge)
+                  grid_balance_kwh: B_grid before the DSO clears ([P1] eq. 20)
     final: the ten KPIs (``signals.KPIS``) over the day, on its last step
+    tables: on a played day only (``options["day"]``), the step's rows:
+            trades   one per trade: who, price, energy, stage, distance, losses and
+                     each fee (``_trade_rows``)
+            grid     one per step: bus_voltage/<bus>, line_loading/<line> and, with
+                     ``grid.method = "graph"``, fee_line_loading/<line>; NaN when
+                     the flow did not converge (``_grid_row``)
 
 The grid amounts are the AC power flow's (the whole network, background
 included), whatever ``grid.method``; a flow that did not converge counts 0 for
@@ -201,6 +211,7 @@ from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from core.config import store
 from core.env.reward import build_reward, net_bill, side_kwh
 from core.env_defaults import ENV_CONFIG_KEYS, SCALE_KEYS as SCALE_KEYS
+from core.grid.contract import GridAssessment
 from core.market import signals
 from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepRecord
@@ -461,6 +472,7 @@ class MarketEnv(MultiAgentEnv):
         rewards = self.reward.step(record)
         peer_trades = [t for t in record.trades if t.stage < 3]
         final = {"final": signals.kpis(self.market.history)} if self.market.done else {}
+        tables = _tables(record) if self.one_day else None
         infos = {}
 
         for pid in self.agents_id:
@@ -502,6 +514,9 @@ class MarketEnv(MultiAgentEnv):
                 "shared_state": shared_state,
                 **final,
             }
+
+            if tables:
+                infos[pid]["tables"] = tables
 
         day_over = self.market.done
         done = day_over and self.window_day == len(self.window) - 1
@@ -816,6 +831,7 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
             sum(c in ("LINE_OVERLOAD", "TRAFO_OVERLOAD") for c in limits)
         ),
         "not_converged": 0.0 if grid.converged else 1.0,
+        "peer_trades": float(sum(t.stage < 3 for t in record.trades)),
     }
     state = {
         "clearing_price": float(record.clearing_price),
@@ -829,9 +845,72 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
         "fee_max_line_loading_percent": _number(
             (record.signal or grid).max_line_loading_percent
         ),
+        "mean_line_loading_percent": _mean_loading(grid),
+        "grid_balance_kwh": float(record.grid_balance_kwh),
     }
 
     return shared, state
+
+
+def _mean_loading(grid: GridAssessment) -> float:
+    """The mean loading over the lines, NaN if the flow did not converge."""
+    if not grid.converged or not grid.line_loading_percent:
+        return float("nan")
+
+    return float(np.mean(list(grid.line_loading_percent.values())))
+
+
+def _trade_rows(record: StepRecord) -> list[dict[str, Any]]:
+    """One row per trade of the step."""
+    return [
+        {
+            "buyer": t.buyer_id,
+            "seller": t.seller_id,
+            "price": float(t.price),
+            "kwh": float(t.quantity),
+            "stage": t.stage,
+            "distance_km": float(t.distance),
+            "transmission_loss_kwh": float(t.transmission_loss),
+            "buyer_fee": float(t.buyer_fee),
+            "seller_fee": float(t.seller_fee),
+            "fee_congestion": float(t.fee_parts.congestion),
+            "fee_transmission": float(t.fee_parts.transmission),
+            "fee_imbalance": float(t.fee_parts.imbalance),
+            "fee_voltage": float(t.fee_parts.voltage),
+            "fee_thermal": float(t.fee_parts.thermal),
+            "fee_zone": float(t.fee_parts.zone),
+            "peer_charge": float(t.fee_parts.peer_charge),
+        }
+        for t in record.trades
+    ]
+
+
+def _grid_row(record: StepRecord) -> dict[str, float]:
+    """The step's voltage per bus and loading per line, and with the graph model the
+    loading the fees read per line. A flow that did not converge leaves its columns
+    NaN, whatever it reported."""
+    grid = record.grid
+    row: dict[str, float] = {}
+
+    if grid.converged:
+        row |= {f"bus_voltage/{b}": float(v) for b, v in grid.bus_voltage_pu.items()}
+        row |= {
+            f"line_loading/{line}": float(value)
+            for line, value in grid.line_loading_percent.items()
+        }
+
+    if record.signal is not None:
+        row |= {
+            f"fee_line_loading/{line}": float(value)
+            for line, value in record.signal.line_loading_percent.items()
+        }
+
+    return row
+
+
+def _tables(record: StepRecord) -> dict[str, list[dict[str, Any]]]:
+    """The step's rows of the played day's tables (see the module)."""
+    return {"trades": _trade_rows(record), "grid": [_grid_row(record)]}
 
 
 # --------------------------------------------------------------------------------------

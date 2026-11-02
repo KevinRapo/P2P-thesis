@@ -65,6 +65,8 @@ FOLLOWED = (
     "heldout_agents.csv",
     "heldout_steps.csv",
     "heldout_agent_steps.csv",
+    "heldout_trades.csv.gz",
+    "heldout_grid.csv.gz",
 )
 FOLLOW_TIMEOUT_S = 60
 PING_TIMEOUT_S = 10

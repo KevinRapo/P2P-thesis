@@ -20,6 +20,9 @@ to run the same runs as a SLURM job array. State lives in files only (see
                                          per test day (``core/rl/policy.py``)
     runs/<experiment>/<run>/heldout_steps.csv, heldout_agent_steps.csv
                                          the same step by step
+    runs/<experiment>/<run>/heldout_trades.csv.gz, heldout_grid.csv.gz
+                                         every trade, and every bus and line at
+                                         every step
 
 Jobs are not killed when the worker dies: they run on to the end and write their
 own status, but nothing starts the queued runs behind them until ``start_worker`` is run
@@ -70,6 +73,8 @@ STALE = (
     "heldout_episodes.csv",
     "heldout_steps.csv",
     "heldout_agent_steps.csv",
+    "heldout_trades.csv.gz",
+    "heldout_grid.csv.gz",
     "log.txt",
 )
 # Python orders sets of strings differently in every process unless its hash seed
@@ -441,6 +446,9 @@ def _heldout(
         ("heldout_agent_steps", found.agent_steps),
     ):
         frame.to_csv(run_dir / f"{name}.csv", index=False)
+
+    for name, frame in found.tables.items():
+        frame.to_csv(run_dir / f"heldout_{name}.csv.gz", index=False)
 
 
 # --------------------------------------------------------------------------------------

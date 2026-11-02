@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -165,6 +166,28 @@ def test_settings_come_from_the_saved_files(where):
     assert runs["local/grid/ppo_dtde_s0"].table("missing") is None
     assert runs["local/grid/ppo_dtde_s0"].has("heldout_agents")
     assert not runs["local/grid/ppo_dtde_s0"].has("heldout_steps")
+
+
+def test_a_compressed_table_is_read_and_its_trades_placed_in_the_band(tmp_path):
+    folder = tmp_path / "grid" / "ppo_dtde_s0"
+    folder.mkdir(parents=True)
+    head = {"policy": "trained", "episode": 0, "step": 0}
+    pd.DataFrame(
+        [
+            head | {"stage": 2, "price": 0.2, "kwh": 1.0},
+            head | {"stage": 3, "price": 0.3, "kwh": 1.0},
+        ]
+    ).to_csv(folder / "heldout_trades.csv.gz", index=False)
+    pd.DataFrame([head | {"feed_in_tariff": 0.1, "utility_price": 0.5}]).to_csv(
+        folder / "heldout_steps.csv", index=False
+    )
+    ref = results.RunRef("local", "grid", "ppo_dtde_s0", folder)
+    run = results.load_run(ref)
+    assert run.has("heldout_trades") and len(run.table("heldout_trades")) == 2
+    table = results.trade_table([run])
+    assert table.band[0] == pytest.approx(0.25) and np.isnan(table.band[1])
+    assert set(table.key) == {"local/grid/ppo_dtde_s0"}
+    assert results.trade_table([]).empty
 
 
 @pytest.mark.parametrize(

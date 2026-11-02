@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from nicegui.testing import user_simulation
 
+from core.grid.contract import BranchView, BusView, TopologyView
 from core.runner import results
 from studio.adapters.results_service import ResultsService
 from studio.pages.results import validation
@@ -240,3 +241,221 @@ async def test_quick_changes_leave_one_set_of_charts(tmp_path):
         await asyncio.gather(view.draw(), view.draw(), view.draw())
         await asyncio.sleep(0.1)
         assert len(view.box.default_slot.children) == 1
+
+
+# --------------------------------------------------------------------------------------
+# The plots chosen from the gallery
+# --------------------------------------------------------------------------------------
+def small_network() -> TopologyView:
+    buses = tuple(BusView(b, 0.0 + i, 0.0, "load", 0.4) for i, b in enumerate("ABC"))
+    lines = (BranchView("L1", "A", "B", "line"), BranchView("L2", "B", "C", "line"))
+    return TopologyView(buses, lines, "A")
+
+
+def trade_rows() -> pd.DataFrame:
+    rows = [
+        ("trained", "d1", 0, "P2", "P1", 0.2, 2.0, 1),
+        ("trained", "d1", 0, "P3", "P1", 0.3, 1.0, 2),
+        ("trained", "d2", 1, "P1", "P10", 0.25, 4.0, 2),
+        ("trained", "d2", 1, "DSO", "P1", 0.4, 5.0, 3),
+        ("zero", "d1", 0, "P2", "P3", 0.2, 9.0, 2),
+    ]
+    frame = pd.DataFrame(
+        rows,
+        columns=["policy", "day", "step", "seller", "buyer", "price", "kwh", "stage"],
+    )
+    return frame.assign(key="k", band=0.5)
+
+
+def test_the_matrix_sums_the_peer_trades_of_a_policy():
+    from studio.pages.results.trades import trade_matrix
+
+    kwh = trade_matrix(trade_rows(), "trained", "kwh")
+    assert list(kwh.index) == ["P1", "P2", "P3", "P10"]  # P2 before P10
+    assert kwh.loc["P1", "P2"] == 2.0 and kwh.loc["P10", "P1"] == 4.0
+    assert np.isnan(kwh.loc["P2", "P3"])  # the zero policy's, and no trade
+    assert trade_matrix(trade_rows(), "trained", "money").loc["P1", "P3"] == 0.3
+    assert trade_matrix(trade_rows(), "trained", "count").loc["P1", "P2"] == 1
+
+
+def test_a_box_per_run_or_version_of_the_peer_trades():
+    from studio.pages.results.trades import TradeBoxChart
+
+    trades = trade_rows().assign(variant="v")
+    chart = TradeBoxChart(
+        trades=trades, labels={"k": "run"}, metric="kwh", by="variant", policy="trained"
+    )
+    boxes = chart.figure().data
+    assert [b.name for b in boxes] == ["v"]
+    assert sorted(boxes[0].y) == [1.0, 2.0, 4.0]  # peers only, one policy
+    empty = TradeBoxChart(
+        trades=pd.DataFrame(), labels={}, metric="kwh", by="key", policy="all"
+    )
+    assert not empty.figure().data
+
+
+def test_the_network_colours_its_lines_and_links_its_trades():
+    from studio.components.charts import NetworkChart
+
+    class Linked(NetworkChart):
+        def draw(self) -> None:
+            self.trade_links(
+                [("P1", "P2", 1.0, 0.2, 2), ("DSO", "P2", 1.0, 0.4, 3)],
+                {"P1": "B", "P2": "C"},
+            )
+
+    chart = Linked(topology=small_network(), loading={"L1": 90.0, "L2": float("nan")})
+    names = [t.name for t in chart.figure().data]
+    assert "Peer trade" in names and "DSO trade" in names
+    assert len([t for t in chart.fig.data if t.text in ("L1: 90 %", "L2")]) == 2
+    plain = NetworkChart(topology=small_network())
+    assert not any(t.text == "L2" for t in plain.figure().data)
+
+
+def test_a_step_view_row_is_the_mean_over_the_days():
+    from studio.pages.results.steps import mean_over_days, with_peer_share
+
+    steps = pd.DataFrame(
+        {
+            "policy": ["trained"] * 4,
+            "day": ["d1", "d1", "d2", "d2"],
+            "step": [0, 1, 0, 1],
+            "p2p_kwh": [1.0, 0.0, 3.0, 0.0],
+            "sold_to_dso_kwh": [1.0, 0.0, 0.0, 0.0],
+            "bought_from_dso_kwh": [0.0, 0.0, 1.0, 0.0],
+        }
+    )
+    shared = with_peer_share(steps)
+    assert list(shared.peer_share.round(2).fillna(-1)) == [0.5, -1, 0.75, -1]
+    mean = mean_over_days(shared)
+    assert list(mean.step) == [0, 1] and mean.peer_share[0] == pytest.approx(0.625)
+    assert with_peer_share(None) is None
+    assert "peer_share" not in with_peer_share(steps.drop(columns="p2p_kwh"))
+
+
+@pytest.mark.anyio
+async def test_the_day_selector_offers_the_mean_over_the_days():
+    steps = pd.DataFrame(
+        {
+            "policy": ["trained"] * 4,
+            "day": ["d1", "d1", "d2", "d2"],
+            "step": [0, 1, 0, 1],
+            "p2p_kwh": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+
+    class Tables:
+        def table(self, key, name):
+            return steps if name == "heldout_steps" else None
+
+    views, selection = [], Selection(open=lambda label: None)
+
+    async def root() -> None:
+        views.append(StepView(Tables(), {"a": "a"}, selection, [("kWh", ["p2p_kwh"])]))
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        view = views[0]
+        await view.draw()
+        assert list(view.day.options)[0] == "all" and view.day.value == "d1"
+        view.day.value = "all"
+        await asyncio.sleep(0.1)
+        assert selection.day == "d1"  # the mean is no day to share
+        assert len(view.box.default_slot.children) == 1
+
+
+def test_a_version_pools_its_seeds_on_the_return_curve():
+    from studio.pages.results.learning import CurveChart
+
+    rows = [
+        (key, seed, step, value)
+        for key, seed, values in (("a0", 0, (1.0, 2.0)), ("a1", 1, (3.0, 6.0)))
+        for step, value in zip((0, 100), values)
+    ]
+    curves = pd.DataFrame(rows, columns=["key", "seed", "env_steps", "v"])
+    curves = curves.assign(
+        policy="trained", target="t", experiment="e", paradigm="ctde", variant=None
+    ).rename(columns={"v": "team_return_mean"})
+    labels = {"a0": "run 0", "a1": "run 1"}
+    kept = dict(
+        curves=curves,
+        training=pd.DataFrame(),
+        labels=labels,
+        value="team_return_mean",
+        train=False,
+    )
+    own = CurveChart(**kept)
+    assert [t.name for t in own.figure().data if t.name] == ["run 0", "run 1"]
+    pooled = CurveChart(**kept, by="version")
+    line = [t for t in pooled.figure().data if t.name][0]
+    assert line.name == "t/e/ctde/ (2 seeds)" and list(line.y) == [2.0, 4.0]
+    band = [t for t in pooled.fig.data if t.fill == "toself"][0]
+    assert max(band.y) == 6.0 and min(band.y) == 1.0
+
+
+@pytest.mark.anyio
+async def test_the_replay_steps_through_a_day(monkeypatch):
+    from studio.pages.results import replay
+
+    grid = pd.DataFrame(
+        {
+            "policy": "trained",
+            "day": "d1",
+            "step": [0, 1, 2],
+            "bus_voltage/B": [1.0, 0.99, 0.98],
+            "line_loading/L1": [10.0, 50.0, 90.0],
+        }
+    )
+    trades = trade_rows().query("policy == 'trained' and day == 'd1'")
+
+    class Tables:
+        def table(self, key, name):
+            return {"heldout_grid": grid, "heldout_trades": trades}.get(name)
+
+        def network(self, key):
+            return "code", {"P1": "B", "P2": "C"}
+
+    topology = small_network()
+    fake = SimpleNamespace(grid=SimpleNamespace(topology=lambda ref: topology))
+    monkeypatch.setattr(replay, "services", lambda: fake)
+    views, selection = [], Selection(open=lambda label: None)
+
+    async def root() -> None:
+        views.append(replay.Replay(Tables(), {"k": "k"}, selection))
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        view = views[0]
+        await asyncio.sleep(0.3)  # the draw the page starts itself
+        assert view.day.value == "d1" and selection.day == "d1"
+        names = [t.name for t in view.chart.figure().data]
+        assert "Peer trade" in names  # step 0 has peer trades
+        view.step.value = 2
+        assert view.chart.o.loading["L1"] == 90.0 and view.chart.o.trades == []
+        view._toggle()
+        assert view.clock.active
+        view._advance()
+        view._stop()
+        assert not view.clock.active
+
+
+@pytest.mark.anyio
+async def test_the_replay_of_an_old_run_is_a_caption():
+    from studio.pages.results import replay
+
+    class Tables:
+        def table(self, key, name):
+            return None
+
+        def network(self, key):
+            return None, {}
+
+    views = []
+
+    async def root() -> None:
+        views.append(replay.Replay(Tables(), {"k": "k"}, Selection(open=print)))
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        await views[0].draw()
+        await user.should_see("Not recorded")

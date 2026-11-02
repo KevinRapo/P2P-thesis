@@ -4,11 +4,41 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from core.market.dso import DSO_ID
 from core.market.signals import KPIS
 from core.runner import indicators
 from core.runner.indicators import INDICATORS, day_table
 
 DAYS = ["d1", "d2"]
+
+
+def trade(step, buyer, seller, price, kwh, stage=2):
+    return {
+        "policy": "trained",
+        "day": "d1",
+        "step": step,
+        "buyer": buyer,
+        "seller": seller,
+        "price": price,
+        "kwh": kwh,
+        "stage": stage,
+        "buyer_fee": 0.1,
+        "seller_fee": 0.0,
+    }
+
+
+def trades():
+    """``trained`` on ``d1``: three peer trades at 0.2 between tariffs of 0.1 and
+    0.3, and one each way with the DSO; no trades otherwise."""
+    rows = [
+        trade(0, "P1", "P2", 0.2, 3.0),
+        trade(1, "P1", "P2", 0.2, 1.0),
+        trade(1, "P2", "P1", 0.2, 4.0, stage=1),
+        trade(0, "P1", "DSO", 0.3, 2.0, stage=3),
+        trade(1, "DSO", "P2", 0.1, 1.0, stage=3),
+    ]
+
+    return pd.DataFrame(rows)
 
 
 def tables():
@@ -17,7 +47,17 @@ def tables():
 
     for policy, gain in (("trained", 3.0), ("zero", 0.0), ("net_position", 1.0)):
         for day in DAYS:
-            episodes.append({"policy": policy, "day": day, "p2p_kwh": 2.0})
+            episodes.append(
+                {
+                    "policy": policy,
+                    "day": day,
+                    "p2p_kwh": 2.0,
+                    "bought_from_dso_kwh": 1.0,
+                    "sold_to_dso_kwh": 1.0,
+                    "trade_losses_kwh": 0.4,
+                    "peer_trades": 3,
+                }
+            )
 
             for agent, bill in (("P1", gain), ("P2", -1.0)):
                 agents.append(
@@ -42,7 +82,8 @@ def tables():
                         "peer_price": 0.2 if step else np.nan,
                         "feed_in_tariff": 0.1,
                         "utility_price": 0.3,
-                        "grid_import_kwh": 6.0,
+                        "grid_import_kwh": (2 if policy == "zero" else 1) * (step + 1),
+                        "mean_line_loading_percent": 20.0 + step,
                         "grid_export_kwh": step * 12.0,
                         "voltage_violations": step,
                         "loading_violations": 0,
@@ -81,12 +122,16 @@ def test_the_kpis_are_the_markets():
     assert set(indicators.KPIS) == set(KPIS)
 
 
+def test_the_dso_is_the_markets():
+    assert indicators.DSO == DSO_ID
+
+
 def test_a_day_of_a_run():
     day = day_table(*tables()).loc[("trained", "d1")]
     assert day.team_money == 2.0
     assert day.gain_zero == 3.0 and day.gain_net_position == 2.0
     assert day.participants_better == 1
-    assert day.peak_import_kw == 0.5 and day.peak_export_kw == 1.0  # 12 h steps
+    assert day.peak_import_kw == 2 / 12 and day.peak_export_kw == 1.0  # 12 h steps
     assert day.hours_over_limit == 12.0
     assert day.fee_error_mean == 10.0 and day.fee_error_worst == 10.0
     assert day.mean_peer_price == pytest.approx(0.2)
@@ -100,12 +145,40 @@ def test_a_day_of_a_run():
     assert day.reachable_share == pytest.approx(3.0 / (money - -1.0))
 
 
+def test_the_indicators_of_the_trades():
+    days = day_table(*tables(), trades())
+    day = days.loc[("trained", "d1")]
+    assert day.peer_trades == 3
+    assert day.mean_trade_kwh == pytest.approx(8 / 3)
+    assert day.market_concentration == pytest.approx(0.5**2 + 0.5**2)
+    assert day.buyer_gain == pytest.approx(0.1 * 8)
+    assert day.seller_gain == pytest.approx(0.1 * 8)
+    assert day.dso_money == pytest.approx(0.3 * 2 - 0.1 * 1 + 5 * 0.1)
+    quiet = days.loc[("net_position", "d1")]
+    assert quiet.buyer_gain == 0.0 and quiet.dso_money == 0.0
+    assert np.isnan(quiet.mean_trade_kwh) and np.isnan(quiet.market_concentration)
+
+
+def test_the_indicators_of_the_other_tables():
+    day = day_table(*tables()).loc[("trained", "d1")]
+    assert day.worst_participant_gain == 0.0  # P2's bill is the same under zero
+    assert day.self_sufficiency == pytest.approx(1 - 1 / 4)
+    assert day.load_factor == pytest.approx(1.5 / 2)
+    assert day.peak_reduction_kw == pytest.approx(2 / 12)
+    assert day.trade_loss_ratio == pytest.approx(0.4 / 4)
+    assert day.mean_line_loading == pytest.approx(20.5)
+
+
 def test_an_older_run_leaves_what_it_lacks_empty():
     episodes, agents, _, _ = tables()
     days = day_table(episodes, agents)
     assert list(days.columns) == [i.name for i in INDICATORS]
     assert days.loc[("trained", "d1")].team_money == 2.0
     assert days.highest_line_loading.isna().all()
+    assert days.mean_trade_kwh.isna().all() and days.load_factor.isna().all()
+    steps = tables()[2].drop(columns="mean_line_loading_percent")
+    older = day_table(episodes, agents, steps, tables()[3])
+    assert older.mean_line_loading.isna().all() and older.buyer_gain.isna().all()
 
 
 def long(rows):

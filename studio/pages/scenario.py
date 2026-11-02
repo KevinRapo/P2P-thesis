@@ -835,9 +835,7 @@ def _tariffs():
             s.scenario.current().dso.prices[name] = float(value or 0)
             s.scenario.save()
 
-    ui.select(choices, value=chosen(), label="Prices", on_change=pick).classes(
-        "w-full"
-    )
+    ui.select(choices, value=chosen(), label="Prices", on_change=pick).classes("w-full")
     ui.label(
         "A price file from config/data/ (one price per market step; Inspect plots "
         "them all), or one flat price all day."
@@ -901,9 +899,7 @@ def _fees() -> None:
         value=d.fees_charged,
         on_change=lambda e: save("fees_charged", bool(e.value)),
     )
-    ui.label("Off: they are still calculated and recorded.").classes(
-        "mls-card-caption"
-    )
+    ui.label("Off: they are still calculated and recorded.").classes("mls-card-caption")
     _numbers(
         "dso",
         [

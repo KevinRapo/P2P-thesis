@@ -15,6 +15,25 @@ from studio.components.charts import SeriesChart
 from studio.pages.results.common import POLICIES, Selection, by_number
 from studio.theme import SERIES
 
+ALL_DAYS = "all"  # the day selector's entry for the mean over the test days
+SHARE_PARTS = ["p2p_kwh", "sold_to_dso_kwh", "bought_from_dso_kwh"]
+
+
+def with_peer_share(rows: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """``rows`` (a step table) with ``peer_share``, the peer energy over all the energy
+    traded, when it has the amounts."""
+    if rows is None or not set(SHARE_PARTS) <= set(rows):
+        return rows
+
+    total = rows[SHARE_PARTS].sum(axis=1)
+
+    return rows.assign(peer_share=rows.p2p_kwh / total.where(total > 0))
+
+
+def mean_over_days(rows: pd.DataFrame) -> pd.DataFrame:
+    """Each step's mean over the days of ``rows``."""
+    return rows.groupby("step").mean(numeric_only=True).reset_index()
+
 
 class StepChart(SeriesChart):
     """Some columns over the steps of a day, a colour per column. Options: ``rows``
@@ -48,7 +67,8 @@ class StepView:
         charts: ``(title, columns)`` from the step table.
         person_charts: The same from a participant's rows; with them a participant
             selector appears.
-        details: What goes under the charts, given the participant's rows.
+        details: What goes under the charts, given the participant's rows; not for
+            the mean over the days.
     """
 
     def __init__(
@@ -103,7 +123,7 @@ class StepView:
         self._drawn += 1
         drawn = self._drawn
         self.selection.run, self.selection.policy = self.run.value, self.policy.value
-        steps = await self._rows(self.run.value, "heldout_steps")
+        steps = with_peer_share(await self._rows(self.run.value, "heldout_steps"))
 
         if drawn != self._drawn:
             return
@@ -117,17 +137,22 @@ class StepView:
                 )
             return
 
-        self._pick(self.day, sorted(steps.day.unique()), self.selection.day)
-        self.selection.day = self.day.value
+        days = sorted(steps.day.unique())
+        wanted = self.selection.day if self.selection.day in days else days[0]
+        self._pick(self.day, {ALL_DAYS: "All days"} | dict(zip(days, days)), wanted)
         day, policy = self.day.value, self.policy.value
-        one = steps[(steps.day == day) & (steps.policy == policy)]
+
+        if day != ALL_DAYS:
+            self.selection.day = day
+
+        one = self._of_day(steps, day, policy)
         other = None
 
         if self.other.value:
-            rows = await self._rows(self.other.value, "heldout_steps")
+            rows = with_peer_share(await self._rows(self.other.value, "heldout_steps"))
 
             if rows is not None:
-                other = rows[(rows.day == day) & (rows.policy == policy)]
+                other = self._of_day(rows, day, policy)
 
         people = await self._rows(self.run.value, "heldout_agent_steps")
 
@@ -149,16 +174,24 @@ class StepView:
                 StepChart(rows=one, other=other, columns=columns, title=title).show()
 
             if self.person_charts and people is not None:
-                person = people[
-                    (people.day == day)
-                    & (people.policy == policy)
-                    & (people.agent == self.agent.value)
-                ]
+                person = self._of_day(
+                    people[people.agent == self.agent.value], day, policy
+                )
 
                 for title, columns in self.person_charts:
                     StepChart(
                         rows=person, other=None, columns=columns, title=title
                     ).show()
 
-                if self.details:
+                if self.details and day != ALL_DAYS:
                     self.details(person)
+
+    @staticmethod
+    def _of_day(rows: pd.DataFrame, day: str, policy: str) -> pd.DataFrame:
+        """The ``policy``'s rows of ``day``, or each step's mean over the days."""
+        rows = rows[rows.policy == policy]
+
+        if day == ALL_DAYS:
+            return mean_over_days(rows)
+
+        return rows[rows.day == day]

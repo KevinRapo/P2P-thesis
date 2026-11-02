@@ -27,6 +27,8 @@ days or the participants of one run.
     participant_days(result)     one run, per test day and participant: the same
     participant_groups(result)   what kind each participant is: battery, PV or other
     participant_gains(results)   per run and participant: its gain over ``zero``
+    trade_table(results)         every held-out trade of every run, with its place
+                                 in the price band
     day_indicators(results)      every indicator per run, policy and test day, long
                                  format, with what the run was (``indicators.py``)
     differing_settings(results)  the settings that are not the same in all runs
@@ -172,14 +174,22 @@ class RunResult:
         }
 
     def has(self, name: str) -> bool:
-        """Whether the run has the table ``<name>.csv``, without reading it."""
-        return (self.ref.folder / f"{name}.csv").is_file()
+        """Whether the run has the table ``<name>``, without reading it."""
+        return _table_path(self.ref.folder, name).is_file()
 
     def table(self, name: str) -> Optional[pd.DataFrame]:
-        """The run's ``<name>.csv`` (e.g. ``"heldout_episodes"``), None if it has
-        none; read again only when the file has changed (a running run's grow).
-        Shared between callers: copy before changing it."""
-        return _table(self.ref.folder / f"{name}.csv")
+        """The run's ``<name>.csv`` or ``<name>.csv.gz`` (e.g.
+        ``"heldout_episodes"``), None if it has none; read again only when the file
+        has changed (a running run's grow). Shared between callers: copy before
+        changing it."""
+        return _table(_table_path(self.ref.folder, name))
+
+
+def _table_path(folder: Path, name: str) -> Path:
+    """Where a run's table is: ``<name>.csv``, or compressed."""
+    packed = folder / f"{name}.csv.gz"
+
+    return packed if packed.is_file() else folder / f"{name}.csv"
 
 
 def _table(path: Path) -> Optional[pd.DataFrame]:
@@ -573,6 +583,29 @@ def participant_gains(results: Sequence[RunResult]) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
+def trade_table(results: Sequence[RunResult]) -> pd.DataFrame:
+    """Every trade of ``heldout_trades.csv.gz``, a row per run and trade, with
+    ``band``, a peer trade's place between the step's feed-in tariff (0) and utility
+    price (1). Empty for runs without the table."""
+    step = ["policy", "episode", "step"]
+    frames = []
+
+    for result in results:
+        trades, steps = result.table("heldout_trades"), result.table("heldout_steps")
+
+        if trades is None or steps is None:
+            continue
+
+        tariffs = steps[[*step, "feed_in_tariff", "utility_price"]]
+        found = trades.merge(tariffs, on=step, how="left")
+        low, high = found.pop("feed_in_tariff"), found.pop("utility_price")
+        band = (found.price - low) / (high - low)
+        found["band"] = band.where(found.stage < 3)
+        frames.append(found.assign(**_head(result)))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
 def participant_days(result: RunResult, value: str = "return") -> pd.DataFrame:
     """One run, per test day and participant (``heldout_agents.csv``): ``value`` for
     each policy and ``trained_minus_<baseline>``. Empty without the table."""
@@ -598,13 +631,14 @@ INDICATOR_TABLES = (
     "heldout_agents",
     "heldout_steps",
     "heldout_agent_steps",
+    "heldout_trades",
 )
 
 
 @_latest
 def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
     """One run's indicators, long format; ``stamp`` says its tables are unchanged."""
-    tables = [_table(Path(folder) / f"{name}.csv") for name in INDICATOR_TABLES]
+    tables = [_table(_table_path(Path(folder), n)) for n in INDICATOR_TABLES]
 
     if tables[0] is None or tables[1] is None or "bill" not in tables[1]:
         return None
@@ -650,7 +684,7 @@ def day_indicators(results: Sequence[RunResult]) -> pd.DataFrame:
     frames = []
 
     for result in results:
-        files = [result.ref.folder / f"{n}.csv" for n in INDICATOR_TABLES]
+        files = [_table_path(result.ref.folder, n) for n in INDICATOR_TABLES]
         stamp = tuple(p.stat().st_mtime_ns if p.is_file() else 0 for p in files)
         days = _day_table(str(result.ref.folder), stamp)
 

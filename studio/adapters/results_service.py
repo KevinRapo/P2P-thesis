@@ -118,6 +118,21 @@ class ResultsService:
     def participant_groups(self, key: str) -> dict[str, str]:
         return results.participant_groups(self.result(key))
 
+    def trade_table(self, keys: list[str]) -> pd.DataFrame:
+        return results.trade_table(self.results(keys))
+
+    def network(self, key: str) -> tuple[Optional[str], dict[str, str]]:
+        """The run's grid code and its participants' buses, from its saved scenario
+        (None and empty when it saved only the file's name)."""
+        scenario = self.result(key).settings["scenario"]
+
+        if not isinstance(scenario, dict):
+            return None, {}
+
+        buses = {p["id"]: p["bus"] for p in scenario.get("participants", [])}
+
+        return scenario.get("grid", {}).get("code"), buses
+
     def table(self, key: str, name: str) -> Optional[pd.DataFrame]:
         """One of the run's tables (``RunResult.table``), e.g. ``heldout_episodes``
         or ``heldout_steps``."""

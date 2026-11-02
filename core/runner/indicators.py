@@ -27,6 +27,7 @@ import pandas as pd
 
 TRAINED = "trained"
 KEYS = ["policy", "day"]
+DSO = "DSO"  # core.market.dso.DSO_ID (a test compares them), like ``KPIS`` below
 # What a run can differ in. ``variant`` and ``experiment`` name versions, so they do
 # not split a difference; the others do (``difference``).
 FACTORS = (
@@ -93,11 +94,21 @@ INDICATORS = (
         True,
     ),
     Indicator("gain_zero", "Gain over zero", "EUR", "validation"),
+    Indicator(
+        "worst_participant_gain", "Worst participant's gain", "EUR", "validation"
+    ),
     Indicator("reachable_share", "Share of the reachable gain", "", "validation"),
     # Market: how was the energy traded?
     Indicator("p2p_kwh", "Peer energy", "kWh", "market", True),
     Indicator("trading_ratio", "Trading ratio", "", "market", True),
     Indicator("unmet_kwh", "Unmet demand", "kWh", "market", True),
+    Indicator("peer_trades", "Peer trades", "trades", "market"),
+    Indicator("mean_trade_kwh", "Mean peer trade", "kWh", "market"),
+    Indicator("market_concentration", "Market concentration", "", "market"),
+    Indicator("buyer_gain", "Buyers' gain", "EUR", "market"),
+    Indicator("seller_gain", "Sellers' gain", "EUR", "market"),
+    Indicator("dso_money", "DSO money", "EUR", "market"),
+    Indicator("self_sufficiency", "Self-sufficiency", "", "market"),
     Indicator("spilled_kwh", "Spilled supply", "kWh", "market"),
     Indicator("bought_from_dso_kwh", "Bought from DSO", "kWh", "market"),
     Indicator("sold_to_dso_kwh", "Sold to DSO", "kWh", "market"),
@@ -123,8 +134,12 @@ INDICATORS = (
     Indicator("grid_export_kwh", "Upstream export", "kWh", "grid"),
     Indicator("peak_import_kw", "Peak import", "kW", "grid"),
     Indicator("peak_export_kw", "Peak export", "kW", "grid"),
+    Indicator("load_factor", "Load factor", "", "grid"),
+    Indicator("peak_reduction_kw", "Peak reduction (batteries)", "kW", "grid"),
+    Indicator("mean_line_loading", "Mean line loading", "%", "grid"),
     Indicator("grid_losses_kwh", "Losses", "kWh", "grid"),
     Indicator("trade_losses_kwh", "Trade losses", "kWh", "grid"),
+    Indicator("trade_loss_ratio", "Trade loss ratio", "", "grid"),
     Indicator("fee_error_mean", "Fee signal error, mean", "%", "grid"),
     Indicator("fee_error_worst", "Fee signal error, worst", "%", "grid"),
     Indicator("not_converged", "Flows not converged", "steps", "grid"),
@@ -142,6 +157,7 @@ _COPIED = (
     "grid_losses_kwh",
     "trade_losses_kwh",
     "not_converged",
+    "peer_trades",
     *KPIS,
 )
 
@@ -157,6 +173,7 @@ def day_table(
     agents: pd.DataFrame,
     steps: Optional[pd.DataFrame] = None,
     agent_steps: Optional[pd.DataFrame] = None,
+    trades: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """One run's ``INDICATORS``: a row per policy and test day, from its held-out
     tables. What a table of an older run does not hold stays NaN."""
@@ -176,12 +193,21 @@ def day_table(
     zero = own.xs("zero", level="policy").reindex(own.index.droplevel("policy"))
     better = own.to_numpy() > zero.to_numpy()
     out["participants_better"] = pd.Series(better, own.index).groupby(KEYS).sum()
+    gains = pd.Series(own.to_numpy() - zero.to_numpy(), own.index)
+    out["worst_participant_gain"] = gains.groupby(KEYS).min()
+    traded = out.p2p_kwh + out.bought_from_dso_kwh + out.sold_to_dso_kwh
+    out["trade_loss_ratio"] = out.trade_losses_kwh / traded.where(traded > 0)
 
     if steps is not None and agent_steps is not None:
         out = out.join(_step_indicators(steps))
         out = out.join(_agent_step_indicators(steps, agent_steps))
         gap = out.reachable_money - days.map(out.team_money.xs("zero", level="policy"))
         out["reachable_share"] = out.gain_zero / gap.where(gap > 0)
+        peak = out.peak_import_kw
+        out["peak_reduction_kw"] = days.map(peak.xs("zero", level="policy")) - peak
+
+        if trades is not None:
+            out = out.join(_trade_indicators(trades, steps, out.index))
 
     return out.reindex(columns=[i.name for i in INDICATORS])
 
@@ -193,6 +219,8 @@ def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
     error = (steps.fee_max_line_loading_percent - steps.max_line_loading_percent).abs()
     over = steps.voltage_violations + steps.loading_violations > 0
     traded = steps.peer_price.notna()
+    peak = day.grid_import_kwh.max()
+    loading = steps.get("mean_line_loading_percent", pd.Series(np.nan, steps.index))
     volume = steps.p2p_kwh.where(traded, 0.0)
     band = (steps.peer_price - steps.feed_in_tariff) / (
         steps.utility_price - steps.feed_in_tariff
@@ -211,6 +239,8 @@ def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
             "highest_voltage": day.max_voltage_pu.max(),
             "peak_import_kw": day.grid_import_kwh.max() / hours,
             "peak_export_kw": day.grid_export_kwh.max() / hours,
+            "load_factor": day.grid_import_kwh.mean() / peak.where(peak > 0),
+            "mean_line_loading": loading.groupby([steps.policy, steps.day]).mean(),
             "hours_over_limit": over.groupby([steps.policy, steps.day]).sum() * hours,
             "fee_error_mean": error.groupby([steps.policy, steps.day]).mean(),
             "fee_error_worst": error.groupby([steps.policy, steps.day]).max(),
@@ -240,6 +270,8 @@ def _agent_step_indicators(
     ].sum()
     from_grid = a.bought_kwh - a.peer_bought_kwh + a.deferred_demand_kwh
     uncovered = from_grid.clip(upper=net.clip(lower=0.0)).groupby(by_day).sum()
+    supplied = from_grid.clip(upper=a.demand_kwh).groupby(by_day).sum()
+    demand = a.demand_kwh.groupby(by_day).sum()
     last = a[a.step == a.step.max()].groupby(KEYS).reputation.mean()
 
     # The money of a community that nets each step perfectly, without batteries: its
@@ -255,6 +287,7 @@ def _agent_step_indicators(
         {
             "trading_ratio": (amounts.bought_kwh + amounts.sold_kwh) / (need + spare),
             "local_coverage": 1.0 - uncovered / need.where(need > 0),
+            "self_sufficiency": 1.0 - supplied / demand.where(demand > 0),
             "battery_throughput_kwh": amounts.charge_kwh + amounts.discharge_kwh,
             "end_reputation": last,
             "no_order_share": (a.side == "none").groupby(by_day).mean(),
@@ -263,6 +296,35 @@ def _agent_step_indicators(
             "reachable_money": money.groupby(KEYS).sum(),
         }
     )
+
+
+def _trade_indicators(
+    trades: pd.DataFrame, steps: pd.DataFrame, index: pd.Index
+) -> pd.DataFrame:
+    """What the trades give, for the days of ``index``. ``buyer_gain`` and
+    ``seller_gain`` are what the peer trades were worth against the DSO's tariffs,
+    ``dso_money`` the DSO's energy money and every fee charged, its profit. A day
+    without trades gained 0 and has no mean size or concentration."""
+    tariffs = steps[[*KEYS, "step", "feed_in_tariff", "utility_price"]]
+    t = trades.merge(tariffs, on=[*KEYS, "step"])
+    is_peer = t.stage < 3
+    money = t.price * t.kwh
+    energy = money.where(t.seller == DSO, -money).where(~is_peer, 0.0)
+    t["buyer_gain"] = (t.utility_price * t.kwh - money).where(is_peer, 0.0)
+    t["seller_gain"] = (money - t.feed_in_tariff * t.kwh).where(is_peer, 0.0)
+    t["dso_money"] = energy + t.buyer_fee + t.seller_fee
+    peer = t[is_peer]
+    sellers = peer.groupby([*KEYS, "seller"]).kwh.sum()
+    shares = sellers / sellers.groupby(KEYS).transform("sum")
+    gains = t.groupby(KEYS)[["buyer_gain", "seller_gain", "dso_money"]].sum()
+    sizes = pd.DataFrame(
+        {
+            "mean_trade_kwh": peer.groupby(KEYS).kwh.mean(),
+            "market_concentration": (shares**2).groupby(KEYS).sum(),
+        }
+    )
+
+    return gains.reindex(index, fill_value=0.0).join(sizes)
 
 
 # --------------------------------------------------------------------------------------

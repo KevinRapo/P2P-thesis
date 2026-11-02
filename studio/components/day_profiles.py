@@ -79,11 +79,7 @@ def show_day_profiles(day: DayProfiles, scenario: Scenario) -> None:
         "Background",
         "The elements no participant took over. They do not trade; in the power "
         "flow they follow their profiles"
-        + (
-            " (switched off here: the Scenario page)."
-            if background_off
-            else "."
-        ),
+        + (" (switched off here: the Scenario page)." if background_off else "."),
         "settings_input_component",
     ):
         _background(day, background_off)

@@ -28,12 +28,14 @@ class Ledger:
         self.t += 1
         rewards = {"a": actions["a"], "b": 2 * actions["b"]}
         shared = {"volume_kwh": 10.0}
+        tables = {"deals": [{"size": self.t}] * (self.t - 1)}
         infos = {
             x: {
                 "bought_kwh": 1.0,
                 "state": {"soc": 0.1 * self.t},
                 "shared": shared,
                 "shared_state": {"price": float(self.t)},
+                "tables": tables,
             }
             for x in "ab"
         }
@@ -111,7 +113,17 @@ def test_every_step_of_every_episode(found):
     assert math.isclose(agents.reward.sum(), 18.0)
 
 
+def test_the_tables_of_the_infos_are_read_once_a_step(found):
+    deals = found.tables["deals"]
+    assert list(deals.columns) == ["policy", "episode", "seed", "day", "step", "size"]
+    assert len(deals) == 2 * 2 * 3  # 0, 1 and 2 rows on the three steps
+    first = deals[(deals.policy == "one") & (deals.episode == 0)]
+    assert first.step.tolist() == [1, 2, 2]
+    assert first["size"].tolist() == [2, 3, 3]
+
+
 def test_without_by_step_no_step_tables():
     plain = evaluation(Ledger, {}, {"one": one}, [1])
     assert plain.steps is None and plain.agent_steps is None
+    assert plain.tables == {}
     assert plain.agents.day.tolist() == ["none", "none"]  # no options

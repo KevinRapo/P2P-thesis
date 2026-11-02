@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any, Optional
 from nicegui import run, ui
 
 from core.grid.contract import NetworkRef
-from core.market.clearing import DSO_ID
 from core.market.lem import StepRecord
 from studio.components.cards import busy, failed, section
 from studio.components.charts import NetworkChart, SeriesChart
@@ -223,9 +222,9 @@ def _controls(box: ui.element, m: Optional[LocalEnergyMarket], act, build) -> No
             ).classes("text-body2")
 
             if n == 0:
-                ui.label(
-                    "Place participants on the Scenario page first."
-                ).classes("text-warning text-caption")
+                ui.label("Place participants on the Scenario page first.").classes(
+                    "text-warning text-caption"
+                )
 
             ui.button(
                 "Build the market",
@@ -417,29 +416,13 @@ class MarketNetworkChart(NetworkChart):
 
     def draw(self) -> None:
         m, view = self.o.m, self.o.view
-        ext = self.o.topology.external_grid_bus
-        bus_of = {pid: p.bus for pid, p in m.participants.items()}
-
-        def bus(agent: str) -> str:
-            """An agent's bus; the DSO's is the external grid."""
-            return ext if agent == DSO_ID else bus_of.get(agent, ext)
-
-        for stages, color, name, dash in (
-            ((1, 2), P2P, "Peer trade", "solid"),
-            ((3,), DSO, "DSO trade", "dash"),
-        ):
-            links = [
-                (
-                    bus(t.seller_id),
-                    bus(t.buyer_id),
-                    t.quantity,
-                    f"{t.seller_id} → {t.buyer_id}: {t.quantity:.2f} kWh at "
-                    f"{t.price:.3f}",
-                )
+        self.trade_links(
+            [
+                (t.seller_id, t.buyer_id, t.quantity, t.price, t.stage)
                 for t in view["trades"]
-                if t.stage in stages
-            ]
-            self.links(links, color, name, dash)
+            ],
+            {pid: p.bus for pid, p in m.participants.items()},
+        )
 
         for buy, color, name in ((False, SELL, "Seller"), (True, BUY, "Buyer")):
             verb = "buys" if buy else "sells"
