@@ -180,7 +180,9 @@ def _workspace_section() -> None:
 
         for name, what in (
             ("cache/networks", "built networks"),
-            ("studio-state", "per-browser state (dark mode)"),
+            ("scenarios", "the scenario being edited"),
+            ("experiments", "the experiment being prepared"),
+            ("studio-state", "per-browser state (dark mode, switches)"),
         ):
             ui.label(f"{home / name}  ·  {what}").classes("mls-card-caption mls-mono")
 

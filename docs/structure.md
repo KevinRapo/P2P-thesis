@@ -425,7 +425,7 @@ market or pandapower directly.
 | Script | What it does | State |
 |---|---|---|
 | [`container.py`](../studio/adapters/container.py) | Builds the adapters once | done |
-| [`workspace.py`](../studio/adapters/workspace.py) | Where the Studio keeps its data: the network cache, the scenario file, per-browser state (`C:\MARLEM` here); the system's folder dialog for the Settings page | done |
+| [`workspace.py`](../studio/adapters/workspace.py) | Where the Studio keeps its data: the network cache, the scenario and experiment being worked on, per-browser state (the folder chosen in Settings); the system's folder dialog for the Settings page | done |
 | [`grid_catalog_service.py`](../studio/adapters/grid_catalog_service.py) | Networks, their facts, topology, elements as the grid contract's records; the network cache and its background warming | done |
 | [`profile_service.py`](../studio/adapters/profile_service.py) | A network's profiles and SimBench's whole catalogue; every element's power on the scenario's day (`day_profiles`); the saved price files (`price_series`: the day's series, or a window of a file's dates, under the dates the prices are from) | done |
 | [`profile_classes.py`](../studio/adapters/profile_classes.py) | SimBench's profile classes and how a profile name is classified | done |

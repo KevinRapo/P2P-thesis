@@ -1,4 +1,5 @@
-"""Where the Studio keeps its data: the network cache and per-browser state.
+"""Where the Studio keeps its data: the network cache, the scenario and the
+experiment being worked on, and per-browser state.
 
 The workspace lives outside the repository and outside OneDrive, because sync
 clients lock and duplicate large and frequently written files. Its folder is, in
@@ -12,7 +13,9 @@ this order:
 3. ``%LOCALAPPDATA%\\MARLEM`` on Windows, ``~/.local/share/marlem`` elsewhere.
 
     <home>/cache/networks/   built networks, so they open at once
-    <home>/scenarios/        the scenario the Studio edits (current.json)
+    <home>/scenarios/        the scenario the Studio edits (current.json) and the
+                             saved file it came from (origin.json)
+    <home>/experiments/      the experiment the Studio prepares (selected.json)
     <home>/studio-state/     the Studio's per-browser state
 """
 
