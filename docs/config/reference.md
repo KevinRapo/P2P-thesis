@@ -199,10 +199,13 @@ tariffs are decided in MP-0b.
 A file can also hold every date's own prices under `days`, as
 `{"2016-06-01": {"utility": [...], "feed_in": [...]}, ...}`. The market then trades at
 the prices of the day it plays, and refuses a day the file does not have; `utility`
-and `feed_in` at the top are the mean day. `de_2024.json` and `de_2024_flat.json` are
-such files, from
+and `feed_in` at the top are the mean day. `date_shift` (optional) says that the
+prices are from that many days after their key; only the Inspect page reads it, to
+show the real dates. `de_2024.json` and `de_2024_flat.json` are such files, from
 [`build_de_2024.py`](../../config/data/build_de_2024.py): German day-ahead prices of
-2024 as a dynamic household tariff, with spot-based or flat feed-in.
+2024 as a dynamic household tariff, with spot-based or flat feed-in. Their keys are
+the market's dates of 2016, and each takes the day 2926 days later, the same weekday:
+2016-01-01 trades at the prices of 2024-01-05, 2016-12-31 at those of 2025-01-04.
 
 ```json
 {

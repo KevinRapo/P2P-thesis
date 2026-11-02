@@ -16,11 +16,13 @@ from studio.components.cards import busy, failed, section
 from studio.components.charts import PriceChart, SeriesModelChart
 from studio.components.network import (
     DEFAULT_SOURCE,
+    WINDOWS,
     ElementsTable,
     NetworkPicker,
     ProfileInspector,
     show_summary,
     show_topology,
+    start_day,
     summary_facts,
 )
 from studio.components.tables import data_table
@@ -314,8 +316,13 @@ def _profiles_tab(s: Services) -> ProfileInspector:
 # --------------------------------------------------------------------------------------
 # Prices tab: the saved price files
 # --------------------------------------------------------------------------------------
+PRICE_START = "2024-06-19"  # what the market trades on the profiles' 2016-06-15
+
+
 def _prices_tab(s: Services) -> None:
-    """A dropdown of the price files and the chosen file's series."""
+    """A dropdown of the price files and the chosen file's series over a window. A
+    file with dates has its own prices per date, shown under the dates they are from;
+    the mean day is only a summary."""
     files = s.profiles.price_files()
 
     with section(
@@ -328,9 +335,58 @@ def _prices_tab(s: Services) -> None:
             ui.label("No price files in config/data/.").classes("mls-card-caption")
             return
 
-        chart = PriceChart(name=files[0], read=s.profiles.price_series)
-        chart.select("name", files, "Price file").classes("w-80")
+        # Controls: price file | start day | window | resolution
+        with ui.row().classes("items-center gap-3 w-full"):
+            file = ui.select(files, value=files[0], label="Price file").classes("w-80")
+            file.mark("price-file")
+            day = start_day(PRICE_START)
+            span = ui.select(
+                {0: "Mean day"} | WINDOWS, value=7, label="Window"
+            ).classes("w-28")
+            resolution = ui.toggle(
+                {"step": "per market step", "daily": "daily mean"}, value="step"
+            ).props("no-caps dense")
+
+        hint = ui.label().classes("mls-card-caption")
+
+        def read(name: str) -> Series:
+            start = day.value if span.value else None
+            return s.profiles.price_series(name, start, span.value, resolution.value)
+
+        chart = PriceChart(name=files[0], read=read)
         chart.show()
+
+        def show() -> None:
+            """Draw the chosen window; a start day being typed leaves the chart."""
+            dates = s.profiles.price_dates(file.value)
+            market = s.profiles.market_dates(file.value)
+
+            for control in (day, span, resolution):
+                control.set_enabled(bool(dates))
+
+            if not dates:
+                hint.set_text("One day of prices, the same on every date.")
+            elif market == dates:
+                hint.set_text(f"Prices of every date from {dates[0]} to {dates[-1]}.")
+            else:
+                hint.set_text(
+                    f"Prices of every date from {dates[0]} to {dates[-1]}. A market "
+                    f"day trades at the date with its weekday: {market[0]} at "
+                    f"{dates[0]}."
+                )
+
+            try:
+                chart.set(name=file.value)
+            except ValueError:
+                hint.set_text(
+                    f"The start day is a date from {dates[0]} to {dates[-1]}, written "
+                    "YYYY-MM-DD."
+                )
+
+        show()
+
+        for control in (file, day, span, resolution):
+            control.on_value_change(show)
 
 
 # --------------------------------------------------------------------------------------

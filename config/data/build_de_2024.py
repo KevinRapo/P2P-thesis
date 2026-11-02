@@ -7,7 +7,8 @@ de_2024.json       utility and feed-in from the spot price
 de_2024_flat.json  utility from the spot price, a flat feed-in tariff
 
 A simulated day takes the prices of the 2024 day with the same weekday (2926 days
-later). With s = max(spot, 0), per kWh:
+later): the files keep the simulated dates as keys, and the shift as date_shift. With
+s = max(spot, 0), per kWh:
 
     utility = s + adder          adder = household price − mean spot
     feed_in = max(s − fee, 0)
@@ -106,7 +107,8 @@ def write(name: str, days: dict[str, list[float]], adder: float, flat: bool) -> 
         "and 'feed_in' at the top are the mean day; 'days' is what the market trades "
         "at. Built by build_de_2024.py."
     )
-    text = json.dumps({"description": description} | mean | {"days": out})
+    head = {"description": description, "date_shift": WEEKDAY_SHIFT}
+    text = json.dumps(head | mean | {"days": out})
     (HERE / f"{name}.json").write_text(text, encoding="utf-8")
     print(name, "days", len(out))
 

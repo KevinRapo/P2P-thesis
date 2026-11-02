@@ -419,7 +419,7 @@ class PriceChart(SeriesChart):
         self.titles(x=s.x_label, y=s.y_label)
 
         for label, values in s.y.items():
-            self.line(s.x, values, label, shape="hv")
+            self.line(s.x, values, label, shape="hv", markers=len(s.x) == 1)
 
 
 # --------------------------------------------------------------------------------------

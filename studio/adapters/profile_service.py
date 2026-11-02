@@ -7,7 +7,9 @@ the Inspect page's profile tables, plots and class overview.
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import date, timedelta
+from statistics import fmean
+from typing import Any, Optional
 
 from core.config.scenario import Scenario, price_files, read_prices
 from core.grid import simbench as adapter
@@ -186,21 +188,100 @@ class ProfileService:
         """The names of the saved price files (``config/data/``)."""
         return price_files()
 
-    def price_series(self, name: str) -> Series:
-        """A price file's series over the day, one point per market step."""
-        prices = read_prices(name)
-        steps = len(prices["utility"])
-        minutes = [step * 1440 // steps for step in range(steps)]
+    def price_dates(self, name: str) -> list[str]:
+        """The dates a price file's prices are from, in order; empty if it holds one
+        day."""
+        return sorted(_dated_prices(read_prices(name)))
 
-        return Series(
-            x=[f"{m // 60:02d}:{m % 60:02d}" for m in minutes],
-            y={
-                "Utility price": prices["utility"],
-                "Feed-in tariff": prices["feed_in"],
-            },
-            x_label="time of day",
-            y_label="price per kWh",
+    def market_dates(self, name: str) -> list[str]:
+        """The dates the market trades a price file's prices on, in the order of
+        ``price_dates``."""
+        return sorted(read_prices(name).get("days", {}))
+
+    def price_series(
+        self,
+        name: str,
+        start: Optional[str] = None,
+        days: int = 1,
+        resolution: str = "step",
+    ) -> Series:
+        """A price file's series, for inspection.
+
+        Args:
+            name: The file.
+            start: First date (``YYYY-MM-DD``, one of ``price_dates``) of a file
+                with dates; ``None``, or a file without dates: its one series over
+                the day (with dates, that is the mean day, which the market does not
+                trade at).
+            days: Length of the window; it ends with the file's last date.
+            resolution: ``"step"`` (one point per market step) or ``"daily"`` (the
+                mean of each date).
+
+        Returns:
+            The utility price and the feed-in tariff per kWh.
+
+        Raises:
+            ValueError: ``start`` is not one of the file's dates.
+        """
+        prices = read_prices(name)
+        dated = _dated_prices(prices)
+
+        if start is None or not dated:
+            x = _times_of_day(len(prices["utility"]))
+            return _price_series(x, prices["utility"], prices["feed_in"], "time of day")
+
+        if start not in dated:
+            raise ValueError(f"The prices have no date {start}")
+
+        first = date.fromisoformat(start)
+        wanted = [(first + timedelta(i)).isoformat() for i in range(days)]
+        found = {day: dated[day] for day in wanted if day in dated}
+
+        if resolution == "daily":
+            return _price_series(
+                list(found),
+                [fmean(series["utility"]) for series in found.values()],
+                [fmean(series["feed_in"]) for series in found.values()],
+                "date",
+            )
+
+        return _price_series(
+            [
+                f"{day} {time}"
+                for day, series in found.items()
+                for time in _times_of_day(len(series["utility"]))
+            ],
+            [price for series in found.values() for price in series["utility"]],
+            [price for series in found.values() for price in series["feed_in"]],
+            "time",
         )
+
+
+def _dated_prices(prices: dict) -> dict[str, dict]:
+    """A price file's ``days`` under the dates the prices are from: the market's date
+    plus the file's ``date_shift``."""
+    shift = timedelta(prices.get("date_shift", 0))
+
+    return {
+        (date.fromisoformat(day) + shift).isoformat(): series
+        for day, series in prices.get("days", {}).items()
+    }
+
+
+def _times_of_day(steps: int) -> list[str]:
+    """The start of each of a day's ``steps`` market steps, as HH:MM."""
+    minutes = [step * 1440 // steps for step in range(steps)]
+
+    return [f"{m // 60:02d}:{m % 60:02d}" for m in minutes]
+
+
+def _price_series(x: list, utility: list, feed_in: list, x_label: str) -> Series:
+    return Series(
+        x=x,
+        y={"Utility price": utility, "Feed-in tariff": feed_in},
+        x_label=x_label,
+        y_label="price per kWh",
+    )
 
 
 def _profile_type(record: Any) -> ProfileType:

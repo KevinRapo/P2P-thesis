@@ -54,6 +54,7 @@ ELEMENT_COLUMNS = [
 
 # Short explanations shown under the profile controls; they follow the selection,
 # so the page explains itself instead of relying on the documentation.
+WINDOWS = {1: "1 day", 7: "1 week", 28: "4 weeks", 366: "1 year"}  # days -> name
 RESOLUTION_HINTS = {
     "15min": "15 min: SimBench's own values, one per quarter hour (96 per day).",
     "hourly": "Hourly: the mean of the four quarter-hour values of each hour "
@@ -213,9 +214,12 @@ class NetworkPicker:
     async def _on_source(self, _: Any = None) -> None:
         source_type = self.toggle.value
         busy(self.status, "Reading catalog …")
-        self.networks = await run.io_bound(
-            self.services.grid.list_networks, source_type
-        )
+        networks = await run.io_bound(self.services.grid.list_networks, source_type)
+
+        if networks is None:  # the server is stopping, say to restart on a saved file
+            return
+
+        self.networks = networks
         self.status.clear()
         levels = list(dict.fromkeys(n.voltage_level for n in self.networks))
         self.level.set_options(levels)
@@ -361,26 +365,9 @@ class ProfileInspector:
             with ui.column().classes("grow basis-0 min-w-0 gap-2"):
                 # Controls: start day | window | resolution | P or Q
                 with ui.row().classes("items-center gap-3 w-full"):
-                    # Start day field; its calendar icon opens a date picker
-                    with ui.input("Start day", value="2016-06-15").classes(
-                        "w-36"
-                    ) as self.day:
-                        # The pop-up calendar (opened by the icon only)
-                        with ui.menu().props("no-parent-event") as menu:
-                            with ui.date(mask="YYYY-MM-DD").bind_value(self.day):
-                                # Close button under the calendar
-                                with ui.row().classes("justify-end"):
-                                    ui.button("Close", on_click=menu.close).props(
-                                        "flat"
-                                    )
-                        # The calendar icon, inside the field on the right
-                        with self.day.add_slot("append"):
-                            ui.icon("edit_calendar").on("click", menu.open).classes(
-                                "cursor-pointer"
-                            )
-
+                    self.day = start_day()
                     self.span = ui.select(
-                        {1: "1 day", 7: "1 week", 28: "4 weeks", 366: "1 year"},
+                        WINDOWS,
                         value=7,
                         label="Window",
                     ).classes("w-28")
@@ -583,6 +570,23 @@ class ProfileInspector:
         await fill(
             box, lambda: read(*args), draw, "Reading profiles …", current=current
         )
+
+
+def start_day(value: str = "2016-06-15") -> ui.input:
+    """The first day of a window (by default in the profile year); the calendar icon
+    opens a date picker."""
+    with ui.input("Start day", value=value).classes("w-36") as field:
+        # The pop-up calendar (opened by the icon only)
+        with ui.menu().props("no-parent-event") as menu:
+            with ui.date(mask="YYYY-MM-DD").bind_value(field):
+                # Close button under the calendar
+                with ui.row().classes("justify-end"):
+                    ui.button("Close", on_click=menu.close).props("flat")
+        # The calendar icon, inside the field on the right
+        with field.add_slot("append"):
+            ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
+
+    return field
 
 
 def profile_rows(types: list[ProfileType]) -> list[dict]:
