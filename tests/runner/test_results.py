@@ -166,17 +166,20 @@ def test_settings_come_from_the_saved_files(where):
     assert not runs["local/grid/ppo_dtde_s0"].has("heldout_trace_steps")
 
 
-def test_a_variant_reads_its_own_arm(where):
+@pytest.mark.parametrize(
+    "saved", ["ppo_dtde_s0_v2/experiment.json", "experiment_v2.json"]
+)
+def test_a_variant_reads_its_own_arm(where, saved):
     exp = where["local"] / "grid"
+    make_run(exp, "ppo_dtde_s0_v2", 0, [-8, -9])
     write(
-        exp / "experiment_v2.json",
+        exp / saved,
         {
             "scenario": {"name": "s1", "grid": {"method": "graph"}},
             "test_days": DAYS,
             "env_config": {"episode_days": 7},
         },
     )
-    make_run(exp, "ppo_dtde_s0_v2", 0, [-8, -9])
     runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
     arm = runs["local/grid/ppo_dtde_s0_v2"].settings
     assert arm["scenario"]["grid"] == {"method": "graph"}

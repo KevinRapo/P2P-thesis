@@ -75,8 +75,7 @@ class Dso:
         self.prices = load_prices(self.setup.prices, step_hours)
         self.day_prices = self.prices
         self.step_hours = step_hours
-        self.feed_in_tariff = setup.feed_in_tariff
-        self.utility_price = setup.utility_price
+        self.feed_in_tariff, self.utility_price = self.tariffs_at(0.0)
         self.id = id
         self.line_loading_percent: Mapping[str, float] = {}
         self.bus_voltage_pu: Mapping[str, float] = {}
@@ -113,13 +112,10 @@ class Dso:
         self, hour: float, prices: Optional[dict] = None
     ) -> tuple[float, float]:
         """``(p_FiT, p_utility)`` at ``hour`` of the current day, or of ``prices``
-        (a day's series; flat or time-of-use)."""
+        (a day's series)."""
         day = prices or self.day_prices
 
-        return (
-            price_at(self.setup.feed_in_tariff, day["feed_in"], hour),
-            price_at(self.setup.utility_price, day["utility"], hour),
-        )
+        return price_at(day["feed_in"], hour), price_at(day["utility"], hour)
 
     def set_hour(self, hour: float) -> None:
         """Make the tariffs of ``hour`` the current ones (``feed_in_tariff``,

@@ -713,6 +713,22 @@ def test_allow_uncommitted_drops_the_commit_problems_only(tmp_path, repo):
     assert target.check(allow_uncommitted=True)["ok"] is False
 
 
+def test_remote_check_lists_a_price_file_that_is_not_committed(monkeypatch, tmp_path):
+    data = {"scenario": {"name": "s", "dso": {"prices": "de_2024"}}, "budget": 100}
+    data |= {"algorithms": ["ppo"], "paradigms": ["dtde"], "seeds": [0]}
+    experiment = Experiment.from_dict(data, "x")
+    seen = []
+
+    def git(*args):
+        seen.append(args)
+        return "?? config/data/de_2024.json" if args[0] == "status" else None
+
+    monkeypatch.setattr(targets, "_git", git)
+    found = targets._unshipped_prices(experiment, "full")
+    assert seen[-1][-1] == "config/data/de_2024.json"
+    assert len(found) == 1 and "de_2024.json" in found[0]
+
+
 # --- start ------------------------------------------------------------------------------
 def test_remote_start_sends_the_experiment_with_its_scenario(tmp_path, repo):
     target, fake = remote_target(tmp_path, head=head_of(repo))

@@ -11,10 +11,11 @@ its demand and generation.
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Optional
 
 from nicegui import background_tasks, run, ui
 
-from core.config.scenario import BatterySetup
+from core.config.scenario import FLAT_PRICES, BatterySetup, flat_prices
 from core.grid.contract import NetworkRef
 from core.market.clearing_price import DESCRIPTIONS
 from studio.components.cards import busy, failed, fill, section
@@ -809,21 +810,30 @@ def _tariffs():
     wrong with them. Returns the function that shows them again."""
     s = services()
     d = s.scenario.current().dso
-    save = _saver("dso")
+    flat = d.prices if flat_prices(d.prices) else FLAT_PRICES
     choices = {"": "Flat tariffs"} | {f: f for f in s.profiles.price_files()}
 
-    if isinstance(d.prices, dict):
+    if isinstance(d.prices, dict) and not flat_prices(d.prices):
         choices[INLINE_PRICES] = "The series held in the scenario"
 
     def chosen() -> str:
-        return INLINE_PRICES if isinstance(d.prices, dict) else d.prices or ""
+        if isinstance(d.prices, str):
+            return d.prices
+
+        return "" if flat_prices(d.prices) else INLINE_PRICES
 
     def pick(e) -> None:
         if e.value != INLINE_PRICES:
-            s.scenario.current().dso.prices = e.value or None
+            tariffs = {"utility": utility.value, "feed_in": feed_in.value}
+            s.scenario.current().dso.prices = e.value or tariffs
             s.scenario.save()
 
         show()
+
+    def set_flat(name: str, value: Optional[float]) -> None:
+        if flat_prices(s.scenario.current().dso.prices):
+            s.scenario.current().dso.prices[name] = float(value or 0)
+            s.scenario.save()
 
     ui.select(choices, value=chosen(), label="Prices", on_change=pick).classes(
         "w-full"
@@ -837,15 +847,15 @@ def _tariffs():
     with ui.row().classes("w-full gap-2 no-wrap"):
         feed_in = ui.number(
             "Flat feed-in tariff",
-            value=d.feed_in_tariff,
+            value=flat["feed_in"],
             step=0.01,
-            on_change=lambda e: save("feed_in_tariff", float(e.value or 0)),
+            on_change=lambda e: set_flat("feed_in", e.value),
         ).classes("grow basis-0")
         utility = ui.number(
             "Flat utility price",
-            value=d.utility_price,
+            value=flat["utility"],
             step=0.01,
-            on_change=lambda e: save("utility_price", float(e.value or 0)),
+            on_change=lambda e: set_flat("utility", e.value),
         ).classes("grow basis-0")
 
     note = ui.label().classes("mls-card-caption")
@@ -853,9 +863,9 @@ def _tariffs():
 
     def show() -> None:
         current = s.scenario.current()
-        flat = current.dso.prices is None
-        feed_in.set_enabled(flat)
-        utility.set_enabled(flat)
+        is_flat = flat_prices(current.dso.prices)
+        feed_in.set_enabled(is_flat)
+        utility.set_enabled(is_flat)
         problems = current.dso.problems(current.grid.step_hours)
         note.set_text(
             " ".join(problems)

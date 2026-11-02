@@ -215,17 +215,19 @@ def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
 
 
 def load_run(ref: RunRef) -> RunResult:
-    """A run's settings and state, from its folder and its experiment's: a variant's
-    from its own ``experiment_<variant>.json``, which older runs do not have."""
+    """A run's settings and state, from its folder and its experiment's: its arm's
+    ``experiment.json``; older runs have ``experiment_<variant>.json`` next to their
+    folder, or only the experiment's."""
     record = registry.read_json(ref.folder / "run.json") or {}
     name = _RUN_NAME.match(ref.run)
     seed = record.get("seed", int(name["seed"]) if name else None)
     variant = None
-    spec = None
+    spec = registry.read_json(ref.folder / "experiment.json")
 
     if name and len(ref.run) > name.end():
         variant = ref.run[name.end() + 1 :]
-        spec = registry.read_json(ref.folder.parent / f"experiment_{variant}.json")
+        older = ref.folder.parent / f"experiment_{variant}.json"
+        spec = spec or registry.read_json(older)
 
     spec = spec or registry.read_json(ref.folder.parent / "experiment.json") or {}
     git = record.get("git") or {}

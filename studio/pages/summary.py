@@ -13,7 +13,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from core.config.scenario import Scenario, load_prices
+from core.config.scenario import Scenario, flat_prices, load_prices
 from core.grid.contract import NetworkRef
 from studio.adapters.models import DayProfiles
 from studio.components.cards import (
@@ -283,11 +283,11 @@ def _tariffs(scenario: Scenario) -> dict:
     """The tariffs the market really uses: the series' range, or the flat prices."""
     d = scenario.dso
 
-    if d.prices is None:
+    if flat_prices(d.prices):
         return {
             "Prices": "flat",
-            "Feed-in tariff": f"{d.feed_in_tariff:g} per kWh",
-            "Utility price": f"{d.utility_price:g} per kWh",
+            "Feed-in tariff": f"{d.prices['feed_in']:g} per kWh",
+            "Utility price": f"{d.prices['utility']:g} per kWh",
         }
 
     name = d.prices if isinstance(d.prices, str) else "in the scenario"

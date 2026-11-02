@@ -31,8 +31,6 @@
     "reputation_decay": 0.8
   },
   "dso": {
-    "feed_in_tariff": 0.08,
-    "utility_price": 0.3,
     "prices": "synthetic_day",
     "fees_charged": true,
     "fee_buyer_share": 0.5,

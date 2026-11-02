@@ -478,6 +478,26 @@ def _setting(name: str, settings: dict[str, Any], key: str) -> Any:
     return value
 
 
+def _unshipped_prices(spec: Spec, profile: str) -> list[str]:
+    """The experiment's price files a cluster at this machine's commit does not have
+    as they are here: the cluster reads its own copy of them."""
+    try:
+        names = resolve(spec, profile).price_files()
+    except SpecError:  # ``_spec_problems`` says why
+        return []
+
+    paths = [f"config/data/{name}.json" for name in names]
+    changed = _git("status", "--porcelain", "--", *paths) if paths else None
+
+    if not changed:
+        return []
+
+    return [
+        f"a price file is not committed ({line[3:]}): {_SHIP}"
+        for line in changed.splitlines()
+    ]
+
+
 def _git(*args: str) -> Optional[str]:
     """The output of a git command in the repository (None if git says no)."""
     done = subprocess.run(
@@ -513,9 +533,9 @@ class RemoteTarget(Target):
 
     A start sends the experiment, with its scenario, as JSON on the runner's standard
     input (``start -``); the cluster saves it in the experiment's folder, so neither
-    file needs to be in its checkout. The code is the cluster's own checkout, so both
-    machines must be at one commit and that checkout clean (``check`` lists what is
-    not).
+    file needs to be in its checkout. The code and the price files are the cluster's
+    own checkout, so both machines must be at one commit, that checkout clean and the
+    experiment's price files committed (``check`` lists what is not).
 
     Args:
         name: The target's name in ``targets.toml``.
@@ -614,6 +634,9 @@ class RemoteTarget(Target):
         if spec is not None:
             loads = _spec_problems(spec, profile)
             problems += loads or self.fit_problems(spec, found["nodes"], profile)
+
+            if not loads:
+                unshipped += _unshipped_prices(spec, profile)
 
         problems += [] if allow_uncommitted else unshipped
 

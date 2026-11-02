@@ -158,12 +158,12 @@ def prepare(
 
     An experiment folder keeps the spec it was started with: if ``experiment.json``
     exists and differs from ``experiment``, ``SpecError`` is raised before anything is
-    written or reset. Otherwise ``experiment.json`` is written from the experiment,
-    ``scenario.json`` from its scenario when the experiment holds it (``spec.resolve``),
-    ``experiment_<variant>.json`` and ``scenario_<variant>.json`` from each arm
-    (``Experiment.arm``), and every run that is not completed or running is reset to ``queued``. ``slurm`` is
-    the SLURM state of each task (see ``registry``) for runs that were submitted to a
-    cluster.
+    written or reset. Otherwise ``experiment.json`` is written from the experiment and
+    ``scenario.json`` from its scenario when the experiment holds it (``spec.resolve``).
+    Every run that is not completed or running is reset to ``queued``, with its arm's
+    ``experiment.json`` and ``scenario.json`` (``Experiment.arm``) in its folder.
+    ``slurm`` is the SLURM state of each task (see ``registry``) for runs that were
+    submitted to a cluster.
 
     Returns:
         One ``RunSpec`` per run of the grid, in order.
@@ -177,19 +177,21 @@ def prepare(
     if isinstance(experiment.scenario, dict):
         write_json(exp_dir / SCENARIO_FILE, experiment.scenario)
 
-    for variant in experiment.variants:
-        arm = experiment.arm(variant)
-        write_json(exp_dir / f"experiment_{variant}.json", arm.to_dict())
-
-        if isinstance(arm.scenario, dict):
-            write_json(exp_dir / f"scenario_{variant}.json", arm.scenario)
-
     for spec in specs:
         state = registry.current_state(spec.out_dir, slurm=slurm)
         if state not in ("completed", "running"):
             _reset(spec)
+            _save_arm(experiment.arm(spec.variant), spec.out_dir)
 
     return specs
+
+
+def _save_arm(arm: Experiment, run_dir: Path) -> None:
+    """What the run in ``run_dir`` was started with, next to its results."""
+    write_json(run_dir / "experiment.json", arm.to_dict())
+
+    if isinstance(arm.scenario, dict):
+        write_json(run_dir / SCENARIO_FILE, arm.scenario)
 
 
 def _refuse_changed_spec(experiment: Experiment, exp_dir: Path) -> None:
@@ -396,7 +398,7 @@ def job(run_dir: str | Path) -> None:
 
 
 def heldout_env_config(
-    experiment: Experiment, exp_dir: Path, variant: Optional[str], record: dict
+    experiment: Experiment, run_dir: Path, variant: Optional[str], record: dict
 ) -> dict:
     """The environment config of a run's held-out evaluation: the test days
     (``Experiment.heldout_config``) with the scales the run resolved on its training
@@ -404,7 +406,7 @@ def heldout_env_config(
     from core.env import SCALE_KEYS
 
     trained = record.get("env_config", {})
-    config = experiment.heldout_config(exp_dir, variant)
+    config = experiment.heldout_config(run_dir, variant)
 
     return config | {key: trained[key] for key in SCALE_KEYS if trained.get(key)}
 
@@ -420,7 +422,7 @@ def _heldout(
     from core.rl import evaluation, load_policy
 
     policy, record = load_policy(run_dir)
-    config = heldout_env_config(experiment, run_dir.parent, variant, record)
+    config = heldout_env_config(experiment, run_dir, variant, record)
     env = run.env_class(config)
     policies = {
         "trained": policy,

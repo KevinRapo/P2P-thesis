@@ -54,9 +54,10 @@ a list as a whole). It may give any field but ``NOT_IN_A_VARIANT``, so that the
 grid of runs stays algorithms x paradigms x variants x seeds, e.g.
 {"big": {"model": {"fcnet_hiddens": [768, 768]}, "budget": 480000},
 "graph": {"scenario": {"grid": {"method": "graph"}}}}. ``scenario`` may also name
-another file. ``Experiment.arm`` gives an arm as a complete experiment; a started
-experiment saves it as ``experiment_<variant>.json`` and ``scenario_<variant>.json``
-in its folder, and the arm's runs read that scenario.
+another file. A variant's ``dso.prices`` replaces the base's as a whole.
+``Experiment.arm`` gives an arm as a complete experiment; a started experiment saves
+it in the folder of each of the arm's runs, as ``experiment.json`` and ``scenario.json``,
+and the run reads that scenario.
 
 Evaluation points: the trainer always evaluates at step 0 (the untrained policy and
 the baselines) and at the end of the budget; ``eval_points`` adds the evaluations in
@@ -83,13 +84,14 @@ episode; the held-out evaluation on its one test day), 15 minutes per run and th
 defaults). Traced days that the test version has no longer are left out.
 
 Inputs of a started experiment: an experiment is started as ``resolve`` gives it, with
-the scenario file read into ``scenario`` and its price file into the scenario's
-``dso.prices`` (``Experiment.inline_scenario``). The
-``experiment.json`` of its folder then holds every input of its runs, the scenario
-included, and the runs read the copy ``scenario.json`` next to it (``SCENARIO_FILE``),
-not the file in ``config/scenarios/``. So an experiment can be sent to a cluster as one JSON
-object, without its files being in the cluster's checkout, and a later change to
-the scenario or price file does not change an experiment already started.
+the scenario file read into ``scenario`` (``Experiment.inline_scenario``). Its folder
+keeps the whole of it in ``experiment.json`` and the base scenario in ``scenario.json``,
+and each run its arm's (see Variants), not the file in ``config/scenarios/``. So an
+experiment can be sent to a cluster as one JSON object, without its scenario file being
+in the cluster's checkout, and a later change to that file does not change an
+experiment already started. ``dso.prices`` stays as it was given: a price file is read
+from ``config/data/`` when a run starts, so it must be the same on the machine that runs
+it (a cluster's ``check`` refuses one that is not committed).
 """
 
 from __future__ import annotations
@@ -535,16 +537,17 @@ class Experiment:
         return Path(exp_dir) if exp_dir else runs_root() / self.name
 
     def scenario_file(
-        self, exp_dir: Optional[Path] = None, variant: Optional[str] = None
+        self, run_dir: Optional[Path] = None, variant: Optional[str] = None
     ) -> Path:
-        """The scenario file the runs of ``variant`` read: the arm's or
-        ``SCENARIO_FILE`` in the experiment's folder when ``scenario`` is the scenario
-        itself, else the file it names."""
-        if isinstance(self.arm(variant).scenario, dict):
-            name = f"scenario_{variant}.json" if variant else SCENARIO_FILE
-            return self.folder(exp_dir) / name
+        """The scenario file a run of ``variant`` reads: ``SCENARIO_FILE`` in its
+        folder ``run_dir`` when ``scenario`` is the scenario itself, else the file it
+        names."""
+        arm = self.arm(variant)
 
-        return self.arm(variant).scenario_path
+        if isinstance(arm.scenario, dict):
+            return Path(run_dir or ".") / SCENARIO_FILE
+
+        return arm.scenario_path
 
     def arm(self, variant: Optional[str]) -> "Experiment":
         """The arm of ``variant`` as a complete experiment: this one with what the
@@ -557,6 +560,9 @@ class Experiment:
         base = self.inline_scenario() if isinstance(given, dict) else self
         data = overwrite(base.to_dict(), changes)
         data |= {"variants": {}, "test": {}}
+
+        if isinstance(given, dict) and "prices" in given.get("dso", {}):
+            data["scenario"]["dso"]["prices"] = given["dso"]["prices"]
 
         if "test_periods" in changes:
             data["test_days"] = []
@@ -595,15 +601,15 @@ class Experiment:
         return self.test_days[: self.trace_days]
 
     def heldout_config(
-        self, exp_dir: Optional[Path] = None, variant: Optional[str] = None
+        self, run_dir: Optional[Path] = None, variant: Optional[str] = None
     ) -> dict:
         """The environment config of the held-out evaluation (test days) of a run of
-        ``variant``; ``exp_dir`` as in ``expand``."""
+        ``variant``, in the folder ``run_dir``."""
         arm = self.arm(variant)
         config: dict = {"days": arm.test_days}
 
         if arm.scenario:
-            config["scenario"] = str(self.scenario_file(exp_dir, variant))
+            config["scenario"] = str(self.scenario_file(run_dir, variant))
 
         return config | arm.env_config
 
@@ -615,33 +621,34 @@ class Experiment:
 
     def inline_scenario(self) -> "Experiment":
         """This experiment with every scenario file read in: its own into ``scenario``
-        and a variant's into that variant, so that it holds every input of its runs
-        (itself if there is no file name to read)."""
+        and a variant's into that variant (itself if there is no file name to read).
+        Prices stay as they were given."""
         named = {
             name: changes
             for name, changes in self.variants.items()
             if isinstance(changes.get("scenario"), str)
         }
 
-        prices = isinstance(self.scenario, dict) and isinstance(
-            self.scenario.get("dso", {}).get("prices"), str
-        )
-
-        if not isinstance(self.scenario, str) and not named and not prices:
+        if not isinstance(self.scenario, str) and not named:
             return self
 
         out = copy.deepcopy(self)
 
         if isinstance(self.scenario, str):
             out.scenario = _read_scenario(self.scenario_path)
-        elif prices:
-            _read_prices(out.scenario, "scenario")
 
         for name, changes in named.items():
             path = (REPO / changes["scenario"]).resolve()
             out.variants[name]["scenario"] = _read_scenario(path)
 
         return out
+
+    def price_files(self) -> list[str]:
+        """The price files the arms of this resolved experiment read."""
+        arms = [self.arm(variant) for variant in self.variants or [None]]
+        prices = [arm.scenario.get("dso", {}).get("prices") for arm in arms]
+
+        return sorted({name for name in prices if isinstance(name, str)})
 
     def dated(self, when: datetime) -> "Experiment":
         """This experiment named ``<name>-<YYYYMMDD>-<HHMMSS>`` at ``when``: a new
@@ -743,6 +750,7 @@ class Experiment:
                         name = f"{algorithm}_{paradigm}_s{seed}"
                         if variant is not None:
                             name += f"_{variant}"
+                        out_dir = exp_dir / name
                         specs.append(
                             RunSpec(
                                 name=name,
@@ -751,13 +759,13 @@ class Experiment:
                                 seed=seed,
                                 variant=variant,
                                 env=arm.env,
-                                env_config=self._env_config(seed, exp_dir, variant),
+                                env_config=self._env_config(seed, out_dir, variant),
                                 budget=budget,
                                 eval_every=every,
                                 eval_episodes=arm.eval_episodes,
                                 training=dict(arm.training.get(algorithm, {})),
                                 model=dict(arm.model),
-                                out_dir=exp_dir / name,
+                                out_dir=out_dir,
                                 index=len(specs),
                                 num_env_runners=arm.num_env_runners,
                             )
@@ -772,12 +780,12 @@ class Experiment:
 
         return budget, budget // points if points else 0
 
-    def _env_config(self, seed: int, exp_dir: Path, variant: Optional[str]) -> dict:
+    def _env_config(self, seed: int, run_dir: Path, variant: Optional[str]) -> dict:
         arm = self.arm(variant)
         config: dict = {}
 
         if arm.scenario:
-            config["scenario"] = str(self.scenario_file(exp_dir, variant))
+            config["scenario"] = str(self.scenario_file(run_dir, variant))
 
         if arm.train_days:
             config["days"] = list(arm.train_days)
@@ -788,7 +796,7 @@ class Experiment:
 
 
 def _read_scenario(path: Path) -> dict:
-    """The scenario at ``path`` with its price file read in."""
+    """The scenario at ``path``."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -802,21 +810,23 @@ def _read_scenario(path: Path) -> dict:
     if not isinstance(data, dict):
         raise SpecError(f"{path}: a scenario file holds one JSON object")
 
-    _read_prices(data, path)
-
     return data
 
 
-def _read_prices(data: dict, where: Any) -> None:
-    """Read a scenario's price file, if it names one, into its ``dso.prices``."""
-    dso = data.get("dso", {})
+def _check_prices(experiment: "Experiment") -> None:
+    """Refuse an experiment with prices that cannot be read or do not fit its step."""
+    for variant in experiment.variants or [None]:
+        scenario = experiment.arm(variant).scenario
+        prices = scenario.get("dso", {}).get("prices")
 
-    if isinstance(dso.get("prices"), str):
+        if prices is None:
+            continue
+
         try:
-            step = data.get("grid", {}).get("step_hours", GridSetup.step_hours)
-            dso["prices"] = load_prices(dso["prices"], step)
+            step = scenario.get("grid", {}).get("step_hours", GridSetup.step_hours)
+            load_prices(prices, step)
         except (OSError, ValueError, KeyError) as error:
-            raise SpecError(f"{where}: prices cannot be read ({error})") from None
+            raise SpecError(f"prices cannot be read ({error})") from None
 
 
 def overwrite(base: dict, changes: dict) -> dict:
@@ -838,7 +848,10 @@ def resolve(spec: str | Path | Experiment, profile: str = "full") -> Experiment:
     ``Experiment``) with its scenario read in (``Experiment.inline_scenario``), in
     ``profile`` (``Experiment.with_profile``)."""
     experiment = spec if isinstance(spec, Experiment) else Experiment.load(spec)
-    return experiment.inline_scenario().with_profile(profile)
+    experiment = experiment.inline_scenario()
+    _check_prices(experiment)
+
+    return experiment.with_profile(profile)
 
 
 # --------------------------------------------------------------------------------------

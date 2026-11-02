@@ -21,10 +21,12 @@ or "off", as each table says.
 (so that older files still load): a misspelt scenario setting does nothing and gives
 no error.
 
-**What a started experiment reads.** When an experiment starts, its scenario and price
-file are copied into the experiment's folder under `runs/` (`experiment.json`,
-`scenario.json`), and the runs read those copies. Changing a file in `config/` later
-does not change an experiment already started.
+**What a started experiment reads.** When an experiment starts, its scenario is copied
+under `runs/`: the whole experiment and the base scenario into the experiment's folder,
+and each run's own arm into that run's folder (`experiment.json`, `scenario.json`). The
+runs read those copies, so changing a scenario file later does not change an experiment
+already started. Prices stay as they were given: a price file is read from
+`config/data/` when a run starts, so it must be the same on the machine that runs it.
 
 ## Scenario
 
@@ -87,9 +89,7 @@ Read by [`core/config/store.py`](../../core/config/store.py) into the records of
     "reputation_decay": 0.8
   },
   "dso": {
-    "feed_in_tariff": 0.08,
-    "utility_price": 0.3,
-    "prices": null,
+    "prices": {"utility": 0.3, "feed_in": 0.08},
     "peer_charge_kwh": 0.0,
     "fees_charged": true,
     "fee_buyer_share": 0.5,
@@ -173,9 +173,7 @@ not read `bid_margin`.
 
 | Setting | Values | What it does |
 |---|---|---|
-| `feed_in_tariff` | number | `p_FiT`, what the DSO pays per kWh. Ignored when `prices` is given |
-| `utility_price` | number | `p_utility`, what the DSO charges per kWh. Ignored when `prices` is given |
-| `prices` | file name, the series themselves, `null` | Tariffs per step: the name of a [price file](#price-file) without `.json`. `null`: the two flat tariffs. `feed_in_tariff` must stay below `utility_price`, less `peer_charge_kwh`, at every step |
+| `prices` | file name, or an object | The one entry for `p_FiT`, what the DSO pays per kWh, and `p_utility`, what it charges per kWh: the name of a [price file](#price-file) without `.json`; flat tariffs, `{"utility": 0.3, "feed_in": 0.08}`; or the series themselves, in the file's format. `feed_in` must stay below `utility`, less `peer_charge_kwh`, at every step |
 | `peer_charge_kwh` | non-negative | Grid and tax charge per kWh on a peer trade, paid by the buyer; not in [P1]. Order prices stop at `utility_price − peer_charge_kwh`, so a buyer never pays more than the DSO asks. `0`: the paper's market |
 | `fees_charged` | `true`, `false` | Whether fees are paid. They are calculated and recorded either way |
 | `fee_buyer_share` | `0` to `1` | The buyer's share of a peer trade's fee; the seller pays the rest. A trade with the DSO is paid by the participant |
@@ -433,10 +431,11 @@ The file is the base case, and a variant is an arm of it. It may give any experi
 field except `name`, `description`, `algorithms`, `paradigms`, `seeds`, `variants`,
 `max_parallel`, `resources`, `test` and `test_days`. Inside a section it overwrites
 only the values it names, and a list as a whole. `scenario` works the same way, or
-names another file. `{}` is the base case itself.
+names another file; its `dso.prices` replaces the base's as a whole. `{}` is the base
+case itself. With variants, only the variants run: the base case needs a `{}` of its own.
 
-A started experiment saves each arm complete, as `experiment_<variant>.json` and
-`scenario_<variant>.json` in its folder.
+A started experiment saves each arm complete, as `experiment.json` and `scenario.json`
+in the folder of each of its runs.
 
 ### training
 

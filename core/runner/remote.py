@@ -54,7 +54,6 @@ PULL_TIMEOUT_S = 900
 # learner, the evaluations) and the held-out tables at the end; not the traces.
 FOLLOWED = (
     "experiment.json",
-    "experiment_*.json",
     "run.json",
     "status.json",
     "metrics.csv",

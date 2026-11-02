@@ -7,6 +7,7 @@ from dataclasses import asdict, fields
 from pathlib import Path
 
 from core.config.scenario import (
+    FLAT_PRICES,
     BatterySetup,
     DsoSetup,
     GridSetup,
@@ -40,8 +41,22 @@ def from_dict(data: dict) -> Scenario:
         grid=GridSetup(**_known(GridSetup, data.get("grid", {}))),
         participants=participants,
         market=MarketSetup(**_known(MarketSetup, data.get("market", {}))),
-        dso=DsoSetup(**_known(DsoSetup, data.get("dso", {}))),
+        dso=_dso(data.get("dso", {})),
     )
+
+
+def _dso(data: dict) -> DsoSetup:
+    """The DSO of a saved scenario. An older file without a price series has its flat
+    tariffs in two fields of their own, and ``prices`` null."""
+    values = _known(DsoSetup, data)
+
+    if values.get("prices") is None:
+        values["prices"] = {
+            "utility": data.get("utility_price", FLAT_PRICES["utility"]),
+            "feed_in": data.get("feed_in_tariff", FLAT_PRICES["feed_in"]),
+        }
+
+    return DsoSetup(**values)
 
 
 def load(path: Path) -> Scenario:

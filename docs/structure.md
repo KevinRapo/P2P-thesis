@@ -245,7 +245,8 @@ Start training runs that outlive the terminal, the Studio and the Claude session
 and watch them from files only. The one place that imports both `core/env/` and
 `core/rl/` (inside a job; the rest stays light). An experiment is a spec in
 `config/experiments/`; `start` saves it with its scenario in `runs/<name>/experiment.json`
-(and the scenario alone in `scenario.json`, which the runs read), writes a
+(and the base scenario alone in `scenario.json`), writes each run's arm into its folder
+(`experiment.json`, and `scenario.json`, which the run reads), writes a
 `status.json` per run and spawns one detached worker, which keeps `max_parallel`
 job processes training (one run each, then a held-out evaluation).
 
@@ -452,7 +453,7 @@ market or pandapower directly.
 | [`hpc/`](../hpc/) helpers | The Jupyter job on the cluster: the Windows helper [`hpc.ps1`](../hpc/hpc.ps1) (and [`hpc.cmd`](../hpc/hpc.cmd)), which reads `.env`, and the job script [`jupyter.slurm`](../hpc/jupyter.slurm); [setup and PATH](hpc/setup.md#the-hpc-helper). |
 | [`.env.example`](../.env.example), `.env` | This machine's settings (`core/settings.py`): the example lists every key and is tracked; `.env` holds your values and is git-ignored ([setup](hpc/setup.md#this-machines-settings-env)) |
 | `hpc/` | Where experiments run: `targets.toml` names the targets (`local`, and the `taltech` SLURM cluster with its partitions, and as `${KEY}` settings from `.env` its account and, for use from the PC, the SSH host, the code folder and Python on the cluster; the mirror of the results); each has a `label`, the name the Studio's Runs page shows (This PC, TalTech); how to use the cluster is in [hpc.md](hpc.md) |
-| `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, scenario.json, worker.json, worker.log, <run>/{status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}`; on a SLURM target no worker, instead `slurm.json` and `slurm/` (submitit's batch script, pickles and task logs), and `status.json` of each run has a `slurm_job` |
+| `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, scenario.json, worker.json, worker.log, <run>/{experiment.json, scenario.json, status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}`; on a SLURM target no worker, instead `slurm.json` and `slurm/` (submitit's batch script, pickles and task logs), and `status.json` of each run has a `slurm_job` |
 | `.vscode/` | Launch entries and the Python interpreter |
 
 ## Choices in the rebuilt market step

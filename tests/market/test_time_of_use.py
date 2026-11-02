@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from core.config import store
-from core.config.scenario import DsoSetup, load_prices, price_at
+from core.config.scenario import DsoSetup, flat_prices, load_prices, price_at
 from core.env.market_env import MarketEnv, zero_policy
 from core.market.dso import Dso
 from core.grid.contract import GridPath
@@ -28,7 +28,31 @@ def test_dso_keeps_its_setup_and_current_tariffs_separate():
     assert dso.setup.loss_factor == 0.07
     assert dso.transmission_loss(0.5, 2.0) == pytest.approx(0.07)
     assert dso.utility_price == 0.40
-    assert dso.setup.utility_price == 0.30
+
+
+def test_every_form_of_the_prices_comes_out_as_series():
+    named = load_prices("synthetic_day", 1.0)
+    flat = load_prices({"utility": 0.3, "feed_in": 0.08}, 1.0)
+    mixed = load_prices({"utility": named["utility"], "feed_in": 0.08}, 1.0)
+    assert (flat["utility"], flat["feed_in"]) == ([0.3] * 24, [0.08] * 24)
+    assert (mixed["utility"], mixed["feed_in"]) == (named["utility"], [0.08] * 24)
+    assert flat_prices({"utility": 0.3, "feed_in": 0.08})
+    assert not flat_prices({"utility": named["utility"], "feed_in": 0.08})
+    assert not flat_prices("synthetic_day")
+    assert not any("cannot be read" in p for p in DsoSetup().problems(0.25))
+
+    with pytest.raises(ValueError, match="a day has 24 steps"):
+        load_prices({"utility": [0.3] * 3, "feed_in": 0.08}, 1.0)
+
+
+def test_flat_tariffs_are_the_default_and_an_older_file_keeps_its_own():
+    dso = Dso(DsoSetup())
+    dso.set_hour(13)
+    assert (dso.feed_in_tariff, dso.utility_price) == (0.08, 0.30)
+    older = {"dso": {"prices": None, "feed_in_tariff": 0.1, "utility_price": 0.5}}
+    assert store.from_dict(older).dso.prices == {"utility": 0.5, "feed_in": 0.1}
+    named = {"dso": {"prices": "synthetic_day", "utility_price": 0.5}}
+    assert store.from_dict(named).dso.prices == "synthetic_day"
 
 
 def dated_prices() -> dict:
@@ -141,7 +165,7 @@ def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):
     for step in range(env.market.n_steps):
         obs, rewards, terminated, _, _ = env.step(zero(obs))
         record = env.last_record
-        assert record.inputs.utility_price == price_at(0.3, TOU_UTILITY, step)
+        assert record.inputs.utility_price == price_at(TOU_UTILITY, step)
 
         for pid, o in record.participants.items():
             expected = -record.inputs.utility_price * o.deferred_demand_kwh

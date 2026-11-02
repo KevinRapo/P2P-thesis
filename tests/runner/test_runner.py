@@ -19,7 +19,6 @@ from pathlib import Path
 import psutil
 import pytest
 
-from core.config.scenario import load_prices
 from core.runner import registry
 from core.runner.spec import (
     ALGORITHMS,
@@ -155,7 +154,8 @@ def test_a_variant_overwrites_only_what_it_names_in_a_complete_arm():
     assert big.env_config["energy_scale"] == 7.0
     assert big.env_config["episode_days"] == 7
     assert "episode_days" not in base.env_config
-    assert Path(big.env_config["scenario"]).name == "scenario_big.json"
+    assert Path(big.env_config["scenario"]).name == SCENARIO_FILE
+    assert Path(big.env_config["scenario"]).parent.name == big.name
     arm = experiment.arm("big")
     assert arm.scenario["grid"]["method"] == "graph"
     assert arm.scenario["grid"]["code"] == experiment.scenario["grid"]["code"]
@@ -194,8 +194,6 @@ def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):
     path = tmp_path / "x.json"
     path.write_text(json.dumps(spec()), encoding="utf-8")
     scenario = json.loads((REPO / SCENARIO).read_text(encoding="utf-8"))
-    prices, step = scenario["dso"]["prices"], scenario["grid"]["step_hours"]
-    scenario["dso"]["prices"] = load_prices(prices, step)  # read in too
     experiment = resolve(path)
     assert experiment.scenario == scenario and experiment.name == "x"
     assert resolve(path, "test").scenario == scenario
@@ -206,12 +204,36 @@ def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):
     )
 
 
-def test_an_experiment_with_its_scenario_reads_the_copy_in_its_folder(tmp_path):
+def test_prices_stay_as_given_and_must_be_readable():
+    scenario = {"grid": {"step_hours": 1.0}, "dso": {"prices": "synthetic_day"}}
+    data = spec(scenario=scenario, variants={"a": {}})
+    data["variants"]["b"] = {"scenario": {"dso": {"prices": "de_2024"}}}
+    experiment = resolve(Experiment.from_dict(data, "x"))
+    assert experiment.scenario["dso"]["prices"] == "synthetic_day"
+    assert experiment.arm("b").scenario["dso"]["prices"] == "de_2024"
+    assert experiment.price_files() == ["de_2024", "synthetic_day"]
+    data["variants"]["b"] = {"scenario": {"dso": {"prices": "no_such_file"}}}
+
+    with pytest.raises(SpecError, match="prices cannot be read"):
+        resolve(Experiment.from_dict(data, "x"))
+
+
+def test_a_variants_prices_replace_the_bases_as_a_whole():
+    dated = {"utility": [0.3] * 24, "feed_in": [0.1] * 24, "days": {"2016-06-01": {}}}
+    flat = {"utility": 0.4, "feed_in": 0.05}
+    scenario = {"dso": {"prices": dated, "loss_factor": 0.5}}
+    variant = {"scenario": {"dso": {"prices": flat}}}
+    data = spec(scenario=scenario, variants={"flat": variant})
+    arm = Experiment.from_dict(data, "x").arm("flat")
+    assert arm.scenario["dso"] == {"prices": flat, "loss_factor": 0.5}
+
+
+def test_an_experiment_with_its_scenario_reads_the_copy_in_the_run_folder(tmp_path):
     experiment = Experiment.from_dict(spec(scenario={"name": "s"}), "x")
     run = experiment.expand(tmp_path / "x")[0]
-    assert run.env_config["scenario"] == str(tmp_path / "x" / SCENARIO_FILE)
-    held_out = experiment.heldout_config(tmp_path / "x")
-    assert held_out["scenario"] == str(tmp_path / "x" / SCENARIO_FILE)
+    assert run.env_config["scenario"] == str(run.out_dir / SCENARIO_FILE)
+    held_out = experiment.heldout_config(run.out_dir)
+    assert held_out["scenario"] == str(run.out_dir / SCENARIO_FILE)
 
 
 @pytest.mark.parametrize(
@@ -930,6 +952,32 @@ def test_prepare_keeps_the_scenario_of_the_experiment_in_its_folder(root, tmp_pa
         launch.prepare(resolve(Experiment.from_dict(data, "kept")), exp_dir)
 
     assert registry.read_json(exp_dir / SCENARIO_FILE) == {"name": "one"}
+
+
+def test_prepare_saves_each_runs_arm_in_its_folder(root):
+    from core.runner import launch
+
+    variants = {"a": {}, "b": {"scenario": {"dso": {"prices": "de_2024"}}}}
+    data = spec(
+        algorithms=["ppo"],
+        paradigms=["dtde"],
+        scenario={"name": "s", "dso": {"prices": "synthetic_day"}},
+        variants=variants,
+        env_config={"energy_scale": 7.0},
+    )
+    experiment = resolve(Experiment.from_dict(data, "armed"))
+    exp_dir = root / "armed"
+    specs = launch.prepare(experiment, exp_dir)
+    run = next(s for s in specs if s.variant == "b")
+    assert registry.read_json(run.out_dir / SCENARIO_FILE)["dso"]["prices"] == "de_2024"
+    saved = registry.read_json(run.out_dir / "experiment.json")
+    assert saved["variants"] == {} and saved["env_config"] == {"energy_scale": 7.0}
+    assert sorted(p.name for p in exp_dir.glob("*.json")) == [
+        "experiment.json",
+        SCENARIO_FILE,
+    ]
+    top = registry.read_json(exp_dir / SCENARIO_FILE)
+    assert top["dso"]["prices"] == "synthetic_day"
 
 
 def test_prepare_resumes_a_folder_started_with_a_scenario_file(root, tmp_path):

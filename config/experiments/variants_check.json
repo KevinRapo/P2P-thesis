@@ -1,0 +1,25 @@
+{
+  "name": "variants_check",
+  "description": "A short check of the saved layout on the cluster: each variant's experiment.json and scenario.json in its run folders, and the three forms of dso.prices. The base runs as 'synthetic' ({}); the others replace its prices with a file name and with flat tariffs. Not a result: the budget only reaches a few updates.",
+  "scenario": "config/scenarios/lv_rural3_p13.json",
+  "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
+  "test_periods": {"july": {"from": "2016-07-01", "to": "2016-07-03"}},
+  "env_config": {"grid_capacity_kwh": 400.0},
+  "algorithms": ["ppo"],
+  "paradigms": ["dtde"],
+  "seeds": [0],
+  "variants": {
+    "synthetic": {},
+    "de_2024": {"scenario": {"dso": {"prices": "de_2024"}}},
+    "flat": {"scenario": {"dso": {"prices": {"utility": 0.3, "feed_in": 0.08}}}}
+  },
+  "budget": 4800,
+  "eval_points": 2,
+  "eval_episodes": 2,
+  "training": {
+    "ppo": {"train_batch_size_per_learner": 1200, "minibatch_size": 240}
+  },
+  "max_parallel": 3,
+  "num_env_runners": 2,
+  "resources": {"cpus": 4, "mem_gb": 10, "minutes": 30}
+}

@@ -196,6 +196,7 @@ class MarketSetup:
 # The price files: JSON with a ``utility`` and a ``feed_in`` series, one price per
 # market step of the day from 00:00, per kWh in the scenario's money unit.
 PRICES_DIR = Path(__file__).resolve().parents[2] / "config" / "data"
+FLAT_PRICES = {"utility": 0.30, "feed_in": 0.08}  # the default of ``DsoSetup.prices``
 
 
 def price_files() -> list[str]:
@@ -208,29 +209,52 @@ def read_prices(name: str) -> dict:
     return json.loads((PRICES_DIR / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def load_prices(prices: Optional[str | dict], step_hours: float) -> dict:
-    """The ``utility`` and ``feed_in`` series of ``prices``: the name of a file in
-    ``config/data/``, the series themselves, or ``None`` (both ``None``: flat).
-    Each series must have one price per market step of ``step_hours`` hours. A file
-    may add ``days``, the two series of each date; those are what the market trades
-    at (``price_days``), and the ones at the top are then the mean day."""
-    if prices is None:
-        return {"utility": None, "feed_in": None}
+def load_prices(prices: str | dict, step_hours: float) -> dict:
+    """``prices`` in one form, whichever it was given in: the ``utility`` and
+    ``feed_in`` series of the market's day, one price per step of ``step_hours`` hours.
 
+    ``prices`` is the name of a file in ``config/data/``, or an object holding the two
+    tariffs, each a series or one number for the whole day (``flat_prices``). It may
+    add ``days``, the two tariffs of each date; those are what the market trades at
+    (``price_days``), and the ones at the top are then the mean day."""
     if isinstance(prices, str):
         prices = read_prices(prices)
 
     steps = round(24 / step_hours)
 
-    for series in [prices, *prices.get("days", {}).values()]:
-        for name in ("utility", "feed_in"):
-            if len(series[name]) != steps:
-                raise ValueError(
-                    f"The {name} series has {len(series[name])} prices, but a day "
-                    f"has {steps} steps of {step_hours} h"
-                )
+    def day(tariffs: dict) -> dict:
+        return tariffs | {
+            name: _series(name, tariffs[name], steps, step_hours)
+            for name in ("utility", "feed_in")
+        }
 
-    return prices
+    out = day(prices)
+
+    if "days" in prices:
+        out["days"] = {date: day(tariffs) for date, tariffs in prices["days"].items()}
+
+    return out
+
+
+def _series(name: str, value: float | list, steps: int, step_hours: float) -> list:
+    """The series of one tariff: ``value``, or one number repeated for the day."""
+    if isinstance(value, (int, float)):
+        return [float(value)] * steps
+
+    if len(value) != steps:
+        raise ValueError(
+            f"The {name} series has {len(value)} prices, but a day has {steps} steps "
+            f"of {step_hours} h"
+        )
+
+    return value
+
+
+def flat_prices(prices: str | dict) -> bool:
+    """Whether ``prices`` are one number per tariff, all day."""
+    return not isinstance(prices, str) and not any(
+        isinstance(prices[name], list) for name in ("utility", "feed_in")
+    )
 
 
 def price_days(prices: dict) -> list[dict]:
@@ -238,12 +262,9 @@ def price_days(prices: dict) -> list[dict]:
     return list(prices.get("days", {}).values()) or [prices]
 
 
-def price_at(flat: float, series: Optional[list], hour: float) -> float:
+def price_at(series: list, hour: float) -> float:
     """The price at ``hour`` (0-24, wrapping): the price of the series' step that
-    holds that hour, or ``flat`` without a series."""
-    if series is None:
-        return float(flat)
-
+    holds that hour."""
     return float(series[int((hour % 24) * len(series) / 24)])
 
 
@@ -254,13 +275,11 @@ class DsoSetup:
     original code's.
 
     Attributes:
-        feed_in_tariff: p_FiT, what the DSO pays per kWh it buys (all day, unless
-            ``prices`` is given).
-        utility_price: p_utility, what the DSO charges per kWh it sells (all day,
-            unless ``prices`` is given).
-        prices: p_utility and p_FiT per market step of the day: the name of a file
-            in ``config/data/``, or the series themselves (``load_prices``);
-            ``None``: the flat tariffs. [P1] §3.4.4 lets the tariffs change per step.
+        prices: p_FiT, what the DSO pays per kWh it buys, and p_utility, what it
+            charges per kWh it sells, the one entry for both, read by ``load_prices``:
+            the name of a file in ``config/data/``, ``{"utility": 0.3, "feed_in":
+            0.08}`` for flat tariffs, or the series themselves in that object. [P1]
+            §3.4.4 lets the tariffs change per step.
         peer_charge_kwh: Grid and tax charge per kWh on a peer-to-peer trade, paid
             by the buyer; a trade with the DSO has it in the utility price. Peers
             trade below p_utility − this charge, so the buyer never pays more than
@@ -282,9 +301,7 @@ class DsoSetup:
             the step's power flow).
     """
 
-    feed_in_tariff: float = 0.08
-    utility_price: float = 0.30
-    prices: Optional[str | dict] = None
+    prices: str | dict = field(default_factory=lambda: dict(FLAT_PRICES))
     peer_charge_kwh: float = 0.0
     fees_charged: bool = True
     fee_buyer_share: float = 0.5
@@ -315,8 +332,8 @@ class DsoSetup:
             (hour, day)
             for day in price_days(prices)
             for hour in hours
-            if price_at(self.feed_in_tariff, day["feed_in"], hour)
-            >= price_at(self.utility_price, day["utility"], hour) - self.peer_charge_kwh
+            if price_at(day["feed_in"], hour)
+            >= price_at(day["utility"], hour) - self.peer_charge_kwh
         )
 
         if (found_hour := next(below, None)) is not None:

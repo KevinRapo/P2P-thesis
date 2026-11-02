@@ -198,10 +198,12 @@ state:
 
 | File | What |
 |---|---|
-| `experiment.json` | The spec as started, with its scenario in it (a later start must match it) |
-| `scenario.json` | The scenario the runs read (a copy of the one in `experiment.json`) |
+| `experiment.json` | The spec as started, with its base scenario and all its variants (a later start must match it) |
+| `scenario.json` | The base scenario (a copy of the one in `experiment.json`) |
 | `worker.json`, `worker.log` | This PC: the worker that keeps `max_parallel` runs going |
 | `slurm.json`, `slurm/` | Cluster: the array and submitit's scripts and task logs |
+| `<run>/experiment.json` | The run's arm: the spec with its variant applied |
+| `<run>/scenario.json` | The arm's scenario, the file the run reads |
 | `<run>/status.json` | The run's state, times, error, process or SLURM task |
 | `<run>/run.json` | Training settings, versions, commit and outcome |
 | `<run>/metrics.csv` | Training iterations: environment steps, training return, learner metrics per module and their mean, min and max over the modules (`modules/<metric>_mean`, ...), timing |
