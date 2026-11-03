@@ -1,5 +1,6 @@
 """The network replay of the Grid tab: one run's test day on its network, a step at a
-time, with a slider and a play button (``heldout_grid.csv.gz``, ``heldout_trades.csv.gz``).
+time, with a slider and a play button (``heldout_grid.csv.gz`` and
+``heldout_trades.csv.gz``).
 """
 
 from __future__ import annotations
@@ -31,8 +32,11 @@ class ReplayChart(NetworkChart):
 
 
 def _columns(row: pd.Series, prefix: str) -> dict[str, float]:
-    """The values of a step's row whose column starts with ``prefix``, by what follows."""
-    return {c[len(prefix) :]: v for c, v in row.items() if c.startswith(prefix)}
+    """The values of a step's row whose column starts with ``prefix``, by what follows;
+    none of NaN (a step whose power flow did not converge has none)."""
+    return {
+        c[len(prefix) :]: v for c, v in row.items() if c.startswith(prefix) and v == v
+    }
 
 
 class Replay:
@@ -89,12 +93,12 @@ class Replay:
         drawn = self._drawn
         key = self.run.value
         self.selection.run, self.selection.policy = key, self.policy.value
-        code, self.buses = self.service.network(key)
-        self.grid = await run.io_bound(self.service.table, key, "heldout_grid")
-        self.trades = await run.io_bound(self.service.table, key, "heldout_trades")
+        code, buses = self.service.network(key)
+        grid = await run.io_bound(self.service.table, key, "heldout_grid")
+        trades = await run.io_bound(self.service.table, key, "heldout_trades")
         topology = None
 
-        if code and self.grid is not None:
+        if code and grid is not None:
             try:
                 topology = await run.io_bound(
                     services().grid.topology, NetworkRef("simbench", code)
@@ -105,18 +109,19 @@ class Replay:
         if drawn != self._drawn:
             return
 
+        self.grid, self.trades, self.buses = grid, trades, buses
         self.box.clear()
         self.chart = None
 
         with self.box:
-            if self.grid is None or self.trades is None or topology is None:
+            if grid is None or trades is None or topology is None:
                 ui.label(
                     "Not recorded: a run from before the grid and trade tables, or "
                     "without its network in the saved scenario."
                 ).classes("mls-card-caption")
                 return
 
-        days = sorted(self.grid.day.unique())
+        days = sorted(grid.day.unique())
         kept = self.day.value if self.day.value in days else self.selection.day
         self.day.set_options(days, value=kept if kept in days else days[0])
 
@@ -168,7 +173,7 @@ class Replay:
 
         return {
             "voltages": _columns(row, VOLTAGE) or None,
-            "loading": _columns(row, LOADING),
+            "loading": _columns(row, LOADING) or None,
             "trades": trades,
         }
 

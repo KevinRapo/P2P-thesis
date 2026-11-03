@@ -633,3 +633,13 @@ def test_the_trades_add_up_to_the_dsos_profit():
                 money += (1 if t["seller"] == DSO_ID else -1) * t["price"] * t["kwh"]
 
     assert money == pytest.approx(profit)
+
+
+def test_rounding_an_order_price_stays_inside_the_bounds():
+    from core.market.lem import _round_within
+
+    assert _round_within(0.306, 0.0, 0.306, 2) == 0.30  # not up over 0.306
+    assert _round_within(0.304, 0.0, 0.306, 2) == 0.30
+    assert _round_within(0.0749, 0.0749, 1.0, 2) == 0.08  # not down under 0.0749
+    assert _round_within(0.5, 0.0, 1.0, 2) == 0.5
+    assert _round_within(0.5, 0.0, 0.306, 2) == 0.5  # outside to begin with: as is

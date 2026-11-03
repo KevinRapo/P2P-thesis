@@ -36,6 +36,7 @@ A step can run at once (``step``) or one stage at a time (``start_step``, then
 
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from typing import Mapping, Optional
@@ -199,6 +200,21 @@ class StepRecord:
 def _balance(orders: tuple[Order, ...]) -> float:
     """Energy offered minus energy asked."""
     return sum(-o.quantity if o.is_buy else o.quantity for o in orders)
+
+
+def _round_within(price: float, low: float, high: float, decimals: int) -> float:
+    """``price`` rounded to ``decimals``, but not out of ``[low, high]`` when it was
+    inside: a bound that is not a whole cent (0.306) rounds the price down (0.30),
+    not up over it."""
+    unit = 10.0**-decimals
+    rounded = round(price, decimals)
+
+    if rounded > high >= price:
+        rounded = math.floor(high / unit + 1e-9) * unit
+    elif rounded < low <= price:
+        rounded = math.ceil(low / unit - 1e-9) * unit
+
+    return round(rounded, decimals)
 
 
 # --------------------------------------------------------------------------------------
@@ -530,8 +546,13 @@ class LocalEnergyMarket:
                 continue
 
             # DEVIATION MP-5d: order prices in whole cents, so that equal prices occur
-            # and reputation, the auction's tie-break, can decide between them.
-            price = round(price, m.price_decimals)
+            # and reputation, the auction's tie-break, can decide between them. The
+            # rounding keeps an order inside the bounds and, if it was inside it, the
+            # DSO's band (feed-in tariff to peer ceiling).
+            fit, ceiling = inputs.feed_in_tariff, self.dso.peer_ceiling()
+            low = max(m.min_price, fit) if price >= fit else m.min_price
+            high = min(m.max_price, ceiling) if price <= ceiling else m.max_price
+            price = _round_within(price, low, high, m.price_decimals)
             valid[pid] = OrderIntent(pid, i.is_buy, price, quantity, i.partner_id)
 
         return valid, notes

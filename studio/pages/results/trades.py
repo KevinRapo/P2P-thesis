@@ -22,6 +22,7 @@ from studio.pages.results.common import (
     Selection,
     Tab,
     by_number,
+    has,
 )
 from studio.theme import SERIES
 
@@ -49,7 +50,7 @@ class TradeBoxChart(Chart):
     def draw(self) -> None:
         o = self.o
 
-        if o.trades is None or o.trades.empty or o.metric not in o.trades:
+        if not has(o.trades, o.metric):
             return
 
         rows = o.trades[o.trades.stage < 3]

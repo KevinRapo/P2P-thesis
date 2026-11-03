@@ -224,7 +224,7 @@ def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
     read once."""
     try:
         return pd.read_csv(path)
-    except (OSError, ValueError, pd.errors.EmptyDataError):
+    except (OSError, EOFError, ValueError, pd.errors.EmptyDataError):
         return None
 
 
@@ -653,7 +653,7 @@ def _factors(result: RunResult) -> dict[str, Any]:
     settings = result.settings
     scenario = settings["scenario"] if isinstance(settings["scenario"], dict) else {}
     grid, env = scenario.get("grid", {}), settings["env_config"] or {}
-    dso = scenario.get("dso", {})
+    dso, people = scenario.get("dso", {}), scenario.get("participants", [])
 
     return {
         "reward": env.get("reward") or "bill",
@@ -663,7 +663,8 @@ def _factors(result: RunResult) -> dict[str, Any]:
         "network": grid.get("code"),
         "grid_method": grid.get("method"),
         "test_days": _days(settings["test_days"]),
-        "participants": len(scenario.get("participants", [])),
+        "participants": len(people),
+        "batteries": sum(bool(p.get("battery")) for p in people),
     }
 
 

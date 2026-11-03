@@ -567,6 +567,23 @@ def test_follow_copies_a_rewritten_table_whole(cluster, connections, tmp_path):
     assert (mirror / "r1" / "metrics.csv").read_bytes() == b"a,b\n"
 
 
+def test_follow_copies_a_restarted_table_whole_though_it_grew_past_the_copy(
+    cluster, connections, tmp_path
+):
+    sftp = FakeSFTP(cluster_files())
+    connections.queue = [FakeConnection(sftp=sftp)]
+    mirror = tmp_path / "x"
+    cluster.follow("runs/x", mirror)
+    metrics = f"{BASE}/r1/metrics.csv"
+    old = (mirror / "r1" / "metrics.csv").read_bytes()
+    new = b"a,b\n7,8\n9,9\n9,9\n9,9\n9,9\n9,9\n"  # same header, other rows, longer
+    assert len(new) > len(old)
+    sftp.files[metrics] = (new, 1030)
+
+    cluster.follow("runs/x", mirror)
+    assert (mirror / "r1" / "metrics.csv").read_bytes() == new
+
+
 def test_follow_copies_a_changed_status_of_the_same_size(
     cluster, connections, tmp_path
 ):

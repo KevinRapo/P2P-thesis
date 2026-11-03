@@ -190,6 +190,15 @@ def test_a_compressed_table_is_read_and_its_trades_placed_in_the_band(tmp_path):
     assert results.trade_table([]).empty
 
 
+def test_a_compressed_table_still_being_copied_is_not_ready(tmp_path):
+    whole = tmp_path / "whole.csv.gz"
+    pd.DataFrame({"a": range(2000)}).to_csv(whole, index=False)
+    cut = tmp_path / "cut.csv.gz"
+    cut.write_bytes(whole.read_bytes()[:-30])  # the end not copied yet
+    assert results._table(cut) is None  # an EOFError, not a crash
+    assert len(results._table(whole)) == 2000
+
+
 @pytest.mark.parametrize(
     "saved", ["ppo_dtde_s0_v2/experiment.json", "experiment_v2.json"]
 )

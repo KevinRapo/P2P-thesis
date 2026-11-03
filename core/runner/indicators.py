@@ -40,7 +40,15 @@ FACTORS = (
     "grid_method",
 )
 # What the baselines depend on, as far as a run says.
-PLAYED_ON = ("prices", "peer_charge", "network", "grid_method", "test_days")
+PLAYED_ON = (
+    "prices",
+    "peer_charge",
+    "network",
+    "grid_method",
+    "test_days",
+    "participants",
+    "batteries",
+)
 INTERVAL_SEEDS = 5
 BOOTSTRAPS = 2000
 # Kept in step with core.market.signals.KPIS (a test compares them): importing it here
@@ -207,7 +215,7 @@ def day_table(
         out["peak_reduction_kw"] = days.map(peak.xs("zero", level="policy")) - peak
 
         if trades is not None:
-            out = out.join(_trade_indicators(trades, steps, out.index))
+            out = out.join(_trade_indicators(trades, steps, agent_steps, out.index))
 
     return out.reindex(columns=[i.name for i in INDICATORS])
 
@@ -299,18 +307,25 @@ def _agent_step_indicators(
 
 
 def _trade_indicators(
-    trades: pd.DataFrame, steps: pd.DataFrame, index: pd.Index
+    trades: pd.DataFrame,
+    steps: pd.DataFrame,
+    agent_steps: pd.DataFrame,
+    index: pd.Index,
 ) -> pd.DataFrame:
     """What the trades give, for the days of ``index``. ``buyer_gain`` and
-    ``seller_gain`` are what the peer trades were worth against the DSO's tariffs,
-    ``dso_money`` the DSO's energy money and every fee charged, its profit. A day
-    without trades gained 0 and has no mean size or concentration."""
+    ``seller_gain`` are what the peer trades were worth against the DSO's tariffs (the
+    buyer's net of the peer charge), ``dso_money`` the DSO's energy money, every fee
+    charged and the demand left untraded, which the bill settles at the utility price
+    (``reward.net_bill``): its profit. A day without trades gained 0 and has no mean
+    size or concentration."""
     tariffs = steps[[*KEYS, "step", "feed_in_tariff", "utility_price"]]
     t = trades.merge(tariffs, on=[*KEYS, "step"])
     is_peer = t.stage < 3
     money = t.price * t.kwh
     energy = money.where(t.seller == DSO, -money).where(~is_peer, 0.0)
-    t["buyer_gain"] = (t.utility_price * t.kwh - money).where(is_peer, 0.0)
+    t["buyer_gain"] = (t.utility_price * t.kwh - money - t.peer_charge).where(
+        is_peer, 0.0
+    )
     t["seller_gain"] = (money - t.feed_in_tariff * t.kwh).where(is_peer, 0.0)
     t["dso_money"] = energy + t.buyer_fee + t.seller_fee
     peer = t[is_peer]
@@ -324,7 +339,13 @@ def _trade_indicators(
         }
     )
 
-    return gains.reindex(index, fill_value=0.0).join(sizes)
+    drawn = agent_steps.groupby([*KEYS, "step"]).deferred_demand_kwh.sum()
+    price = steps.set_index([*KEYS, "step"]).utility_price.reindex(drawn.index)
+    untraded = (drawn * price).groupby(KEYS).sum()
+    out = gains.reindex(index, fill_value=0.0).join(sizes)
+    out["dso_money"] += untraded.reindex(index, fill_value=0.0)
+
+    return out
 
 
 # --------------------------------------------------------------------------------------

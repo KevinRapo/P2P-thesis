@@ -12,7 +12,7 @@ from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
 from studio.components.charts import SeriesChart
-from studio.pages.results.common import POLICIES, Selection, by_number
+from studio.pages.results.common import POLICIES, Selection, by_number, has
 from studio.theme import SERIES
 
 ALL_DAYS = "all"  # the day selector's entry for the mean over the test days
@@ -46,12 +46,12 @@ class StepChart(SeriesChart):
     def draw(self) -> None:
         self.titles(y=self.o.title)
 
-        for i, column in enumerate(c for c in self.o.columns if c in self.o.rows):
+        for i, column in enumerate(c for c in self.o.columns if has(self.o.rows, c)):
             color = SERIES[i % len(SERIES)]
             rows = self.o.rows
             self.line(rows.step, rows[column], column, color, shape="hv")
 
-            if self.o.other is not None and column in self.o.other:
+            if has(self.o.other, column):
                 other = self.o.other
                 name = f"{column} (compared)"
                 self.line(other.step, other[column], name, color, "dot", "hv")
@@ -123,7 +123,7 @@ class StepView:
         self._drawn += 1
         drawn = self._drawn
         self.selection.run, self.selection.policy = self.run.value, self.policy.value
-        steps = with_peer_share(await self._rows(self.run.value, "heldout_steps"))
+        steps = await self._rows(self.run.value, "heldout_steps")
 
         if drawn != self._drawn:
             return
@@ -149,7 +149,7 @@ class StepView:
         other = None
 
         if self.other.value:
-            rows = with_peer_share(await self._rows(self.other.value, "heldout_steps"))
+            rows = await self._rows(self.other.value, "heldout_steps")
 
             if rows is not None:
                 other = self._of_day(rows, day, policy)
@@ -170,12 +170,20 @@ class StepView:
         self.box.clear()
 
         with self.box:
+            if self.person_charts and people is not None:
+                ui.label("The whole community (not the participant picked)").classes(
+                    "text-body2 text-weight-medium"
+                )
+
             for title, columns in self.charts:
                 StepChart(rows=one, other=other, columns=columns, title=title).show()
 
             if self.person_charts and people is not None:
                 person = self._of_day(
                     people[people.agent == self.agent.value], day, policy
+                )
+                ui.label(f"Participant {self.agent.options[self.agent.value]}").classes(
+                    "text-body2 text-weight-medium"
                 )
 
                 for title, columns in self.person_charts:
@@ -188,10 +196,11 @@ class StepView:
 
     @staticmethod
     def _of_day(rows: pd.DataFrame, day: str, policy: str) -> pd.DataFrame:
-        """The ``policy``'s rows of ``day``, or each step's mean over the days."""
+        """The ``policy``'s rows of ``day``, or each step's mean over the days; a step
+        table with its ``peer_share``, over the days the ratio of their sums."""
         rows = rows[rows.policy == policy]
 
         if day == ALL_DAYS:
-            return mean_over_days(rows)
+            return with_peer_share(mean_over_days(rows))
 
-        return rows[rows.day == day]
+        return with_peer_share(rows[rows.day == day])

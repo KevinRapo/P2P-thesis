@@ -1033,3 +1033,28 @@ def test_a_row_still_being_written_is_not_read(tmp_path):
         "policy,team_return_mean\ntrained,-7.5\ntrained,-6", encoding="utf-8"
     )
     assert registry._trained_return(evaluation, last=True) == -7.5
+
+
+def test_a_job_uses_its_variants_thread_settings(tmp_path, monkeypatch):
+    import os
+
+    import core.rl
+    import torch
+    from core.runner import launch
+
+    variants = {"v": {"torch_threads": 3, "ray_thread_caps": False}}
+    data = spec(variants=variants, test_periods={}, paradigms=["dtde"], seeds=[0])
+    folder = tmp_path / "x"
+    folder.mkdir()
+    (folder / "experiment.json").write_text(json.dumps(data), encoding="utf-8")
+    run = next(r for r in Experiment.load(folder / "experiment.json").expand(folder))
+    assert run.variant == "v" and run.name.endswith("_v")
+    threads = []
+    monkeypatch.setattr(torch, "set_num_threads", threads.append)
+    monkeypatch.setattr(core.rl, "train", lambda run: None)
+    monkeypatch.setattr(os, "environ", dict(os.environ))
+    os.environ.pop("RAY_num_server_call_thread", None)
+    (folder / run.name).mkdir()
+    launch.job(folder / run.name)
+    assert threads == [3]  # the variant's, not the experiment's 1
+    assert "RAY_num_server_call_thread" not in os.environ  # its caps are off

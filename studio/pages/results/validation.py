@@ -107,7 +107,7 @@ class Overview:
             ).classes("w-96")
             self.per_participant = ui.switch("Per participant")
 
-        remember(self.rows, "results_rows", ROWS)
+        remember(self.rows, "results_rows", lambda rows: set(rows) <= set(ROWS))
         remember(self.view, "results_view")
         remember(self.per_participant, "results_per_participant")
         self.box = ui.column().classes("w-full")
@@ -323,6 +323,9 @@ class ValidationTab(Tab):
             "days": gains(table),
             "gains": s.participant_gains(keys),
         }
+
+    def empty(self, data: dict[str, Any]) -> bool:
+        return data["table"].empty
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
         shown = [d for d in data["differs"] if d != "seed"]

@@ -50,6 +50,7 @@ import asyncssh
 # submitit's pickles and batch scripts.
 PULL_SKIP = ("checkpoint", "slurm")
 PULL_TIMEOUT_S = 900
+TAIL_CHECK = 1024  # bytes of a followed table's end compared before it is appended to
 # What ``follow`` keeps up to date: what training writes as it goes (the status, the
 # learner, the evaluations) and the held-out tables at the end; not the traces.
 FOLLOWED = (
@@ -218,8 +219,17 @@ async def follow_file(sftp: Any, source: str, target: Path, attrs: Any) -> int:
         if table and have is not None and 0 < have.st_size < size:
             with target.open("rb") as local_file:
                 header = local_file.readline()
+                # The end of the copy too: a file written again from the start (a
+                # restarted run) has the same header but other rows.
+                local_file.seek(max(have.st_size - TAIL_CHECK, 0))
+                tail = local_file.read()
 
-            if await remote_file.read(len(header), 0) == header:
+            same = await remote_file.read(len(header), 0) == header
+            same = same and await remote_file.read(
+                len(tail), have.st_size - len(tail)
+            ) == tail
+
+            if same:
                 new = await remote_file.read(size - have.st_size, have.st_size)
                 new = new[: new.rfind(b"\n") + 1]
 

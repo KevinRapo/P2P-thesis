@@ -75,6 +75,12 @@ class Tab:
         self.service = service
         self.selection = selection
         self.watched: list[tuple[Chart, dict[str, str]]] = []
+        self.waiting = False  # built without the data it shows (``empty``)
+
+    def empty(self, data: dict[str, Any]) -> bool:
+        """Whether ``data`` lacks what the tab shows, so that it is built again,
+        in full, when the live view finds it (a subclass; default: never)."""
+        return False
 
     def read(self, keys: list[str]) -> dict[str, Any]:
         return {}
@@ -227,6 +233,12 @@ class ParticipantChart(Chart):
             **scale,
         )
         self.fig.update_yaxes(autorange="reversed")
+
+
+def has(rows: Optional[pd.DataFrame], column: str) -> bool:
+    """Whether ``rows`` has ``column`` with a value in it (a column of NaN, which an
+    older table or a step without a power flow leaves, is nothing to draw)."""
+    return rows is not None and column in rows and bool(rows[column].notna().any())
 
 
 def by_number(agent: str) -> tuple[int, str]:

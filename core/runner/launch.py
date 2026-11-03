@@ -362,12 +362,14 @@ def job(run_dir: str | Path) -> None:
             s for s in experiment.expand(run_dir.parent) if s.name == run_dir.name
         )
 
-        if experiment.ray_thread_caps:  # before torch and Ray start their threads
+        arm = experiment.arm(spec.variant)  # the variant's own settings
+
+        if arm.ray_thread_caps:  # before torch and Ray start their threads
             os.environ.update(RAY_THREAD_CAPS)
 
         import torch
 
-        torch.set_num_threads(experiment.torch_threads)
+        torch.set_num_threads(arm.torch_threads)
         write_status(
             run_dir,
             state="running",
@@ -380,7 +382,7 @@ def job(run_dir: str | Path) -> None:
         run = spec.run()
         train(run)
 
-        if experiment.arm(spec.variant).test_days and experiment.is_market:
+        if arm.test_days and experiment.is_market:
             _heldout(experiment, run, run_dir, spec.variant)
 
         write_status(

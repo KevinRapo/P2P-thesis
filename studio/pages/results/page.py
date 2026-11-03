@@ -117,6 +117,7 @@ class ResultsView:
 
         def build(data) -> None:
             tab.watched = []
+            tab.waiting = tab.empty(data)
             tab.build(keys, data)
 
         await fill(
@@ -138,13 +139,23 @@ class ResultsView:
         try:
             keys = list(self.table.selected)
             active = await self._follow()
+
+            for target, name in sorted(self._watched - active):
+                if target != LOCAL:  # it finished since the last read: its last files
+                    await run.io_bound(self.runs.follow_experiment, target, name)
+
             self.service.refresh(sorted(active | self._watched))
             self._watched = active
             await self.table.load()
             tab = self.tab
 
-            if keys and tab.watched:
-                tab.update(await run.io_bound(tab.read, keys))
+            if keys and (tab.watched or tab.waiting):
+                data = await run.io_bound(tab.read, keys)
+
+                if tab.waiting and not tab.empty(data):
+                    await self.show()  # its data is here now: build it in full
+                else:
+                    tab.update(data)
 
             self.note.set_text(
                 f"Read at {time.strftime('%H:%M:%S')}"

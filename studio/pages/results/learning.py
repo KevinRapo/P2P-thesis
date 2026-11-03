@@ -331,6 +331,9 @@ class LearningTab(Tab):
             "training": self.service.training_curves(keys),
         }
 
+    def empty(self, data: dict[str, Any]) -> bool:
+        return data["metrics"].empty
+
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
         metrics, labels = data["metrics"], labels_of(keys)
 

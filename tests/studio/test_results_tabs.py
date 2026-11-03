@@ -74,6 +74,8 @@ def overview_table() -> pd.DataFrame:
                         "network": "n",
                         "grid_method": "ac",
                         "test_days": "d",
+                        "participants": 13,
+                        "batteries": 5,
                     }
                 )
 
@@ -313,7 +315,7 @@ def test_the_network_colours_its_lines_and_links_its_trades():
 
 
 def test_a_step_view_row_is_the_mean_over_the_days():
-    from studio.pages.results.steps import mean_over_days, with_peer_share
+    from studio.pages.results.steps import StepView, with_peer_share
 
     steps = pd.DataFrame(
         {
@@ -325,12 +327,24 @@ def test_a_step_view_row_is_the_mean_over_the_days():
             "bought_from_dso_kwh": [0.0, 0.0, 1.0, 0.0],
         }
     )
-    shared = with_peer_share(steps)
-    assert list(shared.peer_share.round(2).fillna(-1)) == [0.5, -1, 0.75, -1]
-    mean = mean_over_days(shared)
-    assert list(mean.step) == [0, 1] and mean.peer_share[0] == pytest.approx(0.625)
+    one = StepView._of_day(steps, "d1", "trained")
+    assert list(one.peer_share.round(2).fillna(-1)) == [0.5, -1]
+    mean = StepView._of_day(steps, "all", "trained")
+    assert list(mean.step) == [0, 1]
+    assert mean.peer_share[0] == pytest.approx(4 / 6)  # the ratio of the sums
     assert with_peer_share(None) is None
     assert "peer_share" not in with_peer_share(steps.drop(columns="p2p_kwh"))
+
+
+def test_a_column_of_nothing_is_not_drawn():
+    from studio.pages.results.common import has
+    from studio.pages.results.steps import StepChart
+
+    rows = pd.DataFrame({"step": [0, 1], "a": [1.0, 2.0], "b": [np.nan, np.nan]})
+    assert has(rows, "a") and not has(rows, "b") and not has(rows, "c")
+    assert not has(None, "a")
+    chart = StepChart(rows=rows, other=None, columns=["a", "b"], title="t")
+    assert [t.name for t in chart.figure().data] == ["a"]
 
 
 @pytest.mark.anyio
@@ -459,3 +473,107 @@ async def test_the_replay_of_an_old_run_is_a_caption():
         await user.open("/")
         await views[0].draw()
         await user.should_see("Not recorded")
+
+
+class WaitingTab:
+    """A tab whose data arrives on the second read."""
+
+    label, icon, watched, waiting = "Validation", "x", [], False
+
+    def __init__(self) -> None:
+        self.ready, self.built, self.updated = False, 0, 0
+
+    def read(self, keys):
+        return {"ok": self.ready}
+
+    def empty(self, data) -> bool:
+        return not data["ok"]
+
+    def build(self, keys, data) -> None:
+        self.built += 1
+
+    def update(self, data) -> None:
+        self.updated += 1
+
+
+@pytest.mark.anyio
+async def test_the_live_view_follows_a_finished_experiment_once_more_and_builds_a_waiting_tab(
+    where,  # noqa: F811
+):
+    from studio.pages.results.page import ResultsView
+
+    followed, states = [], {"state": "running"}
+
+    class Runs:
+        def target_names(self):
+            return [("cluster", None)]
+
+        def experiments(self, target, _):
+            return [{"name": "x", "runs": [SimpleNamespace(state=states["state"])]}]
+
+        def follow_experiment(self, target, name):
+            followed.append((target, name))
+
+    service = ResultsService(where)
+    views, tab = [], WaitingTab()
+
+    async def root() -> None:
+        view = ResultsView(service, Runs())
+        view.tabs = {"Validation": tab}
+        view.live.value = True
+        views.append(view)
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        view = views[0]
+        for _ in range(100):  # the tick that switching Live on starts
+            await asyncio.sleep(0.02)
+
+            if followed and not view._ticking:
+                break
+
+        followed.clear()
+        view.table.selected = ["local/grid/ppo_dtde_s0"]  # after its restore
+        await view.show()
+        built = tab.built
+        assert tab.waiting
+        await view.tick()  # still nothing to show: no rebuild
+        assert tab.built == built and followed == [("cluster", "x")]
+        tab.ready, states["state"] = True, "completed"
+        await view.tick()  # data here, and the experiment has just finished
+        assert tab.built == built + 1 and not tab.waiting
+        assert followed == [("cluster", "x")] * 2  # one last sync
+        await view.tick()
+        assert followed == [("cluster", "x")] * 2  # and no more
+        assert tab.updated == 1
+
+
+def test_learning_and_validation_wait_for_their_data():
+    from studio.pages.results.learning import LearningTab
+    from studio.pages.results.validation import ValidationTab
+
+    service = ResultsService({})
+    tab = Selection(open=print)
+    assert LearningTab(service, tab).empty({"metrics": pd.DataFrame()})
+    assert not LearningTab(service, tab).empty({"metrics": pd.DataFrame({"a": [1]})})
+    assert ValidationTab(service, tab).empty({"table": pd.DataFrame()})
+
+
+@pytest.mark.anyio
+async def test_the_overview_comes_back_with_the_rows_kept_from_the_last_visit():
+    from nicegui import app
+
+    views = []
+    tab = SimpleNamespace(selection=Selection(open=lambda label: None))
+
+    async def root() -> None:
+        app.storage.user["results_rows"] = ["variant"]  # a list: what a multi-select keeps
+        views.append(validation.Overview(overview_table(), tab))
+        app.storage.user["results_rows"] = ["no_such_column"]
+        views.append(validation.Overview(overview_table(), tab))
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        assert views[0].rows.value == ["variant"]
+        assert views[1].rows.value == ["reward"]  # one it cannot use is left out
+        assert views[1].box.default_slot.children  # and the table is drawn

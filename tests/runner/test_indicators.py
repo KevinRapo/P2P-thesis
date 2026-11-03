@@ -24,6 +24,7 @@ def trade(step, buyer, seller, price, kwh, stage=2):
         "stage": stage,
         "buyer_fee": 0.1,
         "seller_fee": 0.0,
+        "peer_charge": 0.0,
     }
 
 
@@ -156,6 +157,20 @@ def test_the_indicators_of_the_trades():
     assert day.dso_money == pytest.approx(0.3 * 2 - 0.1 * 1 + 5 * 0.1)
     quiet = days.loc[("net_position", "d1")]
     assert quiet.buyer_gain == 0.0 and quiet.dso_money == 0.0
+
+
+def test_the_dso_is_paid_for_the_demand_left_untraded_and_the_buyer_pays_the_charge():
+    episodes, agents, steps, agent_steps = tables()
+    agent_steps["deferred_demand_kwh"] = 1.0  # per agent and step: 2 kWh a step
+    rows = trades().assign(peer_charge=0.05)
+    day = day_table(episodes, agents, steps, agent_steps, rows).loc[("trained", "d1")]
+    assert day.buyer_gain == pytest.approx(0.1 * 8 - 0.05 * 3)  # three peer trades
+    # the fixture's 0.5 plus 4 kWh drawn untraded at the utility price of 0.3
+    assert day.dso_money == pytest.approx(0.3 * 2 - 0.1 * 1 + 5 * 0.1 + 4 * 0.3)
+    quiet = day_table(episodes, agents, steps, agent_steps, rows).loc[
+        ("net_position", "d1")
+    ]
+    assert quiet.dso_money == pytest.approx(4 * 0.3)
     assert np.isnan(quiet.mean_trade_kwh) and np.isnan(quiet.market_concentration)
 
 
@@ -194,6 +209,8 @@ def long(rows):
         peer_charge=0.0,
         grid_method="ac",
         test_days="d",
+        participants=13,
+        batteries=5,
     )
 
 
@@ -270,4 +287,13 @@ def test_a_pair_uses_only_the_days_both_sides_have():
 def test_baselines_are_apart_by_what_they_were_played_on():
     table = pd.concat([two_rewards(), two_rewards().assign(grid_method="graph")])
     table["key"] = table.key + table.grid_method
+    assert len(indicators.baselines(table)) == 2
+
+
+def test_baselines_are_apart_by_the_participants_they_were_played_with():
+    table = pd.concat([two_rewards(), two_rewards().assign(participants=43)])
+    table["key"] = table.key + table.participants.astype(str)
+    assert len(indicators.baselines(table)) == 2
+    table = pd.concat([two_rewards(), two_rewards().assign(batteries=0)])
+    table["key"] = table.key + table.batteries.astype(str)
     assert len(indicators.baselines(table)) == 2
