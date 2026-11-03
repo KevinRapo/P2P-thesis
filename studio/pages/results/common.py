@@ -23,6 +23,7 @@ from core.runner.indicators import INDICATORS
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import section
 from studio.components.charts import Chart, SeriesChart
+from studio.components.memory import keep, recalled
 from studio.components.run_table import cell
 from studio.components.tables import data_table
 
@@ -41,19 +42,42 @@ BY = {
 
 @dataclass
 class Selection:
-    """What the tabs look at, kept when the tab changes.
+    """What the tabs look at, kept when the tab changes; with ``memory``, also
+    between visits (``keep``), under ``<memory>_<what>``.
 
     Attributes:
         open: Go to a tab, by its label.
         run: The run in depth.
         day: The test day.
         policy: The policy.
+        agent: The participant.
+        memory: What it is kept under; None: not kept (a test, a notebook).
     """
 
     open: Callable[[str], None]
     run: Optional[str] = None
     day: Optional[str] = None
     policy: str = "trained"
+    agent: Optional[str] = None
+    memory: Optional[str] = None
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        super().__setattr__(name, value)
+
+        if getattr(self, "memory", None) and name in KEPT:
+            keep(f"{self.memory}_{name}", value)
+
+    @classmethod
+    def recalled(cls, open: Callable[[str], None], memory: str) -> "Selection":
+        """The selection of the last visit."""
+        kept = {name: recalled(f"{memory}_{name}") for name in KEPT}
+
+        return cls(
+            open, **{k: v for k, v in kept.items() if v is not None}, memory=memory
+        )
+
+
+KEPT = ("run", "day", "policy", "agent")  # what a ``Selection`` keeps between visits
 
 
 # --------------------------------------------------------------------------------------
@@ -164,6 +188,7 @@ def metric_card(
             band=False,
         ).show()
         tab.watch(chart, table=data_key)
+        chart.memory = f"results_{tab.label}_{data_key}"  # its controls, between visits
 
         with controls:
             chart.select("metric", metrics, "Metric").classes("w-64")
@@ -232,7 +257,14 @@ class ParticipantChart(Chart):
             colorbar=dict(title=o.title),
             **scale,
         )
-        self.fig.update_yaxes(autorange="reversed")
+        # Grid lines on the cells' edges, not through their middles, drawn over them
+        edges = dict(tickson="boundaries", layer="above traces")
+        self.fig.update_yaxes(type="category", autorange="reversed", **edges)
+
+        if all(isinstance(c, str) for c in o.columns):  # a day is a name, not a date
+            self.fig.update_xaxes(type="category", **edges)
+        else:  # many numeric columns (environment steps): no line per column
+            self.fig.update_xaxes(showgrid=False)
 
 
 def has(rows: Optional[pd.DataFrame], column: str) -> bool:

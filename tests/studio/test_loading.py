@@ -72,7 +72,9 @@ async def test_fill_handles_current_and_obsolete_results(
             page.bar = SimpleNamespace(value="tab")
             page.tabs = {
                 "tab": SimpleNamespace(
-                    read=lambda keys: None, build=lambda keys, data: ui.label(data)
+                    read=lambda keys: None,
+                    empty=lambda data: False,
+                    build=lambda keys, data: ui.label(data),
                 )
             }
             page._drawn = 0

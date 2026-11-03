@@ -54,7 +54,7 @@ class ResultsView:
     def __init__(self, service: ResultsService, runs: RunService) -> None:
         self.service = service
         self.runs = runs
-        selection = Selection(open=self._open)
+        selection = Selection.recalled(self._open, "results_selection")
         self.tabs: dict[str, Tab] = {
             tab.label: tab(service, selection)
             for tab in (ValidationTab, LearningTab, MarketTab, GridTab)

@@ -87,7 +87,7 @@ class StepView:
         self._drawn = 0  # the latest draw: an older one that wakes up later stops
         first = selection.run if selection.run in labels else next(iter(labels))
 
-        # Selector row: run | compared with | day | policy | participant
+        # Selector row: run | compared with | day | policy
         with ui.row().classes("w-full items-center gap-3"):
             self.run = ui.select(labels, value=first, label="Run").classes("w-96")
             self.other = ui.select(
@@ -99,10 +99,13 @@ class StepView:
                 value=selection.policy,
                 label="Policy",
             ).classes("w-40")
-            self.agent = ui.select([], label="Participant").props("use-input")
-            self.agent.set_visibility(bool(person_charts))
 
-        self.box = ui.column().classes("w-full gap-2")  # the charts, redrawn by draw
+        # The community's charts, then the participant picker over the participant's
+        # charts (both boxes redrawn by draw)
+        self.box = ui.column().classes("w-full gap-2")
+        self.agent = ui.select([], label="Participant").props("use-input")
+        self.agent.classes("w-64").set_visibility(bool(person_charts))
+        self.person_box = ui.column().classes("w-full gap-2")
 
         for field in (self.run, self.other, self.day, self.policy, self.agent):
             field.on_value_change(self.draw)
@@ -130,6 +133,7 @@ class StepView:
 
         if steps is None:
             self.box.clear()
+            self.person_box.clear()
 
             with self.box:
                 ui.label("Not recorded: a run from before the step tables.").classes(
@@ -165,25 +169,26 @@ class StepView:
             self._pick(
                 self.agent,
                 {a: f"{a} ({groups[a]})" if a in groups else a for a in names},
+                self.selection.agent,
             )
+            self.selection.agent = self.agent.value
 
         self.box.clear()
+        self.person_box.clear()
 
         with self.box:
             if self.person_charts and people is not None:
-                ui.label("The whole community (not the participant picked)").classes(
+                ui.label("The whole community").classes(
                     "text-body2 text-weight-medium"
                 )
 
             for title, columns in self.charts:
                 StepChart(rows=one, other=other, columns=columns, title=title).show()
 
+        with self.person_box:
             if self.person_charts and people is not None:
                 person = self._of_day(
                     people[people.agent == self.agent.value], day, policy
-                )
-                ui.label(f"Participant {self.agent.options[self.agent.value]}").classes(
-                    "text-body2 text-weight-medium"
                 )
 
                 for title, columns in self.person_charts:

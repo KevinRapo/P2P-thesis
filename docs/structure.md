@@ -354,6 +354,7 @@ than one place uses it.
 | [`components/profiles.py`](../studio/components/profiles.py), `cards.py`, `tables.py` | Profile class tiles; cards, stat tiles, `placeholder`, `busy`, `failed` and `fill` (spinner, read in a thread, draw or the error); tables (also a step's trades, for the Market page's Step and Probes tabs) | done |
 | [`components/run_table.py`](../studio/components/run_table.py) | The table of runs to tick, shared by Results and RL probes: what is shown (targets, the folders inside them and experiments, each narrowing the next; a text filter, test runs, ticked only) apart from what is ticked (the boxes, *Tick shown*, *Untick all*); a ticked run stays ticked when a filter hides it; with `kind`, only runs of that kind (Results: market runs, RL probes: probe runs) | done |
 | [`components/day_profiles.py`](../studio/components/day_profiles.py) | The Summary's Day profiles tab: every element on the scenario's day, participants (they trade) apart from the background; summed curves, single curves by row selection | done |
+| [`components/choices.py`](../studio/components/choices.py) | `checkboxes`: a multiple-choice dropdown with a tick box per option and the chosen ones as chips (the run table's filters, Validation's *A row per*, the experiment's paradigms, the Scenario page's bus kinds) | done |
 | [`components/labels.py`](../studio/components/labels.py) | The names shown for mechanisms, background modes and step lengths, shared by the settings and summary pages | done |
 
 ## config/scenarios/: saved scenarios

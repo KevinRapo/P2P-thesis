@@ -24,6 +24,7 @@ import pandas as pd
 from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
+from studio.components.choices import checkboxes
 from studio.components.memory import keep, recalled, remember
 from studio.components.tables import data_table
 
@@ -127,39 +128,42 @@ class RunTable:
                 "flat no-caps dense"
             )
             self.target = (
-                ui.select(
-                    [],
-                    label="Targets",
-                    on_change=lambda _: self._fill(),
-                    multiple=True,
-                    clearable=True,
-                    value=[],
+                checkboxes(
+                    ui.select(
+                        [],
+                        label="Targets",
+                        on_change=lambda _: self._fill(),
+                        multiple=True,
+                        clearable=True,
+                        value=[],
+                    )
                 )
-                .props("use-chips")
                 .style("min-width: 140px")
             )
             self.folder = (
-                ui.select(
-                    [],
-                    label="Folders",
-                    on_change=lambda _: self._fill(),
-                    multiple=True,
-                    clearable=True,
-                    value=[],
+                checkboxes(
+                    ui.select(
+                        [],
+                        label="Folders",
+                        on_change=lambda _: self._fill(),
+                        multiple=True,
+                        clearable=True,
+                        value=[],
+                    )
                 )
-                .props("use-chips")
                 .style("min-width: 140px")
             )
             self.experiment = (
-                ui.select(
-                    [],
-                    label="Experiments (one or more; all when empty)",
-                    on_change=lambda _: self._fill(),
-                    multiple=True,
-                    clearable=True,
-                    value=[],
+                checkboxes(
+                    ui.select(
+                        [],
+                        label="Experiments (one or more; all when empty)",
+                        on_change=lambda _: self._fill(),
+                        multiple=True,
+                        clearable=True,
+                        value=[],
+                    )
                 )
-                .props("use-chips")
                 .classes("grow")
                 .style("min-width: 260px")
             )
@@ -188,7 +192,7 @@ class RunTable:
 
         self.note = ui.label().classes("mls-card-caption")
         self.runs = data_table(
-            [], columns, row_key="key", selection="multiple", on_select=self._selected
+            [], columns, row_key="key", selection="multiple", on_select=self._selected, pagination=20
         )
 
     async def load(self) -> None:

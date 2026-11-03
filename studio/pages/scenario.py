@@ -20,6 +20,7 @@ from core.grid.contract import NetworkRef
 from core.market.clearing_price import DESCRIPTIONS
 from studio.components.cards import busy, failed, fill, section
 from studio.components.charts import DayChart, NetworkChart, PriceChart
+from studio.components.choices import checkboxes
 from studio.components.labels import (
     BACKGROUNDS,
     GRAPH_CAPACITIES,
@@ -416,16 +417,14 @@ def _placement_buttons(box: ui.element, redraw) -> None:
 
     # One row under the plot: bus kinds | battery size | its power | Place | Clear
     with box, ui.row().classes("w-full items-end gap-2"):
-        kinds = (
+        kinds = checkboxes(
             ui.select(
                 {k: f"{k} ({n})" for k, n in counts.items()},
                 value=[k for k in counts if "load" in k],
                 multiple=True,
                 label="Bus kinds",
             )
-            .props("use-chips")
-            .classes("min-w-[280px] grow")
-        )
+        ).classes("min-w-[280px] grow")
         battery = ui.number(
             "Battery for generator buses (kWh)", value=10, min=0, step=5
         ).classes("w-60")

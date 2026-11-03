@@ -18,6 +18,7 @@ from core.runner import indicators
 from core.runner.indicators import INDICATORS
 from studio.components.cards import key_values, section
 from studio.components.charts import Chart
+from studio.components.choices import checkboxes
 from studio.components.memory import remember
 from studio.components.run_table import cell, labels_of
 from studio.components.tables import data_table
@@ -98,8 +99,10 @@ class Overview:
 
         # Controls: a row per | view | difference from | per participant
         with ui.row().classes("w-full items-center gap-3"):
-            self.rows = ui.select(
-                ROWS, value=row_columns(table), multiple=True, label="A row per"
+            self.rows = checkboxes(
+                ui.select(
+                    ROWS, value=row_columns(table), multiple=True, label="A row per"
+                )
             ).classes("w-96")
             self.view = ui.select(VIEWS, value="value", label="Show").classes("w-64")
             self.reference = ui.select(
@@ -236,6 +239,21 @@ class Overview:
         if len(means):
             self.tab.selection.run = means.index[len(means) // 2]
             self.tab.selection.open(tab)
+
+
+def setting(value: Any) -> str:
+    """A setting as the run was given it: in full (a learning rate of 0.0003 is not
+    rounded to 0), "not set" for nothing and "none" for an empty list."""
+    if value is None:
+        return "not set"
+
+    if isinstance(value, (list, tuple)):
+        return ", ".join(map(str, value)) if value else "none"
+
+    if isinstance(value, dict):
+        return ", ".join(f"{k}: {setting(v)}" for k, v in value.items()) or "none"
+
+    return str(value)
 
 
 # --------------------------------------------------------------------------------------
@@ -395,7 +413,7 @@ class ValidationTab(Tab):
                             with ui.expansion(title, icon="tune").classes("w-full"):
                                 key_values(
                                     {
-                                        k: cell(v)
+                                        k: setting(v)
                                         for k, v in result.settings[name].items()
                                     }
                                 )
@@ -403,4 +421,9 @@ class ValidationTab(Tab):
             ui.select(
                 labels_of(keys), label="Run", on_change=lambda e: show(e.value)
             ).classes("w-full")
+            ui.label(
+                "As the run was given them. Not set: the default, or for the scales "
+                "a value computed from the training days; none: an empty list (no "
+                "layers)."
+            ).classes("mls-card-caption")
             box = ui.column().classes("w-full")  # under the picker, filled by show

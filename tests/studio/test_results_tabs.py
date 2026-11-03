@@ -278,6 +278,9 @@ def test_the_matrix_sums_the_peer_trades_of_a_policy():
     assert np.isnan(kwh.loc["P2", "P3"])  # the zero policy's, and no trade
     assert trade_matrix(trade_rows(), "trained", "money").loc["P1", "P3"] == 0.3
     assert trade_matrix(trade_rows(), "trained", "count").loc["P1", "P2"] == 1
+    every = trade_matrix(trade_rows(), "trained", "kwh", ["P7", "P2"])
+    assert list(every.index) == ["P1", "P2", "P3", "P7", "P10"]  # P7 never traded
+    assert every.loc["P7"].isna().all() and every["P7"].isna().all()
 
 
 def test_a_box_per_run_or_version_of_the_peer_trades():
@@ -442,10 +445,20 @@ async def test_the_replay_steps_through_a_day(monkeypatch):
         view = views[0]
         await asyncio.sleep(0.3)  # the draw the page starts itself
         assert view.day.value == "d1" and selection.day == "d1"
+        assert (view.step.props["min"], view.step.props["max"]) == (0, 2)  # numbers
         names = [t.name for t in view.chart.figure().data]
         assert "Peer trade" in names  # step 0 has peer trades
-        view.step.value = 2
+        view.step.value = 2  # dragged: the network waits for the slider's release
+        assert view.chart.o.loading["L1"] == 10.0
+        view._show()  # released
         assert view.chart.o.loading["L1"] == 90.0 and view.chart.o.trades == []
+        view._move(1)  # by hand: not past the day's last step
+        assert view.step.value == 2
+        view._move(-1)
+        assert view.step.value == 1 and view.chart.o.loading["L1"] == 50.0
+        view._move(-5)
+        assert view.step.value == 0
+        view._move(2)
         view._toggle()
         assert view.clock.active
         view._advance()
@@ -577,3 +590,32 @@ async def test_the_overview_comes_back_with_the_rows_kept_from_the_last_visit():
         assert views[0].rows.value == ["variant"]
         assert views[1].rows.value == ["reward"]  # one it cannot use is left out
         assert views[1].box.default_slot.children  # and the table is drawn
+
+
+def test_a_run_setting_is_shown_in_full_and_says_when_it_is_not_set():
+    assert validation.setting(0.0003) == "0.0003"  # not rounded to 0.0
+    assert validation.setting(1000000.0) == "1000000.0"
+    assert validation.setting(None) == "not set"
+    assert validation.setting([]) == "none"
+    assert validation.setting([256, 256]) == "256, 256"
+    assert validation.setting(False) == "False"
+
+
+@pytest.mark.anyio
+async def test_the_selection_comes_back_on_the_next_visit():
+    from nicegui import app
+
+    found = []
+
+    async def root() -> None:
+        first = Selection.recalled(print, "results_selection")
+        first.run, first.agent = "k", "P2"
+        found.append(app.storage.user["results_selection_agent"])
+        again = Selection.recalled(print, "results_selection")
+        found.append((again.run, again.agent, again.policy))
+        Selection(open=print).run = "x"  # without memory: nothing kept
+        found.append(app.storage.user["results_selection_run"])
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        assert found == ["P2", ("k", "P2", "trained"), "k"]

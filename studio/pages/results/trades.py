@@ -5,7 +5,7 @@ who traded with whom in one run, as a matrix.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
@@ -93,6 +93,7 @@ def trade_card(tab: Tab, data: dict[str, Any], labels: dict[str, str]) -> TradeB
             policy="trained",
         ).show()
         tab.watch(chart, trades="trades")
+        chart.memory = "results_Market_trades"
 
         with controls:
             chart.select("metric", DISTRIBUTIONS, "Distribution").classes("w-96")
@@ -113,9 +114,12 @@ class MatrixChart(ParticipantChart):
     y_title = "buyer"
 
 
-def trade_matrix(trades: pd.DataFrame, policy: str, measure: str) -> pd.DataFrame:
+def trade_matrix(
+    trades: pd.DataFrame, policy: str, measure: str, everyone: Sequence[str] = ()
+) -> pd.DataFrame:
     """Buyers × sellers of the peer trades of ``policy`` (all test days summed): the
-    energy, its money (price × kWh) or the number of trades; NaN for no trade."""
+    energy, its money (price × kWh) or the number of trades; NaN for no trade. The
+    participants in ``everyone`` have a row and a column though they never traded."""
     rows = trades[(trades.stage < 3) & (trades.policy == policy)]
     found = rows.assign(money=rows.price * rows.kwh, count=1)
     grid = found.pivot_table(
@@ -124,7 +128,7 @@ def trade_matrix(trades: pd.DataFrame, policy: str, measure: str) -> pd.DataFram
         values="count" if measure == "count" else measure,
         aggfunc="sum",
     )
-    agents = sorted(set(grid.index) | set(grid.columns), key=by_number)
+    agents = sorted({*grid.index, *grid.columns, *everyone}, key=by_number)
 
     return grid.reindex(index=agents, columns=agents)
 
@@ -182,7 +186,8 @@ class TradeMatrix:
                 )
                 return
 
-            grid = trade_matrix(trades, policy, self.measure.value)
+            everyone = self.service.network(key)[1]
+            grid = trade_matrix(trades, policy, self.measure.value, list(everyone))
 
             if grid.empty or not np.isfinite(grid.to_numpy()).any():
                 ui.label("No peer trades.").classes("mls-card-caption")

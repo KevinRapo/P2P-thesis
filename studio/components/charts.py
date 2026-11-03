@@ -47,7 +47,9 @@ def styled(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Inter, sans-serif", size=12, color="#64748B"),
-        legend=dict(orientation="h", y=-0.22, x=0),
+        # Under the x axis title at any legend size: anchored to the figure's bottom,
+        # the plot area shrinks to make room for it
+        legend=dict(orientation="h", yref="container", y=0, yanchor="bottom", x=0),
         hovermode="x unified",
     )
     fig.update_xaxes(gridcolor="rgba(148,163,184,0.18)", zeroline=False)
@@ -479,7 +481,7 @@ class NetworkChart(Chart):
     """
 
     height = 420
-    layout = {"hovermode": "closest", "legend": {"orientation": "h", "y": -0.02}}
+    layout = {"hovermode": "closest"}
 
     def __init__(
         self,

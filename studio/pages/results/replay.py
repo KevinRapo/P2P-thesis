@@ -20,6 +20,14 @@ STEP_SECONDS = 0.6  # between two steps while playing
 VOLTAGE, LOADING = "bus_voltage/", "line_loading/"
 
 
+class StepSlider(ui.slider):
+    """A slider whose value the server does not send back while it is dragged: NiceGUI
+    echoes every value by default, which redraws the slider under the pointer and
+    leaves it holding on after the mouse is let go."""
+
+    LOOPBACK = False
+
+
 class ReplayChart(NetworkChart):
     """The network at one step. Options: those of ``NetworkChart`` (``voltages``,
     ``loading``, ``participants``), ``trades`` (``(seller, buyer, kWh, price,
@@ -57,7 +65,7 @@ class Replay:
         self.grid: Optional[pd.DataFrame] = None
         self.trades: Optional[pd.DataFrame] = None
         self.buses: dict[str, str] = {}
-        self.last = 0
+        self.first = self.last = 0
         first = selection.run if selection.run in labels else next(iter(labels))
 
         # Selector row: run | day | policy
@@ -68,17 +76,27 @@ class Replay:
                 POLICIES | {"random": "Random"}, value=selection.policy, label="Policy"
             ).classes("w-40")
 
-        # Player row: play | slider
+        # Player row: back | play | on | slider
         with ui.row().classes("w-full items-center gap-3 no-wrap"):
+            ui.button(icon="skip_previous", on_click=lambda: self._move(-1)).props(
+                "flat round dense"
+            ).tooltip("One step back")
             self.play = ui.button(icon="play_arrow", on_click=self._toggle).props(
                 "round dense"
             )
-            self.step = ui.slider(min=0, max=1, step=1, value=0).classes("grow")
-            self.at = ui.label().classes("mls-card-caption")
+            ui.button(icon="skip_next", on_click=lambda: self._move(1)).props(
+                "flat round dense"
+            ).tooltip("One step on")
+            self.step = StepSlider(min=0, max=1, step=1, value=0).classes("grow")
+            self.at = ui.label().classes("mls-card-caption w-16")  # fixed: no resizing
 
         self.box = ui.column().classes("w-full gap-2")
         self.clock = ui.timer(STEP_SECONDS, self._advance, active=False)
-        self.step.on_value_change(self._show)
+        # While the slider is dragged only its label follows; the network, a whole
+        # figure to redraw, follows when it is let go (redrawing at every value of a
+        # drag floods the page until it stops responding)
+        self.step.on_value_change(self._label)
+        self.step.on("change", self._show)
 
         for field in (self.run, self.day, self.policy):
             field.on_value_change(self.draw)
@@ -147,8 +165,10 @@ class Replay:
                 )
                 return
 
-            self.last = steps[-1]
-            self.step.props(f"min={steps[0]} max={self.last}")
+            self.first, self.last = steps[0], steps[-1]
+            # Numbers, not text: props("min=0 max=23") gives strings, which break
+            # Quasar's slider as soon as it is dragged
+            self.step.props.update(min=int(steps[0]), max=int(self.last))
             self.step.value = steps[0]
             self.chart = ReplayChart(
                 topology=topology,
@@ -197,6 +217,14 @@ class Replay:
         self.clock.deactivate()
         self.play.props("icon=play_arrow")
 
+    def _move(self, by: int) -> None:
+        """One step back or on by hand (playing stops), within the day."""
+        self._stop()
+
+        if self.chart is not None:
+            self.step.value = min(max(self.step.value + by, self.first), self.last)
+            self._show()
+
     def _advance(self) -> None:
         """One step on while playing; the end of the day stops it."""
         if self.chart is None or self.step.value >= self.last:
@@ -204,3 +232,4 @@ class Replay:
             return
 
         self.step.value += 1
+        self._show()

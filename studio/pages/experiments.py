@@ -26,6 +26,7 @@ from nicegui import run, ui
 
 from studio.adapters.run_service import QUICK_GROUPS, QUICK_SETTINGS, RunService
 from studio.components.cards import key_values, placeholder, section
+from studio.components.choices import checkboxes
 from studio.components.memory import remember
 from studio.components.run_check import (
     experiment_facts,
@@ -179,9 +180,9 @@ class ExperimentForm:
             with ui.row().classes("w-full gap-2"):
                 for name, (label, kind, _) in fields.items():
                     if kind == "paradigms":
-                        field = ui.select(
-                            PARADIGM_CHOICES, multiple=True, label=label
-                        ).props("use-chips dense")
+                        field = checkboxes(
+                            ui.select(PARADIGM_CHOICES, multiple=True, label=label)
+                        ).props("dense")
                         field.classes("min-w-[260px]")
                     elif kind == "seeds":
                         field = ui.input(label).props("dense").classes("w-40")

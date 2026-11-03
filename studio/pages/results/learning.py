@@ -365,6 +365,7 @@ class LearningTab(Tab):
                 by="key",
             ).show()
             self.watch(chart, curves="curves", training="training")
+            chart.memory = "results_Learning_return"
 
             with ui.row().classes("items-center gap-4"):
                 chart.select("value", CURVES, "Show").classes("w-64")
