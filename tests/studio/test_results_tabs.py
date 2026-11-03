@@ -627,3 +627,54 @@ async def test_the_selection_comes_back_on_the_next_visit():
     async with user_simulation(root) as user:
         await user.open("/")
         assert found == ["P2", ("k", "P2", "trained"), "k"]
+
+
+@pytest.mark.anyio
+async def test_the_timing_panel_draws_and_follows_a_live_refresh():
+    from studio.pages.results import timing
+
+    def frame(steps: int) -> pd.DataFrame:
+        n = np.arange(1, steps + 1)
+        return pd.DataFrame(
+            {
+                "env_steps": n * 500,
+                "key": "a",
+                "runners_s": 6.0,
+                "sampling_overhead_s": 1.0,
+                "learner_call_s_mean": 2.0,
+                "unaccounted_s": 0.5,
+                "train_call_s": 9.5,
+                "sampling_s_mean": 7.0,
+                "sampled_steps_per_train_s": 50.0,
+            }
+        )
+
+    stages = pd.DataFrame(
+        {"key": ["a"], **{c: [1.0] for c in timing.STAGES}},
+    )
+    shown = SimpleNamespace(watched=[])
+    shown.watch = lambda chart, **options: shown.watched.append((chart, options))
+    charts = []
+
+    async def root() -> None:
+        data = {"timing": frame(3), "stages": pd.DataFrame()}
+        timing.build_timing(shown, data, {"a": "run a"})
+        charts.extend(c for c, _ in shown.watched)
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        assert [type(c).__name__ for c in charts] == [
+            "CallSplitChart",
+            "TimerChart",
+            "ThroughputChart",
+            "StagesChart",
+        ]
+        split = charts[0]
+        assert [t.name for t in split.figure().data] == list(timing.CALL_PARTS.values())
+        split.set(share=True)
+        assert split.figure().data[0].groupnorm == "percent"
+        charts[1].set(timing=frame(5))
+        assert len(charts[1].figure().data[0].x) == 5
+        assert not charts[3].figure().data  # no run has finished
+        charts[3].set(stages=stages)
+        assert len(charts[3].figure().data) == len(timing.STAGES)

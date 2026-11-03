@@ -516,6 +516,80 @@ def _learner_rows(
     return pd.concat(rows, ignore_index=True) if rows else None
 
 
+# What a run saved of its time (``core/rl/train.py``): per progress report in
+# ``metrics.csv`` and, once, in ``run.json``'s ``timings``.
+TIMER_COLUMNS = (
+    "train_call_s",
+    "sampler_sample_s_mean",
+    "sampling_s_mean",
+    "learner_call_s_mean",
+    "sampled_steps_per_train_s",
+)
+STAGE_COLUMNS = ("ray_init_s", "build_s", "train_calls_s", "evaluation_s", "checkpoint_s")
+
+
+def iteration_timing(results: Sequence[RunResult]) -> pd.DataFrame:
+    """Where each progress report's training call went (``metrics.csv``): one row per
+    run and report, with ``env_steps``, the ``TIMER_COLUMNS`` (NaN where a run did not
+    save one) and the call split into parts that add up to ``train_call_s``:
+
+    - ``runners_s``: inside the env runners' own ``sample()`` (the market and the
+      policy), ``sampler_sample_s_mean``; a run that did not save it counts the whole
+      ``sampling_s_mean`` here;
+    - ``sampling_overhead_s``: the rest of the driver's sampling timer
+      (``sampling_s_mean``): waiting for the slowest runner and getting the episodes;
+    - ``learner_call_s_mean``: the update;
+    - ``unaccounted_s``: what is left of the call.
+
+    RLlib's timers are smoothed means, so the parts are not exact for one iteration
+    and a negative remainder counts as 0."""
+    frames = []
+
+    for result in results:
+        frame = result.table("metrics")
+
+        if frame is None or "env_steps" not in frame:
+            continue
+
+        found = pd.DataFrame({"env_steps": frame.env_steps})
+
+        for column in TIMER_COLUMNS:
+            found[column] = frame[column] if column in frame else float("nan")
+
+        found["runners_s"] = found.sampler_sample_s_mean.fillna(found.sampling_s_mean)
+        found["sampling_overhead_s"] = (found.sampling_s_mean - found.runners_s).clip(
+            lower=0
+        )
+        driver = found.sampling_s_mean + found.learner_call_s_mean.fillna(0)
+        found["unaccounted_s"] = (found.train_call_s - driver).clip(lower=0)
+        frames.append(found.assign(**_head(result)))
+
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def run_timings(results: Sequence[RunResult]) -> pd.DataFrame:
+    """Where each run's time went (``run.json``'s ``timings``): one row per run with
+    the ``STAGE_COLUMNS`` and ``other_s``, what ``duration_s`` (which starts after the
+    Ray start-up) holds besides the build, the training calls, the evaluations and the
+    checkpoint: writing the tables and reading the action parts' statistics. A run
+    still training has no timings yet."""
+    rows = []
+
+    for result in results:
+        record = registry.read_json(result.ref.folder / "run.json") or {}
+        stages = record.get("timings")
+
+        if not stages:
+            continue
+
+        row = {c: float(stages.get(c, float("nan"))) for c in STAGE_COLUMNS}
+        inside = sum(row[c] for c in STAGE_COLUMNS if c != "ray_init_s")
+        row["other_s"] = max(float(record.get("duration_s", inside)) - inside, 0.0)
+        rows.append(row | _head(result))
+
+    return pd.DataFrame(rows)
+
+
 def participant_groups(result: RunResult) -> dict[str, str]:
     """What kind each participant of the run's scenario is: ``battery``, else ``PV``,
     else ``other``. Empty when the run saved only the scenario's file name."""

@@ -4,7 +4,8 @@ return or money, with the baselines of step 0; from ``metrics.csv``
 (``core/runner/results.learner_metrics``), for any environment, per module the policy
 and value losses, the critic's explained variance, the entropy, the KL of each update
 and the gradient norm against the run's clip; and one run's action parts over training,
-over the agents and agent by agent. Every chart follows the live view.
+over the agents and agent by agent. Its Timing panel (``timing.py``) shows where the
+time goes. Every chart follows the live view.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from studio.components.charts import SeriesChart
 from studio.components.memory import remember
 from studio.components.run_table import labels_of
 from studio.pages.results.common import ParticipantChart, Tab, by_number
+from studio.pages.results.timing import build_timing
 from studio.theme import MUTED, SERIES
 
 # --------------------------------------------------------------------------------------
@@ -317,8 +319,12 @@ class PartGrid(ParticipantChart):
 # --------------------------------------------------------------------------------------
 # The tab
 # --------------------------------------------------------------------------------------
+PANELS = ("Evaluation", "Timing")
+
+
 class LearningTab(Tab):
-    """The return and money curves, the learner's metrics, one run's action parts."""
+    """Two panels: Evaluation (the return and money curves, the learner's metrics, one
+    run's action parts) and Timing (where the time goes, ``timing.py``)."""
 
     label, icon = "Learning", "psychology"
 
@@ -329,18 +335,34 @@ class LearningTab(Tab):
             "clip": {r.key: r.settings.get("grad_clip") for r in results},
             "curves": self.service.learning_curves(keys),
             "training": self.service.training_curves(keys),
+            "timing": self.service.iteration_timing(keys),
+            "stages": self.service.run_timings(keys),
         }
 
     def empty(self, data: dict[str, Any]) -> bool:
         return data["metrics"].empty
 
     def build(self, keys: list[str], data: dict[str, Any]) -> None:
-        metrics, labels = data["metrics"], labels_of(keys)
-
-        if metrics.empty:
+        if data["metrics"].empty:
             placeholder("The ticked runs have no metrics yet.", "hourglass_empty")
             return
 
+        with ui.tabs().props("align=left no-caps dense").classes("w-full") as bar:
+            ui.tab("Evaluation", icon="show_chart")
+            ui.tab("Timing", icon="timer")
+
+        remember(bar, "results_Learning_panel", PANELS)
+
+        with ui.tab_panels(bar, value=bar.value).classes("w-full"):
+            with ui.tab_panel("Evaluation").classes("p-0 gap-4"):
+                self._evaluation(keys, data)
+
+            with ui.tab_panel("Timing").classes("p-0 gap-4"):
+                build_timing(self, data, labels_of(keys))
+
+    def _evaluation(self, keys: list[str], data: dict[str, Any]) -> None:
+        """The first panel: the return, the learner's metrics, the action parts."""
+        metrics, labels = data["metrics"], labels_of(keys)
         modules = metrics[metrics.module != ""].module.nunique()
         mean = ui.switch("Mean over modules", value=modules > 3)
         remember(mean, "results_Learning_mean")

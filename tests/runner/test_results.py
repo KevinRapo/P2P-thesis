@@ -361,3 +361,65 @@ def test_learner_metrics_per_module_and_part(tmp_path):
     assert set(table[table.metric == "team_return_mean"].module) == {""}
     assert set(table[table.metric == "policy_loss"].part) == {""}
     assert set(table.key) == {"local/probes/ppo_dtde_s0"}
+
+
+def test_timing_splits_a_training_call_and_a_run(tmp_path):
+    """The training call's timers are split into parts that add up to it (a negative
+    remainder counts as 0, an async learner's missing timer as 0); a run's stages come
+    from ``run.json`` with what ``duration_s`` holds besides them; a run without
+    timings has no stages."""
+    exp = tmp_path / "runs" / "timing"
+    run = make_run(exp, "ppo_dtde_s0", 0, [-8, -9])
+    make_run(exp, "ppo_dtde_s1", 1, [-8, -9])
+    older = make_run(exp, "ppo_dtde_s2", 2, [-8, -9])
+    write(
+        older / "metrics.csv",
+        pd.DataFrame(
+            {"env_steps": [500], "train_call_s": [10.0], "sampling_s_mean": [7.0]}
+        ),
+    )
+    write(
+        run / "metrics.csv",
+        pd.DataFrame(
+            {
+                "env_steps": [500, 1000],
+                "train_call_s": [10.0, 10.0],
+                "sampler_sample_s_mean": [6.0, 6.0],
+                "sampling_s_mean": [7.0, 7.0],
+                "learner_call_s_mean": [2.0, float("nan")],
+                "sampled_steps_per_train_s": [50.0, 100.0],
+            }
+        ),
+    )
+    record = json.loads((run / "run.json").read_text(encoding="utf-8"))
+    write(
+        run / "run.json",
+        record
+        | {
+            "duration_s": 60.0,
+            "timings": {
+                "ray_init_s": 5.0,
+                "build_s": 10.0,
+                "train_calls_s": 20.0,
+                "evaluation_s": 15.0,
+                "checkpoint_s": 1.0,
+            },
+        },
+    )
+    found = {
+        r.ref.run: r
+        for r in results.load_runs(results.find_runs({"local": tmp_path / "runs"}))
+    }
+    both = [found["ppo_dtde_s0"], found["ppo_dtde_s1"]]
+    # a run from before the runners' own timer: all its sampling is the runners'
+    old = results.iteration_timing([found["ppo_dtde_s2"]]).iloc[0]
+    assert (old.runners_s, old.sampling_overhead_s, old.unaccounted_s) == (7.0, 0.0, 3.0)
+    calls = results.iteration_timing(both)
+    first, second = calls.iloc[0], calls.iloc[1]
+    assert (first.sampling_overhead_s, first.unaccounted_s) == (1.0, 1.0)
+    assert (second.sampling_overhead_s, second.unaccounted_s) == (1.0, 3.0)
+    assert (first.runners_s, second.runners_s) == (6.0, 6.0)
+    assert len(calls[calls.key.str.endswith("s1")]) == 2  # no timers: NaN rows
+    assert calls[calls.key.str.endswith("s1")].train_call_s.isna().all()
+    stages = results.run_timings(both)
+    assert len(stages) == 1 and stages.iloc[0].other_s == 60.0 - 46.0

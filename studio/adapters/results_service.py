@@ -93,6 +93,12 @@ class ResultsService:
     def learner_metrics(self, keys: list[str]) -> pd.DataFrame:
         return results.learner_metrics(self.results(keys))
 
+    def iteration_timing(self, keys: list[str]) -> pd.DataFrame:
+        return results.iteration_timing(self.results(keys))
+
+    def run_timings(self, keys: list[str]) -> pd.DataFrame:
+        return results.run_timings(self.results(keys))
+
     # The learner's metric groups, as the reader defines them (title, metrics, note).
     learner_groups = LEARNER_GROUPS
 
