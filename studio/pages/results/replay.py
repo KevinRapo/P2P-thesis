@@ -15,6 +15,7 @@ from studio.adapters.results_service import ResultsService
 from studio.components.charts import NetworkChart
 from studio.pages.results.common import POLICIES, Selection
 from studio.state import services
+from studio.theme import MARKET, MUTED
 
 STEP_SECONDS = 0.6  # between two steps while playing
 VOLTAGE, LOADING = "bus_voltage/", "line_loading/"
@@ -29,14 +30,99 @@ class StepSlider(ui.slider):
 
 
 class ReplayChart(NetworkChart):
-    """The network at one step. Options: those of ``NetworkChart`` (``voltages``,
-    ``loading``, ``participants``), ``trades`` (``(seller, buyer, kWh, price,
-    stage)``) and ``buses`` (participant -> bus)."""
+    """The network at one step, its trades on the participants' markers: a seller in
+    orange, a buyer in blue, sized by the energy it traded, filled when most of it was
+    with peers and hollow when with the DSO (whose trades all run to the transformer,
+    so they need no line). Peer trades are drawn as lines only for the participants in
+    ``focus`` (a click on one), or all of them with ``all_links``.
+
+    Options: those of ``NetworkChart`` (``voltages``, ``loading``, ``participants``),
+    ``trades`` (``(seller, buyer, kWh, price, stage)``), ``buses`` (participant ->
+    bus), ``focus`` (participants), ``all_links``.
+    """
 
     height = 480
+    SIZES = (14.0, 32.0)  # a marker's size for no and for the most energy traded
 
     def draw(self) -> None:
-        self.trade_links(self.o.trades, self.o.buses)
+        o = self.o
+        focus = o.get("focus") or set()
+        peers = [
+            t
+            for t in o.trades
+            if t[4] < 3 and (o.get("all_links") or {t[0], t[1]} & focus)
+        ]
+        self.trade_links(peers, o.buses)
+        self._traders()
+
+    def _traders(self) -> None:
+        """A marker per participant that traded: its side, energy and counterpart."""
+        amounts: dict[str, dict[str, float]] = {}
+
+        for seller, buyer, kwh, _, stage in self.o.trades:
+            kind = "peer" if stage < 3 else "dso"
+            amounts.setdefault(seller, {}).setdefault(f"sold_{kind}", 0.0)
+            amounts[seller][f"sold_{kind}"] += kwh
+            amounts.setdefault(buyer, {}).setdefault(f"bought_{kind}", 0.0)
+            amounts[buyer][f"bought_{kind}"] += kwh
+
+        people = {a: v for a, v in amounts.items() if a in self.o.buses}
+        idle = [
+            (b, f"{a}: no trade") for a, b in self.o.buses.items() if a not in people
+        ]
+        self.rings(idle, MUTED, "Participant, no trade", size=14)
+        biggest = max((sum(v.values()) for v in people.values()), default=0.0) or 1.0
+        low, high = self.SIZES
+
+        groups: dict[tuple[str, bool], list] = {}  # (side, mostly peers) -> markers
+
+        for side, verb in (("sold", "sells"), ("bought", "buys")):
+            other = "bought" if side == "sold" else "sold"
+
+            for agent, v in people.items():
+                peer, dso = v.get(f"{side}_peer", 0.0), v.get(f"{side}_dso", 0.0)
+
+                if peer + dso <= 0 or peer + dso < sum(
+                    v.get(f"{other}_{k}", 0.0) for k in ("peer", "dso")
+                ):
+                    continue  # it mostly did the other thing
+
+                bus = self.o.buses[agent]
+
+                if bus in self.pos:
+                    text = (
+                        f"{agent} {verb} {peer + dso:.2f} kWh: {peer:.2f} with peers, "
+                        f"{dso:.2f} with the DSO"
+                    )
+                    size = low + (high - low) * sum(v.values()) / biggest
+                    groups.setdefault((side, peer >= dso), []).append((bus, size, text))
+
+        # One legend entry each: filled with peers, hollow with the DSO
+        for (side, peers), name in (
+            (("sold", True), "Sold to peers"),
+            (("sold", False), "Sold to the DSO"),
+            (("bought", True), "Bought from peers"),
+            (("bought", False), "Bought from the DSO"),
+        ):
+            # Every entry in the legend at every step, even with no such trader
+            rows = groups.get((side, peers)) or [(None, 14.0, "")]
+
+            self.fig.add_scatter(
+                x=[self.pos[r[0]][0] if r[0] else None for r in rows],
+                y=[self.pos[r[0]][1] if r[0] else None for r in rows],
+                mode="markers",
+                name=name,
+                hoverinfo="text",
+                text=[r[2] for r in rows],
+                customdata=[r[0] for r in rows],  # a click: the bus
+                marker=dict(
+                    size=[r[1] for r in rows],
+                    symbol="circle" if peers else "circle-open",
+                    color=MARKET["sell" if side == "sold" else "buy"],
+                    line=dict(width=3),
+                    opacity=0.85,
+                ),
+            )
 
 
 def _columns(row: pd.Series, prefix: str) -> dict[str, float]:
@@ -76,7 +162,7 @@ class Replay:
                 POLICIES | {"random": "Random"}, value=selection.policy, label="Policy"
             ).classes("w-40")
 
-        # Player row: back | play | on | slider
+        # Player row: back | play | on | slider | all peer trades
         with ui.row().classes("w-full items-center gap-3 no-wrap"):
             ui.button(icon="skip_previous", on_click=lambda: self._move(-1)).props(
                 "flat round dense"
@@ -89,6 +175,10 @@ class Replay:
             ).tooltip("One step on")
             self.step = StepSlider(min=0, max=1, step=1, value=0).classes("grow")
             self.at = ui.label().classes("mls-card-caption w-16")  # fixed: no resizing
+            self.all_links = ui.switch("All peer trades").tooltip(
+                "Every peer trade as a line; without it, a click on a participant draws "
+                "its own"
+            )
 
         self.box = ui.column().classes("w-full gap-2")
         self.clock = ui.timer(STEP_SECONDS, self._advance, active=False)
@@ -100,6 +190,10 @@ class Replay:
 
         for field in (self.run, self.day, self.policy):
             field.on_value_change(self.draw)
+
+        self.all_links.on_value_change(
+            lambda e: self.chart and self.chart.set(all_links=e.value)
+        )
 
         ui.timer(0.01, self.draw, once=True)
 
@@ -172,8 +266,10 @@ class Replay:
             self.step.value = steps[0]
             self.chart = ReplayChart(
                 topology=topology,
-                participants={bus: pid for pid, bus in self.buses.items()},
+                on_bus=self._focus,
                 buses=self.buses,
+                focus=set(),
+                all_links=self.all_links.value,
                 **self._at(steps[0]),
             ).show()
 
@@ -216,6 +312,15 @@ class Replay:
     def _stop(self) -> None:
         self.clock.deactivate()
         self.play.props("icon=play_arrow")
+
+    def _focus(self, bus: str) -> None:
+        """A click on a bus: its participants' peer trades as lines, or none on a
+        second click."""
+        if self.chart is None:
+            return
+
+        here = {pid for pid, b in self.buses.items() if b == bus}
+        self.chart.set(focus=set() if here == self.chart.o.focus else here)
 
     def _move(self, by: int) -> None:
         """One step back or on by hand (playing stops), within the day."""

@@ -447,7 +447,15 @@ async def test_the_replay_steps_through_a_day(monkeypatch):
         assert view.day.value == "d1" and selection.day == "d1"
         assert (view.step.props["min"], view.step.props["max"]) == (0, 2)  # numbers
         names = [t.name for t in view.chart.figure().data]
-        assert "Peer trade" in names  # step 0 has peer trades
+        assert "Peer trade" not in names  # no lines by default: the markers say it
+        buyer = next(t for t in view.chart.fig.data if t.name == "Bought from peers")
+        assert list(buyer.text) == ["P1 buys 3.00 kWh: 3.00 with peers, 0.00 with the DSO"]
+        view._focus("B")  # a click on P1's bus: its peer trades as lines
+        assert "Peer trade" in [t.name for t in view.chart.fig.data]
+        view._focus("B")  # again: off
+        assert view.chart.o.focus == set()
+        view.chart.set(all_links=True)
+        assert "Peer trade" in [t.name for t in view.chart.fig.data]
         view.step.value = 2  # dragged: the network waits for the slider's release
         assert view.chart.o.loading["L1"] == 10.0
         view._show()  # released

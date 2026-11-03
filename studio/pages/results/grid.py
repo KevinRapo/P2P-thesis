@@ -51,8 +51,9 @@ class GridTab(Tab):
         with section(
             "Network replay",
             "The network a step at a time: lines by loading, buses by voltage, the "
-            "participants ringed, the step's trades as links (peers solid, the DSO "
-            "dashed).",
+            "participants ringed. A participant that traded is marked: orange sold, "
+            "blue bought, larger for more energy, filled when mostly with peers and "
+            "hollow when with the DSO. Click one to draw its peer trades.",
             "play_circle",
         ):
             Replay(self.service, labels, self.selection)
