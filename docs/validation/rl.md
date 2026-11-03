@@ -70,7 +70,7 @@ market.
 
 **Status.** This register describes the original implementation in `RL/core/rl/` (commit `bbef313`).
 The rebuilt layer (`core/rl/` in this branch) names the issues it fixes in its module
-docstrings, and [v2.md](../v2.md) gives its design and its validation.
+docstrings, and [the overview](../overview.md) gives its design and its validation.
 Nothing on this page describes the rebuilt layer unless it says so.
 The only changes to the copied code isolate it from the market (the trainer takes
 the environment class as an argument); each is marked `DEVIATION:` in the code, and
@@ -846,7 +846,7 @@ has an exact answer, and the parameter-change check fails a frozen actor. They a
 notebooks, not automated tests. Here, `tests/rl/` checks the probe environments and
 the CTDE structure; learning on the probes runs from
 `core/rl/scripts/probe_ppo.py` and `notebooks/rl/probe_paradigms.ipynb` (results in
-[How the probes work](../rl/probes.md#results)).
+[How the probes work](../full-cycle/learning/probes.md#results)).
 
 ## Problems in the papers' RL method
 
@@ -900,7 +900,7 @@ paradigms need the fixes above before they can be repeated.
 ## Not tested yet
 
 Open checks of the **original** code. The rebuilt layer's results are in
-[How the probes work](../rl/probes.md#results).
+[How the probes work](../full-cycle/learning/probes.md#results).
 
 | What | Why it matters | Issues |
 |---|---|---|
@@ -918,7 +918,7 @@ Open checks of the **original** code. The rebuilt layer's results are in
 How the market and the RL layer connect is not covered here; its issues are listed
 in the [register, part B](register.md#b-environment-and-cooperation). The
 choices for the environment (objective, reward, action, days; E-04, E-05, L-17) are
-in [v2.md](../v2.md#the-market-as-an-environment).
+in [The environment](../full-cycle/environment/index.md).
 
 - **Actions and observations:** E-04 to E-07
 - **Reward:** E-01, E-13 to E-22

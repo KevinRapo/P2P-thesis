@@ -2,7 +2,7 @@
 
 Branch `marlem-v2`: the market, grid, Studio and runner, with RLlib's PPO and the
 paper's mixed market action (continuous price and quantity, categorical side and
-partner). What it does and why is in [docs/v2.md](docs/v2.md). On the cluster this
+partner). What it does and why is in the [overview](docs/overview.md). On the cluster this
 branch is its own checkout, `~/marlem-v2`, with its own `runs/`.
 
 Where things are in this repository and the rules for changing them. What the
@@ -51,7 +51,7 @@ runs/        training runs and results (git-ignored); the runner's one source of
   `train(Run(...))` (`core/rl/train.py`), `evaluation` (`core/rl/policy.py`).
 - **Experiments**: `python -m core.runner start / status / stop / sync / check`;
   the JSON spec's fields are in `core/runner/spec.py`, usage in
-  [docs/v2.md §6](docs/v2.md#6-studio-runner-and-slurm) and [docs/hpc/](docs/hpc/).
+  [docs/hpc/experiments.md](docs/hpc/experiments.md) and [docs/hpc/](docs/hpc/).
 - **Settings**: `core/settings.py` reads the environment, else `.env` (keys in
   `.env.example`), else a default. Never hard-code a machine or account value: add
   a key.
@@ -135,8 +135,13 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   [docs/plan/index.md](docs/plan/index.md).
 - **Markers.** Four comment markers, listed in the workspace's `.vscode/settings.json`
   (Todo Tree): `FAULT` (still broken), `BUG` (a bug to fix), `DEVIATION` (our own choice,
-  differing from the paper or the original) and `OPEN` (not decided: say what is open,
-  with its register or plan ID, and the choice used for now). Nothing else is marked.
+  differing from the paper or the original) and `OPEN` (not decided). An open question is `# OPEN <ID>: question`, with the choice
+  used for now; the ID (a register ID such as `E-10`, or a plan ID such as `MP-6a`) must
+  be in [docs/plan/open.md](docs/plan/open.md), which
+  `tests/test_open_markers.py` checks. `# ! note` is a quick reminder without an ID,
+  triaged into that list at the end of a session. When decided, an `OPEN` becomes
+  `# DEVIATION <ID>` if it departs from the paper, else it is removed and the docstring
+  names the ID. Nothing else is marked.
 - New Python files: Black style, 88-character lines.
 - **Blank lines inside functions.** Separate a function's logical steps with one blank
   line: before and after an `if`, `for`, `while`, `with`, `try` or `match` block that

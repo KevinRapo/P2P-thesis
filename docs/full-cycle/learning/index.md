@@ -4,7 +4,7 @@
 > action (side, quantity, price, partner), trained as CTCE, CTDE and DTDE. This
 > page is the overview: the iteration in outline, **everything this
 > implementation changes in RLlib's PPO and why**, the loss, and what each
-> paradigm changes. [One iteration, step by step](cycle.md) follows every
+> paradigm changes. [One iteration, step by step](iteration.md) follows every
 > calculation in order; [Worked examples](examples.md) puts numbers on them.
 
 !!! ours "How to read the colours"
@@ -18,11 +18,11 @@
 **Sources.** RLlib is Ray 2.51.1, the version in the `marlem` conda env, read in
 its installed source and linked at tag
 [`ray-2.51.1`](https://github.com/ray-project/ray/tree/ray-2.51.1/rllib). The
-implementation is `core/rl/` and [rl_defaults.py](../../core/rl_defaults.py); the
-market environment is [market_env.py](../../core/env/market_env.py). What the
+implementation is `core/rl/` and [rl_defaults.py](../../../core/rl_defaults.py); the
+market environment is [market_env.py](../../../core/env/market_env.py). What the
 original MARLEM code computes instead is in
 [section 6](#6-where-the-original-code-differs) and
-[RL layer: what is wrong](../validation/rl.md).
+[RL layer: what is wrong](../../validation/rl.md).
 
 ## Notation
 
@@ -30,8 +30,8 @@ original MARLEM code computes instead is in
 |---|---|
 | $N$ | number of agents (market participants), $i = 1 \dots N$ |
 | $t$ | environment step (one market hour): all $N$ agents act at once |
-| $o_{i,t}$ | agent $i$'s observation: the paper's 42 signals and the $N - 1$ peers' reputations ([Observation](observation.md)) |
-| $s_t = (o_{1,t}, \dots, o_{N,t})$ | the global state: all observations joined in the environment's agent order ([state.py](../../core/rl/state.py)) |
+| $o_{i,t}$ | agent $i$'s observation: the paper's 42 signals and the $N - 1$ peers' reputations ([Observation](../environment/observation.md)) |
+| $s_t = (o_{1,t}, \dots, o_{N,t})$ | the global state: all observations joined in the environment's agent order ([state.py](../../../core/rl/state.py)) |
 | $x_{i,t} = (o_{i,t}, s_t)$ | what agent $i$'s module receives in CTDE |
 | $a_{i,t} = (\alpha, q, p, \beta)$ | agent $i$'s action: side, quantity, price, partner ([P1] eq. 2) |
 | $r_{i,t}$, $R_t = \sum_i r_{i,t}$ | agent $i$'s reward (its scaled bill); the group reward of CTCE |
@@ -81,7 +81,7 @@ flowchart LR
 3. **Update.** 10 epochs over the batch in shuffled minibatches of 64: one loss,
    one gradient-norm clip and one Adam step per minibatch.
 4. **Sync.** The new weights go to the env runners; the batch is discarded.
-5. **<span class="ours">Our trainer</span>** ([`train`](../../core/rl/train.py#L408-L555))
+5. **<span class="ours">Our trainer</span>** ([`train`](../../../core/rl/train.py#L408-L555))
    repeats RLlib's iteration until the budget of environment steps is used, stops
    on a non-finite loss, evaluates against baselines and records each action
    part's distribution.
@@ -93,19 +93,19 @@ PPO ratio.
 ## 2. Everything we change in RLlib's PPO
 
 Each row is a difference from what `PPOConfig()` with RLlib's default module would
-do. The settings are in [rl_defaults.py](../../core/rl_defaults.py#L28-L64), the
+do. The settings are in [rl_defaults.py](../../../core/rl_defaults.py#L28-L64), the
 code in `core/rl/`.
 
 ### Code
 
 | What | RLlib does | <span class="ours">Ours</span> | Why | ID |
 |---|---|---|---|---|
-| CTCE environment | trains the environment's agents as they are | <span class="ours">[`CTCEEnv`](../../core/rl/ctce.py#L45-L106)</span>: one agent, `"group"`, observing $s_t$, acting with a `Tuple` of every agent's `Dict`, rewarded with $R_t$ | CTCE is one controller for everyone (the social planner); the `Tuple` keeps each agent's parts and bounds in agent order | L-02, L-05 |
-| CTDE environment and module | – | <span class="ours">[`CTDEEnv`](../../core/rl/ctde.py#L55-L103)</span> gives agent $i$ the input $x_{i,t} = (o_{i,t}, s_t)$; <span class="ours">[`CTDEPPOModule`](../../core/rl/ctde.py#L143-L149)</span>'s actor reads only $o_{i,t}$, its critic all of $x_{i,t}$ | MAPPO with one central critic per agent: the actor can act on its own observation after training, the critic uses everything; each agent keeps its own reward and ratio | L-01, RP-3e |
-| Policy head of a continuous part | mean = linear output, unbounded; $\log\sigma$ = linear output, a function of the state (clipped to ±20 only for a single `Box` action, not for a `Dict`) | <span class="ours">[`BoundedHead`](../../core/rl/modules.py#L121-L173)</span>: mean $= \tanh(\text{output}) \in (-1, 1)$; $\log\sigma$ = **one learned number per part**, the same in every state, starting at 0 | RLlib's state-dependent $\log\sigma$ collapsed before the side was decided, after which the price/quantity mean could no longer move (probe 9: 0 of 6 → 6 of 6); the tanh keeps the mean inside the bounds, where the clipped reward is not flat | RP-3h |
-| Learner | RLlib's PPO loss and update | <span class="ours">[`PPOLearner`](../../core/rl/learner.py#L27-L52)</span>: the same loss, also logs the **clip fraction** (share of samples whose ratio left $[0.8, 1.2]$) | shows how often the clip stops the gradient, above all for CTCE's joint ratio | L-02 |
-| Training loop | `algo.train()`, one iteration per call | <span class="ours">[`train`](../../core/rl/train.py#L408-L555)</span>: budget in environment steps, stop on NaN/inf losses, evaluation against baselines on unseen seeds, per-part distribution statistics, `run.json` | comparable budgets across paradigms; a NaN cannot pass silently; a run is judged against baselines and can be repeated | L-14, L-07, L-16 |
-| Evaluation policy | – | <span class="ours">[`Policy`](../../core/rl/policy.py#L92-L170)</span>: acts without noise, each part's most likely value (the Gaussian's mean, the categorical's mode) | a trained policy acts the same way in evaluation as when sampling, minus the noise | L-15 |
+| CTCE environment | trains the environment's agents as they are | <span class="ours">[`CTCEEnv`](../../../core/rl/ctce.py#L45-L106)</span>: one agent, `"group"`, observing $s_t$, acting with a `Tuple` of every agent's `Dict`, rewarded with $R_t$ | CTCE is one controller for everyone (the social planner); the `Tuple` keeps each agent's parts and bounds in agent order | L-02, L-05 |
+| CTDE environment and module | – | <span class="ours">[`CTDEEnv`](../../../core/rl/ctde.py#L55-L103)</span> gives agent $i$ the input $x_{i,t} = (o_{i,t}, s_t)$; <span class="ours">[`CTDEPPOModule`](../../../core/rl/ctde.py#L143-L149)</span>'s actor reads only $o_{i,t}$, its critic all of $x_{i,t}$ | MAPPO with one central critic per agent: the actor can act on its own observation after training, the critic uses everything; each agent keeps its own reward and ratio | L-01, RP-3e |
+| Policy head of a continuous part | mean = linear output, unbounded; $\log\sigma$ = linear output, a function of the state (clipped to ±20 only for a single `Box` action, not for a `Dict`) | <span class="ours">[`BoundedHead`](../../../core/rl/modules.py#L121-L173)</span>: mean $= \tanh(\text{output}) \in (-1, 1)$; $\log\sigma$ = **one learned number per part**, the same in every state, starting at 0 | RLlib's state-dependent $\log\sigma$ collapsed before the side was decided, after which the price/quantity mean could no longer move (probe 9: 0 of 6 → 6 of 6); the tanh keeps the mean inside the bounds, where the clipped reward is not flat | RP-3h |
+| Learner | RLlib's PPO loss and update | <span class="ours">[`PPOLearner`](../../../core/rl/learner.py#L27-L52)</span>: the same loss, also logs the **clip fraction** (share of samples whose ratio left $[0.8, 1.2]$) | shows how often the clip stops the gradient, above all for CTCE's joint ratio | L-02 |
+| Training loop | `algo.train()`, one iteration per call | <span class="ours">[`train`](../../../core/rl/train.py#L408-L555)</span>: budget in environment steps, stop on NaN/inf losses, evaluation against baselines on unseen seeds, per-part distribution statistics, `run.json` | comparable budgets across paradigms; a NaN cannot pass silently; a run is judged against baselines and can be repeated | L-14, L-07, L-16 |
+| Evaluation policy | – | <span class="ours">[`Policy`](../../../core/rl/policy.py#L92-L170)</span>: acts without noise, each part's most likely value (the Gaussian's mean, the categorical's mode) | a trained policy acts the same way in evaluation as when sampling, minus the noise | L-15 |
 
 ### Settings
 
@@ -170,7 +170,7 @@ falling slowly; <span class="ours">KL per update</span> around $10^{-3}$ to
 $10^{-2}$ (the probes' median is 0.005); <span class="ours">clip fraction</span>
 small; the gradient norm before clipping; <span class="ours">each part's mean,
 $\log\sigma$, share outside the bounds, entropy</span> in fixed states
-([`part_stats`](../../core/rl/policy.py#L492-L542)).
+([`part_stats`](../../../core/rl/policy.py#L492-L542)).
 
 ## 4. What each paradigm changes
 
@@ -198,7 +198,7 @@ however much that agent contributed (the credit-assignment cost); the clip acts 
 the product of $N$ agents' ratios, which leaves $[0.8, 1.2]$ sooner than any single
 agent's. That is why CTCE is slower on the probes (5 and 6 do not converge at 8
 times the budget) and why it is a centralised-information baseline, not an upper
-bound ([L-02](../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
+bound ([L-02](../../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
 
 !!! ours "Open: the entropy bonus in CTCE"
     The entropy is a sum over $4N$ parts, while the surrogate still uses one
@@ -219,6 +219,43 @@ action. A difference between CTDE and DTDE is therefore the central critic's.
 
 Each agent is an independent PPO learner on its own observation and reward. The
 other agents are part of its environment, which changes as they learn.
+
+### How the paradigms are built
+
+- DTDE and CTDE keep one module, one critic and one optimiser per agent
+  ([config.py](../../../core/rl/config.py), [ctde.py](../../../core/rl/ctde.py)).
+  Each module's distribution is RLlib's composite distribution over the agent's
+  `Dict` (a categorical per discrete part, a Gaussian per continuous part); its
+  log-probability is the sum over the parts, so PPO's ratio and clip apply to the
+  agent's complete action.
+- CTCE's `CTCEEnv` ([ctce.py](../../../core/rl/ctce.py)) keeps every agent's
+  action space as it is, as one `Tuple` in agent order:
+  one composite distribution for the group, one ratio for the joint controller.
+- Evaluation and baselines ([policy.py](../../../core/rl/policy.py)) handle any such
+  space: `to_env` applies RLlib's own `unsquash_action` (continuous parts only)
+  and returns categorical parts as indices; without exploration each part takes
+  its most likely value (a Gaussian's mean, a categorical's mode). Agent order is
+  kept through grouping, decoding and checkpoint restoration (modules are declared
+  in agent order; `ungroup` splits the `Tuple` by position).
+
+### The same objective
+
+**DTDE and CTDE optimise the same thing** (each agent its own bill) and differ only
+in what the critic sees, so a difference between them is the central critic's
+effect. CTCE is a different question by design: what one controller of all
+households would achieve. The paper's CTDE summed the rewards (a team objective);
+that is changed here because the market's prosumers are self-interested.
+
+### Not done, and settings that are not issues
+
+**Not done (not needed for correctness):** parameter sharing between similar
+agents, value normalisation (PopArt), separate actor and critic optimisers.
+
+**Settings, not issues:** library options set one way for now and switchable in the
+configuration ([config.py](../../../core/rl/config.py)): population-based training is off
+(a run has fixed hyperparameters and one seed; tuning and seeds are loops around
+runs), and PPO's value-loss cap is raised, since RLlib's 10 would stop the critic's
+gradient for large value errors.
 
 ## 5. Steps per iteration and the budget
 
@@ -247,11 +284,11 @@ continuous `Box` action, decoding side and partner from it. For PPO:
 
 | Original | Here | Recorded as |
 |---|---|---|
-| CTDE acts with per-agent heads that never receive a gradient; the loss trains a central actor; it learns from $R_t$ like CTCE | each agent's actor is the network the loss trains, on its own reward | [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
-| CTCE and CTDE: custom 2 × 128 ReLU networks with a shared encoder; DTDE: RLlib's default | the same network settings everywhere, actor and critic separate | [L-04](../validation/rl.md#l-04-the-paradigms-train-different-networks) |
-| grouped spaces in name order, grouped data in environment order | both in environment order | [L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order) |
-| CTCE and CTDE: $\log\sigma$ unclipped, grown by the entropy bonus until it overflows | one learned $\log\sigma$ per part (RP-3h) | [L-06](../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit) |
-| `kl_coeff=0` still computes the KL; an infinite KL makes the loss NaN, silently zeroed | the KL is a logged gauge; training stops on a non-finite loss | [L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
-| population-based training jumps the learning rate and the entropy coefficient | fixed settings per run | [L-10](../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10) |
-| budget in iterations | budget in environment steps | [L-14](../validation/rl.md#l-14-the-budget-is-counted-in-iterations-the-paper-in-episodes) |
-| standalone inference uses the mean without rescaling | the same rescaling as in training | [L-15](../validation/rl.md#l-15-standalone-inference-does-not-act-like-training) |
+| CTDE acts with per-agent heads that never receive a gradient; the loss trains a central actor; it learns from $R_t$ like CTCE | each agent's actor is the network the loss trains, on its own reward | [L-01](../../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
+| CTCE and CTDE: custom 2 × 128 ReLU networks with a shared encoder; DTDE: RLlib's default | the same network settings everywhere, actor and critic separate | [L-04](../../validation/rl.md#l-04-the-paradigms-train-different-networks) |
+| grouped spaces in name order, grouped data in environment order | both in environment order | [L-05](../../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order) |
+| CTCE and CTDE: $\log\sigma$ unclipped, grown by the entropy bonus until it overflows | one learned $\log\sigma$ per part (RP-3h) | [L-06](../../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit) |
+| `kl_coeff=0` still computes the KL; an infinite KL makes the loss NaN, silently zeroed | the KL is a logged gauge; training stops on a non-finite loss | [L-07](../../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
+| population-based training jumps the learning rate and the entropy coefficient | fixed settings per run | [L-10](../../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10) |
+| budget in iterations | budget in environment steps | [L-14](../../validation/rl.md#l-14-the-budget-is-counted-in-iterations-the-paper-in-episodes) |
+| standalone inference uses the mean without rescaling | the same rescaling as in training | [L-15](../../validation/rl.md#l-15-standalone-inference-does-not-act-like-training) |

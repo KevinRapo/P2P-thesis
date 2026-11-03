@@ -44,7 +44,7 @@ energy:
 |---|---|
 | **Fixed** | Rebuilt to match the paper; the wrong behaviour is gone |
 | **Replaced** | The part was replaced by the SimBench network and its AC power flow, so the problem no longer exists |
-| **Decided** | The paper is silent or contradictory; a rule was chosen and recorded (see [structure.md, Choices](../structure.md#choices-in-the-rebuilt-market-step)) |
+| **Decided** | The paper is silent or contradictory; a rule was chosen and recorded (see [Choices in the rebuilt market step](#choices-in-the-rebuilt-market-step)) |
 | **Open** | Known, not resolved yet |
 | **Flagged** | Kept as in the original on purpose, but worth questioning |
 
@@ -265,7 +265,7 @@ network elements a participant owns, for the scenario's day (`GridSetup.day`), a
 different day per episode is the RL environment's job: `MarketEnv.reset` draws a
 day from its configured `days`, sets it on the scenario and rebuilds the market
 ([market_env.py](../../core/env/market_env.py#L311-L322)), so training and
-held-out days are separate lists ([v2.md](../v2.md#the-market-as-an-environment)).
+held-out days are separate lists ([The environment](../full-cycle/environment/index.md)).
 
 ## 2. Orders and feasibility
 
@@ -1603,6 +1603,26 @@ emulation, which is fair, but the hash should cover everything that moves money.
 `ledger_difficulty` setting): the ledger changes no market result and the thesis
 does not use it. The issue stands for the original; a ledger added back later
 should hash each trade's distance, loss and fee.
+
+## Choices in the rebuilt market step
+
+Where the rebuilt step differs from the paper or the original code, for now:
+
+| Topic | Here |
+|---|---|
+| Orders | The standalone market uses `core/market/agent/rule_based_bid.py`; `MarketEnv` supplies feasible orders decoded from learned actions |
+| Orders preferring the DSO | Skip stages 1 and 2 and are cleared in stage 3 (the original cleared them first) |
+| Distance d_ij | Line length along the shortest path between the two buses (km); for a trade with the DSO, the path to the transformer's low-voltage busbar, where its energy enters |
+| Losses (eq. 18) | Recorded on every trade as d · q · κ (κ = 0.03 per km); not taken off the delivered energy, since the power flow has the physical losses |
+| Grid fees (eq. 8) | Calculated by the DSO for every trade and charged (`fees_charged`). They are charged after the step's power flow (clear, settle the energy, power flow, then fees), so congestion C_t is the highest line loading on the trade's path in the same step's power flow, the first step included. F_trans, which has no formula in [P1], is the lost energy at the trade price, κ · d · q · p (the form quantity × distance × price factor is set; the factor and the distance measure are open). Zones are feeders. Trades with the DSO pay the fees of their path to the transformer, without a zone bonus. F_imb applies only to trades with the DSO that worsen the market's balance. No trade is blocked for grid reasons: the fees penalize (M-12). Peer fees split 50/50 between buyer and seller; a DSO trade's fee is paid by the participant. Factor values are the original code's |
+| DSO balance (eq. 7) | Energy sold minus bought per step and over the day, plus the DSO's revenue and fees; money adds up to 0 with the participants' profits |
+| Market balance B_grid (eq. 20) | Energy offered minus energy asked in the step's orders (before stage 3) |
+| Reputation (eq. 12) | `ReputationHandler.update_reputation` for every participant after each step, as in the original: reliability = order volume matched by peers / order volume, fairness = its peer trade prices against the peer clearing price, grid = its trades against B_grid (DSO trades neutral). Weights 0.3/0.2/0.5 (the original's); decay is configured per hour and applied as `decay ** step_hours` (M-43 decided). Start 0.5 |
+| Partner choice (§3.4) | Weighted score: 0.5 · standing + 0.5 · closeness, both rescaled over the candidates (closeness 1 = nearest, 0 = farthest; standing 1 = highest reputation, 0 = lowest) |
+| Tariffs | Constant over the day |
+| Submitted orders | Never changed by the clearing (the original changed them in place) |
+| Batteries (eq. 15–16) | Efficiencies and the power limit included; partial charges allowed. A participant taking over a SimBench storage unit gets its capacity and power; other batteries take their power limit by hand (none by default), or SimBench's capacity ÷ 2 h through `simbench_battery` and its presets |
+| Demand satisfied / deferred (§3.4.1) | Per step on each outcome; deferred = what the participant's orders and battery left uncovered, exchanged with the upstream grid untraded |
 
 ## Problems in the paper's market method
 

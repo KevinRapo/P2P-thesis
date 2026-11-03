@@ -188,7 +188,7 @@ the step's record to observations and rewards; the market rules stay in
 
 | Script | What it does | State |
 |---|---|---|
-| [`market_env.py`](../core/env/market_env.py) | `MarketEnv`: the paper's 42 signals from `signals.py`, scaled, then the peers' reputations (`obs_names`, [Observation](rl/observation.md)); the mixed action of [P1] eq. 2 as a `Dict`: side (categorical), quantity share with a no-order threshold and price (continuous), partner (categorical over `partners(agent)`: the peers in scenario order, DSO, none), passed to `OrderIntent.partner_id` unchanged; the reward from `reward.py`; episodes draw consecutive-day windows from `days` (one day by default), with optional truncation, randomized initial charge and terminal stored-energy value; `resolved_config` (the training scales a run keeps), `contract` (observation names, action parts, partner mapping, scales), `encode`; baselines `zero_policy`, `net_position_policy` (`baseline_policies`); step infos with the side, partner, mutual choice and stage-1 energy. The module docstring documents the interface | done |
+| [`market_env.py`](../core/env/market_env.py) | `MarketEnv`: the paper's 42 signals from `signals.py`, scaled, then the peers' reputations (`obs_names`, [Observation](full-cycle/environment/observation.md)); the mixed action of [P1] eq. 2 as a `Dict`: side (categorical), quantity share with a no-order threshold and price (continuous), partner (categorical over `partners(agent)`: the peers in scenario order, DSO, none), passed to `OrderIntent.partner_id` unchanged; the reward from `reward.py`; episodes draw consecutive-day windows from `days` (one day by default), with optional truncation, randomized initial charge and terminal stored-energy value; `resolved_config` (the training scales a run keeps), `contract` (observation names, action parts, partner mapping, scales), `encode`; baselines `zero_policy`, `net_position_policy` (`baseline_policies`); step infos with the side, partner, mutual choice and stage-1 energy. The module docstring documents the interface | done |
 | [`reward.py`](../core/env/reward.py) | The rewards, chosen by the `reward` setting of `env_config` (`build_reward`): `NetBillReward` (the scaled net bill, the default) and `SalazarReward` (the original code's reward, with its terms as functions). `net_bill` is the money, reported in the infos whichever reward is used. `MarketEnv.step` calls it. The module docstring documents the formulas | done |
 | [`__init__.py`](../core/env/__init__.py) | Public imports: `MarketEnv`, `OBS_NAMES` (and its three blocks), `net_position_policy`, `zero_policy` | done |
 
@@ -303,7 +303,7 @@ flowchart LR
 | [`remote.py`](../core/runner/remote.py) | `Remote`: one SSH connection (asyncssh, `pip install asyncssh` in the `marlem` env; the cluster does not need it) on a private event-loop thread behind synchronous methods, so it works from the CLI, Jupyter and the Studio's threads; `contact` (how the last use went) and `ping` (a check when nothing else has made contact); `execute`, `runner` (`python -m core.runner ... --json` in the cluster's checkout, optionally with standard input: the experiment of `start -`), `head`, `uncommitted`, `pull` (a fresh copy of the folder, without checkpoints and `slurm/`, into a temporary folder that replaces the mirror only when complete), `follow` (the files of `FOLLOWED`: status, run record, learner, evaluation and held-out tables; only what is new: nothing when size and time match, a grown table's new complete rows, else the whole file); no retries: a failed operation closes the connection and raises `RemoteError` ("<operation> failed on <host>: <reason>") | implemented; results mirrors inspected |
 | [`__main__.py`](../core/runner/__main__.py) | `python -m core.runner start / status / stop / sync / check`, each with `--target` and `--json` (the JSON is then the only output), `start` with `--profile full / test`, `status --recent N` (the N most recently changed experiments and those running), `status --json` (every experiment with its runs and spec in one answer), `check [spec]` (the readiness report, exit 1 when not ready); plus the internal `work` and `job` | done |
 
-Execution evidence is dated and scoped in [v2.md](v2.md#7-validation).
+Execution evidence is dated and scoped in [How the probes work](full-cycle/learning/probes.md#results).
 It comes from saved pre-migration results, not a new full-suite or UI test.
 
 ## config/data/: the tariffs
@@ -319,7 +319,7 @@ It comes from saved pre-migration results, not a new full-suite or UI test.
 | File | What it is | State |
 |---|---|---|
 | [`smoke.json`](../config/experiments/smoke.json) | Two tiny PPO-DTDE runs, to check the runner end to end (a few minutes) | done |
-| [`market_ppo.json`](../config/experiments/market_ppo.json) | PPO in the three paradigms on the market with the mixed action, one seed, 240,000 steps, three environment runners per run | test profile run (see [v2.md](v2.md)); full profile not started |
+| [`market_ppo.json`](../config/experiments/market_ppo.json) | PPO in the three paradigms on the market with the mixed action, one seed, 240,000 steps, three environment runners per run | test profile run (see [the run contract](config/run-contract.md#market-runner-and-cluster-a-live-check)); full profile not started |
 | [`grid_methods.json`](../config/experiments/grid_methods.json) | PPO-CTDE with three seeds in three arms (variants): fees from the power flow, from the paper's graph model, and from the graph model with real line ratings ([grid-method comparison](experiments/grid-methods.md)) | test profile run locally; full profile not started |
 
 | [`day_end.json`](../config/experiments/day_end.json) | PPO-CTDE with three seeds in four arms (variants) on random days of 2016 without the test periods: single days terminated, with a terminal value, or truncated, and 7-day windows; all played on the same uninterrupted winter, summer and validation periods (MP-1c, RP-1f) | not run yet |
@@ -421,6 +421,22 @@ sets `testpaths = tests` and `pythonpath = .`).
 | [`runner/test_targets.py`](../tests/runner/test_targets.py) | `hpc/targets.toml`, `LocalTarget` and `SlurmTarget` over a temporary `runs/`, `RemoteTarget` against a fake `Remote` (the check report for each problem, `start` refusing with the check's problems, overview and status parsing, stop, sync), and the command line (`status --json`, errors as `error: ...` or `{"error": ...}` with exit 2, `check [spec]`, `stop`, `sync`, `start --profile`, `start -` from standard input) | done |
 | [`runner/test_remote.py`](../tests/runner/test_remote.py) | `Remote` without a network: the commands it builds (quoting, `~`), the runner's JSON answers and errors, `pull` as a fresh copy (replaces the mirror, keeps it when the copy fails), `follow` (only the followed files, nothing read when nothing changed, only new complete rows, a rewritten or shorter table whole, a changed status of the same size), the connection against a fake asyncssh connection (one connection, closed on failure and reopened by the next call, errors as `RemoteError`, closing), `contact` and `ping` (what counts as an answer, a ping leaves a running operation alone), what the top bar shows for a contact | done |
 
+### Where the mixed action's checks are
+
+| Check | Where |
+|---|---|
+| Mixed-action probe with known categorical and continuous optima | `MixedActionProbe`, `test_mixed_probe_optima_and_routing` |
+| Partner mapping, DSO and no preference | `test_candidates_are_stable...`, `test_partner_index_reaches_the_intent` |
+| No rule-based override of an explicit choice | `test_explicit_choice_is_never_replaced_by_the_rule` |
+| Structured actions through CTCE grouping | `test_ctce_group_action_round_trip`, `test_ctce_policy_acts_per_agent_from_one_distribution`, `test_paradigm_wrappers_over_the_market` |
+| CTDE actor independent of central inputs | `test_ctde_actor_ignores_central_inputs_with_mixed_actions`, `test_6_ctde_structure.py` |
+| Individual reward and value routing | `test_rewards_and_values_are_routed_per_objective` |
+| Per-agent PPO clipping on a constructed batch; one joint ratio in CTCE | `test_ppo_clips_each_agents_whole_action`, `test_ctce_clips_one_joint_ratio` |
+| Two-agent preference matching: compatible, incompatible, one-sided, DSO | `test_partner_choice.py` |
+| Same action semantics in training and restored evaluation | `test_sampler_and_policy_send_the_same_action`, `test_to_env_rescales_only_continuous_parts` |
+| Frozen training scales in held-out evaluation | `test_training_scales_are_kept_on_other_days`, `test_heldout_config_uses_the_runs_training_scales` |
+| Checkpoint save and load, all three paradigms | `test_checkpoint_restores_the_trained_policy` |
+
 ## studio/adapters/: what the pages call
 
 Translates between the Studio and the layers below, so pages never touch the
@@ -448,7 +464,8 @@ market or pandapower directly.
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets; [`export_drawio.py`](../docs_site/export_drawio.py) exports the `.drawio` diagrams under `docs/` to the SVGs the pages show |
 | [`docs/config/`](config/reference.md) | Every setting of the scenario, price and experiment files: full examples, defaults and what each does, including how the days work | done |
 | [`docs/experiments/`](experiments/grid-methods.md) | The thesis's experiments: the grid-method comparison (proposal) with its diagram (`diagrams/grid_methods.drawio`, exported to `grid-methods.svg`) |
-| [`docs/full-cycle.md`](full-cycle.md) | The full cycle on one page: a master diagram of the training iteration, the environment step and the market step; one card per phase (reads, computes, writes, code, paper, decisions) and where every quantity is calculated |
+| [`docs/full-cycle/`](full-cycle/index.md) | The full cycle: a master diagram of the training iteration, the environment step and the market step, and where every quantity is calculated (`index.md`); [`market-step.md`](full-cycle/market-step.md), [`environment/`](full-cycle/environment/index.md) (action, reward, observation) and [`learning/`](full-cycle/learning/index.md) (iteration, examples, probes), each phase with a card (reads, computes, writes, code, paper, decisions) |
+| [`docs/overview.md`](overview.md), [`docs/plan/`](plan/index.md) | What the branch does; the plans, the decision log and the [open items](plan/open.md) |
 | `run_studio.py` | Starts the Studio with auto-reload |
 | [`run_all.py`](../run_all.py) | Starts this checkout's docs and Studio in separate windows using the current Python; `docs` and `studio` select one |
 | `AGENTS.md` | Rules for working in this repository |
@@ -459,23 +476,3 @@ market or pandapower directly.
 | `hpc/` | Where experiments run: `targets.toml` names the targets (`local`, and the `taltech` SLURM cluster with its partitions, and as `${KEY}` settings from `.env` its account and, for use from the PC, the SSH host, the code folder and Python on the cluster; the mirror of the results); each has a `label`, the name the Studio's Runs page shows (This PC, TalTech); how to use the cluster is in [hpc.md](hpc.md) |
 | `runs/` | Training runs, checkpoints and benchmark results; ignored by Git. Experiments started by the runner: `runs/<name>/{experiment.json, scenario.json, worker.json, worker.log, <run>/{experiment.json, scenario.json, status.json, log.txt, run.json, metrics.csv, evaluation.csv, heldout.csv, checkpoint/}}`; on a SLURM target no worker, instead `slurm.json` and `slurm/` (submitit's batch script, pickles and task logs), and `status.json` of each run has a `slurm_job` |
 | `.vscode/` | Launch entries and the Python interpreter |
-
-## Choices in the rebuilt market step
-
-Where the rebuilt step differs from the paper or the original code, for now:
-
-| Topic | Here |
-|---|---|
-| Orders | The standalone market uses `core/market/agent/rule_based_bid.py`; `MarketEnv` supplies feasible orders decoded from learned actions |
-| Orders preferring the DSO | Skip stages 1 and 2 and are cleared in stage 3 (the original cleared them first) |
-| Distance d_ij | Line length along the shortest path between the two buses (km); for a trade with the DSO, the path to the transformer's low-voltage busbar, where its energy enters |
-| Losses (eq. 18) | Recorded on every trade as d · q · κ (κ = 0.03 per km); not taken off the delivered energy, since the power flow has the physical losses |
-| Grid fees (eq. 8) | Calculated by the DSO for every trade and charged (`fees_charged`). They are charged after the step's power flow (clear, settle the energy, power flow, then fees), so congestion C_t is the highest line loading on the trade's path in the same step's power flow, the first step included. F_trans, which has no formula in [P1], is the lost energy at the trade price, κ · d · q · p (the form quantity × distance × price factor is set; the factor and the distance measure are open). Zones are feeders. Trades with the DSO pay the fees of their path to the transformer, without a zone bonus. F_imb applies only to trades with the DSO that worsen the market's balance. No trade is blocked for grid reasons: the fees penalize (M-12). Peer fees split 50/50 between buyer and seller; a DSO trade's fee is paid by the participant. Factor values are the original code's |
-| DSO balance (eq. 7) | Energy sold minus bought per step and over the day, plus the DSO's revenue and fees; money adds up to 0 with the participants' profits |
-| Market balance B_grid (eq. 20) | Energy offered minus energy asked in the step's orders (before stage 3) |
-| Reputation (eq. 12) | `ReputationHandler.update_reputation` for every participant after each step, as in the original: reliability = order volume matched by peers / order volume, fairness = its peer trade prices against the peer clearing price, grid = its trades against B_grid (DSO trades neutral). Weights 0.3/0.2/0.5 (the original's); decay is configured per hour and applied as `decay ** step_hours` (M-43 decided). Start 0.5 |
-| Partner choice (§3.4) | Weighted score: 0.5 · standing + 0.5 · closeness, both rescaled over the candidates (closeness 1 = nearest, 0 = farthest; standing 1 = highest reputation, 0 = lowest) |
-| Tariffs | Constant over the day |
-| Submitted orders | Never changed by the clearing (the original changed them in place) |
-| Batteries (eq. 15–16) | Efficiencies and the power limit included; partial charges allowed. A participant taking over a SimBench storage unit gets its capacity and power; other batteries take their power limit by hand (none by default), or SimBench's capacity ÷ 2 h through `simbench_battery` and its presets |
-| Demand satisfied / deferred (§3.4.1) | Per step on each outcome; deferred = what the participant's orders and battery left uncovered, exchanged with the upstream grid untraded |

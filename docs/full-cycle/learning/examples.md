@@ -4,8 +4,8 @@
 > paradigm's modules receive, how the network's output becomes four
 > distributions, how a sampled action becomes an order, how the ratio and the
 > clip work on a composite action, and how a trained policy is evaluated. The
-> step labels (A2, C3, ...) are those of [One training iteration](cycle.md);
-> [The training cycle](training.md) lists what we change in RLlib and why.
+> step labels (A2, C3, ...) are those of [One training iteration](iteration.md);
+> [The training cycle](index.md) lists what we change in RLlib and why.
 
 !!! ours "How to read the colours"
     <span class="ours">Purple</span> is **ours**: code this implementation adds to
@@ -20,23 +20,23 @@ up for the example.
 
 | File | What it defines | Section here |
 |---|---|---|
-| [state.py](../../core/rl/state.py) | <span class="ours">the global state: all observations joined in agent order</span> | 1 |
-| [ctce.py](../../core/rl/ctce.py), [ctde.py](../../core/rl/ctde.py) | <span class="ours">the CTCE and CTDE wrappers, CTDE's own-observation actor</span> | 1, 4, 6 |
-| [modules.py](../../core/rl/modules.py) | <span class="ours">the policy head: tanh mean, one learned log σ per part</span> | 2, 5 |
-| [market_env.py](../../core/env/market_env.py) | <span class="ours">the action space, decoding an action into an order</span> | 1, 4 |
-| [reward.py](../../core/env/reward.py) | <span class="ours">the reward</span> | 6 |
-| [learner.py](../../core/rl/learner.py) | <span class="ours">RLlib's PPO learner, also logging the clip fraction</span> | 5 |
-| [policy.py](../../core/rl/policy.py), [train.py](../../core/rl/train.py) | <span class="ours">evaluation, baselines, the budget and the NaN stop</span> | 7, 8 |
+| [state.py](../../../core/rl/state.py) | <span class="ours">the global state: all observations joined in agent order</span> | 1 |
+| [ctce.py](../../../core/rl/ctce.py), [ctde.py](../../../core/rl/ctde.py) | <span class="ours">the CTCE and CTDE wrappers, CTDE's own-observation actor</span> | 1, 4, 6 |
+| [modules.py](../../../core/rl/modules.py) | <span class="ours">the policy head: tanh mean, one learned log σ per part</span> | 2, 5 |
+| [market_env.py](../../../core/env/market_env.py) | <span class="ours">the action space, decoding an action into an order</span> | 1, 4 |
+| [reward.py](../../../core/env/reward.py) | <span class="ours">the reward</span> | 6 |
+| [learner.py](../../../core/rl/learner.py) | <span class="ours">RLlib's PPO learner, also logging the clip fraction</span> | 5 |
+| [policy.py](../../../core/rl/policy.py), [train.py](../../../core/rl/train.py) | <span class="ours">evaluation, baselines, the budget and the NaN stop</span> | 7, 8 |
 
 ## The example
 
 Three market participants, listed by the environment in the order
 `agent_2, agent_10, agent_1` (alphabetically `agent_1, agent_10, agent_2`: the case
 that broke the original,
-[L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
+[L-05](../../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
 Each observes $d_o = 42 + (N - 1) = 44$ numbers: the paper's 42 signals and its two
-peers' reputations ([Observation](observation.md)). Each acts with the `Dict`
-<span class="ours">([`_action_space`](../../core/env/market_env.py#L291-L301))</span>:
+peers' reputations ([Observation](../environment/observation.md)). Each acts with the `Dict`
+<span class="ours">([`_action_space`](../../../core/env/market_env.py#L291-L301))</span>:
 
 | Part | Space | Meaning |
 |---|---|---|
@@ -46,7 +46,7 @@ peers' reputations ([Observation](observation.md)). Each acts with the `Dict`
 | `partner` | `Discrete(N + 1) = Discrete(4)` | an index into the agent's candidates |
 
 The candidates are the other participants in scenario order, then the DSO, then
-"no preference" ([`partners`](../../core/env/market_env.py#L304-L308)):
+"no preference" ([`partners`](../../../core/env/market_env.py#L304-L308)):
 
 | Agent | 0 | 1 | 2 | 3 |
 |---|---|---|---|---|
@@ -59,7 +59,7 @@ The example follows `agent_10`.
 ## 1. What each module receives (A1)
 
 The global state is the three observations side by side, **in the environment's
-order** (<span class="ours">[`join`](../../core/rl/state.py#L26-L30)</span>):
+order** (<span class="ours">[`join`](../../../core/rl/state.py#L26-L30)</span>):
 $s = (o_2, o_{10}, o_1) \in \mathbb{R}^{132}$, where $o_2$ is `agent_2`'s
 observation, and so on.
 
@@ -70,7 +70,7 @@ observation, and so on.
 | Actor reads | $s$ (132) | <span class="ours">the first 44 entries, $o_{10}$</span> | $o_{10}$ (44) |
 | Critic reads | $s$ (132) | all 176 | $o_{10}$ (44) |
 | Action space | <span class="ours">`Tuple` of the three agents' `Dict`s, in environment order</span> | its own `Dict` | its own `Dict` |
-| Wrapper | <span class="ours">[`CTCEEnv`](../../core/rl/ctce.py#L45-L106)</span> | <span class="ours">[`CTDEEnv`](../../core/rl/ctde.py#L55-L103), [`CTDEPPOModule`](../../core/rl/ctde.py#L143-L149)</span> | none |
+| Wrapper | <span class="ours">[`CTCEEnv`](../../../core/rl/ctce.py#L45-L106)</span> | <span class="ours">[`CTDEEnv`](../../../core/rl/ctde.py#L55-L103), [`CTDEPPOModule`](../../../core/rl/ctde.py#L143-L149)</span> | none |
 
 **Sizes** (2 × 256 tanh encoders, <span class="ours">actor and critic
 separate</span>, linear heads):
@@ -89,7 +89,7 @@ actor's input is $13 \times 54 = 702$ numbers, its head 260 outputs.
 
 The policy head outputs 10 numbers for `agent_10`, in RLlib's order for the `Dict`
 (keys sorted: partner, price, quantity, side;
-[`action_parts`](../../core/rl/modules.py#L56-L85)). Say:
+[`action_parts`](../../../core/rl/modules.py#L56-L85)). Say:
 
 | Position | 1-4 | 5 | 6 | 7 | 8 | 9-10 |
 |---|---|---|---|---|---|---|
@@ -98,7 +98,7 @@ The policy head outputs 10 numbers for `agent_10`, in RLlib's order for the `Dic
 | RLlib's head would use | the same | $m_p = 0.3$ | $\ell_p = 1.7$, $\sigma = 5.47$ | $m_q = 0.8$ | $\ell_q = -2.1$, $\sigma = 0.12$ | the same |
 | <span class="ours">Our head uses</span> | the same | <span class="ours">$\tanh 0.3 = 0.291$</span> | <span class="ours">$\bar\ell_p = -0.7$, $\sigma = 0.497$</span> | <span class="ours">$\tanh 0.8 = 0.664$</span> | <span class="ours">$\bar\ell_q = -0.4$, $\sigma = 0.670$</span> | the same |
 
-With <span class="ours">[`BoundedHead`](../../core/rl/modules.py#L121-L173)</span>
+With <span class="ours">[`BoundedHead`](../../../core/rl/modules.py#L121-L173)</span>
 the outputs at positions 6 and 8 are replaced by the module's two learned numbers
 $\bar\ell_p, \bar\ell_q$, the same whatever the observation; the means go through
 tanh. With RLlib's head both would be whatever the network outputs for this
@@ -145,7 +145,7 @@ leaves them as they are. A $u_q = -1.3$ would reach the market as $-1$ while the
 batch keeps $-1.3$.
 
 **CTCE first** splits the group's `Tuple` by position
-(<span class="ours">[`ungroup`](../../core/rl/ctce.py#L35-L42)</span>):
+(<span class="ours">[`ungroup`](../../../core/rl/ctce.py#L35-L42)</span>):
 
 ```python
 {
@@ -155,7 +155,7 @@ batch keeps $-1.3$.
 }
 ```
 
-**A5, decoding** (<span class="ours">[`decode`](../../core/env/market_env.py#L514-L547)</span>).
+**A5, decoding** (<span class="ours">[`decode`](../../../core/env/market_env.py#L514-L547)</span>).
 Say `agent_10` may buy at most 2.5 kWh this step, and the step's tariffs are a
 feed-in tariff of 0.05 and a utility price of 0.25 €/kWh:
 
@@ -208,7 +208,7 @@ $$
 
 the clipped branch: **no gradient for any agent**, although each agent alone is
 still inside the band. <span class="ours">The clip fraction</span>
-([`PPOLearner`](../../core/rl/learner.py#L27-L52)) counts such rows; the more
+([`PPOLearner`](../../../core/rl/learner.py#L27-L52)) counts such rows; the more
 agents, the sooner the product leaves the band.
 
 **Where the gradient goes (C8).** On the first minibatch ($\rho = 1$, unclipped),
@@ -240,7 +240,7 @@ and DTDE each agent's carry its own.
 
 The market pays each agent its bill for the step,
 <span class="ours">$(\text{profit} - p_\text{utility} \cdot \text{unmet demand}) / \text{reward scale}$</span>
-([`NetBillReward`](../../core/env/reward.py)). Say:
+([`NetBillReward`](../../../core/env/reward.py)). Say:
 
 $$
 r_2 = 1.50, \qquad r_{10} = -0.50, \qquad r_1 = 0.25 .
@@ -256,7 +256,7 @@ $$
 evaluation), but the learner sees only 1.25. `agent_10`'s DSO purchase is
 reinforced or discouraged by the same number as `agent_2`'s order, although here
 `agent_10` lost money and `agent_2` earned it: the credit-assignment cost of
-[L-02](../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound).
+[L-02](../../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound).
 
 **CTDE and DTDE.** `agent_10`'s loss of 0.50 lowers only `agent_10`'s advantage.
 CTDE's critic sees the whole state, so it can learn, for example, that `agent_10`
@@ -265,7 +265,7 @@ own bid for that.
 
 ## 7. Evaluating a trained policy
 
-<span class="ours">[`Policy`](../../core/rl/policy.py#L92-L170)</span> acts with the
+<span class="ours">[`Policy`](../../../core/rl/policy.py#L92-L170)</span> acts with the
 trained modules outside RLlib, the same way RLlib does in training, but without
 noise: each part takes its most likely value. It builds each module's input as the
 paradigm's wrapper does ($o_i$, $x_i$ or $s$) and always runs in the original
@@ -283,26 +283,26 @@ and training can order quite different amounts: here 2.06 kWh against the sample
 1.00. During training the noise spreads the quantity around the mean; in
 evaluation it is the mean every time.
 
-**Baselines** ([`baselines`](../../core/rl/policy.py#L450-L460)): "random" draws
+**Baselines** ([`baselines`](../../../core/rl/policy.py#L450-L460)): "random" draws
 every part uniformly; "zero" places no orders (quantity share 0, below the
 threshold); <span class="ours">"net position"</span> is the market's own bidding
 rule: offer the surplus, or ask for the deficit, left after the battery, priced 30 %
 of the way from the feed-in tariff (selling) or the utility price (buying) into the
 spread, with no partner
-([`net_position_policy`](../../core/env/market_env.py#L778-L817)).
+([`net_position_policy`](../../../core/env/market_env.py#L778-L817)).
 
-**The team score** ([`Episode`](../../core/rl/policy.py#L226-L247)). Every
+**The team score** ([`Episode`](../../../core/rl/policy.py#L226-L247)). Every
 paradigm is scored in the original multi-agent environment, from the per-agent
 rewards. Over a day, say the three agents' returns are 2.10, 0.90 and 0.55: team
 score $= 3.55$, reported with the three returns. The same number for CTCE, CTDE and
 DTDE, computed the same way, so the paradigms and the baselines are ranked on one
-scale ([L-03](../validation/rl.md#l-03-returns-of-the-paradigms-are-compared-across-different-scales)).
+scale ([L-03](../../validation/rl.md#l-03-returns-of-the-paradigms-are-compared-across-different-scales)).
 Periodic evaluation uses seeds from 1 000 000 on, which training never reaches;
 the runner's held-out evaluation plays test days training never sees.
 
 ## 8. The run: budget, NaN stop, evaluation
 
-<span class="ours">[`train`](../../core/rl/train.py#L408-L555)</span> repeats
+<span class="ours">[`train`](../../../core/rl/train.py#L408-L555)</span> repeats
 RLlib's iteration until the budget of environment steps is used up.
 
 **Budget.** `market_s2`: 240 000 environment steps with 500 per iteration, 480
@@ -310,7 +310,7 @@ iterations (about 10 000 market days), in every paradigm. With `eval_points = 10
 the policy and the baselines are evaluated at 0 (untrained, with the baselines),
 then every 24 000 steps up to 240 000.
 
-**NaN stop** (<span class="ours">[`_nonfinite`](../../core/rl/train.py#L346-L363)</span>).
+**NaN stop** (<span class="ours">[`_nonfinite`](../../../core/rl/train.py#L346-L363)</span>).
 After each iteration the learner's results are searched for losses and entropies
 that are NaN or infinite. For
 
@@ -323,4 +323,4 @@ it finds `agent_10/policy_loss` and `agent_10/entropy` and stops the run with an
 error, which `run.json` records. The throughput is skipped on purpose: RLlib
 reports it as NaN in the first iteration. The original carried on with zeroed
 gradients
-([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).
+([L-07](../../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed)).

@@ -406,7 +406,7 @@ The environment's settings, in
 |---|---|---|
 | `reward` | `"bill"`, `"salazar"` | What the agents learn from ([`reward.py`](../../core/env/reward.py)). `"bill"`: the net bill over `reward_scale`. `"salazar"`: the original code's reward, not scaled by `reward_scale`. The money is reported either way |
 | `grid_capacity_kwh` | positive, `null` | The grid capacity `C` of `"salazar"`, which needs it. SimBench has no single capacity, so a run states one. `"bill"` does not read it |
-| `observation` | `"paper"`, `"pruned"` | Which signals the agents see ([The observation vector](../rl/observation.md)). `"paper"`: all 42. `"pruned"`: the 22 of `PRUNED_OBS` in [`signals.py`](../../core/market/signals.py). The partners' reputations follow either way, and the rewards do not depend on this setting |
+| `observation` | `"paper"`, `"pruned"` | Which signals the agents see ([The observation vector](../full-cycle/environment/observation.md)). `"paper"`: all 42. `"pruned"`: the 22 of `PRUNED_OBS` in [`signals.py`](../../core/market/signals.py). The partners' reputations follow either way, and the rewards do not depend on this setting |
 | `energy_scale` | kWh, `null` | `E`, which scales the energy signals of the observation. `null`: the largest generation or demand of any participant in any step of any training day |
 | `reward_scale` | number, `null` | What the reward is divided by. `null`: `max(p_utility) · E`, the bill for `E` kWh bought from the DSO at its dearest |
 | `tariff_range` | `[low, high]`, `null` | The lowest feed-in tariff and the highest utility price, which scale the prices of the observation. `null`: from the training days, kept for every later evaluation |

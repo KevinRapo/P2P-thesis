@@ -3,16 +3,16 @@
 What each agent observes in marlem-v2: the paper's 42 signals in its three groups
 ([P1] Table 2), then the other agents' reputations. MARLEM's own definitions, from
 the original code, are listed in
-[Learning layer §1.2](../marlem/learning.md#the-42-signals-as-marlem-defines-them);
+[Learning layer §1.2](../../marlem/learning/index.md#the-42-signals-as-marlem-defines-them);
 this page has the same rows, as this implementation computes them.
 
 Two places compute it:
 
-- **[`signals.py`](../../core/market/signals.py)**: each signal as a plain function
+- **[`signals.py`](../../../core/market/signals.py)**: each signal as a plain function
   of the market's data, in three dictionaries (`KPIS`, `MARKET_SIGNALS`,
   `AGENT_SIGNALS`). A value with nothing to measure is NaN.
-- **[`MarketEnv._observe`](../../core/env/market_env.py#L663-L689)**: puts them in order,
-  scales each ([`_obs_scales`](../../core/env/market_env.py#L604-L661)), turns NaN into
+- **[`MarketEnv._observe`](../../../core/env/market_env.py#L663-L689)**: puts them in order,
+  scales each ([`_obs_scales`](../../../core/env/market_env.py#L604-L661)), turns NaN into
   0 and clips to $[-10, 10]$.
 
 The observation is computed for the step about to be played, $t$. "The last step"
@@ -20,7 +20,7 @@ is $t - 1$, the one just played.
 
 The `observation` setting chooses which signals the agents see: `"paper"` (the
 default) gives all 42, and `"pruned"` the 22 of
-[`PRUNED_OBS`](../../core/market/signals.py), to compare the two. Every signal is still
+[`PRUNED_OBS`](../../../core/market/signals.py), to compare the two. Every signal is still
 computed either way, so a reward can read one the agents do not see, and the partner
 block follows both.
 
@@ -40,29 +40,9 @@ $R$ is `reward_scale`, $p_{\text{util}} \cdot E$.
 
 ## What the reward reads
 
-The last column of the three tables below shows which signals the `"salazar"` reward
-([`SalazarReward.agent_reward`](../../core/env/reward.py#L367-L441), the original
-code's) also uses, so that the observational ones stand apart. It describes that
-reward only: the `"bill"` reward calls none of these signals, though it reads three of
-the same quantities from the step's record: `utility_price`, the step's `profit` and
-`deferred_demand_kwh`.
-
-| In the reward | Signals | Meaning |
-|---|---|---|
-| a weight | 10 | every KPI, through `signals.kpis` and [`cooperation_factor`](../../core/env/reward.py#L205-L217): its weight in $f_{\text{coop}}$ ([`COOPERATION_WEIGHTS`](../../core/env/reward.py#L65-L76), adding up to 56), and $1 - x$ where lower is better |
-| a term | 14 | the signal is not called, but the term named reads the same quantity from the step's record |
-| — | 18 | observational only |
-
-The terms are the five parts of $R_{\text{base}}$ ($r_{\text{grid}}$, $r_{\text{res}}$,
-$r_{\text{trade}}$, $r_{\text{stab}}$, $r_{\text{econ}}$), the contribution factor
-$f_{\text{contrib}}$ and the penalties $\gamma_{\text{DSO}}$ and $\gamma_{\text{UD}}$.
-"Own" marks a term that reads agent $i$'s part of a figure the signal gives for all
-agents.
-
-The reward for step $t$ reads step $t$, which the observation shows at $t + 1$, unless
-the row says otherwise. The KPIs too: over $\mathcal{H}$ with step $t$ included, and
-raw, not scaled (E-13, E-20). A step in which the agent trades nothing pays only the
-no-trades penalty and reads none of this (E-19).
+The last column of the three tables below shows which signals the `"salazar"`
+reward also uses; the column and its terms are explained in
+[What the reward reads](reward.md#what-the-reward-reads).
 
 ## Market signals (16, the same for every agent)
 
@@ -90,7 +70,7 @@ For agent $i$; the sums over $\tau \in \mathcal{H}$ run over the steps played so
 far. $x^{\text{def}}_{i,\tau}$ is the energy no trade or battery covered: the
 demand drawn untraded from the upstream grid, or the surplus spilled. It is what
 settlement leaves after generation, trades and the battery
-([`ParticipantOutcome`](../../core/market/agent/der.py#L31-L82)).
+([`ParticipantOutcome`](../../../core/market/agent/der.py#L31-L82)).
 
 | # | Entry | Definition | Scaled as | In the reward |
 |---|---|---|---|---|
@@ -164,3 +144,21 @@ be told apart. This is open (`# OPEN E-07` in `_observe`).
 | KPI 10 | over the energy offered | over each agent's surplus or deficit plus its battery |
 | KPIs 1, 2, 3, 5, 6, 7, 9, 10 | over the day so far | over the last step |
 | All | scaled to about $[-1, 1]$ | raw (E-06) |
+
+## Where it is made, and what is not seen
+
+Prices are scaled by the day's fixed range, from the lowest $p_\text{FiT}$ to the
+highest $p_\text{utility}$, so a time-of-use price is seen as it changes. No other
+agent's profile or order; the grid only as the mean line loading the fees used
+(`grid_congestion`). CTDE extends each agent's observation with every agent's
+([`CTDEEnv`](../../../core/rl/ctde.py#L55-L104)); CTCE joins them all
+([`CTCEEnv`](../../../core/rl/ctce.py#L45-L106)).
+
+The reputation slots follow the agent's candidate order (slot k is its k-th peer
+candidate), so the observation and the `partner` part line up. The grid distances
+to the candidates are not observed: they are fixed by the network, so the policy
+can learn them from the slot. Not observed: the other agents' profiles, batteries,
+bills and their orders of the current step (submitted at the same time, seen by
+nobody before clearing). The same local observation is used in DTDE and CTDE;
+CTDE's critic additionally reads every agent's observation (the global state), the
+actor does not.

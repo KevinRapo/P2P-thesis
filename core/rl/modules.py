@@ -27,7 +27,7 @@ computed as before. All paradigms use this module; CTDE's
 (``core/rl/ctde.CTDEPPOModule``) adds its own-observation actor on top.
 
 Decided in RP-3h (``docs/plan/decisions.md``); evidence: probe 9's collapsing log σ
-and the mean beyond the bounds (``docs/rl/probes.md``).
+and the mean beyond the bounds (``docs/full-cycle/learning/probes.md``).
 """
 
 from __future__ import annotations

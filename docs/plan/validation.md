@@ -14,7 +14,7 @@
 |---|---|---|
 | RL probes 1-10 (8a/8b): environments, exact answers | `core/rl/envs/probes.py` | done |
 | RL probe check: presets, variants, training, scoring, `score.csv`/`checks.csv` per run | `core/rl/scripts/probe_check.py`, `probe_ppo.py`, `hpc/probes.slurm` | done |
-| Probe descriptions, expected results, results | `docs/rl/probes.md` | done (prose only) |
+| Probe descriptions, expected results, results | `docs/full-cycle/learning/probes.md` | done (prose only) |
 | Learner metrics of any run (losses, KL, gradient norm, per-part statistics) | `core/runner/results.learner_metrics` | done |
 | Learning tab (training curves per run, one action part at a time) | `studio/pages/results.py` | done |
 | Step page: one market step played stage by stage | `studio/pages/market/step.py` (nav: Validate → Market, Step tab) | done |
@@ -45,7 +45,7 @@ that is a probe run, add what the probe is:
    action, reward), `answer` (the exact answer), `expect` (what a correct learner
    shows, with the known limits: CTCE slow on 4-7 and 9, 8b measured, probe 4's
    overshoot near the bounds), `market` (the market feature it stands for).
-   `docs/rl/probes.md` keeps the prose.
+   `docs/full-cycle/learning/probes.md` keeps the prose.
 2. **A run's probe and checks**: which probe a run is (from its folder name or
    `score.csv`), its `checks.csv` (expected, got, tolerance, ok) and its `score.csv`;
    a small reader in `probe_check.py`.
@@ -118,7 +118,7 @@ book, trades per stage, participants table), read from the kept `StepRecord`s
 3. Market probes core: `core/market/probes.py` with M1-M4 on both grid methods,
    tests.
 4. Market probes page.
-5. M5-M9, then docs (`docs/rl/probes.md` points to the page; a market probes page
+5. M5-M9, then docs (`docs/full-cycle/learning/probes.md` points to the page; a market probes page
    in the docs).
 
 ## Decided (26 Oct 2026)

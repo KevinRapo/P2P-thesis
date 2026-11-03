@@ -66,7 +66,7 @@ class Battery:
     # --- What it can take or give this step (eq. 15c-d) ------------------------------
     def _power_cap_kwh(self) -> float:
         if self.setup.max_power_kw is None:
-            return float("inf") #OPEN why inf here?
+            return float("inf") # OPEN MP-1d: why inf here?
         return self.setup.max_power_kw * self.step_hours
 
     @property

@@ -8,7 +8,7 @@ Three questions after `market_s2` (one seed, 240k steps):
 
 1. Do CTDE and DTDE learn the market reliably, over seeds and a longer budget?
 2. Does CTCE learn once its entropy bonus is no longer 13 times one agent's
-   (L-02, [probes](../rl/probes.md#why-ctce-misses-probes-4-6-26-october-2026))?
+   (L-02, [probes](../full-cycle/learning/probes.md#why-ctce-misses-probes-4-6-26-october-2026))?
 3. What happens with more agents?
 
 Results are in `runs/@taltech/<experiment>/`; every number below is the held-out

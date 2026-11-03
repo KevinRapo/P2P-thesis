@@ -56,7 +56,7 @@ NETWORK: dict[str, Any] = {
     "vf_share_layers": False,
     # Our own (core/rl/modules.py, RP-3h): each continuous action part's mean
     # through tanh, and one learned log std per part for every state (MAPPO's).
-    # Chosen on the probes (docs/rl/probes.md): RLlib's state-dependent log std
+    # Chosen on the probes (docs/full-cycle/learning/probes.md): RLlib's state-dependent log std
     # collapsed before the side it depends on was decided (probe 9: 0 of 9).
     "bound_mean": True,
     "log_std_bounds": None,

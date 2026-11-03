@@ -26,7 +26,7 @@ first stage into reading off what this plan hands over.
 3. **No RL during this plan.** The market is checked with its own bidding rule,
    by hand in the Studio's Step page, and in notebooks; never through a trained
    policy.
-4. **Read the system from the [full cycle](../full-cycle.md).** Each stage names
+4. **Read the system from the [full cycle](../full-cycle/index.md).** Each stage names
    the phases it covers; a stage that changes code updates those phase cards.
 
 ## Overview
@@ -34,12 +34,12 @@ first stage into reading off what this plan hands over.
 | # | Stage | Question it answers | Full cycle | Size | Status |
 |---|---|---|---|---|---|
 | 0 | The reference | Does the full cycle describe the V2 code, and on which scenario do we work? | all | S | not started |
-| 1 | Energy and the battery | Does every kWh add up, and what should the battery do after a trade? | [0](../full-cycle.md#0-before-the-day-reset), [1](../full-cycle.md#1-inputs), [4](../full-cycle.md#4-settlement) | M | not started |
-| 2 | Orders | Which orders can a participant place, and what happens to one it cannot? | [2](../full-cycle.md#2-orders) | S | not started |
-| 3 | Clearing and prices | Who trades with whom, at which price? | [3](../full-cycle.md#3-clearing) | M | not started |
-| 4 | Grid and fees | What does the grid cost a trade, under each grid method? | [5](../full-cycle.md#5-grid), [6](../full-cycle.md#6-fees) | L | not started |
-| 5 | Reputation | Does reputation change anything within a day? | [8](../full-cycle.md#8-reputation-and-advance) | M | not started |
-| 6 | The market as a whole | Over whole days: does it run clean, and how good are simple rules? | [7](../full-cycle.md#7-record) | M | not started |
+| 1 | Energy and the battery | Does every kWh add up, and what should the battery do after a trade? | [0](../full-cycle/market-step.md#0-before-the-day-reset), [1](../full-cycle/market-step.md#1-inputs), [4](../full-cycle/market-step.md#4-settlement) | M | not started |
+| 2 | Orders | Which orders can a participant place, and what happens to one it cannot? | [2](../full-cycle/market-step.md#2-orders) | S | not started |
+| 3 | Clearing and prices | Who trades with whom, at which price? | [3](../full-cycle/market-step.md#3-clearing) | M | not started |
+| 4 | Grid and fees | What does the grid cost a trade, under each grid method? | [5](../full-cycle/market-step.md#5-grid), [6](../full-cycle/market-step.md#6-fees) | L | not started |
+| 5 | Reputation | Does reputation change anything within a day? | [8](../full-cycle/market-step.md#8-reputation-and-advance) | M | not started |
+| 6 | The market as a whole | Over whole days: does it run clean, and how good are simple rules? | [7](../full-cycle/market-step.md#7-record) | M | not started |
 
 Status is one of *not started*, *in progress (since date)* or *done (date)*.
 

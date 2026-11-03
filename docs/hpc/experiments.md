@@ -89,7 +89,7 @@ fields that rewrite the JSON:
 What is not in the experiment: the market itself (network, participants, market
 and DSO rules) is the scenario's, edited in the Studio's other pages and saved in
 [config/scenarios/](../../config/scenarios/); the agents' observation and action design is
-[MarketEnv](../../core/env/market_env.py)'s ([v2.md](../v2.md)).
+[MarketEnv](../../core/env/market_env.py)'s ([Action](../full-cycle/environment/action.md), [Observation](../full-cycle/environment/observation.md)).
 
 ## Commands
 
@@ -186,6 +186,67 @@ dialog checks the target and keeps Start disabled while there are problems.
 **Restart failed runs** (on an experiment with failed, stopped or lost runs and none
 queued or running) starts the experiment again from the settings saved in its
 folder, whatever the template says now: its completed runs stay.
+
+## Training one run from Python
+
+In Python, from the `marlem-v2` root (the RL code is imported as `core.rl`, the
+market as `core.*`):
+
+```python
+from core.env import MarketEnv, net_position_policy, zero_policy
+from core.rl import Run, evaluation, load_policy, train
+
+config = {"scenario": "config/scenarios/validate_market.json",
+          "days": [f"2016-06-{d:02d}" for d in range(1, 31)]}
+record = train(Run("ppo", "ctde", MarketEnv, config, budget=24_000, eval_every=4_800))
+
+held_out = {"scenario": config["scenario"], "days": [f"2016-07-{d:02d}" for d in range(1, 15)]}
+env = MarketEnv(held_out)
+policies = {"trained": load_policy(record["out_dir"])[0],
+            "zero": zero_policy(env), "net_position": net_position_policy(env)}
+days = held_out["days"]  # every test day once
+found = evaluation(MarketEnv, held_out, policies, seeds=list(range(2000, 2014)),
+                   options=[{"day": d} for d in days])
+found.summary, found.episodes, found.agents  # means; per day; per day and participant
+```
+
+Each run writes `run.json`, `metrics.csv`, `evaluation.csv` (with its per-episode
+and per-agent tables) and a checkpoint to `runs/` (not in git).
+
+For more than one run, or one that should outlive the terminal, describe the runs
+in `config/experiments/<name>.json` (algorithms × paradigms × seeds × variants,
+budget, train days and test periods; every setting is in [Config](../config/reference.md))
+and use the runner. It keeps everything in files under `runs/<name>/`, so the CLI,
+Python (`core.runner.targets`) and the Studio see the same state. Each run ends
+with `heldout.csv` (trained policy and baselines on the test periods), with per-day
+and per-participant tables next to it; the Studio's Results page and
+`notebooks/runner/results.ipynb` compare runs from them. The `test` profile is the
+smallest version of the same experiment, to check the pipeline before spending
+cluster time. The workflow, the readiness check and restarting are in
+[Training experiments](experiments.md), what each setting controls in
+[Resources and parallelism](resources.md).
+
+Each run writes `run.json`, `metrics.csv`, `evaluation.csv` (with its per-episode
+and per-agent tables) and a checkpoint to `runs/` (not in git).
+
+For more than one run, or one that should outlive the terminal, use the runner as
+described above.
+
+**What the Studio's Experiments page adds.**
+The Studio's Experiments page edits an experiment's JSON, with fields for the
+  paradigms, seeds, budget, PPO settings (learning rate, batch, minibatch, epochs,
+  entropy, clip, γ), environment runners, runs in parallel, torch threads and SLURM
+  resources; each rewrites its setting in the JSON editor, which stays what starts.
+
+**What the Results page shows.**
+The Results page shows every test day step by step: each participant's side, order,
+  named partner, whether the choice was mutual and its stage-1 energy, and the step's
+  stage-1 volume next to the P2P and DSO volumes.
+
+**The cluster's checkout.**
+The cluster's checkout is `~/marlem-v2` (branch `marlem-v2`), with its own `runs/`;
+  on this PC the synced results are in `runs/@taltech/`. Account and cluster settings
+  are in `.env`.
 
 ## Files
 

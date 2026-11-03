@@ -6,7 +6,7 @@
 > and the networks updated, minibatch by minibatch (C); the new weights go back to
 > the agents (D). Steps that repeat (every environment step, every minibatch) are
 > written out once, with how often they happen, and with what the three paradigms
-> change on the way. [The training cycle](training.md) is the overview and the
+> change on the way. [The training cycle](index.md) is the overview and the
 > list of what we change in RLlib; [Worked examples](examples.md) puts numbers on
 > each step.
 
@@ -16,21 +16,21 @@
     environment. The normal colour is PPO as RLlib 2.51.1 implements it,
     unchanged. In formulas our terms are $\textcolor{mediumpurple}{\text{purple}}$; in the
     diagram our steps are purple boxes. The full list with the reason for each
-    is in [The training cycle, section 2](training.md#2-everything-we-change-in-rllibs-ppo).
+    is in [The training cycle, section 2](index.md#2-everything-we-change-in-rllibs-ppo).
 
 **Sources.** RLlib is Ray 2.51.1, read in its installed source and linked at tag
 [`ray-2.51.1`](https://github.com/ray-project/ray/tree/ray-2.51.1/rllib); the
 implementation is `core/rl/` with the settings of
-[rl_defaults.py](../../core/rl_defaults.py#L28-L64) and the environment
-[market_env.py](../../core/env/market_env.py). The step labels A1 to D3 are those
-used in [the full cycle](../full-cycle.md) and the other RL pages.
+[rl_defaults.py](../../../core/rl_defaults.py#L28-L64) and the environment
+[market_env.py](../../../core/env/market_env.py). The step labels A1 to D3 are those
+used in [the full cycle](../index.md) and the other RL pages.
 
 ## Notation
 
 | Symbol | Meaning |
 |---|---|
 | $N$ | number of agents, $i = 1 \dots N$ |
-| $d_o$ | size of one agent's observation: $42 + (N - 1)$ ([Observation](observation.md)) |
+| $d_o$ | size of one agent's observation: $42 + (N - 1)$ ([Observation](../environment/observation.md)) |
 | $t$ | environment step (one market hour): all $N$ agents act at once |
 | $o_{i,t} \in \mathbb{R}^{d_o}$ | agent $i$'s observation |
 | $s_t = (o_{1,t}, \dots, o_{N,t}) \in \mathbb{R}^{N d_o}$ | the global state: CTCE's input, CTDE's critic input |
@@ -109,11 +109,11 @@ The market returns one observation per agent, $o_{i,t} \in \mathbb{R}^{d_o}$, it
 entries already scaled to about $[-1, 1]$ and clipped to $[-10, 10]$ by
 <span class="ours">`MarketEnv`</span>. RLlib passes it to the network as it comes
 (no `MeanStdFilter`). The <span class="ours">paradigm's wrapper</span> decides what
-each module receives ([`env_spec`](../../core/rl/config.py#L80-L93)):
+each module receives ([`env_spec`](../../../core/rl/config.py#L80-L93)):
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| What the module receives | <span class="ours">$s_t$, all observations joined in the environment's agent order, one input for the group ([`CTCEEnv`](../../core/rl/ctce.py#L45-L106))</span> | <span class="ours">$x_{i,t} = (o_{i,t}, s_t)$, agent $i$'s module ([`CTDEEnv`](../../core/rl/ctde.py#L55-L103))</span> | $o_{i,t}$, each agent's module its own |
+| What the module receives | <span class="ours">$s_t$, all observations joined in the environment's agent order, one input for the group ([`CTCEEnv`](../../../core/rl/ctce.py#L45-L106))</span> | <span class="ours">$x_{i,t} = (o_{i,t}, s_t)$, agent $i$'s module ([`CTDEEnv`](../../../core/rl/ctde.py#L55-L103))</span> | $o_{i,t}$, each agent's module its own |
 
 ### A2. Actor forward pass
 
@@ -128,7 +128,7 @@ $$
 
 where $y$ is the actor's input. `out` holds the distribution inputs of every
 action part one after the other, in the order RLlib flattens the `Dict` (its keys
-sorted, [`action_parts`](../../core/rl/modules.py#L56-L85)):
+sorted, [`action_parts`](../../../core/rl/modules.py#L56-L85)):
 
 | Part | Inputs | Size |
 |---|---|---|
@@ -138,7 +138,7 @@ sorted, [`action_parts`](../../core/rl/modules.py#L56-L85)):
 | `side` | logits $z_\alpha$ | 2 |
 
 so $N + 7$ outputs per agent. <span class="ours">Our head
-([`BoundedHead`](../../core/rl/modules.py#L121-L173)) then changes the continuous
+([`BoundedHead`](../../../core/rl/modules.py#L121-L173)) then changes the continuous
 parts</span>; the logits pass unchanged:
 
 $$
@@ -168,7 +168,7 @@ What $y$ and the output size are per paradigm:
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| $y$ | $s_t \in \mathbb{R}^{N d_o}$ | <span class="ours">the first $d_o$ entries of $x_{i,t}$, i.e. $o_{i,t}$ ([`own_encoder`](../../core/rl/ctde.py#L126-L140))</span> | $o_{i,t}$ |
+| $y$ | $s_t \in \mathbb{R}^{N d_o}$ | <span class="ours">the first $d_o$ entries of $x_{i,t}$, i.e. $o_{i,t}$ ([`own_encoder`](../../../core/rl/ctde.py#L126-L140))</span> | $o_{i,t}$ |
 | `out` | $N (N + 7)$: every agent's parts from one network, agent by agent in environment order | $N + 7$, agent $i$'s network | $N + 7$, agent $i$'s network |
 | learned $\log\sigma$ | $2N$ | 2 | 2 |
 
@@ -194,7 +194,7 @@ $$
 $$
 
 Nothing ties the parts together: the partner is drawn without knowing the side
-drawn with it (the **factorised** policy; v2.md §8). In CTCE the sum runs over all
+drawn with it (the **factorised** policy; [RP-2b](../../plan/open.md)). In CTCE the sum runs over all
 $N$ agents' parts, so the group's log-probability is the sum of the agents':
 $\log\mu(\mathbf{a}) = \sum_i \log\mu(a_i)$.
 
@@ -222,11 +222,11 @@ the `Tuple` (L-05).
 
 <span class="ours">Entirely ours: the market environment.</span> In CTCE
 `CTCEEnv` first splits the group's `Tuple` into the agents' actions
-([`ungroup`](../../core/rl/ctce.py#L35-L42)). Then
-[`MarketEnv.step`](../../core/env/market_env.py#L398-L464), per agent:
+([`ungroup`](../../../core/rl/ctce.py#L35-L42)). Then
+[`MarketEnv.step`](../../../core/env/market_env.py#L398-L464), per agent:
 
 1. **Decode** the action into an order
-   ([`decode`](../../core/env/market_env.py#L514-L547)):
+   ([`decode`](../../../core/env/market_env.py#L514-L547)):
     - side $\alpha$: 0 sell, 1 buy;
     - quantity share $\textcolor{mediumpurple}{s = (q + 1)/2}$; **no order** when
       $\textcolor{mediumpurple}{s < 0.05}$, otherwise $s$ rescaled to $(0, 1]$ and
@@ -236,14 +236,14 @@ the `Tuple` (L-05).
     - partner $\beta$: an index into the agent's candidates, the $N - 1$ other
       participants, then the DSO, then "no preference".
 2. **Play the market step** with all orders: matching by preference, double
-   auction, DSO, power flow, fees ([the full cycle](../full-cycle.md#the-environment-step)).
+   auction, DSO, power flow, fees ([the full cycle](../environment/index.md#the-environment-step)).
 3. **Reward** $\textcolor{mediumpurple}{r_{i,t} = (\text{profit}_i - p_\text{utility} \cdot \text{deferred demand}_i) / \text{reward scale}}$:
    the agent's bill, with unmet demand charged at the utility price, scaled.
 4. **Observe** the next step's $o_{i,t+1}$.
 
 | | CTCE | CTDE | DTDE |
 |---|---|---|---|
-| Reward stored | <span class="ours">$R_t = \sum_i r_{i,t}$ ([`CTCEEnv.step`](../../core/rl/ctce.py#L81-L103))</span> | $r_{i,t}$ in agent $i$'s episode | $r_{i,t}$ in agent $i$'s episode |
+| Reward stored | <span class="ours">$R_t = \sum_i r_{i,t}$ ([`CTCEEnv.step`](../../../core/rl/ctce.py#L81-L103))</span> | $r_{i,t}$ in agent $i$'s episode | $r_{i,t}$ in agent $i$'s episode |
 | Done flag | one, `__all__` | per agent, and `__all__` | per agent, and `__all__` |
 
 The day ends **terminated** after its last step (RP-1f): the return stops at
@@ -380,7 +380,7 @@ agents that each moved a little can together leave the band
 
 <span class="ours">Logged:</span> the **clip fraction**, the share of the
 minibatch's rows with $|\rho_t - 1| > \epsilon$
-([`PPOLearner`](../../core/rl/learner.py#L27-L52)); the value of the last minibatch
+([`PPOLearner`](../../../core/rl/learner.py#L27-L52)); the value of the last minibatch
 of the update.
 
 ### C4. Value loss
@@ -497,8 +497,8 @@ quantity, written out once.
 
 **What it is.** One `torch.nn.Parameter` $\bar\ell$ per continuous part, created at
 0 ($\sigma = 1$) in
-[`BoundedHead`](../../core/rl/modules.py#L121-L173) and written into every row's
-distribution inputs ([L164-L167](../../core/rl/modules.py#L164-L167)), whatever the
+[`BoundedHead`](../../../core/rl/modules.py#L121-L173) and written into every row's
+distribution inputs ([L164-L167](../../../core/rl/modules.py#L164-L167)), whatever the
 observation. It has **no bounds**: `log_std_bounds` is `None`, and RLlib does not
 clip $\log\sigma$ for a `Dict` action.
 
@@ -568,7 +568,7 @@ the clip on its own; the means and the logits use up the 20 % band first.
 shapes only what training explores.
 
 **What to watch.** `<module>/<part>/log_std` in each run's `metrics.csv`, per
-iteration ([`part_stats`](../../core/rl/policy.py#L492-L542)), with `outside`, the
+iteration ([`part_stats`](../../../core/rl/policy.py#L492-L542)), with `outside`, the
 share of samples beyond the bounds. A steady climb in a part that is mostly unused,
 against a decline in the parts that matter, is the drift above. The numbers for one
 sample are in [worked examples, section 5](examples.md#5-the-update-per-agent-ratios-and-clips-c2-c3-c8).
@@ -590,11 +590,11 @@ again after its iteration.
 ### D3. Between iterations
 
 <span class="ours">Our trainer</span>
-([`train`](../../core/rl/train.py#L408-L555)) records the iteration's metrics
+([`train`](../../../core/rl/train.py#L408-L555)) records the iteration's metrics
 (learner metrics per module, and each action part's mean, $\log\sigma$, share
 outside the bounds or entropy in fixed states,
-[`part_stats`](../../core/rl/policy.py#L492-L542)), stops the run on a NaN or
-infinite loss or entropy ([`_nonfinite`](../../core/rl/train.py#L346-L363)), and
+[`part_stats`](../../../core/rl/policy.py#L492-L542)), stops the run on a NaN or
+infinite loss or entropy ([`_nonfinite`](../../../core/rl/train.py#L346-L363)), and
 evaluates the policy and the baselines (random, zero, net position) whenever the
 budget of environment steps reaches the next evaluation point. Hyperparameters stay
 fixed during a run; the run ends when the budget is used.
@@ -603,11 +603,11 @@ fixed during a run; the run ends when the budget is used.
 
 | Step | What the original does | Recorded as |
 |---|---|---|
-| A2, C1, C8 | CTDE acts with heads that receive no gradient; the loss trains a central actor | [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
-| A5, B4, B5 | CTDE learns from the summed reward $R_t$ with one advantage for the group, as CTCE | [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
-| A2, B3 | CTCE and CTDE: custom 2 × 128 ReLU networks with a shared encoder; DTDE: RLlib's default | [L-04](../validation/rl.md#l-04-the-paradigms-train-different-networks) |
-| A2, C5 | CTCE and CTDE: $\ell$ unclipped, so the entropy bonus can grow it until it overflows | [L-06](../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit) |
-| A3, A5 | all four action parts decoded from one continuous `Box` (`α > 0.5`, `int(β)`) | [v2.md §2](../v2.md#2-the-mixed-action) |
-| A4 | CTCE and CTDE: an agent's slice can be rescaled with another agent's bounds | [L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order) |
-| C6, C7, C9 | $\beta = 0$ still computes the KL; an infinite KL makes the loss NaN, and the NaN gradient is zeroed silently | [L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
-| D3 | Population-based training raises the learning rate 10-1000× and the entropy coefficient up to 10 | [L-10](../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10) |
+| A2, C1, C8 | CTDE acts with heads that receive no gradient; the loss trains a central actor | [L-01](../../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
+| A5, B4, B5 | CTDE learns from the summed reward $R_t$ with one advantage for the group, as CTCE | [L-01](../../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act) |
+| A2, B3 | CTCE and CTDE: custom 2 × 128 ReLU networks with a shared encoder; DTDE: RLlib's default | [L-04](../../validation/rl.md#l-04-the-paradigms-train-different-networks) |
+| A2, C5 | CTCE and CTDE: $\ell$ unclipped, so the entropy bonus can grow it until it overflows | [L-06](../../validation/rl.md#l-06-the-ctce-and-ctde-action-spread-has-no-limit) |
+| A3, A5 | all four action parts decoded from one continuous `Box` (`α > 0.5`, `int(β)`) | [Action](../environment/action.md) |
+| A4 | CTCE and CTDE: an agent's slice can be rescaled with another agent's bounds | [L-05](../../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order) |
+| C6, C7, C9 | $\beta = 0$ still computes the KL; an infinite KL makes the loss NaN, and the NaN gradient is zeroed silently | [L-07](../../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed) |
+| D3 | Population-based training raises the learning rate 10-1000× and the entropy coefficient up to 10 | [L-10](../../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10) |

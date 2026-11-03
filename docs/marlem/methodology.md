@@ -5,7 +5,7 @@
 > Everything about reinforcement learning is left out (the observation, the reward,
 > the training paradigms and algorithms, the learning experiments): here orders come
 > from scripted rules or from the user on the Step page, not from learned policies.
-> The learning half is in [the learning layer as stated in the papers](learning.md).
+> The learning half is in [the learning layer as stated in the papers](learning/index.md).
 > This file says **what the paper says**, not what the code does. Where the
 > paper leaves out what is needed to compute something, a folded section titled
 > **Not in [P1]: the original code** (click to open) gives what the original

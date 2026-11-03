@@ -1,7 +1,7 @@
 # MARLEM: the learning layer as stated in the papers
 
 > The reinforcement-learning half of the MARLEM method, the counterpart of
-> [the market as stated in the paper](methodology.md): what the agents observe and
+> [the market as stated in the paper](../methodology.md): what the agents observe and
 > do, the three training paradigms, the three algorithms, their hyperparameters,
 > population-based training, and the 3 × 3 experiment. Each section says **what
 > the papers say**. Where they leave out something needed to run it, a folded
@@ -9,7 +9,7 @@
 > implementation ([salazarna/marlem](https://github.com/salazarna/marlem/tree/15d6715a7b7ad31700d3758f2a2dd9df053773a7),
 > commit `15d6715`) configures it, so every setting has a reference value. Those
 > sections describe the code as it is; what is wrong in it is recorded separately,
-> in [RL layer: what is wrong](../validation/rl.md), and only linked here.
+> in [RL layer: what is wrong](../../validation/rl.md), and only linked here.
 
 **Sources**
 
@@ -31,7 +31,7 @@
 
 Equation numbers are the papers' own and marked with the paper. The reward and the
 KPIs are compared paper against paper against code in
-[The two papers](../validation/papers.md#3-reward) and are only summarised here.
+[The two papers](../../validation/papers.md#3-reward) and are only summarised here.
 
 **Notation**
 
@@ -50,7 +50,7 @@ The market is a decentralised partially observable Markov decision process
 (Dec-POMDP) $\langle \mathcal{I}, \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \Omega, \mathcal{O} \rangle$:
 each agent $i$ sees only its own observation $o_i$, chooses its own action $a_i$
 and receives its own reward $R_i$; the transition $\mathcal{P}(s' \mid s, \mathbf{a})$
-is one market step ([methodology §3](methodology.md#3-one-market-step-p1-39-fig-4)).
+is one market step ([methodology §3](../methodology.md#3-one-market-step-p1-39-fig-4)).
 An episode is one day of $\tau = 24$ hourly steps ([P2] Table 7).
 
 ### 1.1 Action ([P1] eq. 2)
@@ -60,7 +60,7 @@ a_i = \left\langle p_{\text{bid}},\ q_{\text{bid}},\ \alpha,\ \beta \right\rangl
 $$
 
 Price, quantity, order type (0 sell, 1 buy) and preferred partner (another agent,
-the DSO, or none), as in [methodology §2](methodology.md#2-orders-p1-323). [P1]
+the DSO, or none), as in [methodology §2](../methodology.md#2-orders-p1-323). [P1]
 calls the action space continuous.
 
 ??? note "In the original code"
@@ -89,7 +89,7 @@ calls the action space continuous.
 ### 1.2 Observation ([P1] Table 2, [P2] Table 5)
 
 Three blocks, the same 42 signals in both papers (listed in
-[The two papers §1](../validation/papers.md#1-dec-pomdp-and-observation)):
+[The two papers §1](../../validation/papers.md#1-dec-pomdp-and-observation)):
 
 | Block | Signals | Visible to |
 |---|---|---|
@@ -224,7 +224,7 @@ Every agent gets its own reward each step: a base reward of five weighted parts
 raised by a cooperation bonus $f_{\text{coop}} \cdot f_{\text{contrib},i}$ built from the
 KPIs, minus penalties for DSO reliance and unmet demand. The two papers write the
 overall form differently, and the code is a third version; all three, with the
-weights, are in [The two papers §3](../validation/papers.md#3-reward).
+weights, are in [The two papers §3](../../validation/papers.md#3-reward).
 
 What matters for training: the reward is **per agent**. How it becomes a
 paradigm's learning signal is the paradigm's choice (§2).
@@ -319,7 +319,7 @@ the other paradigms are measured against.
     Linear(2 × $\dim a_i$). Acting (data collection, evaluation, inference) uses
     `pi_heads`, each on its own agent's observation; the loss is computed from the
     central `pi`. That split is the defect
-    [L-01](../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act).
+    [L-01](../../validation/rl.md#l-01-ctde-never-trains-the-policies-that-act).
 
 ## 3. Algorithms ([P1] §3.7.2, [P2] §3.3)
 
@@ -346,7 +346,7 @@ J(\pi) = \sum_{t=0}^{\tau} \mathbb{E}_{(o_t, a_t) \sim \rho_\pi}\left[ r(o_t, a_
 $$
 
 How each is computed step by step in RLlib is in
-[One training iteration](../rl/cycle.md).
+[One training iteration](../../full-cycle/learning/iteration.md).
 
 ??? note "In the original code"
 
@@ -446,7 +446,7 @@ trials." Which hyperparameters, over which ranges and how often are not given.
     The mutation ranges are in
     [train.py L178-L198](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/train.py#L178-L198).
     How they relate to the starting values is
-    [L-10](../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10).
+    [L-10](../../validation/rl.md#l-10-population-based-training-jumps-the-learning-rate-and-reaches-entropy-10).
 
 ## 6. The training run ([P2] §4.2)
 
@@ -551,7 +551,7 @@ The papers do not describe how a trained policy is run outside training.
     it to the action bounds and steps the environment, collecting episode rewards
     and market metrics. DTDE runs on the market environment, CTCE and CTDE on the
     grouped one. How this differs from training's actions is
-    [L-15](../validation/rl.md#l-15-standalone-inference-does-not-act-like-training).
+    [L-15](../../validation/rl.md#l-15-standalone-inference-does-not-act-like-training).
 
 ## 9. Points the papers leave unspecified
 

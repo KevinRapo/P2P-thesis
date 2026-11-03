@@ -79,7 +79,7 @@ draws a second run over the market charts, dotted, on the same day and policy.
 | `reputation`, `partner_index`, `reward_*` of `heldout_agent_steps.csv` | Per step and participant; the reward parts are what explains a Salazar result |
 | `team_reward`, `clearing_price` of `heldout_steps.csv` | Per step |
 
-**The paper's KPIs.** The ten of [P1] eq. 19-27 ([definitions](../../rl/observation.md)),
+**The paper's KPIs.** The ten of [P1] eq. 19-27 ([definitions](../../full-cycle/environment/observation.md)),
 over the day, from `signals.kpis`, the same function the observation and the reward use.
 Three need a note next to their name, because the label says more than the quantity.
 

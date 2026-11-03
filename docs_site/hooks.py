@@ -28,7 +28,7 @@ SERVED = {".md", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".gif"}
 # \(...\) math included, in md-ellipsis spans without the arithmatex class. MathJax
 # only looks inside elements whose own class matches, so the span is named directly.
 # The color package is loaded at start-up: left to MathJax's autoload, \color and
-# \textcolor came out undefined on the site (docs/rl/ marks our terms with them).
+# \textcolor came out undefined on the site (docs/full-cycle/ marks our terms with them).
 MATHJAX = """window.MathJax = {
   loader: {load: ["[tex]/color"]},
   tex: {packages: {"[+]": ["color"]},
@@ -51,7 +51,7 @@ API_SECTIONS = [
     ("Grid: SimBench networks", "grid", ["core.grid"], "simbench/README.md"),
     ("Market: the MARLEM market", "market", ["core.market"], None),
     ("Config: the scenario", "config", ["core.config"], None),
-    ("Environment: market to RL", "env", ["core.env"], "v2.md"),
+    ("Environment: market to RL", "env", ["core.env"], "full-cycle/environment/index.md"),
     ("Studio: pages, components, adapters", "studio", ["studio"], None),
     ("RL: the learning layer", "rl", ["core.rl"], None),
     (

@@ -132,46 +132,54 @@ nav:
   - Implementation:
       - Paper overview:
           - Methodology: marlem/methodology.md
-          - Learning layer: marlem/learning.md
+          - Learning layer: 
+              - marlem/learning/index.md
           - Validation:
               - Issue register: validation/register.md
               - Market layer: validation/market.md
               - RL layer: validation/rl.md
               - The two papers: validation/papers.md 
-      - Our version:   
-          - marlem-v2: v2.md
-          - Code structure: structure.md
-          - The full cycle: full-cycle.md
-          - Plans:
+      - Our version:
+          - Overview: overview.md
+          - The full cycle:
+              - full-cycle/index.md
+              - Market step: full-cycle/market-step.md
+              - Environment:
+                  - full-cycle/environment/index.md
+                  - Action: full-cycle/environment/action.md
+                  - Reward: full-cycle/environment/reward.md
+                  - Observation: full-cycle/environment/observation.md
+              - Learning layer:
+                  - full-cycle/learning/index.md
+                  - One iteration, step by step: full-cycle/learning/iteration.md
+                  - Worked examples (our code): full-cycle/learning/examples.md
+                  - How the probes work: full-cycle/learning/probes.md
+          - Running it:
+              - Config: config/reference.md
+              - Run contract: config/run-contract.md
+              - Results:
+                  - config/results/index.md
+                  - Saved files: config/results/files.md
+                  - Learning: config/results/learning.md
+                  - Validation: config/results/validation.md
+                  - Market: config/results/market.md
+                  - Grid: config/results/grid.md
+              - Code structure: structure.md
+          - Plans and decisions:
               - plan/index.md
+              - Open items: plan/open.md
               - Market plan: plan/market.md
               - RL plan: plan/rl.md
               - Results plan: plan/results.md
               - Decision log: plan/decisions.md
-      - Config:
-          - config/reference.md
-          - Results:
-              - config/results/index.md
-              - Saved files: config/results/files.md
-              - Learning: config/results/learning.md
-              - Validation: config/results/validation.md
-              - Market: config/results/market.md
-              - Grid: config/results/grid.md
-      - Reinforcement learning:
-          - Observation: rl/observation.md
-          - Probes:
-              - How the probes work: rl/probes.md
-          - RL helpers:
-              - Training cycle (PPO × 3): rl/training.md
-              - One iteration, step by step: rl/cycle.md
-              - Worked examples (our code): rl/examples.md
+          - Experiments:
+              - experiments/index.md
+              - Grid-method comparison: experiments/grid-methods.md
+              - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
       - SimBench:
           - simbench/README.md
           - Network catalogue: simbench/networks.md
           - Profiles: simbench/profiles.md
-  - Experiments:
-      - Grid-method comparison: experiments/grid-methods.md
-      - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
   - HPC:
       - Overview: hpc.md
       - Getting started:
