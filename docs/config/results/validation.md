@@ -29,9 +29,10 @@ a 95% bootstrap interval in square brackets.
 | Column | What it is |
 |---|---|
 | Team money | The participants' `bill` summed, EUR per day; positive is earned |
+| VTI | Value to ideal over the test period: (team money − `non_p2p`) / (`ceiling` − `non_p2p`), the period's sums. 0 is every participant on its own, 1 the most the period allows; below 0 worse than on their own |
+| PI | Participation over the test period: the share of participants whose money beats their own `non_p2p` money. It says whether the gain reaches most of them |
 | Gain over net position | Team money minus the run's own `net_position`, same day |
 | Stored change | Energy left in the batteries against the start of the day, kWh. Money alone favours draining them, so it stands next to it |
-| Better off than zero | Participants whose `bill` beats `zero` |
 | Peer energy | `p2p_kwh` |
 | Trading ratio | Energy bought and sold over what participants needed to get or get rid of; above 1 is energy traded back and forth |
 | Unmet demand | `deferred_demand_kwh` |
@@ -49,7 +50,11 @@ which keeps the variation between days. `difference(by=..., reference=...)` in t
 notebook does the same per factor, inside each combination of the other settings.
 
 Under the table there is one row per baseline and per what it was played on: prices,
-peer charge, network, grid method, test days. A warning names steps that did not
+peer charge, network, grid method, test days. The `non_p2p` and `ceiling` rows are the
+two ends of the VTI ([Results](index.md)); they fill only team money, VTI, stored change
+and the gains. VTI and PI are numbers of the whole period, shown on each of its days, so
+a cell's mean over the days is the period's value (with several test periods, their
+mean weighted by days). A warning names steps that did not
 converge, because on them loading and limits count nothing and read low.
 
 *Look closer at* picks a row, and *Market* or *Grid* opens that tab on its median seed by

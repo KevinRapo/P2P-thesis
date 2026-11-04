@@ -153,7 +153,7 @@ class TradeMatrix:
         with ui.row().classes("w-full items-center gap-3"):
             self.run = ui.select(labels, value=first, label="Run").classes("w-96")
             self.policy = ui.select(
-                POLICIES | {"random": "Random"}, value=selection.policy, label="Policy"
+                POLICIES, value=selection.policy, label="Policy"
             ).classes("w-40")
             self.measure = ui.select(MEASURES, value="kwh", label="A cell is").classes(
                 "w-40"

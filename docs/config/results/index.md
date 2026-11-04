@@ -37,6 +37,23 @@ A run produces numbers in three phases, and they answer different questions.
 The baselines are `zero` (no orders) and `net_position` (the market's own bidding rule).
 The periodic evaluation plays them once, at step 0, with `random`, and the trained
 policy at every point; the held-out evaluation plays all but `random` on every test day.
+Older runs also played `random` on the test days; the results leave it out.
+
+Two references are computed, not played. **`non_p2p`** is every participant on its
+own: the `zero` policy (no orders, each battery following its owner's own balance) with
+the surplus it spilled sold at the feed-in tariff, as a household outside any market
+would be paid; in the market itself an unsold surplus earns nothing (MP-1e). Above them
+all stands the **`ceiling`**: the most money the participants could make on a
+test period, from a linear program with perfect foresight over the netting and every
+battery's charge and discharge, the batteries carried from day to day and ending at
+least as full as they started ([`ceiling.py`](../../../core/runner/ceiling.py),
+[market_ceiling.ipynb](../../../notebooks/market/market_ceiling.ipynb)). It plays no
+market: it has a team money, a stored change and the gains over the other baselines,
+computed from each run's held-out tables and `scenario.json`, so every run has it,
+older ones included. It ignores fees, the grid's limits and losses. Between the two, the
+**VTI** places a policy's money over the test period (0 on their own, 1 the ceiling) and
+the **PI** counts the participants better off than on their own
+([Validation](validation.md)).
 
 The results the thesis compares come from the held-out evaluation. Its reward is in each
 reward's own units, so **money (`bill`), not `team_return`, is the measure that compares

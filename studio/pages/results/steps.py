@@ -97,7 +97,7 @@ class StepView:
             ).classes("w-96")
             self.day = ui.select([], label="Day").classes("w-40")
             self.policy = ui.select(
-                POLICIES | {"random": "Random"},
+                POLICIES,
                 value=selection.policy,
                 label="Policy",
             ).classes("w-40")

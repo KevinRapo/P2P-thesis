@@ -5,7 +5,8 @@ what is not here can only be computed if the numbers it needs are here. The
 [tab pages](index.md) say what is drawn from them.
 
 The templates show one real record of a run with 13 participants, hourly steps and 14
-test days, with `trained`, `random`, `zero` and `net_position` on the test days. Counts
+test days, with `trained`, `random`, `zero` and `net_position` on the test days (runs
+since 4 Nov 2026 no longer play `random` there). Counts
 are for `obs_reward`, 240,000 environment steps, 10 evaluation points, 5 evaluation
 episodes, with the tables written since; the step tables' sizes are estimates.
 

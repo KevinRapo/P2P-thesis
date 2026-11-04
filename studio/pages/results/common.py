@@ -72,6 +72,9 @@ class Selection:
         """The selection of the last visit."""
         kept = {name: recalled(f"{memory}_{name}") for name in KEPT}
 
+        if kept["policy"] not in POLICIES:  # e.g. ``random``, no longer offered
+            kept["policy"] = None
+
         return cls(
             open, **{k: v for k, v in kept.items() if v is not None}, memory=memory
         )

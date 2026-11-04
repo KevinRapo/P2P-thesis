@@ -26,6 +26,11 @@ import numpy as np
 import pandas as pd
 
 TRAINED = "trained"
+# The two outer references, computed rather than played: every participant on its own
+# (the ``zero`` policy, its spilled surplus sold at the feed-in tariff), and the most
+# money the test period allows (``ceiling.py``).
+NON_P2P = "non_p2p"
+CEILING = "ceiling"
 KEYS = ["policy", "day"]
 DSO = "DSO"  # core.market.dso.DSO_ID (a test compares them), like ``KPIS`` below
 # What a run can differ in. ``variant`` and ``experiment`` name versions, so they do
@@ -92,14 +97,13 @@ class Indicator:
 INDICATORS = (
     # Validation: is it worth anything?
     Indicator("team_money", "Team money", "EUR", "validation", True),
+    # Over the test period, the same on each of its days (``_period_scores``)
+    Indicator("vti", "VTI", "", "validation", True),
+    Indicator("pi", "PI", "", "validation", True),
     Indicator("gain_net_position", "Gain over net position", "EUR", "validation", True),
     Indicator("stored_change_kwh", "Stored change", "kWh", "validation", True),
     Indicator(
-        "participants_better",
-        "Better off than zero",
-        "participants",
-        "validation",
-        True,
+        "participants_better", "Better off than zero", "participants", "validation"
     ),
     Indicator("gain_zero", "Gain over zero", "EUR", "validation"),
     Indicator(
@@ -182,9 +186,16 @@ def day_table(
     steps: Optional[pd.DataFrame] = None,
     agent_steps: Optional[pd.DataFrame] = None,
     trades: Optional[pd.DataFrame] = None,
+    ceiling: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """One run's ``INDICATORS``: a row per policy and test day, from its held-out
-    tables. What a table of an older run does not hold stays NaN."""
+    tables. What a table of an older run does not hold stays NaN.
+
+    ``ceiling`` (``ceiling.ceiling_days``) adds the money ceiling as a policy of its
+    own: its team money, stored change and gains over the baselines; it plays no
+    market, so everything else stays NaN. With the step tables, ``non_p2p`` is added
+    the same way (``non_p2p_bills``), and with both, every policy's VTI and PI over
+    its test period (``_period_scores``)."""
     out = episodes.set_index(KEYS).reindex(columns=_COPIED)
     team = agents.groupby(KEYS).sum(numeric_only=True).reindex(columns=_TEAM)
     out["team_money"] = team["bill"]
@@ -217,7 +228,98 @@ def day_table(
         if trades is not None:
             out = out.join(_trade_indicators(trades, steps, agent_steps, out.index))
 
+    own = None
+
+    if steps is not None and agent_steps is not None:
+        own = non_p2p_bills(agent_steps, steps)
+
+    if own is not None:
+        team = own.groupby("day").bill.sum()
+        zero = out.stored_change_kwh.xs("zero", level="policy")
+        alone = pd.DataFrame(
+            {"team_money": team, "stored_change_kwh": zero.reindex(team.index)}
+        )
+        alone.index = pd.MultiIndex.from_product([[NON_P2P], team.index], names=KEYS)
+        out = _with_reference(out, alone)
+
+    if ceiling is not None:
+        out = _with_reference(out, ceiling)
+
+    if own is not None and ceiling is not None:
+        out = out.join(_period_scores(out, agents, own))
+
     return out.reindex(columns=[i.name for i in INDICATORS])
+
+
+def _with_reference(out: pd.DataFrame, top: pd.DataFrame) -> pd.DataFrame:
+    """``out`` with a reference's rows (a policy that plays no market), its gains over
+    the played baselines added."""
+    top = top.reindex(columns=out.columns)
+    on = top.index.get_level_values("day")
+
+    for baseline in ("zero", "net_position"):
+        base = out.team_money.xs(baseline, level="policy")
+        top[f"gain_{baseline}"] = top.team_money - on.map(base)
+
+    return pd.concat([out, top])
+
+
+def non_p2p_bills(
+    agent_steps: pd.DataFrame, steps: pd.DataFrame
+) -> Optional[pd.DataFrame]:
+    """Each participant's money on its own, per test day: the ``zero`` policy (no
+    orders, each battery following its owner's own balance), with the surplus it
+    spilled sold at the feed-in tariff and its untraded demand bought at the utility
+    price. A row per day and agent: ``period``, ``bill``. None without ``zero``."""
+    need = {"deferred_demand_kwh", "deferred_supply_kwh"}
+    zero = agent_steps[agent_steps.policy == "zero"]
+
+    if zero.empty or not need <= set(zero) or "feed_in_tariff" not in steps:
+        return None
+
+    tariffs = steps[steps.policy == "zero"].set_index(["day", "step"])
+    at = pd.MultiIndex.from_frame(zero[["day", "step"]])
+    fit = tariffs.feed_in_tariff.reindex(at).to_numpy()
+    util = tariffs.utility_price.reindex(at).to_numpy()
+    money = fit * zero.deferred_supply_kwh - util * zero.deferred_demand_kwh
+    period = zero.period if "period" in zero else "all"
+    found = zero.assign(bill=money.to_numpy(), period=period)
+
+    return found.groupby(["day", "agent"], as_index=False).agg(
+        period=("period", "first"), bill=("bill", "sum")
+    )
+
+
+def _period_scores(
+    out: pd.DataFrame, agents: pd.DataFrame, own: pd.DataFrame
+) -> pd.DataFrame:
+    """Every policy's VTI and PI over its test period, on each day of the period.
+
+    VTI = (team money − non-P2P) / (ceiling − non-P2P), the period's sums: 0 is every
+    participant on its own, 1 the most the period allows. PI: the share of
+    participants whose money over the period beats their own non-P2P money."""
+    period_of = own.drop_duplicates("day").set_index("day").period
+    money = out.team_money.reset_index()
+    money["period"] = money.day.map(period_of)
+    totals = money.groupby(["period", "policy"]).team_money.sum().unstack("policy")
+    reach = (totals[CEILING] - totals[NON_P2P]).where(lambda gap: gap > 0)
+    vti = totals.sub(totals[NON_P2P], axis=0).div(reach, axis=0)
+
+    bills = agents.assign(period=agents.day.map(period_of))
+    mine = bills.groupby(["period", "policy", "agent"]).bill.sum()
+    alone = own.groupby(["period", "agent"]).bill.sum()
+    base = alone.reindex(mine.index.droplevel("policy")).to_numpy()
+    pi = (mine > base).groupby(["period", "policy"]).mean().unstack("policy")
+
+    at = pd.MultiIndex.from_arrays(
+        [out.index.get_level_values("day").map(period_of),
+         out.index.get_level_values("policy")]
+    )
+    scores = pd.DataFrame(index=out.index)
+    scores["vti"] = vti.stack().reindex(at).to_numpy()
+    scores["pi"] = pi.stack().reindex(at).to_numpy()
+
+    return scores
 
 
 def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:

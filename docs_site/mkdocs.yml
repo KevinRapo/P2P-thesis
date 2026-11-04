@@ -141,6 +141,7 @@ nav:
               - The two papers: validation/papers.md 
       - Our version:
           - Overview: overview.md
+          - Code structure: structure.md
           - The full cycle:
               - full-cycle/index.md
               - Market step: full-cycle/market-step.md
@@ -164,7 +165,7 @@ nav:
                   - Validation: config/results/validation.md
                   - Market: config/results/market.md
                   - Grid: config/results/grid.md
-              - Code structure: structure.md
+              
           - Plans and decisions:
               - plan/index.md
               - Open items: plan/open.md

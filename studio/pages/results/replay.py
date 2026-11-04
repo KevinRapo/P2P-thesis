@@ -159,7 +159,7 @@ class Replay:
             self.run = ui.select(labels, value=first, label="Run").classes("w-96")
             self.day = ui.select([], label="Day").classes("w-40")
             self.policy = ui.select(
-                POLICIES | {"random": "Random"}, value=selection.policy, label="Policy"
+                POLICIES, value=selection.policy, label="Policy"
             ).classes("w-40")
 
         # Player row: back | play | on | slider | all peer trades

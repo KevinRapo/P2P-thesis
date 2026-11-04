@@ -429,7 +429,10 @@ def _heldout(
 
     policy, record = load_policy(run_dir)
     config = heldout_env_config(experiment, run_dir, variant, record)
-    policies = {"trained": policy} | baselines(run.env_class, config, record["seed"])
+    # Not ``random`` on the test days: the money ceiling (``ceiling.py``) is the
+    # results' outer reference, computed from these tables.
+    played = baselines(run.env_class, config, record["seed"])
+    policies = {"trained": policy} | {k: v for k, v in played.items() if k != "random"}
     arm = experiment.arm(variant)
     found = evaluation(
         run.env_class,

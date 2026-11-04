@@ -709,17 +709,47 @@ INDICATOR_TABLES = (
 )
 
 
+# Policies older runs played on the test days that the results no longer show: the
+# money ceiling (``ceiling.py``) took the random policy's place as the outer reference.
+HIDDEN_POLICIES = ("random",)
+
+
+def _scenario(folder: Path) -> Optional[dict]:
+    """The run's ``scenario.json``, or None."""
+    path = folder / "scenario.json"
+
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
 @_latest
 def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
-    """One run's indicators, long format; ``stamp`` says its tables are unchanged."""
+    """One run's indicators, long format, with the money ceiling as a policy;
+    ``stamp`` says its tables are unchanged."""
+    from core.runner.ceiling import ceiling_days
+
     tables = [_table(_table_path(Path(folder), n)) for n in INDICATOR_TABLES]
+    tables = [
+        t[~t.policy.isin(HIDDEN_POLICIES)] if t is not None and "policy" in t else t
+        for t in tables
+    ]
 
     if tables[0] is None or tables[1] is None or "bill" not in tables[1]:
         return None
 
-    days = indicators.day_table(*tables).reset_index()
+    try:
+        top = ceiling_days(tables[3], tables[2], _scenario(Path(folder)))
+    except (ValueError, KeyError):  # tables or a scenario it cannot read
+        top = None
 
-    return days.melt(indicators.KEYS, var_name="indicator")
+    days = indicators.day_table(*tables, ceiling=top).reset_index()
+    long = days.melt(indicators.KEYS, var_name="indicator")
+
+    # The references play no market: keep only what they have.
+    reference = long.policy.isin([indicators.CEILING, indicators.NON_P2P])
+    return long[~reference | long.value.notna()]
 
 
 def _factors(result: RunResult) -> dict[str, Any]:
@@ -760,6 +790,7 @@ def day_indicators(results: Sequence[RunResult]) -> pd.DataFrame:
 
     for result in results:
         files = [_table_path(result.ref.folder, n) for n in INDICATOR_TABLES]
+        files.append(result.ref.folder / "scenario.json")
         stamp = tuple(p.stat().st_mtime_ns if p.is_file() else 0 for p in files)
         days = _day_table(str(result.ref.folder), stamp)
 
