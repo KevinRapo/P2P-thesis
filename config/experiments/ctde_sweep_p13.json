@@ -1,0 +1,194 @@
+{
+  "name": "ctde_sweep_p13",
+  "description": "How far PPO-CTDE gets towards the money ceiling on the bill_paper setup (1-LV-rural3--2-sw, 13 participants, German 2024 prices, bill reward, the paper's 42 signals, power flow): one setting changed at a time from the stage 6 settings (RP-6b), two seeds, 960k steps so that every arm's evaluation curve also shows the budget (L-14). The tv arms pay the change of the stored energy at the end of each training episode (terminal_value, MP-1c) at stored_kwh_value = 0.3766 per kWh: the discharge efficiency 0.95 times the mean utility price of de_2024 (0.3964), what a stored kWh saves when it later covers an import. They end their episodes (no truncation): with truncate_episode the critic's bootstrap already values the stored energy, and the terminal value would count it twice. Read the held-out VTI and team money in Results (adjusted_bill values the stored change at the same price in every arm); on 1-14 July the ceiling is 128.72 EUR, of which batteries timed with the community's surplus are about 190 EUR over community netting alone (-61.16 EUR).",
+  "scenario": "config/scenarios/lv_rural3_p13.json",
+  "train_days": {
+    "from": "2016-01-01",
+    "to": "2016-12-31"
+  },
+  "test_periods": {
+    "july": {
+      "from": "2016-07-01",
+      "to": "2016-07-14"
+    }
+  },
+  "env_config": {
+    "grid_capacity_kwh": 400.0,
+    "reward": "bill",
+    "observation": "paper",
+    "stored_kwh_value": 0.3766
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctde"
+  ],
+  "seeds": [
+    0,
+    1
+  ],
+  "variants": {
+    "base": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      }
+    },
+    "lr_1e-3": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "training": {
+        "ppo": {
+          "lr": 0.001
+        }
+      }
+    },
+    "entropy_0": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "training": {
+        "ppo": {
+          "entropy_coeff": 0.0
+        }
+      }
+    },
+    "entropy_0.03": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "training": {
+        "ppo": {
+          "entropy_coeff": 0.03
+        }
+      }
+    },
+    "batch_8000": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "training": {
+        "ppo": {
+          "train_batch_size_per_learner": 8000,
+          "minibatch_size": 1000
+        }
+      }
+    },
+    "bootstrap": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "env_config": {
+        "truncate_episode": true,
+        "random_start_soc": true
+      }
+    },
+    "windows_7": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "env_config": {
+        "episode_days": 7,
+        "truncate_episode": true,
+        "random_start_soc": true
+      }
+    },
+    "summer": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "train_days": {
+        "from": "2016-05-01",
+        "to": "2016-08-31"
+      }
+    },
+    "tv": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "env_config": {
+        "terminal_value": true
+      }
+    },
+    "tv_random_soc": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "env_config": {
+        "terminal_value": true,
+        "random_start_soc": true
+      }
+    },
+    "tv_summer": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "env_config": {
+        "terminal_value": true
+      },
+      "train_days": {
+        "from": "2016-05-01",
+        "to": "2016-08-31"
+      }
+    },
+    "tv_windows_7": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      },
+      "env_config": {
+        "terminal_value": true,
+        "episode_days": 7,
+        "random_start_soc": true
+      }
+    }
+  },
+  "budget": 960000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "grad_clip": 0.5,
+      "clip_param": 0.2,
+      "entropy_coeff": 0.01,
+      "train_batch_size_per_learner": 4000,
+      "minibatch_size": 500,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 12,
+  "num_env_runners": 8,
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 24,
+    "minutes": 240,
+    "node": "blackwell1"
+  }
+}
