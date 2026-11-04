@@ -446,6 +446,73 @@ class PriceChart(SeriesChart):
             self.line(s.x, values, label, shape="hv", markers=len(s.x) == 1)
 
 
+class TradedChart(SeriesChart):
+    """A day's energy traded per step, stacked: peer to peer (with its stage-1 part,
+    the partner preferences, apart when known) and with the DSO; the peer price on the
+    right, no point in a step without peer trades. The Market page's day and the
+    Results page's Market tab.
+
+    Options: ``x`` (the steps), ``p2p`` and ``dso`` (kWh per step), ``price``,
+    ``stage1`` (kWh per step, part of ``p2p``; or None), ``compared`` (another run's
+    ``(x, p2p)``, a dotted line; or None), ``x_title``.
+    """
+
+    y_title = "kWh"
+    right_title = "price per kWh"
+    stacked = True
+
+    def draw(self) -> None:
+        o = self.o
+        self.titles(x=o.get("x_title"))
+        p2p = list(o.p2p)
+
+        if o.get("stage1") is not None:
+            stage1 = list(o.stage1)
+            auction = [p - s for p, s in zip(p2p, stage1)]
+            self.bars(o.x, stage1, "Peer to peer, stage 1", color=MARKET["p2p"])
+            self.bars(
+                o.x,
+                auction,
+                "Peer to peer, auction",
+                color=rgba(MARKET["p2p"], 0.55),
+            )
+        else:
+            self.bars(o.x, p2p, "Peer to peer", color=MARKET["p2p"])
+
+        self.bars(o.x, o.dso, "With the DSO", color=MARKET["dso"])
+        price = [c if p > 0 else None for c, p in zip(o.price, p2p)]
+        self.line(o.x, price, "Peer price", MARKET["sell"], markers=True, right=True)
+
+        if o.get("compared") is not None:
+            x, other = o.compared
+            self.line(x, other, "Peer to peer (compared)", MARKET["p2p"], "dot", "hv")
+
+
+class VoltageChart(SeriesChart):
+    """A day's lowest and highest bus voltage after each step, the limits dashed.
+
+    Options: ``x``, ``highest``, ``lowest`` (pu per step), ``limits`` (the lowest and
+    highest allowed voltage; empty: none drawn), ``compared`` (another run's
+    ``(x, highest, lowest)``, dotted; or None), ``x_title``.
+    """
+
+    y_title = "V (pu)"
+
+    def draw(self) -> None:
+        o = self.o
+        self.titles(x=o.get("x_title"))
+        self.line(o.x, o.highest, "Highest V", color=MARKET["sell"], markers=True)
+        self.line(o.x, o.lowest, "Lowest V", color=MARKET["buy"], markers=True)
+
+        if o.get("compared") is not None:
+            x, highest, lowest = o.compared
+            self.line(x, highest, "Highest V (compared)", MARKET["sell"], "dot")
+            self.line(x, lowest, "Lowest V (compared)", MARKET["buy"], "dot")
+
+        for v in o.get("limits", ()):
+            self.level(v, color=LIMIT)
+
+
 # --------------------------------------------------------------------------------------
 # NetworkChart: the topology, and what is drawn on it
 # --------------------------------------------------------------------------------------

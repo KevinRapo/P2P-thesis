@@ -5,7 +5,7 @@ for (``heldout_steps.csv``, ``heldout_agent_steps.csv``).
 
 from __future__ import annotations
 
-from typing import Callable, Collection, Optional, Sequence
+from typing import Callable, Collection, Optional, Sequence, Union
 
 import pandas as pd
 from nicegui import run, ui
@@ -64,7 +64,9 @@ class StepView:
         service: The Results service.
         labels: The ticked runs, key -> name.
         selection: What the tabs share.
-        charts: ``(title, columns)`` from the step table.
+        charts: ``(title, columns)`` from the step table, or a function of the
+            run's rows, the compared run's (or None) and the run's key that returns
+            a chart, for a chart of its own kind.
         person_charts: The same from a participant's rows; with them a participant
             selector appears.
         details: What goes under the charts, given the participant's rows; not for
@@ -76,7 +78,7 @@ class StepView:
         service: ResultsService,
         labels: dict[str, str],
         selection: Selection,
-        charts: Sequence[tuple[str, list[str]]],
+        charts: Sequence[Union[tuple[str, list[str]], Callable[..., SeriesChart]]],
         person_charts: Sequence[tuple[str, list[str]]] = (),
         details: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
@@ -182,8 +184,14 @@ class StepView:
                     "text-body2 text-weight-medium"
                 )
 
-            for title, columns in self.charts:
-                StepChart(rows=one, other=other, columns=columns, title=title).show()
+            for chart in self.charts:
+                if callable(chart):
+                    chart(one, other, self.run.value).show()
+                else:
+                    title, columns = chart
+                    StepChart(
+                        rows=one, other=other, columns=columns, title=title
+                    ).show()
 
         with self.person_box:
             if self.person_charts and people is not None:

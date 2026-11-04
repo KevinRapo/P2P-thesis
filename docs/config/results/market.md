@@ -17,7 +17,7 @@ Market
 ├── 2  Per participant      the same, a line per participant too
 ├── 3  One run              outcome · baseline · name filter: a heatmap
 └── 4  Step by step         run · compare with · day · policy · participant
-       ├── market kWh
+       ├── energy traded (stacked bars) and the peer price
        ├── prices
        ├── the participant's kWh
        ├── battery and reward
@@ -61,11 +61,12 @@ policy, minus the same for a baseline. Blue is higher for the trained policy. It
 most 30, the largest differences first.
 
 **4 Step by step.** One run's day, for a picked policy and participant. *Compare with*
-draws a second run over the market charts, dotted, on the same day and policy.
+draws a second run over the market charts, dotted, on the same day and policy (on the
+energy chart, its peer-to-peer energy).
 
 | Chart | Columns | What it is |
 |---|---|---|
-| Market kWh | `p2p_kwh`, `preference_kwh`, `bought_from_dso_kwh`, `sold_to_dso_kwh` | The day's amounts, per step |
+| Energy traded | `p2p_kwh` (split into `preference_kwh`, stage 1, and the auction's rest), `bought_from_dso_kwh` + `sold_to_dso_kwh`, `peer_price` on the right | Each step's trading as stacked bars, so the peer part is seen at a glance; the same chart as the Market page's "The day so far" |
 | Prices | `peer_price`, `feed_in_tariff`, `utility_price` | The peers' price, in the tariffs' band |
 | The participant's kWh | `demand_kwh`, `generation_kwh`, `order_kwh`, `bought_kwh`, `sold_kwh` | What it had, what it asked, what it got |
 | Battery and reward | `soc`, `reward` | State of charge after the step, 0 to 1; the step's reward |

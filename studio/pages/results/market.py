@@ -14,6 +14,7 @@ from nicegui import run, ui
 
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import section
+from studio.components.charts import TradedChart
 from studio.components.memory import remember
 from studio.components.run_table import labels_of
 from studio.pages.results.common import (
@@ -21,6 +22,7 @@ from studio.pages.results.common import (
     BY,
     ParticipantChart,
     Tab,
+    has,
     indicator_card,
     indicator_rows,
     metric_card,
@@ -28,11 +30,27 @@ from studio.pages.results.common import (
 from studio.pages.results.steps import StepView
 from studio.pages.results.trades import TradeMatrix, trade_card
 
+def traded(
+    rows: pd.DataFrame, other: Optional[pd.DataFrame], key: str
+) -> TradedChart:
+    """The day's energy traded per step, stacked (the stage-1 part of the peer
+    trades apart), the peer price on the right; the compared run's peer energy
+    dotted."""
+    zero = pd.Series(0.0, index=rows.index)
+    dso = rows.get("bought_from_dso_kwh", zero) + rows.get("sold_to_dso_kwh", zero)
+    return TradedChart(
+        x=rows.step,
+        p2p=rows.p2p_kwh.fillna(0.0),
+        dso=dso.fillna(0.0),
+        price=rows.get("peer_price", zero),
+        stage1=rows.preference_kwh.fillna(0.0) if has(rows, "preference_kwh") else None,
+        compared=None if other is None else (other.step, other.p2p_kwh.fillna(0.0)),
+        x_title="step",
+    )
+
+
 MARKET_CHARTS = [
-    (
-        "market kWh (preference_kwh: stage 1, part of p2p)",
-        ["p2p_kwh", "preference_kwh", "bought_from_dso_kwh", "sold_to_dso_kwh"],
-    ),
+    traded,
     ("prices, per kWh", ["peer_price", "feed_in_tariff", "utility_price"]),
     ("peer share of the energy traded", ["peer_share"]),
     ("grid balance, kWh", ["grid_balance_kwh"]),

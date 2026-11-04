@@ -16,10 +16,15 @@ from nicegui import run, ui
 from core.grid.contract import NetworkRef
 from core.market.lem import StepRecord
 from studio.components.cards import busy, failed, section
-from studio.components.charts import NetworkChart, SeriesChart
+from studio.components.charts import (
+    NetworkChart,
+    SeriesChart,
+    TradedChart,
+    VoltageChart,
+)
 from studio.components.tables import data_table, trades_table
 from studio.state import services
-from studio.theme import LIMIT, MARKET
+from studio.theme import MARKET
 
 if TYPE_CHECKING:  # only to annotate what the page reads; the page never builds one
     from core.market.lem import LocalEnergyMarket
@@ -48,7 +53,7 @@ EXPLAIN = {
     "flow shows what the step does to the network.",
     4: "Step done: the network shows the voltages after the power flow.",
 }
-SELL, BUY, P2P, DSO = MARKET["sell"], MARKET["buy"], MARKET["p2p"], MARKET["dso"]
+SELL, BUY, DSO = MARKET["sell"], MARKET["buy"], MARKET["dso"]
 
 
 # --------------------------------------------------------------------------------------
@@ -175,13 +180,13 @@ def tab() -> None:
 
         with day_box:
             if m.history:
-                TradedChart(m=m).show()
+                traded_chart(m).show()
             else:
                 ui.label("No step played yet.").classes("mls-card-caption")
 
         with volt_box:
             if m.history:
-                VoltageChart(m=m).show()
+                voltage_chart(m).show()
 
     async def start() -> None:
         await topology()
@@ -511,36 +516,23 @@ def _people_table(m: LocalEnergyMarket, view: dict) -> None:
 # --------------------------------------------------------------------------------------
 # The day: volumes, prices, voltages
 # --------------------------------------------------------------------------------------
-class TradedChart(SeriesChart):
-    """Energy traded per step (stacked bars), the clearing price on the right.
-    Options: ``m`` (the market)."""
-
-    y_title = "kWh"
-    right_title = "price per kWh"
-    stacked = True
-
-    def draw(self) -> None:
-        h = self.o.m.history
-        x = [_clock(self.o.m, r.step)[:5] for r in h]
-        self.bars(x, [r.p2p_kwh for r in h], "Peer to peer", color=P2P)
-        self.bars(x, [r.dso_kwh for r in h], "With the DSO", color=DSO)
-        price = [r.clearing_price if r.p2p_kwh > 0 else None for r in h]
-        self.line(x, price, "Clearing price", color=SELL, markers=True, right=True)
+def traded_chart(m: LocalEnergyMarket) -> TradedChart:
+    """The day's energy traded per step and the peer price, from the history."""
+    h = m.history
+    return TradedChart(
+        x=[_clock(m, r.step)[:5] for r in h],
+        p2p=[r.p2p_kwh for r in h],
+        dso=[r.dso_kwh for r in h],
+        price=[r.clearing_price for r in h],
+    )
 
 
-class VoltageChart(SeriesChart):
-    """The lowest and highest bus voltage after each step, with the limits.
-    Options: ``m`` (the market)."""
-
-    y_title = "V (pu)"
-
-    def draw(self) -> None:
-        m = self.o.m
-        x = [_clock(m, r.step)[:5] for r in m.history]
-        highest = [r.grid.max_voltage_pu for r in m.history]
-        lowest = [r.grid.min_voltage_pu for r in m.history]
-        self.line(x, highest, "Highest V", color=SELL, markers=True)
-        self.line(x, lowest, "Lowest V", color=BUY, markers=True)
-
-        for v in (m.scenario.grid.v_min_pu, m.scenario.grid.v_max_pu):
-            self.level(v, color=LIMIT)
+def voltage_chart(m: LocalEnergyMarket) -> VoltageChart:
+    """The day's lowest and highest bus voltage, with the scenario's limits."""
+    h = m.history
+    return VoltageChart(
+        x=[_clock(m, r.step)[:5] for r in h],
+        highest=[r.grid.max_voltage_pu for r in h],
+        lowest=[r.grid.min_voltage_pu for r in h],
+        limits=(m.scenario.grid.v_min_pu, m.scenario.grid.v_max_pu),
+    )

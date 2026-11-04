@@ -45,7 +45,7 @@ over it, dotted, on the same day and policy.
 | Chart | Columns |
 |---|---|
 | Line loading | `max_line_loading_percent`, `fee_max_line_loading_percent`, `max_trafo_loading_percent` |
-| Voltage | `min_voltage_pu`, `max_voltage_pu` |
+| Voltage | `min_voltage_pu`, `max_voltage_pu`, with the run's limits (`v_min_pu`, `v_max_pu` of its scenario) dashed; the same chart as the Market page's "Network over the day" |
 | Upstream exchange | `grid_import_kwh`, `grid_export_kwh` |
 | Losses | `grid_losses_kwh`, `trade_losses_kwh` |
 | Limits broken | `voltage_violations`, `loading_violations` |

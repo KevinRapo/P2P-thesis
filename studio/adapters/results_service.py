@@ -139,6 +139,18 @@ class ResultsService:
 
         return scenario.get("grid", {}).get("code"), buses
 
+    def voltage_limits(self, key: str) -> tuple[float, ...]:
+        """The run's lowest and highest allowed bus voltage (pu), from its saved
+        scenario; empty when it saved only the file's name."""
+        scenario = self.result(key).settings["scenario"]
+
+        if not isinstance(scenario, dict):
+            return ()
+
+        grid = scenario.get("grid", {})
+
+        return tuple(grid[k] for k in ("v_min_pu", "v_max_pu") if k in grid)
+
     def table(self, key: str, name: str) -> Optional[pd.DataFrame]:
         """One of the run's tables (``RunResult.table``), e.g. ``heldout_episodes``
         or ``heldout_steps``."""
