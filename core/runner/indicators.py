@@ -100,6 +100,11 @@ INDICATORS = (
     # Over the test period, the same on each of its days (``_period_scores``)
     Indicator("vti", "VTI", "", "validation", True),
     Indicator("pi", "PI", "", "validation", True),
+    Indicator("ei", "EI", "", "validation", True),
+    # The same per test day, each day its own horizon (``_day_scores``)
+    Indicator("vti_day", "VTI, per day", "", "validation"),
+    Indicator("pi_day", "PI, per day", "", "validation"),
+    Indicator("ei_day", "EI, per day", "", "validation"),
     Indicator("gain_net_position", "Gain over net position", "EUR", "validation", True),
     Indicator("stored_change_kwh", "Stored change", "kWh", "validation", True),
     Indicator(
@@ -155,6 +160,16 @@ INDICATORS = (
     Indicator("fee_error_mean", "Fee signal error, mean", "%", "grid"),
     Indicator("fee_error_worst", "Fee signal error, worst", "%", "grid"),
     Indicator("not_converged", "Flows not converged", "steps", "grid"),
+    # Zhou et al. (2018) eq. 22-28, the participants as one community
+    Indicator("energy_balance_index", "Energy balance index, per day", "", "grid"),
+    Indicator("peak_to_average", "Peak-to-average (EPARI), per day", "", "grid"),
+    Indicator("self_sufficiency_index", "Self-sufficiency index, per day", "", "grid"),
+    # The same over the test period, on each of its days: the overview's columns
+    Indicator("energy_balance_index_period", "Energy balance index", "", "grid", True),
+    Indicator("peak_to_average_period", "Peak-to-average (EPARI)", "", "grid", True),
+    Indicator(
+        "self_sufficiency_index_period", "Self-sufficiency index", "", "grid", True
+    ),
 )
 # Amounts of a day's table that are indicators as they stand.
 _COPIED = (
@@ -187,15 +202,21 @@ def day_table(
     agent_steps: Optional[pd.DataFrame] = None,
     trades: Optional[pd.DataFrame] = None,
     ceiling: Optional[pd.DataFrame] = None,
+    alone: Optional[pd.DataFrame] = None,
+    day_references: Optional[tuple] = None,
 ) -> pd.DataFrame:
     """One run's ``INDICATORS``: a row per policy and test day, from its held-out
     tables. What a table of an older run does not hold stays NaN.
 
     ``ceiling`` (``ceiling.ceiling_days``) adds the money ceiling as a policy of its
     own: its team money, stored change and gains over the baselines; it plays no
-    market, so everything else stays NaN. With the step tables, ``non_p2p`` is added
-    the same way (``non_p2p_bills``), and with both, every policy's VTI and PI over
-    its test period (``_period_scores``)."""
+    market, so everything else stays NaN. ``alone`` (``ceiling.alone_days``: each
+    participant's own optimum with the retailer) adds ``non_p2p`` the same way;
+    without it, with the step tables, ``non_p2p`` falls back to the ``zero`` policy
+    settled at retail (``non_p2p_bills``). With both references, every policy's VTI,
+    PI and EI over its test period (``_period_scores``). ``day_references``
+    (``ceiling.day_references``: every day its own horizon) adds the same three per
+    day (``_day_scores``: ``vti_day``, ``pi_day``, ``ei_day``)."""
     out = episodes.set_index(KEYS).reindex(columns=_COPIED)
     team = agents.groupby(KEYS).sum(numeric_only=True).reindex(columns=_TEAM)
     out["team_money"] = team["bill"]
@@ -220,6 +241,7 @@ def day_table(
     if steps is not None and agent_steps is not None:
         out = out.join(_step_indicators(steps))
         out = out.join(_agent_step_indicators(steps, agent_steps))
+        out = out.join(_community_indicators(agent_steps))
         gap = out.reachable_money - days.map(out.team_money.xs("zero", level="policy"))
         out["reachable_share"] = out.gain_zero / gap.where(gap > 0)
         peak = out.peak_import_kw
@@ -228,25 +250,33 @@ def day_table(
         if trades is not None:
             out = out.join(_trade_indicators(trades, steps, agent_steps, out.index))
 
-    own = None
+    own = alone
 
-    if steps is not None and agent_steps is not None:
+    if own is None and steps is not None and agent_steps is not None:
         own = non_p2p_bills(agent_steps, steps)
 
     if own is not None:
         team = own.groupby("day").bill.sum()
-        zero = out.stored_change_kwh.xs("zero", level="policy")
-        alone = pd.DataFrame(
-            {"team_money": team, "stored_change_kwh": zero.reindex(team.index)}
+
+        if "stored_change_kwh" in own:
+            stored = own.groupby("day").stored_change_kwh.sum()
+        else:
+            stored = out.stored_change_kwh.xs("zero", level="policy")
+
+        row = pd.DataFrame(
+            {"team_money": team, "stored_change_kwh": stored.reindex(team.index)}
         )
-        alone.index = pd.MultiIndex.from_product([[NON_P2P], team.index], names=KEYS)
-        out = _with_reference(out, alone)
+        row.index = pd.MultiIndex.from_product([[NON_P2P], team.index], names=KEYS)
+        out = _with_reference(out, row)
 
     if ceiling is not None:
         out = _with_reference(out, ceiling)
 
     if own is not None and ceiling is not None:
         out = out.join(_period_scores(out, agents, own))
+
+    if day_references is not None and day_references[0] is not None:
+        out = out.join(_day_scores(out, agents, *day_references))
 
     return out.reindex(columns=[i.name for i in INDICATORS])
 
@@ -293,11 +323,12 @@ def non_p2p_bills(
 def _period_scores(
     out: pd.DataFrame, agents: pd.DataFrame, own: pd.DataFrame
 ) -> pd.DataFrame:
-    """Every policy's VTI and PI over its test period, on each day of the period.
+    """Every policy's VTI, PI and EI over its test period, on each day of the period.
 
     VTI = (team money − non-P2P) / (ceiling − non-P2P), the period's sums: 0 is every
     participant on its own, 1 the most the period allows. PI: the share of
-    participants whose money over the period beats their own non-P2P money."""
+    participants whose money over the period beats their own non-P2P money. EI: how
+    evenly the gains over their own non-P2P money are shared (``equality``)."""
     period_of = own.drop_duplicates("day").set_index("day").period
     money = out.team_money.reset_index()
     money["period"] = money.day.map(period_of)
@@ -310,6 +341,8 @@ def _period_scores(
     alone = own.groupby(["period", "agent"]).bill.sum()
     base = alone.reindex(mine.index.droplevel("policy")).to_numpy()
     pi = (mine > base).groupby(["period", "policy"]).mean().unstack("policy")
+    gains = mine - base
+    ei = gains.groupby(["period", "policy"]).agg(equality).unstack("policy")
 
     at = pd.MultiIndex.from_arrays(
         [out.index.get_level_values("day").map(period_of),
@@ -318,8 +351,54 @@ def _period_scores(
     scores = pd.DataFrame(index=out.index)
     scores["vti"] = vti.stack().reindex(at).to_numpy()
     scores["pi"] = pi.stack().reindex(at).to_numpy()
+    scores["ei"] = ei.stack().reindex(at).to_numpy()
 
     return scores
+
+
+def _day_scores(
+    out: pd.DataFrame, agents: pd.DataFrame, top: pd.DataFrame, alone: pd.DataFrame
+) -> pd.DataFrame:
+    """Every played policy's VTI, PI and EI per test day, each day its own horizon:
+    against that day's ceiling and each participant's own optimum of that day
+    (``ceiling.day_references``). The references' own rows stay NaN."""
+    ceiling = top.team_money.droplevel("policy")
+    base = alone.set_index(["day", "agent"]).bill
+    floor = base.groupby("day").sum()
+    days = out.index.get_level_values("day")
+    reach = (days.map(ceiling) - days.map(floor)).to_numpy()
+    vti = (out.team_money.to_numpy() - days.map(floor)) / np.where(reach > 0, reach, np.nan)
+
+    played = agents.set_index(["policy", "day", "agent"]).bill
+    gains = played - base.reindex(played.index.droplevel("policy")).to_numpy()
+    by = gains.groupby(["policy", "day"])
+    scores = pd.DataFrame(
+        {"pi_day": (gains > 0).groupby(["policy", "day"]).mean(), "ei_day": by.agg(equality)}
+    )
+    scores = scores.reindex(out.index)
+    scores.insert(0, "vti_day", np.asarray(vti, dtype=float))
+    reference = out.index.get_level_values("policy").isin([CEILING, NON_P2P])
+    scores.loc[reference] = np.nan
+
+    return scores
+
+
+def equality(gains: Sequence[float]) -> float:
+    """The equality index on gains, 1 − Gini with the absolute values in the
+    denominator, so that it stays in [0, 1] when some gains are negative:
+
+        EI = 1 − Σ_n Σ_m |x_n − x_m| / (2 N Σ_n |x_n|)
+
+    1: everyone gained (or lost) the same; towards 0: the gain sits with few. With
+    only non-negative gains it is the usual 1 − Gini. NaN when nobody gained or lost
+    anything. Read it next to the VTI: equal losses score 1 too."""
+    x = np.asarray(gains, dtype=float)
+    scale = 2 * len(x) * np.abs(x).sum()
+
+    if scale == 0:
+        return float("nan")
+
+    return 1.0 - np.abs(x[:, None] - x[None, :]).sum() / scale
 
 
 def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
@@ -356,6 +435,69 @@ def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
             "fee_error_worst": error.groupby([steps.policy, steps.day]).max(),
             "mean_peer_price": weighted(steps.peer_price),
             "peer_price_position": weighted(band),
+        }
+    )
+
+
+def _community_indicators(agent_steps: pd.DataFrame) -> pd.DataFrame:
+    """Zhou et al. (2018)'s technical indices for the participants as one community,
+    per policy and day (their eq. 22-28). Each step's community net consumption is
+    the participants' demand and charging less their generation and discharging,
+    netted over all of them: what the community exchanged with the upstream grid,
+    without the network's other loads.
+
+        energy_balance_index   EBI = 1 − Σ_t |net_t| / (Σ consumption + Σ production)
+        peak_to_average        EPARI = max_t |net_t| / mean_t |net_t|; lower is
+                               flatter. Their PFI = 1 − EPARI / EPARI_ref needs the
+                               worst of the runs compared, so it is left to the
+                               comparison
+        self_sufficiency_index SSI = 1 − Σ_t max(net_t, 0) / Σ consumption
+    """
+    need = {"charge_kwh", "discharge_kwh", "demand_kwh", "generation_kwh"}
+
+    if not need <= set(agent_steps):
+        return pd.DataFrame()
+
+    a = agent_steps.fillna({"charge_kwh": 0.0, "discharge_kwh": 0.0})
+    a = a.assign(
+        use=a.demand_kwh + a.charge_kwh,
+        made=a.generation_kwh + a.discharge_kwh,
+        period=a.period if "period" in a else "all",
+    )
+    step = a.groupby([*KEYS, "step"]).agg(
+        use=("use", "sum"), made=("made", "sum"), period=("period", "first")
+    )
+    net = step.use - step.made
+    flows = pd.DataFrame(
+        {
+            "net": net.abs(),
+            "imported": net.clip(lower=0.0),
+            "use": step.use,
+            "made": step.made,
+            "period": step.period,
+        }
+    )
+    day = _technical(flows.groupby(KEYS))
+    period = _technical(flows.reset_index().groupby(["policy", "period"]))
+    on = pd.MultiIndex.from_arrays(
+        [day.index.get_level_values("policy"),
+         flows.period.groupby(KEYS).first().reindex(day.index).to_numpy()]
+    )
+    whole = period.reindex(on).set_axis(day.index).add_suffix("_period")
+
+    return day.join(whole)
+
+
+def _technical(groups) -> pd.DataFrame:
+    """EBI, EPARI and SSI of each group of community steps (a day, or a period)."""
+    total = groups[["net", "imported", "use", "made"]].sum()
+    mean = groups.net.mean()
+
+    return pd.DataFrame(
+        {
+            "energy_balance_index": 1.0 - total.net / (total.use + total.made),
+            "peak_to_average": groups.net.max() / mean.where(mean > 0),
+            "self_sufficiency_index": 1.0 - total.imported / total.use.where(total.use > 0),
         }
     )
 
@@ -441,9 +583,17 @@ def _trade_indicators(
         }
     )
 
-    drawn = agent_steps.groupby([*KEYS, "step"]).deferred_demand_kwh.sum()
-    price = steps.set_index([*KEYS, "step"]).utility_price.reindex(drawn.index)
-    untraded = (drawn * price).groupby(KEYS).sum()
+    # The untraded energy, settled at retail (MP-1e): the DSO sells the deficit at
+    # the utility price and buys the surplus at the feed-in tariff.
+    per_step = agent_steps.groupby([*KEYS, "step"])
+    drawn = per_step.deferred_demand_kwh.sum()
+    tariffs = steps.set_index([*KEYS, "step"]).reindex(drawn.index)
+    untraded = drawn * tariffs.utility_price
+
+    if "deferred_supply_kwh" in agent_steps:
+        untraded -= per_step.deferred_supply_kwh.sum() * tariffs.feed_in_tariff
+
+    untraded = untraded.groupby(KEYS).sum()
     out = gains.reindex(index, fill_value=0.0).join(sizes)
     out["dso_money"] += untraded.reindex(index, fill_value=0.0)
 

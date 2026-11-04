@@ -43,6 +43,14 @@ value per iteration, except the evaluation in panel 1, at each of `eval_points`.
 
 ## Panels
 
+The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`screenshots.py`](../../../docs_site/screenshots.py); run it again after a Studio change.
+
+![Learning: the return](img/learning-evaluation-return.png)
+
+Panels 2 to 8 look alike: a line per module and run, as in the gradient norm below.
+
+![Learning: the gradient norm](img/learning-evaluation-gradient-norm.png)
+
 | Panel | Column | Per | What it is | Read it as |
 |---|---|---|---|---|
 | 1 Return, dotted | `team_return_mean` of `metrics.csv` | run | Sum of the agents' returns, mean over the episodes finished lately, with exploration on, in the reward's units | Should rise |
@@ -57,6 +65,8 @@ value per iteration, except the evaluation in panel 1, at each of `eval_points`.
 | 6 Update size | `mean_kl_loss` | module | KL between the collecting and the updated policy | 0.01 to 0.02 is usual; near 0 nothing moves. Left out when `use_kl_loss` is off |
 | 7 Clip fraction | `clip_fraction` | module | Share of samples whose ratio is outside `[1 − clip, 1 + clip]` | 0.1 to 0.2 is usual |
 | 8 Gradient norm | `gradients_default_optimizer_global_norm` | module | Global gradient norm before clipping, with `grad_clip` dashed | Above the line, the whole update is scaled down |
+
+![Learning: each action part](img/learning-evaluation-each-action-part.png)
 
 Panel 9 reads each module's action distribution in the same 128 states at every
 iteration, averaged over them. The states are collected once, before training, by a
@@ -83,6 +93,10 @@ part's bounds. In CTCE an agent's parts are named inside the group.
 | `train_calls_s_total`, `elapsed_s` | Time so far | Nowhere |
 
 ## The Timing panel
+
+![Timing: where an iteration's time goes](img/learning-timing-where-an-iteration-s-time-goes.png)
+
+![Timing: where a run's time went](img/learning-timing-where-a-run-s-time-went.png)
 
 Where a run's time goes. RLlib's timers are smoothed means in seconds, so the parts of
 one call are close, not exact: a negative remainder counts as 0.

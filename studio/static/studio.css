@@ -272,3 +272,12 @@ body {
   color: var(--c);
   line-height: 1.2;
 }
+
+/* Results → Validation: the baselines under the runs, shaded, a rule above the first */
+.mls-baseline-row td {
+  background: rgba(148, 163, 184, 0.14);
+  font-style: italic;
+}
+.mls-baseline-first td {
+  border-top: 2px solid rgba(100, 116, 139, 0.55) !important;
+}

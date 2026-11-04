@@ -210,7 +210,9 @@ def build_timing(tab: Any, data: dict[str, Any], labels: dict[str, str]) -> None
         chart = TimerChart(timing=timing, labels=labels, value="train_call_s").show()
         tab.watch(chart, timing="timing")
         chart.memory = "results_Timing_timer"
-        chart.select("value", TIMERS, "Show").classes("w-64")
+        with ui.row().classes("w-full items-center gap-3"):
+            chart.select("value", TIMERS, "Show").classes("w-64")
+            chart.hover_select().classes("w-40")
 
     with section(
         "Throughput",

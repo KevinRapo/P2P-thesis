@@ -89,6 +89,23 @@ def test_a_row_stands_for_what_differs():
     ) == ["key"]
 
 
+def test_the_indices_per_day_are_metrics_of_the_test_days():
+    names = {i.name for i in validation.INDICATORS}
+    assert set(validation.PER_DAY) <= names
+    headline = set(validation.HEADLINES)
+    assert {"vti", "pi", "ei", "energy_balance_index_period"} <= headline
+    assert not headline & {"vti_day", "pi_day", "ei_day", "energy_balance_index"}
+
+
+def test_the_baselines_are_marked_under_the_versions():
+    assert [validation.kind(i, 2) for i in range(4)] == [
+        "version", "version", "first", "baseline"
+    ]
+    order = sorted(["non_p2p", "ceiling", "net_position"], key=validation.ORDER.get)
+    assert order == ["ceiling", "non_p2p", "net_position"]
+    assert "zero" not in validation.ORDER  # not a row of the overview
+
+
 def test_a_cell_shows_the_mean_with_its_seeds_or_interval():
     assert validation.number(pd.Series({"mean": 1.0, "values": [1.0]})) == "1.0"
     both = pd.Series({"mean": 1.5, "values": [1.0, 2.0]})
@@ -348,6 +365,17 @@ def test_a_column_of_nothing_is_not_drawn():
     assert not has(None, "a")
     chart = StepChart(rows=rows, other=None, columns=["a", "b"], title="t")
     assert [t.name for t in chart.figure().data] == ["a"]
+
+
+def test_a_step_chart_draws_bars_with_the_compared_run_beside():
+    from studio.pages.results.steps import StepChart
+
+    rows = pd.DataFrame({"step": [0, 1], "a": [1.0, 2.0]})
+    fig = StepChart(rows=rows, other=rows, columns=["a"], title="t", kind="bars").figure()
+    assert [t.type for t in fig.data] == ["bar", "bar"]
+    assert fig.data[1].name == "a (compared)" and fig.data[1].opacity == 0.45
+    line = StepChart(rows=rows, other=None, columns=["a"], title="t").figure()
+    assert line.data[0].type == "scatter"  # lines by default
 
 
 @pytest.mark.anyio

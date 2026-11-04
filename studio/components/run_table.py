@@ -37,6 +37,7 @@ RUN_COLUMNS = [
     ("seed", "Seed"),
     ("variant", "Variant"),
     ("state", "State"),
+    ("started", "Started"),
     ("money_trained", "Held-out money: trained"),
     ("money_zero", "zero"),
     ("money_net_position", "net position"),

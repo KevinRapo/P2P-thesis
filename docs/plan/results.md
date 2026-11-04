@@ -3,7 +3,7 @@
 How a run's results are saved, compared and shown: thesis objective 3, "determine the
 form in which the tool must present and output the simulation results". It settles
 [RP-7](rl.md) and [MP-6a](market.md). What is saved and shown today is in
-[Results](../config/results/index.md); this page is what changes.
+[Results](../studio/results/index.md); this page is what changes.
 
 **Status: built, not committed.** Stages 1 to 4 are in the code, reviewed by the reward
 session. As built, `bought_kwh` and `sold_kwh` stay, with the peers' part next to them;

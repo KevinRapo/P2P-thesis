@@ -51,6 +51,9 @@ def styled(
         # the plot area shrinks to make room for it
         legend=dict(orientation="h", yref="container", y=0, yanchor="bottom", x=0),
         hovermode="x unified",
+        # The series' whole name in the hover label: Plotly cuts it at 15 characters,
+        # which leaves a run's name as "results_form..."
+        hoverlabel=dict(namelength=-1),
     )
     fig.update_xaxes(gridcolor="rgba(148,163,184,0.18)", zeroline=False)
     fig.update_yaxes(gridcolor="rgba(148,163,184,0.18)", zeroline=False)
@@ -212,13 +215,19 @@ class Chart:
 # --------------------------------------------------------------------------------------
 # SeriesChart: values along one axis
 # --------------------------------------------------------------------------------------
+# What the hover shows: every series at the x under the pointer, or only the nearest.
+HOVER = {"all": "All series", "one": "One series"}
+
+
 class SeriesChart(Chart):
     """Values along one axis. In ``draw()``, ``line`` and ``bars`` add a series
     (each takes the next palette colour unless given one), ``level`` a horizontal
     reference line; ``panels`` splits the figure into rows on one x axis.
 
     Class attributes besides ``Chart``'s: ``right_title`` (the right axis, for
-    series with ``right=True``) and ``stacked`` (bars stacked).
+    series with ``right=True``) and ``stacked`` (bars stacked). The option
+    ``hover`` (``HOVER``) picks what the hover shows; ``hover_select`` is its
+    control. Without it, the class' ``layout`` decides ("x unified" by default).
     """
 
     right_title = ""
@@ -229,7 +238,21 @@ class SeriesChart(Chart):
         self._right = False
         self._panels = False
 
+    def hover_select(self, label: str = "Hover") -> ui.select:
+        """A dropdown between every series at the pointer's x and only the nearest
+        one: with many lines the unified label lists them all."""
+        if self.o.get("hover") not in HOVER:
+            closest = self.layout.get("hovermode") == "closest"
+            self.o["hover"] = "one" if closest else "all"
+
+        return self.select("hover", HOVER, label)
+
     def _finish(self) -> None:
+        hover = self.o.get("hover")
+
+        if hover in HOVER:  # after the class' own layout, so the choice wins
+            self.after(hovermode="closest" if hover == "one" else "x unified")
+
         if self._right and not self._panels:
             self.fig.update_layout(
                 yaxis2=dict(

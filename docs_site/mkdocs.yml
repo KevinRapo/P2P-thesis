@@ -155,16 +155,19 @@ nav:
                   - One iteration, step by step: full-cycle/learning/iteration.md
                   - Worked examples (our code): full-cycle/learning/examples.md
                   - How the probes work: full-cycle/learning/probes.md
+          - Studio:
+              - studio/index.md
+              - Results:
+                  - studio/results/index.md
+                  - Metrics: studio/results/metrics.md
+                  - Validation: studio/results/validation.md
+                  - Learning: studio/results/learning.md
+                  - Market: studio/results/market.md
+                  - Grid: studio/results/grid.md
+                  - Saved files: studio/results/files.md
           - Running it:
               - Config: config/reference.md
               - Run contract: config/run-contract.md
-              - Results:
-                  - config/results/index.md
-                  - Saved files: config/results/files.md
-                  - Learning: config/results/learning.md
-                  - Validation: config/results/validation.md
-                  - Market: config/results/market.md
-                  - Grid: config/results/grid.md
               
           - Plans and decisions:
               - plan/index.md

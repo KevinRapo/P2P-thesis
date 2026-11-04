@@ -197,6 +197,7 @@ def metric_card(
             chart.select("metric", metrics, "Metric").classes("w-64")
             chart.select("by", by or BY, "A line per").classes("w-40")
             chart.select("policy", {"all": "All"} | POLICIES, "Policy").classes("w-40")
+            chart.hover_select().classes("w-40")
             chart.switch("band", "± one std")
 
     return chart

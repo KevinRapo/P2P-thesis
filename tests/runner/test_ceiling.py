@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from core.runner import ceiling
 from core.runner.ceiling import POLICY, Store, ceiling_days, optimise
 from core.runner import indicators
 from core.runner.indicators import day_table
@@ -186,3 +187,104 @@ def test_vti_and_pi_over_the_period():
     assert scores.pi[("trained", "d1")] == 0.5
     assert scores.pi[("zero", "d1")] == 0.0  # equal is not better
     assert np.isnan(scores.pi[(POLICY, "d1")])
+
+
+def test_equality_is_one_minus_gini_on_non_negative_gains():
+    # Gains 0, 0, 3: pairs |0-3| twice each way = 12; 2 * 3 * 3 = 18.
+    assert indicators.equality([0.0, 0.0, 3.0]) == pytest.approx(1 - 12 / 18)
+    assert indicators.equality([2.0, 2.0, 2.0]) == 1.0
+
+
+def test_equality_stays_in_bounds_with_losses():
+    # +1 and -1: |2| twice = 4 over 2 * 2 * 2 = 8.
+    assert indicators.equality([1.0, -1.0]) == pytest.approx(0.5)
+    assert indicators.equality([-1.0, -1.0]) == 1.0  # equal losses: read with the VTI
+    assert np.isnan(indicators.equality([0.0, 0.0]))
+
+
+def test_ei_over_the_period_is_on_the_gains():
+    own = indicators.non_p2p_bills(*alone_tables())
+    agents = pd.DataFrame(
+        [{"policy": "trained", "day": d, "agent": a, "bill": b}
+         for a, bills in (("P1", (0.0, 0.0)), ("P2", (-0.5, -0.6)))
+         for d, b in zip(("d1", "d2"), bills)]
+    )
+    team = agents.groupby(["policy", "day"]).bill.sum().rename("team_money")
+    index = pd.MultiIndex.from_tuples(
+        [(indicators.NON_P2P, "d1"), (indicators.NON_P2P, "d2"),
+         (POLICY, "d1"), (POLICY, "d2")], names=["policy", "day"]
+    )
+    out = pd.concat([team, pd.Series([0.2, -1.5, 1.0, 0.7], index, name="team_money")])
+    scores = indicators._period_scores(out.to_frame(), agents, own)
+    # Gains: P1 0 - (-0.3) = 0.3, P2 -1.1 - (-1.0) = -0.1.
+    assert scores.ei[("trained", "d1")] == pytest.approx(indicators.equality([0.3, -0.1]))
+
+
+def test_the_community_technical_indices():
+    # One day of two steps, two participants. Step 0: P1 uses 4, P2 makes 1 -> net 3
+    # imported. Step 1: P1 uses 1 (+1 charging), P2 makes 5 -> net -3 exported.
+    rows = [
+        (0, "P1", 4.0, 0.0, 0.0, 0.0), (0, "P2", 0.0, 1.0, 0.0, 0.0),
+        (1, "P1", 1.0, 0.0, 1.0, 0.0), (1, "P2", 0.0, 5.0, 0.0, 0.0),
+    ]
+    a = pd.DataFrame(rows, columns=["step", "agent", "demand_kwh", "generation_kwh",
+                                    "charge_kwh", "discharge_kwh"]).assign(policy="p", day="d")
+    day = indicators._community_indicators(a).loc[("p", "d")]
+    # |net| 3 + 3 over consumption 6 and production 6
+    assert day.energy_balance_index == pytest.approx(1 - 6 / 12)
+    assert day.peak_to_average == pytest.approx(3 / 3)
+    assert day.self_sufficiency_index == pytest.approx(1 - 3 / 6)
+
+
+def test_alone_nobody_shares_the_battery():
+    # The period of ``held_out``: P1's surplus on d1 could fill P2's battery and cover
+    # P1's deficit on d2 (the ceiling: nothing bought), but alone P1 sells it at 0
+    # and buys 2 kWh at 0.5; P2's battery has nothing of its own to move.
+    agent_steps, steps, scenario = held_out()
+    alone = ceiling.alone_days(agent_steps, steps, scenario).set_index(["day", "agent"])
+    assert alone.bill[("d1", "P1")] == pytest.approx(0.0)
+    assert alone.bill[("d2", "P1")] == pytest.approx(-1.0)
+    assert alone.bill.xs("P2", level="agent").tolist() == pytest.approx([0.0, 0.0])
+    assert set(alone.period) == {"p"}
+
+
+def test_alone_the_battery_owner_trades_its_own_hours():
+    # One owner, no PV: 1 kWh demand at 0.2 then 1 kWh at 0.5; a lossless battery
+    # starting empty must end empty, so it can only shift: buy 2 kWh at 0.2.
+    rows = [("d", s, "P", 0.0, 1.0, 0.0, 0.0) for s in (0, 1)]
+    agent_steps = pd.DataFrame(rows, columns=["day", "step", "agent", "generation_kwh",
+                                              "demand_kwh", "soc", "stored_change_kwh"])
+    agent_steps = agent_steps.assign(policy="zero", period="p")
+    steps = pd.DataFrame({"policy": "zero", "day": "d", "period": "p", "step": [0, 1],
+                          "feed_in_tariff": 0.0, "utility_price": [0.2, 0.5]})
+    battery = dict(capacity_kwh=10.0, min_soc=0.0, max_soc=1.0, charge_efficiency=1.0,
+                   discharge_efficiency=1.0, initial_soc=0.0, max_power_kw=None)
+    scenario = {"participants": [{"id": "P", "battery": battery}]}
+    alone = ceiling.alone_days(agent_steps, steps, scenario)
+    assert alone.bill.sum() == pytest.approx(-0.4)
+    assert alone.stored_change_kwh.sum() == pytest.approx(0.0)
+
+
+def test_each_day_is_its_own_horizon():
+    # ``held_out``'s days apart: d1's surplus cannot reach d2's deficit, and P2's
+    # battery starts each day at its initial 5 kWh and must end there: d2's 2 kWh are
+    # bought even at the ceiling.
+    agent_steps, steps, scenario = held_out()
+    top, alone = ceiling.day_references(agent_steps, steps, scenario)
+    assert top.team_money.tolist() == pytest.approx([0.0, -1.0])
+    assert alone.groupby("day").bill.sum().tolist() == pytest.approx([0.0, -1.0])
+
+
+def test_the_technical_indices_over_the_period():
+    rows = [
+        ("d1", 0, "P1", 4.0, 0.0), ("d1", 0, "P2", 0.0, 1.0),
+        ("d2", 0, "P1", 1.0, 0.0), ("d2", 0, "P2", 0.0, 5.0),
+    ]
+    a = pd.DataFrame(rows, columns=["day", "step", "agent", "demand_kwh",
+                                    "generation_kwh"])
+    a = a.assign(policy="p", period="x", charge_kwh=0.0, discharge_kwh=0.0)
+    found = indicators._community_indicators(a)
+    # Each day: |net| 3 over 5 and 4 over 6; the period: 7 over 11, on both days.
+    assert found.energy_balance_index[("p", "d1")] == pytest.approx(1 - 3 / 5)
+    assert found.energy_balance_index_period.tolist() == pytest.approx([1 - 7 / 11] * 2)
+    assert found.peak_to_average_period[("p", "d1")] == pytest.approx(4 / 3.5)

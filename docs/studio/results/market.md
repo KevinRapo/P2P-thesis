@@ -13,10 +13,12 @@ Source: `day_indicators` in [`results.py`](../../../core/runner/results.py),
 
 ```text
 Market
-├── 1  On the test days     metric · a line per · policy · ± one std
+├── 1  On the test days     metric · a line per · policy · hover · ± one std
 ├── 2  Per participant      the same, a line per participant too
-├── 3  One run              outcome · baseline · name filter: a heatmap
-└── 4  Step by step         run · compare with · day · policy · participant
+├── 3  Peer trades          distribution · a box per · policy
+├── 4  Who trades with whom run · policy: a buyer × seller matrix
+├── 5  One run              outcome · baseline · name filter: a heatmap
+└── 6  Step by step         run · compare with · day · policy · participant
        ├── energy traded (stacked bars) and the peer price
        ├── prices
        ├── the participant's kWh
@@ -26,6 +28,10 @@ Market
 
 ## Panels
 
+The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`screenshots.py`](../../../docs_site/screenshots.py); run it again after a Studio change.
+
+![Market: on the test days](img/market-on-the-test-days.png)
+
 **1 On the test days.** A line stands for a run, or for what runs differ in.
 
 | Indicator | What it is |
@@ -33,7 +39,7 @@ Market
 | `p2p_kwh` | Energy traded between participants, stages 1 and 2 |
 | `preference_kwh` | Of it, stage 1: pairs who named each other |
 | `trading_ratio` | Energy bought and sold over what participants needed to get or get rid of (demand beyond own generation, and the opposite); above 1 is energy traded back and forth |
-| `unmet_kwh`, `spilled_kwh` | Demand left uncovered, and surplus spilled |
+| `unmet_kwh`, `spilled_kwh` | Demand left uncovered, and surplus left unsold: both settled untraded at retail |
 | `bought_from_dso_kwh`, `sold_to_dso_kwh` | Energy traded with the DSO, stage 3 |
 | `local_coverage` | Share of the participants' needed energy not taken from the DSO or left unmet, capped at what each needed at each step |
 | `mean_peer_price` | Volume-weighted price of the peer trades |
@@ -43,6 +49,8 @@ Market
 | `end_reputation` | Mean reputation after the day's last step |
 | `no_order_share`, `buy_share`, `sell_share` | What the participants did, as a share of their steps |
 | The ten KPIs | See below |
+
+![Market: per participant](img/market-per-participant.png)
 
 **2 Per participant**, on the test days:
 
@@ -54,13 +62,30 @@ Market
 | `bought_kwh`, `sold_kwh` | participant, day | Energy it traded, peers and DSO together |
 | `preference_kwh` | participant, day | Its energy traded in stage 1 |
 | `deferred_demand_kwh` | participant, day | Demand left uncovered, drawn untraded from the upstream grid at the utility price |
-| `deferred_supply_kwh` | participant, day | Surplus left unsold and spilled; it earns nothing |
+| `deferred_supply_kwh` | participant, day | Surplus left unsold, exported untraded at the feed-in tariff (runs before 4 Nov 2026: for nothing) |
 
-**3 One run.** A heatmap of participants by test day: the outcome picked, for the trained
+![Market: peer trades](img/market-peer-trades.png)
+
+**3 Peer trades.** A box per run (or per what runs differ in) over its peer trades: their
+size in kWh, or where their price fell between the feed-in tariff (0) and the utility
+price (1). The place in the band, not the raw price: with tariffs that change by the day
+the raw price would only show the spot price.
+
+![Market: who trades with whom](img/market-who-trades-with-whom.png)
+
+**4 Who trades with whom.** One run and policy over all test days: a row per buyer, a
+column per seller, the cell their peer energy (or trades). It shows whether the market is
+a few pairs or many.
+
+![Market: one run](img/market-one-run.png)
+
+**5 One run.** A heatmap of participants by test day: the outcome picked, for the trained
 policy, minus the same for a baseline. Blue is higher for the trained policy. It shows at
 most 30, the largest differences first.
 
-**4 Step by step.** One run's day, for a picked policy and participant. *Compare with*
+![Market: step by step](img/market-step-by-step.png)
+
+**6 Step by step.** One run's day, for a picked policy and participant. *Compare with*
 draws a second run over the market charts, dotted, on the same day and policy (on the
 energy chart, its peer-to-peer energy).
 

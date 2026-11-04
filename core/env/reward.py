@@ -13,18 +13,19 @@ and the results report it.
 
 "bill", per agent and step: the net energy bill, scaled,
 
-    r = (profit − p_utility · deferred_demand) / reward_scale
+    r = (profit + p_FiT · deferred_supply − p_utility · deferred_demand) / reward_scale
 
 ``profit`` is eq. 14 for the step (revenue − cost of its trades − its grid fees);
-p_utility is the step's (time-of-use tariffs change by hour).
-``deferred_demand`` is the demand that generation, purchases and battery left
-uncovered; it is drawn from the upstream grid untraded. Settlement leaves that
-energy unpriced, so profit alone would make not buying free: an agent that
-orders nothing would pay nothing for its imports, while one that buys pays for
-them. The untraded import is therefore charged at the utility price, what the
-DSO would have charged for it. Untraded exports (``deferred_supply``) earn
-nothing: the surplus is spilled. Buying and selling then only pay off against
-these two outside options.
+the tariffs are the step's (time-of-use tariffs change by hour). What no trade
+covered is settled at retail, as every household's supply contract would
+(MP-1e): ``deferred_demand``, the demand that generation, purchases and battery
+left uncovered, is bought at the utility price; ``deferred_supply``, the surplus
+that sales and battery left over, is sold at the feed-in tariff. Both flow to and
+from the upstream grid untraded anyway (the power flow follows what the
+participants did, never their trades). No grid fee applies to them: the fees are
+the cost of using the market. A trade then only pays off against these outside
+options, a peer trade at a price between the two tariffs; an order that ends up
+with the DSO pays the tariff and its fees, more than leaving the energy untraded.
 
 "salazar": the terms of ``src/environment/reward.py`` in the original repository, as
 they ran there. It is not scaled by ``reward_scale``, as the original has no such
@@ -50,10 +51,14 @@ from core.market.order import Order, Trade
 # The money
 # --------------------------------------------------------------------------------------
 def net_bill(record: StepRecord, pid: str) -> float:
-    """Agent ``pid``'s net bill for the step, in the scenario's money unit."""
+    """Agent ``pid``'s net bill for the step, in the scenario's money unit: its
+    trades' profit, and what no trade covered settled at retail (MP-1e)."""
     outcome = record.participants[pid]
+    tariffs = record.inputs
+    sold = tariffs.feed_in_tariff * outcome.deferred_supply_kwh
+    bought = tariffs.utility_price * outcome.deferred_demand_kwh
 
-    return outcome.profit - record.inputs.utility_price * outcome.deferred_demand_kwh
+    return outcome.profit + sold - bought
 
 
 # --------------------------------------------------------------------------------------

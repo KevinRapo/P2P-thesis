@@ -237,7 +237,7 @@ the `Tuple` (L-05).
       participants, then the DSO, then "no preference".
 2. **Play the market step** with all orders: matching by preference, double
    auction, DSO, power flow, fees ([the full cycle](../environment/index.md#the-environment-step)).
-3. **Reward** $\textcolor{mediumpurple}{r_{i,t} = (\text{profit}_i - p_\text{utility} \cdot \text{deferred demand}_i) / \text{reward scale}}$:
+3. **Reward** $\textcolor{mediumpurple}{r_{i,t} = (\text{profit}_i + p_\text{FiT} \cdot \text{deferred supply}_i - p_\text{utility} \cdot \text{deferred demand}_i) / \text{reward scale}}$:
    the agent's bill, with unmet demand charged at the utility price, scaled.
 4. **Observe** the next step's $o_{i,t+1}$.
 

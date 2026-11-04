@@ -37,23 +37,34 @@ def mean_over_days(rows: pd.DataFrame) -> pd.DataFrame:
 
 class StepChart(SeriesChart):
     """Some columns over the steps of a day, a colour per column. Options: ``rows``
-    (the selected run's), ``other`` (the second run's, dotted, or None), ``columns``,
-    ``title`` (the y axis)."""
+    (the selected run's), ``other`` (the second run's, or None), ``columns``,
+    ``title`` (the y axis), ``kind``: ``"line"`` (held over each step; the second run
+    dotted) or ``"bars"`` (a bar per step: counts and amounts of a step; the second
+    run's bar beside it, paler)."""
 
     height = 260
     x_title = "step"
 
     def draw(self) -> None:
         self.titles(y=self.o.title)
+        bars = self.o.get("kind") == "bars"
 
         for i, column in enumerate(c for c in self.o.columns if has(self.o.rows, c)):
             color = SERIES[i % len(SERIES)]
-            rows = self.o.rows
-            self.line(rows.step, rows[column], column, color, shape="hv")
+            rows, other = self.o.rows, self.o.other
+            name = f"{column} (compared)"
 
-            if has(self.o.other, column):
-                other = self.o.other
-                name = f"{column} (compared)"
+            if bars:
+                self.bars(rows.step, rows[column], column, color)
+            else:
+                self.line(rows.step, rows[column], column, color, shape="hv")
+
+            if not has(other, column):
+                continue
+
+            if bars:
+                self.bars(other.step, other[column], name, color, opacity=0.45)
+            else:
                 self.line(other.step, other[column], name, color, "dot", "hv")
 
 
@@ -64,7 +75,8 @@ class StepView:
         service: The Results service.
         labels: The ticked runs, key -> name.
         selection: What the tabs share.
-        charts: ``(title, columns)`` from the step table, or a function of the
+        charts: ``(title, columns)`` from the step table, with ``"bars"`` as a third
+            item for a bar per step (``StepChart``), or a function of the
             run's rows, the compared run's (or None) and the run's key that returns
             a chart, for a chart of its own kind.
         person_charts: The same from a participant's rows; with them a participant
@@ -78,7 +90,7 @@ class StepView:
         service: ResultsService,
         labels: dict[str, str],
         selection: Selection,
-        charts: Sequence[Union[tuple[str, list[str]], Callable[..., SeriesChart]]],
+        charts: Sequence[Union[tuple, Callable[..., SeriesChart]]],
         person_charts: Sequence[tuple[str, list[str]]] = (),
         details: Optional[Callable[[pd.DataFrame], None]] = None,
     ) -> None:
@@ -188,9 +200,13 @@ class StepView:
                 if callable(chart):
                     chart(one, other, self.run.value).show()
                 else:
-                    title, columns = chart
+                    title, columns, *kind = chart
                     StepChart(
-                        rows=one, other=other, columns=columns, title=title
+                        rows=one,
+                        other=other,
+                        columns=columns,
+                        title=title,
+                        kind=kind[0] if kind else "line",
                     ).show()
 
         with self.person_box:

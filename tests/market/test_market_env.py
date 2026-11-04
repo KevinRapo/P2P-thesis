@@ -152,8 +152,8 @@ def test_zero_episode_lasts_one_day(env):
 def test_zero_actions_submit_no_orders(env):
     """The zero policy's quantity share is 0, below the no-order threshold: no
     order at all. Each agent's
-    reward is then only what it had to import untraded, ``-utility * deferred /
-    reward_scale`` (it earns nothing, and the import is charged)."""
+    reward is then only its untraded energy settled at retail, ``(feed_in *
+    deferred supply - utility * deferred demand) / reward_scale`` (MP-1e)."""
     zero = zero_policy(env)
     obs = env.reset(seed=2)[0]
 
@@ -162,9 +162,11 @@ def test_zero_actions_submit_no_orders(env):
         record = env.last_record
         assert len(record.orders) == 0
         utility = record.inputs.utility_price  # the step's
+        feed_in = record.inputs.feed_in_tariff
 
         for a in AGENTS:
-            expected = -utility * record.participants[a].deferred_demand_kwh
+            o = record.participants[a]
+            expected = feed_in * o.deferred_supply_kwh - utility * o.deferred_demand_kwh
             assert rewards[a] == pytest.approx(expected / env.reward_scale)
 
         if terminated["__all__"]:
@@ -259,9 +261,9 @@ def test_a_reward_is_refused_without_what_it_needs():
 
 
 def test_reward_is_the_scaled_net_bill(env):
-    """On random actions every agent's reward is ``(profit - utility * deferred
-    demand) / reward_scale``, read from the market's own record; this is the
-    definition the docstring gives for why profit alone is not enough."""
+    """On random actions every agent's reward is ``(profit + feed_in * deferred
+    supply - utility * deferred demand) / reward_scale``, read from the market's
+    own record: the trades' profit, and the untraded energy settled at retail."""
     rng = np.random.default_rng(3)
     env.reset(seed=3)
 
@@ -269,8 +271,11 @@ def test_reward_is_the_scaled_net_bill(env):
         _, rewards, _, _, infos = env.step(random_actions(env, rng))
         for a in AGENTS:
             o = env.last_record.participants[a]
+            tariffs = env.last_record.inputs
             bill = (
-                o.profit - env.last_record.inputs.utility_price * o.deferred_demand_kwh
+                o.profit
+                + tariffs.feed_in_tariff * o.deferred_supply_kwh
+                - tariffs.utility_price * o.deferred_demand_kwh
             )
             assert rewards[a] == pytest.approx(bill / env.reward_scale)
             assert infos[a]["bill"] == pytest.approx(bill)
@@ -402,12 +407,13 @@ def test_same_seed_same_day_and_observations(env):
 # --------------------------------------------------------------------------------------
 # Baselines
 # --------------------------------------------------------------------------------------
-def test_net_position_beats_zero(env):
+def test_net_position_acts_and_trades(env):
     """The market's own bidding rule, read from the observation, gives actions
-    inside the action space and a total reward at least the zero policy's on both
-    days: trading
-    must beat spilling the surplus and paying the utility price for every import
-    (otherwise the reward does not teach trading)."""
+    inside the action space and trades with peers on both days. Whether it beats
+    the zero policy is a result, not a rule: with the untraded energy settled at
+    retail (MP-1e), its orders that find no peer clear with the DSO at the same
+    tariffs plus the grid fees, so on a scenario with little peer trade it can
+    end below zero."""
     for day in DAYS:
         zero_total = play(env, zero_policy(env), day)[0].sum()
 
@@ -421,7 +427,6 @@ def test_net_position_beats_zero(env):
         net_total = net_total.sum()
         print(f"{day}: zero {zero_total:.3f}, net position {net_total:.3f}")
         assert any(r.p2p_kwh > 0 for r in records)
-        assert net_total >= zero_total
 
 
 # --------------------------------------------------------------------------------------

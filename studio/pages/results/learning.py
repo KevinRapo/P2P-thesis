@@ -392,6 +392,7 @@ class LearningTab(Tab):
             with ui.row().classes("items-center gap-4"):
                 chart.select("value", CURVES, "Show").classes("w-64")
                 chart.select("by", LINES, "Line per").classes("w-56")
+                chart.hover_select().classes("w-40")
                 chart.switch("train", "Training return")
 
         # Two columns of cards, one per group of learner metrics

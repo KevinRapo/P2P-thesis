@@ -22,7 +22,7 @@ from studio.components.choices import checkboxes
 from studio.components.memory import remember
 from studio.components.run_table import cell, labels_of
 from studio.components.tables import data_table
-from studio.pages.results.common import BASELINES, Tab
+from studio.pages.results.common import BASELINES, Tab, indicator_rows, metric_card
 from studio.theme import MUTED, SERIES
 
 HEADLINES = {i.name: i for i in INDICATORS if i.headline}
@@ -47,11 +47,51 @@ VIEWS = {
     "zero": "Against own zero",
 }
 GAINS = {"gain_zero": "zero", "gain_net_position": "net_position"}
+# Where a baseline sits under the runs, and which are shown: not ``zero`` (no
+# orders), which with the retail settlement (MP-1e) is ``non_p2p`` with passive
+# batteries; it stays a baseline of the indicators (``gain_zero``, *Gain per test day*).
+ORDER = {"ceiling": 0, "non_p2p": 1, "net_position": 2}
+# The indices per test day, each day its own horizon, and the money they are made of:
+# the metrics of "On the test days" (the overview shows them over the test period).
+PER_DAY = (
+    "vti_day",
+    "pi_day",
+    "ei_day",
+    "energy_balance_index",
+    "peak_to_average",
+    "self_sufficiency_index",
+    "team_money",
+    "gain_net_position",
+    "gain_zero",
+    "stored_change_kwh",
+)
 
 
 # --------------------------------------------------------------------------------------
 # The overview
 # --------------------------------------------------------------------------------------
+# The CSS class of an overview row, by its ``_kind`` (Quasar's row class function).
+ROW_CLASS = (
+    "row => row._kind === 'first' ? 'mls-baseline-row mls-baseline-first' "
+    ": row._kind === 'baseline' ? 'mls-baseline-row' : ''"
+)
+
+
+def kind(index: int, played: int) -> str:
+    """An overview row's kind: a version, the first baseline, or another one."""
+    if index < played:
+        return "version"
+
+    return "first" if index == played else "baseline"
+
+
+def titled(name: str) -> str:
+    """An indicator's label, with its unit in brackets when it has one."""
+    found = next(i for i in INDICATORS if i.name == name)
+
+    return f"{found.label} ({found.unit})" if found.unit else found.label
+
+
 def row_columns(table: pd.DataFrame) -> list[str]:
     """What a row stands for by default: the factors that differ, else what names the
     versions, else the run."""
@@ -200,14 +240,28 @@ class Overview:
         columns = [(c, names[c]) for c in rows]
         columns += [(n, self._heading(n, i)) for n, i in HEADLINES.items()]
 
+        played = len(frame)
+
         if baselines:
             frame = pd.concat([frame, self._baselines(rows[0])], ignore_index=True)
 
+        # The baselines under the runs, shaded, the first with a rule above it: they
+        # are there to compare with, not versions of their own. Every row on one page,
+        # so they are always in sight.
         records = [
-            {"_row": i} | {f: "" if pd.isna(v) else str(v) for f, v in row.items()}
+            {"_row": i, "_kind": kind(i, played)}
+            | {f: "" if pd.isna(v) else str(v) for f, v in row.items()}
             for i, row in enumerate(frame.to_dict("records"))
         ]
-        data_table(records, columns, row_key="_row", pagination=15)
+        table = data_table(
+            records, columns, row_key="_row", pagination=max(15, len(records))
+        )
+        table.props(f':table-row-class-fn="{ROW_CLASS}"')
+
+        if len(records) > played:
+            ui.label(
+                "Shaded: the baselines and references, to compare the runs with."
+            ).classes("mls-card-caption")
 
     def _heading(self, name: str, indicator: indicators.Indicator) -> str:
         """A headline's column heading."""
@@ -219,15 +273,18 @@ class Overview:
     def _baselines(self, column: str) -> pd.DataFrame:
         """A row per baseline, days and prices, named in the table's first column."""
         found = indicators.baselines(self._scaled())
-        found = found[found.indicator.isin(HEADLINES)]
+        found = found[found.indicator.isin(HEADLINES) & found.policy.isin(ORDER)]
         groups = ["policy", *indicators.PLAYED_ON]
         table = found.pivot(index=groups, columns="indicator", values="value")
         table = table.reset_index()
         differ = [c for c in indicators.PLAYED_ON if table[c].nunique(dropna=False) > 1]
         name = table[["policy", *differ]].astype(str).agg(" · ".join, axis=1)
         values = table.reindex(columns=list(HEADLINES)).map(lambda v: cell(float(v)))
+        # From the top of the scale down: the ceiling, each on its own, then the
+        # baselines the runs played.
+        order = table.policy.map(ORDER).to_numpy().argsort(kind="stable")
 
-        return values.assign(**{column: name})
+        return values.assign(**{column: name}).iloc[order]
 
     def open(self, tab: str) -> None:
         """Select the row's median seed by team money, and go to ``tab``."""
@@ -339,6 +396,9 @@ class ValidationTab(Tab):
             "results": s.results(keys),
             "table": table,
             "days": gains(table),
+            "per_day": indicator_rows(table[table.indicator.isin(PER_DAY)])
+            if len(table)
+            else table,
             "gains": s.participant_gains(keys),
         }
 
@@ -362,8 +422,19 @@ class ValidationTab(Tab):
             else:
                 self.watch(Overview(data["table"], self), table="table")
 
-        with section(
+        metric_card(
+            self,
             "On the test days",
+            "Each test day as its own horizon: VTI, PI and EI against that day's "
+            "ceiling and non-P2P, the technical indices of the day, and the money",
+            "per_day",
+            data,
+            labels_of(keys),
+            {name: titled(name) for name in PER_DAY},
+        )
+
+        with section(
+            "Gain per test day",
             "Every test day: the trained policy's money minus each baseline's on the "
             "same day (above 0: better). Written when a run has finished.",
             "leaderboard",

@@ -46,10 +46,12 @@ description.
   [one iteration step by step](full-cycle/learning/iteration.md),
   [worked examples](full-cycle/learning/examples.md) and the
   [probes](full-cycle/learning/probes.md) that check it.
+- **The Studio.** The interface to all of it ([The Studio](studio/index.md)), and
+  how its Results page shows a run: every metric in five groups, and every panel of
+  its tabs ([Results](studio/results/index.md), [Metrics](studio/results/metrics.md)).
 - **Running it.** Scenario and experiment settings ([Config](config/reference.md)),
   what a run records ([The run contract](config/run-contract.md)), how to start runs
-  and read their results ([Training experiments](hpc/experiments.md),
-  [Results](config/results/index.md)) and where the code is
+  ([Training experiments](hpc/experiments.md)) and where the code is
   ([Code structure](structure.md)).
 - **What is left to do.** [Plans](plan/index.md): the market plan, the RL plan, the
   decision log and the [list of open items](plan/open.md).

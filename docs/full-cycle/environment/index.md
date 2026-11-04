@@ -17,10 +17,9 @@ The full definition is in the module docstring of
 - **Action and observation:** [Action](action.md) and
   [Observation](observation.md).
 - **Reward** ([Reward](reward.md)): the agent's net bill for the step, scaled:
-  `(profit − p_utility · deferred_demand) / reward_scale`. Settlement leaves energy
-  that no trade covers unpriced, so profit alone would make not buying free;
-  untraded imports are therefore charged at the utility price and untraded exports
-  earn nothing.
+  `(profit + p_FiT · deferred_supply − p_utility · deferred_demand) / reward_scale`.
+  What no trade covers is settled at retail (MP-1e): untraded imports at the utility
+  price, untraded exports at the feed-in tariff, without grid fees.
 - **Baselines:** `zero_policy` (never trade) and `net_position_policy` (the
   market's own bidding rule: offer the surplus, ask for the deficit, battery first).
 

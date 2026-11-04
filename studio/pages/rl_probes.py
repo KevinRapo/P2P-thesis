@@ -26,8 +26,10 @@ from studio.components.tables import data_table
 from studio.layout import shell
 from studio.state import services
 
-# The run table's columns: what the run was, its probe and result, its state.
-COLUMNS = RUN_COLUMNS[:7] + [("probe", "Probe"), ("result", "Result"), RUN_COLUMNS[7]]
+# The run table's columns: what the run was, its probe and result, its state and start.
+COLUMNS = (
+    RUN_COLUMNS[:7] + [("probe", "Probe"), ("result", "Result")] + RUN_COLUMNS[7:9]
+)
 
 
 # --------------------------------------------------------------------------------------

@@ -9,12 +9,14 @@
 Per agent, from its `ParticipantOutcome`:
 
 $$
-r_i = \frac{\text{profit}_i - p_\text{utility} \cdot \text{deferred demand}_i}{\text{scale}}, \qquad \text{scale} = \bar p_\text{utility} \cdot E
+r_i = \frac{\text{profit}_i + p_\text{FiT} \cdot \text{deferred supply}_i - p_\text{utility} \cdot \text{deferred demand}_i}{\text{scale}}, \qquad \text{scale} = \bar p_\text{utility} \cdot E
 $$
 
-where profit is eq. 14 net of fees, deferred demand is what its trades and battery
-left uncovered (drawn untraded from the upstream grid, charged at the step's utility
-price $p_\text{utility}$), $\bar p_\text{utility}$ is the day's highest utility
+where profit is eq. 14 net of fees; deferred demand and deferred supply are what its
+trades and battery left uncovered and left over, exchanged untraded with the upstream
+grid and settled at retail without grid fees (MP-1e): bought at the step's utility
+price $p_\text{utility}$, sold at its feed-in tariff $p_\text{FiT}$. Runs before
+4 Nov 2026 paid the deferred supply nothing. $\bar p_\text{utility}$ is the day's highest utility
 price ([`Dso.tariff_range`](../../../core/market/dso.py#L107-L113)) and $E$ the
 `energy_scale`, the largest generation or demand of any participant in any step of
 the training days. Both scales are resolved once per run and reused for every later
@@ -27,9 +29,9 @@ each agent's own.
 The last column of the three signal tables in [Observation](observation.md) shows which signals the `"salazar"` reward
 ([`SalazarReward.agent_reward`](../../../core/env/reward.py#L367-L441), the original
 code's) also uses, so that the observational ones stand apart. It describes that
-reward only: the `"bill"` reward calls none of these signals, though it reads three of
-the same quantities from the step's record: `utility_price`, the step's `profit` and
-`deferred_demand_kwh`.
+reward only: the `"bill"` reward calls none of these signals, though it reads five of
+the same quantities from the step's record: `utility_price`, `feed_in_tariff`, the
+step's `profit`, `deferred_demand_kwh` and `deferred_supply_kwh`.
 
 | In the reward | Signals | Meaning |
 |---|---|---|
@@ -55,7 +57,7 @@ The `reward` setting of the environment (`env_config`) names one of two rewards
 
 | `reward` | Class | What it pays |
 |---|---|---|
-| `"bill"` (default) | [`NetBillReward`](../../../core/env/reward.py) | the net bill: `(profit − p_utility · deferred_demand) / reward_scale`. Settlement leaves untraded energy unpriced, so an untraded import is charged at the step's utility price and an untraded export earns nothing; buying and selling then pay off only against these two outside options |
+| `"bill"` (default) | [`NetBillReward`](../../../core/env/reward.py) | the net bill: `(profit + p_FiT · deferred_supply − p_utility · deferred_demand) / reward_scale`. What no trade covers is settled at retail, as a household's supply contract would (MP-1e): an untraded import at the step's utility price, an untraded export at its feed-in tariff, without grid fees. A trade then pays off only against these outside options, a peer trade at a price between the tariffs; an order that ends up with the DSO pays the same tariff plus its fees. Runs before 4 Nov 2026 paid untraded exports nothing |
 | `"salazar"` | [`SalazarReward`](../../../core/env/reward.py) | the original code's reward as it ran there, with its constants (`W_GRID` and the other weights): the five parts of $R_{\text{base}}$ (grid, resource, trading, stability, economic), raised by the cooperation and contribution factors, minus the DSO penalty and, on the day's last step, the unmet-demand penalty; a step without trades pays only the no-trades penalty; the result is log-compressed ([P1] eq. 3). Its parts are kept per agent as `reward_*` entries of the step infos. It needs a `grid_capacity_kwh` and is not scaled by `reward_scale` |
 
 `net_bill` stays the money an agent made whichever reward it learns from: the infos

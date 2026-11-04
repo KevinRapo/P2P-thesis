@@ -43,6 +43,19 @@ def test_a_series_chart_draws_its_lines_levels_and_look():
     assert "yaxis2" not in fig.to_dict()["layout"]  # no right axis
 
 
+def test_the_hover_shows_every_series_or_only_the_nearest():
+    assert TwoLines(right=False).figure().layout.hovermode == "x unified"  # default
+    assert TwoLines(right=False, hover="one").figure().layout.hovermode == "closest"
+
+    class Closest(TwoLines):
+        layout = {"hovermode": "closest"}
+
+    # The option wins over the class' own layout, in both directions.
+    assert Closest(right=False, hover="all").figure().layout.hovermode == "x unified"
+    assert Closest(right=False).figure().layout.hovermode == "closest"
+    assert TwoLines(right=False).figure().layout.hoverlabel.namelength == -1  # whole
+
+
 def test_set_changes_an_option_and_the_figure_follows():
     chart = TwoLines(right=False)
     chart.set(right=True)  # not shown yet: only the option changes

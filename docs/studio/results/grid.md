@@ -13,16 +13,21 @@ fees; a flow that did not converge counts 0 for them.
 
 ```text
 Grid
-├── 1  On the test days   metric · a line per · policy · ± one std
-└── 2  Step by step       run · compare with · day · policy
+├── 1  On the test days   metric · a line per · policy · hover · ± one std
+├── 2  Step by step       run · compare with · day · policy
        ├── line loading
        ├── voltage
        ├── upstream exchange
        ├── losses
        └── limits broken
+└── 3  Network replay     run · day · policy · step: the network on a map
 ```
 
 ## Panels
+
+The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`screenshots.py`](../../../docs_site/screenshots.py); run it again after a Studio change.
+
+![Grid: on the test days](img/grid-on-the-test-days.png)
 
 **1 On the test days.** Any run in a line per run, paradigm, variant, seed or policy.
 
@@ -38,6 +43,12 @@ Grid
 | `trade_losses_kwh` | Losses charged to the trades ([P1] eq. 18): the market's estimate |
 | `fee_error_mean`, `fee_error_worst` | Fee loading against measured loading, percentage points: the grid-method comparison in one number |
 | `not_converged` | Steps whose power flow did not converge |
+| `energy_balance_index` | Zhou et al. (2018) eq. 22-23, for the participants as one community (their netted demand and charging less generation and discharging, without the network's other loads): 1 − their exchange with the upstream grid, import and export, over all they consumed and produced. 1: nothing exchanged |
+| `peak_to_average` | Their eq. 24 (EPARI): the community's highest exchange in either direction over its mean, lower is flatter. Their power flatness index divides it by the worst of the runs compared, so it is left to the comparison |
+| `self_sufficiency_index` | Their eq. 26-28: 1 − the community's net import over all it consumed |
+| `energy_balance_index_period`, `peak_to_average_period`, `self_sufficiency_index_period` | The same three over the whole test period, shown on each of its days ([Metrics](metrics.md#a-headline)) |
+
+![Grid: step by step](img/grid-step-by-step.png)
 
 **2 Step by step.** One run's day, for a picked policy. *Compare with* draws a second run
 over it, dotted, on the same day and policy.
@@ -52,6 +63,13 @@ over it, dotted, on the same day and policy.
 
 `fee_max_line_loading_percent` is the highest line loading the fees were charged on: the
 graph model's with `grid.method = "graph"`, else the power flow's.
+
+![Grid: network replay](img/grid-network-replay.png)
+
+**3 Network replay.** The network a step at a time: lines coloured by loading, buses
+by voltage, the participants ringed. A participant that traded is marked, orange when it
+sold and blue when it bought, larger for more energy, filled when mostly with peers and
+hollow when with the DSO. Clicking one draws its peer trades as lines to its partners.
 
 ## Missing
 

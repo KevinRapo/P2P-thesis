@@ -52,9 +52,9 @@ def traded(
 MARKET_CHARTS = [
     traded,
     ("prices, per kWh", ["peer_price", "feed_in_tariff", "utility_price"]),
-    ("peer share of the energy traded", ["peer_share"]),
-    ("grid balance, kWh", ["grid_balance_kwh"]),
-    ("peer trades", ["peer_trades"]),
+    ("peer share of the energy traded", ["peer_share"], "bars"),
+    ("grid balance, kWh", ["grid_balance_kwh"], "bars"),
+    ("peer trades", ["peer_trades"], "bars"),
 ]
 PERSON_CHARTS = [
     ("kWh", ["demand_kwh", "generation_kwh", "order_kwh", "bought_kwh", "sold_kwh"]),

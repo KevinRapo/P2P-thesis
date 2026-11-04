@@ -317,9 +317,19 @@ def _agents(frame: pd.DataFrame) -> int:
     return max(1, sum(c.startswith("return/") for c in frame.columns))
 
 
+def _started(state: Optional[RunState]) -> Optional[str]:
+    """When a run started, as ``2026-11-02 18:13`` (None when nothing says): text that
+    sorts by time."""
+    if not state or not state.started:
+        return None
+
+    return str(state.started)[:16].replace("T", " ")
+
+
 def overview(results: Sequence[RunResult]) -> pd.DataFrame:
-    """One row per run: what it was, how far it got, and its held-out team money per
-    day for the trained policy and each baseline (``heldout_agents.csv``)."""
+    """One row per run: what it was, when it started, how far it got, and its
+    held-out team money per day for the trained policy and each baseline
+    (``heldout_agents.csv``)."""
     rows = []
 
     for result in results:
@@ -328,6 +338,7 @@ def overview(results: Sequence[RunResult]) -> pd.DataFrame:
             "kind": result.settings["kind"],
             "test": result.settings["test"],
             "state": state.state if state else None,
+            "started": _started(state),
             "env_steps": state.env_steps if state else None,
             "budget": result.settings["budget"],
             "commit": result.settings["commit"],
@@ -728,7 +739,7 @@ def _scenario(folder: Path) -> Optional[dict]:
 def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
     """One run's indicators, long format, with the money ceiling as a policy;
     ``stamp`` says its tables are unchanged."""
-    from core.runner.ceiling import ceiling_days
+    from core.runner.ceiling import alone_days, ceiling_days, day_references
 
     tables = [_table(_table_path(Path(folder), n)) for n in INDICATOR_TABLES]
     tables = [
@@ -739,12 +750,18 @@ def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
     if tables[0] is None or tables[1] is None or "bill" not in tables[1]:
         return None
 
-    try:
-        top = ceiling_days(tables[3], tables[2], _scenario(Path(folder)))
-    except (ValueError, KeyError):  # tables or a scenario it cannot read
-        top = None
+    scenario = _scenario(Path(folder))
 
-    days = indicators.day_table(*tables, ceiling=top).reset_index()
+    try:
+        top = ceiling_days(tables[3], tables[2], scenario)
+        alone = alone_days(tables[3], tables[2], scenario)
+        by_day = day_references(tables[3], tables[2], scenario)
+    except (ValueError, KeyError):  # tables or a scenario it cannot read
+        top = alone = by_day = None
+
+    days = indicators.day_table(
+        *tables, ceiling=top, alone=alone, day_references=by_day
+    ).reset_index()
     long = days.melt(indicators.KEYS, var_name="indicator")
 
     # The references play no market: keep only what they have.

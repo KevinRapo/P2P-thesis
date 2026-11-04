@@ -257,6 +257,18 @@ def test_overview_and_curves(where):
     assert len(results.training_curves(runs)) == 3 * 2  # the old run has none
 
 
+def test_overview_gives_the_start_as_sortable_text(tmp_path):
+    exp = tmp_path / "grid"
+    make_run(exp, "ppo_dtde_s0", 0, [-8, -9], started="2026-11-02T18:13:05")
+    make_run(exp, "ppo_dtde_s1", 1, [-7, -6])
+    table = results.overview(
+        results.load_runs(results.find_runs({"local": tmp_path}))
+    ).set_index("key")
+
+    assert table.loc["local/grid/ppo_dtde_s0", "started"] == "2026-11-02 18:13"
+    assert pd.isna(table.loc["local/grid/ppo_dtde_s1", "started"])
+
+
 def test_participant_metrics_are_long(where):
     runs = results.load_runs(results.find_runs(where))
     people = results.participant_metrics(runs)
