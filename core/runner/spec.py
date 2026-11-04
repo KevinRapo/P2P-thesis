@@ -520,12 +520,7 @@ class Experiment:
         """The scenario file a run of ``variant`` reads: ``SCENARIO_FILE`` in its
         folder ``run_dir`` when ``scenario`` is the scenario itself, else the file it
         names."""
-        arm = self.arm(variant)
-
-        if isinstance(arm.scenario, dict):
-            return Path(run_dir or ".") / SCENARIO_FILE
-
-        return arm.scenario_path
+        return _scenario_file(self.arm(variant), run_dir)
 
     def arm(self, variant: Optional[str]) -> "Experiment":
         """The arm of ``variant`` as a complete experiment: this one with what the
@@ -576,7 +571,7 @@ class Experiment:
         config: dict = {"days": arm.test_days}
 
         if arm.scenario:
-            config["scenario"] = str(self.scenario_file(run_dir, variant))
+            config["scenario"] = str(_scenario_file(arm, run_dir))
 
         return config | arm.env_config
 
@@ -698,13 +693,13 @@ class Experiment:
         """One ``RunSpec`` per run of the grid; run folders are inside ``exp_dir``
         (default: ``<runs root>/<name>``)."""
         exp_dir = self.folder(exp_dir)
-        variants = self.variants or {None: {}}
+        # Each variant's arm resolved once, for every algorithm, paradigm and seed
+        arms = {variant: self.arm(variant) for variant in self.variants or {None: {}}}
         specs: list[RunSpec] = []
 
         for algorithm in self.algorithms:
             for paradigm in self.paradigms:
-                for variant in variants:
-                    arm = self.arm(variant)
+                for variant, arm in arms.items():
                     budget, every = arm._budgets(algorithm)
 
                     for seed in self.seeds:
@@ -720,7 +715,7 @@ class Experiment:
                                 seed=seed,
                                 variant=variant,
                                 env=arm.env,
-                                env_config=self._env_config(seed, out_dir, variant),
+                                env_config=_env_config(arm, seed, out_dir),
                                 budget=budget,
                                 eval_every=every,
                                 eval_episodes=arm.eval_episodes,
@@ -741,19 +736,29 @@ class Experiment:
 
         return budget, budget // points if points else 0
 
-    def _env_config(self, seed: int, run_dir: Path, variant: Optional[str]) -> dict:
-        arm = self.arm(variant)
-        config: dict = {}
 
-        if arm.scenario:
-            config["scenario"] = str(self.scenario_file(run_dir, variant))
+def _scenario_file(arm: "Experiment", run_dir: Optional[Path]) -> Path:
+    """The scenario file a run of the resolved ``arm`` reads (``scenario_file``)."""
+    if isinstance(arm.scenario, dict):
+        return Path(run_dir or ".") / SCENARIO_FILE
 
-        if arm.train_days:
-            config["days"] = list(arm.train_days)
+    return arm.scenario_path
 
-        config["seed"] = seed
 
-        return config | arm.env_config
+def _env_config(arm: "Experiment", seed: int, run_dir: Path) -> dict:
+    """A run's environment config from its resolved ``arm``: the scenario file, the
+    training days, the seed and the arm's own ``env_config``."""
+    config: dict = {}
+
+    if arm.scenario:
+        config["scenario"] = str(_scenario_file(arm, run_dir))
+
+    if arm.train_days:
+        config["days"] = list(arm.train_days)
+
+    config["seed"] = seed
+
+    return config | arm.env_config
 
 
 def _read_scenario(path: Path) -> dict:

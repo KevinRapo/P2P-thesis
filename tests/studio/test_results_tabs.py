@@ -97,13 +97,14 @@ def test_the_indices_per_day_are_metrics_of_the_test_days():
     assert not headline & {"vti_day", "pi_day", "ei_day", "energy_balance_index"}
 
 
-def test_the_baselines_are_marked_under_the_versions():
-    assert [validation.kind(i, 2) for i in range(4)] == [
-        "version", "version", "first", "baseline"
+def test_the_baselines_are_listed_from_the_ceiling_down():
+    assert validation.SHOWN == ("ceiling", "net_position", "non_p2p")
+    assert "zero" not in validation.SHOWN  # not a row of the overview
+    frame = pd.DataFrame({"a": [1.0, None], "b": ["x", "y"]})
+    assert validation.records_of(frame) == [
+        {"_row": 0, "a": "1.0", "b": "x"},
+        {"_row": 1, "a": "", "b": "y"},
     ]
-    order = sorted(["non_p2p", "ceiling", "net_position"], key=validation.ORDER.get)
-    assert order == ["ceiling", "non_p2p", "net_position"]
-    assert "zero" not in validation.ORDER  # not a row of the overview
 
 
 def test_a_cell_shows_the_mean_with_its_seeds_or_interval():
@@ -706,3 +707,25 @@ async def test_the_timing_panel_draws_and_follows_a_live_refresh():
         assert not charts[3].figure().data  # no run has finished
         charts[3].set(stages=stages)
         assert len(charts[3].figure().data) == len(timing.STAGES)
+
+
+def test_a_live_refresh_redraws_only_charts_whose_data_changed():
+    from studio.pages.results.common import Tab
+
+    class Seen:
+        def __init__(self):
+            self.calls = 0
+
+        def set(self, **options):
+            self.calls += 1
+
+    tab = Tab(service=None, selection=None)
+    a, b, timing = Seen(), Seen(), Seen()
+    tab.watch(a, table="a")
+    tab.watch(b, table="b")
+    tab.watch(timing, timing="timing")  # its panel not read: never redrawn
+    one, two = pd.DataFrame({"x": [1.0]}), pd.DataFrame({"x": [2.0]})
+
+    tab.update({"a": one, "b": one})  # the first refresh after a build: all
+    tab.update({"a": one.copy(), "b": two})  # the same values for a
+    assert (a.calls, b.calls, timing.calls) == (1, 2, 0)

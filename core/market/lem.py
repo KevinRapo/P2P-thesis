@@ -388,22 +388,32 @@ class LocalEnergyMarket:
         return played
 
     # --- Inputs ----------------------------------------------------------------------
-    def _build_participants(self) -> dict[str, Participant]:
-        """One ``Participant`` per scenario participant, with its generation and
-        demand from the SimBench profiles of the elements it owns (in place of the
-        profiles of [P1] §3.4.4)."""
+    def profiles(self, day: str) -> dict[str, tuple[list[float], list[float]]]:
+        """Each participant's generation and demand per step (kWh) on ``day``, from
+        the SimBench profiles of the elements it owns (in place of the profiles of
+        [P1] §3.4.4); nothing else of the market is touched."""
         g = self.scenario.grid
         ref = NetworkRef("simbench", g.code)
-        kinds = {e.id: e.element_type for e in simbench.elements(ref)}
-        owned = [e for p in self.scenario.participants for e in p.owns]
+        kinds = simbench.element_kinds(ref)
+        owned = tuple(e for p in self.scenario.participants for e in p.owns)
         resolution = "hourly" if g.step_hours == 1.0 else "15min"
-        _, power = simbench.element_power(ref, owned, g.day, 1, resolution)
+        power = simbench.day_power(ref, owned, day, resolution)  # cached per day
+
+        return {
+            p.id: profiles_from_elements(
+                p.owns, kinds, power, g.step_hours, self.n_steps
+            )
+            for p in self.scenario.participants
+        }
+
+    def _build_participants(self) -> dict[str, Participant]:
+        """One ``Participant`` per scenario participant, with its generation and
+        demand on the scenario's day (``profiles``)."""
+        profiles = self.profiles(self.scenario.grid.day)
         out = {}
 
         for p in self.scenario.participants:
-            generation, demand = profiles_from_elements(
-                p.owns, kinds, power, g.step_hours, self.n_steps
-            )
+            generation, demand = profiles[p.id]
             out[p.id] = Participant(
                 id=p.id,
                 bus=p.bus,

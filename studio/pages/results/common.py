@@ -102,6 +102,7 @@ class Tab:
         self.service = service
         self.selection = selection
         self.watched: list[tuple[Chart, dict[str, str]]] = []
+        self._prints: dict[str, Any] = {}  # what the charts were last drawn from
         self.waiting = False  # built without the data it shows (``empty``)
 
     def empty(self, data: dict[str, Any]) -> bool:
@@ -121,9 +122,39 @@ class Tab:
         return chart
 
     def update(self, data: dict[str, Any]) -> None:
-        """The data read again: every watched chart redraws with it."""
+        """The data read again: a watched chart redraws when what it shows changed
+        (``fingerprint``), and not when its data is not in ``data`` (a panel not
+        read, as Learning's Timing before it is opened)."""
+        prints = {name: fingerprint(value) for name, value in data.items()}
+        changed = {n for n in prints if prints[n] != self._prints.get(n)}
+        self._prints = prints
+
         for chart, options in self.watched:
-            chart.set(**{option: data[name] for option, name in options.items()})
+            if not set(options.values()) <= data.keys():
+                continue
+
+            if changed & set(options.values()):
+                chart.set(**{option: data[name] for option, name in options.items()})
+
+
+def fingerprint(value: Any) -> Any:
+    """What tells two reads of one piece of a tab's data apart: a table's shape and
+    the hash of its rows (index and values), anything else as it prints."""
+    if isinstance(value, pd.DataFrame):
+        if value.empty:
+            return ("empty", tuple(value.columns))
+
+        rows = pd.util.hash_pandas_object(value, index=True)
+
+        return (value.shape, tuple(value.columns), int(rows.sum()), int(rows.iloc[-1]))
+
+    if isinstance(value, pd.Series):
+        return fingerprint(value.to_frame())
+
+    if isinstance(value, (list, tuple)):
+        return tuple(fingerprint(v) for v in value)
+
+    return repr(value)
 
 
 # --------------------------------------------------------------------------------------

@@ -376,3 +376,20 @@ def test_a_day_gives_consistent_market_and_agent_signals():
         assert demand == pytest.approx(sum(p.demand_kwh))
         assert supply == pytest.approx(sum(p.generation_kwh))
         assert 0.0 <= a["battery_soc"] <= 1.0
+
+
+def test_the_kpis_of_one_state_are_computed_once(monkeypatch):
+    from core.market import signals
+
+    calls = []
+    monkeypatch.setattr(signals, "kpis", lambda h: calls.append(len(h)) or {"n": len(h)})
+    signals._SHARED[0] = None
+    history = [object()]
+    assert signals.kpis_shared(history) is signals.kpis_shared(history)  # one state
+    history.append(object())  # the next step
+    assert signals.kpis_shared(history) == {"n": 2}
+    history.clear()  # a new day: the same list, emptied and filled again
+    history.append(object())
+    history.append(object())
+    signals.kpis_shared(history)
+    assert calls == [1, 2, 2]  # the new day's state is computed, not reused

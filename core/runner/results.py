@@ -41,11 +41,15 @@ import functools
 import hashlib
 import json
 import re
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
+import numpy as np
 import pandas as pd
+from pandas.api.types import union_categoricals
 
 from core.config.scenario import flat_prices
 from core.runner import indicators, registry
@@ -201,24 +205,64 @@ def _table(path: Path) -> Optional[pd.DataFrame]:
     return _read_csv(str(path), found.st_mtime_ns, found.st_size)
 
 
-def _latest(build: Callable) -> Callable:
-    """``build(path, *stamp)`` remembered per path, only for the latest ``stamp``: a
-    file that keeps growing in a live view holds one entry, not one per version."""
-    kept: dict[str, tuple] = {}
+def _latest(paths: int, megabytes: float = float("inf")) -> Callable[[Callable], Callable]:
+    """``build(path, *stamp)`` remembered per path, only for the latest ``stamp`` (a
+    file that keeps growing in a live view holds one entry, not one per version), and
+    for the paths used most recently: at most ``paths`` of them and, of tables, about
+    ``megabytes`` (the newest is always kept). A long session that opens many
+    experiments keeps the latest ones, and reads an older one again when it comes
+    back. Safe from the Studio's worker threads; ``cached.clear()`` forgets all."""
+    budget = megabytes * 1e6
 
-    @functools.wraps(build)
-    def cached(path: str, *stamp: Any) -> Any:
-        found = kept.get(path)
+    def decorate(build: Callable) -> Callable:
+        kept: "OrderedDict[str, tuple]" = OrderedDict()  # path -> (stamp, value, bytes)
+        lock = threading.Lock()
 
-        if found is None or found[0] != stamp:
-            found = kept[path] = (stamp, build(path, *stamp))
+        @functools.wraps(build)
+        def cached(path: str, *stamp: Any) -> Any:
+            with lock:
+                found = kept.get(path)
 
-        return found[1]
+                if found is not None and found[0] == stamp:
+                    kept.move_to_end(path)
+                    return found[1]
 
-    return cached
+            value = build(path, *stamp)  # outside the lock: reads run side by side
+            size = _bytes(value)
+
+            with lock:
+                kept[path] = (stamp, value, size)
+                kept.move_to_end(path)
+                held = sum(entry[2] for entry in kept.values())
+
+                while len(kept) > 1 and (len(kept) > paths or held > budget):
+                    held -= kept.popitem(last=False)[1][2]
+
+            return value
+
+        cached.clear = kept.clear  # type: ignore[attr-defined]
+        cached.kept = kept  # type: ignore[attr-defined]  (for tests)
+        return cached
+
+    return decorate
 
 
-@_latest
+def _bytes(value: Any) -> int:
+    """A cached value's memory: a table's, strings included; anything else 0."""
+    if isinstance(value, pd.DataFrame):
+        return int(value.memory_usage(deep=True).sum())
+
+    return 0
+
+
+# What each cache keeps: a run has about ten tables, of a few kB to tens of MB (the
+# step tables of a large network), so a memory budget besides a number of paths.
+CSV_PATHS, CSV_MB = 512, 256
+LEARNER_PATHS, LEARNER_MB = 128, 64
+DAY_PATHS, DAY_MB = 256, 32
+
+
+@_latest(CSV_PATHS, CSV_MB)
 def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
     """A table, cached by its file's path, time and size: an unchanged file is
     read once."""
@@ -466,7 +510,11 @@ def learner_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
     for the run's training return (``team_return_mean``). The modules' mean, min and
     max columns (``modules/...``) are left out: they follow from the rows. The KL
     (``mean_kl_loss``) is left out of a run whose learner did not compute it
-    (``use_kl_loss`` off): RLlib then logs a constant 0, not a measurement."""
+    (``use_kl_loss`` off): RLlib then logs a constant 0, not a measurement.
+
+    The text columns (``module``, ``part``, ``metric`` and the run's own, ``key``,
+    ``run``, ...) are categoricals: a run has about 30,000 rows of a few dozen names,
+    which as strings take 15 times the memory. Group by them with ``observed=True``."""
     frames = []
 
     for result in results:
@@ -478,12 +526,39 @@ def learner_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
             rows = _learner_rows(str(path), found.st_mtime_ns, found.st_size, kl_logged)
 
             if rows is not None:
-                frames.append(rows.assign(**_head(result)))
+                one = np.zeros(len(rows), dtype=np.int8)  # every row the run's name
+                head = {
+                    name: pd.Categorical.from_codes(one, [value])
+                    if isinstance(value, str)
+                    else value
+                    for name, value in _head(result).items()
+                }
+                frames.append(rows.assign(**head))
 
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    return _concat_categories(frames)
 
 
-@_latest
+def _concat_categories(frames: list[pd.DataFrame]) -> pd.DataFrame:
+    """``frames`` (the same columns) one under the other, their categorical columns
+    still categorical: ``pd.concat`` turns a column into strings when the frames'
+    categories differ, so those are joined with ``union_categoricals``."""
+    if not frames:
+        return pd.DataFrame()
+
+    columns = {}
+
+    for name in frames[0].columns:
+        parts = [frame[name] for frame in frames]
+
+        if all(isinstance(p.dtype, pd.CategoricalDtype) for p in parts):
+            columns[name] = union_categoricals(parts)
+        else:
+            columns[name] = pd.concat(parts, ignore_index=True)
+
+    return pd.DataFrame(columns)
+
+
+@_latest(LEARNER_PATHS, LEARNER_MB)
 def _learner_rows(
     path: str, mtime_ns: int, size: int, kl_logged: bool
 ) -> Optional[pd.DataFrame]:
@@ -524,7 +599,12 @@ def _learner_rows(
             )
         )
 
-    return pd.concat(rows, ignore_index=True) if rows else None
+    if not rows:
+        return None
+
+    names = ["module", "part", "metric"]  # a few dozen names over ~30,000 rows
+
+    return pd.concat(rows, ignore_index=True).astype({n: "category" for n in names})
 
 
 # What a run saved of its time (``core/rl/train.py``): per progress report in
@@ -735,7 +815,7 @@ def _scenario(folder: Path) -> Optional[dict]:
         return None
 
 
-@_latest
+@_latest(DAY_PATHS, DAY_MB)
 def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
     """One run's indicators, long format, with the money ceiling as a policy;
     ``stamp`` says its tables are unchanged."""

@@ -23,6 +23,7 @@ import threading
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from functools import lru_cache
+from types import MappingProxyType
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
@@ -938,6 +939,25 @@ def profile_power(
     count = len(next(iter(values.values()), []))
 
     return _labels(d, count, step, resolution), values
+
+
+@lru_cache(maxsize=8)
+def element_kinds(ref: NetworkRef) -> MappingProxyType:
+    """Element type per element ID (``load``, ``sgen``, ``storage``), as ``elements``
+    gives them; built once per network."""
+    return MappingProxyType({e.id: e.element_type for e in elements(ref)})
+
+
+@lru_cache(maxsize=512)
+def day_power(
+    ref: NetworkRef, ids: tuple[str, ...], day: str, resolution: str
+) -> MappingProxyType:
+    """``element_power`` of one day, each element's values a tuple; built once per
+    network, elements, day and resolution: training plays the same days again and
+    again, and every market reset needs its participants' profiles."""
+    _, power = element_power(ref, ids, day, 1, resolution)
+
+    return MappingProxyType({k: tuple(v) for k, v in power.items()})
 
 
 def element_power(

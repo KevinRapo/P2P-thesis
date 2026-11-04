@@ -10,7 +10,11 @@ Ported from the refactor branch's step-time model.
 from __future__ import annotations
 
 import math
+from collections import OrderedDict
 from typing import Any, Sequence
+
+import numpy as np
+import pandas as pd
 
 from core.config.scenario import GridSetup
 from core.grid import simbench
@@ -32,6 +36,15 @@ from core.grid.contract import (
 # and the equations solved again. The results are the same (same Newton-Raphson
 # solve, same tolerance); a step's power flow takes about a third of the time.
 RECYCLE = {"trafo": False, "gen": False, "bus_pq": True}
+
+
+# Each day's background, recorded once and replayed (``SimBenchGrid._background``):
+# training draws the same days again and again, and a new ``SimBenchGrid`` is made at
+# every market reset. A key is (network, day, step length, background, the rows the
+# participants own); a value, per (table, column), the elements' index and their
+# values, one row per step. A year of hourly days of a large LV network is a few MB.
+BACKGROUNDS: "OrderedDict[tuple, dict]" = OrderedDict()
+BACKGROUND_DAYS = 400
 
 
 class SimBenchGrid:
@@ -88,9 +101,60 @@ class SimBenchGrid:
             for c in ("p_mw", "q_mvar")
             if c in net[t]
         }
+        self._day = self._background()
+
+    def _background(self) -> dict:
+        """The day's background, one row of values per step: from the cache, or
+        recorded on this fresh copy by ``_background_of`` (before any injection
+        load exists) and kept, the oldest day dropped beyond ``BACKGROUND_DAYS``."""
+        net = self._net
+        owned = tuple(tuple(self._owned_rows[t]) for t in ("load", "sgen", "storage"))
+        key = (
+            self.ref,
+            self.setup.day,
+            self.setup.step_hours,
+            self.setup.background,
+            owned,
+        )
+
+        if key in BACKGROUNDS:
+            BACKGROUNDS.move_to_end(key)
+            return BACKGROUNDS[key]
+
+        steps = 24 if self.setup.step_hours == 1.0 else 96
+        values: dict[tuple[str, str], list] = {}
+
+        for step in range(steps):
+            self._background_of(step)
+
+            for t in ("load", "sgen", "storage"):
+                for c in ("p_mw", "q_mvar"):
+                    if c in net[t]:
+                        values.setdefault((t, c), []).append(net[t][c].to_numpy(copy=True))
+
+        day = {
+            (t, c): (net[t].index.copy(), np.vstack(rows))
+            for (t, c), rows in values.items()
+        }
+        BACKGROUNDS[key] = day
+
+        while len(BACKGROUNDS) > BACKGROUND_DAYS:
+            BACKGROUNDS.popitem(last=False)
+
+        return day
 
     def _apply_background(self, step: int) -> None:
-        """Every element at its value for ``step``; owned elements off."""
+        """Every element at its value for ``step``; owned elements off: the day's
+        recorded row (``_background``)."""
+        net = self._net
+
+        for (table, column), (index, rows) in self._day.items():
+            net[table][column] = pd.Series(rows[step % len(rows)], index=index)
+
+    def _background_of(self, step: int) -> None:
+        """Every element at its value for ``step``, computed: the static values, the
+        profiles' (an hour's mean of its quarter hours), the background setting,
+        owned elements off. Recorded once per day by ``_background``."""
         net = self._net
 
         for (table, column), values in self._static.items():
@@ -132,6 +196,7 @@ class SimBenchGrid:
 
         net = self._net
         self._apply_background(step)
+        rows, powers = [], []
 
         for inj in injections:
             if inj.bus_id not in self._bus_index:
@@ -140,7 +205,7 @@ class SimBenchGrid:
             p_mw = -inj.net_injection_kw / 1000.0  # a negative load injects
             index = self._loads.get(inj.participant_id)
 
-            if index is None:
+            if index is None:  # the participant's first step: its injection load
                 index = int(
                     pp.create_load(
                         net,
@@ -152,8 +217,14 @@ class SimBenchGrid:
                 )
                 self._loads[inj.participant_id] = index
 
-            net.load.loc[index, "p_mw"] = p_mw
-            net.load.loc[index, "q_mvar"] = 0.0
+            rows.append(index)
+            powers.append(p_mw)
+
+        # Every participant's power in one write: a scalar ``.loc`` per participant
+        # and column cost more than the rest of the step's preparation together.
+        if rows:
+            net.load.loc[rows, "p_mw"] = powers
+            net.load.loc[rows, "q_mvar"] = 0.0
 
         try:
             pp.runpp(net, algorithm="nr", recycle=self.recycle)

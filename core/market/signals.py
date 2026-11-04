@@ -12,6 +12,7 @@ measure (no trades, no orders, no step played yet).
 from __future__ import annotations
 
 import statistics
+from typing import Collection, Optional
 
 NAN = float("nan")
 
@@ -394,9 +395,44 @@ def kpis(history) -> dict[str, float]:
     return {name: f(history) for name, f in KPIS.items()}
 
 
-def market_signals(market) -> dict[str, float]:
-    return {name: f(market) for name, f in MARKET_SIGNALS.items()}
+def market_signals(market, names: Optional[Collection[str]] = None) -> dict[str, float]:
+    """The market signals, or only those of ``names``."""
+    return {
+        name: f(market)
+        for name, f in MARKET_SIGNALS.items()
+        if names is None or name in names
+    }
 
 
-def agent_signals(market, agent: str) -> dict[str, float]:
-    return {name: f(market, agent) for name, f in AGENT_SIGNALS.items()}
+def agent_signals(
+    market, agent: str, names: Optional[Collection[str]] = None
+) -> dict[str, float]:
+    """``agent``'s signals, or only those of ``names``."""
+    return {
+        name: f(market, agent)
+        for name, f in AGENT_SIGNALS.items()
+        if names is None or name in names
+    }
+
+
+# The KPIs of the last market state asked for: (history, its length, its last
+# record, the KPIs). The reward, the observation and the final info of one step read
+# the same state; a new step, or a new day's history, is a new state.
+_SHARED: list = [None]
+
+
+def kpis_shared(history) -> dict[str, float]:
+    """``kpis(history)``, computed once per market state: the same list, as long,
+    ending with the same record (held here, so its identity cannot be reused). Read
+    the result, do not change it."""
+    last = history[-1] if history else None
+    kept = _SHARED[0]
+
+    if kept is not None and kept[0] is history and kept[1] == len(history):
+        if kept[2] is last:
+            return kept[3]
+
+    found = kpis(history)
+    _SHARED[0] = (history, len(history), last, found)
+
+    return found

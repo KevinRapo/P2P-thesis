@@ -8,6 +8,12 @@ from nicegui import ui
 from core.market.order import Trade
 
 STAGE_LABELS = {1: "1 · Preferences", 2: "2 · Double auction", 3: "3 · DSO"}
+# How a column sorts: numbers as numbers (a cell "0.4 (0.3, 0.5)" by its 0.4), so
+# -1.1 comes before -0.6; text, and a number against text, as text.
+SORT = (
+    "(a, b) => { const x = parseFloat(a), y = parseFloat(b); "
+    "return isNaN(x) || isNaN(y) ? String(a).localeCompare(String(b)) : x - y }"
+)
 
 
 def data_table(
@@ -32,6 +38,7 @@ def data_table(
                     "field": f,
                     "align": "left",
                     "sortable": True,
+                    ":sort": SORT,
                 }
                 for f, label in columns
             ],

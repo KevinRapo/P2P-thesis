@@ -14,7 +14,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from nicegui import ui
+from nicegui import run, ui
 
 from studio.components.cards import placeholder, section
 from studio.components.charts import SeriesChart
@@ -159,7 +159,7 @@ class LearnerChart(SeriesChart):
                 else:
                     lines = {
                         m: f.set_index("env_steps").value
-                        for m, f in frame.groupby("module")
+                        for m, f in frame.groupby("module", observed=True)
                     }
 
                 for module, line in lines.items():
@@ -324,17 +324,27 @@ PANELS = ("Evaluation", "Timing")
 
 class LearningTab(Tab):
     """Two panels: Evaluation (the return and money curves, the learner's metrics, one
-    run's action parts) and Timing (where the time goes, ``timing.py``)."""
+    run's action parts) and Timing (where the time goes, ``timing.py``). Timing is
+    read and built when it is first opened; from then on the live refresh reads it
+    too (``timing_open``)."""
 
     label, icon = "Learning", "psychology"
+    timing_open = False  # Timing has been opened: its data is read with the rest
 
     def read(self, keys: list[str]) -> dict[str, Any]:
         results = self.service.results(keys)
-        return {
+        data = {
             "metrics": self.service.learner_metrics(keys),
             "clip": {r.key: r.settings.get("grad_clip") for r in results},
             "curves": self.service.learning_curves(keys),
             "training": self.service.training_curves(keys),
+        }
+
+        return data | (self.read_timing(keys) if self.timing_open else {})
+
+    def read_timing(self, keys: list[str]) -> dict[str, Any]:
+        """What the Timing panel shows."""
+        return {
             "timing": self.service.iteration_timing(keys),
             "stages": self.service.run_timings(keys),
         }
@@ -358,7 +368,23 @@ class LearningTab(Tab):
                 self._evaluation(keys, data)
 
             with ui.tab_panel("Timing").classes("p-0 gap-4"):
+                timing = ui.column().classes("w-full gap-4")
+
+        async def open_timing() -> None:
+            """Read and build Timing, once per build, when it is first shown."""
+            if bar.value != "Timing" or timing.default_slot.children:
+                return
+
+            self.timing_open = True
+
+            if "timing" not in data:
+                data.update(await run.io_bound(self.read_timing, keys))
+
+            with timing:
                 build_timing(self, data, labels_of(keys))
+
+        bar.on_value_change(open_timing)
+        ui.timer(0.01, open_timing, once=True)  # remembered on Timing: at once
 
     def _evaluation(self, keys: list[str], data: dict[str, Any]) -> None:
         """The first panel: the return, the learner's metrics, the action parts."""

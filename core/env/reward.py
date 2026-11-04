@@ -342,7 +342,7 @@ class SalazarReward(Reward):
         history = self.market.history
         # OPEN E-10: the KPIs over the day so far, as in the observation; the
         # original took most of them over the step alone.
-        kpis = signals.kpis(history)
+        kpis = signals.kpis_shared(history)  # the same state as the observation's
         previous = history[-2] if len(history) > 1 else None
         out = {}
 

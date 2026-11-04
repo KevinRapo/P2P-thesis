@@ -121,8 +121,16 @@ class StepView:
         self.agent.classes("w-64").set_visibility(bool(person_charts))
         self.person_box = ui.column().classes("w-full gap-2")
 
-        for field in (self.run, self.other, self.day, self.policy, self.agent):
+        # What the participant's charts are drawn from, kept by draw: a new
+        # participant redraws only its own charts (draw_person), not the community's
+        self._people: Optional[pd.DataFrame] = None
+        self._shown: tuple[str, str] = ("", "")  # (day, policy) of the last draw
+        self._picking = False  # draw is offering participants: no redraw of its own
+
+        for field in (self.run, self.other, self.day, self.policy):
             field.on_value_change(self.draw)
+
+        self.agent.on_value_change(self.draw_person)
 
         ui.timer(0.01, self.draw, once=True)
 
@@ -177,18 +185,25 @@ class StepView:
         if drawn != self._drawn:
             return
 
+        self._people, self._shown = people, (day, policy)
+
         if self.person_charts and people is not None:
             groups = self.service.participant_groups(self.run.value)
             names = sorted(people.agent.unique(), key=by_number)
-            self._pick(
-                self.agent,
-                {a: f"{a} ({groups[a]})" if a in groups else a for a in names},
-                self.selection.agent,
-            )
+            self._picking = True
+
+            try:
+                self._pick(
+                    self.agent,
+                    {a: f"{a} ({groups[a]})" if a in groups else a for a in names},
+                    self.selection.agent,
+                )
+            finally:
+                self._picking = False
+
             self.selection.agent = self.agent.value
 
         self.box.clear()
-        self.person_box.clear()
 
         with self.box:
             if self.person_charts and people is not None:
@@ -209,19 +224,30 @@ class StepView:
                         kind=kind[0] if kind else "line",
                     ).show()
 
+        self.draw_person()
+
+    def draw_person(self) -> None:
+        """The participant's charts, from what the last ``draw`` read: a new
+        participant redraws these alone."""
+        if self._picking:  # draw is offering participants; it draws them after
+            return
+
+        self.person_box.clear()
+        people, (day, policy) = self._people, self._shown
+
+        if not self.person_charts or people is None:
+            return
+
+        self.selection.agent = self.agent.value
+
         with self.person_box:
-            if self.person_charts and people is not None:
-                person = self._of_day(
-                    people[people.agent == self.agent.value], day, policy
-                )
+            person = self._of_day(people[people.agent == self.agent.value], day, policy)
 
-                for title, columns in self.person_charts:
-                    StepChart(
-                        rows=person, other=None, columns=columns, title=title
-                    ).show()
+            for title, columns in self.person_charts:
+                StepChart(rows=person, other=None, columns=columns, title=title).show()
 
-                if self.details and day != ALL_DAYS:
-                    self.details(person)
+            if self.details and day != ALL_DAYS:
+                self.details(person)
 
     @staticmethod
     def _of_day(rows: pd.DataFrame, day: str, policy: str) -> pd.DataFrame:

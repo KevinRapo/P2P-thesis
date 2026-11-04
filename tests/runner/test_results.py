@@ -435,3 +435,51 @@ def test_timing_splits_a_training_call_and_a_run(tmp_path):
     assert calls[calls.key.str.endswith("s1")].train_call_s.isna().all()
     stages = results.run_timings(both)
     assert len(stages) == 1 and stages.iloc[0].other_s == 60.0 - 46.0
+
+
+def test_runs_with_different_names_stay_categorical_when_joined():
+    one = pd.DataFrame({"module": pd.Categorical(["a", "a"]), "value": [1.0, 2.0]})
+    two = pd.DataFrame({"module": pd.Categorical(["b"]), "value": [3.0]})
+    joined = results._concat_categories([one, two])
+    assert isinstance(joined.module.dtype, pd.CategoricalDtype)
+    assert joined.module.tolist() == ["a", "a", "b"]
+    assert joined.value.tolist() == [1.0, 2.0, 3.0]
+    # Grouped by what was seen: no empty group for a name of another run.
+    assert len(two.assign(module=joined.module[2:].values).groupby(
+        "module", observed=True)) == 1
+
+
+def test_a_cache_keeps_the_latest_version_of_the_paths_used_last():
+    built = []
+
+    @results._latest(2)
+    def build(path, stamp):
+        built.append((path, stamp))
+        return f"{path}@{stamp}"
+
+    assert build("a", 1) == "a@1" and build("a", 1) == "a@1"  # read once
+    assert build("a", 2) == "a@2"  # a new version replaces the old one
+    build("b", 1)
+    build("a", 2)  # a used again: b is now the oldest
+    build("c", 1)
+    assert list(build.kept) == ["a", "c"]
+    assert built == [("a", 1), ("a", 2), ("b", 1), ("c", 1)]
+    build.clear()
+    assert not build.kept
+
+
+def test_a_cache_keeps_tables_within_its_memory_budget():
+    @results._latest(10, megabytes=1.5)
+    def build(path, stamp):
+        return pd.DataFrame({"x": np.zeros(100_000)})  # 0.8 MB each
+
+    build("a", 1)
+    build("b", 1)  # 1.6 MB: over the budget, a goes
+    assert list(build.kept) == ["b"]
+
+    @results._latest(10, megabytes=0.1)
+    def big(path, stamp):
+        return pd.DataFrame({"x": np.zeros(100_000)})
+
+    big("a", 1)  # alone over the budget: the newest is always kept
+    assert list(big.kept) == ["a"]

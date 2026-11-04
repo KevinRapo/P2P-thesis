@@ -318,6 +318,10 @@ class MarketEnv(MultiAgentEnv):
         )
         self._signal_names = OBSERVATIONS[observation]
         self._scales = self._obs_scales()
+        # The signals the observation reads (``_observe`` computes only these), and
+        # whether it reads a KPI
+        self._wanted = frozenset(self._scales) | {"time_of_day"}
+        self._observes_kpis = bool(self._wanted & set(signals.KPIS))
         obs_box = spaces.Box(
             -_OBS_LIMIT, _OBS_LIMIT, (len(self.obs_names),), np.float32
         )
@@ -328,16 +332,16 @@ class MarketEnv(MultiAgentEnv):
 
     def _largest_energy(self) -> float:
         """The largest generation or demand (kWh) of any participant in any step
-        of any day in ``days``: the default ``energy_scale`` (at least 1e-6)."""
+        of any day in ``days``: the default ``energy_scale`` (at least 1e-6). Read
+        from the profiles alone (``LocalEnergyMarket.profiles``), without playing or
+        resetting the market."""
         largest = 0.0
 
         for day in self.days:
-            self.market.scenario.grid.day = day
-            self.market.reset()
-            for p in self.market.participants.values():
-                largest = max(largest, max(p.generation_kwh), max(p.demand_kwh))
+            for generation, demand in self.market.profiles(day).values():
+                largest = max(largest, max(generation), max(demand))
 
-        return max(largest, 1e-6) 
+        return max(largest, 1e-6)
 
     def _action_space(self) -> spaces.Dict: #! Action shape
         """One agent's action: the four components of [P1] eq. 2."""
@@ -471,7 +475,8 @@ class MarketEnv(MultiAgentEnv):
         preference = _preference_kwh(record)
         rewards = self.reward.step(record)
         peer_trades = [t for t in record.trades if t.stage < 3]
-        final = {"final": signals.kpis(self.market.history)} if self.market.done else {}
+        done = self.market.done
+        final = {"final": dict(signals.kpis_shared(self.market.history))} if done else {}
         tables = _tables(record) if self.one_day else None
         infos = {}
 
@@ -712,15 +717,19 @@ class MarketEnv(MultiAgentEnv):
         docstring). After the last step the profile is the last step's and the hour
         is midnight (the episode is over; RLlib wants a final observation)."""
         m = self.market
-        values = signals.market_signals(m)
+        wanted = self._wanted
+        values = signals.market_signals(m, wanted)
         angle = 2.0 * np.pi * values["time_of_day"]
         values |= {"hour_sin": np.sin(angle), "hour_cos": np.cos(angle)}
+
         # OPEN E-10: the KPIs over the day so far; the papers give no window.
-        values |= signals.kpis(m.history)
+        if self._observes_kpis:
+            values |= signals.kpis_shared(m.history)  # once per state, with the reward
+
         out = {}
 
         for pid in self.agents_id:
-            mine = values | signals.agent_signals(m, pid)
+            mine = values | signals.agent_signals(m, pid, wanted)
             scaled = [
                 (mine[name] - offset) / divisor
                 for name, (offset, divisor) in self._scales.items()

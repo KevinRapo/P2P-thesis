@@ -65,12 +65,14 @@ days both have, with the spread over seeds; otherwise the difference of the two 
 which keeps the variation between days. `difference(by=..., reference=...)` in the
 notebook does the same per factor, inside each combination of the other settings.
 
-Under the table, shaded and below a rule, there is one row per baseline and per what it
-was played on (prices, peer charge, network, grid method, test days), from the top of the
-scale down: `ceiling`, `non_p2p`, `net_position`. `zero` (no orders) is not among them:
-with the retail settlement (MP-1e) it is `non_p2p` with passive batteries, so it adds
-nothing next to it; it stays the baseline of `gain_zero` and *Gain per test day*. Every
-row is on one page, so the baselines are always in sight. The `non_p2p` and `ceiling` rows are the
+Under it, a second table with the same columns holds the baselines and references, one
+row per baseline and what it was played on (prices, peer charge, network, grid method,
+test days), by VTI from the top down: `ceiling`, `net_position`, `non_p2p` (should the
+rule fall below 0, under `non_p2p`). Being a table of their own, sorting the runs leaves
+them in place. `zero` (no orders) is not among them: with the retail settlement (MP-1e)
+it is `non_p2p` with passive batteries, so it adds nothing next to it; it stays the
+baseline of `gain_zero` and *Gain per test day*. Every table in the Studio sorts numbers
+as numbers, so a click on *VTI* ranks the runs. The `non_p2p` and `ceiling` rows are the
 two ends of the VTI ([Results](index.md#baselines-and-references)); they fill only team money, the
 period's VTI, stored change and the gains. With several test periods, a period value's
 mean over the days is the periods' mean weighted by their days. A warning names steps that did not

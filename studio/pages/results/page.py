@@ -117,6 +117,7 @@ class ResultsView:
 
         def build(data) -> None:
             tab.watched = []
+            tab._prints = {}  # the first live refresh after a build redraws all
             tab.waiting = tab.empty(data)
             tab.build(keys, data)
 
@@ -144,7 +145,7 @@ class ResultsView:
                 if target != LOCAL:  # it finished since the last read: its last files
                     await run.io_bound(self.runs.follow_experiment, target, name)
 
-            self.service.refresh(sorted(active | self._watched))
+            await run.io_bound(self.service.refresh, sorted(active | self._watched))
             self._watched = active
             await self.table.load()
             tab = self.tab

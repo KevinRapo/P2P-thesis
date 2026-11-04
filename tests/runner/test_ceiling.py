@@ -288,3 +288,19 @@ def test_the_technical_indices_over_the_period():
     assert found.energy_balance_index[("p", "d1")] == pytest.approx(1 - 3 / 5)
     assert found.energy_balance_index_period.tolist() == pytest.approx([1 - 7 / 11] * 2)
     assert found.peak_to_average_period[("p", "d1")] == pytest.approx(4 / 3.5)
+
+
+def test_without_a_battery_no_program_is_solved(monkeypatch):
+    def never(*args, **kwargs):
+        raise AssertionError("linprog called without a battery")
+
+    monkeypatch.setattr(ceiling, "linprog", never)
+    plan = optimise(NET, FIT, UTIL)
+    assert plan.value == pytest.approx(-1.0)
+    assert plan.steps["import"].tolist() == [0.0, 2.0]
+    assert plan.charge.shape == (2, 0)  # no battery columns, as from the program
+    # With a feed-in tariff above the utility price buying to sell would pay: the
+    # program decides (and finds no bounded optimum).
+    monkeypatch.undo()
+    with pytest.raises(ValueError):
+        optimise(NET, np.array([0.6, 0.6]), UTIL)

@@ -119,6 +119,9 @@ def optimise(
     sites, T = net.shape
     B = len(stores)
 
+    if not B and np.all(util >= fit):
+        return _settled(net, fit, util)
+
     # Variables in blocks: import and export per site, then per battery its charge,
     # discharge and stored energy. ``index`` maps a block to the variables' numbers.
     sizes = [sites * T, sites * T, B * T, B * T, B * T]
@@ -221,6 +224,37 @@ def optimise(
     )
 
     return Plan(value=-float(found.fun), steps=steps, **per)
+
+
+def _settled(net: np.ndarray, fit: np.ndarray, util: np.ndarray) -> Plan:
+    """``optimise`` without a battery: nothing to choose, so no program. Each site's
+    surplus is exported at the feed-in tariff and its deficit imported at the utility
+    price, step by step: the program's own optimum whenever the utility price is not
+    below the feed-in tariff (otherwise buying to sell would pay, and ``optimise``
+    lets the program say so)."""
+    exported = np.clip(net, 0.0, None).sum(axis=0)
+    imported = np.clip(-net, 0.0, None).sum(axis=0)
+    money = fit * exported - util * imported
+    none = pd.DataFrame(index=range(net.shape[1]))
+    zero = np.zeros(net.shape[1])
+    steps = pd.DataFrame(
+        {
+            "import": imported,
+            "export": exported,
+            "money": money,
+            "charge": zero,
+            "discharge": zero,
+            "stored": zero,
+        }
+    )
+
+    return Plan(
+        value=float(money.sum()),
+        steps=steps,
+        charge=none.copy(),
+        discharge=none.copy(),
+        stored=none.copy(),
+    )
 
 
 def _periods(
