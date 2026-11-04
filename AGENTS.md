@@ -213,3 +213,8 @@ changes no market result. The generators are on the `main` branch, the ledger on
   Ray's start-up also fails sometimes under load (a run then shows `failed` or
   `lost`). Run fewer in parallel; `start` on the same experiment re-runs only
   those.
+- The Studio keeps one state file per browser (`studio-state/storage-user-<id>.json`
+  in the Studio's home) and a browser with no cookie gets a new one. A session that
+  starts the Studio to drive it with a browser (a render check, a screenshot) sets
+  `NICEGUI_STORAGE_PATH` to its scratchpad first, so the real folder keeps only the
+  author's own browser; the variable must be set before the Studio starts.

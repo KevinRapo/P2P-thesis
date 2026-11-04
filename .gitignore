@@ -2,7 +2,7 @@ __pycache__/
 *.pyc
 .nicegui/
 site/
-runs/
+runs*/
 .ipynb_checkpoints/
 .pytest_cache/
 .env
