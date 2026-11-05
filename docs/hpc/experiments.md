@@ -32,7 +32,19 @@ fields that rewrite the JSON:
   "scenario": "config/scenarios/validate_market.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
   "test_periods": {"july": {"from": "2016-07-01", "to": "2016-07-14"}},
-  "env_config": {"energy_scale": null, "reward_scale": null},
+  "env_config": {
+    "reward": "bill",
+    "grid_capacity_kwh": null,
+    "observation": "paper",
+    "energy_scale": null,
+    "reward_scale": null,
+    "tariff_range": null,
+    "episode_days": null,
+    "truncate_episode": false,
+    "random_start_soc": false,
+    "terminal_value": false,
+    "stored_kwh_value": null
+  },
   "algorithms": ["ppo"],
   "paradigms": ["ctce", "ctde", "dtde"],
   "seeds": [0],
@@ -44,16 +56,16 @@ fields that rewrite the JSON:
     "ppo": {
       "lr": 0.0003,
       "gamma": 0.99,
-      "lambda_": 0.95,
-      "num_epochs": 10,
+      "grad_clip": 0.5,
+      "train_batch_size_per_learner": 2400,
       "minibatch_size": 240,
+      "num_epochs": 10,
+      "lambda_": 0.95,
       "entropy_coeff": 0.01,
       "clip_param": 0.2,
-      "grad_clip": 0.5,
       "use_kl_loss": true,
       "kl_coeff": 0.0,
-      "vf_clip_param": 1000000.0,
-      "train_batch_size_per_learner": 2400
+      "vf_clip_param": 1000000.0
     }
   },
   "model": {
@@ -63,7 +75,10 @@ fields that rewrite the JSON:
     "head_fcnet_activation": "relu",
     "free_log_std": false,
     "log_std_clip_param": 20.0,
-    "vf_share_layers": false
+    "vf_share_layers": false,
+    "bound_mean": true,
+    "log_std_bounds": null,
+    "free_log_std_parts": true
   },
   "max_parallel": 3,
   "torch_threads": 1,
@@ -77,7 +92,7 @@ fields that rewrite the JSON:
 | Settings | What they set | Defaults from |
 |---|---|---|
 | `name`, `description` | The experiment's folder name (default: the file's name) and free text | |
-| `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's `energy_scale` and `reward_scale` (null: computed on the training days, recorded in each run's `run.json` and reused for its held-out days, [market_env.py](../../core/env/market_env.py)) | [spec.py](../../core/runner/spec.py) `MARKET_ENV_CONFIG` |
+| `env`, `scenario`, `env_config` | The environment: `"market"` (or `"module:Class"`), the scenario file (or the scenario itself), and the market environment's settings: the reward and observation, their scales (`energy_scale`, `reward_scale`, `tariff_range`; null: computed on the training days, recorded in each run's `run.json` and reused for its held-out days), and how an episode ends (`episode_days`, `truncate_episode`, `random_start_soc`, `terminal_value`, `stored_kwh_value`), all described in [market_env.py](../../core/env/market_env.py) | [env_defaults.py](../../core/env_defaults.py) `MARKET_ENV_CONFIG` |
 | `train_days`, `test_periods` | Days drawn from in training, and the held-out days as named continuous periods (`{"from", "to"}` or a list each) | |
 | `algorithms`, `paradigms`, `seeds`, `variants` | The grid of runs (`algorithms` is `["ppo"]`); a variant is an arm: it overwrites the base file's settings ([Config](../config/reference.md#variants)) | |
 | `budget`, `eval_points`, `eval_episodes` | Environment steps per run (one number or one per algorithm) and the evaluations during training | |
@@ -172,7 +187,7 @@ file](#the-experiment-file)), so all that can be set is in front of you. Every
 edit is checked as a start would check it,
 and the page shows the runs it makes, or what is wrong. The template file is
 never changed. Two presets rewrite the editor's run size settings (name,
-description, seeds, train and test days, budget, evaluation, traced days,
+description, seeds, train and test days, variants, budget, evaluation,
 resources) and leave every other edit: **Test preset** makes them the template's
 [test version](resources.md#full-and-test-profiles) (`<name>--test`) and picks this
 PC, **Full preset** puts back the template's values and picks the cluster. The
@@ -222,31 +237,11 @@ with `heldout.csv` (trained policy and baselines on the test periods), with per-
 and per-participant tables next to it; the Studio's Results page and
 `notebooks/runner/results.ipynb` compare runs from them. The `test` profile is the
 smallest version of the same experiment, to check the pipeline before spending
-cluster time. The workflow, the readiness check and restarting are in
-[Training experiments](experiments.md), what each setting controls in
-[Resources and parallelism](resources.md).
-
-Each run writes `run.json`, `metrics.csv`, `evaluation.csv` (with its per-episode
-and per-agent tables) and a checkpoint to `runs/` (not in git).
-
-For more than one run, or one that should outlive the terminal, use the runner as
-described above.
-
-**What the Studio's Experiments page adds.**
-The Studio's Experiments page edits an experiment's JSON, with fields for the
-  paradigms, seeds, budget, PPO settings (learning rate, batch, minibatch, epochs,
-  entropy, clip, γ), environment runners, runs in parallel, torch threads and SLURM
-  resources; each rewrites its setting in the JSON editor, which stays what starts.
-
-**What the Results page shows.**
-The Results page shows every test day step by step: each participant's side, order,
-  named partner, whether the choice was mutual and its stage-1 energy, and the step's
-  stage-1 volume next to the P2P and DSO volumes.
-
-**The cluster's checkout.**
-The cluster's checkout is `~/marlem-v2` (branch `marlem-v2`), with its own `runs/`;
-  on this PC the synced results are in `runs/@taltech/`. Account and cluster settings
-  are in `.env`.
+cluster time. The workflow, the readiness check and restarting are
+[above](#commands), what each setting controls in
+[Resources and parallelism](resources.md). The cluster's checkout is `~/marlem-v2`
+(branch `marlem-v2`) with its own `runs/`; synced results land in `runs/@taltech/`
+on this PC ([setup](setup.md#what-is-where)).
 
 ## Files
 
@@ -270,6 +265,8 @@ state:
 | `<run>/heldout_episodes.csv` | One row per policy and test day: team return, P2P and DSO energy, trade losses, fees, the power flow's grid import, export, losses, violations and non-converged steps |
 | `<run>/heldout_agents.csv` | One row per policy, test day and participant: return, profit, bill, bought, sold, deferred demand and supply |
 | `<run>/heldout_steps.csv`, `heldout_agent_steps.csv` | Every test day step by step, for every policy: market, grid and tariffs per step, and each participant's energy, order, partner, battery and reward parts |
+| `<run>/heldout_trades.csv.gz` | Every trade of every test day and policy: buyer, seller, price, kWh, stage, distance, loss and each fee part |
+| `<run>/heldout_grid.csv.gz` | The power flow of every test step and policy: each bus's voltage and each line's loading |
 | `<run>/checkpoint/` | The policy at the end of training |
 | `<run>/log.txt` | This PC: the job's output (on the cluster it is in `slurm/`) |
 
@@ -299,7 +296,7 @@ results** on such an experiment brings a second copy back to the mirror's top le
 | Did it learn? | The trained policy's evaluation return over environment steps, per run, with each run's own baselines at step 0 (one line when they are the same); team or per participant; optionally the training return |
 | How good is the final policy? | Every held-out test day: the trained policy minus each baseline on the same day |
 | How consistent is it? | Each configuration (experiment, algorithm, paradigm, variant) over its training seeds: mean, spread over seeds, seeds done, and the settings that differ inside a group |
-| One run in detail | Its settings, test days, participants × days (an outcome: return, profit, bill, energy; trained minus a baseline; with many participants the 30 with the largest difference, or those a filter names), the market and grid per day, and the traced days step by step (read when opened) |
+| One run in detail | Its settings, test days, participants × days (an outcome: return, profit, bill, energy; trained minus a baseline; with many participants the 30 with the largest difference, or those a filter names), the market and grid per day, and every test day step by step (read when opened) |
 
 Runs are compared on their full saved settings (the scenario's contents, every
 train and test day, budget, training settings, model, results detail, commit):
@@ -320,12 +317,16 @@ before the per-day tables show their means only.
    each run trained with.
 3. **One start at a time** across the CLI and the Studio; nothing stops two
    starts from two places at once.
-4. **Each run starts its own Ray instance**, of about 230–300 threads with the
+4. **Each run starts its own Ray instance**, of about 230–340 threads with the
    runner's thread caps (`ray_thread_caps`, on by default; 540–760 without), and
    TalTech allows 4096 threads per user per node. SLURM packs runs onto one node
    by CPU and does not know this limit: with `num_env_runners: 3`, more than 12
-   runs on a node (5 without the caps) crash at start. Size `max_parallel` and
-   `resources.cpus` from [how many runs fit](resources.md#how-many-runs-fit-at-once).
-5. **No retries over SSH.** A failed call raises its error and the next call
+   runs on a node (5 without the caps) crash at start; with 8, more than 10. A run
+   over the limit can also hang at 0 steps and stay `running`. Size `max_parallel`
+   and `resources.cpus` from [how many runs fit](resources.md#how-many-runs-fit-at-once).
+5. **No checkpoint resume.** A run ends with its only checkpoint; one stopped by
+   its time limit or restarted starts from scratch. Size `budget` so the slowest
+   paradigm fits `resources.minutes` ([times](performance.md#time-per-paradigm)).
+6. **No retries over SSH.** A failed call raises its error and the next call
    reconnects; after a lost answer to `start`, look at `status` before starting
    again.

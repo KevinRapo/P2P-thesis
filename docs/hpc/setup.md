@@ -6,7 +6,9 @@
   (here `taltech`, in `~/.ssh/config`, key login). Off campus, connect the TalTech
   VPN first.
 - A billing account (a personal `user_<name>` account, about 10 EUR per quarter,
-  or a project account).
+  or a project account), set as `MARLEM_SLURM_ACCOUNT` in `.env` on both machines.
+  Since 2 November 2026 the runs bill to the project account; the personal one is
+  a reserve.
 - Docs: <https://docs.hpc.taltech.ee/>. Support: hpcsupport@taltech.ee.
 
 ## This machine's settings (`.env`)

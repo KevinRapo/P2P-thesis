@@ -20,7 +20,7 @@ hpc stop
 ```
 
 Skip `git shipc` when only notebook cells changed. Size the job to the work
-([sizing](performance.md#sizing)): `-c 78 --mem=60G` is a whole green node, for
+([sizing](performance.md#the-probe-notebook)): `-c 78 --mem=60G` is a whole green node, for
 the probe notebook's 30 runs (probes 1-10 in the three paradigms) at once; `escalate` then fills the node with the longer budgets.
 
 ## By hand

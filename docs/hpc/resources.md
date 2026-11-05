@@ -8,12 +8,11 @@ resources are requested separately.
 ## Runs side by side
 
 An experiment expands to algorithms × paradigms × seeds × variants, each one an
-independent run with its own model, seed, replay buffer, metrics and checkpoint.
+independent run with its own model, seed, metrics and checkpoint.
 [market_ppo.json](../../config/experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
-[grid_methods.json](../../config/experiments/grid_methods.json) 1 × 1 × 3 seeds × 3
-variants = 9. Five seeds would make `market_ppo` 15 runs. (The measurements below
-were taken on nine-run market experiments; they describe one PPO run's resources
-the same way.)
+[base_long_p13.json](../../config/experiments/base_long_p13.json) 1 × 3 × 3 seeds =
+9; [ctde_sweep_p13.json](../../config/experiments/ctde_sweep_p13.json) 1 × 1 × 2
+seeds × 12 variants = 24.
 
 ```mermaid
 flowchart TD
@@ -42,7 +41,8 @@ an account quota. Checked on 19 October 2026 (`sinfo`, `sacctmgr`, `ulimit`):
 |---|---|---|
 | Jobs, CPUs or submits per user | None: the `normal` QOS sets no per-user cap | No |
 | CPUs per green node | 78 (hyper-threads) | Rarely: 13 runs at 6 CPUs |
-| Memory per green node | 95 GB | Rarely: 15 runs at 6 GB |
+| Memory per green node | 95 GB | Rarely: 15 runs at 6 GB (7 at the 12 GB of a 13-participant run with 8 runners) |
+| blackwell1 | 512 threads, 1 TB | No: threads run out first |
 | Wall time | `short` 4 h, `common` 8 days, per run | Per run, not per experiment |
 | **Threads and processes per user per node** | **4096** (`ulimit -u`) | **Yes** |
 
@@ -83,8 +83,14 @@ own process tree once a second. "Capped" sets Ray's pools to one thread
   threads, 763 each, against 705 measured alone.
 - Your own other jobs on the node (a Jupyter session, a second experiment) count
   against the same 4096.
+- On blackwell1 with $k = 8$ (5 November 2026, capped): nine runs held 3084
+  threads, about **340 per run**. Twelve at once broke the limit: three crashed in
+  their first minute with `RuntimeError: can't start new thread`, and one started
+  Ray but hung at 0 steps without an error, which the runner shows as `running`.
+  A run that stays at 0 steps for several minutes while others of its wave
+  advance is this case: stop it and start the experiment again once the rest end.
 
-Runs per green node, from 4096 less about 200 for other processes:
+Runs per node, from 4096 less about 200 for other processes:
 
 | `num_env_runners` | Per runner job, default | Runs per node, default | Per runner job, capped | Runs per node, capped |
 |---:|---:|---:|---:|---:|
@@ -92,6 +98,7 @@ Runs per green node, from 4096 less about 200 for other processes:
 | 1 | ~615 | **6** | ~250 | **15** |
 | 3 | ~760 | **5** | ~300 | **12** |
 | 6 | ~980 | **3** | ~370 | **10** |
+| 8 | | | ~340 (blackwell1) | **10** (12 failed) |
 
 ### Capping Ray's thread pools
 
@@ -135,8 +142,11 @@ That happened on 19 October: a nine-run experiment with `max_parallel: 9`,
 CPUs). Four failed in their first minute; five ran.
 
 On `short`, a task can also land on blackwell1, amp or ada (128–512 hardware
-threads). More tasks fit there by CPU, and Ray starts more threads per run (about
-1000 at zero samplers on blackwell1, [measurements](per### Sizing an experiment
+threads). Far more tasks fit there by CPU, so the thread limit decides alone. With
+`resources.node` all of an experiment's runs go to that one node: on blackwell1,
+`max_parallel` is the only guard.
+
+### Sizing an experiment
 
 Pick one of two settings, with $k$ = `num_env_runners` and $n$ = the runs per
 green node from the table above (the capped column; the default column with
@@ -155,6 +165,7 @@ green node from the table above (the capped column; the default column with
 | 1 | 15 (6) | 5 (12) |
 | 3 | 12 (5) | 7 (14) |
 | 6 | 10 (3) | 8 (20) |
+| 8 | 10 (blackwell1) | |
 
 Setting 2 reserves CPUs a run does not use: they count towards billing, and a
 large request can wait longer in the queue. Memory has to fit as well: $n$ ×
@@ -170,11 +181,8 @@ For nine runs ($k = 3$, capped), all nine fit on one node:
 Without the caps the same nine needed `max_parallel: 5` (five, then four), or
 `cpus: 14` with `minutes` above 240 to spread them over two nodes. Sharing one Ray
 instance between the runs of a node, as the probe notebook does
-([measurements](performance.md#parallel-training)), would make CPUs the limit
+([measurements](performance.md#the-probe-notebook)), would make CPUs the limit
 again; that is not built.
-
-measurements](performance.md#parallel-training)), would
-make CPUs the limit again; that is not built.
 
 ## What a run gets
 
@@ -229,8 +237,8 @@ With [`build_config`](../../core/rl/config.py):
 At zero runners, one run is essentially one busy core. Raising
 `resources.cpus` alone does not make it faster; 4 is an allowance for Ray's own
 threads and processes. A larger request does spread runs over more nodes
-([how many runs fit](#how-many-runs-fit-at-once)). The five market participants are agents inside the one
-environment, not processes; training days are what an episode draws from, not
+([how many runs fit](#how-many-runs-fit-at-once)). The market's participants are
+agents inside the one environment, not processes; training days are what an episode draws from, not
 parallel environments. `budget` counts environment steps (one market step for all
 agents) and is checked after each training iteration, so a run can overshoot it.
 Evaluation stays in the job's driver process.
@@ -247,14 +255,30 @@ run and four SLURM CPUs for the samplers and driver/learner:
 ```
 
 With three runs active, this gives nine training samplers and reserves twelve
-SLURM CPUs. Each sampler has its own environment and inference model; allow for
-their additional memory. Size `resources.cpus` for at least `num_env_runners + 1`
-as a starting point; the runner does not automatically change the allocation.
-`torch_threads` is set in the driver, not explicitly in remote sampler actors.
-More samplers can improve sampling throughput but do not guarantee higher CPU
-utilization or faster learning. The training-step budget is aggregated across
-samplers, not repeated for each sampler. Use a new experiment name when changing
-this setting for an existing experiment.
+SLURM CPUs. `torch_threads` is set in the driver, not explicitly in remote sampler
+actors. The training-step budget is aggregated across samplers, not repeated for
+each sampler. Use a new experiment name when changing this setting for an existing
+experiment.
+
+### Sizing CPUs and memory
+
+Size from what an earlier run of the same scenario and runner count used, not
+from a round number: an unused reservation holds the node from other jobs. The
+measurements of 5 November 2026 (13 participants, $k = 8$,
+[performance](performance.md#memory-cpus-and-threads-per-run)):
+
+- **Memory:** a flat 8.3–9.2 GB at the job's peak, about 1 GB per process (the
+  driver and each sampler, with its own market and network). Request the peak
+  plus about a third: `mem_gb` 12 for that run, and about $k + 2$ GB in general.
+  Read the peak on TalTech's Jobs Overview page or from the job's cgroup, not from
+  `sacct`'s MaxRSS, which counts shared pages once per process (12.6 GB for the
+  same runs); a larger batch needs more.
+- **CPUs:** PPO alternates sampling, with every sampler busy, and learning, with
+  only the learner busy; the 10 CPUs of those runs were 37–39 % used on average.
+  `num_env_runners` + 2 keeps the sampling phase from waiting; more adds nothing.
+
+Check a new size with the test profile, then look at the first full run's peak
+(`seff <jobid>` once it ends, [operations](operations.md#watching-jobs)).
 
 ## Full and test profiles
 
@@ -273,8 +297,12 @@ The test profile keeps algorithms, paradigms, variants and settings (including
 first seed, one evaluation episode and one test day (played once, as every test
 day is). Its budget per algorithm
 is one training batch (`train_batch_size_per_learner`, else 100), the largest over
-the variants, so every test run really updates its networks. A `test` block in the spec overrides seeds, days, budget, evaluation
-and resources.
+the variants, so every test run really updates its networks. A variant's own
+train days, test periods, budget and evaluation settings are left out of the test
+version: two variants that differ only in those (`summer` and `base` in
+[ctde_sweep_p13.json](../../config/experiments/ctde_sweep_p13.json)) run the same
+test, and identical test results for them are expected, not a bug. A `test` block
+in the spec overrides seeds, days, budget, evaluation and resources.
 
 ## What the spec can set
 
@@ -296,13 +324,15 @@ block goes to RLlib's training settings.
 [train.py](../../core/rl/train.py) joins an existing Ray instance when
 `RAY_ADDRESS` is set, instead of starting its own. The probe notebook uses this to
 run 38 runs in one Jupyter job; the runner does not, so its sizing is not the
-notebook's ([sizing](performance.md#sizing)).
+notebook's ([sizing](performance.md#the-probe-notebook)).
 
-Before longer runs, measure a short one with `seff <jobid>` (CPU efficiency, peak
-memory) and size from that: five agents say little about fifty.
+Before longer runs on a new scenario size, measure a short one and size from that
+([sizing CPUs and memory](#sizing-cpus-and-memory)): 13 participants say little
+about 43.
 
 ## Comparing sampling and learning time
 
+The Studio's Results page draws these per run in Learning's Timing panel.
 `metrics.csv` records reports that advance sampled environment steps or lifetime
 learner environment steps. Other reports are omitted; non-finite learner metrics
 still stop the run and are recorded. `iteration` remains the number of calls to

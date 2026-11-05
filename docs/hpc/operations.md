@@ -10,7 +10,22 @@ sinfo -p short,common
 ```
 
 In order: live `top` inside the Jupyter job (`q` quits, or `hpc top`); CPU and
-memory a finished job used, to size the next one; jobs since a date; free nodes.
+memory a finished job used; jobs since a date; free nodes.
+
+To size the next experiment, read a job's memory from its cgroup, not from
+`seff` or `sacct`'s MaxRSS: those add up every process's resident memory and count
+shared pages again for each (12.6 GB reported against 9 GB used in November).
+TalTech's [Jobs Overview](https://ondemand.hpc.taltech.ee/pun/sys/jobs-overview)
+page draws each job's memory and per-CPU use over time. For a running job, its
+peak in GB:
+
+```bash
+srun --jobid=<jobid> --overlap cat /sys/fs/cgroup/memory/slurm/uid_$(id -u)/job_<jobid>/memory.max_usage_in_bytes | awk '{print $1/2^30}'
+```
+
+`<jobid>` is the task's own ID (the first column of `squeue -u $USER -o "%A %i"`),
+not the array's `1075495_8`. CPU use is right in `sacct` (TotalCPU over Elapsed).
+What to request from it: [sizing CPUs and memory](resources.md#sizing-cpus-and-memory).
 
 For an experiment, `python -m core.runner status <name> --target taltech` gives
 each run's state, SLURM state and node. A failed run's error is in its
@@ -44,7 +59,8 @@ Without a job, files can also be browsed at <https://ondemand.hpc.taltech.ee>
 | `git pull` refuses | Files changed on the cluster: `git status` there |
 | `check` reports problems | For the commits: commit and `git shipc`, so both sides are at the same clean commit (specs and scenarios need no commit: they are sent with the start) |
 | `tput: No value for $TERM` | Harmless |
-| Many `Failed to connect to GCS`, `Resource temporarily unavailable` | Thread limit: too many Ray instances on the node. Use the shared Ray (notebook) or fewer runs per node |
+| Many `Failed to connect to GCS`, `Resource temporarily unavailable`, or `RuntimeError: can't start new thread` in a run's error | Thread limit: too many Ray instances on the node. Use the shared Ray (notebook) or fewer runs per node (`max_parallel`, [how many fit](resources.md#how-many-runs-fit-at-once)); `start` again once the others end |
+| A run stays `running` at 0 steps while the others of its wave advance | The same thread limit, without an error: Ray started but its samplers did not. `python -m core.runner stop <experiment> <run> --target taltech`, then `start` again once the others end |
 | Notebook runs stay `running` in `run.json` with no process | They died before recording it; run the cell again. Runner experiments show such runs as `lost`; `start` runs them again |
 | The Studio shows a refresh error | The data shown is the last good read, with its time; it does not mean the jobs stopped |
 | `hpc` not found in VS Code's terminal | Restart VS Code fully (PATH is read at start) |

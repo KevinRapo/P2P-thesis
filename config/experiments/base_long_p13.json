@@ -1,0 +1,67 @@
+{
+  "name": "base_long_p13",
+  "description": "The base settings of ctde_sweep_p13 (its best arm, held-out VTI 0.42 at 960k and still rising) trained longer in all three paradigms: 1.2M steps (what fits blackwell1's 4 h limit for CTCE, the slowest), three seeds, to see how far each paradigm gets towards the money ceiling and whether the seeds agree (L-14, L-17). Setup: 1-LV-rural3--2-sw with 13 participants, German 2024 prices, bill reward, the paper's 42 signals, power flow, one-day episodes that end, no terminal value. max_parallel 9: blackwell1 allows 4096 threads per user and a run takes about 340.",
+  "scenario": "config/scenarios/lv_rural3_p13.json",
+  "train_days": {
+    "from": "2016-01-01",
+    "to": "2016-12-31"
+  },
+  "test_periods": {
+    "july": {
+      "from": "2016-07-01",
+      "to": "2016-07-14"
+    }
+  },
+  "env_config": {
+    "grid_capacity_kwh": 400.0,
+    "reward": "bill",
+    "observation": "paper",
+    "stored_kwh_value": 0.3766
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctce",
+    "dtde",
+    "ctde"
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "variants": {
+    "base": {
+      "scenario": {
+        "dso": {
+          "prices": "de_2024"
+        }
+      }
+    }
+  },
+  "budget": 1200000,
+  "eval_points": 10,
+  "eval_episodes": 5,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "grad_clip": 0.5,
+      "clip_param": 0.2,
+      "entropy_coeff": 0.01,
+      "train_batch_size_per_learner": 4000,
+      "minibatch_size": 500,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 9,
+  "num_env_runners": 8,
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 24,
+    "minutes": 240,
+    "node": "blackwell1"
+  }
+}
