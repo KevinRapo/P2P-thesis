@@ -92,7 +92,7 @@ Every quantity of the environment step and the market step, with the phase that 
 | Observation | $o_{t+1}$ | E3 | [`MarketEnv._observe`](../../core/env/market_env.py#L635-L661) | – |
 | Market and agent signals, KPIs | [P1] Table 2, eq. 19-27 | E3 | [`signals.py`](../../core/market/signals.py) | – |
 | Generation, demand of a step | $G_t$, $D_t$ | 0, 1 | [`profiles_from_elements`](../../core/market/agent/der.py#L88-L120), [`_inputs`](../../core/market/lem.py#L408-L419) | `StepInputs`, `ParticipantOutcome` |
-| Tariffs | $p_\text{FiT}$, $p_\text{utility}$ | 0, 8b, 1 | `DsoSetup`, [`Dso.set_hour`](../../core/market/dso.py#L102-L105), [`price_at`](../../core/config/scenario.py#L233-L239) | `StepInputs` |
+| Tariffs | $p_\text{FiT}$, $p_\text{utility}$ | 0, 8b, 1 | `DsoSetup`, [`Dso.set_hour`](../../core/market/dso.py#L120-L123), [`price_at`](../../core/config/scenario.py#L233-L239) | `StepInputs` |
 | Chargeable, dischargeable energy | $E_\text{ch}$, $E_\text{dis}$ | 2 | [`Battery`](../../core/market/agent/battery.py#L22-L107) | – |
 | Order bounds | $q_\text{sell,max}$, $q_\text{buy,max}$ | 2 | [`max_sell_kwh`, `max_buy_kwh`](../../core/market/agent/der.py#L185-L191) | – |
 | Intent from an action | | 2 | [`MarketEnv.decode`](../../core/env/market_env.py#L514-L547) | `PendingStep.intents` |

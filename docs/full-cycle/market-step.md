@@ -38,7 +38,7 @@ stages, then the rest).
 | | |
 |---|---|
 | **Reads** | the scenario: network and day (`grid`), participants and what they own, batteries, market and DSO settings |
-| **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen and the tariffs of hour 0 ([`Dso.set_hour`](../../core/market/dso.py#L102-L105)); the first reference price $p_\text{ref}$ = midpoint of those $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network; the graph model if `grid.method = "graph"` |
+| **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen and the tariffs of hour 0 ([`Dso.set_hour`](../../core/market/dso.py#L120-L123)); the first reference price $p_\text{ref}$ = midpoint of those $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network; the graph model if `grid.method = "graph"` |
 | **Writes** | `participants`, `dso`, `clearing_price`, `grid`, `graph`; empty `history` |
 | **Code** | [`reset`](../../core/market/lem.py#L256-L272) → [`_build_participants`](../../core/market/lem.py#L374-L399) ([`profiles_from_elements`](../../core/market/agent/der.py#L88-L120)), [`_battery`](../../core/market/lem.py#L401-L406), [`Dso.market_price`](../../core/market/dso.py#L115-L118), [`SimBenchGrid.reset`](../../core/grid/powerflow.py#L68-L90), [`_graph_model`](../../core/market/lem.py#L604-L615) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
@@ -53,7 +53,7 @@ stages, then the rest).
 | **Writes** | [`StepInputs`](../../core/market/lem.py#L76-L92): `generation_kwh`, `demand_kwh`, `feed_in_tariff`, `utility_price` |
 | **Code** | [`_inputs`](../../core/market/lem.py#L408-L419) |
 | **Paper** | $G_t$, $D_t$, $p_\text{FiT}$, $p_\text{utility}$ (§3.3.1, §3.4) |
-| **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03); time-of-use utility price in the reference scenario (MP-0b); *Open: MP-0a* ([plans](../plan/index.md)) |
+| **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03); time-of-use utility price in the reference scenario (MP-0b), the tariffs and what they leave a peer trade in [Tariffs and the peer charge](tariffs.md); *Open: MP-0a* ([plans](../plan/index.md)) |
 
 ## 2. Orders
 
@@ -241,7 +241,7 @@ trade's fee comes off the step's profit and the running profit.
 | **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `ParticipantOutcome.fees` and `profit` |
 | **Code** | [`_charge_fees`](../../core/market/lem.py#L635-L649), above |
 | **Paper** | eq. 8, 8a-8h |
-| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4a, MP-4b, MP-4c, MP-4d, MP-4f* ([plans](../plan/index.md)) |
+| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4a, MP-4b, MP-4c, MP-4d, MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md))* ([plans](../plan/index.md)) |
 
 ## 7. Record
 
@@ -295,7 +295,7 @@ trade when the market is balanced ($|B_\text{grid}| < 0.1$ kWh)
 **8b. Advance.** [`_advance`](../../core/market/lem.py#L666-L675): the clearing price
 becomes next step's $p_\text{ref}$; the record joins `history`, so `current_step`
 moves on; and the DSO's tariffs move to the next step's hour
-([`Dso.set_hour`](../../core/market/dso.py#L102-L105)), which phase 1 of the next
+([`Dso.set_hour`](../../core/market/dso.py#L120-L123)), which phase 1 of the next
 step reads. After the day's last step that is midnight of the next day, as the
 final observation shows.
 

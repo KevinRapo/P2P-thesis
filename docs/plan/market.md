@@ -245,6 +245,11 @@ same step under both grid methods; a DSO trade's path and fee.
 - **MP-4e** The graph model's parameters (the comparison's second arm): capacity
   per line from a total spread by length, or from the lines' ratings.
 - **MP-4f** The fee factors' values (the paper gives none).
+- **MP-4h** The peer charge `peer_charge_kwh`: the network charges, taxes and
+  levies a peer kWh pays on top of the eq. 8 fees (not in [P1], 0 now). It fixes
+  how much of the 0.32 EUR/kWh between the tariffs a peer trade can share: all of
+  it at 0, about 0.09 under German §42c. Background, sources and the options:
+  [Tariffs and the peer charge](../full-cycle/tariffs.md).
 
 **Hands to RL.** The fees in the reward (through the profit); whether an agent
 can see anything of the grid (the observation has only the grid distances).

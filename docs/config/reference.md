@@ -174,7 +174,7 @@ not read `bid_margin`.
 | Setting | Values | What it does |
 |---|---|---|
 | `prices` | file name, or an object | The one entry for `p_FiT`, what the DSO pays per kWh, and `p_utility`, what it charges per kWh: the name of a [price file](#price-file) without `.json`; flat tariffs, `{"utility": 0.3, "feed_in": 0.08}`; or the series themselves, in the file's format. `feed_in` must stay below `utility`, less `peer_charge_kwh`, at every step |
-| `peer_charge_kwh` | non-negative | Grid and tax charge per kWh on a peer trade, paid by the buyer; not in [P1]. Order prices stop at `utility_price − peer_charge_kwh`, so a buyer never pays more than the DSO asks. `0`: the paper's market |
+| `peer_charge_kwh` | non-negative | Grid and tax charge per kWh on a peer trade, paid by the buyer; not in [P1]. Order prices stop at `utility_price − peer_charge_kwh`, so a buyer never pays more than the DSO asks. `0`: the paper's market. What it stands for and the values real regimes give: [Tariffs and the peer charge](../full-cycle/tariffs.md) (MP-4h) |
 | `fees_charged` | `true`, `false` | Whether fees are paid. They are calculated and recorded either way |
 | `fee_buyer_share` | `0` to `1` | The buyer's share of a peer trade's fee; the seller pays the rest. A trade with the DSO is paid by the participant |
 | `loss_factor` | per km | `κ` of [P1] eq. 18: `l_ij = d_ij · q_ij · κ` |
@@ -201,7 +201,7 @@ and `feed_in` at the top are the mean day. `date_shift` (optional) says that the
 prices are from that many days after their key; only the Inspect page reads it, to
 show the real dates. `de_2024.json` and `de_2024_flat.json` are such files, from
 [`build_de_2024.py`](../../config/data/build_de_2024.py): German day-ahead prices of
-2024 as a dynamic household tariff, with spot-based or flat feed-in. Their keys are
+2024 as a dynamic household tariff, with spot-based or flat feed-in (how they are built, and the DESTATIS household price behind them: [Tariffs](../full-cycle/tariffs.md#the-reference-prices-de_2024)). Their keys are
 the market's dates of 2016, and each takes the day 2926 days later, the same weekday:
 2016-01-01 trades at the prices of 2024-01-05, 2016-12-31 at those of 2025-01-04.
 

@@ -145,6 +145,7 @@ nav:
           - The full cycle:
               - full-cycle/index.md
               - Market step: full-cycle/market-step.md
+              - Tariffs and the peer charge: full-cycle/tariffs.md
               - Environment:
                   - full-cycle/environment/index.md
                   - Action: full-cycle/environment/action.md

@@ -28,8 +28,10 @@ SPOT_CSV = HERE / "de_day_ahead_2024.csv"
 SOURCE = (
     "https://api.energy-charts.info/price?bzn=DE-LU&start=2024-01-01&end=2025-01-05"
 )
-# DESTATIS 61243-0005, 2024, 2,500 to 5,000 kWh a year, EUR/kWh: energy and supply,
-# network costs, taxes and levies.
+# DESTATIS household price 2024, band 2,500 to 5,000 kWh a year, EUR/kWh: energy and
+# supply, network charges, taxes and levies; each the mean of the two half-years
+# (H1 16.75, 11.31, 11.45; H2 16.33, 11.64, 11.47 ct/kWh; press releases PD24_375
+# and PD25_123). The two parts of 0.1147 are 11.475 and 11.46 rounded.
 HOUSEHOLD_PRICE = 0.1654 + 0.1147 + 0.1147
 MARKETING_FEE = 0.004  # the direct marketer's fee on sold energy (assumed)
 FLAT_FEED_IN = 0.08  # about the EEG rate for small rooftop PV in 2024
