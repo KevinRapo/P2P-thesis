@@ -533,6 +533,20 @@ def test_follow_copies_only_the_followed_files(cluster, connections, tmp_path):
     assert len(sftp.reads) == 3
 
 
+def test_follow_brings_the_scenario_the_ceiling_is_computed_from(
+    cluster, connections, tmp_path
+):
+    files = cluster_files() | {
+        f"{BASE}/scenario.json": (b"{}", 1008),
+        f"{BASE}/r1/scenario.json": (b'{"grid": {}}', 1009),
+    }
+    connections.queue = [FakeConnection(sftp=FakeSFTP(files))]
+    mirror = tmp_path / "x"
+    cluster.follow("runs/x", mirror)
+    assert "scenario.json" in files_in(mirror)
+    assert "r1/scenario.json" in files_in(mirror)
+
+
 def test_follow_reads_only_new_complete_rows(cluster, connections, tmp_path):
     sftp = FakeSFTP(cluster_files())
     connections.queue = [FakeConnection(sftp=sftp)]

@@ -52,9 +52,12 @@ PULL_SKIP = ("checkpoint", "slurm")
 PULL_TIMEOUT_S = 900
 TAIL_CHECK = 1024  # bytes of a followed table's end compared before it is appended to
 # What ``follow`` keeps up to date: what training writes as it goes (the status, the
-# learner, the evaluations) and the held-out tables at the end; not the traces.
+# learner, the evaluations) and the held-out tables at the end; not the traces. The
+# scenario is small and fixed, and the money ceiling and the non-P2P reference are
+# computed from it (``ceiling.py``): without it a followed run has no VTI.
 FOLLOWED = (
     "experiment.json",
+    "scenario.json",
     "run.json",
     "status.json",
     "metrics.csv",

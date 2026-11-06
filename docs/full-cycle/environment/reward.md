@@ -73,3 +73,60 @@ stored energy at `stored_kwh_value` per kWh, whichever the reward
 ([`Reward.stored_energy`](../../../core/env/reward.py)); `stored_kwh_value` is
 needed with it. A one-day episode played with `options["day"]` is not changed by
 it. [Episode end](index.md#the-environment-step) names the other day-end settings.
+
+## The `salazar` reward
+
+The papers give the reward in three forms: [P1] eq. 3-4, [P2] eq. 3, and the original
+code, which is a third ([The two papers §3](../../validation/papers.md#3-reward)).
+The environment offers **the code's form only**, not [P1] eq. 4 as printed (its
+cooperation bonus is always 0 for factors in [0, 1], [E-14](../../validation/register.md#E-14))
+and not [P2] eq. 3. For an agent that traded in the step
+([`SalazarReward.agent_reward`](../../../core/env/reward.py#L372-L446)):
+
+$$
+\begin{aligned}
+R_\text{base} &= 10\, r_\text{grid} + 1.5\, r_\text{res} + 5\, r_\text{trade} + 2\, r_\text{stab} + 3\, r_\text{econ} \\
+\tilde R &= R_\text{base} \cdot \left(1 + \tfrac{1}{5} \ln\!\left(1 + f_\text{coop} \cdot f_{\text{contrib},i}\right)\right) \\
+s &= 0.3 \cdot \max(\lvert \tilde R \rvert, 1) \\
+x &= \tilde R - s \cdot \gamma_{\text{DSO},i} - s \cdot \gamma_{\text{UD},i} \\
+r_i &= 20 \cdot \operatorname{sign}(x) \cdot \ln\!\left(1 + \lvert x \rvert / 20\right)
+\end{aligned}
+$$
+
+The last line is [P1] eq. 3, the log compression. The parts, each with the function that
+computes it:
+
+| Part | Reads | Function |
+|---|---|---|
+| $r_\text{grid}$ | the agent's order against the market balance $B$ and the grid capacity $C$, the balance itself and the agent's effect on it | [`grid_balance_reward`](../../../core/env/reward.py#L133-L145) |
+| $r_\text{res}$ | the share $x$ of the order executed: $x - 1.5\,(1 - x)$ | [`resource_reward`](../../../core/env/reward.py#L148-L153) |
+| $r_\text{trade}$ | the order's fill by peers and by the DSO: $0.3 \cdot \text{local} + 0.3 \cdot \text{DSO}$ | [`trading_reward`](../../../core/env/reward.py#L122-L130) |
+| $r_\text{stab}$ | the spread of its trade prices and how far its trades closed the balance: $0.3 \cdot \text{stability} + 0.7 \cdot \text{improvement}$ | [`stability_reward`](../../../core/env/reward.py#L156-L177) |
+| $r_\text{econ}$ | its mean price against the clearing price and against the DSO's tariffs: $0.4 \cdot \text{efficiency} + 0.6 \cdot \text{gain}$ | [`economic_reward`](../../../core/env/reward.py#L180-L206) |
+| $f_\text{coop}$ | the ten KPIs, weighted (they add up to 56), the same for every agent | [`cooperation_factor`](../../../core/env/reward.py#L210-L222) |
+| $f_{\text{contrib},i}$ | its net trade against the balance (0.5), its prices against the clearing price (0.2), its share of trades with peers (0.3); 0.5 for an agent without trades | [`contribution_factor`](../../../core/env/reward.py#L225-L256) |
+| $\gamma_{\text{DSO},i}$ | its share of energy traded with the DSO, times $15 \cdot \lvert B \rvert / C$ | [`dso_penalty`](../../../core/env/reward.py#L260-L267) |
+| $\gamma_{\text{UD},i}$ | on the day's last step only: the squared share of its day's demand left unmet | [`demand_penalty`](../../../core/env/reward.py#L270-L278) |
+
+A step in which the agent trades nothing skips all of this and pays $-5$ before the
+compression, $-4.46$ after it ([E-19](../../validation/register.md#E-19)). The parts are
+kept per agent as `reward_*` entries of the step infos.
+
+**Where our version differs from the original code**, each marked in
+[`reward.py`](../../../core/env/reward.py):
+
+- the balance $B$ is the market's before the DSO clears. The original read a balance
+  that is always 0 after clearing, so its grid terms never acted
+  ([E-16](../../validation/register.md#E-16));
+- the KPIs of $f_\text{coop}$ run over the day so far, as in the observation; the
+  original took most of them over the step alone ([E-10](../../validation/register.md#E-10));
+- the capacity $C$ is a setting (`grid_capacity_kwh`) that a run must give, since a
+  SimBench network has no single one (RP-1g in the [open points](../../plan/open.md));
+- the trading part's local weight is 0.3, as [P1] prints it; the original overwrote
+  its 0.7 ([E-17](../../validation/register.md#E-17)).
+
+Kept as in the original: the KPIs enter raw, so $f_\text{coop}$ is not in [0, 1]
+([E-13](../../validation/register.md#E-13), [E-20](../../validation/register.md#E-20)),
+and the unmet-demand penalty's constant is $p_\text{DSO}$, not [P1]'s
+$p_\text{no\_trades}$ ([E-18](../../validation/register.md#E-18)); the code divides it
+out again, so the penalty is $s$ times the squared unmet share.
