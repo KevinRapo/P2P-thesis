@@ -113,6 +113,38 @@ class ProfileService:
 
         return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")
 
+    def network_power(
+        self,
+        source: NetworkRef,
+        start: str,
+        days: int = 7,
+        resolution: str = "hourly",
+        quantity: str = "p",
+    ) -> Series:
+        """The whole network on its profiles: demand, generation, storage and net
+        demand, each summed over all its elements, in kW or kvar.
+
+        Built: ``network_power`` of the adapter (SimBench's absolute profiles).
+        """
+        x, y = adapter.network_power(source, start, days, resolution, quantity)
+        unit = "kW" if quantity == "p" else "kvar"
+
+        return Series(x=x, y=y, x_label="time", y_label=f"{quantity} ({unit})")
+
+    def study_cases(self) -> dict[str, str]:
+        """SimBench's study cases, name -> what it represents."""
+        return dict(adapter.STUDY_CASES)
+
+    def study_case_power(
+        self, source: NetworkRef, case: str, quantity: str = "p"
+    ) -> dict[str, float]:
+        """One study case summed as ``network_power`` names its series, and its
+        upstream voltage set point (``"Upstream voltage"``, pu).
+
+        Built: SimBench's study-case values through the adapter.
+        """
+        return adapter.study_case_power(source, case, quantity)
+
     # --- The scenario's day -----------------------------------------------------------
     def day_profiles(self, scenario: Scenario) -> DayProfiles:
         """Every load, generator and storage unit of the scenario's network on its

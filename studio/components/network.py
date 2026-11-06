@@ -19,7 +19,7 @@ from core.grid.contract import NetworkRef, NetworkSummary, TopologyView
 from studio.adapters.container import Services
 from studio.adapters.models import ProfileType
 from studio.components.cards import busy, failed, fill
-from studio.components.charts import NetworkChart, SeriesModelChart
+from studio.components.charts import NetworkChart, NetworkPowerChart, SeriesModelChart
 from studio.components.memory import keep, recalled, remember
 from studio.components.profiles import ProfileOverview
 from studio.components.tables import data_table
@@ -69,13 +69,23 @@ QUANTITY_HINTS = {
     "q": "Q: reactive power, which loads also draw; generator profiles have none.",
 }
 SCALE_HINTS = {
-    False: "Sum per profile: one line per profile, adding up all elements that "
+    "profile": "Sum per profile: one line per profile, adding up all elements that "
     'use it. "H0-A (6)" is the total of the six loads that follow H0-A: the '
     "share of the network's demand that comes from that profile.",
-    True: "Per element: one line per load or generator. Elements that follow the "
+    "element": "Per element: one line per load or generator. Elements that follow the "
     "same profile have the same shape and differ only in height, because each "
     "is scaled by its own rated power.",
+    "network": "Whole network: every load, generator and storage unit on its profile, "
+    "summed per type, whatever the table selects. Storage is positive when "
+    "charging. Net demand = demand + storage − generation: what the network draws "
+    "from upstream before losses, negative when it feeds back.",
 }
+CASE_HINT = (
+    "Study case {case} ({about}): SimBench's planning snapshot, every element at its "
+    "rated power times its type's factor, all at once; dashed lines. Upstream voltage "
+    "{voltage} pu. The profiles reach the same elements' rated powers only one by "
+    "one, never together."
+)
 
 
 # --------------------------------------------------------------------------------------
@@ -413,8 +423,22 @@ class ProfileInspector:
                     "Profile factor × the rated power of each element that uses it"
                 ).classes("mls-card-caption")
             ui.space()
-            self.per_element = ui.toggle(
-                {False: "Sum per profile", True: "Per element"}, value=False
+            self.case = (
+                ui.select(
+                    {"": "none"} | {k: k for k in services.profiles.study_cases()},
+                    value="",
+                    label="Study case",
+                )
+                .classes("w-56")
+                .tooltip("SimBench's planning snapshots, drawn as levels")
+            )
+            self.view = ui.toggle(
+                {
+                    "profile": "Sum per profile",
+                    "element": "Per element",
+                    "network": "Whole network",
+                },
+                value="profile",
             ).props("no-caps dense")
 
         self.scale_hint = ui.label().classes("mls-card-caption")
@@ -430,7 +454,8 @@ class ProfileInspector:
                 (self.span, "window"),
                 (self.resolution, "resolution"),
                 (self.quantity, "quantity"),
-                (self.per_element, "per_element"),
+                (self.view, "view"),
+                (self.case, "case"),
             ):
                 remember(control, f"{memory}_{name}")
 
@@ -441,7 +466,8 @@ class ProfileInspector:
             self.span,
             self.resolution,
             self.quantity,
-            self.per_element,
+            self.view,
+            self.case,
         ):
             control.on_value_change(self._changed)
 
@@ -457,7 +483,8 @@ class ProfileInspector:
             + " "
             + QUANTITY_HINTS[self.quantity.value]
         )
-        self.scale_hint.set_text(SCALE_HINTS[bool(self.per_element.value)])
+        self.case.set_visibility(self.view.value == "network")
+        self.scale_hint.set_text(SCALE_HINTS[self.view.value])
 
     async def show(self, source: NetworkRef | None = None) -> None:
         """Load the profiles (of ``source``, or the catalogue); plot those ticked last
@@ -553,8 +580,13 @@ class ProfileInspector:
         if not self.loaded:
             return
 
+        network = not self.catalogue and self.view.value == "network"
+
+        if network:
+            await self._draw_network(current)
+
         if not self.selected:
-            for box in (self.plot_box, self.power_box):
+            for box in (self.plot_box,) if network else (self.plot_box, self.power_box):
                 box.clear()
                 with box:
                     ui.label("Select profiles in the table.").classes(
@@ -581,14 +613,56 @@ class ProfileInspector:
             self.plot_box, self.services.profiles.profile_series, window, current
         )
 
-        if not current():
+        if not current() or network:
             return
 
         await self._draw(
             self.power_box,
             self.services.profiles.profile_power,
-            (*window, bool(self.per_element.value)),
+            (*window, self.view.value == "element"),
             current,
+        )
+
+    async def _draw_network(self, current: Callable[[], bool]) -> None:
+        """The whole network summed per type, with the chosen study case's levels."""
+        source, case, quantity = self.source, self.case.value, self.quantity.value
+        start, days, resolution = self.day.value, int(self.span.value), self.resolution.value
+
+        def read():
+            series = self.services.profiles.network_power(
+                source, start, days, resolution, quantity
+            )
+            levels = (
+                self.services.profiles.study_case_power(source, case, quantity)
+                if case
+                else {}
+            )
+            return series, levels
+
+        def draw(result) -> None:
+            series, levels = result
+
+            if not series.y:
+                ui.label(
+                    "No values: this network ships no profiles, or none with Q."
+                ).classes("mls-card-caption")
+                return
+
+            if case:
+                self.scale_hint.set_text(
+                    SCALE_HINTS["network"]
+                    + " "
+                    + CASE_HINT.format(
+                        case=case,
+                        about=self.services.profiles.study_cases()[case],
+                        voltage=levels.get("Upstream voltage", "—"),
+                    )
+                )
+
+            NetworkPowerChart(series=series, case=case, levels=levels).show()
+
+        await fill(
+            self.power_box, read, draw, "Reading profiles …", current=current
         )
 
     @staticmethod

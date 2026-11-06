@@ -56,6 +56,12 @@ The Inspect page shows profiles in two ways:
   whole catalogue): the normalised values above.
 - **kW** ("Sum per profile" / "Per element"): factor × rated power of the elements
   that use the profile, as in the formula above.
+- **Whole network**: every element on its profile, summed per type (demand,
+  generation, storage, positive when charging) and the net demand (demand + storage −
+  generation, what the network draws from upstream). A **study case** can be laid
+  over it: its totals as dashed levels in the same colours, and its upstream voltage
+  in the caption ([study cases](../simbench/README.md#6-study-cases); the profiles
+  never reach them, [notebook](../../notebooks/market/simbench_study_cases.ipynb)).
 
 Resolutions: **15 min** is the raw data; **hourly** is the mean of the four
 quarter hours of each hour (the market's default step, 24 per day); **daily** is

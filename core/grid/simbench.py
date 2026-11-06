@@ -941,6 +941,120 @@ def profile_power(
     return _labels(d, count, step, resolution), values
 
 
+# What each element table is called in the whole-network view, in its order.
+NETWORK_PARTS = {"load": "Demand", "sgen": "Generation", "storage": "Storage"}
+
+# SimBench's study cases (documentation §5.1, ``net.loadcases``): every element at its
+# rated power times one factor per element type, and a set point for the upstream
+# voltage. Fixed snapshots for planning studies, not time series.
+STUDY_CASES = {
+    "hL": "high load, no generation",
+    "n1": "as hL, for contingency (N-1) checks",
+    "hW": "high load, very high wind",
+    "hPV": "high load, very high PV",
+    "lW": "low load, very high wind",
+    "lPV": "low load, very high PV",
+}
+
+
+def network_power(
+    ref: NetworkRef,
+    start: str,
+    days: int,
+    resolution: str = "hourly",
+    quantity: str = "p",
+) -> tuple[list[str], dict[str, list[float]]]:
+    """Every element of the network on its profile, summed per element table, in kW.
+
+    Args:
+        ref: The network.
+        start: First day, ``YYYY-MM-DD`` in the profile year.
+        days: Number of days; clipped at the end of the year.
+        resolution: ``"15min"`` (raw), ``"hourly"`` or ``"daily"`` (means).
+        quantity: ``"p"`` (kW) or ``"q"`` (kvar; loads only).
+
+    Returns:
+        Time labels and the series "Demand (n)", "Generation (n)", "Storage (n)"
+        (positive when charging, pandapower's load convention), each present only
+        if the network has such elements with profiles; with ``p`` also "Net
+        demand" = demand + storage − generation: what the network draws from
+        upstream before losses (negative when it feeds back).
+    """
+    d, first, last, step = _window(start, days, resolution)
+    absolute = _absolute_profiles(ref)
+    column = {"p": "p_mw", "q": "q_mvar"}[quantity]
+    sums: dict[str, Any] = {}
+    values: dict[str, list[float]] = {}
+
+    for table, part in NETWORK_PARTS.items():
+        frame = absolute.get((table, column))
+
+        if frame is None or frame.empty:
+            continue
+
+        # Select the window before adding up the full-year profiles.
+        sums[table] = frame.iloc[first:last].sum(axis=1) * 1000
+        kw = _aggregate(sums[table], step)
+        values[f"{part} ({frame.shape[1]})"] = [round(v, 3) for v in kw]
+
+    if quantity == "p" and sums:
+        net = sum(
+            sign * sums[table]
+            for table, sign in (("load", 1), ("storage", 1), ("sgen", -1))
+            if table in sums
+        )
+        values["Net demand"] = [round(v, 3) for v in _aggregate(net, step)]
+
+    count = len(next(iter(values.values()), []))
+
+    return _labels(d, count, step, resolution), values
+
+
+@lru_cache(maxsize=8)
+def _study_case_values(ref: NetworkRef) -> dict[tuple[str, str], Any]:
+    import simbench as sb
+
+    return sb.get_absolute_values(_load(ref), profiles_instead_of_study_cases=False)
+
+
+def study_case_power(ref: NetworkRef, case: str, quantity: str = "p") -> dict[str, float]:
+    """One study case's power, summed per element table as ``network_power`` names
+    them, in kW (kvar for ``q``).
+
+    SimBench's own values (``get_absolute_values`` with study cases): each element's
+    rated power times its type's factor in ``net.loadcases``. Storage has no case
+    values and counts as idle (0).
+
+    Returns:
+        "Demand (n)", "Generation (n)" and, for ``p``, "Net demand"; plus
+        "Upstream voltage" (pu), the case's set point at the external grid.
+    """
+    if case not in STUDY_CASES:
+        raise ValueError(f"study case must be one of {list(STUDY_CASES)}")
+
+    values = _study_case_values(ref)
+    column = {"p": "p_mw", "q": "q_mvar"}[quantity]
+    out: dict[str, float] = {}
+    total = {}
+
+    for table in ("load", "sgen"):
+        frame = values.get((table, column))
+
+        if frame is None or frame.empty:
+            continue
+
+        total[table] = float(frame.loc[case].sum()) * 1000
+        out[f"{NETWORK_PARTS[table]} ({frame.shape[1]})"] = round(total[table], 3)
+
+    if quantity == "p" and total:
+        out["Net demand"] = round(total.get("load", 0.0) - total.get("sgen", 0.0), 3)
+
+    if ("ext_grid", "vm_pu") in values:
+        out["Upstream voltage"] = round(float(values[("ext_grid", "vm_pu")].loc[case].iloc[0]), 4)
+
+    return out
+
+
 @lru_cache(maxsize=8)
 def element_kinds(ref: NetworkRef) -> MappingProxyType:
     """Element type per element ID (``load``, ``sgen``, ``storage``), as ``elements``

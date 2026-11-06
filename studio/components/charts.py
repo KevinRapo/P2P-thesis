@@ -426,6 +426,30 @@ class DayChart(SeriesChart):
                 )
 
 
+class NetworkPowerChart(SeriesChart):
+    """The whole network's demand, generation, storage and net demand over a window
+    (``ProfileService.network_power``), and, when a study case is given, its levels
+    as dashed horizontal lines in the same colours. Options: ``series``, ``case``
+    (name or None), ``levels`` (the case's values by series name)."""
+
+    height = 340
+
+    def draw(self) -> None:
+        s, levels = self.o.series, self.o.get("levels") or {}
+        self.titles(x=s.x_label, y=s.y_label)
+        colors = {DAY_NAMES[k]: c for k, c in ENERGY.items()} | {"Net demand": MUTED}
+
+        for name, values in s.y.items():
+            color = colors.get(name.split(" (")[0])
+            dash = "dot" if name == "Net demand" else "solid"
+            self.line(s.x, values, name, color=color, dash=dash)
+
+            if name in levels:
+                self.level(
+                    levels[name], f"{self.o.case}: {name}", color=color or MUTED
+                )
+
+
 class ElementsChart(SeriesChart):
     """One line per name over the day. Options: ``day``, ``lines`` (name -> values
     per step), ``y_title`` (default kW)."""

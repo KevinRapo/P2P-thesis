@@ -10,10 +10,12 @@ from studio.components.charts import (
     DayChart,
     ElementsChart,
     NetworkChart,
+    NetworkPowerChart,
     SeriesChart,
 )
 from studio.pages.components import DAY, HOURS, LabChart, SUN, TOPOLOGY, VOLTAGES
-from studio.theme import BUS, LIMIT, SERIES
+from studio.adapters.models import Series
+from studio.theme import BUS, ENERGY, LIMIT, MUTED, SERIES
 
 
 class TwoLines(SeriesChart):
@@ -140,3 +142,22 @@ def test_every_look_of_the_style_lab_draws(bars):
 
     assert fig.layout.height == 360
     assert fig.data[-1].name == "PV" and fig.data[-1].yaxis == "y2"
+
+
+def test_the_whole_network_in_the_energy_colours_with_a_study_cases_levels():
+    series = Series(
+        x=HOURS,
+        y={"Demand (2)": SUN, "Generation (1)": SUN, "Net demand": SUN},
+        x_label="time",
+        y_label="p (kW)",
+    )
+    levels = {"Demand (2)": 5.0, "Net demand": 5.0, "Upstream voltage": 0.965}
+    fig = NetworkPowerChart(series=series, case="hL", levels=levels).figure()
+
+    assert [t.line.color for t in fig.data] == [ENERGY["load"], ENERGY["sgen"], MUTED]
+    assert fig.data[2].line.dash == "dot"
+    # one dashed level per series the case has; the voltage is no series
+    assert len(fig.layout.shapes) == 2
+    assert fig.layout.shapes[0].line.color == ENERGY["load"]
+    assert fig.layout.annotations[0].text == "hL: Demand (2)"
+    assert not NetworkPowerChart(series=series, case="", levels={}).figure().layout.shapes

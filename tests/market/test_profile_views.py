@@ -128,3 +128,50 @@ def test_empty_catalogue_tables_are_skipped_but_network_records_are_kept(profile
     assert simbench.catalogue_profiles() == []
     record = simbench.profile_catalog(REF)[0]
     assert record.elements == 2 and np.isnan(record.mean) and np.isnan(record.peak)
+
+
+def test_the_whole_network_is_summed_per_type_with_its_net_demand(
+    profiles, monkeypatch
+):
+    _, factor = profiles
+    absolute = simbench._absolute_profiles(REF) | {
+        ("sgen", "p_mw"): pd.DataFrame({5: factor * 0.004}),
+        ("storage", "p_mw"): pd.DataFrame({1: factor * 0.001}),
+    }
+    monkeypatch.setattr(simbench, "_absolute_profiles", lambda ref: absolute)
+    hour = factor[96:192].reshape(-1, 4).mean(axis=1)
+
+    x, power = simbench.network_power(REF, "2016-01-02", 1)
+
+    assert len(x) == 24
+    assert list(power) == ["Demand (2)", "Generation (1)", "Storage (1)", "Net demand"]
+    np.testing.assert_allclose(power["Demand (2)"], hour * 3, atol=0.001)
+    np.testing.assert_allclose(power["Generation (1)"], hour * 4, atol=0.001)
+    # demand + storage (charging) - generation
+    np.testing.assert_allclose(power["Net demand"], hour * (3 + 1 - 4), atol=0.001)
+    _, reactive = simbench.network_power(REF, "2016-01-02", 1, quantity="q")
+    assert list(reactive) == ["Demand (2)"]
+
+
+def test_a_study_case_sums_simbench_case_values(monkeypatch):
+    cases = ["bc", *simbench.STUDY_CASES]
+    values = {
+        ("load", "p_mw"): pd.DataFrame(
+            {0: [0.002] * 7, 2: [0.001] * 7}, index=cases
+        ).mul([1, 1, 1, 1, 1, 0.1, 0.1], axis=0),
+        ("sgen", "p_mw"): pd.DataFrame({5: [0.004, 0, 0, 0.0032, 0.0038, 0.0032, 0.0038]}, index=cases),
+        ("ext_grid", "vm_pu"): pd.DataFrame({0: [1.0, 0.965, 0.965, 0.965, 0.965, 1.055, 1.055]}, index=cases),
+    }
+    monkeypatch.setattr(simbench, "_study_case_values", lambda ref: values)
+
+    assert simbench.study_case_power(REF, "hL") == {
+        "Demand (2)": 3.0,
+        "Generation (1)": 0.0,
+        "Net demand": 3.0,
+        "Upstream voltage": 0.965,
+    }
+    lpv = simbench.study_case_power(REF, "lPV")
+    assert lpv["Net demand"] == pytest.approx(0.3 - 3.8)
+    assert lpv["Upstream voltage"] == 1.055
+    with pytest.raises(ValueError):
+        simbench.study_case_power(REF, "bc")
