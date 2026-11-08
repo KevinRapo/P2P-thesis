@@ -22,52 +22,15 @@ leave no room at some step.
 
 ### The reference prices: `de_2024`
 
-The market experiments use [`de_2024.json`](../../config/data/de_2024.json), built by
-[`build_de_2024.py`](../../config/data/build_de_2024.py) as a dynamic household
-tariff from the German day-ahead prices of 2024 (Energy-Charts, DE-LU). With
-$s = \max(\text{spot}, 0)$ per kWh, every hour:
+The market experiments use German day-ahead prices of 2024 as a dynamic household
+tariff: the utility price is the spot price plus a fixed adder (0.3163, so the year's
+mean equals the DESTATIS household price), and the feed-in tariff is the spot price
+less a 0.004 marketing fee. How the file is built, its sources and what the prices
+look like over the training and test days are on [Prices](../prices/index.md).
 
-$$
-\begin{aligned}
-p_\text{utility} &= s + a, \qquad a = \bar p_\text{household} - \bar s_{2024} \\
-p_\text{FiT} &= \max(s - 0.004,\ 0)
-\end{aligned}
-$$
-
-where $\bar p_\text{household}$ is the average German household price of 2024 and
-$\bar s_{2024}$ the mean spot price of 2024 (0.0785). The adder $a$ = 0.3163 makes the
-year's mean utility price equal the household price; 0.004 is an assumed direct
-marketer's fee on sold energy.
-
-The household price is DESTATIS's, for the band 2,500 to 5,000 kWh a year (band DC),
-in ct/kWh:
-
-| Component | H1 2024 | H2 2024 | Mean, in the build script |
-|---|---|---|---|
-| Energy and supply (*Energie und Vertrieb*) | 16.75 | 16.33 | 16.54 |
-| Network charges (*Netzentgelte*) | 11.31 | 11.64 | 11.475 → 11.47 |
-| Taxes, levies and surcharges (*Steuern, Abgaben und Umlagen*) | 11.45 | 11.47 | 11.46 → 11.47 |
-| **Total** | **39.51** | **39.43** | **39.48** |
-
-Sources: DESTATIS press releases [PD24_375](https://www.destatis.de/DE/Presse/Pressemitteilungen/2024/09/PD24_375_61243.html)
-(H1) and [PD25_123](https://www.destatis.de/DE/Presse/Pressemitteilungen/2025/03/PD25_123_61243.html)
-(H2), checked on 5 Nov 2026. The two equal components in the script (0.1147 each)
-are the two half-year means rounded, not a copying slip; the taxes part rounds to
-11.46 on its own, a difference of 0.0001 EUR/kWh in the total.
-
-**What follows from the construction.** Both tariffs move with the spot price, so
-their gap is almost constant:
-
-$$
-p_\text{utility} - p_\text{FiT} = a + \min(s, 0.004) \approx 0.32 \text{ EUR/kWh}
-$$
-
-at every hour of the year (minimum 0.3163, mean 0.3200). A kWh traded between
-neighbours is worth the same at noon as at night; what changes over the day is only
-the price level, which is what a battery can earn from by shifting energy in time.
-In [`de_2024_flat.json`](../../config/data/de_2024_flat.json) the feed-in tariff is a
-flat 0.08 instead (about the 2024 EEG rate for small rooftop PV), and the gap follows
-the spot price.
+Both tariffs follow the same spot price, so their gap is almost constant, about
+0.32 EUR/kWh at every hour ([why](../prices/index.md#what-the-prices-look-like)). That
+gap is what the peer charge below takes its share of.
 
 ## What a peer trade avoids, in reality
 

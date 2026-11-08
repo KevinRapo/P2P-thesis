@@ -1,0 +1,29 @@
+/* Page headings: one weight and one color, the level shown by size alone. Material's
+   defaults mix light, regular and bold weights, which hides the difference between
+   levels. Only inside the page text (.md-typeset), not the sidebar or the header. */
+
+.md-typeset h1 {
+  font-size: 2em;
+  font-weight: 400;
+  color: var(--md-default-fg-color);
+}
+
+/* Level 2 gets a thin rule under it and level 3 the sidebar's title color (--sidebar-title,
+   defined in sidebar.css, light and dark), so the levels differ by more than size. */
+.md-typeset h2 {
+  font-size: 1.6em;
+  font-weight: 400;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--sidebar-title);
+}
+
+.md-typeset h3 {
+  font-size: 1.3em;
+  font-weight: 400;
+  color: var(--sidebar-title);
+}
+
+.md-typeset h4 {
+  font-size: 1.1em;
+  font-weight: 400;
+}

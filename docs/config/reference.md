@@ -201,7 +201,7 @@ and `feed_in` at the top are the mean day. `date_shift` (optional) says that the
 prices are from that many days after their key; only the Inspect page reads it, to
 show the real dates. `de_2024.json` and `de_2024_flat.json` are such files, from
 [`build_de_2024.py`](../../config/data/build_de_2024.py): German day-ahead prices of
-2024 as a dynamic household tariff, with spot-based or flat feed-in (how they are built, and the DESTATIS household price behind them: [Tariffs](../full-cycle/tariffs.md#the-reference-prices-de_2024)). Their keys are
+2024 as a dynamic household tariff, with spot-based or flat feed-in (how they are built, and the DESTATIS household price behind them: [Prices](../prices/index.md)). Their keys are
 the market's dates of 2016, and each takes the day 2926 days later, the same weekday:
 2016-01-01 trades at the prices of 2024-01-05, 2016-12-31 at those of 2025-01-04.
 

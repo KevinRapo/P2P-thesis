@@ -1,23 +1,38 @@
 # MARLEM v2
 
-> Branch `marlem-v2`: the market, grid methods, Studio and runner, with RLlib's PPO
-> and the paper's mixed market action. What it does and why: [marlem-v2](overview.md).
-> These pages are not published; they are built locally ([About](about.md)).
+A tool for studying **local energy markets with multi-agent reinforcement
+learning** on real low-voltage networks.
 
-MARLEM rebuilt step by step on SimBench networks: configure a local energy market,
-then step through it by hand and watch the network's power flow. The market and
-reinforcement-learning layers now share this repository, with
-the RL layer in `core/rl/`. They are validated separately. The Slurm runner and Studio controls are integrated here. The work reconstructs and
-extends MARLEM; it is not a claim of replicating the published learning results.
+- Households with loads, PV and batteries trade energy with each other and with the
+  distribution system operator (DSO), one hour at a time.
+- The DSO charges grid fees from the network's state, computed by an AC power flow
+  on a [SimBench](simbench/README.md) network or by the paper's graph model.
+- The agents learn their orders with PPO, in three paradigms: centralised (CTCE),
+  centralised training with decentralised execution (CTDE), and independent (DTDE).
 
-| Section | Start with |
+The tool reconstructs and extends **MARLEM** (Salazar-Peña et al.). The market and
+the learning method are theirs. This version:
+- checks every part of the market and the learning layer, against the papers and on
+  cases with known answers;
+- corrects the defects found in the published code;
+- states every modelling choice the papers leave open;
+- adds the SimBench networks with a power flow;
+- adds the Studio, an interface for the whole workflow, and a runner for local and
+  cluster experiments.
+
+## Start here
+
+| You want to… | Go to |
 |---|---|
-| **marlem-v2** | [PPO with the mixed market action](overview.md): the action and partner contract, the paradigms, scales and run records, Studio and SLURM, the validation, and where the work stands. |
-| **Code structure** | [Every folder and script](structure.md): what it does and how far it is built. |
-| **MARLEM** | [Methodology](marlem/methodology.md): the market as the paper states it (clearing, pricing, DSO fees, reputation, agents, batteries, grid, one market step), without the reinforcement-learning parts. [Learning layer](marlem/learning/index.md): observation, action, paradigms, algorithms, hyperparameters, population-based training and the 3 × 3 experiment as the papers state them, with the original code's settings where the papers are silent. |
-| **RL** | [Code and running instructions](structure.md#corerl-the-reinforcement-learning-layer). [Observation](full-cycle/environment/observation.md): every entry of the agents' observation, its definition and scaling, next to MARLEM's. [Training cycle](full-cycle/learning/index.md): the math of one PPO training iteration in each paradigm (CTCE, CTDE, DTDE), and how many steps it takes. [One iteration, step by step](full-cycle/learning/iteration.md): every calculation from the agents' observation to the weight update, with what each paradigm changes. [Worked examples](full-cycle/learning/examples.md): the same cycle with numbers, for the parts our own code defines (what each paradigm's modules receive, CTDE's local actor and central critic, per-agent clipping, settings, evaluation). |
-| **Validation** | [Issue register](validation/register.md): every issue in the original MARLEM release and its two papers, one ID each, the list the thesis cites. [Market layer](validation/market.md): everything that was wrong in the original market (code or paper) and what changed. [RL layer](validation/rl.md): what is wrong in the original training paradigms, trainer and inference, and what the tests in `tests/rl/` show. [The two papers](validation/papers.md): where the MARLEM paper and the implicit-cooperation paper agree and differ. |
-| **SimBench** | [Overview](simbench/README.md): what SimBench is, its codes, grids, scenarios and study cases. [Network catalogue](simbench/networks.md): every network's size, load, PV and load mix. [Profiles](simbench/profiles.md): the time series of every load and generator class, and where they come from. |
-| **HPC** | [Overview](hpc.md), [setup and tracked helpers](hpc/setup.md), [notebooks](hpc/notebooks.md), [experiments](hpc/experiments.md), [resources](hpc/resources.md), [measurements](hpc/performance.md) and [troubleshooting](hpc/operations.md). |
-| **API Reference** | [One page per module](api/index.md), generated from the docstrings, one section per top-level folder. |
-| **About these docs** | [How the site is built](about.md): where the source is, how the API pages are made, how to use the diagrams. |
+| Install it and run it once | [Getting started](getting-started/index.md), then [First steps](getting-started/first-steps.md) |
+| Understand what the model computes | [Methodology](overview.md): the market step, tariffs, environment and learning |
+| Know what the original MARLEM states, and what was wrong with its release | [Original MARLEM](marlem/methodology.md) and its [issue register](validation/register.md) |
+| Find or change code | [Implementation](structure.md): the code structure and the full cycle |
+| Trust a result | [Validation](checks/index.md): every check on the market and the learner |
+| Configure and run experiments, here or on the cluster | [Using it](studio/index.md) |
+| Look up a term | [Glossary](getting-started/glossary.md) |
+
+The **Workspace** tab holds plans and open items of the work in progress; it is
+removed when the work is finished.
+
+The pages are built locally, not published ([About](about.md)).

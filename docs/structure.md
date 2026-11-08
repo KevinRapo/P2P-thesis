@@ -466,10 +466,13 @@ market or pandapower directly.
 |---|---|
 | `docs/` | This documentation (Markdown); `docs/networks.py` generates the network catalogue |
 | `docs_site/` | The MkDocs site built from `docs/`: config, build hooks, diagram assets; [`export_drawio.py`](../docs_site/export_drawio.py) exports the `.drawio` diagrams under `docs/` to the SVGs the pages show; [`screenshots.py`](../docs_site/screenshots.py) starts the Studio headless, ticks one experiment's runs and saves every Results panel as a PNG into `docs/studio/results/img/` (needs Playwright and its Chromium) |
+| [`docs/getting-started/`](getting-started/index.md) | Setup, a first pass through the workflow, the glossary |
+| [`docs/prices/`](prices/index.md) | The DSO's prices: the German dynamic tariff and feed-in built from 2024 day-ahead prices, the synthetic time-of-use day, and where prices enter the model |
+| [`docs/checks/`](checks/index.md) | How this implementation is validated: every market and learning check, and where it is |
 | [`docs/config/`](config/reference.md) | Every setting of the scenario, price and experiment files: full examples, defaults and what each does, including how the days work | done |
 | [`docs/experiments/`](experiments/grid-methods.md) | The thesis's experiments: the grid-method comparison (proposal) with its diagram (`diagrams/grid_methods.drawio`, exported to `grid-methods.svg`) |
 | [`docs/full-cycle/`](full-cycle/index.md) | The full cycle: a master diagram of the training iteration, the environment step and the market step, and where every quantity is calculated (`index.md`); [`market-step.md`](full-cycle/market-step.md), [`environment/`](full-cycle/environment/index.md) (action, reward, observation) and [`learning/`](full-cycle/learning/index.md) (iteration, examples, probes), each phase with a card (reads, computes, writes, code, paper, decisions) |
-| [`docs/overview.md`](overview.md), [`docs/plan/`](plan/index.md) | What the branch does; the plans, the decision log and the [open items](plan/open.md) |
+| [`docs/overview.md`](overview.md), [`docs/plan/`](plan/index.md) | What the branch does; the plans, the decision log and the [open items](plan/open.md). In the site, the plans and open items form the temporary Workspace tab; the decision log is under Methodology |
 | `run_studio.py` | Starts the Studio with auto-reload |
 | [`run_all.py`](../run_all.py) | Starts this checkout's docs and Studio in separate windows using the current Python; `docs` and `studio` select one |
 | `AGENTS.md` | Rules for working in this repository |
