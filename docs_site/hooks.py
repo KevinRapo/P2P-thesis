@@ -28,7 +28,7 @@ SERVED = {".md", ".pdf", ".png", ".jpg", ".jpeg", ".svg", ".gif"}
 # \(...\) math included, in md-ellipsis spans without the arithmatex class. MathJax
 # only looks inside elements whose own class matches, so the span is named directly.
 # The color package is loaded at start-up: left to MathJax's autoload, \color and
-# \textcolor came out undefined on the site (docs/full-cycle/ marks our terms with them).
+# \textcolor came out undefined on the site (docs/methodology/ marks our terms with them).
 MATHJAX = """window.MathJax = {
   loader: {load: ["[tex]/color"]},
   tex: {packages: {"[+]": ["color"]},
@@ -44,23 +44,23 @@ document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() }
 # --------------------------------------------------------------------------------------
 # The API reference: one section per layer, one page per module. A source is a
 # package (documented recursively: subpackages become subsections) or a module.
-API_NAV_TITLE = "API Reference"
 API_SECTIONS = [
     # In the order data flows: the network, the market on it, stepping both, the
     # scenario that configures them (all three in core/), then the Studio on top.
-    ("Grid: SimBench networks", "grid", ["core.grid"], "simbench/README.md"),
+    ("Grid: SimBench networks", "grid", ["core.grid"], "using/data/simbench.md"),
     ("Market: the MARLEM market", "market", ["core.market"], None),
     ("Config: the scenario", "config", ["core.config"], None),
-    ("Environment: market to RL", "env", ["core.env"], "full-cycle/environment/index.md"),
+    ("Environment: market to RL", "env", ["core.env"], "methodology/environment/index.md"),
     ("Studio: pages, components, adapters", "studio", ["studio"], None),
     ("RL: the learning layer", "rl", ["core.rl"], None),
     (
         "Runner: local and Slurm experiments",
         "runner",
         ["core.runner"],
-        "hpc/experiments.md",
+        "using/training-experiments.md",
     ),
 ]
+API_NAV_TITLE = "API Reference"
 _API_PAGES: dict[str, str] = {}
 
 

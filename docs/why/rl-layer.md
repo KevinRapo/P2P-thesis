@@ -3,7 +3,7 @@
 > The learning layer is RLlib's PPO with a few pieces added. This page explains
 > why: what the intended method needs, what RLlib provides, and what had to be
 > added in between. It is about design, not defects. Even if the original release
-> had none (its defects are in the [issue register](../validation/register.md)),
+> had none (its defects are in the [issue register](../original/issues/register.md)),
 > these points would still have to change.
 
 ## At a glance
@@ -26,7 +26,7 @@ a price, a quantity, the side $\alpha$ and the preferred partner $\beta$. Callin
 space continuous, the original gives each agent one continuous `Box` of four numbers.
 The policy is a Gaussian over them, and the two choices are read off by thresholds:
 buy if $\alpha > 0.5$, partner `int(β)`
-([original action](../marlem/learning/index.md#11-action-p1-eq-2)).
+([original action](../original/learning.md#11-action-p1-eq-2)).
 
 Even without the defects this encoding has, it does not match what the agent
 chooses:
@@ -43,16 +43,16 @@ chooses:
 - **The edges collect the rest.** Samples outside the range are clipped to the
   bounds, so the first and last choices also receive all the mass beyond them. In
   the release, "no preference" sits at the upper bound itself and is almost never
-  chosen ([E-04](../validation/register.md#E-04)).
+  chosen ([E-04](../original/issues/register.md#E-04)).
 - **There is no "no order".** Every step places an order
-  ([M-08](../validation/register.md#M-08)).
+  ([M-08](../original/issues/register.md#M-08)).
 
 The usual treatment of such a hybrid action is a categorical distribution for each
 discrete choice and a Gaussian for each continuous parameter, with the joint
 log-probability as their sum. RLlib does this by itself for a gymnasium `Dict`
 action, so V2's action is a `Dict`: `side` and `partner` as `Discrete`, `quantity`
 and `price` as `Box`. What is added is only the decoding into an order
-([Action](../full-cycle/environment/action.md#e1-decode)):
+([Action](../methodology/environment/action.md#e1-decode)):
 - the quantity as a share of the agent's feasible bound, so no order is infeasible;
 - "no order" below a share of 0.05;
 - the price mapped between the step's two tariffs.
@@ -72,7 +72,7 @@ On the probes this failed in a way specific to the mixed action. While the side
 was still undecided, the state-dependent log σ collapsed. After that, the price and
 quantity means could no longer move. The means also drifted beyond the action
 bounds, where the clipped action makes the reward flat
-([probe 9](../full-cycle/learning/probes.md#9-conditional-part): log σ fell to
+([probe 9](../methodology/validation/probes.md#9-conditional-part): log σ fell to
 −5.5 and the level stuck, 0 of 6 runs passing in CTDE and DTDE over 3 seeds).
 
 [`BoundedHead`](../../core/rl/modules.py#L121-L173) changes two outputs and nothing
@@ -99,7 +99,7 @@ presents the environment as one agent, `"group"`:
 RLlib then trains it as an ordinary single agent. The `Tuple` keeps each agent's
 mixed action whole and in agent order, so nothing categorical is flattened into a
 vector, and each part keeps its own agent's bounds
-([L-05](../validation/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
+([L-05](../original/issues/rl.md#l-05-grouped-spaces-are-in-name-order-grouped-data-in-environment-order)).
 
 **CTDE** is MAPPO: each agent acts on its own observation, while its critic sees
 everything during training. RLlib's PPO module feeds the actor and the critic the
@@ -122,9 +122,9 @@ Two choices here depart from [P2] by design:
 `algo.train()` runs one iteration and returns its metrics. Comparing paradigms over
 seeds needs more around it, so [`train`](../../core/rl/train.py#L408-L555) adds:
 - **a budget in environment steps**, the same for every paradigm, instead of
-  iterations ([L-14](../validation/rl.md#l-14-the-budget-is-counted-in-iterations-the-paper-in-episodes));
+  iterations ([L-14](../original/issues/rl.md#l-14-the-budget-is-counted-in-iterations-the-paper-in-episodes));
 - **a stop on a non-finite loss**, so a NaN cannot pass silently
-  ([L-07](../validation/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed));
+  ([L-07](../original/issues/rl.md#l-07-kl_coeff--0-does-not-switch-off-the-kl-term-and-a-nan-loss-goes-unnoticed));
 - **evaluation** against the never-trade and net-position baselines on held-out
   days, with each action part's most likely value
   ([`Policy`](../../core/rl/policy.py#L92-L170)), and a `run.json` that records the
@@ -133,7 +133,7 @@ seeds needs more around it, so [`train`](../../core/rl/train.py#L408-L555) adds:
 [`PPOLearner`](../../core/rl/learner.py#L27-L52) is RLlib's learner unchanged, except
 that it also logs the **clip fraction**. This matters most for CTCE, where one ratio
 covers every agent's action, so the clip stops the gradient sooner
-([L-02](../validation/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
+([L-02](../original/issues/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
 
 Three of RLlib's defaults are changed because they work against this setup, not to
 tune it:
@@ -144,7 +144,7 @@ tune it:
 - the KL is logged as a gauge of each update's size and is not part of the loss.
 
 The full list, with the tuned settings, is in
-[Learning layer §2](../full-cycle/learning/index.md#2-everything-we-change-in-rllibs-ppo).
+[Learning layer §2](../methodology/learning/index.md#2-everything-we-change-in-rllibs-ppo).
 
 ## Not added
 

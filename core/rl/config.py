@@ -33,7 +33,7 @@ schedule changed:
   one run has fixed hyperparameters and one seed; tuning and seeds are loops
   around ``core/rl/train.py``.
 - The learning rate, batch, minibatch and epochs are those chosen on the probes
-  (``core/rl_defaults.py``, RP-6b in ``docs/plan/decisions.md``), not the original's.
+  (``core/rl_defaults.py``, RP-6b in ``docs/workspace/decisions.md``), not the original's.
 - Iterations are not tied to wall-clock time (``min_time_s_per_iteration=0``),
   and the budget is counted in environment steps by the trainer (fixes L-14).
 """

@@ -2,7 +2,7 @@
 
 Branch `marlem-v2`: the market, grid, Studio and runner, with RLlib's PPO and the
 paper's mixed market action (continuous price and quantity, categorical side and
-partner). What it does and why is in the [overview](docs/overview.md). On the cluster this
+partner). What it does and why is in the [overview](docs/methodology/index.md). On the cluster this
 branch is its own checkout, `~/marlem-v2`, with its own `runs/`.
 
 Where things are in this repository and the rules for changing them. What the
@@ -10,7 +10,7 @@ thesis is about, where the work stands and what comes next are in the workspace'
 top-level `AGENTS.md`.
 
 This file names folders and the few files that are landmarks, not every file:
-[docs/structure.md](docs/structure.md) lists every folder and script with how far
+[docs/methodology/structure.md](docs/methodology/structure.md) lists every folder and script with how far
 it is built. Update structure.md whenever a file is added, moved, renamed or built;
 update this file only when a folder, a landmark or a rule changes.
 
@@ -51,7 +51,7 @@ runs/        training runs and results (git-ignored); the runner's one source of
   `train(Run(...))` (`core/rl/train.py`), `evaluation` (`core/rl/policy.py`).
 - **Experiments**: `python -m core.runner start / status / stop / sync / check`;
   the JSON spec's fields are in `core/runner/spec.py`, usage in
-  [docs/hpc/experiments.md](docs/hpc/experiments.md) and [docs/hpc/](docs/hpc/).
+  [docs/using/training-experiments.md](docs/using/training-experiments.md) and [docs/using/hpc/](docs/using/hpc/index.md).
 - **Settings**: `core/settings.py` reads the environment, else `.env` (keys in
   `.env.example`), else a default. Never hard-code a machine or account value: add
   a key.
@@ -129,15 +129,15 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   Inside a large class, a one-line marker groups methods:
   `    # --- Network cache ----------…`. Put new code in the section it belongs to.
 - **Issue IDs.** A docstring that fixes or decides an issue names its ID from the
-  [register](docs/validation/register.md); one that implements a plan decision
-  names its `MP-` or `RP-` ID from the [decision log](docs/plan/decisions.md).
+  [register](docs/original/issues/register.md); one that implements a plan decision
+  names its `MP-` or `RP-` ID from the [decision log](docs/workspace/decisions.md).
   How the plans, the decision log and the full cycle fit together:
-  [docs/plan/index.md](docs/plan/index.md).
+  [docs/workspace/index.md](docs/workspace/index.md).
 - **Markers.** Four comment markers, listed in the workspace's `.vscode/settings.json`
   (Todo Tree): `FAULT` (still broken), `BUG` (a bug to fix), `DEVIATION` (our own choice,
   differing from the paper or the original) and `OPEN` (not decided). An open question is `# OPEN <ID>: question`, with the choice
   used for now; the ID (a register ID such as `E-10`, or a plan ID such as `MP-6a`) must
-  be in [docs/plan/open.md](docs/plan/open.md), which
+  be in [docs/workspace/open.md](docs/workspace/open.md), which
   `tests/test_open_markers.py` checks. `# ! note` is a quick reminder without an ID,
   triaged into that list at the end of a session. When decided, an `OPEN` becomes
   `# DEVIATION <ID>` if it departs from the paper, else it is removed and the docstring

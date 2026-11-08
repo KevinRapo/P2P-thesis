@@ -46,6 +46,7 @@ theme:
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.indexes
     - navigation.top
     - navigation.path
     - navigation.footer
@@ -135,90 +136,87 @@ validation:
   links:
     anchors: warn
 
+# One section per folder under docs/, in the folders' layout: a page's place in the
+# nav is its place on disk.
 nav:
-  - Home: 
-    - index.md
-    - About these docs: about.md
+  - Home:
+      - index.md
+      - About these docs: about.md
   - Getting started:
       - Code environment setup: getting-started/setup.md
-      - HPC setup/helper scripts: hpc/setup.md
-      - Notebook sessions: hpc/notebooks.md
+      - HPC setup and helper scripts: getting-started/hpc-setup.md
+      - Notebook sessions: getting-started/notebooks.md
       - Glossary: getting-started/glossary.md
       - First steps: getting-started/first-steps.md
   # The original as published: the papers' definitions and every issue in its release.
   - Original MARLEM:
-      - Market methodology: marlem/methodology.md
-      - Learning layer: marlem/learning/index.md
+      - Market methodology: original/methodology.md
+      - Learning layer: original/learning.md
       - Issues in the release:
-          - Issue register: validation/register.md
-          - Market layer: validation/market.md
-          - RL layer: validation/rl.md
-          - The two papers: validation/papers.md
+          - Issue register: original/issues/register.md
+          - Market layer: original/issues/market.md
+          - RL layer: original/issues/rl.md
+          - The two papers: original/issues/papers.md
   # Why this version departs from the original by design, beyond its defects.
-  - Why?:
+  - "Why?":
       - The RL layer: why/rl-layer.md
   # This version: what each component computes and why (equations, decisions).
   - Methodology:
-      - Overview: overview.md
-      - The full cycle: full-cycle/index.md
+      - methodology/index.md
+      - The full cycle: methodology/full-cycle.md
       - Market layer:
-          - Market step: full-cycle/market-step.md
-          - Tariffs and the peer charge: full-cycle/tariffs.md
-          - Grid methods: experiments/grid-methods.md
-
+          - Market step: methodology/market/step.md
+          - Tariffs and the peer charge: methodology/market/tariffs.md
+          - Grid methods: methodology/market/grid-methods.md
       - Environment:
-          - Index: full-cycle/environment/index.md
-          - Action: full-cycle/environment/action.md
-          - Reward: full-cycle/environment/reward.md
-          - Observation: full-cycle/environment/observation.md
-
-      - Learning layer: 
-          - High level: full-cycle/learning/index.md
-          - One iteration, step by step: full-cycle/learning/iteration.md
-          - Worked examples: full-cycle/learning/examples.md
-
-      - Code structure: 
-                - Structure: structure.md
-                
+          - methodology/environment/index.md
+          - Action: methodology/environment/action.md
+          - Reward: methodology/environment/reward.md
+          - Observation: methodology/environment/observation.md
+      - Learning layer:
+          - methodology/learning/index.md
+          - One iteration, step by step: methodology/learning/iteration.md
+          - Worked examples: methodology/learning/examples.md
+      - Code structure: methodology/structure.md
       - Validation:
-          - Index: checks/index.md
-          - The RL probes: full-cycle/learning/probes.md
+          - methodology/validation/index.md
+          - The RL probes: methodology/validation/probes.md
   - Using it:
       - Data:
-          - Simbench: simbench/README.md
-          - Network catalogue: simbench/networks.md
-          - Profiles: simbench/profiles.md
-          - Market prices: prices/index.md
-      - Experiment config: config/reference.md
+          - SimBench: using/data/simbench.md
+          - Network catalogue: using/data/networks.md
+          - Profiles: using/data/profiles.md
+          - Market prices: using/data/prices.md
+      - Experiment config: using/config.md
       - Studio UI:
-          - studio/index.md
+          - using/studio/index.md
           - Results:
-              - studio/results/index.md
-              - Metrics: studio/results/metrics.md
-              - Validation: studio/results/validation.md
-              - Learning: studio/results/learning.md
-              - Market: studio/results/market.md
-              - Grid: studio/results/grid.md
-              - Saved files: studio/results/files.md
-      - Run contract: config/run-contract.md
-      - Training experiments: hpc/experiments.md
+              - using/studio/results/index.md
+              - Metrics: using/studio/results/metrics.md
+              - Validation: using/studio/results/validation.md
+              - Learning: using/studio/results/learning.md
+              - Market: using/studio/results/market.md
+              - Grid: using/studio/results/grid.md
+              - Saved files: using/studio/results/files.md
+      - Run contract: using/run-contract.md
+      - Training experiments: using/training-experiments.md
       - HPC:
-          - hpc.md
-          - Resources and parallelism: hpc/resources.md
-          - Measurements and cost estimates: hpc/performance.md
-          - Monitoring and troubleshooting: hpc/operations.md
+          - using/hpc/index.md
+          - Resources and parallelism: using/hpc/resources.md
+          - Measurements and cost estimates: using/hpc/performance.md
+          - Monitoring and troubleshooting: using/hpc/operations.md
   - Experiments:
       - experiments/index.md
       - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
   # Temporary: plans and open items of the work in progress. Removed at the end;
-  # nothing outside this tab may depend on these pages.
+  # nothing outside this folder may depend on its pages.
   - Workspace:
-      - plan/index.md
-      - Open items: plan/open.md
-      - Market plan: plan/market.md
-      - RL plan: plan/rl.md
-      - Results plan: plan/results.md
-      - Validate section plan: plan/validation.md
-      - Decision log: plan/decisions.md
+      - workspace/index.md
+      - Open items: workspace/open.md
+      - Market plan: workspace/market.md
+      - RL plan: workspace/rl.md
+      - Results plan: workspace/results.md
+      - Validate section plan: workspace/validation.md
+      - Decision log: workspace/decisions.md
   # Filled in by hooks.py: one section per top-level folder, one page per module.
   - API Reference: api/index.md

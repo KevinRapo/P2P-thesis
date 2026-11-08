@@ -1,0 +1,499 @@
+# How the probes work
+
+The probes check the RL layer before it meets the market: tiny environments whose
+right answer is known exactly, trained with the same PPO, paradigms and settings
+as the market, and judged by reading the trained networks. When a probe fails,
+the piece it adds is the one to look at.
+
+Probes 1-5 follow Andy Jones's guide,
+[Debugging RL, Without the Agonizing Pain](https://andyljones.com/posts/rl-debugging.html),
+made multi-agent and continuous. Probes 6-10 are this implementation's own: each
+one isolates a feature of the market's action or horizon, so a failure on the
+market can be traced to the feature behind it.
+
+| Where | What |
+|---|---|
+| [`core/rl/envs/probes.py`](../../../core/rl/envs/probes.py) | The probe environments and their checks |
+| [`core/rl/scripts/probe_check.py`](../../../core/rl/scripts/probe_check.py) | The procedure: the probes' settings and budgets, training in one pool, scoring, longer budgets for failures |
+| [`core/rl/scripts/probe_ppo.py`](../../../core/rl/scripts/probe_ppo.py) | The procedure as one command |
+| [`notebooks/rl/probe_paradigms.ipynb`](../../../notebooks/rl/probe_paradigms.ipynb) | The same procedure, probe by probe, here or in the cluster's Jupyter job |
+
+## What every probe has in common
+
+**The agents.** Three agents by default, each with its own reward. Each observes
+one number in $[-1, 1]$ and acts with one number in $[-1, 1]$, or with a `Dict` of
+parts in probes 6-9, like the market's action. From probe 4 on, the agents are
+named `agent_2`, `agent_10`, `agent_1` (`scramble_ids`), so their sorted order
+differs from their order in the environment, and each agent has a different
+target. An observation, action or reward delivered to the wrong agent then gives a
+wrong answer. That is the defect L-05 found in the original's grouping.
+
+**An episode.** A probe defines four things on a common base
+([`_Probe`](../../../core/rl/envs/probes.py#L98-L175)): the observation of each step
+(`_draw`), the reward of an action (`_reward`), the episode's length (`length`:
+1 step, 2 in probe 3, 24 in probe 10) and its checks (`checks`). An episode ends by
+termination after `length` steps, never by truncation.
+
+**What a run must output.** A probe's `checks` list states, each with the value
+and the action the trained networks must give there
+([`Check`](../../../core/rl/envs/probes.py#L73-L92)). A run is judged by reading its
+networks in those states, not by its return, which mixes in exploration noise:
+
+| Output | Read as | Passes when |
+|---|---|---|
+| Value | the critic's $V$; in CTCE the group's value, compared with the **sum** of the agents' values (its reward is the sum) | within $0.15 \cdot \max(1, |V|)$, or $0.15 \cdot |V|$ for a check marked `relative` |
+| Continuous action part | the Gaussian's mean (clipped to the bounds, as the environment receives it) | within 0.15 |
+| Categorical action part | the most likely category | exactly the expected one |
+| A part expected as `None` | not judged | always |
+| A part expected as `Follows` | its target depends on the category the policy chose for another part | within 0.15 of that target |
+
+The comparison is a plain function,
+[`compare`](../../../core/rl/scripts/probe_check.py#L417-L463), so it is tested
+without training.
+
+**How much training.** Each probe has a budget in environment steps for the
+`"fast"` preset (a 2 × 64 network, learning rate $10^{-3}$, batches of 500,
+minibatches of 64, 10 epochs); `"thorough"` uses RLlib's 2 × 256 network, learning
+rate $3 \cdot 10^{-4}$ and twice the budget
+([`PRESETS`](../../../core/rl/scripts/probe_check.py#L126-L145)). Every other setting is
+the market's ([`rl_defaults.py`](../../../core/rl_defaults.py)), including the gradient
+clip of 0.5 and the entropy coefficient of 0.01.
+
+**Reading a result.**
+
+- **Pass at the budget:** the piece the probe adds works.
+- **Pass only at a larger budget:** it works, slowly. `escalate` trains every
+  failing combination again at 2×, 4×, 8× the budget and reports the smallest that
+  passed.
+- **Never passes, or gets further away with more steps:** something structural:
+  the learner, the action's distribution or the probe's own design. The per-part
+  diagnostics in each run's `metrics.csv` (each action part's mean, log σ and
+  share outside the bounds, or its entropy; the gradient norm; the KL of each
+  update) show which; the Studio plots them on Results → Learning, and the Validate → RL
+  probes page shows each probe run's description and checks.
+
+## The probes at a glance
+
+| # | Name | Action | Reward | What it adds | Exact answer |
+|---|---|---|---|---|---|
+| 1 | Constant | ignored | +1 | value learning | $V = 1$ |
+| 2 | Observation | ignored | the own observation | the critic reads its input | $V(o) = o$ |
+| 3 | Discount | ignored | +1 at the end of 2 steps | discounting | $V(0) = \gamma$, $V(1) = 1$ |
+| 4 | Action | `Box` | $1 - (a - t_i)^2$ | the policy gradient | mean $= t_i$ |
+| 5 | Obs → action | `Box` | $1 - (a - o/2)^2$ | the policy reads its input | mean $= o/2$ |
+| 6 | Mixed action | category + level | $[c = c_i] + 1 - (l - t_i)^2$ | a categorical and a continuous part at once | $c_i$, $t_i$ |
+| 7 | Gated action | category + gate | closed 0.2; open $[c = c_i](1 - (g - 0.5)^2)$ | a part that counts only when another allows it | $c_i$, gate 0.5 |
+| 8a | Mutual choice, coordination | side + partner, pairs | mutual naming 1, DSO 0.1, else 0; +0.1 own side | coordinating with a partner | own side, mate |
+| 8b | Mutual choice, stag hunt | the same | DSO 0.5 instead of 0.1 | the market's coordination problem | measured, not judged |
+| 9 | Conditional part | side + level | $1 - (l - t_\text{side})^2$ + 0.05 own side | a part whose best value depends on another part | the level of the chosen side |
+| 10 | Long episode | ignored | +1 at the last of 24 steps | the market's day | $V(t) = \gamma^{23 - t}$ |
+
+---
+
+## Probes 1-5: Andy Jones's sequence
+
+Jones's five probes each add one piece of a learning problem to the previous one:
+value learning, then observations, then time, then actions, then actions that
+depend on observations. His have discrete actions and one agent; here the action is
+continuous (the market's price and quantity are) and there are three agents with
+their own rewards, so each probe also checks that every agent's data reaches its
+own networks, in each paradigm.
+
+### 1. Constant
+
+**Definition.** Observation 0, one step, reward +1 whatever the action
+([`ConstantProbe`](../../../core/rl/envs/probes.py#L181-L189)).
+
+**What it tests.** That the reward reaches the learner, that the episode's end is
+treated as final, and that the value loss and the optimiser can fit a constant.
+Nothing depends on the observation or the action.
+
+**Expected.** $V = 1$ per agent ($3$ for CTCE's group). Any working learner
+reaches it almost exactly.
+
+**Example.** An agent observes 0, samples $a = 0.37$ (which changes nothing),
+gets $r = 1$ and the episode ends: its return is 1. If the critic says $V = 0.6$,
+the value loss $(1 - 0.6)^2 = 0.16$ pulls it up; after training $V \approx 1$. CTCE's
+group critic sees $1 + 1 + 1$ and must reach $V = 3$.
+
+### 2. Observation
+
+**Definition.** Each agent observes $+1$ or $-1$ at random; reward = its own
+observation; one step ([`ObservationProbe`](../../../core/rl/envs/probes.py#L192-L215)).
+
+**What it tests.** That the observation reaches the critic, and the right agent's
+critic. Checked in three states: all $+1$, all $-1$, and mixed ($+1, -1, +1$); a
+critic that ignores its input, or reads another agent's observation, gets the
+mixed state wrong.
+
+**Expected.** $V(o) = o$ per agent, the sum for the group.
+
+**Example.** In the mixed state $o = (+1, -1, +1)$ the rewards are $(+1, -1, +1)$,
+so `agent_10`'s critic must say $-1$ while the other two say $+1$; CTCE's group
+critic says $+1 - 1 + 1 = +1$. Two typical failures:
+
+- A critic that ignores its input sees $+1$ half the time and $-1$ half the time,
+  and settles at $V = 0$: off by 1 in every state.
+- A critic that reads `agent_2`'s observation for `agent_10` says $+1$ for
+  `agent_10` in the mixed state: off by 2, while the all-$+1$ and all-$-1$
+  states still pass. That is why the mixed state is checked.
+
+### 3. Discount
+
+**Definition.** Two steps: observation 0, then 1; reward 0, then +1; trained with
+$\gamma = 0.5$ ([`DiscountProbe`](../../../core/rl/envs/probes.py#L218-L236)).
+
+**What it tests.** Bootstrapping from the next state, the discount, and where the
+episode ends.
+
+**Expected.** $V(1) = 1$ and $V(0) = \gamma = 0.5$ per agent.
+
+**Example.** One episode: observation 0, reward 0; observation 1, reward 1; end.
+At the last step nothing follows, so $V(1) = 1$. One step earlier the value is the
+reward now plus the discounted value next: $V(0) = 0 + 0.5 \cdot 1 = 0.5$. Typical
+failures:
+
+- the discount ignored: $V(0) = 1$;
+- the end treated as a truncation (bootstrapping past it): $V(1) = 1 + 0.5 \cdot V(\text{next}) > 1$.
+
+### 4. Action
+
+**Definition.** Observation 0, one step, reward $1 - (a_i - t_i)^2$ with targets
+$t_i = -0.6, 0, 0.6$ for the three agents
+([`ActionProbe`](../../../core/rl/envs/probes.py#L239-L248)).
+
+**What it tests.** The policy gradient, and that each agent's action reaches its
+own reward.
+
+**Expected.** Each agent's action mean at its target. For a Gaussian policy with
+mean $\mu$ and spread $\sigma$ the expected reward is
+$1 - (\mu - t)^2 - \sigma^2$, highest at $\mu = t$ whatever $\sigma$, so the mean
+is a clean read-out while the policy still explores. A small overshoot towards the
+bounds is expected: samples beyond $\pm 1$ are clipped to the bound and earn its
+reward, which pulls the mean outwards.
+
+**Example.** For the agent with target $t = 0.6$:
+
+| Action | Reward |
+|---|---|
+| $a = 0.6$ | $1 - 0^2 = 1.00$ |
+| $a = 0$ | $1 - 0.6^2 = 0.64$ |
+| $a = 1$ | $1 - 0.4^2 = 0.84$ |
+
+A policy with mean $\mu = 0.6$ and $\sigma = 0.3$ earns on average
+$1 - 0^2 - 0.3^2 = 0.91$; one with $\mu = 0.3$ and the same $\sigma$ earns
+$1 - 0.3^2 - 0.3^2 = 0.82$, so the gradient moves the mean towards 0.6. The
+overshoot: a sample of 1.2 is clipped to 1 and earns 0.84 instead of the
+$1 - 0.6^2 = 0.64$ it would without the clip, so samples above the bound are
+rewarded more than they would be, which pushes the mean slightly past 0.6.
+
+### 5. Obs → action
+
+**Definition.** Each agent observes $\pm 1$ at random; reward
+$1 - (a_i - o_i/2)^2$; one step
+([`ObsActionProbe`](../../../core/rl/envs/probes.py#L251-L274)).
+
+**What it tests.** That each agent's policy uses its own observation, and that
+observation, action and reward stay aligned through batching.
+
+**Expected.** Action mean $= o/2$ ($\pm 0.5$) in the same three states as probe 2.
+CTCE is the slowest here: one network must learn which observation matters for
+which agent from the summed reward (L-02).
+
+**Example.** An agent that observes $+1$ should act $a = 0.5$ (reward 1), one that
+observes $-1$ should act $a = -0.5$. A policy that ignores its input can do no
+better than $a = 0$ in both states, earning $1 - 0.5^2 = 0.75$ each time: its mean
+is off by 0.5 against a tolerance of 0.15, so it fails. In the mixed state
+$(+1, -1, +1)$ the three means must be $(0.5, -0.5, 0.5)$.
+
+---
+
+## Probes 6-10: the market's action and horizon
+
+The market's action is a `Dict` of four parts ([P1] eq. 2): side and partner are
+categorical, quantity and price continuous. RLlib gives each part its own
+distribution and adds their log-probabilities, and the policy samples the parts
+independently of each other ([RL layer](../index.md)). Probes 6-10 test what that
+means for the market, one feature at a time.
+
+### 6. Mixed action
+
+**Definition.** Observation 0, one step, action `{"choice": Discrete(3), "level":
+Box(-1, 1)}`; reward $[\text{choice} = c_i] + 1 - (\text{level} - t_i)^2$, with a
+different category $c_i$ and level $t_i$ per agent
+([`MixedActionProbe`](../../../core/rl/envs/probes.py#L277-L327)).
+
+**Why the market needs it.** Every market action has categorical and continuous
+parts. This is the smallest case: one of each, independent, each with its own
+answer.
+
+**Expected.** The most likely choice is $c_i$ (exactly), the level's mean is $t_i$,
+and $V = 2$. In CTCE the group's action is a `Tuple` of these `Dict`s, so it also
+checks that RLlib's composite distribution keeps each agent's parts apart.
+
+**Example.** An agent with $c_i = 2$ and $t_i = 0.6$:
+
+| Choice | Level | Reward |
+|---|---|---|
+| 2 | 0.6 | $1 + 1 - 0^2 = 2.00$ |
+| 0 | 0.6 | $0 + 1 - 0^2 = 1.00$ |
+| 2 | 0 | $1 + 1 - 0.6^2 = 1.64$ |
+
+The two parts are rewarded separately, so each gets its own signal: the choice is
+worth 1 whatever the level, and the level up to 1 whatever the choice. At the
+start a uniform choice is right one time in three.
+
+### 7. Gated action
+
+**Definition.** Observation 0, one step, action `{"choice": Discrete(3), "gate":
+Box(-1, 1)}`. A closed gate ($g < 0$) pays 0.2 whatever the choice; an open gate
+pays $[\text{choice} = c_i] \cdot (1 - (g - 0.5)^2)$
+([`GatedActionProbe`](../../../core/rl/envs/probes.py#L359-L394)).
+
+**Why the market needs it.** In the market, a quantity below the no-order
+threshold places no order, and then side, price and partner have no effect at all.
+They still get a gradient on those steps, from a reward they did not influence.
+The probe has the same structure: the choice counts only when the gate is open.
+It also has the market's local optimum: closing the gate pays 0.2 for sure, an
+open gate with a random choice about $1/3$. A policy that learns the choice too
+slowly can settle on never "ordering".
+
+**Expected.** Choice $c_i$, gate mean 0.5, $V = 1$. A gate mean below 0 is the
+"never order" optimum.
+
+**Example.** An agent with $c_i = 1$:
+
+| Gate | Choice | Reward |
+|---|---|---|
+| $-0.4$ (closed) | any | 0.2 |
+| 0.5 (open) | 1 | $1 \cdot (1 - 0^2) = 1.00$ |
+| 0.2 (open) | 1 | $1 \cdot (1 - 0.3^2) = 0.91$ |
+| 0.5 (open) | 0 | 0 |
+| 0.5 (open) | uniform | $\tfrac13 \cdot 1 \approx 0.33$ on average |
+
+Early on, with the choice still uniform, opening the gate is worth only about
+0.33 against a sure 0.2, and less once the gate's own spread is counted: a small
+margin. If the choice is learned slowly, the gate's mean can drift below 0 and
+take the sure 0.2.
+
+### 8. Mutual choice (8a and 8b)
+
+**Definition.** Four agents in two pairs (1st with 2nd, 3rd with 4th, in agent
+order), observation 0, one step, action `{"side": Discrete(2), "partner":
+Discrete(3)}`: side 0 sells, 1 buys; partner 0 names the pair-mate, 1 the DSO, 2
+nobody. Reward: 1 when both name each other on opposite sides; `dso_reward` for
+naming the DSO; else 0; plus 0.1 for the agent's own side (the first of a pair
+sells, the second buys), which makes the best answer unique
+([`MutualChoiceProbe`](../../../core/rl/envs/probes.py#L397-L484)).
+
+**Why the market needs it.** Stage 1 of the clearing trades only between a buyer
+and a seller that named each other. Learning that is a coordination problem: one
+agent's partner choice pays only if its partner makes the matching choice. The DSO,
+which takes every order at its tariffs, is the safe alternative.
+
+**Which answer a learner should reach** depends on what the DSO pays. At the start
+every choice is uniform, so naming the mate pays on average
+
+$$
+P(\text{the mate names me}) \cdot P(\text{opposite sides}) = \tfrac13 \cdot \tfrac12 = \tfrac16 ,
+$$
+
+against `dso_reward` for naming the DSO, whatever the mate does. Hence two runs:
+
+- **8a, coordination** (`dso_reward = 0.1`, below 1/6): naming the mate is the
+  better bet from the start, so every working learner should coordinate. An exact
+  check: own side, the mate, $V = 1.1$. A failure points at the partner plumbing or
+  at how the mate's choice reaches the reward.
+- **8b, stag hunt** (`dso_reward = 0.5`, above 1/6): the DSO pays for sure, mutual
+  naming pays more only if both do it. Game theory calls the DSO the risk-dominant
+  choice, and independent learners are known to settle on it (Claus and Boutilier,
+  1998). CTCE's summed reward makes mutual naming worth $1/3$ to the pair, still
+  below 0.5. So 8b is **measured, not judged**: its result is the share of pairs
+  that coordinate (`coordinated`). It says how hard the market's version of the
+  problem is for each paradigm.
+
+In the market the cost of a failed naming is smaller than in 8b: an order whose
+partner does not name it back still goes to the double auction. The market's
+partner action therefore has a weaker signal, not a stronger one.
+
+**Example.** One pair: A should sell, B should buy.
+
+| A | B | A's reward | B's reward |
+|---|---|---|---|
+| sell, names B | buy, names A | $1 + 0.1 = 1.1$ | $1 + 0.1 = 1.1$ |
+| sell, names B | buy, names the DSO | $0 + 0.1 = 0.1$ | `dso_reward` $+ 0.1$ |
+| sell, names the DSO | buy, names the DSO | `dso_reward` $+ 0.1$ | `dso_reward` $+ 0.1$ |
+| sell, names B | sell, names A | $0 + 0.1 = 0.1$ | 0 (same side, no trade) |
+
+In 8a (`dso_reward` 0.1) the DSO pays 0.2, so naming the mate is worth trying;
+in 8b (0.5) the DSO pays 0.6 for sure, while naming the mate pays 1.1 only if
+the mate does it too, and 0.1 if not.
+
+
+### 9. Conditional part
+
+**Definition.** Observation 0, one step, action `{"side": Discrete(2), "level":
+Box(-1, 1)}`; reward $1 - (\text{level} - t_\text{side})^2$ with
+$t_\text{sell} = -0.5$ and $t_\text{buy} = +0.5$, plus 0.05 for the agent's own
+side ([`ConditionalPartProbe`](../../../core/rl/envs/probes.py#L487-L522)).
+
+**Why the market needs it.** The market's best price and quantity depend on the
+side: an ask is not a bid. The policy samples them independently of the side, so
+while the side is undecided they are one compromise for both sides. The probe
+isolates that: the right level depends on the side the policy chose.
+
+**Expected.** Either side, with **its** level: the check leaves the side free
+(`None`) and judges the level against the target of the side the policy chose
+(`Follows`). The other side at its own level earns 1.0 against 1.05, a near-tie,
+so taking it is not a learner fault. $V$ is checked against 1.05, whose tolerance
+(0.1575) includes 1.0. A level near 0 is the compromise of an undecided side.
+
+**Example.** An agent whose own side is buy:
+
+| Side | Level | Reward |
+|---|---|---|
+| buy | 0.5 | $1 - 0^2 + 0.05 = 1.05$ |
+| sell | $-0.5$ | $1 - 0^2 = 1.00$ |
+| buy | $-0.5$ | $1 - 1^2 + 0.05 = 0.05$ |
+
+While the side is still 50/50 and the level is sampled independently of it, one
+level $l$ must serve both: its expected reward is
+$1 - \tfrac12\left[(l - 0.5)^2 + (l + 0.5)^2\right] = 0.75 - l^2$ (without the
+bonus), best at $l = 0$. That is the compromise, and why a level stuck near 0
+means the side never settled while the level could still move.
+
+### 10. Long episode
+
+**Definition.** 24 steps, observation $t / 23$ (the hour), reward +1 at the last
+step only, the action ignored; trained with $\gamma = 0.95$
+([`LongEpisodeProbe`](../../../core/rl/envs/probes.py#L525-L554)).
+
+**Why the market needs it.** The market's episode is one day of 24 steps;
+probes 1-9 have one or two. The probe checks that discounting and bootstrapping
+hold over a day.
+
+**Expected.** $V(t) = 0.95^{23 - t}$, checked at hours 0, 12 and 23 (0.31, 0.57, 1),
+each within 15 % of itself (`relative`): an absolute tolerance of 0.15 would
+accept anything from 0.16 to 0.46 at hour 0, a value several steps of discounting
+off.
+
+**Example.** With $\gamma = 0.95$ the values to reach are
+
+| Hour $t$ | $V(t) = 0.95^{23 - t}$ | Accepted (15 % of itself) |
+|---|---|---|
+| 0 | 0.307 | 0.261-0.353 |
+| 12 | 0.569 | 0.484-0.654 |
+| 23 | 1.000 | 0.85-1.15 |
+
+With an absolute tolerance of 0.15, hour 0 would accept 0.157-0.457, which
+includes hour 7's value ($0.95^{16} = 0.440$): a critic seven hours off would
+pass.
+
+---
+
+## Results
+
+The latest full run: 25 October 2026, TalTech job 1048530, `"fast"` preset, seed
+0, all 33 combinations on one node in 317 s; the failures again at 2×. The 4×
+round was cancelled. The numbers are the largest error over its tolerance (above 1
+fails; "miss" is a wrong category); 8b's is the share of pairs that coordinate.
+
+| # | CTCE | CTDE | DTDE |
+|---|---|---|---|
+| 1-4 | PASS | PASS | PASS |
+| 5 | FAIL 1.18 (2×: 1.44) | PASS | PASS |
+| 6 | PASS | FAIL 1.73 → **PASS at 2×** | FAIL 1.48 → **PASS at 2×** |
+| 7 | FAIL 3.33 (2×: 3.33) | PASS | PASS |
+| 8a | PASS | PASS | PASS |
+| 8b | 0.50 coordinated | 0.00 | 0.00 |
+| 9 | FAIL 2.51 (2×: 1.37) | FAIL 2.59 (2×: 2.42) | FAIL 2.94 (2×: 2.63) |
+| 10 | PASS | PASS | PASS |
+
+What they say:
+
+- **The learner works**: probes 1-4 and 10 pass everywhere, 6 passes with twice
+  the budget, 8a passes everywhere (the partner plumbing is right).
+- **CTCE is slow on probes 5 and 7**, as expected from its summed reward and its
+  one joint ratio (L-02); on probe 7 one agent's gate sits at the bound.
+- **8b behaves as the theory predicts**: DTDE and CTDE choose the DSO, CTCE
+  coordinates one of its two pairs.
+- **Probe 9 is the open problem.** In DTDE and CTDE the level's spread collapses
+  ($\log \sigma$ down to about −5.5) while its mean is still near 0.1 instead of
+  0.5; after that each update's KL grows to 1.5-1.8 and the gradient norm to
+  300-380 against a clip of 0.5, so the learner can no longer steer the mean.
+  CTCE's spread shrinks more slowly and its level is still moving (0.35 at 30,000
+  steps). This is the market's price and quantity under an undecided side; the
+  options are in the [RL plan](../../workspace/rl.md), stage 3.
+
+### The continuous parts (26 October 2026)
+
+Six ways of handling the continuous action parts, 3 seeds each, `"fast"` preset
+(`runs/@taltech/probe_methods_scores.csv`): RLlib's head (baseline); bounded mean
+and log σ with the clip at 10 (AB); one log σ per part for every state as in MAPPO
+(S, SB with the clip at 10); S with the mean through tanh (SM, SMB). Passes out of
+3 seeds, CTDE / DTDE:
+
+| Probe | Baseline | AB | S | SM |
+|---|---|---|---|---|
+| 7 | 3 / 2 | 3 / 3 | 3 / 2 | 3 / 3 |
+| 9 | 0 / 0 | 0 / 0 | 2 / 3 | **3 / 3** |
+| All judged probes (of 30) | 24 / 23 | 25 / 25 | 26 / 27 | **28 / 28** |
+
+The state-independent log σ fixes probe 9 (it cannot shrink faster than about the
+learning rate per step, so the mean still has spread when the side settles); the
+bounded mean keeps it inside the action's bounds. SM is the default (RP-3h,
+[decisions](../../workspace/decisions.md)). Bounding the log σ instead (A) did not help:
+it held at its floor and the mean still stopped short.
+
+### Training settings and readiness (26 October 2026)
+
+With SM, the market's network (2 × 256) and 4 times each probe's budget in
+environment steps, eight training settings (learning rate, batch, minibatch,
+epochs), probes 4-7 and 9, 3 seeds (`runs/@taltech/probes_screen_*/`):
+
+| Settings | CTDE + DTDE (of 30) | CTCE (of 15) | Median KL per update |
+|---|---|---|---|
+| 1e-5, 4000, 4000, 5 (the original's) | 3 | 0 | 0.0014 |
+| 1e-3, 500, 64, 10 | 16 | 5 | 0.016 |
+| **3e-4, 500, 64, 10** | **29** | **8** | **0.005** |
+| 1e-3, 1000, 1000, 10 | 9 | 0 | 0.002 |
+| any batch of 2000 or 4000 | 0 | 0 | ≤ 0.0002 |
+
+The chosen settings (RP-6b) also pass probes 1-3, 8a and 10 in every paradigm and
+seed. CTCE stays short on probes 4-6 even at 8 times the budget (4: 2 of 3; 5 and
+6: 0 of 3), as its joint ratio and summed reward let it (L-02). By the criteria of
+RP-2a, the RL layer is ready for the market.
+
+### Why CTCE misses probes 4-6 (26 October 2026)
+
+CTCE with the chosen settings, probes 4-6, 3 seeds (TalTech jobs 1051309 and
+1051310; `runs/@taltech/probes_screen_one`, `_ent3`, `_ent0` and the `_x4` runs of
+`probes_screen_D`). Passes out of 3, and the largest error over its tolerance:
+
+| Probe | 3 agents (as above) | 1 agent | Entropy 0.01 / 3 | Entropy 0 | 3 agents, 16 × budget |
+|---|---|---|---|---|---|
+| 4 | 0 (2.0-2.6) | **3** | 0 (2.1-2.4) | 0 (2.0-2.5) | 2 |
+| 5 | 2 | **3** | 3 | 2 | 0 (1.05-1.55) |
+| 6 | 0 (2.6-2.7) | **3** | 0 (2.6) | 0 (2.5-2.6) | 2 |
+
+- **The CTCE plumbing is right.** With one agent, CTCE is one agent's PPO and passes
+  every probe, as DTDE does.
+- **The entropy bonus is not the cause here.** Without it, or divided by 3, probes
+  4 and 6 miss by as much as with 0.01. (On the market it was the cause: L-02,
+  `ctce_entropy`.)
+- **The shared reward slows each agent's σ.** At 4 times the budget one agent's
+  log σ is −1.74; three agents' are −0.9 to −1.0, with or without entropy. While σ
+  is that wide, the best mean is beyond the target, because the probe clips the
+  sampled action to [−1, 1]: for a target of 0.6 it is 0.90 at log σ = −0.8, 0.76
+  at −1.0 and 0.60 below −2. The misses are that overshoot (means of ±0.97 for
+  targets of ±0.6); the agent whose target is 0, where clipping is symmetric,
+  passes.
+- **With a longer budget σ shrinks, and then collapses.** At 16 times the budget
+  the overshoot is gone (log σ −2 to −2.5), but an agent's log σ reaches −4 to −5.6,
+  the KL per update grows to 0.1-0.4 and its mean drifts by about 0.2 (probe 5:
+  0.65-0.71 for 0.5). The team's return stays near its best (probe 5: 2.98 of 3),
+  so the summed reward hardly sees one agent's error.
+
+So CTCE learns the probes slowly and, with a long budget, unsteadily per agent:
+the cost of one advantage for the team's summed reward and one joint ratio
+(L-02), not a fault of the implementation.

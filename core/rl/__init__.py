@@ -2,7 +2,7 @@
 
 It imports no market module: the environment arrives as a class. What each file
 fixes is in its docstring; the issue IDs are those of the validation document
-(``docs/validation/rl.md``). The original code with its annotations is at commit
+(``docs/original/issues/rl.md``). The original code with its annotations is at commit
 ``bbef313``, under ``RL/core/rl/``.
 
     state.py          the global state: every agent's observation joined, in agent order

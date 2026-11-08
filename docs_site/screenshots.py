@@ -2,7 +2,7 @@
 
 Starts the Studio headless on its own port, ticks the runs of one experiment, opens
 each tab and saves every card (``section``) it shows into
-``docs/studio/results/img/<tab>-<card>.png``. Run it again after a Studio change and
+``docs/using/studio/results/img/<tab>-<card>.png``. Run it again after a Studio change and
 the docs' pictures follow:
 
     python docs_site/screenshots.py
@@ -27,7 +27,7 @@ from pathlib import Path
 from playwright.sync_api import Page, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "docs/studio/results/img"
+OUT = ROOT / "docs/using/studio/results/img"
 PORT = 8097
 # The tabs, and the panels some tabs switch between.
 TABS = {"Validation": [None], "Learning": ["Evaluation", "Timing"], "Market": [None],

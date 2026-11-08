@@ -21,7 +21,7 @@ from typing import Any
 
 # The original's starting hyperparameters ([P2] Table 8), less the defective ones;
 # ``config.py`` says which and why. The learning rate, batch, minibatch and epochs
-# chosen on the probes (RP-6b, docs/plan/decisions.md): the original's (1e-5, one
+# chosen on the probes (RP-6b, docs/workspace/decisions.md): the original's (1e-5, one
 # minibatch of 4000, 5 epochs) learned none of the probes within 4 times their
 # budget; these (Stable-Baselines3's PPO defaults, with a smaller batch) pass every
 # probe in CTDE and DTDE.
@@ -56,7 +56,7 @@ NETWORK: dict[str, Any] = {
     "vf_share_layers": False,
     # Our own (core/rl/modules.py, RP-3h): each continuous action part's mean
     # through tanh, and one learned log std per part for every state (MAPPO's).
-    # Chosen on the probes (docs/full-cycle/learning/probes.md): RLlib's state-dependent log std
+    # Chosen on the probes (docs/methodology/validation/probes.md): RLlib's state-dependent log std
     # collapsed before the side it depends on was decided (probe 9: 0 of 9).
     "bound_mean": True,
     "log_std_bounds": None,

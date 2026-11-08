@@ -1,8 +1,8 @@
-"""Network catalogue statistics, generated into ``simbench/networks.md``.
+"""Network catalogue statistics, generated into ``using/data/networks.md``.
 
 Every network the Studio offers (SimBench and the pandapower built-ins) is
 loaded through the application services, its facts and element mix are
-computed, and the result is kept in ``simbench/networks.json``. The document's
+computed, and the result is kept in ``using/data/networks.json``. The document's
 tables are generated from that file: a block between
 ``<!-- BEGIN generated:networks KEY -->`` and ``<!-- END generated:networks -->``
 is replaced by the table ``KEY``.
@@ -27,8 +27,8 @@ from typing import Any
 # --------------------------------------------------------------------------------------
 DOCS = Path(__file__).resolve().parent
 ROOT = DOCS.parent
-DATA = DOCS / "simbench" / "networks.json"
-PAGE = DOCS / "simbench" / "networks.md"
+DATA = DOCS / "using" / "data" / "networks.json"
+PAGE = DOCS / "using" / "data" / "networks.md"
 BLOCK = re.compile(
     r"(<!-- BEGIN generated:networks (\w+) -->\n).*?(<!-- END generated:networks -->)",
     re.S,
@@ -431,7 +431,7 @@ def render_blocks(rows: list[dict]) -> dict[str, str]:
     blocks["generated"] = (
         f"{len(rows)} networks ({len(simbench)} SimBench grid × scenario rows after "
         f"merging the switch variants, {len(builtin)} pandapower built-ins), "
-        f"from `docs/simbench/networks.json`."
+        f"from `docs/using/data/networks.json`."
     )
 
     return blocks
@@ -449,13 +449,13 @@ def write(check: bool = False) -> int:
 
     if check:
         if new != text:
-            print("simbench/networks.md is out of date; run python docs/networks.py")
+            print("using/data/networks.md is out of date; run python docs/networks.py")
             return 1
         return 0
 
     if new != text:
         PAGE.write_text(new, encoding="utf-8", newline="\n")
-        print("updated: simbench/networks.md")
+        print("updated: using/data/networks.md")
 
     return 0
 

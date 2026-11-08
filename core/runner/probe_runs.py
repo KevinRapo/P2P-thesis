@@ -4,7 +4,7 @@ Plain data and file reading, next to the runner's other readers, so the Studio (
 Validate → RL probes page) reads it without loading Ray: everything under
 ``core/rl/`` imports Ray and torch. The probes themselves are in
 ``core/rl/envs/probes.py``, their procedure in ``core/rl/scripts/probe_check.py``,
-the prose in ``docs/full-cycle/learning/probes.md``.
+the prose in ``docs/methodology/validation/probes.md``.
 
 A probe run is a folder ``ppo_<paradigm>_p<probe>_s<seed>[_x<scale>]`` under
 ``runs/probes_<preset>/``; ``probe_check.score_to_file`` writes its ``score.csv``

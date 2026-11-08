@@ -8,11 +8,11 @@
 > 5. read the results.
 >
 > Each step names the Studio page to use and the page that explains it. It assumes
-> the [setup](index.md) is done and the Studio is running.
+> the [setup](setup.md) is done and the Studio is running.
 
 ## 1. Look at a network: Inspect
 
-Every market runs on a [SimBench](../simbench/README.md) low-voltage network. These
+Every market runs on a [SimBench](../using/data/simbench.md) low-voltage network. These
 are German benchmark grids with real line data and a year of load and PV profiles.
 
 Open **Build → Inspect** and pick a network, for example `1-LV-rural3--2-sw`. It
@@ -23,7 +23,7 @@ shows:
   the whole network;
 - SimBench's study cases.
 
-The [network catalogue](../simbench/networks.md) compares all of them.
+The [network catalogue](../using/data/networks.md) compares all of them.
 
 ## 2. Build a scenario: Scenario
 
@@ -43,7 +43,7 @@ and save a new one.
 | `validate_market.json` | Five participants on `rural1--0`. Small; the tests and the market notebooks use it |
 | `lv_rural3_p13.json` | Thirteen participants on `rural3--2`. The current experiments use it |
 
-Every setting is explained in the [config reference](../config/reference.md).
+Every setting is explained in the [config reference](../using/config.md).
 
 ## 3. Play the market by hand: Validate → Market
 
@@ -59,7 +59,7 @@ No learning is involved: the participants bid by a fixed rule.
 
 The **Probes** tab plays scripted cases whose outcome is known in advance. This is
 the place to understand the market before trusting any training result.
-[The market step](../full-cycle/market-step.md) explains each stage with its
+[The market step](../methodology/market/step.md) explains each stage with its
 equation and the code behind it.
 
 ## 4. Train: an experiment
@@ -88,12 +88,12 @@ The same experiments can be started from **Build → Experiments** and
 **Experiments → Runs** in the Studio.
 
 To run on the TalTech cluster, add `--target taltech` and follow the
-[HPC setup](../hpc/setup.md). The commands are explained in
-[Training experiments](../hpc/experiments.md).
+[HPC setup](hpc-setup.md). The commands are explained in
+[Training experiments](../using/training-experiments.md).
 
 Each run trains, then plays the test days with the trained policy and with fixed
 **baselines**. It writes everything to `runs/<experiment>/<run>/`, as described in
-the [run contract](../config/run-contract.md).
+the [run contract](../using/run-contract.md).
 
 ## 5. Read the results: Results
 
@@ -102,7 +102,7 @@ Open **Experiments → Results** and tick the runs. It has four tabs:
 | Tab | Answers |
 |---|---|
 | Learning | Did training converge? |
-| Validation | How good is the trained policy compared with the baselines and the best possible ([metrics](../studio/results/metrics.md))? |
+| Validation | How good is the trained policy compared with the baselines and the best possible ([metrics](../using/studio/results/metrics.md))? |
 | Market | What did the market do? |
 | Grid | What did the grid do? |
 
@@ -113,9 +113,9 @@ Python.
 
 | You want to… | Read |
 |---|---|
-| Understand what the model computes | [Methodology](../overview.md), starting at [the market step](../full-cycle/market-step.md) |
-| Know what the original MARLEM states, and what was wrong with it | [Original MARLEM](../marlem/methodology.md) and the [issue register](../validation/register.md) |
-| Find or change code | [Code structure](../structure.md) and [the full cycle](../full-cycle/index.md) |
-| Know how the tool was checked | [Validation](../checks/index.md) |
-| Run many experiments on the cluster | [HPC](../hpc.md) |
+| Understand what the model computes | [Methodology](../methodology/index.md), starting at [the market step](../methodology/market/step.md) |
+| Know what the original MARLEM states, and what was wrong with it | [Original MARLEM](../original/methodology.md) and the [issue register](../original/issues/register.md) |
+| Find or change code | [Code structure](../methodology/structure.md) and [the full cycle](../methodology/full-cycle.md) |
+| Know how the tool was checked | [Validation](../methodology/validation/index.md) |
+| Run many experiments on the cluster | [HPC](../using/hpc/index.md) |
 | Look up a term | [Glossary](glossary.md) |

@@ -14,8 +14,10 @@ python run_docs.py diagrams                 # export draw.io diagrams, then buil
 
 [`run_docs.py`](../run_docs.py) is the whole pipeline; run it from the marlem
 environment (`conda run -n marlem python run_docs.py ...`). `python run_all.py docs`
-also starts the preview, in its own window. A new document appears on the site once it is added
-to `nav` in `docs_site/mkdocs.yml`. After editing `docs_site/hooks.py`, restart
+also starts the preview, in its own window. The folders under `docs/` mirror the site: each
+tab and section is a folder, so a page's place in the navigation is its place on
+disk. A new document appears once it is added to `nav` in `docs_site/mkdocs.yml`,
+under its folder's section. After editing `docs_site/hooks.py`, restart
 `mkdocs serve`; changes to the docs, the code and `docs_site/overrides/` are
 picked up while it runs.
 
@@ -32,9 +34,8 @@ taken down on 21 October 2026): read them locally with
 broken internal links and API documentation warnings. The generated `site/`
 folder is ignored.
 
-The HPC guide keeps `hpc.md` as its overview and old public entry point, with
-subpages under `docs/hpc/`. Windows helper source lives in `hpc/` alongside
-the code; setup instructions live in [the HPC setup page](hpc/setup.md).
+The HPC guide is under `docs/using/hpc/`; the Windows helper's source lives in
+`hpc/` alongside the code, its setup in [the HPC setup page](getting-started/hpc-setup.md).
 
 ## The API reference
 

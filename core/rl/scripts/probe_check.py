@@ -3,7 +3,7 @@ trained networks with the exact answers.
 
 One procedure for the command line (``probe_ppo.py``, next to this file), the
 notebook (``notebooks/rl/probe_paradigms.ipynb``) and the cluster (the same
-notebook in the Jupyter job, ``docs/hpc/notebooks.md``). The probes themselves
+notebook in the Jupyter job, ``docs/getting-started/notebooks.md``). The probes themselves
 are in ``core/rl/envs/probes.py``.
 
 A run is judged by reading its networks in the probe's check states, not by its

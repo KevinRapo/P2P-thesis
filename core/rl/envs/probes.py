@@ -31,7 +31,7 @@ continuous part (``choice``, ``level``), each with its own optimum per agent. It
 checks that RLlib's composite distribution learns both parts at once, in every
 paradigm (CTCE's group action is a ``Tuple`` of these ``Dict`` s).
 
-Probes 7-10 each isolate one feature of the market (``docs/plan/rl.md``, stage 2):
+Probes 7-10 each isolate one feature of the market (``docs/workspace/rl.md``, stage 2):
 
     7  GatedActionProbe      a gate decides whether the choice counts   open at 0.5, c_i
     8  MutualChoiceProbe     pairs paid only when they name each other  mutual, own side

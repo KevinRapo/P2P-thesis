@@ -11,7 +11,7 @@
 - **Windows or Linux.** The tool is developed on Windows. The cluster is Linux.
   A GPU is optional: PPO here trains on the CPU.
 - **For cluster runs only:** an account on the TalTech HPC and an SSH key. The
-  [HPC setup](../hpc/setup.md) covers that. Everything below works without it.
+  [HPC setup](hpc-setup.md) covers that. Everything below works without it.
 
 ## 1. Get the code
 
@@ -68,7 +68,7 @@ the learning layer.
 python run_studio.py
 ```
 
-Then open <http://localhost:8091>. The [Studio](../studio/index.md) is the
+Then open <http://localhost:8091>. The [Studio](../using/studio/index.md) is the
 interface to the whole workflow:
 - look at networks and profiles;
 - build a scenario;
@@ -109,7 +109,7 @@ other keys have working defaults:
 - the Studio's port;
 - the SSH host.
 
-Every key is listed in the [HPC setup](../hpc/setup.md#this-machines-settings-env).
+Every key is listed in the [HPC setup](hpc-setup.md#this-machines-settings-env).
 
 ## Where things are
 
@@ -123,4 +123,4 @@ Every key is listed in the [HPC setup](../hpc/setup.md#this-machines-settings-en
 | `runs/` | Every training run and its results. Created on the first run; not committed |
 | `docs/` | These pages |
 
-Every folder and file is described in [Code structure](../structure.md).
+Every folder and file is described in [Code structure](../methodology/structure.md).

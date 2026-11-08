@@ -84,7 +84,7 @@ JOB_ENV = {"PYTHONHASHSEED": "0", "PYTHONUNBUFFERED": "1"}
 # Ray sizes several thread pools in each of its processes by the machine's hardware
 # threads (80 on a TalTech green node), and TalTech allows 4096 threads per user per
 # node: these set them to one thread each, about 165 + 24 per sampler threads a run
-# instead of 480 + 75, without slowing training (docs/hpc/resources.md, threads per
+# instead of 480 + 75, without slowing training (docs/using/hpc/resources.md, threads per
 # run). Ray reads them in every process it starts; a job sets them before ray.init
 # when its experiment's ``ray_thread_caps`` is true.
 RAY_THREAD_CAPS = {
