@@ -21,7 +21,7 @@ from typing import Any
 
 # The original's starting hyperparameters ([P2] Table 8), less the defective ones;
 # ``config.py`` says which and why. The learning rate, batch, minibatch and epochs
-# chosen on the probes (RP-6b, docs/workspace/decisions.md): the original's (1e-5, one
+# chosen on the probes (RP-6b, docs/temp/decisions.md): the original's (1e-5, one
 # minibatch of 4000, 5 epochs) learned none of the probes within 4 times their
 # budget; these (Stable-Baselines3's PPO defaults, with a smaller batch) pass every
 # probe in CTDE and DTDE.

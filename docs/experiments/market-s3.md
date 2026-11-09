@@ -158,5 +158,5 @@ concurrent and parameter-sharing learners in all three of their tasks.
   members). It is not an upper bound in this setup (L-02); with many agents it is
   a lower one. Its entropy coefficient has to shrink with N to learn at all.
 - **The cluster**: about 330 threads per run with 8 runners, and 4096 threads per
-  user and node ([resources](../using/hpc/resources.md)): about 10 runs per node at once.
+  user and node ([resources](../using/running/hpc/resources.md)): about 10 runs per node at once.
   More start, but hang or fail at start (seen here).

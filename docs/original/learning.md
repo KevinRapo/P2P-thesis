@@ -121,15 +121,19 @@ definitions below come from the original code, the order is that of [P1]
 Table 2. Only the KPIs have equations in the papers ([P1] eq. 19-27); for them the
 paper's and the code's versions are shown side by side.
 
-Notation: $t$ is the current step and $T$ the number of steps in the episode.
-$\mathcal{T}_t$ is the set of trades of step $t$ (peers and DSO), and
-$\mathcal{T}^{\text{P2P}}_t \subseteq \mathcal{T}_t$ the trades between agents.
-$\mathcal{O}_t$ is the set of orders of step $t$, and $\mathcal{I}$ the set of
-agents. Each trade has a price $p$ and a quantity $q$. $G_{i,t}$ and $D_{i,t}$ are
-agent $i$'s generation and demand, and $b_{i,t}$ and $s_{i,t}$ the energy it bought
-and sold. $p_{\text{FiT},t}$ and $p_{\text{util},t}$ are the DSO's feed-in tariff
-and utility price, and $V^{\text{buy}}_t$ and $V^{\text{sell}}_t$ the energy the DSO
-bought and sold in step $t$.
+Notation:
+
+- $t$: the current step; $T$: the number of steps in the episode.
+- $\mathcal{I}$: the set of agents.
+- $\mathcal{T}_t$: the set of trades of step $t$ (peers and DSO);
+  $\mathcal{T}^{\text{P2P}}_t \subseteq \mathcal{T}_t$: the trades between agents.
+  Each trade has a price $p$ and a quantity $q$.
+- $\mathcal{O}_t$: the set of orders of step $t$.
+- $G_{i,t}$, $D_{i,t}$: agent $i$'s generation and demand.
+- $b_{i,t}$, $s_{i,t}$: the energy agent $i$ bought and sold in step $t$, in all
+  trades of $\mathcal{T}_t$ (with peers and with the DSO).
+- $p_{\text{FiT},t}$, $p_{\text{util},t}$: the DSO's feed-in tariff and utility price.
+- $V^{\text{buy}}_t$, $V^{\text{sell}}_t$: the energy the DSO bought and sold in step $t$.
 
 **Market signals** (public;
 [observation.py L280-L297](https://github.com/salazarna/marlem/blob/15d6715a7b7ad31700d3758f2a2dd9df053773a7/src/environment/observation.py#L280-L297),
@@ -345,8 +349,9 @@ $$
 J(\pi) = \sum_{t=0}^{\tau} \mathbb{E}_{(o_t, a_t) \sim \rho_\pi}\left[ r(o_t, a_t) + \alpha\, \mathcal{H}\left(\pi(\cdot \mid o_t)\right) \right] \tag{[P2] 15}
 $$
 
-How each is computed step by step in RLlib is in
-[One training iteration](../methodology/learning/iteration.md).
+Only PPO is rebuilt in this version (APPO and SAC are not); how it is computed step
+by step in RLlib is in
+[One training iteration](../methodology/learning/examples/iteration.md).
 
 ??? note "In the original code"
 

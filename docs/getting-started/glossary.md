@@ -16,7 +16,7 @@
 | **Peer charge** | The grid charges a buyer still pays on a peer trade: the part of the utility price a peer trade does not avoid (MP-4h, [tariffs](../methodology/market/tariffs.md#the-decision-mp-4h)) |
 | **Order** | A side (buy or sell), a quantity, a price and a preferred partner |
 | **Clearing** | Matching the orders: preferred partners, then the double auction, then the DSO ([§3](../methodology/market/step.md#3-clearing)) |
-| **Pricing mechanism** | How a matched pair's price is set from the bid and the ask ([config](../using/config.md)) |
+| **Pricing mechanism** | How a matched pair's price is set from the bid and the ask ([config](../using/running/config.md)) |
 | **Reputation** | A score per participant, updated every step. It weighs partner choice and breaks ties in the double auction |
 | **Fees** | The DSO's charges on a trade: congestion, thermal, voltage, transmission and imbalance parts, less a bonus for trades within one feeder ([§6](../methodology/market/step.md#6-fees)) |
 
@@ -46,16 +46,16 @@
 
 | Term | Meaning |
 |---|---|
-| **Scenario** | A network, a day, the participants and the market settings, as one JSON file in `config/scenarios/` ([config](../using/config.md)) |
-| **Experiment** | Paradigms × seeds × variants on one scenario, with budget and settings, as one JSON file in `config/experiments/` ([experiments](../using/training-experiments.md)) |
-| **Run** | One combination of an experiment: one paradigm, seed and variant, trained and evaluated ([run contract](../using/run-contract.md)) |
+| **Scenario** | A network, a day, the participants and the market settings, as one JSON file in `config/scenarios/` ([config](../using/running/config.md)) |
+| **Experiment** | Paradigms × seeds × variants on one scenario, with budget and settings, as one JSON file in `config/experiments/` ([experiments](../using/running/runs.md)) |
+| **Run** | One combination of an experiment: one paradigm, seed and variant, trained and evaluated ([how a run is judged](../methodology/evaluation/index.md#when-results-are-made)) |
 | **Budget** | The number of environment steps a run trains for |
 | **Target** | Where an experiment runs: `local` (this PC) or `taltech` (the SLURM cluster) |
 | **Test profile** | An experiment's smallest version (`--profile test`), to check it starts |
 | **Baselines** | Fixed policies played on the test days next to the trained one: random, zero, net position |
-| **Ceiling** | The most money the community could make on the test days, with perfect foresight ([results](../using/studio/results/index.md#baselines-and-references)) |
+| **Ceiling** | The most money the community could make on the test days, with perfect foresight ([evaluation](../methodology/evaluation/index.md#the-ceiling)) |
 | **Non-P2P** | Every participant on its own with the DSO, its battery used as well as it could be. The reference "no market" |
-| **VTI** | Value tapping index: the share of the gap from non-P2P to the ceiling that the policy reaches. 0 = no better than on their own, 1 = the ceiling ([metrics](../using/studio/results/metrics.md)) |
+| **VTI** | Value tapping index: the share of the gap from non-P2P to the ceiling that the policy reaches. 0 = no better than on their own, 1 = the ceiling ([metrics](../methodology/evaluation/metrics.md)) |
 
 ## The documentation's own labels
 
@@ -63,4 +63,4 @@
 |---|---|
 | **[P1], [P2]** | The two MARLEM papers: the framework paper (Applied Energy, 2026) and the learning-results preprint ([register](../original/issues/register.md#about-this-register)) |
 | **M-, E-, L-, D-** | An issue in the original MARLEM: market; environment and cooperation; learning; experiments and data ([issue register](../original/issues/register.md)) |
-| **MP-, RP-** | A point of the market plan or the RL plan: a decision this version made or still has to make ([decision log](../workspace/decisions.md)) |
+| **MP-, RP-** | A point of the market plan or the RL plan: a decision this version made or still has to make ([decision log](../temp/decisions.md)) |

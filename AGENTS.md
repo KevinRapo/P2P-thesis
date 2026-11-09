@@ -1,6 +1,6 @@
 # AGENTS.md: implementation guide for MARLEM v2
 
-Branch `marlem-v2`: the market, grid, Studio and runner, with RLlib's PPO and the
+Branch `marlem-studio` (checked out as `marlem-v2/`): the market, grid, Studio and runner, with RLlib's PPO and the
 paper's mixed market action (continuous price and quantity, categorical side and
 partner). What it does and why is in the [overview](docs/methodology/index.md). On the cluster this
 branch is its own checkout, `~/marlem-v2`, with its own `runs/`.
@@ -10,9 +10,10 @@ thesis is about, where the work stands and what comes next are in the workspace'
 top-level `AGENTS.md`.
 
 This file names folders and the few files that are landmarks, not every file:
-[docs/methodology/structure.md](docs/methodology/structure.md) lists every folder and script with how far
-it is built. Update structure.md whenever a file is added, moved, renamed or built;
-update this file only when a folder, a landmark or a rule changes.
+The [Architecture](docs/methodology/architecture/index.md) section has one page per package,
+one line per module (the details are in the module's docstring, shown in the API
+Reference). Update the package's page whenever a module is added, moved, renamed or
+removed; update this file only when a folder, a landmark or a rule changes.
 
 ## Folders
 
@@ -51,7 +52,7 @@ runs/        training runs and results (git-ignored); the runner's one source of
   `train(Run(...))` (`core/rl/train.py`), `evaluation` (`core/rl/policy.py`).
 - **Experiments**: `python -m core.runner start / status / stop / sync / check`;
   the JSON spec's fields are in `core/runner/spec.py`, usage in
-  [docs/using/training-experiments.md](docs/using/training-experiments.md) and [docs/using/hpc/](docs/using/hpc/index.md).
+  [docs/using/running/runs.md](docs/using/running/runs.md) and [docs/using/running/hpc/](docs/using/running/hpc/index.md).
 - **Settings**: `core/settings.py` reads the environment, else `.env` (keys in
   `.env.example`), else a default. Never hard-code a machine or account value: add
   a key.
@@ -130,14 +131,14 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
   `    # --- Network cache ----------…`. Put new code in the section it belongs to.
 - **Issue IDs.** A docstring that fixes or decides an issue names its ID from the
   [register](docs/original/issues/register.md); one that implements a plan decision
-  names its `MP-` or `RP-` ID from the [decision log](docs/workspace/decisions.md).
+  names its `MP-` or `RP-` ID from the [decision log](docs/temp/decisions.md).
   How the plans, the decision log and the full cycle fit together:
-  [docs/workspace/index.md](docs/workspace/index.md).
+  [docs/temp/index.md](docs/temp/index.md).
 - **Markers.** Four comment markers, listed in the workspace's `.vscode/settings.json`
   (Todo Tree): `FAULT` (still broken), `BUG` (a bug to fix), `DEVIATION` (our own choice,
   differing from the paper or the original) and `OPEN` (not decided). An open question is `# OPEN <ID>: question`, with the choice
   used for now; the ID (a register ID such as `E-10`, or a plan ID such as `MP-6a`) must
-  be in [docs/workspace/open.md](docs/workspace/open.md), which
+  be in [docs/temp/open.md](docs/temp/open.md), which
   `tests/test_open_markers.py` checks. `# ! note` is a quick reminder without an ID,
   triaged into that list at the end of a session. When decided, an `OPEN` becomes
   `# DEVIATION <ID>` if it departs from the paper, else it is removed and the docstring

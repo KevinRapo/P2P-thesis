@@ -1,8 +1,8 @@
 # Overview
 
 > The model as implemented, in three layers. What the papers state is in
-> [Original MARLEM](../original/methodology.md); why this version departs from it is in
-> [Why?](../why/rl-layer.md).
+> [Original MARLEM](../original/methodology.md); why the RL layer departs from it is in
+> [The RL layer](learning/examples/rl-layer.md).
 
 ## The model in three layers
 

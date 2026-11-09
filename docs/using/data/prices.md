@@ -13,7 +13,7 @@
 
 The scenario's `dso.prices` names a file in [config/data/](../../../config/data/), or
 gives two flat prices
-([config reference](../config.md#price-file)). Before each step, the DSO
+([config reference](../running/config.md#price-file)). Before each step, the DSO
 takes that step's two prices
 ([`Dso.set_hour`](../../../core/market/dso.py#L120-L123)). They are the same for every
 participant.
@@ -142,7 +142,7 @@ the price level, and that is what pays for shifting energy in time. With
 | Order prices | Peer prices must lie between the two tariffs, $p_\text{FiT} < p_\text{P2P} < p_\text{utility}$ ([P1] §3.3.2), less the peer charge; a file that leaves no room at some step is refused | [Tariffs](../../methodology/market/tariffs.md#the-two-tariffs) |
 | The agents' price action | Mapped onto that band at each step, so the same action means a different price at a different hour | [Action](../../methodology/environment/action.md) |
 | The observation | Both prices of the step about to be played are observed (`dso_buy_price`, `dso_sell_price`), scaled to a fixed range (`tariff_range`) | [Observation](../../methodology/environment/observation.md) |
-| The references | The ceiling and non-P2P money use the same prices per step | [Results](../studio/results/index.md#baselines-and-references) |
+| The references | The ceiling and non-P2P money use the same prices per step | [Evaluation](../../methodology/evaluation/index.md#four-yardsticks) |
 
 ## Rebuilding the files
 

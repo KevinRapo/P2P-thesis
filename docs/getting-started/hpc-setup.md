@@ -42,7 +42,7 @@ one to submit, so put a `.env` there too (`~/marlem-v2/.env`, at least
 | Thing | Where |
 |---|---|
 | Notebook files you edit | This PC |
-| Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v2`, a clone of branch `marlem-v2` |
+| Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v2`, a clone of branch `marlem-studio` |
 | Results (`runs/`) | Cluster: `~/marlem-v2/runs/`; synced experiments on this PC in `runs/@taltech/` |
 | Python environment | Cluster: `~/miniforge3/envs/marlem` |
 | Jupyter job script | [hpc/jupyter.slurm](../../hpc/jupyter.slurm), in the cluster's checkout |
@@ -92,18 +92,18 @@ your SSH alias:
 
 ```ini
 [alias]
-	pushc = "!f() { b=$(git rev-parse --abbrev-ref HEAD); if [ $# -eq 0 ]; then git push -u origin HEAD; else git push \"$@\"; fi && ssh -o BatchMode=yes taltech \"cd ~/$b && git pull --ff-only\" 2>&1 | grep -v \"^tput:\"; }; f"
+	pushc = "!f() { d=$(basename \"$(git rev-parse --show-toplevel)\"); if [ $# -eq 0 ]; then git push -u origin HEAD; else git push \"$@\"; fi && ssh -o BatchMode=yes taltech \"cd ~/$d && git pull --ff-only\" 2>&1 | grep -v \"^tput:\"; }; f"
 	shipc = "!f() { if [ -z \"$1\" ]; then echo \"usage: git shipc \\\"commit message\\\"\"; return 1; fi; git add -A && git commit -m \"$1\" && git pushc; }; f"
 ```
 
 | Command | Does |
 |---|---|
-| `git pushc` | Push, then `git pull --ff-only` in `~/<branch>` on the cluster |
+| `git pushc` | Push, then `git pull --ff-only` on the cluster in the folder of the same name as this checkout (`~/marlem-v2`) |
 | `git shipc "message"` | `git add -A`, commit, `git pushc`; each step only if the previous one succeeded |
 
 `add -A` stages everything, new files included (`.env` is ignored): check
 `git status` first when unsure. Do not pull on the cluster while experiments are
-queued or running there ([why](../using/training-experiments.md#limits)).
+queued or running there ([why](../using/running/runs.md#limits)).
 
 ## Rebuild the cluster environment
 
@@ -115,7 +115,7 @@ wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge
 bash Miniforge3-Linux-x86_64.sh -b -p ~/miniforge3
 ~/miniforge3/bin/conda init bash
 source ~/.bashrc
-git clone -b marlem-v2 https://github.com/KevinRapo/P2P-thesis.git ~/marlem-v2
+git clone -b marlem-studio https://github.com/KevinRapo/P2P-thesis.git ~/marlem-v2
 conda env create -f ~/marlem-v2/environment.yml
 echo "MARLEM_SLURM_ACCOUNT=<account>" > ~/marlem-v2/.env
 openssl rand -hex 16 > ~/.jupyter_token

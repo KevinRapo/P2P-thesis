@@ -15,18 +15,16 @@
 
 ## 1. Get the code
 
-The code is the `marlem-v2` branch of one public repository:
+The code is the `marlem-studio` branch of one public repository:
 
 ```
-git clone -b marlem-v2 https://github.com/KevinRapo/P2P-thesis.git marlem-v2
+git clone -b marlem-studio https://github.com/KevinRapo/P2P-thesis.git marlem-v2
 cd marlem-v2
 ```
 
 All commands on these pages run from this folder, the **repository root**.
 
-The other branches are reference only:
-- `main` holds the original MARLEM as published;
-- `marlem-v1` holds the first rebuild.
+The `main` branch holds the original MARLEM as published, for reference.
 
 ## 2. Create the environment
 
@@ -79,17 +77,17 @@ It reads and writes the same files as the command line, so you can mix the two.
 
 ## 5. Read the docs locally
 
-The documentation is not published online. Build it on your own machine:
+To preview the documentation on your own machine, for example while editing it:
 
 ```
-python run_docs.py
+mkdocs serve
 ```
 
 Then open <http://127.0.0.1:8001>. The preview updates while you edit `docs/`.
 After a change, check it:
 
 ```
-python run_docs.py build
+mkdocs build --strict
 ```
 
 This build stops on broken links.
@@ -123,4 +121,4 @@ Every key is listed in the [HPC setup](hpc-setup.md#this-machines-settings-env).
 | `runs/` | Every training run and its results. Created on the first run; not committed |
 | `docs/` | These pages |
 
-Every folder and file is described in [Code structure](../methodology/structure.md).
+Every folder and file is described in [Architecture](../methodology/architecture/index.md).

@@ -1,52 +1,54 @@
 # The Studio
 
-> The NiceGUI interface to the whole workflow: build a scenario, check the market and
-> the learner, start runs, and read their results. Every page reads and writes the same
-> files as the CLI and the notebooks, so nothing exists only in the Studio.
+> A browser interface to the whole workflow: look at the data, build a scenario,
+> check the market and the learner, start training, follow it and read the results.
+> It reads and writes the same files as the CLI and the notebooks, so nothing exists
+> only in the Studio.
 
-Start it from a checkout, in the `marlem` environment, and open
-http://127.0.0.1:8091:
+## Start it
+
+From a checkout, in the `marlem` environment:
 
 ```
 python run_studio.py
 ```
 
-## The pages
+It opens http://127.0.0.1:8091. Closing the browser does not stop runs; they keep
+going on their own.
 
-The left navigation groups the pages by what they are for
-([`navigation.py`](../../../studio/navigation.py)).
+## Find your way
 
-| Group | Page | What it answers | Explained in |
-|---|---|---|---|
-| Build | Inspect | What do the SimBench networks, profiles and price files look like? Read only | |
-| Build | Scenario | Which network, day, participants, market and DSO settings? Writes the scenario | [Config](../config.md) |
-| Build | Experiments | What will a training experiment run, and is it valid? | [Training experiments](../training-experiments.md) |
-| Build | Summary | The scenario and the experiment in one look, before they run | |
-| Validate | Market | Does one market step do what the equations say? Step through it, or play scripted probes | [Market step](../../methodology/market/step.md) |
-| Validate | RL probes | Does the learner solve problems with a known answer? | [The probes](../../methodology/validation/probes.md) |
-| Experiments | Runs | What is running, here and on the cluster? Start, stop, sync | [Training experiments](../training-experiments.md) |
-| Experiments | **Results** | Did it learn, how good is it, what did the market and the grid do? | [Results](results/index.md) |
+![The Summary page, with the navigation on the left](build/img/summary.png)
 
-The rules for the Studio's code (the core first, the page only draws what the core
-computes) are in [AGENTS.md](https://github.com/KevinRapo/P2P-thesis/blob/marlem-v2/AGENTS.md).
+**The navigation** on the left groups the pages in the order of the work. The ☰
+button folds it away.
 
-## From a run to the Results page
+| Group | Page | For |
+|---|---|---|
+| Build | [Inspect](build/inspect.md) | Looking at networks, profiles and prices |
+| Build | [Scenario](build/scenario.md) | Building the market a run plays |
+| Build | [Experiments](build/experiments.md) | Preparing and starting training |
+| Build | [Summary](build/summary.md) | Checking both before running |
+| Validate | [Market](validate/market.md) | Playing the market step by step; scripted checks |
+| Validate | [RL probes](validate/rl-probes.md) | Checking the learner on known answers |
+| Experiments | [Runs](experiments/runs.md) | Following, stopping and syncing training |
+| Experiments | [Results](experiments/results/index.md) | Reading finished and running runs |
+| | [Settings](settings.md) | The workspace folder, the network cache, dark mode |
 
-```text
-runs/<experiment>/<run>/          saved by the run: settings and tables      (level 1)
-        │
-        ▼
-core/runner/results.py            reads them, cached by file time and size
-core/runner/indicators.py         one number per run, policy and test day    (level 2)
-core/runner/ceiling.py            the references: ceiling and non-P2P
-        │
-        ▼
-studio/adapters/results_service   the runs of the ticked rows
-studio/pages/results/             one file per tab: Learning, Validation,
-                                  Market, Grid                               (level 3)
-```
+**The header** is on every page:
 
-Only level 1 is recorded. Everything after it is computed when it is read, so a new
-indicator applies to every run already made, as long as the saved tables hold what it
-needs. The [Results](results/index.md) section explains each level, every metric, and
-every panel of the four tabs.
+- **The cluster dot:** green when the cluster answered recently. Click to check now.
+- **Scenario:** the active scenario. *unsaved* means it has no file, or differs from
+  the file it came from (`-mod` in its name); it plays and starts all the same.
+  Click to open another scenario file.
+- **Experiment:** the experiment being prepared. Click to open another file.
+- **The moon:** dark mode.
+
+## What the Studio remembers
+
+The active scenario, the experiment being prepared and the network cache live in the
+**workspace folder** ([Settings](settings.md)). Each page's choices (open tab, ticked
+runs, filters) are remembered per browser. Both survive a restart.
+
+The screenshots show the thesis setup: the scenario `thesis_rural3_p13` and the
+experiment `thesis_grid_methods` ([Thesis experiments](../../experiments/thesis.md)).

@@ -55,7 +55,7 @@ without training.
 `"fast"` preset (a 2 × 64 network, learning rate $10^{-3}$, batches of 500,
 minibatches of 64, 10 epochs); `"thorough"` uses RLlib's 2 × 256 network, learning
 rate $3 \cdot 10^{-4}$ and twice the budget
-([`PRESETS`](../../../core/rl/scripts/probe_check.py#L126-L145)). Every other setting is
+([`PRESETS`](../../../core/rl/scripts/probe_check.py#L127-L162)). Every other setting is
 the market's ([`rl_defaults.py`](../../../core/rl_defaults.py)), including the gradient
 clip of 0.5 and the entropy coefficient of 0.01.
 
@@ -423,7 +423,7 @@ What they say:
   300-380 against a clip of 0.5, so the learner can no longer steer the mean.
   CTCE's spread shrinks more slowly and its level is still moving (0.35 at 30,000
   steps). This is the market's price and quantity under an undecided side; the
-  options are in the [RL plan](../../workspace/rl.md), stage 3.
+  options are in the [RL plan](../../temp/rl.md), stage 3.
 
 ### The continuous parts (26 October 2026)
 
@@ -442,7 +442,7 @@ and log σ with the clip at 10 (AB); one log σ per part for every state as in M
 The state-independent log σ fixes probe 9 (it cannot shrink faster than about the
 learning rate per step, so the mean still has spread when the side settles); the
 bounded mean keeps it inside the action's bounds. SM is the default (RP-3h,
-[decisions](../../workspace/decisions.md)). Bounding the log σ instead (A) did not help:
+[decisions](../../temp/decisions.md)). Bounding the log σ instead (A) did not help:
 it held at its floor and the mean still stopped short.
 
 ### Training settings and readiness (26 October 2026)

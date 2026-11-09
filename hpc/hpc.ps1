@@ -76,10 +76,10 @@ function Start-Jupyter([string[]]$SbatchArgs) {
         Write-Host "Use 'hpc tunnel' to connect or 'hpc stop' to end it."
         return
     }
-    # The cluster folder of the code is named after the branch checked out here
+    # The cluster folder of the code is named after this checkout's folder
     # (marlem-v2 -> ~/marlem-v2); the job script starts Jupyter in $REPO.
-    $branch = (git rev-parse --abbrev-ref HEAD 2>$null)
-    if (-not $branch) { $branch = "marlem-v2" }
+    $top = (git rev-parse --show-toplevel 2>$null)
+    $branch = if ($top) { Split-Path $top -Leaf } else { "marlem-v2" }
     $clusterHome = "$(Remote 'echo $HOME' | Select-Object -Last 1)".Trim()
     if (-not $clusterHome) {
         Write-Host "No answer from '$HostAlias' (VPN? ssh $HostAlias)."

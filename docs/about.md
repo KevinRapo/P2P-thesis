@@ -3,39 +3,40 @@
 ## Source and build
 
 The Markdown source is `docs/` in the repository, readable on its own in VS Code
-and on GitHub. The site is built with MkDocs Material from `docs_site/`:
+and on GitHub. The site is built with MkDocs Material, configured in `mkdocs.yml` at
+the root; `docs_site/` holds the build hooks, the theme overrides and the
+requirements. From the root, in the marlem environment:
 
 ```text
-pip install -r docs_site/requirements.txt   # once, in the marlem env
-python run_docs.py                          # live preview, http://127.0.0.1:8001
-python run_docs.py build                    # check (--strict) and build into site/
-python run_docs.py diagrams                 # export draw.io diagrams, then build
+pip install -r docs_site/requirements.txt   # once
+mkdocs serve                                # live preview, http://127.0.0.1:8001
+mkdocs build --strict                       # check and build into site/
+python docs_site/export_drawio.py           # after editing a .drawio diagram
 ```
 
-[`run_docs.py`](../run_docs.py) is the whole pipeline; run it from the marlem
-environment (`conda run -n marlem python run_docs.py ...`). `python run_all.py docs`
-also starts the preview, in its own window. The folders under `docs/` mirror the site: each
-tab and section is a folder, so a page's place in the navigation is its place on
-disk. A new document appears once it is added to `nav` in `docs_site/mkdocs.yml`,
-under its folder's section. After editing `docs_site/hooks.py`, restart
+`python run_all.py docs` also starts the preview, in its own window. The folders
+under `docs/` mirror the site: each tab and section is a folder, so a page's place
+in the navigation is its place on disk. A new document appears once it is added to
+`nav` in `mkdocs.yml`, under its folder's section. After editing `docs_site/hooks.py`, restart
 `mkdocs serve`; changes to the docs, the code and `docs_site/overrides/` are
 picked up while it runs.
 
 What the site does differently from the Markdown files happens at build time in
 `docs_site/hooks.py`: it generates the API pages, and turns links to code and
 other non-Markdown files into links to the repository on GitHub, keeping `#L` line
-anchors. Those links point at the `marlem-v2` branch, so they work once it is pushed.
+anchors. Those links point at the `marlem-studio` branch, so they work once it is pushed.
 
-## Publishing
+## Checking and publishing
 
-The docs are **not published online** (the former GitHub Pages site was
-taken down on 21 October 2026): read them locally with
-`python run_docs.py`, and run `python run_docs.py build` after a change to catch
-broken internal links and API documentation warnings. The generated `site/`
-folder is ignored.
+Run `mkdocs build --strict` after a change: it stops on broken internal links
+and API documentation warnings. The site it builds goes to `site/`, which git
+ignores.
 
-The HPC guide is under `docs/using/hpc/`; the Windows helper's source lives in
-`hpc/` alongside the code, its setup in [the HPC setup page](getting-started/hpc-setup.md).
+The site is public at <https://kevinrapo.github.io/P2P-thesis/>. Every push to `marlem-studio` that changes
+`docs/`, `docs_site/`, `mkdocs.yml` or the code behind the API pages (`core/`,
+`studio/`) builds it with the same strict check and publishes it
+([docs.yml](https://github.com/KevinRapo/P2P-thesis/blob/marlem-studio/.github/workflows/docs.yml));
+a build that fails publishes nothing and leaves the previous version online.
 
 ## The API reference
 

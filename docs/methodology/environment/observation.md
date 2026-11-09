@@ -11,8 +11,8 @@ Two places compute it:
 - **[`signals.py`](../../../core/market/signals.py)**: each signal as a plain function
   of the market's data, in three dictionaries (`KPIS`, `MARKET_SIGNALS`,
   `AGENT_SIGNALS`). A value with nothing to measure is NaN.
-- **[`MarketEnv._observe`](../../../core/env/market_env.py#L663-L689)**: puts them in order,
-  scales each ([`_obs_scales`](../../../core/env/market_env.py#L604-L661)), turns NaN into
+- **[`MarketEnv._observe`](../../../core/env/market_env.py#L715-L745)**: puts them in order,
+  scales each ([`_obs_scales`](../../../core/env/market_env.py#L656-L713)), turns NaN into
   0 and clips to $[-10, 10]$.
 
 The observation is computed for the step about to be played, $t$. "The last step"

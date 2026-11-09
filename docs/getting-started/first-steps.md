@@ -43,7 +43,7 @@ and save a new one.
 | `validate_market.json` | Five participants on `rural1--0`. Small; the tests and the market notebooks use it |
 | `lv_rural3_p13.json` | Thirteen participants on `rural3--2`. The current experiments use it |
 
-Every setting is explained in the [config reference](../using/config.md).
+Every setting is explained in the [config reference](../using/running/config.md).
 
 ## 3. Play the market by hand: Validate → Market
 
@@ -89,11 +89,11 @@ The same experiments can be started from **Build → Experiments** and
 
 To run on the TalTech cluster, add `--target taltech` and follow the
 [HPC setup](hpc-setup.md). The commands are explained in
-[Training experiments](../using/training-experiments.md).
+[Starting and following runs](../using/running/runs.md).
 
 Each run trains, then plays the test days with the trained policy and with fixed
 **baselines**. It writes everything to `runs/<experiment>/<run>/`, as described in
-the [run contract](../using/run-contract.md).
+[What a run saves](../methodology/evaluation/files.md).
 
 ## 5. Read the results: Results
 
@@ -102,7 +102,7 @@ Open **Experiments → Results** and tick the runs. It has four tabs:
 | Tab | Answers |
 |---|---|
 | Learning | Did training converge? |
-| Validation | How good is the trained policy compared with the baselines and the best possible ([metrics](../using/studio/results/metrics.md))? |
+| Validation | How good is the trained policy compared with the baselines and the best possible ([metrics](../methodology/evaluation/metrics.md))? |
 | Market | What did the market do? |
 | Grid | What did the grid do? |
 
@@ -115,7 +115,7 @@ Python.
 |---|---|
 | Understand what the model computes | [Methodology](../methodology/index.md), starting at [the market step](../methodology/market/step.md) |
 | Know what the original MARLEM states, and what was wrong with it | [Original MARLEM](../original/methodology.md) and the [issue register](../original/issues/register.md) |
-| Find or change code | [Code structure](../methodology/structure.md) and [the full cycle](../methodology/full-cycle.md) |
+| Find or change code | [Architecture](../methodology/architecture/index.md) and [the full cycle](../methodology/full-cycle.md) |
 | Know how the tool was checked | [Validation](../methodology/validation/index.md) |
-| Run many experiments on the cluster | [HPC](../using/hpc/index.md) |
+| Run many experiments on the cluster | [HPC](../using/running/hpc/index.md) |
 | Look up a term | [Glossary](glossary.md) |

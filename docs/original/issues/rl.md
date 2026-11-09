@@ -79,7 +79,7 @@ none changes how training works.
 **In the code.** In `RL/core/rl/` (commit `bbef313`) every issue below is marked above the
 lines at fault in `core/rl/`: `FAULT <ID>:` for a defect, `DECIDE <ID>:` for a
 *Judgment* issue, so the document and the code can be read side by side. The markers use the
-IDs from before October 2026 ([Earlier identifiers](register.md#earlier-identifiers)). The comments are the only
+IDs from before October 2026, not those of the register. The comments are the only
 change; the line numbers in the links below are those of the original. L-18 is not
 marked: the original's test file is not copied to the RL branch.
 

@@ -1,4 +1,4 @@
-"""Every ``# OPEN`` marker in the code names an item of docs/workspace/open.md.
+"""Every ``# OPEN`` marker in the code names an item of docs/temp/open.md.
 
 The marker is ``# OPEN <ID>: question``; the ID is a register ID (``E-10``, ``M-23``,
 ``L-14``) or a plan ID (``MP-6a``, ``RP-1f``), and open.md lists it in its ID column.
@@ -33,7 +33,7 @@ def listed_ids() -> set[str]:
     """The IDs in the first column of the open items table."""
     ids = set()
 
-    for line in (ROOT / "docs/workspace/open.md").read_text(encoding="utf-8").splitlines():
+    for line in (ROOT / "docs/temp/open.md").read_text(encoding="utf-8").splitlines():
         if line.startswith("|"):
             ids |= set(re.findall(ID, line.split("|")[1]))
 
@@ -58,4 +58,4 @@ def test_every_marker_id_is_in_the_open_list():
                 if found not in listed:
                     missing.setdefault(found, []).append(f"{file}:{number}")
 
-    assert not missing, f"IDs missing from docs/workspace/open.md: {missing}"
+    assert not missing, f"IDs missing from docs/temp/open.md: {missing}"

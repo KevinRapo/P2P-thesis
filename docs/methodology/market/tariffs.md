@@ -9,7 +9,7 @@
 
 Every participant can always trade with the DSO: buy at the utility price
 $p_\text{utility}$ and sell at the feed-in tariff $p_\text{FiT}$ ([P1] §3.4.4). Both
-come from the scenario's `dso.prices` ([Configuration](../../using/config.md#dso)),
+come from the scenario's `dso.prices` ([Configuration](../../using/running/config.md#dso)),
 flat or one price per step, and the DSO moves to each step's prices before the step
 ([`Dso.set_hour`](../../../core/market/dso.py#L120-L123)). Untraded energy is settled at
 these tariffs too (MP-1e, [Settlement](step.md#4-settlement)).
@@ -76,7 +76,7 @@ not in [P1]; 0, the default, is the paper's market.
 | Moves the reference price before any trade to the midpoint of $p_\text{FiT}$ and the ceiling | [`Dso.market_price`](../../../core/market/dso.py#L146-L150) |
 | Tariffs must leave $p_\text{FiT} < p_\text{utility} - c$ at every step | [`DsoSetup.problems`](../../../core/config/scenario.py#L319-L357) |
 | Off with `fees_charged = false` (no ceiling, nothing paid; still recorded) | [`Dso.peer_ceiling`](../../../core/market/dso.py#L138-L144) |
-| Recorded per trade and per day as `peer_charge`; the buyer's gain is counted net of it | [Metrics](../../using/studio/results/metrics.md) |
+| Recorded per trade and per day as `peer_charge`; the buyer's gain is counted net of it | [Metrics](../evaluation/metrics.md) |
 
 The peer price band is therefore $p_\text{FiT} < p_\text{P2P} < p_\text{utility} - c$,
 and its width $p_\text{utility} - p_\text{FiT} - c$ is all a peer trade can share
@@ -99,12 +99,10 @@ leaves the market less than a third of its value under the paper's assumption.
 
 ## What depends on it
 
-- **The VTI ceiling** ([ceiling.py](../../../core/runner/ceiling.py)) assumes peer
-  transfers are free: its LP nets the community's energy without the charge. VTI is
-  correct only at $c = 0$; any arm with a charge needs the LP to charge peer
-  transfers first (RP-7g).
-- **`reachable_share`** in the validation tables assumes free netting the same way
-  and reads low at $c > 0$ ([Validation](../../using/studio/results/validation.md)).
+- **The VTI's ceiling** nets energy between participants for free, so with a charge
+  it can no longer be reached and the VTI reads low; the program has to charge peer
+  netting first (RP-7g, [How a run is judged](../evaluation/index.md#the-ceiling)).
+  `reachable_share` in the validation tables assumes free netting the same way.
 - **The rule-based bidders** price inside the band
   ([`rule_based_bid.py`](../../../core/market/agent/rule_based_bid.py#L80)), and the RL
   price action is mapped onto it ([Action](../environment/action.md)): both follow the
@@ -115,7 +113,7 @@ leaves the market less than a third of its value under the paper's assumption.
 
 ## The decision (MP-4h)
 
-Open ([plan](../../workspace/open.md)). The options:
+Open ([plan](../../temp/open.md)). The options:
 
 1. **0 as the main setting**, described as the paper's idealised market; results
    are an upper bound on what P2P can be worth, §42c a sensitivity arm.

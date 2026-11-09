@@ -1,16 +1,17 @@
 # Builds the docs website and publishes it on GitHub Pages.
-# Runs when a push to marlem-v2 changes the docs, or the code behind the API pages.
+# Runs when a push to marlem-studio (the default branch) changes the docs, or the
+# code behind the API pages; the site is https://kevinrapo.github.io/P2P-thesis/
 name: Docs
 
 on:
   push:
-    branches: [marlem-v2]
+    branches: [marlem-studio]
     paths:
       - "docs/**"
       - "docs_site/**"
       - "core/**"
       - "studio/**"
-      - "run_docs.py"
+      - "mkdocs.yml"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -33,7 +34,7 @@ jobs:
           cache: pip
           cache-dependency-path: docs_site/requirements.txt
       - run: pip install -r docs_site/requirements.txt
-      - run: python run_docs.py build
+      - run: mkdocs build --strict
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

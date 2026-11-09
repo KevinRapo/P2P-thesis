@@ -22,7 +22,7 @@ Three notebooks set the references the results are read against:
 | Notebook | What it gives |
 |---|---|
 | [grid_methods.ipynb](../../../notebooks/market/grid_methods.ipynb) | The two grid methods on the same scenario before any learning. Every difference is the method alone |
-| [market_ceiling.ipynb](../../../notebooks/market/market_ceiling.ipynb) | The most money the community could make on the test days: the ceiling of the [VTI](../../using/studio/results/metrics.md) |
+| [market_ceiling.ipynb](../../../notebooks/market/market_ceiling.ipynb) | The most money the community could make on the test days: the ceiling of the [VTI](../evaluation/metrics.md) |
 | [simbench_study_cases.ipynb](../../../notebooks/market/simbench_study_cases.ipynb) | How heavily the profiles and SimBench's study cases load each network |
 
 ## The learning layer
@@ -45,6 +45,19 @@ The first probe that a paradigm fails names the broken piece.
 | The environments | [core/rl/envs/probes.py](../../../core/rl/envs/probes.py) |
 | The tests, one file per probe | [tests/rl/](../../../tests/rl/) |
 | All paradigms at once, with plots | [probe_paradigms.ipynb](../../../notebooks/rl/probe_paradigms.ipynb), the Studio's Validate → RL probes |
+
+**Same seed, same run.** On one machine, a run repeated with its seed gives the same
+result ([test_7_same_seed_same_run.py](../../../tests/rl/test_7_same_seed_same_run.py)).
+Two things in RLlib had to be pinned for that:
+
+| Cause of a difference | Fix |
+|---|---|
+| The per-agent modules given as a set: built, and given their initial weights, in an order that changes with every process | A list in agent order ([config.py:144-146](../../../core/rl/config.py#L144-L146)) |
+| Agent ids kept in sets while sampling, so Python's per-process hash seed changes multi-agent runs | `PYTHONHASHSEED=0` in every runner job ([launch.py:83](../../../core/runner/launch.py#L83)), recorded in `run.json` |
+
+Across machines, rounding differs slightly between CPUs and libraries and training
+amplifies it, so results there agree statistically, not exactly. A notebook's runs
+fix the hash seed only if the notebook sets `PYTHONHASHSEED`.
 
 ## The tests
 

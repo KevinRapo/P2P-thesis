@@ -1,0 +1,246 @@
+# Website for the docs (docs/), built with MkDocs Material.
+#
+# The source stays docs/, unchanged and readable in VS Code / on GitHub.
+# Everything a website needs differently happens at build time in
+# docs_site/hooks.py; docs_site/ holds the hooks, the theme overrides and the
+# requirements.
+#
+#   mkdocs serve                        # live preview on http://127.0.0.1:8001
+#   mkdocs build --strict               # check, static site in site/
+#   python docs_site/export_drawio.py   # after editing a .drawio diagram
+
+site_name: MARLEM v2
+site_url: https://kevinrapo.github.io/P2P-thesis/
+site_description: MARLEM rebuilt on SimBench networks (V2, PPO with mixed market actions)
+repo_url: https://github.com/KevinRapo/P2P-thesis
+edit_uri: blob/marlem-studio/docs/
+dev_addr: 127.0.0.1:8001
+
+extra:
+  # Links to code outside docs/ become links to this repository and branch.
+  code_links:
+    repo: https://github.com/KevinRapo/P2P-thesis
+    ref: marlem-studio
+
+hooks:
+  - docs_site/hooks.py
+
+# `mkdocs serve` also rebuilds when these change: the code (API pages stay
+# current), the build hooks (reloaded on every rebuild) and the site assets.
+# This list is read once at start: after adding or renaming a top-level code
+# folder, restart the server once.
+watch:
+  - core
+  - studio
+  - docs_site
+
+exclude_docs: |
+  *.py
+  *.json
+
+theme:
+  name: material
+  # Site assets that are not docs: docs_site/overrides/assets/ (diagram zoom, wider layout).
+  custom_dir: docs_site/overrides
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.path
+    - navigation.footer
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+
+markdown_extensions:
+  - tables
+  - attr_list
+  - md_in_html
+  - admonition
+  - pymdownx.details
+  - footnotes
+  - toc:
+      permalink: true
+      # GitHub-style anchors, so in-document links work in VS Code and here.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences:
+      custom_fences:
+        # Not "mermaid": Material would draw it in a closed shadow DOM that
+        # cannot be zoomed. docs_site/overrides/assets/diagrams.js renders these instead.
+        - name: mermaid
+          class: mermaid-diagram
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.tilde
+
+extra_css:
+  - assets/diagrams.css
+  - assets/marks.css
+  - assets/sidebar.css
+  - assets/headings.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+  - https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.2/dist/svg-pan-zoom.min.js
+  - assets/diagrams.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  # "Last update" under each page, from the file's git history. A page with no commit
+  # yet (new, untracked) shows the build date. No creation date: for such a page the
+  # plugin warns, and the strict build then fails.
+  - git-revision-date-localized:
+      type: date
+      fallback_to_build_date: true
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_source: true
+            show_root_heading: true
+            members_order: source
+            docstring_style: google
+            show_if_no_docstring: true
+            filters: ["!^_"]
+            summary: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+            extensions:
+              - docs_site/griffe_classes_functions.py:ClassesAndFunctions
+
+validation:
+  links:
+    anchors: warn
+
+# One section per folder under docs/, in the folders' layout: a page's place in the
+# nav is its place on disk.
+nav:
+  - Home:
+      - index.md
+      - About these docs: about.md
+  - Getting started:
+      - Code environment setup: getting-started/setup.md
+      - HPC setup and helper scripts: getting-started/hpc-setup.md
+      - Notebook sessions: getting-started/notebooks.md
+      - Glossary: getting-started/glossary.md
+      - First steps: getting-started/first-steps.md
+  # The original as published: the papers' definitions and every issue in its release.
+  - Original MARLEM:
+      - Market methodology: original/methodology.md
+      - Learning layer: original/learning.md
+      - Issues in the release:
+          - Issue register: original/issues/register.md
+          - Market layer: original/issues/market.md
+          - RL layer: original/issues/rl.md
+          - The two papers: original/issues/papers.md
+  # This version: what each component computes and why (equations, decisions).
+  - Methodology:
+      - methodology/index.md
+      - The full cycle: methodology/full-cycle.md
+      - Market layer:
+          - Market step: methodology/market/step.md
+          - Tariffs and the peer charge: methodology/market/tariffs.md
+          - Grid methods: methodology/market/grid-methods.md
+      - Environment:
+          - methodology/environment/index.md
+          - Action: methodology/environment/action.md
+          - Reward: methodology/environment/reward.md
+          - Observation: methodology/environment/observation.md
+      - Learning layer:
+          - methodology/learning/index.md
+          - Examples:
+              - The RL layer: methodology/learning/examples/rl-layer.md
+              - One iteration, step by step: methodology/learning/examples/iteration.md
+              - Worked examples: methodology/learning/examples/examples.md
+      - Evaluation:
+          - methodology/evaluation/index.md
+          - Metrics: methodology/evaluation/metrics.md
+          - What a run saves: methodology/evaluation/files.md
+      - Validation:
+          - methodology/validation/index.md
+          - The RL probes: methodology/validation/probes.md
+      - Architecture:
+          - methodology/architecture/index.md
+          - Packages:
+              - Config: methodology/architecture/packages/config.md
+              - Grid: methodology/architecture/packages/grid.md
+              - Market: methodology/architecture/packages/market.md
+              - Environment: methodology/architecture/packages/env.md
+              - RL: methodology/architecture/packages/rl.md
+              - Runner: methodology/architecture/packages/runner.md
+              - Studio: methodology/architecture/packages/studio.md
+          - Around the code: methodology/architecture/around.md
+  - Using it:
+      - Data:
+          - SimBench: using/data/simbench.md
+          - Network catalogue: using/data/networks.md
+          - Profiles: using/data/profiles.md
+          - Market prices: using/data/prices.md
+      - Running experiments:
+          - Configuration: using/running/config.md
+          - HPC:
+              - using/running/hpc/index.md
+              - Resources and parallelism: using/running/hpc/resources.md
+              - Measurements and cost estimates: using/running/hpc/performance.md
+              - Monitoring and troubleshooting: using/running/hpc/operations.md
+          - Starting and following runs: using/running/runs.md
+      - Studio UI:
+          - using/studio/index.md
+          - Build:
+              - Inspect: using/studio/build/inspect.md
+              - Scenario: using/studio/build/scenario.md
+              - Experiments: using/studio/build/experiments.md
+              - Summary: using/studio/build/summary.md
+          - Validate:
+              - Market: using/studio/validate/market.md
+              - RL probes: using/studio/validate/rl-probes.md
+          - Experiments:
+              - Runs: using/studio/experiments/runs.md
+              - Results:
+                  - using/studio/experiments/results/index.md
+                  - Validation: using/studio/experiments/results/validation.md
+                  - Learning: using/studio/experiments/results/learning.md
+                  - Market: using/studio/experiments/results/market.md
+                  - Grid: using/studio/experiments/results/grid.md
+          - Settings: using/studio/settings.md
+  - Experiments:
+      - experiments/index.md
+      - Thesis experiments: experiments/thesis.md
+      - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
+  # Temporary: plans and open items of the work in progress. Removed at the end;
+  # nothing outside this folder may depend on its pages.
+  - Temp:
+      - temp/index.md
+      - Open items: temp/open.md
+      - Market plan: temp/market.md
+      - RL plan: temp/rl.md
+      - Results plan: temp/results.md
+      - Validate section plan: temp/validation.md
+      - Decision log: temp/decisions.md
+  # Filled in by hooks.py: one section per top-level folder, one page per module.
+  - API Reference: api/index.md

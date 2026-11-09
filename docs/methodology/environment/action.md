@@ -7,7 +7,7 @@
 ## The mixed action
 
 [P1] eq. 2 defines the action as $a_i = \langle p_{\text{bid}}, q_{\text{bid}}, \alpha, \beta \rangle$.
-V2 gives each agent a `Dict` action with these four parts
+Each agent has a `Dict` action with these four parts
 ([market_env.py](../../../core/env/market_env.py)):
 
 | Part | Space | Paper | Encoding chosen here |
@@ -22,8 +22,8 @@ choice: the quantity as a share of the eq. 15 bound (every order is feasible, so
 none is rejected, E-04, E-05), the no-order threshold (an explicit encoding
 decision: the paper has no "no order" action), the price range between the two
 tariffs, and the candidate order. The original code decoded all four parts from
-one continuous `Box` (`int(β)`, `α > 0.5`); V2 does not decode anything
-categorical from a continuous number.
+one continuous `Box` (`int(β)`, `α > 0.5`); here no categorical part
+is decoded from a continuous number.
 
 The chosen partner goes into `OrderIntent.partner_id` unchanged, "no preference"
 (None) included. The scenario's rule-based partner choice
@@ -47,7 +47,7 @@ trade), *incompatible* (mutual but bid < ask: no stage-1 trade), or *one-sided*
 
 ## E1. Decode
 
-[`decode`](../../../core/env/market_env.py#L514-L547), per agent. The
+[`decode`](../../../core/env/market_env.py#L594-L627), per agent. The
 action's four parts ([P1] eq. 2, above) become an
 intent: `side` picks sell or buy, `partner` one of the agent's candidates (a peer,
 the DSO or none), and the continuous `quantity` and `price` $a_q, a_p \in [-1, 1]$

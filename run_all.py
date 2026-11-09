@@ -21,7 +21,7 @@ PYTHON = sys.executable
 SERVERS = {
     "docs": (
         ROOT,
-        [PYTHON, "-m", "mkdocs", "serve", "-f", "docs_site/mkdocs.yml"],
+        [PYTHON, "-m", "mkdocs", "serve"],
     ),
     "studio": (ROOT, [PYTHON, "run_studio.py"]),
 }

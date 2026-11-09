@@ -45,19 +45,21 @@ document$.subscribe(() => { MathJax.typesetPromise && MathJax.typesetPromise() }
 # The API reference: one section per layer, one page per module. A source is a
 # package (documented recursively: subpackages become subsections) or a module.
 API_SECTIONS = [
-    # In the order data flows: the network, the market on it, stepping both, the
-    # scenario that configures them (all three in core/), then the Studio on top.
-    ("Grid: SimBench networks", "grid", ["core.grid"], "using/data/simbench.md"),
-    ("Market: the MARLEM market", "market", ["core.market"], None),
-    ("Config: the scenario", "config", ["core.config"], None),
-    ("Environment: market to RL", "env", ["core.env"], "methodology/environment/index.md"),
-    ("Studio: pages, components, adapters", "studio", ["studio"], None),
-    ("RL: the learning layer", "rl", ["core.rl"], None),
+    # In the order data flows: the scenario, the network, the market on it, the
+    # environment and the learner on top, the runner around them, then the Studio.
+    # The last field is the section's page under Architecture.
+    ("Config: the scenario", "config", ["core.config"], "packages/config.md"),
+    ("Grid: SimBench networks", "grid", ["core.grid"], "packages/grid.md"),
+    ("Market: the MARLEM market", "market", ["core.market"], "packages/market.md"),
+    ("Environment: market to RL", "env", ["core.env"], "packages/env.md"),
+    ("RL: the learning layer", "rl", ["core.rl"], "packages/rl.md"),
+    ("Runner: local and Slurm experiments", "runner", ["core.runner"], "packages/runner.md"),
+    ("Studio: pages, components, adapters", "studio", ["studio"], "packages/studio.md"),
     (
-        "Runner: local and Slurm experiments",
-        "runner",
-        ["core.runner"],
-        "using/training-experiments.md",
+        "Shared helpers",
+        "helpers",
+        ["core.settings", "core.files", "core.env_defaults", "core.rl_defaults"],
+        "index.md#shared-helpers",
     ),
 ]
 API_NAV_TITLE = "API Reference"
@@ -149,9 +151,10 @@ def _package(dotted: str, page_dir: str, repo: Path, links: dict) -> tuple:
 
 
 def _design(doc: str | None, up: str) -> str:
+    """The link from an API section up to its Architecture page."""
     if doc is None:
         return "—"
-    return f"Design and reasons: [{doc.rsplit('/', 1)[-1]}]({up}{doc})."
+    return f"How it fits together: [Architecture]({up}methodology/architecture/{doc})."
 
 
 def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
@@ -164,7 +167,7 @@ def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
         " section per top-level folder. How the pages are made and what a"
         " docstring needs: [About these docs](../about.md#the-api-reference).",
         "",
-        "| Section | Contents | Design |",
+        "| Section | Contents | Architecture |",
         "|---|---|---|",
     ]
 
@@ -218,7 +221,7 @@ def _api(repo: Path, links: dict) -> tuple[dict[str, str], list]:
 def on_config(config):
     """Build the API pages and put their tree into the nav under API_NAV_TITLE."""
     global _API_PAGES
-    repo = Path(config.config_file_path).resolve().parent.parent
+    repo = Path(config.config_file_path).resolve().parent
     _API_PAGES, api_nav = _api(repo, config["extra"]["code_links"])
 
     for i, item in enumerate(config["nav"]):
@@ -257,6 +260,10 @@ def on_page_markdown(markdown, page, config, files):
         inside = absolute.is_relative_to(docs_dir)
 
         if inside and absolute.is_file() and absolute.suffix.lower() in SERVED:
+            return match.group(0)
+
+        # A generated API page exists only on the site, never on disk.
+        if inside and absolute.relative_to(docs_dir).as_posix() in _API_PAGES:
             return match.group(0)
 
         if not absolute.is_relative_to(repo):

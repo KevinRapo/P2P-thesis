@@ -36,7 +36,7 @@ Choices made here that the papers leave open, with the reason:
 
 ## The environment step
 
-[`MarketEnv.step`](../../../core/env/market_env.py#L398-L464): the agents' actions in,
+[`MarketEnv.step`](../../../core/env/market_env.py#L459-L544): the agents' actions in,
 observations and rewards out, one market step in the middle.
 
 The step in four parts, each on the page that holds it:
@@ -64,4 +64,4 @@ consecutive days with the batteries and reputations carried over midnight,
 | **Writes** | `last_record` |
 | **Code** | above; metrics: [`_market_infos`](../../../core/env/market_env.py) |
 | **Paper** | [P1] §3.9 phases 5 (reward) and 7 (observation); eq. 2 (the action) |
-| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); no forecast error (E-05); the day terminated (RP-1f); *Open: RP-1a to RP-1e* ([plans](../../workspace/index.md)) |
+| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); no forecast error (E-05); the day terminated (RP-1f); *Open: RP-1a to RP-1e* ([plans](../../temp/index.md)) |

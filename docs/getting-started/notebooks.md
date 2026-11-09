@@ -1,7 +1,7 @@
 # Notebook sessions
 
 A Jupyter job on a compute node; VS Code runs the notebook's cells there. For
-unattended training use [training experiments](../using/training-experiments.md) instead: they need
+unattended training use [training experiments](../using/running/runs.md) instead: they need
 no Jupyter job.
 
 ## The loop
@@ -20,7 +20,7 @@ hpc stop
 ```
 
 Skip `git shipc` when only notebook cells changed. Size the job to the work
-([sizing](../using/hpc/performance.md#the-probe-notebook)): `-c 78 --mem=60G` is a whole green node, for
+([sizing](../using/running/hpc/performance.md#the-probe-notebook)): `-c 78 --mem=60G` is a whole green node, for
 the probe notebook's 30 runs (probes 1-10 in the three paradigms) at once; `escalate` then fills the node with the longer budgets.
 
 ## By hand

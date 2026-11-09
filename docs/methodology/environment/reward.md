@@ -17,17 +17,17 @@ trades and battery left uncovered and left over, exchanged untraded with the ups
 grid and settled at retail without grid fees (MP-1e): bought at the step's utility
 price $p_\text{utility}$, sold at its feed-in tariff $p_\text{FiT}$. Runs before
 4 Nov 2026 paid the deferred supply nothing. $\bar p_\text{utility}$ is the day's highest utility
-price ([`Dso.tariff_range`](../../../core/market/dso.py#L107-L113)) and $E$ the
+price ([`Dso.tariff_range`](../../../core/market/dso.py#L125-L136)) and $E$ the
 `energy_scale`, the largest generation or demand of any participant in any step of
 the training days. Both scales are resolved once per run and reused for every later
-environment of the run, held-out days included ([The run contract](../../using/run-contract.md)).
+environment of the run, held-out days included ([When results are made](../evaluation/index.md#when-results-are-made)).
 CTCE's `CTCEEnv` sums the agents' rewards, $R = \sum_i r_i$; DTDE and CTDE keep
 each agent's own.
 
 ## What the reward reads
 
 The last column of the three signal tables in [Observation](observation.md) shows which signals the `"salazar"` reward
-([`SalazarReward.agent_reward`](../../../core/env/reward.py#L367-L441), the original
+([`SalazarReward.agent_reward`](../../../core/env/reward.py#L372-L446), the original
 code's) also uses, so that the observational ones stand apart. It describes that
 reward only: the `"bill"` reward calls none of these signals, though it reads five of
 the same quantities from the step's record: `utility_price`, `feed_in_tariff`, the
@@ -35,7 +35,7 @@ step's `profit`, `deferred_demand_kwh` and `deferred_supply_kwh`.
 
 | In the reward | Signals | Meaning |
 |---|---|---|
-| a weight | 10 | every KPI, through `signals.kpis` and [`cooperation_factor`](../../../core/env/reward.py#L205-L217): its weight in $f_{\text{coop}}$ ([`COOPERATION_WEIGHTS`](../../../core/env/reward.py#L65-L76), adding up to 56), and $1 - x$ where lower is better |
+| a weight | 10 | every KPI, through `signals.kpis` and [`cooperation_factor`](../../../core/env/reward.py#L210-L222): its weight in $f_{\text{coop}}$ ([`COOPERATION_WEIGHTS`](../../../core/env/reward.py#L70-L81), adding up to 56), and $1 - x$ where lower is better |
 | a term | 14 | the signal is not called, but the term named reads the same quantity from the step's record |
 | — | 18 | observational only |
 
@@ -66,7 +66,7 @@ and the results report it.
 **`reward_scale`.** Defaults to $p_\text{utility} \cdot E$ with the day's highest
 utility price: the bill for $E$ kWh bought from the DSO at its dearest, so a reward of
 −1 is one such purchase. It is resolved once on the training days and reused
-everywhere ([The run contract](../../using/run-contract.md)).
+everywhere ([When results are made](../evaluation/index.md#when-results-are-made)).
 
 **`terminal_value`.** With it, the last reward of the window adds the change of the
 stored energy at `stored_kwh_value` per kWh, whichever the reward
@@ -121,7 +121,7 @@ kept per agent as `reward_*` entries of the step infos.
 - the KPIs of $f_\text{coop}$ run over the day so far, as in the observation; the
   original took most of them over the step alone ([E-10](../../original/issues/register.md#E-10));
 - the capacity $C$ is a setting (`grid_capacity_kwh`) that a run must give, since a
-  SimBench network has no single one (RP-1g in the [open points](../../workspace/open.md));
+  SimBench network has no single one (RP-1g in the [open points](../../temp/open.md));
 - the trading part's local weight is 0.3, as [P1] prints it; the original overwrote
   its 0.7 ([E-17](../../original/issues/register.md#E-17)).
 

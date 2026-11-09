@@ -3,7 +3,7 @@
 Like the RL probes (``core/rl/envs/probes.py``), each probe isolates one part of
 the market step and states what it must give, so the first probe that fails names
 the broken part. Not a check of every formula (``tests/market/`` does that), but a
-case played out where the mechanism is visible ([docs/workspace/validation.md]).
+case played out where the mechanism is visible ([docs/temp/validation.md]).
 
 Every probe plays the same small market: four participants on the SimBench network
 ``1-LV-rural1--0-sw`` on 15 June 2016 (two with PV, two consumers), with their
