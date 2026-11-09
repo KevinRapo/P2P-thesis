@@ -161,8 +161,8 @@ because nothing calls it today (e.g. `electrical_distance`, the paths and zones 
 `core/grid/powerflow.py`, the reputation helpers). The original's profile
 generators (`core/market/profile/`) and its blockchain-style trade ledger
 (`validation.py`, with the `ledger_difficulty` setting) were removed: the ledger
-changes no market result. The generators are on the `main` branch, the ledger on
-`marlem-v1`. When unsure, keep it and ask.
+changes no market result. Both are in the original on the `main` branch
+(`src/profile/`, `src/market/validation.py`). When unsure, keep it and ask.
 
 ## RL layer
 
