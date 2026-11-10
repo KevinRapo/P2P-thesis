@@ -185,7 +185,12 @@ $= (G + \text{discharge} - D - \text{charge}) / \Delta t$, never from its trades
 [`SimBenchGrid.assess`](../../../core/grid/powerflow.py#L187-L234) sets the network's own
 loads and generators to their profiles for step $t$
 ([`_apply_background`](../../../core/grid/powerflow.py#L146-L152)), adds the injections
-and runs one AC power flow (pandapower).
+and runs one AC power flow (pandapower). The flow gives every line's and
+transformer's loss; with `dso.losses` set to a rule of
+[losses.py](../../../core/grid/losses.py) they are also shared out, each participant's
+share in `GridAssessment.loss_shares_kwh` (BCDLA: each branch's loss split over the
+elements below it by $\operatorname{Re}(I_e \overline{I_b}) / \lvert I_b \rvert^2$, a
+negative share for an element that relieves the branch).
 
 **5b. The fee signal.** [`_grid_signal`](../../../core/market/lem.py#L653-L669): the line
 loading the fees will use. With `grid.method = "powerflow"` it is 5a's result;
@@ -196,7 +201,7 @@ trade's $q/\Delta t$ added to each line of its path, divided by the line's capac
 | | |
 |---|---|
 | **Reads** | the outcomes (5a); the trades and their paths (5b, graph only) |
-| **Computes** | bus voltages, line and transformer loading, losses, exchange with the upstream grid, limit violations; the graph loading |
+| **Computes** | bus voltages, line and transformer loading, losses (and each participant's share of them, with a loss rule), exchange with the upstream grid, limit violations; the graph loading |
 | **Writes** | [`GridAssessment`](../../../core/grid/contract.py) (`grid`), and in graph mode a second one (`signal`) |
 | **Code** | above |
 | **Paper** | §3.5.3 (replaced by the power flow; kept as the graph method) |
@@ -218,7 +223,7 @@ C_t &= \min\bigl(1, \max_{e \in \text{path}} \text{loading}_e / 100\bigr) && \te
 F_\text{cong} &= f_\text{cong}\,(C_t - C_\text{th})\, q\, p \ \text{ if } C_t > C_\text{th} && \text{(8a)} \\
 F_\text{thermal} &= \min\Bigl(\tfrac{C_t - T_\text{th}}{1 - T_\text{th}},\ f_\text{threshold}\Bigr)\, q\, p \ \text{ if } C_t > T_\text{th} && \text{(8d, 8g)} \\
 F_\text{volt} &= \min(V_\text{drop}, V_\text{th})\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured} && \text{(8c, 8f)} \\
-F_\text{trans} &= l_{ij}\, p && \text{(8, no formula in [P1])} \\
+F_\text{trans} &= l_{ij}\, p \ \text{ with } \texttt{losses = "trades"}\text{, else } 0 && \text{(8, no formula in [P1])} \\
 F_\text{zone} &= -f_\text{zone}\, q\, p \ \text{ if both ends on one feeder} && \text{(8e)} \\
 F_\text{imb} &= f_\text{imb}\, \min\bigl(q / |B_\text{grid}|, 1\bigr)\, q\, p \ \text{ for a DSO trade that worsens } B_\text{grid} && \text{(8b, 8h)}
 \end{aligned}
@@ -236,7 +241,12 @@ is paid when `fees_charged` is off.
 
 **6c. Participants pay.**
 [`Participant.pay_fees`](../../../core/market/agent/der.py#L276-L286): its share of every
-trade's fee comes off the step's profit and the running profit.
+trade's fee comes off the step's profit and the running profit. With a loss rule
+(`dso.losses` other than `"trades"`) it also pays its share of the step's measured
+losses at the step's utility price,
+[`Dso.loss_charge`](../../../core/market/dso.py): $L_i \cdot p_\text{utility}$, paid back
+when $L_i < 0$, nothing when `fees_charged` is off. It is part of its fees
+(`ParticipantOutcome.loss_charge`), and the DSO collects it.
 
 | | |
 |---|---|
@@ -245,7 +255,7 @@ trade's fee comes off the step's profit and the running profit.
 | **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `ParticipantOutcome.fees` and `profit` |
 | **Code** | [`_charge_fees`](../../../core/market/lem.py#L671-L685), above |
 | **Paper** | eq. 8, 8a-8h |
-| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md))* ([open items](../../temp/open.md)) |
+| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28), or the measured losses shared by a rule and charged per participant (`dso.losses`, MP-4j); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md))* ([open items](../../temp/open.md)) |
 
 ## 7. Record
 

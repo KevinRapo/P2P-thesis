@@ -25,12 +25,12 @@ to less physical stress on the real network, and whose fees follow that stress?
 
 ## Arms
 
-| Arm | Line loading in the fees | Voltage drop in the fees | Fees paid |
-|---|---|---|---|
-| `no_fees` | power flow | measured | no, recorded only: the reference |
-| `powerflow` | the path's measured loading | measured $\lvert V_a - V_b \rvert$ | yes |
-| `graph` | trade flows ÷ [P1]'s capacity split (eq. 19) | $f_\text{volt}\, d_{ij}$ (eq. 8f) | yes |
-| `graph_ratings` | trade flows ÷ each line's rating | $f_\text{volt}\, d_{ij}$ | yes |
+| Arm | Line loading in the fees | Voltage drop in the fees | Losses | Fees paid |
+|---|---|---|---|---|
+| `no_fees` | power flow | measured | measured, shared by BCDLA | no, recorded only: the reference |
+| `powerflow` | the path's measured loading | measured $\lvert V_a - V_b \rvert$ | measured, shared by BCDLA, paid per participant | yes |
+| `graph` | trade flows ÷ [P1]'s capacity split (eq. 19) | $f_\text{volt}\, d_{ij}$ (eq. 8f) | eq. 18 per trade, as $F_\text{trans}$ | yes |
+| `graph_ratings` | trade flows ÷ each line's rating | $f_\text{volt}\, d_{ij}$ | eq. 18 per trade | yes |
 
 How each input reaches the fees: [Grid methods](../../methodology/market/grid-methods.md).
 
@@ -61,7 +61,7 @@ much the grid matters next to the price. How each one is calculated:
 | Thermal fee: threshold, cap | 0.2, 0.3 | The release's values; the threshold sits below the congestion one, so the thermal fee starts at 20 % loading | Open with the grid stress |
 | Loss factor $\kappa$ | 0.03 per km | The release's value | Set |
 | Losses in settlement | Recorded, not taken off the energy | Ours | Set |
-| Transmission fee $F_\text{trans}$ | The trade's loss $l_{ij}$ at the trade price | Ours: [P1] gives no formula | Set |
+| Losses (`dso.losses`) | Graph arms: eq. 18, the trade's loss $l_{ij}$ at the trade price ($F_\text{trans}$). Power-flow arms: the measured losses shared by branch currents (BCDLA), each participant paying its share at the step's utility price, credits paid back | Ours: [P1] gives $F_\text{trans}$ no formula; BCDLA is Carpaneto, Chicco & Sumaili Akilimali (2006) | Set (MP-4j) |
 | Trades with the DSO | The fees of the participant's path to the transformer, like a peer trade, plus the imbalance fee (factor 0.15); no zone bonus | Ours | Set |
 | Zones and the same-zone bonus | Zones are the feeders; bonus factor 0.15 | Ours (zones); the release's factor | Set |
 | Buyer's share of a peer trade's fee | 0.5 | Ours | Set |
@@ -93,6 +93,7 @@ the path its fee uses
 | Trades with the DSO | Part of each bus's net power | Their kW along the participant's path to the transformer, like a peer trade's | None of note: in both methods they count in the loading and pay the fees of that path | Set |
 | Scale of the voltage drop | Measured $\lvert V_a - V_b \rvert$ | $f_\text{volt}\, d_{ij}$ | The voltage fee can differ in size alone | Open with $f_\text{volt}$ (Parameters) |
 | The transformer | Loaded in the power flow, left out of the fees | Not modelled | None between the arms: both leave it out | Open (Parameters) |
+| Losses | Measured per line and transformer, shared by branch currents; the background's share stays with the DSO | $\kappa\, d_{ij}\, q_{ij}$ per trade, whatever the lines carry | Each arm prices the losses with its own method, so what the participants pay for them is part of the comparison | Set (MP-4j) |
 
 **The level of the graph model's loading.** The first two rows push the graph
 model's loading down, the third pushes it up, and the total capacity sets the

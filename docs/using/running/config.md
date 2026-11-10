@@ -180,6 +180,7 @@ not read `bid_margin`.
 | `loss_factor` | per km | `κ` of [P1] eq. 18: `l_ij = d_ij · q_ij · κ` |
 | `congestion_factor`, `congestion_threshold` | numbers | `f_cong` and `C_threshold` of eq. 8a: above the threshold, the fee is `factor · (c − threshold) · value` |
 | `voltage_drop` | `"distance"`, `"measured"` | `V_drop` of eq. 8c: `voltage_factor · d_ij`, or the voltage difference between the two buses in the step's power flow |
+| `losses` | `"trades"`, `"bcdla"`, `"pro_rata"` | Who pays the network's losses. `"trades"`: [P1] eq. 18, each trade's loss $\kappa\, d_{ij}\, q_{ij}$ priced into its fee as $F_\text{trans}$. A rule of [losses.py](../../../core/grid/losses.py): the step's measured power-flow losses shared out, each participant paying its share at the step's utility price (a negative share is paid back) and $F_\text{trans}$ 0. `"bcdla"` needs a radial network ([Adding an option](../../methodology/architecture/development/options.md)) |
 | `voltage_factor` | per km | `f_volt` of eq. 8f. Only read with `"distance"` |
 | `voltage_threshold` | number | `V_threshold` of eq. 8c: the cap on the voltage part |
 | `thermal_threshold`, `thermal_cap` | threshold in `[0, 1)` | `T_threshold` and `f_threshold` of eq. 8g and 8d |

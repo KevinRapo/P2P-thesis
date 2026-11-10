@@ -25,6 +25,7 @@ from studio.components.labels import (
     BACKGROUNDS,
     GRAPH_CAPACITIES,
     GRID_METHODS,
+    LOSSES,
     MECHANISMS,
     STEP_LENGTHS,
     VOLTAGE_DROPS,
@@ -930,6 +931,12 @@ def _fees() -> None:
         value=d.voltage_drop,
         label="Voltage drop",
         on_change=lambda e: save("voltage_drop", e.value),
+    ).classes("w-full")
+    ui.select(
+        LOSSES,
+        value=d.losses,
+        label="Losses",
+        on_change=lambda e: save("losses", e.value),
     ).classes("w-full")
     ui.label(
         "The paper gives none of the factors; the defaults are the original code's."

@@ -271,3 +271,8 @@ class GridAssessment:
     violations: tuple[GridViolation, ...]
     notes: tuple[str, ...] = field(default_factory=tuple)
     line_loading_percent: Mapping[str, float] = field(default_factory=dict)
+    # The step's losses shared out (``core/grid/losses.py``), when the scenario
+    # allocates them: each participant's share in kWh (negative is a credit), and
+    # the rule's name.
+    loss_shares_kwh: Mapping[str, float] = field(default_factory=dict)
+    loss_allocation: str | None = None

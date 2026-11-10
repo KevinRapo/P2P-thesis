@@ -125,7 +125,11 @@ money unit):
 
     profit, bill                   the step's profit (eq. 14) and the net bill of
                                    the reward, before scaling
-    fees                           the grid fees it paid (eq. 8)
+    fees                           the grid fees it paid (eq. 8), its loss
+                                   charge included
+    loss_kwh, loss_charge          its share of the step's measured losses and
+                                   what it paid for it (0 with eq. 18's
+                                   losses, ``dso.losses = "trades"``)
     generation_kwh, demand_kwh     its own generation and demand
     bought_kwh, sold_kwh           traded energy, peers and DSO together
     peer_bought_kwh, peer_sold_kwh of it, with peers
@@ -236,6 +240,15 @@ from core.market.order import Order
 # --------------------------------------------------------------------------------------
 # What the agents see and do
 # --------------------------------------------------------------------------------------
+# The observation sets to choose from (``env_config["observation"]``). **Adding a
+# set**: a tuple of signal names (those of ``core/market/signals.py``, with
+# hour_sin and hour_cos for the time of day) under a new name in ``OBSERVATIONS``,
+# and the name in ``OBSERVATION_NAMES`` of ``core/env_defaults.py``. **Adding a
+# signal**: a function in ``signals.py``, registered in its group's dict
+# (``MARKET_SIGNALS``, ``AGENT_SIGNALS``, ``KPIS``), and a scale in ``_obs_scales``
+# unless it is already about 0 to 1. ``test_every_observation_set_names_known_signals``
+# checks every set.
+#
 # The market signals with the step and time of day as one sin and cos pair.
 MARKET_OBS: tuple[str, ...] = ("hour_sin", "hour_cos") + tuple(
     name for name in signals.MARKET_SIGNALS if name not in ("step", "time_of_day")
@@ -517,6 +530,8 @@ class MarketEnv(MultiAgentEnv):
                 "profit": float(o.profit),
                 "bill": float(bill),
                 "fees": float(o.fees),
+                "loss_kwh": float(record.grid.loss_shares_kwh.get(pid, 0.0)),
+                "loss_charge": float(o.loss_charge),
                 "generation_kwh": float(o.generation_kwh),
                 "demand_kwh": float(o.demand_kwh),
                 "bought_kwh": float(o.bought_kwh),

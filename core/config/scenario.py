@@ -303,6 +303,12 @@ class DsoSetup:
         voltage_drop: V_drop of [P1] eq. 8c: ``"distance"`` (eq. 8f, f_volt ·
             d_ij) or ``"measured"`` (|V_a − V_b| between the trade's two buses in
             the step's power flow).
+        losses: Who pays the network's losses. ``"trades"``: [P1] eq. 18, each
+            trade's loss κ · d_ij · q_ij priced into its fee as F_trans. Or a rule
+            of ``core/grid/losses.py`` (``"bcdla"``, ``"pro_rata"``): the step's
+            measured power-flow losses shared out, each participant paying its
+            share at the step's utility price (a negative share is paid back),
+            and F_trans 0.
     """
 
     prices: str | dict = field(default_factory=lambda: dict(FLAT_PRICES))
@@ -319,6 +325,7 @@ class DsoSetup:
     imbalance_factor: float = 0.15
     zone_factor: float = 0.15
     voltage_drop: str = "distance"
+    losses: str = "trades"
 
     def problems(self, step_hours: float) -> list[str]:
         """Tariffs that break p_FiT < p_P2P < p_utility ([P1] §3.3.2), so peers
@@ -357,6 +364,14 @@ class DsoSetup:
 
         if self.voltage_drop not in ("distance", "measured"):
             found.append("Voltage drop is not 'distance' or 'measured'.")
+
+        from core.grid.losses import LOSS_ALLOCATIONS
+
+        if self.losses != "trades" and self.losses not in LOSS_ALLOCATIONS:
+            found.append(
+                f"Losses {self.losses!r} is not 'trades' or one of "
+                f"{sorted(LOSS_ALLOCATIONS)}."
+            )
 
         return found
 

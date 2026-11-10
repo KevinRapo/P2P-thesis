@@ -699,3 +699,44 @@ def test_a_step_keeps_the_raw_action_with_or_without_an_order(env):
         assert state["action_quantity"] == pytest.approx(-1.0)
         assert state["action_price"] == pytest.approx(-0.5)
         assert state["action_partner"] == env.partners(a).index("none")
+
+
+# --------------------------------------------------------------------------------------
+# Every registered option keeps the contract (how to add one: Architecture ->
+# Development -> Adding an option)
+# --------------------------------------------------------------------------------------
+@pytest.mark.parametrize("name", sorted(REWARDS))
+def test_every_reward_pays_every_agent(name):
+    """A registered reward gives every agent a finite number every step, the money
+    (``bill``) is the same whichever reward, and the runner knows its name."""
+    assert name in REWARD_NAMES
+    config = {"scenario": str(SCENARIO), "days": DAYS[:1], "reward": name}
+    if name == "salazar":
+        config["grid_capacity_kwh"] = 50.0
+    env = MarketEnv(config)
+    plain = MarketEnv({"scenario": str(SCENARIO), "days": DAYS[:1]})
+    rng = np.random.default_rng(1)
+    env.reset(seed=1, options={"day": DAYS[0]})
+    plain.reset(seed=1, options={"day": DAYS[0]})
+
+    for _ in range(4):
+        actions = random_actions(env, rng)
+        _, rewards, _, _, infos = env.step(actions)
+        _, _, _, _, reference = plain.step(actions)
+        assert set(rewards) == set(AGENTS)
+        assert all(np.isfinite(r) for r in rewards.values())
+        assert all(infos[a]["bill"] == pytest.approx(reference[a]["bill"]) for a in AGENTS)
+
+
+@pytest.mark.parametrize("name", sorted(OBSERVATIONS))
+def test_every_observation_set_names_known_signals(name):
+    """A registered observation set names only computed signals, builds its space
+    and observes finite values; the runner knows its name."""
+    assert name in OBSERVATION_NAMES
+    assert set(OBSERVATIONS[name]) <= set(OBS_NAMES)
+    env = MarketEnv({"scenario": str(SCENARIO), "days": DAYS[:1], "observation": name})
+    obs, _ = env.reset(seed=1, options={"day": DAYS[0]})
+    size = len(OBSERVATIONS[name]) + len(AGENTS) - 1
+
+    for a in AGENTS:
+        assert obs[a].shape == (size,) and np.isfinite(obs[a]).all()

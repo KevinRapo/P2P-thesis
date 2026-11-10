@@ -11,13 +11,15 @@ from __future__ import annotations
 
 import math
 from collections import OrderedDict
-from typing import Any, Sequence
+from dataclasses import replace
+from typing import Any, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 
 from core.config.scenario import GridSetup
 from core.grid import simbench
+from core.grid.losses import LossAllocation
 from core.grid.contract import (
     GridAssessment,
     GridLimits,
@@ -185,10 +187,15 @@ class SimBenchGrid:
 
     # --- One power flow --------------------------------------------------------------
     def assess(
-        self, step: int, injections: Sequence[ParticipantInjection]
+        self,
+        step: int,
+        injections: Sequence[ParticipantInjection],
+        losses: Optional[LossAllocation] = None,
     ) -> GridAssessment:
         """Run the power flow for ``step`` with the participants' injections. A flow
-        that does not converge is reported as such, not raised."""
+        that does not converge is reported as such, not raised. With a loss
+        allocation rule, the assessment also holds each participant's share of the
+        step's losses (``loss_shares_kwh``): the share of its injection load."""
         import pandapower as pp
 
         if self._net is None:
@@ -231,7 +238,19 @@ class SimBenchGrid:
         except pp.LoadflowNotConverged:
             return simbench._not_converged(step, [])
 
-        return simbench._assessment(net, step, self.setup.step_hours, [], self.limits)
+        found = simbench._assessment(net, step, self.setup.step_hours, [], self.limits)
+
+        if losses is None:
+            return found
+
+        shares = losses.allocate(net)
+        hours = self.setup.step_hours
+        mine = {
+            pid: shares.of([("load", index)]) * hours
+            for pid, index in self._loads.items()
+        }
+
+        return replace(found, loss_shares_kwh=mine, loss_allocation=losses.name)
 
     # --- Distances, paths and zones -------------------------------------------------
     def electrical_distance(self, bus_a: str, bus_b: str) -> float:

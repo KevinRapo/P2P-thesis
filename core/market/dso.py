@@ -39,7 +39,8 @@ class DsoOutcome:
         sold_kwh: Energy it sold to participants (stage 3).
         balance_kwh: Eq. 7 for this step: sold − bought (+ the market imports).
         energy_revenue: What it was paid for energy minus what it paid.
-        fees: Fees it collected from every trade (0 when not charged).
+        fees: Fees it collected from every trade, and the participants' loss
+            charges (0 when not charged).
         profit: Energy revenue plus fees.
     """
 
@@ -188,8 +189,10 @@ class Dso:
     ) -> GridFees:
         """[P1] eq. 8 for a peer-to-peer trade of ``quantity`` at ``price`` along
         ``path``. F_trans has no formula in [P1]: here it is the lost energy at the
-        trade price ("the loss ... is included in the DSO fees", §3.5.2). F_imb
-        is 0: eq. 8h gives a balance impact only to trades with the DSO."""
+        trade price ("the loss ... is included in the DSO fees", §3.5.2), with
+        ``losses = "trades"``; with a power-flow loss rule the losses are charged
+        per participant instead (``loss_charge``), and F_trans is 0. F_imb is 0:
+        eq. 8h gives a balance impact only to trades with the DSO."""
         s = self.setup
         value = quantity * price
         c = self.congestion(path.lines)
@@ -209,7 +212,7 @@ class Dso:
 
         return GridFees(
             congestion=congestion,
-            transmission=loss_kwh * price,
+            transmission=loss_kwh * price if s.losses == "trades" else 0.0,
             voltage=min(v_drop, s.voltage_threshold) * value,  # 8c
             thermal=thermal,
             zone=-s.zone_factor * value if path.same_zone else 0.0,  # 8e
@@ -323,14 +326,26 @@ class Dso:
         return tuple(trades)
 
     # --- Balance (eq. 7) -------------------------------------------------------------
-    def settle(self, trades: Sequence[Trade]) -> DsoOutcome:  #! Market 7: DSO balance
+    def loss_charge(self, share_kwh: float, utility_price: float) -> float:
+        """What a participant pays for its share of the step's measured losses: the
+        energy at the step's utility price, the price of energy from upstream,
+        which is where the losses are supplied from; a negative share is paid
+        back. Nothing is paid when the fees are not charged."""
+        if not self.setup.fees_charged:
+            return 0.0
+        return share_kwh * utility_price
+
+    def settle(  #! Market 7: DSO balance
+        self, trades: Sequence[Trade], loss_charges: float = 0.0
+    ) -> DsoOutcome:
         """The DSO's step: eq. 7, B_DSO = Σ (E_sold − E_bought), its energy
-        revenue and the fees it collected; added to its running totals."""
+        revenue and the fees it collected, the participants' loss charges
+        included; added to its running totals."""
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
         sold = sum(t.quantity for t in trades if t.seller_id == self.id)
         revenue = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
         revenue -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
-        fees = sum(t.buyer_fee + t.seller_fee for t in trades)
+        fees = sum(t.buyer_fee + t.seller_fee for t in trades) + loss_charges
         self.balance_kwh += sold - bought
         self.profit += revenue + fees
         self.fees += fees

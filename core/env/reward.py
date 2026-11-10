@@ -33,6 +33,13 @@ scale. It needs ``grid_capacity_kwh``.
 
 With ``terminal_value`` (``MarketEnv``) the window's last reward adds the change of
 the stored energy at ``stored_kwh_value`` per kWh, whichever the reward.
+
+**Adding a reward.** Subclass ``Reward`` and implement ``step``: the step's record in,
+one number per agent out (put its parts in ``self.parts`` to have them saved with the
+step). Add the class to ``REWARDS`` under its name, and the name to ``REWARD_NAMES`` in
+``core/env_defaults.py``, which the runner checks experiments against without loading
+Ray. ``tests/market/test_market_env.py`` plays every registered reward
+(``test_every_reward_pays_every_agent``) and checks the two lists agree.
 """
 
 from __future__ import annotations

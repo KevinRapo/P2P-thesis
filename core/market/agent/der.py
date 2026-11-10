@@ -40,8 +40,11 @@ class ParticipantOutcome:
         external_kwh: Energy no trade covers: + exported, − imported.
         soc_kwh: Battery energy after the step (``None``: no battery).
         balance_kwh: Eq. 13: (G − D) + (bought − sold).
-        fees: Grid fees it paid this step (eq. 8; its share of each trade's).
+        fees: Grid fees it paid this step (eq. 8; its share of each trade's), its
+            loss charge included.
         profit: Eq. 14 for this step: revenue − cost of its trades − fees.
+        loss_charge: Of ``fees``, what it paid for its share of the step's
+            measured losses (0 with eq. 18's losses, ``DsoSetup.losses``).
     """
 
     participant_id: str
@@ -56,6 +59,7 @@ class ParticipantOutcome:
     balance_kwh: float
     fees: float
     profit: float
+    loss_charge: float = 0.0
 
     # [P1] §3.4.1 tracks "the total demand satisfied versus the demand deferred".
     # The DSO clears every order, so no demand goes unmet physically; deferred is
@@ -278,16 +282,22 @@ class Participant:
         )
 
     def pay_fees(
-        self, outcome: ParticipantOutcome, trades: Sequence[Trade]
+        self,
+        outcome: ParticipantOutcome,
+        trades: Sequence[Trade],
+        loss_charge: float = 0.0,
     ) -> ParticipantOutcome:
-        """Its share of the step's grid fees (eq. 8), known once the step's power
-        flow has run: taken from the running profit (eq. 14) and from the step's
-        ``outcome``, which ``settle`` returned without fees."""
+        """Its share of the step's grid fees (eq. 8) and its ``loss_charge``, known
+        once the step's power flow has run: taken from the running profit (eq. 14)
+        and from the step's ``outcome``, which ``settle`` returned without fees."""
         fees = sum(t.buyer_fee for t in trades if t.buyer_id == self.id)
         fees += sum(t.seller_fee for t in trades if t.seller_id == self.id)
+        fees += loss_charge
         self.profit -= fees
 
-        return replace(outcome, fees=fees, profit=outcome.profit - fees)
+        return replace(
+            outcome, fees=fees, profit=outcome.profit - fees, loss_charge=loss_charge
+        )
 
     # --- Its power at the bus --------------------------------------------------------
     def injection(

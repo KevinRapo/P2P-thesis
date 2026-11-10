@@ -194,6 +194,8 @@ nav:
               - RL: methodology/architecture/packages/rl.md
               - Runner: methodology/architecture/packages/runner.md
               - Studio: methodology/architecture/packages/studio.md
+          - Development:
+              - Adding an option: methodology/architecture/development/options.md
           - Around the code: methodology/architecture/around.md
   - Using it:
       - Data:

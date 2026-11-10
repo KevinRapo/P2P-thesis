@@ -153,7 +153,9 @@ As above, `env_steps` or `period`.
 | `profit` | 0.1357 | revenue − cost of its trades − its fees, eq. 14 |
 | `bill` | -0.3686 | profit − utility price × deferred demand; + earned |
 | `adjusted_bill` | -0.3686 | bill + stored change × `stored_kwh_value` |
-| `fees` | 0.02 | what it paid of the grid fees |
+| `fees` | 0.02 | what it paid of the grid fees, its loss charge included |
+| `loss_kwh` | 0.012 | its share of the step's measured losses (`dso.losses` other than `"trades"`; 0 otherwise); negative is a credit |
+| `loss_charge` | 0.004 | of `fees`, what it paid for that share, at the step's utility price |
 | `generation_kwh` | 80.1 | its own |
 | `demand_kwh` | 19.2 | |
 | `bought_kwh` | 2.4086 | peers and DSO together |

@@ -45,6 +45,7 @@ from core.config.scenario import BatterySetup, Scenario
 from core.grid import simbench
 from core.grid.contract import GridAssessment, GridPath, NetworkRef
 from core.grid.graph import GraphGrid
+from core.grid.losses import LossAllocation, build_loss_allocation
 from core.grid.powerflow import SimBenchGrid
 from core.market.agent import rule_based_bid
 from core.market.agent.battery import Battery
@@ -252,6 +253,7 @@ class LocalEnergyMarket:
         self._paths: dict[tuple[str, str], GridPath] = {}
         self._upstream_paths: dict[str, GridPath] = {}
         self.graph: Optional[GraphGrid] = None
+        self.losses: Optional[LossAllocation] = self._loss_rule()
 
     # --- Running the day -------------------------------------------------------------
     @property
@@ -296,6 +298,7 @@ class LocalEnergyMarket:
         )
         self.grid.reset()
         self.graph = self._graph_model()
+        self.losses = self._loss_rule()
         self._paths = {}
         self._upstream_paths = {}
         self.history = []
@@ -347,8 +350,12 @@ class LocalEnergyMarket:
         signal = self._grid_signal(p, grid)
         stages = self._charge_fees(p, signal, grid)
         trades = [t for s in stages for t in s.trades]
+        losses = {
+            pid: self.dso.loss_charge(kwh, p.inputs.utility_price)
+            for pid, kwh in grid.loss_shares_kwh.items()
+        }
         outcomes = {
-            pid: self.participants[pid].pay_fees(o, trades)
+            pid: self.participants[pid].pay_fees(o, trades, losses.get(pid, 0.0))
             for pid, o in outcomes.items()
         }
         record = StepRecord(
@@ -359,7 +366,7 @@ class LocalEnergyMarket:
             participants=outcomes,
             clearing_price=self._clearing_price(trades),
             grid=grid,
-            dso=self.dso.settle(trades),
+            dso=self.dso.settle(trades, sum(losses.values())),
             notes=tuple(p.notes),
             signal=signal if signal is not grid else None,
         )
@@ -641,7 +648,14 @@ class LocalEnergyMarket:
             self.participants[pid].injection(o, h) for pid, o in outcomes.items()
         ]
 
-        return self.grid.assess(step, injections)
+        return self.grid.assess(step, injections, self.losses)
+
+    def _loss_rule(self) -> Optional[LossAllocation]:
+        """The rule that shares the step's measured losses out
+        (``core/grid/losses.py``), or ``None`` with [P1] eq. 18's losses per trade
+        (``dso.losses = "trades"``)."""
+        name = self.scenario.dso.losses
+        return None if name == "trades" else build_loss_allocation(name)
 
     def _graph_model(self) -> Optional[GraphGrid]:
         """The paper's graph model on this network when ``grid.method`` is
