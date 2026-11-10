@@ -51,4 +51,4 @@ The active scenario, the experiment being prepared and the network cache live in
 runs, filters) are remembered per browser. Both survive a restart.
 
 The screenshots show the thesis setup: the scenario `thesis_rural3_p13` and the
-experiment `thesis_grid_methods` ([Thesis experiments](../../experiments/thesis.md)).
+experiment `thesis_grid_methods` ([Grid methods](../../experiments/thesis/grid-methods.md)).

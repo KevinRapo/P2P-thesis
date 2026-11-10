@@ -4,8 +4,8 @@
 > file in [config/experiments/](../../config/experiments/); how to run one is in
 > [Starting and following runs](../using/running/runs.md).
 
-**The thesis's results** come from two experiments on one shared setup:
-[Thesis experiments](thesis.md).
+**The thesis's results** come from two experiments, one page each:
+[Thesis experiments](thesis/index.md).
 
 | Experiment | Question |
 |---|---|

@@ -7,7 +7,7 @@ Data and settings, notebooks, tests, and the files that run and build everything
 | Folder | What it holds |
 |---|---|
 | [`config/scenarios/`](../../../config/scenarios/) | Saved scenarios, opened from the Studio's header or named by an experiment ([Config](../../using/running/config.md)) |
-| [`config/experiments/`](../../../config/experiments/) | Experiments, one file each; the thesis's are in [Thesis experiments](../../experiments/thesis.md) |
+| [`config/experiments/`](../../../config/experiments/) | Experiments, one file each; the thesis's are in [Thesis experiments](../../experiments/thesis/index.md) |
 | [`config/data/`](../../../config/data/) | Price files: synthetic days and German 2024 prices, with the script that builds them ([Prices](../../using/data/prices.md)) |
 
 ## notebooks/

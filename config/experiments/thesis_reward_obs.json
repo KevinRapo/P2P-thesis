@@ -1,6 +1,6 @@
 {
   "name": "thesis_reward_obs",
-  "description": "Thesis result 2, reward by observation (docs/experiments/thesis.md): the original code's reward (salazar) or the participant's own bill, by the paper's 42 signals or the pruned 22, on the thesis scenario with the power flow. Grid capacity of the salazar reward: 400 kWh per step, the transformer's 0.4 MVA over one hour (RP-1g). Compare the arms on the held-out bill (heldout_agents.csv), never on returns: each reward has its own units. OPEN before the final run: the reward and observation definitions (E-05, E-07, E-10, E-13, E-16, the KPIs marked # OPEN in core/market/signals.py); paradigms, budget and seeds after the RL stage.",
+  "description": "Thesis result 2, reward by observation (docs/experiments/thesis/reward-obs.md): the original code's reward (salazar) or the participant's own bill, by the paper's 42 signals or the pruned 22, on the thesis scenario with the power flow. Grid capacity of the salazar reward: 400 kWh per step, the transformer's 0.4 MVA over one hour (RP-1g). Compare the arms on the held-out bill (heldout_agents.csv), never on returns: each reward has its own units. OPEN before the final run: the reward and observation definitions (E-05, E-07, E-10, E-13, E-16, the KPIs marked # OPEN in core/market/signals.py); paradigms, budget and seeds after the RL stage.",
   "scenario": "config/scenarios/thesis_rural3_p13.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
   "test_periods": {"july": {"from": "2016-07-01", "to": "2016-07-14"}},
