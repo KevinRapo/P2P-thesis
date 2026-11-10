@@ -49,7 +49,7 @@ class GraphGrid:
             raise ValueError(f"graph capacity must be one of {CAPACITY_RULES}")
         self.capacity_kw = capacities(lines, capacity, total_kw)
 
-    def assess(
+    def assess(  #! Market 5b: graph loading
         self, step: int, flows: Sequence[tuple[GridPath, float]]
     ) -> GridAssessment:
         """The line loading of ``step``: every trade's power (kW) added to each line

@@ -325,7 +325,7 @@ class Evaluation:
     tables: dict[str, pd.DataFrame] = field(default_factory=dict)
 
 
-def evaluation(
+def evaluation(  #! Training D: evaluation
     env_class: type,
     env_config: dict,
     policies: dict[str, ActFn],

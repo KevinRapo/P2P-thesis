@@ -24,7 +24,7 @@ class ClearingMechanism(Enum):
     NASH_BARGAINING = "nash_bargaining"  # [P1] eq. 10
     PROPORTIONAL_SURPLUS = "proportional_surplus"  # [P1] eq. 11, reconstructed
 
-    def calculate_price(
+    def calculate_price(  #! Market 3: trade price p_ij
         self,
         buy: Order,
         sell: Order,

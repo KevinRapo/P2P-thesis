@@ -24,7 +24,7 @@ from ray.rllib.core.columns import Columns
 CLIP_FRACTION = "clip_fraction"
 
 
-class PPOLearner(PPOTorchLearner):
+class PPOLearner(PPOTorchLearner):  #! Training C: update
     """RLlib's PPO learner; also logs ``clip_fraction`` per module."""
 
     def compute_loss_for_module(

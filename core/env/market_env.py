@@ -419,7 +419,7 @@ class MarketEnv(MultiAgentEnv):
         return {"zero": zero_policy(self), "net_position": net_position_policy(self)}
 
     # --- Episodes --------------------------------------------------------------------
-    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):  #! Episode: reset (one day)
         """Draw a window of days (or play ``options["day"]``, see the module), rebuild
         the market for its first day, return the first observations and ``{"day":
         day}`` per agent (with the ``period`` of ``options``, if any)."""
@@ -456,7 +456,7 @@ class MarketEnv(MultiAgentEnv):
 
         return self._observe(), {a: dict(info) for a in self.agents_id}
 
-    def step(self, action_dict: dict[str, Any]):
+    def step(self, action_dict: dict[str, Any]):  #! Environment step: E1-E4
         """Play one market step with the agents' orders."""
         intents, chosen = {}, {}
 
@@ -591,7 +591,7 @@ class MarketEnv(MultiAgentEnv):
         return out
 
     # --- Actions ---------------------------------------------------------------------
-    def decode(self, pid: str, action: dict) -> Optional[OrderIntent]:
+    def decode(self, pid: str, action: dict) -> Optional[OrderIntent]:  #! E1: action -> intent
         """The order an action means for the step about to be played (``None``: no
         order; see the module docstring). The partner is passed on as chosen."""
         side = int(np.asarray(action["side"]).reshape(-1)[0])
@@ -712,7 +712,7 @@ class MarketEnv(MultiAgentEnv):
 
         return {name: kinds.get(name, (0.0, 1.0)) for name in self._signal_names}
 
-    def _observe(self) -> dict[str, np.ndarray]:
+    def _observe(self) -> dict[str, np.ndarray]:  #! E3: observation
         """Every agent's observation for the step about to be played (see the module
         docstring). After the last step the profile is the last step's and the hour
         is midnight (the episode is over; RLlib wants a final observation)."""

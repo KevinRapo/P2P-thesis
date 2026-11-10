@@ -192,7 +192,7 @@ class Participant:
         return max(0.0, -self.net_kwh(step)) + self.battery_room()[0]
 
     # --- Partner choice --------------------------------------------------------------
-    def choose_partner(
+    def choose_partner(  #! Market 2: partner beta
         self,
         candidates: Sequence[str],
         distance_km: Callable[[str], float],
@@ -234,7 +234,7 @@ class Participant:
         return max(others, key=score)
 
     # --- Settlement (eq. 13, 14, 16) -------------------------------------------------
-    def settle(self, step: int, trades: Sequence[Trade]) -> ParticipantOutcome:
+    def settle(self, step: int, trades: Sequence[Trade]) -> ParticipantOutcome:  #! Market 4: settlement (B_i, battery, profit)
         """Turn the step's trades into what the participant did and earned.
 
         After its trades it has ``G − D + bought − sold`` left at its bus (eq. 13):

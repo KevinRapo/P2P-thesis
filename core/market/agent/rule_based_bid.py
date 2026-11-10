@@ -61,7 +61,7 @@ class BidView:
 # --------------------------------------------------------------------------------------
 # The rule
 # --------------------------------------------------------------------------------------
-def net_position(
+def net_position(  #! Market 2: bidding rule
     views: Mapping[str, BidView],
     market: MarketSetup,
     feed_in_tariff: float,

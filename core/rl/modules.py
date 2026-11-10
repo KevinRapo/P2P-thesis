@@ -189,7 +189,7 @@ def bounded_head(module) -> Optional[BoundedHead]:
     return BoundedHead(module.pi, means, log_stds, bound_mean, bounds, free)
 
 
-class PPOModule(DefaultPPOTorchRLModule):
+class PPOModule(DefaultPPOTorchRLModule):  #! Training A, C: policy and value networks
     """RLlib's PPO module; the policy head bounded as its ``model_config`` asks."""
 
     def setup(self):

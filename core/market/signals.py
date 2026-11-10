@@ -395,7 +395,7 @@ def kpis(history) -> dict[str, float]:
     return {name: f(history) for name, f in KPIS.items()}
 
 
-def market_signals(market, names: Optional[Collection[str]] = None) -> dict[str, float]:
+def market_signals(market, names: Optional[Collection[str]] = None) -> dict[str, float]:  #! E3: market signals
     """The market signals, or only those of ``names``."""
     return {
         name: f(market)
@@ -404,7 +404,7 @@ def market_signals(market, names: Optional[Collection[str]] = None) -> dict[str,
     }
 
 
-def agent_signals(
+def agent_signals(  #! E3: agent signals
     market, agent: str, names: Optional[Collection[str]] = None
 ) -> dict[str, float]:
     """``agent``'s signals, or only those of ``names``."""

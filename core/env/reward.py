@@ -315,7 +315,7 @@ class Reward:
 class NetBillReward(Reward):
     """The net bill, scaled (see the module)."""
 
-    def step(self, record: StepRecord) -> dict[str, float]:
+    def step(self, record: StepRecord) -> dict[str, float]:  #! E2: reward (the bill)
         return {
             pid: net_bill(record, pid) / self.reward_scale
             for pid in record.participants

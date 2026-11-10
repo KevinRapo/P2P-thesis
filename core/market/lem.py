@@ -269,7 +269,7 @@ class LocalEnergyMarket:
         """Whether every step of the day is played."""
         return self.current_step >= self.n_steps
 
-    def reset(
+    def reset(  #! Market 0: reset (day, profiles, grid)
         self,
         battery_kwh: Optional[Mapping[str, float]] = None,
         reputation: Optional[Mapping[str, float]] = None,
@@ -368,7 +368,7 @@ class LocalEnergyMarket:
 
         return record
 
-    def step(self, intents: Optional[Mapping[str, OrderIntent]] = None) -> StepRecord:
+    def step(self, intents: Optional[Mapping[str, OrderIntent]] = None) -> StepRecord:  #! Market step: phases 1-8
         """Play one whole step."""
         if self.pending is None:
             self.start_step(intents)
@@ -432,7 +432,7 @@ class LocalEnergyMarket:
             return None
         return Battery(b, step_hours=self.scenario.grid.step_hours)
 
-    def _inputs(self, step: int) -> StepInputs:
+    def _inputs(self, step: int) -> StepInputs:  #! Market 1: inputs G_t, D_t, tariffs
         """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are the DSO's
         current ones: flat, or the hourly prices of the step's hour (set when
         the previous step ends, ``_advance``)."""
@@ -532,7 +532,7 @@ class LocalEnergyMarket:
         return self._upstream_paths[pid]
 
     # --- Phases 1 and 2: validate, orders --------------------------------------------
-    def _validate(
+    def _validate(  #! Market 2: validate orders
         self, inputs: StepInputs, intents: Mapping[str, OrderIntent]
     ) -> tuple[dict[str, OrderIntent], list[str]]:
         """Phase 1 ([P1] §3.9): limit each intent to the market bounds ([P1] eq. 2,
@@ -609,7 +609,7 @@ class LocalEnergyMarket:
             route=self._route,
         )
 
-    def _clearing_price(self, trades: list[Trade]) -> float:
+    def _clearing_price(self, trades: list[Trade]) -> float:  #! Market 7: clearing price
         """Volume-weighted price of the peer-to-peer trades; the previous price when
         there were none. Next step's p_ref ([P1] eq. 11)."""
         p2p = [t for t in trades if t.stage < 3]
@@ -630,7 +630,7 @@ class LocalEnergyMarket:
             pid: p.settle(inputs.step, trades) for pid, p in self.participants.items()
         }
 
-    def _assess_grid(
+    def _assess_grid(  #! Market 5a: power flow
         self, step: int, outcomes: Mapping[str, ParticipantOutcome]
     ) -> GridAssessment:
         """Phase 4': one power flow with each participant's injection
@@ -656,7 +656,7 @@ class LocalEnergyMarket:
 
         return GraphGrid(self.grid.line_table(), g.graph_capacity, g.graph_total_kw)
 
-    def _grid_signal(self, p: PendingStep, grid: GridAssessment) -> GridAssessment:
+    def _grid_signal(self, p: PendingStep, grid: GridAssessment) -> GridAssessment:  #! Market 5b: fee signal (power flow or graph)
         """The line loading the fees are charged on: the power flow's, or the
         graph model's from this step's trades, each along the path its fee uses
         (``Dso.charge``) at q / Δt kW."""
@@ -674,7 +674,7 @@ class LocalEnergyMarket:
 
         return self.graph.assess(p.step, flows)
 
-    def _charge_fees(
+    def _charge_fees(  #! Market 6: fees
         self, p: PendingStep, signal: GridAssessment, grid: GridAssessment
     ) -> tuple[StageResult, ...]:
         """Phase 4": the DSO sees the step's line loading (``signal``: the power
@@ -691,7 +691,7 @@ class LocalEnergyMarket:
         )
 
     # --- Phase 6: advance ------------------------------------------------------------
-    def _update_reputation(self, record: StepRecord) -> StepRecord:
+    def _update_reputation(self, record: StepRecord) -> StepRecord:  #! Market 8: reputation
         """Phase 6 ([P1] §3.9): every participant's reputation from the step's
         outcome, by the reputation module (``ReputationHandler.update_reputation``,
         [P1] eq. 12 and its decay), as the original's ``lem.py`` did; the record

@@ -3,7 +3,7 @@
 The single list of everything that is undecided in V2. Nothing is deleted from it:
 an item stays when it is decided, with its status changed. A status is one of
 `inbox` (noticed, not yet looked at), `open`, `parked` (on purpose, for later) or
-`decided → [decision log](decisions.md)` (with the log row it went to). The
+`decided → ...` (the [decision log](decisions.md) row, or the full cycle's phase card that records it). The
 [plans](index.md) only list these IDs in their stages. In the code an open question is
 a marker `# OPEN <ID>: question` whose ID is in this table, and a quick reminder is
 `# ! note`, which is triaged into this list at the end of a session
@@ -17,12 +17,12 @@ letter of the stage it fits, and becomes a plan decision when its stage poses it
 |---|---|---|---|---|---|
 | E-10 | The KPIs' window: the day so far (now); the papers give none | [market_env.py:725](../../core/env/market_env.py#L725), [reward.py:343](../../core/env/reward.py#L343), [signals.py:85](../../core/market/signals.py#L85); [Observation](../methodology/environment/observation.md#implicit-cooperation-kpis-10-the-same-for-every-agent) | open | — | 2026-11-03 |
 | E-07 | A signal with nothing to measure enters as 0, which is also a real value for the local price and its advantage | [market_env.py:738](../../core/env/market_env.py#L738); [Observation](../methodology/environment/observation.md#missing-values) | open | — | 2026-11-03 |
-| E-05 | True future demand and generation in the observation, without the paper's forecast error | [signals.py:282](../../core/market/signals.py#L282), [signals.py:295](../../core/market/signals.py#L295) | open | — | 2026-11-03 |
+| E-05 | True future demand and generation in the observation, without the paper's forecast error | [signals.py:282](../../core/market/signals.py#L282), [signals.py:295](../../core/market/signals.py#L295) | decided → [The environment step](../methodology/environment/index.md#the-environment-step): no forecast error | — | 2026-11-03 |
 | E-08, E-11 | Supply-demand imbalance over each step's orders, with the order volume standing in for $C_\text{grid}$ | [signals.py:36](../../core/market/signals.py#L36) | open | — | 2026-11-03 |
 | E-09 | Social welfare as the sum of $p \cdot q$ (turnover), not surplus | [signals.py:66](../../core/market/signals.py#L66) | open | — | 2026-11-03 |
 | E-12 | DER self-consumption as the peer share of the energy traded | [signals.py:121](../../core/market/signals.py#L121) | open | — | 2026-11-03 |
-| E-13, E-20 | The KPIs enter the reward raw; no source gives the ranges that would keep them in [0, 1] | [reward.py:213](../../core/env/reward.py#L213) | open | — | 2026-11-03 |
-| E-16 | The grid terms read $B_\text{grid}$ before the DSO clears (the original's was always 0) | [reward.py:392](../../core/env/reward.py#L392) | open | — | 2026-11-03 |
+| E-13, E-20 | The KPIs enter the reward raw; no source gives the ranges that would keep them in [0, 1] | [reward.py:213](../../core/env/reward.py#L213) | decided → [The environment step](../methodology/environment/index.md#the-environment-step): the reward is the net bill; the `salazar` reward keeps them | — | 2026-11-03 |
+| E-16 | The grid terms read $B_\text{grid}$ before the DSO clears (the original's was always 0) | [reward.py:392](../../core/env/reward.py#L392) | decided → [The environment step](../methodology/environment/index.md#the-environment-step): the reward is the net bill; the `salazar` reward keeps it | — | 2026-11-03 |
 | MP-6a | Which KPIs are reported next to the bill; the DSO's trades in them, $q_\text{available}$, the DSO's balance | [signals.py:71](../../core/market/signals.py#L71), [signals.py:126](../../core/market/signals.py#L126), [signals.py:163](../../core/market/signals.py#L163), [signals.py:201](../../core/market/signals.py#L201) | open | Market 6 | 2026-11-03 |
 | RP-1g (proposed) | The grid capacity $C$ of the `salazar` reward: SimBench has no single one, so a run must state it | [reward.py:337](../../core/env/reward.py#L337) | open | — | 2026-11-03 |
 | MP-4g (proposed) | Is the `GridModel` protocol still a point to use? | [contract.py:275](../../core/grid/contract.py#L275) | open | — | 2026-11-03 |
@@ -30,17 +30,17 @@ letter of the stage it fits, and becomes a plan decision when its stage poses it
 | MP-2d (proposed) | Should the order bound (net position) also include the battery's power constraint? | [der.py:175](../../core/market/agent/der.py#L175) | open | — | 2026-11-03 |
 | MP-3c (proposed) | Scale the two parts of the rule-based partner score, or not? | [der.py:227](../../core/market/agent/der.py#L227) | open | — | 2026-11-03 |
 | MP-3d (proposed) | `BID_ASK_SPREAD` and `NASH_BARGAINING` give the same price as `average` at factor 0.5 | [clearing_price.py:54](../../core/market/clearing_price.py#L54), [clearing_price.py:58](../../core/market/clearing_price.py#L58) | open | — | 2026-11-03 |
-| M-02 | Invalid orders in general: cut, reject or penalise | [validation/market.md](../original/issues/market.md); [M-02](../original/issues/register.md#M-02) | open | — | 2026-11-03 |
-| M-11 | Weighting of the rule-based partner choice (50/50 now) | [validation/market.md](../original/issues/market.md); [M-11](../original/issues/register.md#M-11) | open | — | 2026-11-03 |
-| M-19 | Battery power from SimBench or set by hand | [validation/market.md](../original/issues/market.md); [M-19](../original/issues/register.md#M-19) | open | — | 2026-11-03 |
-| M-23 | Demand satisfied and the battery's discharge | [validation/market.md](../original/issues/market.md); [M-23](../original/issues/register.md#M-23) | open | — | 2026-11-03 |
-| M-28 | The transmission fee $F_\text{trans}$ (no formula in [P1]) | [validation/market.md](../original/issues/market.md); [M-28](../original/issues/register.md#M-28) | open | — | 2026-11-03 |
-| M-30 | Which DSO trade could help the balance (imbalance fee) | [validation/market.md](../original/issues/market.md); [M-30](../original/issues/register.md#M-30) | open | — | 2026-11-03 |
-| M-31 | DSO trades and the grid | [validation/market.md](../original/issues/market.md); [M-31](../original/issues/register.md#M-31) | open | — | 2026-11-03 |
-| M-32 | The thermal fee's threshold | [validation/market.md](../original/issues/market.md); [M-32](../original/issues/register.md#M-32) | open | — | 2026-11-03 |
-| M-33, M-34 | Zones as feeders and the zone bonus | [validation/market.md](../original/issues/market.md); [M-33](../original/issues/register.md#M-33), [M-34](../original/issues/register.md#M-34) | open | — | 2026-11-03 |
-| M-43 | Reputation decay | [validation/market.md](../original/issues/market.md); [M-43](../original/issues/register.md#M-43) | open | — | 2026-11-03 |
-| M-45 | Whether one day is long enough for reputation to mean anything | [validation/market.md](../original/issues/market.md); [M-45](../original/issues/register.md#M-45) | open | — | 2026-11-03 |
+| M-02 | Invalid orders in general: cut, reject or penalise | [validation/market.md](../original/issues/market.md); [M-02](../original/issues/register.md#M-02) | decided → [Market step, 2. Orders](../methodology/market/step.md#2-orders): limited, not raised | — | 2026-11-03 |
+| M-11 | Weighting of the rule-based partner choice (50/50 now) | [validation/market.md](../original/issues/market.md); [M-11](../original/issues/register.md#M-11) | decided → [Market step, 2. Orders](../methodology/market/step.md#2-orders): weighted score, weight 0.5 | — | 2026-11-03 |
+| M-19 | Battery power from SimBench or set by hand | [validation/market.md](../original/issues/market.md); [M-19](../original/issues/register.md#M-19) | decided → [Market step, 2. Orders](../methodology/market/step.md#2-orders): the power from SimBench | — | 2026-11-03 |
+| M-23 | Demand satisfied and the battery's discharge | [validation/market.md](../original/issues/market.md); [M-23](../original/issues/register.md#M-23) | decided → [Market step, 4. Settlement](../methodology/market/step.md#4-settlement): discharge counts towards demand | — | 2026-11-03 |
+| M-28 | The transmission fee $F_\text{trans}$ (no formula in [P1]) | [validation/market.md](../original/issues/market.md); [M-28](../original/issues/register.md#M-28) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): the loss at the trade price | — | 2026-11-03 |
+| M-30 | Which DSO trade could help the balance (imbalance fee) | [validation/market.md](../original/issues/market.md); [M-30](../original/issues/register.md#M-30) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): charged when the DSO trade worsens the balance | — | 2026-11-03 |
+| M-31 | DSO trades and the grid | [validation/market.md](../original/issues/market.md); [M-31](../original/issues/register.md#M-31) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): the path to the transformer | — | 2026-11-03 |
+| M-32 | The thermal fee's threshold | [validation/market.md](../original/issues/market.md); [M-32](../original/issues/register.md#M-32) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): kept at 0.2, its own setting | — | 2026-11-03 |
+| M-33, M-34 | Zones as feeders and the zone bonus | [validation/market.md](../original/issues/market.md); [M-33](../original/issues/register.md#M-33), [M-34](../original/issues/register.md#M-34) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): zones are feeders, bonus 0.15 | — | 2026-11-03 |
+| M-43 | Reputation decay | [validation/market.md](../original/issues/market.md); [M-43](../original/issues/register.md#M-43) | decided → [Market step, 8. Reputation](../methodology/market/step.md#8-reputation-and-advance): a constant decay per hour | — | 2026-11-03 |
+| M-45 | Whether one day is long enough for reputation to mean anything | [validation/market.md](../original/issues/market.md); [M-45](../original/issues/register.md#M-45) | decided → [Market step, 0. Reset](../methodology/market/step.md#0-before-the-day-reset): everyone starts at 0.5; whether a day is long enough stays open as MP-5b | — | 2026-11-03 |
 | L-01 | The CTDE critic's input | [validation/rl.md](../original/issues/rl.md); [L-01](../original/issues/register.md#L-01) | open | — | 2026-11-03 |
 | L-02 | CTCE as a centralised-information baseline, not an upper bound | [validation/rl.md](../original/issues/rl.md); [L-02](../original/issues/register.md#L-02) | open | — | 2026-11-03 |
 | L-03 | How returns are compared across paradigms | [validation/rl.md](../original/issues/rl.md); [L-03](../original/issues/register.md#L-03) | open | — | 2026-11-03 |

@@ -94,7 +94,7 @@ class Clearing:
         self.pricing = ClearingMechanism(rules.mechanism)
 
     @property
-    def stages(self) -> tuple[Callable[[Sequence[Order]], StageResult], ...]:
+    def stages(self) -> tuple[Callable[[Sequence[Order]], StageResult], ...]:  #! Market 3: clearing, three stages
         """The three stages, in the order they run."""
         return (self.preferences, self.double_auction, self.dso)
 

@@ -52,18 +52,19 @@ The settings that differ between the arms.
 ### The fees
 
 The same in every arm, so they shape all four alike; their values still set how
-much the grid matters next to the price.
+much the grid matters next to the price. How each one is calculated:
+[The market step, 6. Fees](../../methodology/market/step.md#6-fees).
 
 | Setting | Now | Where the value comes from | Decision |
 |---|---|---|---|
-| Congestion fee: factor, threshold | 0.5, 0.8 | The release | Open with the grid stress |
-| Thermal fee: threshold, cap | 0.2, 0.3 | The release; the threshold sits below the congestion one | Open: [M-32](../../original/issues/register.md#M-32) |
-| Loss factor $\kappa$ | 0.03 per km | The release, hard-coded | Open: [M-41](../../original/issues/register.md#M-41) |
-| Losses in settlement | Recorded, not deducted | Ours | Set |
-| Transmission fee $F_\text{trans}$ | 0 | No formula in [P1] | Open: [M-28](../../original/issues/register.md#M-28) |
-| DSO trades and the grid | No grid fees on DSO trades | The release | Open: [M-31](../../original/issues/register.md#M-31) |
-| Zones and the same-zone bonus | Factor 0.15 | The release | Open: [M-33](../../original/issues/register.md#M-33), [M-34](../../original/issues/register.md#M-34) |
-| Buyer's share of the fees | 0.5 | Ours | Set |
+| Congestion fee: factor, threshold | 0.5, 0.8 | The release's values | Open with the grid stress |
+| Thermal fee: threshold, cap | 0.2, 0.3 | The release's values; the threshold sits below the congestion one, so the thermal fee starts at 20 % loading | Open with the grid stress |
+| Loss factor $\kappa$ | 0.03 per km | The release's value | Set |
+| Losses in settlement | Recorded, not taken off the energy | Ours | Set |
+| Transmission fee $F_\text{trans}$ | The trade's loss $l_{ij}$ at the trade price | Ours: [P1] gives no formula | Set |
+| Trades with the DSO | The fees of the participant's path to the transformer, like a peer trade, plus the imbalance fee (factor 0.15); no zone bonus | Ours | Set |
+| Zones and the same-zone bonus | Zones are the feeders; bonus factor 0.15 | Ours (zones); the release's factor | Set |
+| Buyer's share of a peer trade's fee | 0.5 | Ours | Set |
 
 ### Learning
 
@@ -89,7 +90,7 @@ the path its fee uses
 | Background load | The 30 background buses' profiles flow on the lines | Not seen | Lower loading; against the real ratings (`graph_ratings`) the fees may never be charged, as the full power flow only reaches 38 % | Open (below) |
 | Energy not traded | A participant's net power from what it physically did | Only its trades | Lower loading wherever a participant's net power exceeds what it traded | Open (below) |
 | Direction of flows | Opposite flows on a line cancel | Every trade adds its kW as an amount, whatever its direction | Higher loading where trades run both ways on a line, such as a PV sale downstream while a neighbour imports | Keep, as [P1] |
-| Trades with the DSO | Part of each bus's net power | Along the participant's path to the transformer | Raise the loading that peer trades pay for, though DSO trades pay no grid fees | Open with [M-31](../../original/issues/register.md#M-31) |
+| Trades with the DSO | Part of each bus's net power | Their kW along the participant's path to the transformer, like a peer trade's | None of note: in both methods they count in the loading and pay the fees of that path | Set |
 | Scale of the voltage drop | Measured $\lvert V_a - V_b \rvert$ | $f_\text{volt}\, d_{ij}$ | The voltage fee can differ in size alone | Open with $f_\text{volt}$ (Parameters) |
 | The transformer | Loaded in the power flow, left out of the fees | Not modelled | None between the arms: both leave it out | Open (Parameters) |
 

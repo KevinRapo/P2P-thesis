@@ -183,7 +183,7 @@ class Dso:
         return distance_km * quantity * self.setup.loss_factor
 
     # --- Fees (eq. 8) ----------------------------------------------------------------
-    def fees_of(
+    def fees_of(  #! Market 6: fee parts (eq. 8)
         self, quantity: float, price: float, path: GridPath, loss_kwh: float
     ) -> GridFees:
         """[P1] eq. 8 for a peer-to-peer trade of ``quantity`` at ``price`` along
@@ -323,7 +323,7 @@ class Dso:
         return tuple(trades)
 
     # --- Balance (eq. 7) -------------------------------------------------------------
-    def settle(self, trades: Sequence[Trade]) -> DsoOutcome:
+    def settle(self, trades: Sequence[Trade]) -> DsoOutcome:  #! Market 7: DSO balance
         """The DSO's step: eq. 7, B_DSO = Σ (E_sold − E_bought), its energy
         revenue and the fees it collected; added to its running totals."""
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)

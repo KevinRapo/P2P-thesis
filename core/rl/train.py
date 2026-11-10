@@ -405,7 +405,7 @@ def learner_modules(algo) -> MultiRLModule:
     return algo.learner_group._learner.module
 
 
-def train(run: Run) -> dict[str, Any]:
+def train(run: Run) -> dict[str, Any]:  #! Training: the loop (collect, targets, update, after)
     """Train one run and write its record (see the module docstring).
 
     Returns:
