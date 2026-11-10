@@ -262,41 +262,29 @@ class Dso:
         loss = self.transmission_loss(path.distance_km, trade.quantity)
         return replace(trade, distance=path.distance_km, transmission_loss=loss)
 
-    def trade_path(
-        self,
-        trade: Trade,
-        path: Callable[[str, str], GridPath],
-        upstream: Callable[[str], GridPath],
-    ) -> GridPath:
-        """The peer path, or the participant's upstream path for a DSO trade."""
-        if self.id in (trade.buyer_id, trade.seller_id):
-            other = trade.seller_id if trade.buyer_id == self.id else trade.buyer_id
-            return upstream(other)
-        return path(trade.buyer_id, trade.seller_id)
-
     def charge(
         self,
         trades: Sequence[Trade],
-        path: Callable[[str, str], GridPath],
-        upstream: Callable[[str], GridPath],
+        route: Callable[[str, str], GridPath],
         grid_balance_kwh: float = 0.0,
     ) -> tuple[Trade, ...]:
         """Every trade of the step with its fee (eq. 8), after the step's power
         flow (``observe``): the congestion and thermal parts see the loading that
         these trades, with everything else on the network, actually caused.
 
-        A peer-to-peer trade runs along ``path(buyer, seller)``. A trade with the
-        DSO runs along ``upstream(participant)``, the path to the transformer's
-        busbar, without a zone bonus (the DSO is in no participant's zone), and
-        pays the imbalance fee (eq. 8b) when it worsens the market's balance
-        ``grid_balance_kwh`` (B_grid before stage 3, + excess supply)."""
+        A trade runs along ``route(buyer, seller)``: for a peer-to-peer trade the
+        path between them, for a trade with the DSO the participant's path to the
+        transformer's busbar. The latter has no zone bonus (the DSO is in no
+        participant's zone) and pays the imbalance fee (eq. 8b) when it worsens
+        the market's balance ``grid_balance_kwh`` (B_grid before stage 3, + excess
+        supply)."""
         out = []
 
         for t in trades:
             parts = self.fees_of(
                 t.quantity,
                 t.price,
-                self.trade_path(t, path, upstream),
+                route(t.buyer_id, t.seller_id),
                 t.transmission_loss,
             )
             if self.id in (t.buyer_id, t.seller_id):
@@ -312,15 +300,15 @@ class Dso:
     def clear(
         self,
         orders: Sequence[Order],
-        upstream: Callable[[str], GridPath] = lambda participant: GridPath(),
+        route: Callable[[str, str], GridPath] = lambda a, b: GridPath(),
     ) -> tuple[Trade, ...]:
         """Stage 3 ([P1] §3.3.2): buy every remaining sell at p_FiT and sell every
         remaining buy at p_utility.
 
         The DSO's energy enters where the upstream grid feeds the network, so a
-        trade with it runs along ``upstream(participant)``, the path to the
-        transformer's busbar: it has a distance and a loss (eq. 18) like a peer
-        trade. Its fees (eq. 8, with the imbalance fee) follow the step's power
+        trade with it runs along ``route(buyer, seller)``, which for the DSO is the
+        participant's path to the transformer's busbar: it has a distance and a
+        loss (eq. 18) like a peer trade. Its fees (eq. 8, with the imbalance fee) follow the step's power
         flow (``charge``)."""
         trades = []
 
@@ -330,7 +318,7 @@ class Dso:
             else:
                 buyer, seller, price = self.id, o.agent_id, self.feed_in_tariff
             trade = Trade(buyer, seller, price, o.quantity, o.timestamp, stage=3)
-            trades.append(self.assess(trade, upstream(o.agent_id)))
+            trades.append(self.assess(trade, route(buyer, seller)))
 
         return tuple(trades)
 

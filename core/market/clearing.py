@@ -64,10 +64,10 @@ class ClearingRules:
         reference_price: p_ref of the proportional mechanism ([P1] eq. 11).
         reputation: Each participant's reputation r_i ([P1] eq. 12), the double
             auction's tie-break.
-        path: The grid path between two participants (distance, lines, zones),
-            for the DSO's distances and losses.
-        upstream: A participant's path to the transformer's busbar, where the
-            DSO's energy enters: the route of its trades with the DSO.
+        route: The grid path of a trade between two participants (distance, lines,
+            zones), for the DSO's distances and losses; with the DSO as one of
+            them, the other's path to the transformer's busbar, where the DSO's
+            energy enters.
         threshold_kwh: Quantities below this count as nothing.
     """
 
@@ -75,8 +75,7 @@ class ClearingRules:
     dso: Dso
     reference_price: float
     reputation: Mapping[str, float] = field(default_factory=dict)
-    path: Callable[[str, str], GridPath] = lambda a, b: GridPath()
-    upstream: Callable[[str], GridPath] = lambda participant: GridPath()
+    route: Callable[[str, str], GridPath] = lambda a, b: GridPath()
     threshold_kwh: float = 1e-6
 
 
@@ -177,7 +176,7 @@ class Clearing:
     def dso(self, orders: Sequence[Order]) -> StageResult:
         """Stage 3: the DSO clears every order still open ([P1] §3.3.2; DSOClear in
         Algorithm 1; ``Dso.clear``)."""
-        trades = self.rules.dso.clear(self._open(orders), self.rules.upstream)
+        trades = self.rules.dso.clear(self._open(orders), self.rules.route)
         return StageResult(3, STAGE_NAMES[3], trades, ())
 
     # --- Shared by the stages --------------------------------------------------------
@@ -194,8 +193,8 @@ class Clearing:
             timestamp=max(buy.timestamp, sell.timestamp),
             stage=stage,
         )
-        path = self.rules.path(buy.agent_id, sell.agent_id)
-        return self.rules.dso.assess(trade, path)
+        route = self.rules.route(buy.agent_id, sell.agent_id)
+        return self.rules.dso.assess(trade, route)
 
     def _open(self, orders: Sequence[Order]) -> tuple[Order, ...]:
         return tuple(o for o in orders if o.quantity > self.rules.threshold_kwh)

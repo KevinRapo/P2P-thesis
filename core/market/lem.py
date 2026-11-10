@@ -497,12 +497,19 @@ class LocalEnergyMarket:
 
     def distance_km(self, a: str, b: str) -> float:
         """The grid distance d_ij ([P1] §3.5.1) between participants ``a`` and ``b``,
-        km along the lines; with ``b`` the DSO (``DSO_ID``), to the transformer's
-        busbar (the route of a trade with the DSO). Topology only: the same on
-        every day. Needs the network, so the market must have been ``reset``."""
-        if b == DSO_ID:
-            return self._upstream(a).distance_km
-        return self._path(a, b).distance_km
+        km along the lines; with one of them the DSO (``DSO_ID``), to the
+        transformer's busbar (the route of a trade with the DSO). Topology only: the
+        same on every day. Needs the network, so the market must have been
+        ``reset``."""
+        return self._route(a, b).distance_km
+
+    def _route(self, a: str, b: str) -> GridPath:
+        """The grid path of a trade between ``a`` and ``b``: the peer path, or, when
+        one of them is the DSO, the other's path up to the transformer's busbar."""
+        if self.dso.id in (a, b):
+            return self._upstream(b if a == self.dso.id else a)
+
+        return self._path(a, b)
 
     def _path(self, a: str, b: str) -> GridPath:
         """The grid path between two participants' buses (cached): distance d_ij
@@ -599,8 +606,7 @@ class LocalEnergyMarket:
                 max(self.dso.feed_in_tariff, self.clearing_price),
             ),
             reputation={pid: q.reputation for pid, q in self.participants.items()},
-            path=self._path,
-            upstream=self._upstream,
+            route=self._route,
         )
 
     def _clearing_price(self, trades: list[Trade]) -> float:
@@ -662,7 +668,7 @@ class LocalEnergyMarket:
 
         h = self.scenario.grid.step_hours
         flows = [
-            (self.dso.trade_path(t, self._path, self._upstream), t.quantity / h)
+            (self._route(t.buyer_id, t.seller_id), t.quantity / h)
             for t in p.trades
         ]
 
@@ -677,7 +683,7 @@ class LocalEnergyMarket:
         them (``Dso.charge``). The stages with their trades charged."""
         self.dso.observe(signal, measured=grid)
         charged = iter(
-            self.dso.charge(p.trades, self._path, self._upstream, p.grid_balance_kwh)
+            self.dso.charge(p.trades, self._route, p.grid_balance_kwh)
         )
 
         return tuple(
