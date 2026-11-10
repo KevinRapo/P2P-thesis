@@ -9,7 +9,8 @@ budget, PPO settings, workers and cluster resources are also offered as fields t
 rewrite the JSON. The experiment plays the active scenario, saved or not, and its JSON
 follows it. What was loaded last decides: opening a scenario turns this on, choosing an
 experiment file turns it off, so the file's own scenario plays. It stays selected
-(``RunService.save_selected``): the Summary page shows it.
+(``RunService.save_selected``): the Summary page shows it, and the top bar marks it
+unsaved once the editor differs from the file it came from.
 
 Start starts the edited experiment as a new one (``RunService.start_new_experiment``):
 if the target has an experiment of that name, the date and time are added to it. For a
@@ -62,6 +63,7 @@ class ExperimentForm:
         self.service = service
         self.targets = dict(targets)
         self.templates: dict[str, dict] = {}  # the experiment files, by path
+        self.origin: Optional[str] = None  # the file's text, as first shown
         self.record: Optional[dict] = None  # ``describe`` of the editor's text
         self.report: Optional[dict] = None  # the check of the chosen cluster
         self.fit: list[str] = []  # what that cluster cannot give the experiment
@@ -78,7 +80,11 @@ class ExperimentForm:
         selected = self.service.selected()
 
         if selected and selected["template"]:  # a file from elsewhere is not listed
-            self.templates.setdefault(selected["template"], selected)
+            # Chosen again, it is the file as it was opened, without the edits
+            self.templates.setdefault(
+                selected["template"],
+                selected | {"text": selected.get("origin") or selected["text"]},
+            )
 
         kept = selected and selected["template"] in self.templates
         first = selected["template"] if kept else next(iter(self.templates), None)
@@ -88,6 +94,7 @@ class ExperimentForm:
             self._build(first, selected["active"] if kept else True)
 
         if kept:
+            self.origin = selected.get("origin") or self._origin_of(first)
             self.editor.set_value(selected["text"])
             self._changed()
         else:
@@ -245,15 +252,19 @@ class ExperimentForm:
 
     def _template_changed(self) -> None:
         """Put the chosen template's text in the editor."""
-        template = self.templates.get(self.template.value)
+        self.origin = self._origin_of(self.template.value)
+        self.editor.set_value(self.origin or "")
+        self._changed()
+
+    def _origin_of(self, path: Optional[str]) -> Optional[str]:
+        """A template's text as the editor first shows it (None: no such template);
+        the top bar calls the experiment changed once the editor differs from it."""
+        template = self.templates.get(path)
 
         if template is None:
-            self.editor.set_value("")
-        else:
-            name = Path(self.template.value).stem
-            self.editor.set_value(self.service.editable(template["text"], name))
+            return None
 
-        self._changed()
+        return self.service.editable(template["text"], Path(path).stem)
 
     def _apply_preset(self, preset: str) -> None:
         """Rewrite the editor's run size settings as the preset's, and pick the
@@ -299,7 +310,7 @@ class ExperimentForm:
 
         self._show_scenario()
         self.service.save_selected(
-            self.template.value, self.editor.value or "", self.active.value
+            self.template.value, self.editor.value or "", self.active.value, self.origin
         )
         self._fill_quick()
         self._refit()

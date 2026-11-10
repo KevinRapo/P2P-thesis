@@ -6,7 +6,8 @@ records unchanged; slow calls run through ``run.io_bound`` in the pages.
 
 The Experiments page edits a template's JSON using presets and quick settings, checks
 it with ``describe`` and starts it on a target. The selected experiment is saved for
-the Summary page. Runs reads status and offers restart, stop and sync operations.
+the Summary page, with the file's text it came from, so the top bar can say it was
+changed (``selected_unsaved``). Runs reads status and offers restart, stop and sync operations.
 """
 
 from __future__ import annotations
@@ -281,17 +282,43 @@ class RunService:
 
         return Path(saved["template"]).stem if saved and saved["template"] else None
 
+    def selected_unsaved(self) -> bool:
+        """Whether the selected experiment differs from the file it came from (its
+        ``origin``, as the editor first showed it). The file itself is never changed,
+        so it stays so until the file is chosen again. False without an experiment, or
+        one with no origin."""
+        saved = self._saved()
+
+        if saved is None or not saved["template"] or saved.get("origin") is None:
+            return False
+
+        return not _same_experiment(saved["origin"], saved["text"])
+
     def open_experiment(self, template: str, text: str) -> None:
         """Make an experiment file the selected experiment, as the Experiments page
         edits it. It plays the scenario in the file."""
-        self.save_selected(template, editable(text, Path(template).stem), False)
+        shown = editable(text, Path(template).stem)
+        self.save_selected(template, shown, False, shown)
 
-    def save_selected(self, template: Optional[str], text: str, active: bool) -> None:
+    def save_selected(
+        self,
+        template: Optional[str],
+        text: str,
+        active: bool,
+        origin: Optional[str] = None,
+    ) -> None:
         """Keep the experiment on the Experiments page, for the Summary page and for
-        the next time it opens."""
+        the next time it opens. ``origin`` is the file's text as the editor first
+        showed it, what ``selected_unsaved`` compares the edits with (None: no
+        comparison)."""
         if self._selected is not None:
             self._selected.parent.mkdir(parents=True, exist_ok=True)
-            data = {"template": template, "text": text, "active": active}
+            data = {
+                "template": template,
+                "text": text,
+                "active": active,
+                "origin": origin,
+            }
             self._selected.write_text(json.dumps(data), encoding="utf-8")
 
     def play_active(self) -> None:
@@ -300,7 +327,9 @@ class RunService:
         saved = self._saved()
 
         if saved is not None:
-            self.save_selected(saved["template"], saved["text"], True)
+            self.save_selected(
+                saved["template"], saved["text"], True, saved.get("origin")
+            )
 
     def showing_scenario(self, text: str, scenario: str | dict) -> str:
         """The editor's text with ``scenario`` in its ``scenario`` field. The text
@@ -458,6 +487,15 @@ def editable(text: str, default_name: str = "experiment") -> str:
         return to_text(written_out(_json_object(text), default_name))
     except (ValueError, SpecError):
         return text
+
+
+def _same_experiment(a: str, b: str) -> bool:
+    """Whether two experiment texts hold the same settings (layout and key order do
+    not matter); texts that are no JSON object are the same only if equal."""
+    try:
+        return _json_object(a) == _json_object(b)
+    except ValueError:
+        return a == b
 
 
 def _json_object(text: str) -> dict:

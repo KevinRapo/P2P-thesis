@@ -70,6 +70,35 @@ async def test_the_json_follows_the_active_scenario_and_a_chosen_file(
 
 
 @pytest.mark.anyio
+async def test_editing_the_json_marks_the_experiment_unsaved(monkeypatch, tmp_path):
+    scenario = ScenarioService(tmp_path / "current.json", LIBRARY)
+    runs = RunService(selected=tmp_path / "selected.json")
+    monkeypatch.setattr(
+        experiments, "services", lambda: SimpleNamespace(scenario=scenario)
+    )
+    forms: list[experiments.ExperimentForm] = []
+
+    async def root() -> None:
+        forms.append(experiments.ExperimentForm(runs, [("local", "This PC")]))
+        await forms[0].show()
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        form = forms[0]
+        form.template.set_value(SMOKE)  # the file, as it is
+        assert runs.selected_unsaved() is False
+
+        form.editor.set_value(
+            json.dumps(json.loads(form.editor.value) | {"description": "edited"})
+        )
+        assert runs.selected_unsaved() is True
+
+        form.template.set_value(None)
+        form.template.set_value(SMOKE)  # chosen again: the edits are gone
+        assert runs.selected_unsaved() is False
+
+
+@pytest.mark.anyio
 async def test_a_file_from_elsewhere_stays_selected(monkeypatch, tmp_path):
     scenario = ScenarioService(tmp_path / "current.json", LIBRARY)
     runs = RunService(selected=tmp_path / "selected.json")
@@ -88,6 +117,31 @@ async def test_a_file_from_elsewhere_stays_selected(monkeypatch, tmp_path):
         assert forms[0].template.value == "mine.json"
         assert forms[0].active.value is False
         assert forms[0].record["error"] is None
+
+
+@pytest.mark.anyio
+async def test_the_top_bar_marks_an_edited_experiment_unsaved(monkeypatch, tmp_path):
+    runs = RunService(selected=tmp_path / "selected.json")
+    text = Path(SMOKE).read_text("utf-8")
+    runs.open_experiment(SMOKE, text)
+    monkeypatch.setattr(layout, "services", lambda: SimpleNamespace(runs=runs))
+
+    def root() -> None:
+        layout._experiment_button()
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        await user.should_see("Experiment: smoke")
+        await user.should_not_see("smoke-mod")
+        await user.should_not_see("unsaved")
+
+    saved = runs.selected()
+    edited = json.dumps(json.loads(saved["text"]) | {"description": "edited"})
+    runs.save_selected(SMOKE, edited, False, saved["origin"])
+
+    async with user_simulation(root) as user:
+        await user.open("/")
+        await user.should_see("Experiment: smoke-mod")
 
 
 @pytest.mark.anyio

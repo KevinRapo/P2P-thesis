@@ -546,6 +546,28 @@ def test_opening_an_experiment_file_selects_it_with_its_own_scenario(tmp_path):
     assert isinstance(selected["experiment"].scenario, str)  # the file's
 
 
+def test_an_edited_experiment_is_unsaved_until_the_file_is_opened_again(tmp_path):
+    service = RunService(selected=tmp_path / "selected.json")
+    assert service.selected_unsaved() is False  # nothing selected
+    path = REPO / "config" / "experiments" / "smoke.json"
+    service.open_experiment(str(path), path.read_text("utf-8"))
+    assert service.selected_unsaved() is False
+
+    saved = service.selected()
+    edited = json.loads(saved["text"]) | {"description": "changed"}
+    service.save_selected(saved["template"], json.dumps(edited), False, saved["origin"])
+    assert service.selected_unsaved() is True
+    service.play_active()  # the origin survives
+    assert service.selected_unsaved() is True
+
+    plain = json.dumps(json.loads(saved["text"]))
+    service.save_selected(saved["template"], plain, False, saved["origin"])
+    assert service.selected_unsaved() is False  # layout alone is no change
+
+    service.open_experiment(str(path), path.read_text("utf-8"))
+    assert service.selected_unsaved() is False
+
+
 def test_opening_a_scenario_makes_the_selected_experiment_play_it(tmp_path):
     service = RunService(selected=tmp_path / "selected.json")
     service.play_active()  # no experiment yet: nothing to change

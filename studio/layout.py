@@ -150,16 +150,24 @@ def _cluster_status(name: str, label: str) -> None:
 # The experiment: which one is selected, and opening another from a file
 # --------------------------------------------------------------------------------------
 def _experiment_button() -> None:
-    """The selected experiment's name (kept up to date, as the Experiments page
-    changes it); a click opens another from a file."""
+    """The selected experiment's name, and whether it still is its file (kept up to
+    date, as the Experiments page changes it); a click opens another from a file."""
     runs = services().runs
     button = ui.button(icon="science", on_click=_open_experiment_dialog).props(
         "flat no-caps color=white"
     )
     button.tooltip("The experiment being prepared. Click to open an experiment file.")
+    badge = ui.badge("unsaved", color="amber-8").tooltip(
+        "The experiment differs from the file it came from (-mod). It starts as it "
+        "is; the file itself is never changed. Opening the file again drops the "
+        "edits."
+    )
 
     def show_state() -> None:
-        button.set_text(f"Experiment: {runs.selected_name() or 'none'}")
+        name, unsaved = runs.selected_name(), runs.selected_unsaved()
+        shown = f"{name}-mod" if name and unsaved else name or "none"
+        button.set_text(f"Experiment: {shown}")
+        badge.set_visibility(unsaved)
 
     show_state()
     ui.timer(1.0, show_state)

@@ -836,7 +836,7 @@ def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
         top = ceiling_days(tables[3], tables[2], scenario)
         alone = alone_days(tables[3], tables[2], scenario)
         by_day = day_references(tables[3], tables[2], scenario)
-    except (ValueError, KeyError):  # tables or a scenario it cannot read
+    except (ValueError, KeyError, TypeError):  # tables or a scenario it cannot read
         top = alone = by_day = None
 
     days = indicators.day_table(

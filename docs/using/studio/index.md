@@ -41,7 +41,10 @@ button folds it away.
 - **Scenario:** the active scenario. *unsaved* means it has no file, or differs from
   the file it came from (`-mod` in its name); it plays and starts all the same.
   Click to open another scenario file.
-- **Experiment:** the experiment being prepared. Click to open another file.
+- **Experiment:** the experiment being prepared. *unsaved* means the editor differs
+  from the file it came from (`-mod` in its name; a preset, a setting or another
+  scenario does it); it starts as it is, and the file itself is never changed.
+  Click to open another file, which drops the edits.
 - **The moon:** dark mode.
 
 ## What the Studio remembers
