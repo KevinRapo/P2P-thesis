@@ -183,8 +183,13 @@ class Participant:
         return (b.chargeable_kwh, b.dischargeable_kwh) if b else (0.0, 0.0)
 
     def max_sell_kwh(self, step: int) -> float:
-        """Eq. 15a: q_sell,max = max(0, G_t − D_t) + E_dischargeable."""
-        return max(0.0, self.net_kwh(step)) + self.battery_room()[1]
+        """What the participant may sell: q_sell,max = max(0, G_t − D_t +
+        E_dischargeable). The battery covers the household's own deficit first and
+        only the rest is for sale. [P1] eq. 15a adds the whole dischargeable energy
+        to max(0, G_t − D_t), which lets a household in deficit sell its battery
+        to peers while it imports its own load untraded."""
+        # DEVIATION MP-2c: no selling from the battery while the household is short.
+        return max(0.0, self.net_kwh(step) + self.battery_room()[1])
 
     def max_buy_kwh(self, step: int) -> float:
         """Eq. 15b: q_buy,max = max(0, D_t − G_t) + E_chargeable."""

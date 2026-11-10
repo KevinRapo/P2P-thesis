@@ -117,7 +117,7 @@ code in `core/rl/`.
 | `num_epochs` | 30 | <span class="ours">10</span> | Stable-Baselines3's PPO default | RP-6b |
 | `lambda_` | 1.0 | <span class="ours">0.95</span> | the original's; the usual GAE value | [P2] Table 8 |
 | `clip_param` | 0.3 | <span class="ours">0.2</span> | the original's; PPO paper's value | [P2] Table 8 |
-| `entropy_coeff` | 0 | <span class="ours">0.01</span> | the original's: keeps exploring | [P2] Table 8 |
+| `entropy_coeff` | 0 | <span class="ours">0.01</span> | the original's: keeps exploring; per agent, so CTCE divides it by N (RP-3a) | [P2] Table 8 |
 | `grad_clip` | none | <span class="ours">0.5 (global norm)</span> | the original's | [P2] Table 8 |
 | `kl_coeff` (with `use_kl_loss=True`) | 0.2, adaptive | <span class="ours">0</span> | the KL is computed and logged as a gauge of each update's size, not used in the loss | RP-4a, L-07 |
 | `vf_clip_param` | 10 | <span class="ours">$10^6$</span> | RLlib caps the **squared** value error at 10: errors above $\sqrt{10} \approx 3.2$ give the critic no gradient | – |
@@ -200,12 +200,13 @@ agent's. That is why CTCE is slower on the probes (5 and 6 do not converge at 8
 times the budget) and why it is a centralised-information baseline, not an upper
 bound ([L-02](../../original/issues/rl.md#l-02-ctce-is-a-centralised-information-baseline-not-an-upper-bound)).
 
-!!! ours "Open: the entropy bonus in CTCE"
+!!! ours "The entropy bonus in CTCE (RP-3a)"
     The entropy is a sum over $4N$ parts, while the surrogate still uses one
-    standardised advantage per step; with 13 agents the entropy term weighs about
-    13 times what it does for one DTDE agent. Whether this drives CTCE's rising
-    $\log\sigma$ on the market is what the experiment `ctce_entropy` tests:
-    `entropy_coeff` 0.01, 0.01/13 and 0 (`runs/@taltech/ctce_entropy/`).
+    standardised advantage per step; with 13 agents the entropy term would weigh
+    about 13 times what it does for one DTDE agent. So `entropy_coeff` is per agent,
+    and CTCE divides it by $N$ ([`build_config`](../../../core/rl/config.py)), as
+    MAPPO averages over agents. The summed reward stays (RP-3b). The experiment
+    `ctce_entropy` compares the joint 0.01 of before, the per-agent 0.01/13 and 0.
 
 ### CTDE
 

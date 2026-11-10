@@ -53,3 +53,20 @@ def test_scenario_and_constructor_report_the_same_invalid_settings(changes):
         Battery(setup, step_hours=1.0)
 
     assert str(error.value) == "Battery: " + "; ".join(problems)
+
+
+def test_a_household_short_of_energy_sells_only_what_its_battery_has_left():
+    """MP-2c: the battery covers the household's own deficit before anything is for
+    sale; a surplus adds to the battery's energy as in eq. 15a."""
+    from core.market.agent.der import Participant
+
+    setup = BatterySetup(capacity_kwh=10.0, max_power_kw=10.0, charge_efficiency=1.0,
+                         discharge_efficiency=1.0)  # 4 kWh above SoC_min at the start
+
+    def most(generation, demand):
+        me = Participant("A", "bus", [], [generation], [demand], Battery(setup, 1.0))
+        return me.max_sell_kwh(0)
+
+    assert most(3.0, 1.0) == pytest.approx(2.0 + 4.0)  # surplus plus the battery
+    assert most(1.0, 2.0) == pytest.approx(4.0 - 1.0)  # its own deficit first
+    assert most(1.0, 6.0) == 0.0                       # the battery cannot cover it

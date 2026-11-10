@@ -203,9 +203,10 @@ exists only per step.
 | `order_kwh` | -0.0048 | as the market took it: + sell, − buy, 0 none |
 | `order_price` | 0.04 | empty without an order |
 | `side` | buy | `buy`, `sell`, `none` |
-| `partner` | P5 | a participant, `DSO`, `none` |
+| `partner` | P5 | a participant or `none` (`DSO` in runs before RP-1h) |
 | `partner_index` | 3 | the action's index; empty without an order |
 | `partner_mutual` | 0 | 1 if it named this agent back; empty without a peer |
+| `action_side`, `action_quantity`, `action_price`, `action_partner` | 1, -0.93, 0.12, 4 | the action's four parts as the policy gave them, before decoding, also when no order was placed: the no-order region is `action_quantity` below $2 \cdot 0.05 - 1 = -0.9$ (RP-7l) |
 | `soc` | | after the step, 0 to 1; empty without a battery |
 | `reputation` | 0.5189 | after the step, eq. 12 |
 | **With the salazar reward, before compression** | | |

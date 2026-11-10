@@ -865,8 +865,22 @@ def _factors(result: RunResult) -> dict[str, Any]:
         "grid_method": grid.get("method"),
         "test_days": _days(settings["test_days"]),
         "participants": len(people),
+        "participant_set": _participant_set(people),
         "batteries": sum(bool(p.get("battery")) for p in people),
     }
+
+
+def _participant_set(people: Sequence[dict]) -> str:
+    """Which participants a run had, as one short name: their number and a digest of
+    who sits where with what (id, bus, elements, battery), so two runs with as many
+    participants placed differently are told apart (RP-7h)."""
+    who = sorted(
+        (p.get("id"), p.get("bus"), sorted(p.get("owns") or []), p.get("battery"))
+        for p in people
+    )
+    digest = hashlib.sha1(json.dumps(who, sort_keys=True, default=str).encode())
+
+    return f"{len(people)} ({digest.hexdigest()[:6]})"
 
 
 def _prices_name(prices: Any) -> Optional[str]:

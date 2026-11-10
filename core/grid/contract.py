@@ -4,12 +4,13 @@ Plain, frozen data only: no pandapower, SimBench or NetworkX objects cross this
 seam. The pandapower adapter (``core/grid/simbench.py``) produces these records; the
 market, the services and the Studio consume them.
 
-The catalog records are used by the Studio's Inspect page. ``ParticipantInjection``
-and ``GridModel`` are the step-time contract and have no implementation yet.
+The catalog records are used by the Studio's Inspect page; ``ParticipantInjection``,
+``GridPath`` and ``GridAssessment`` are what one market step's power flow takes and
+gives (``SimBenchGrid`` in ``core/grid/powerflow.py``).
 """
 
 from dataclasses import dataclass, field
-from typing import Literal, Mapping, Protocol, Sequence
+from typing import Literal, Mapping
 
 SourceType = Literal["simbench", "pandapower_builtin", "pandapower_file"]
 
@@ -270,39 +271,3 @@ class GridAssessment:
     violations: tuple[GridViolation, ...]
     notes: tuple[str, ...] = field(default_factory=tuple)
     line_loading_percent: Mapping[str, float] = field(default_factory=dict)
-
-
-class GridModel(Protocol): # OPEN MP-4g: still a point to use?
-    """Step-time grid: one power flow per market step."""
-
-    def reset(self, episode_seed: int | None = None, day: str | None = None) -> None:
-        """Prepare a fresh working copy of the network for an episode on ``day``."""
-        ...
-
-    def assess(
-        self, step: int, injections: Sequence[ParticipantInjection]
-    ) -> GridAssessment:
-        """Run the power flow for ``step`` with the participants' injections and report
-        it.
-        """
-        ...
-
-    def electrical_distance(self, bus_a: str, bus_b: str) -> float:
-        """Distance in km along the lines between two buses."""
-        ...
-
-    def path(self, bus_a: str, bus_b: str) -> GridPath:
-        """The shortest way between two buses: distance, lines and zones."""
-        ...
-
-    def path_upstream(self, bus: str) -> GridPath:
-        """The way from a bus to where the upstream grid feeds the network."""
-        ...
-
-    def summary(self) -> NetworkSummary:
-        """Totals of the network."""
-        ...
-
-    def topology_view(self) -> TopologyView:
-        """The network's shape for plots."""
-        ...

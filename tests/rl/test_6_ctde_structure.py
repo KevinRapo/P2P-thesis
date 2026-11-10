@@ -79,3 +79,16 @@ def test_actor_is_local_critic_is_central():
         assert not torch.equal(v0, v1), "critic ignores the global state"
     finally:
         algo.stop()
+
+
+def test_ctce_weighs_the_entropy_per_agent():
+    """RP-3a: CTCE's joint policy has every agent's action parts, so its entropy
+    coefficient is the per-agent one divided by the number of agents; DTDE and CTDE
+    keep it as given."""
+    n = len(ActionProbe(CONFIG).agents_id)
+    coeff = {
+        p: build_config("ppo", p, ActionProbe, CONFIG, training={"entropy_coeff": 0.03})
+        .entropy_coeff
+        for p in ("ctce", "ctde", "dtde")
+    }
+    assert coeff == {"ctce": pytest.approx(0.03 / n), "ctde": 0.03, "dtde": 0.03}

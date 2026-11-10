@@ -85,9 +85,13 @@ $$
 q \leftarrow \min\bigl(q,\ q_\text{max,phys},\ q_\text{max}\bigr), \qquad p \leftarrow \min\bigl(p_\text{max}, \max(p_\text{min}, p)\bigr)
 $$
 
-where $q_\text{max,phys}$ is eq. 15a for a seller,
-$\max(0, G_t - D_t) + E_\text{dischargeable}$
-([`max_sell_kwh`](../../../core/market/agent/der.py#L186-L188)), or eq. 15b for a buyer,
+where $q_\text{max,phys}$ for a seller is
+$\max(0,\ G_t - D_t + E_\text{dischargeable})$
+([`max_sell_kwh`](../../../core/market/agent/der.py#L185-L192)): the battery covers the
+household's own deficit first, and only the rest is for sale. [P1] eq. 15a adds the
+whole $E_\text{dischargeable}$ to $\max(0, G_t - D_t)$, which would let a household
+short of energy sell its battery to peers while importing its own load (MP-2c). For a
+buyer it is eq. 15b,
 $\max(0, D_t - G_t) + E_\text{chargeable}$
 ([`max_buy_kwh`](../../../core/market/agent/der.py#L190-L192)), with the battery's
 efficiencies and power limit
@@ -106,7 +110,7 @@ order), the double auction's last tie-break.
 | **Writes** | [`PendingStep`](../../../core/market/lem.py#L96-L130): `intents`, `orders`, `notes` |
 | **Code** | [`start_step`](../../../core/market/lem.py#L304-L327), above |
 | **Paper** | eq. 2 (the action $\langle p, q, \alpha, \beta \rangle$), eq. 15a-b, §3.2.3, §3.4 |
-| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); *Open: MP-2b, MP-2c* ([open items](../../temp/open.md)) |
+| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); no selling from the battery while short (MP-2c); *Open: MP-2b* ([open items](../../temp/open.md)) |
 
 ## 3. Clearing
 
@@ -147,7 +151,7 @@ $$
 | **Writes** | `PendingStep.stages`: three [`StageResult`](../../../core/market/clearing.py#L35-L54)s, each with its trades and the orders left |
 | **Code** | above; paths: [`_path`](../../../core/market/lem.py#L507-L517), [`_upstream`](../../../core/market/lem.py#L519-L525) → [`SimBenchGrid.path`, `path_upstream`](../../../core/grid/powerflow.py#L242-L268) |
 | **Paper** | §3.3.2 (three stages, Algorithm 1), §3.3.3 and eq. 9-11 (prices), eq. 18 (loss), §3.5.1 (distance) |
-| **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41); *Open: MP-3a* ([open items](../../temp/open.md)) |
+| **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41) ([open items](../../temp/open.md)) |
 
 ## 4. Settlement
 
@@ -170,7 +174,7 @@ $$
 | **Writes** | [`ParticipantOutcome`](../../../core/market/agent/der.py#L31-L82) per participant (fees still 0); the battery's energy; `Participant.profit` |
 | **Code** | above; battery: [`charge`, `discharge`](../../../core/market/agent/battery.py#L89-L107) |
 | **Paper** | eq. 13, 14, 16; §3.4.1 (demand satisfied) |
-| **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23); *Open: MP-1a* ([open items](../../temp/open.md)) |
+| **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23) ([open items](../../temp/open.md)) |
 
 ## 5. Grid
 

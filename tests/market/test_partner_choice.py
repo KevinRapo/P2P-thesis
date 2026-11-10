@@ -1,15 +1,16 @@
 """The learned partner β ([P1] eq. 2) from the action to the clearing.
 
 ``MarketEnv``'s ``partner`` action part is an index into the agent's candidates
-(the other participants in scenario order, the DSO, no preference). These tests
+(the other participants in scenario order, then no preference; never the DSO,
+RP-1h). These tests
 check the mapping, that the chosen partner reaches the order unchanged (never
 replaced by the scenario's rule-based choice), what the partner observation holds
 and when, how stage 1 of the clearing treats compatible, incompatible and
 one-sided choices, and that a run's scales stay those of its training days.
 
 The market's clearing is not changed by V2: stage 1 pairs agents that named each
-other on opposite sides with bid >= ask, an order naming the DSO waits for stage
-3, every other order goes to the double auction.
+other on opposite sides with bid >= ask, every other order goes to the double
+auction, and what is left to the DSO in stage 3.
 """
 
 from __future__ import annotations
@@ -20,7 +21,6 @@ import numpy as np
 import pytest
 
 from core.env import SCALE_KEYS, MarketEnv, zero_policy
-from core.market.dso import DSO_ID
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 DAY = "2016-06-15"
@@ -84,11 +84,11 @@ def stage(record, number: int):
 # --------------------------------------------------------------------------------------
 # The mapping from the action to the order
 # --------------------------------------------------------------------------------------
-def test_candidates_are_stable_and_name_dso_and_no_preference(env):
-    """Each agent's candidates: the others in scenario order, the DSO, none; the
-    partner part has one value per candidate."""
-    assert env.partners("P1") == ["P2", "P3", "P4", "P5", "DSO", "none"]
-    assert env.partners("P3") == ["P1", "P2", "P4", "P5", "DSO", "none"]
+def test_candidates_are_the_peers_and_no_preference(env):
+    """Each agent's candidates: the others in scenario order, then none; never the
+    DSO (RP-1h); the partner part has one value per candidate."""
+    assert env.partners("P1") == ["P2", "P3", "P4", "P5", "none"]
+    assert env.partners("P3") == ["P1", "P2", "P4", "P5", "none"]
 
     for a in AGENTS:
         assert env.action_spaces[a]["partner"].n == len(env.partners(a))
@@ -97,8 +97,8 @@ def test_candidates_are_stable_and_name_dso_and_no_preference(env):
 
 
 def test_partner_index_reaches_the_intent(env, pair):
-    """Index k of the partner part becomes ``OrderIntent.partner_id``: a peer, the
-    DSO (``DSO_ID``), or None for no preference."""
+    """Index k of the partner part becomes ``OrderIntent.partner_id``: a peer, or
+    None for no preference."""
     t, s, _ = pair
     at_step(env, t)
 
@@ -106,7 +106,7 @@ def test_partner_index_reaches_the_intent(env, pair):
         action = env.encode(s, "sell", 0.5, 0.5)
         action["partner"] = k
         intent = env.decode(s, action)
-        expected = {"DSO": DSO_ID, "none": None}.get(name, name)
+        expected = None if name == "none" else name
         assert intent.partner_id == expected, (k, name)
 
 
@@ -168,14 +168,15 @@ def test_one_sided_choice_goes_to_the_auction(env, pair):
     assert np.isnan(infos[b]["state"]["partner_mutual"])  # named no peer
 
 
-def test_naming_the_dso_skips_the_peers(env, pair):
-    """An order naming the DSO stays out of stages 1 and 2 and is cleared by the
-    DSO in stage 3, even with a crossing bid available."""
+def test_an_order_without_a_peer_clears_with_the_dso(env, pair):
+    """What naming the DSO used to do (RP-1h): an order that finds no peer clears
+    with the DSO in stage 3. Here the bid is below the ask, so neither trades with
+    the other, and both clear with the DSO."""
     _, s, b = pair
-    record, infos = play(env, pair, 0.2, 0.8, "DSO", None)
+    record, _ = play(env, pair, 0.9, 0.1, None, None)
     assert stage(record, 1) == [] and stage(record, 2) == []
-    assert any(t.seller_id == s for t in stage(record, 3))
-    assert infos[s]["state"]["partner"] == DSO_ID
+    cleared = {t.seller_id for t in stage(record, 3)} | {t.buyer_id for t in stage(record, 3)}
+    assert {s, b} <= cleared
 
 
 # --------------------------------------------------------------------------------------
@@ -193,7 +194,7 @@ def test_partner_observation_and_its_timing(env, pair):
 
     for a in AGENTS:
         o = obs[a]
-        peers = env.partners(a)[:-2]
+        peers = env.partners(a)[:-1]
         reps = [o[names.index(f"partner_rep_{k}")] for k in range(1, len(peers) + 1)]
         np.testing.assert_allclose(
             reps, [m.participants[c].reputation for c in peers], rtol=1e-6

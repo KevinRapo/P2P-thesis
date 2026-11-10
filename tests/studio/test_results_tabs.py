@@ -75,6 +75,7 @@ def overview_table() -> pd.DataFrame:
                         "grid_method": "ac",
                         "test_days": "d",
                         "participants": 13,
+                        "participant_set": "13 (abc123)",
                         "batteries": 5,
                     }
                 )

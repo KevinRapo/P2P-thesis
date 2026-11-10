@@ -107,7 +107,7 @@ def _orders(person: pd.DataFrame) -> None:
     shown = [(f, label) for f, label in TRACE_COLUMNS if f in person]
     rows = person[[f for f, _ in shown]]
     ui.label(
-        "Orders and partners: the partner named (a participant, DSO or none), "
+        "Orders and partners: the partner named (a participant or none; older runs also DSO), "
         "whether it named this participant back on the other side (1/0), and the "
         "energy traded in stage 1"
     ).classes("mls-card-caption")

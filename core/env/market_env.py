@@ -51,9 +51,11 @@ components (``ACTION_COMPONENTS``), two continuous and two categorical:
               tariffs of the step being played (time-of-use tariffs change by
               hour): −1 is the feed-in tariff, +1 the utility price (the range the
               DSO makes every trade worth)
-    partner   Discrete(N + 1): β, an index into the agent's candidates
+    partner   Discrete(N): β, an index into the agent's candidates
               (``partners(agent)``): the N − 1 other participants in scenario
-              order, then the DSO, then "no preference"
+              order, then "no preference". Not the DSO (RP-1h): an order that
+              finds no peer clears with the DSO in stage 3 anyway, at the same
+              tariff (MP-1e), so naming it would change nothing
 
 What is the paper's and what is an encoding choice made here: the four components
 and their kinds (price and quantity continuous, side and partner categorical) are
@@ -63,8 +65,8 @@ chosen partner goes into ``OrderIntent.partner_id`` as it is, "no preference"
 included (None): the scenario's rule-based partner choice
 (``market.partner_preference``) is never applied to an RL agent's order. Stage 1
 of the clearing pairs agents that named each other on opposite sides, bid ≥ ask;
-an order naming the DSO waits for stage 3; every other order goes to the double
-auction (``core/market/clearing.py``, unchanged).
+every other order goes to the double auction, and what is left to the DSO in stage
+3 (``core/market/clearing.py``, unchanged).
 
 Under RLlib the policy is factorised over the components (one distribution each,
 ``core/rl``): the partner is not conditioned on the sampled side or price.
@@ -137,13 +139,17 @@ money unit):
                                    validation: + sell, − buy, 0 none
            order_price             its price (NaN without an order)
            side                    "buy", "sell" or "none" (no order)
-           partner                 the partner named: a participant, "DSO" or
-                                   "none" (also "none" without an order)
+           partner                 the partner named: a participant or "none"
+                                   (also "none" without an order)
            partner_index           the partner component's index (NaN without an
                                    order)
            partner_mutual          1 if the partner named this agent back with an
                                    order on the other side, else 0 (NaN without a
                                    peer named)
+           action_side, action_quantity, action_price, action_partner
+                                   the action's four parts as the policy gave
+                                   them, with or without an order (NaN for an
+                                   agent missing from the action dict)
            soc                     battery state of charge after the step, 0 to 1
                                    (NaN without a battery)
            reputation              reputation after the step (eq. 12)
@@ -224,7 +230,6 @@ from core.env.reward import build_reward, net_bill, side_kwh
 from core.env_defaults import ENV_CONFIG_KEYS, SCALE_KEYS as SCALE_KEYS
 from core.grid.contract import GridAssessment
 from core.market import signals
-from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepRecord
 from core.market.order import Order
 
@@ -320,8 +325,9 @@ class MarketEnv(MultiAgentEnv):
             self.reward_scale,
             config.get("grid_capacity_kwh"),
         )
+        # DEVIATION RP-1h: β names a peer or nobody, never the DSO (see the module).
         self._candidates = {
-            a: [b for b in self.agents_id if b != a] + [DSO_ID, None]
+            a: [b for b in self.agents_id if b != a] + [None]
             for a in self.agents_id
         }
         observation = config.get("observation") or "paper"
@@ -370,7 +376,7 @@ class MarketEnv(MultiAgentEnv):
                 "side": spaces.Discrete(len(SIDES)),
                 "quantity": unit,
                 "price": unit,
-                "partner": spaces.Discrete(len(self.agents_id) + 1),
+                "partner": spaces.Discrete(len(self.agents_id)),
             }
         )
 
@@ -378,7 +384,7 @@ class MarketEnv(MultiAgentEnv):
     def partners(self, pid: str) -> list[str]:
         """Agent ``pid``'s partner candidates, in the order of its ``partner``
         action and of its partner observation: the other participants in scenario
-        order, ``"DSO"``, then ``"none"`` (no preference)."""
+        order, then ``"none"`` (no preference)."""
         return [NO_PREFERENCE if c is None else c for c in self._candidates[pid]]
 
     # --- The environment's contract --------------------------------------------------
@@ -477,10 +483,11 @@ class MarketEnv(MultiAgentEnv):
 
     def step(self, action_dict: dict[str, Any]):  #! Environment step: E1-E4
         """Play one market step with the agents' orders."""
-        intents, chosen = {}, {}
+        intents, chosen, raw = {}, {}, {}
 
         for pid, action in action_dict.items():
             chosen[pid] = int(np.asarray(action["partner"]).reshape(-1)[0])
+            raw[pid] = _raw_action(action)
             intent = self.decode(pid, action)
             if intent is not None:
                 intents[pid] = intent
@@ -530,6 +537,7 @@ class MarketEnv(MultiAgentEnv):
                     "partner": _partner(order),
                     "partner_index": (float(chosen[pid]) if order else float("nan")),
                     "partner_mutual": _mutual(order, orders),
+                    **raw.get(pid, _NO_ACTION),
                     "soc": float(battery.soc) if battery else float("nan"),
                     "reputation": float(self.market.participants[pid].reputation),
                     **self.reward.parts.get(pid, {}),
@@ -681,7 +689,7 @@ class MarketEnv(MultiAgentEnv):
     ) -> dict[str, Any]:
         """The action that ``decode`` reads as an order of ``share`` (0 to 1) of the
         eq. 15 bound on ``side`` at ``price_share`` (0 FiT, 1 utility) naming
-        ``partner`` (a participant, ``"DSO"`` or ``None`` / ``"none"``); share 0 is
+        ``partner`` (a participant, or ``None`` / ``"none"``); share 0 is
         no order. For baselines and tests."""
         if share <= 0:
             q = -1.0
@@ -779,7 +787,7 @@ class MarketEnv(MultiAgentEnv):
                 (mine[name] - offset) / divisor
                 for name, (offset, divisor) in self._scales.items()
             ]
-            peers = [m.participants[c].reputation for c in self._candidates[pid][:-2]]
+            peers = [m.participants[c].reputation for c in self._candidates[pid][:-1]]
             # OPEN E-07: a NaN signal (nothing to measure yet) enters as 0, as in
             # MARLEM. For mean_local_price and local_price_advantage 0 is also a real
             # value (a trade at the feed-in tariff, no advantage), so "no peer trade"
@@ -806,6 +814,21 @@ def _side(order: Optional[Order]) -> str:
     return "buy" if order.is_buy else "sell"
 
 
+# What the policy put out, before decoding (RP-7l): with or without an order, so the
+# no-order region and what the policy asked for in it can be seen.
+_NO_ACTION = dict.fromkeys(
+    ("action_side", "action_quantity", "action_price", "action_partner"), float("nan")
+)
+
+
+def _raw_action(action: dict) -> dict[str, float]:
+    """The four parts of one agent's action as numbers, as the policy gave them."""
+    return {
+        f"action_{part}": float(np.asarray(action[part]).reshape(-1)[0])
+        for part in ACTION_COMPONENTS
+    }
+
+
 def _partner(order: Optional[Order]) -> str:
     if order is None or order.partner_id is None:
         return NO_PREFERENCE
@@ -815,7 +838,7 @@ def _partner(order: Optional[Order]) -> str:
 def _mutual(order: Optional[Order], orders: dict[str, Order]) -> float:
     """1 if the peer the order names named its owner back on the other side (the
     condition of stage 1 besides the prices), 0 if not, NaN without a peer named."""
-    if order is None or order.partner_id in (None, DSO_ID):
+    if order is None or order.partner_id is None:
         return float("nan")
 
     other = orders.get(order.partner_id)

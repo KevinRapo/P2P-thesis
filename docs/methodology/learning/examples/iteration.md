@@ -414,12 +414,12 @@ the learning rate, so $\ell_k$ changes by at most about $3 \cdot 10^{-4}$ per st
 How this plays out over a run, and when it drifts:
 [Close-up: how the learned log σ moves](#close-up-how-the-learned-log-σ-moves).
 
-!!! ours "Open: the entropy bonus in CTCE"
-    In CTCE the sum runs over $4N$ parts with one coefficient, while the surrogate
-    has one standardised advantage per step, so the entropy weighs about $N$ times
-    more against it than for one DTDE agent. The experiment `ctce_entropy` tests
-    whether this drives CTCE's rising $\log\sigma$ on the market: `entropy_coeff`
-    0.01, 0.01/13 and 0 with 13 agents.
+!!! ours "The entropy bonus in CTCE (RP-3a)"
+    In CTCE the sum runs over $4N$ parts, while the surrogate has one standardised
+    advantage per step, so with one coefficient the entropy would weigh about $N$
+    times more against it than for one DTDE agent. CTCE therefore divides
+    `entropy_coeff` by $N$: $c_H = 0.01 / N$. The experiment `ctce_entropy` compares
+    that with the joint 0.01 of before and with 0, with 13 agents.
 
 ### C6. KL between the collecting and the current policy
 

@@ -46,8 +46,8 @@ rule:
 | C | + partner | nothing: the full action |
 
 The rung at which the result drops names the obstacle, and is a result in itself (what
-each part of [P1] eq. 2 costs to learn). Settles RP-1a, RP-1h, RP-5a and RP-5b; then the
-budget and the settings for every paradigm (RP-6a, L-14), and whichever of RP-3a to
+each part of [P1] eq. 2 costs to learn). Settles RP-1a and RP-5a; then the budget
+and the settings for every paradigm, and whichever of RP-3a to
 RP-3g the runs show matter. The rest of section 2 is settled on paper along the way.
 
 ### 3. The evaluation protocol

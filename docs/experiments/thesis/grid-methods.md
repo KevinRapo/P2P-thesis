@@ -72,7 +72,7 @@ much the grid matters next to the price. How each one is calculated:
 |---|---|---|
 | Paradigm | CTDE | Open: after the RL stage |
 | Reward, observation | The bill; the paper's 42 signals | Set |
-| Budget | 240k environment steps | Open: L-14 |
+| Budget | 240k environment steps | Open |
 | Seeds | 5 (0-4) | Open: L-17 |
 | Evaluation | 10 points during training, 5 episodes each; every test day once at the end | Set |
 

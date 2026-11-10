@@ -210,6 +210,7 @@ def long(rows):
         grid_method="ac",
         test_days="d",
         participants=13,
+        participant_set="13 (abc123)",
         batteries=5,
     )
 
@@ -253,6 +254,15 @@ def test_a_difference_is_paired_when_days_match_and_says_when_not():
     found = indicators.difference(two_rewards(), "reward", "bill").iloc[0]
     assert found.paired and found["mean"] == 2.0 and found["values"] == [2.0, 2.0]
     found = indicators.difference(two_rewards(("d8", "d9")), "reward", "bill").iloc[0]
+    assert not found.paired and found["mean"] == 2.0
+
+
+def test_a_difference_is_not_paired_across_participant_sets():
+    """Same days, prices and network, but as many participants placed elsewhere
+    (RP-7h): the two sides played different markets, so they are not paired."""
+    table = two_rewards()
+    table.loc[table.reward == "salazar", "participant_set"] = "13 (def456)"
+    found = indicators.difference(table, "reward", "bill").iloc[0]
     assert not found.paired and found["mean"] == 2.0
 
 

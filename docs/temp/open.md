@@ -1,7 +1,7 @@
 # Open items
 
-The one list of every question about V2, open or decided. Nothing is deleted from it:
-a decided item stays in its section, with its status changed. A status is `inbox`
+The one list of every question about V2, open or decided. A decided item stays in its
+section, with its status changed; a question that turns out not to be one is removed. A status is `inbox`
 (noticed, not yet looked at), `open`, `parked` (on purpose, for later) or
 `decided → ...`: what was chosen, with a link to where it is implemented or to the
 [decision log](decisions.md) row that gives the reason. The order of the work and the
@@ -12,7 +12,7 @@ or `TH-` (thesis). A row with two IDs is one question known under both. A new qu
 takes the next free letter of its topic and is marked *(proposed)* until its section is
 worked on.
 
-The sections are ordered by how much they change the thesis's results, most first.
+The sections are ordered by how much they change the thesis's results, most first. *(run setting)* marks a question that an experiment's configuration answers, with no change to the code.
 
 ## 1. The grid-method comparison
 
@@ -22,10 +22,10 @@ What decides the thesis's main result; settled together with a check without lea
 |---|---|---|---|---|
 | MP-4i (proposed) | The grid stress: on SimBench's networks no fee is charged (line loading peaks at 38 % in June and July), so the comparison needs a stressed scenario. How (scale PV and load, or the ratings) and at which level | [Grid methods experiment](../experiments/thesis/grid-methods.md#consistency-between-the-arms) | open | 2026-11-10 |
 | MP-4e | The graph model's parameters on SimBench: the total capacity of the split by length or the lines' ratings, $f_\text{volt}$, the voltage-drop cap, the transformer | [Grid methods](../methodology/market/grid-methods.md), [Grid methods experiment](../experiments/thesis/grid-methods.md#parameters) | open | 2026-10-22 |
-| MP-4f | The fee factors' and thresholds' values ([P1] gives none; the release's are used) | [Market step, 6. Fees](../methodology/market/step.md#6-fees) | open | 2026-10-22 |
-| MP-1c | The end-of-day value of stored energy: worth nothing at midnight now, because the next day starts at the initial charge. Keep, value it (`terminal_value`), or carry the charge over (`episode_days`, `truncate_episode`) | [Reward](../methodology/environment/reward.md#the-rewards-to-choose-from), [day_end.json](../../config/experiments/day_end.json) | open | 2026-10-22 |
-| MP-4h | The peer charge: 0 in the main runs, or a referenced value (§42c 0.2294, Austria-like about 0.14) as main setting or arm | [Tariffs and the peer charge](../methodology/market/tariffs.md#the-decision-mp-4h) | open | 2026-11-03 |
-| MP-0a | The scenario and days of the experiments, hourly or 15-minute steps. Its batteries are decided (10 Nov 2026): every battery has a power limit | [thesis_rural3_p13.json](../../config/scenarios/thesis_rural3_p13.json), [Market runs](../experiments/market-s3.md) | open | 2026-10-22 |
+| MP-4f | The fee factors' and thresholds' values ([P1] gives none; the release's are used) *(run setting)* | [Market step, 6. Fees](../methodology/market/step.md#6-fees) | open | 2026-10-22 |
+| MP-1c | The end-of-day value of stored energy: worth nothing at midnight now, because the next day starts at the initial charge. Keep, value it (`terminal_value`), or carry the charge over (`episode_days`, `truncate_episode`) *(run setting)* | [Reward](../methodology/environment/reward.md#the-rewards-to-choose-from), [day_end.json](../../config/experiments/day_end.json) | open | 2026-10-22 |
+| MP-4h | The peer charge: 0 in the main runs, or a referenced value (§42c 0.2294, Austria-like about 0.14) as main setting or arm *(run setting)* | [Tariffs and the peer charge](../methodology/market/tariffs.md#the-decision-mp-4h) | open | 2026-11-03 |
+| MP-0a | The scenario and days of the experiments, hourly or 15-minute steps. Its batteries are decided (10 Nov 2026): every battery has a power limit *(run setting)* | [thesis_rural3_p13.json](../../config/scenarios/thesis_rural3_p13.json), [Market runs](../experiments/market-s3.md) | open | 2026-10-22 |
 | MP-0b | The DSO's tariffs: flat or changing over the day | [Tariffs](../methodology/market/tariffs.md) | decided → [decision log](decisions.md): a price per step from a file (now `de_2024`) | 2026-10-22 |
 | M-28, MP-4a | The transmission fee $F_\text{trans}$ (no formula in [P1]) | [M-28](../original/issues/register.md#M-28) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): the loss at the trade price | 2026-11-03 |
 | M-30, MP-4b | Which DSO trade could help the balance (imbalance fee) | [M-30](../original/issues/register.md#M-30) | decided → [Market step, 6. Fees](../methodology/market/step.md#6-fees): charged when the DSO trade worsens the balance | 2026-11-03 |
@@ -44,26 +44,24 @@ is paid, what it sees, and how PPO trains it.
 
 | ID | Question | Where | Status | Added |
 |---|---|---|---|---|
-| RP-1h (proposed) | Drop the DSO as a partner choice | [Action](../methodology/environment/action.md) | open | 2026-11-03 |
+| RP-1h | Drop the DSO as a partner choice | [Action](../methodology/environment/action.md) | decided → [Action](../methodology/environment/action.md#the-mixed-action): dropped; the partner is a peer or nobody, since an order without a peer clears with the DSO anyway (10 Nov 2026) | 2026-11-03 |
 | RP-1a | "No order": the 0.05 quantity threshold (now) or a third `side` category | [Action](../methodology/environment/action.md) | open | 2026-10-22 |
 | RP-2b | The policy is factorised: it cannot name a partner conditionally on the side (an autoregressive policy only if probe 9 and the first market runs show it is needed) | [Probes](../methodology/validation/probes.md) | open | 2026-10-22 |
-| MP-1a | The battery as a passive buffer after the trades (now: the agent steers it only through its trade quantity), or a decision of its own | [Market step, 4. Settlement](../methodology/market/step.md#4-settlement) | open | 2026-10-22 |
-| MP-2c | Selling from the battery while the household itself has a deficit: eq. 15 allows it. Keep, or let a household sell only after its own load is covered | [Market step, 2. Orders](../methodology/market/step.md#2-orders) | open | 2026-10-22 |
-| MP-3a | The pricing mechanism for every experiment (`average` now; buyer, seller, bid-ask spread, Nash bargaining and proportional surplus exist) | [Market step, 3. Clearing](../methodology/market/step.md#3-clearing) | open | 2026-10-22 |
-| MP-5b | Reputation's start value and horizon: 0.5 every day (now), or carried over between days; whether one day is long enough for it to mean anything | [Market step, 8. Reputation](../methodology/market/step.md#8-reputation-and-advance) | open | 2026-10-22 |
+| MP-2c | Selling from the battery while the household itself has a deficit: eq. 15 allows it. Keep, or let a household sell only after its own load is covered | [Market step, 2. Orders](../methodology/market/step.md#2-orders) | decided → [Market step, 2. Orders](../methodology/market/step.md#2-orders): no: the battery covers the household's own deficit first, only the rest is for sale (10 Nov 2026) | 2026-10-22 |
+| MP-5b | Reputation's start value and horizon: 0.5 every day (now), or carried over between days; whether one day is long enough for it to mean anything *(run setting)* | [Market step, 8. Reputation](../methodology/market/step.md#8-reputation-and-advance) | open | 2026-10-22 |
 | MP-5c | Reputation's weights (0.3 / 0.2 / 0.5) and the three scores' formulas | [Market step, 8. Reputation](../methodology/market/step.md#8-reputation-and-advance) | open | 2026-10-22 |
-| RP-1d | The reward's scale (Salazar's divided by 20, the bill's by the 99th percentile) | [Reward](../methodology/environment/reward.md#the-rewards-to-choose-from) | open | 2026-10-22 |
+| RP-1d | The reward's scale (Salazar's divided by 20, the bill's by the 99th percentile) *(run setting)* | [Reward](../methodology/environment/reward.md#the-rewards-to-choose-from) | open | 2026-10-22 |
 | RP-1i (proposed) | The observation set: pruned plus day-ahead utility prices, the paper's 42 for the Salazar arm | [Observation](../methodology/environment/observation.md) | open | 2026-11-03 |
-| RP-1j (proposed) | γ over a 24-step day: 0.99 (now, almost undiscounted) or 1.0 | [rl_defaults.py](../../core/rl_defaults.py) | open | 2026-10-22 |
-| RP-3a | The entropy term: 0.01 × the sum over the action parts (4 per agent, 4N in CTCE); or divided by N in CTCE, 0, or per-part weights | [rl_defaults.py](../../core/rl_defaults.py) | open | 2026-10-22 |
-| RP-3b | CTCE's group reward: the sum of the agents' rewards (now) or their mean | [ctce.py](../../core/rl/ctce.py) | open | 2026-10-22 |
+| RP-1k (proposed) | The grid in the observation: an agent sees nothing of the grid where it is, only the mean loading over all lines (`grid_congestion`) and $B_\text{grid}$; the fees reach it only through the reward. A signal for the loading on its own path, read from what the fees read | [signals.py](../../core/market/signals.py#L94-L101), [Observation](../methodology/environment/observation.md) | open | 2026-11-10 |
+| RP-1l (proposed) | What an agent knows of its peers for the partner choice: only their reputations, not who has a surplus or a deficit now. Add the peers' last net positions, or state that the choice is learned blind, as in [P1] | [market_env.py](../../core/env/market_env.py) | open | 2026-11-10 |
+| RP-1j (proposed) | γ over a 24-step day: 0.99 (now, almost undiscounted) or 1.0 *(run setting)* | [rl_defaults.py](../../core/rl_defaults.py) | open | 2026-10-22 |
+| RP-3a | The entropy term: 0.01 × the sum over the action parts (4 per agent, 4N in CTCE); or divided by N in CTCE, 0, or per-part weights | [rl_defaults.py](../../core/rl_defaults.py) | decided → [config.py](../../core/rl/config.py): `entropy_coeff` is per agent; CTCE divides it by N (10 Nov 2026) | 2026-10-22 |
+| RP-3b | CTCE's group reward: the sum of the agents' rewards (now) or their mean | [ctce.py](../../core/rl/ctce.py) | decided → [ctce.py](../../core/rl/ctce.py): the sum stays (10 Nov 2026) | 2026-10-22 |
 | RP-3c | The value scale: no value normalisation, advantages standardised per module (now); or value normalisation (PopArt) | [config.py](../../core/rl/config.py) | open | 2026-10-22 |
 | RP-3d | One Adam and one gradient clip (0.5) over actor and critic (now), or separate ones | [config.py](../../core/rl/config.py) | open | 2026-10-22 |
 | RP-3g | The clip range ε: 0.2 per agent and one joint ratio in CTCE (now); keep and state its dependence on N | [rl_defaults.py](../../core/rl_defaults.py) | open | 2026-10-22 |
 | RP-5a | Whether the full action stays the thesis's action, or a simpler one (side from the net position, or no partner) with a stated reason, if the first market runs do not beat the rule | [Action](../methodology/environment/action.md) | open | 2026-10-22 |
-| RP-5b | Which of RP-3a to RP-3g the first market runs show must be revisited | [rl_defaults.py](../../core/rl_defaults.py) | open | 2026-10-22 |
-| RP-6a, L-14 | The training budget in environment steps, and the market's hyperparameters (`market_ppo.json` still gives batch 2400 and minibatch 240 over RP-6b's) | [market_ppo.json](../../config/experiments/market_ppo.json), [L-14](../original/issues/register.md#L-14) | open | 2026-10-22 |
-| RP-8a (proposed) | The CTCE update size (KL 0.1 to 0.17) for the reference experiment | [Training cycle](../methodology/learning/index.md) | open | 2026-11-03 |
+| RP-8a (proposed) | The CTCE update size (KL 0.1 to 0.17) for the reference experiment *(run setting)* | [Training cycle](../methodology/learning/index.md) | open | 2026-11-03 |
 | RP-6c (proposed) | Ray's start-up occasionally fails when memory is short (several runs in parallel each start their own Ray) | [Resources and parallelism](../using/running/hpc/resources.md) | open | 2026-11-03 |
 | RP-1b | The action's price range | [Action](../methodology/environment/action.md) | decided → [Action](../methodology/environment/action.md): [FiT, utility] | 2026-10-22 |
 | RP-1c | The action's quantity | [Action](../methodology/environment/action.md) | decided → [Action](../methodology/environment/action.md): a share of the eq. 15 bound | 2026-10-22 |
@@ -88,13 +86,13 @@ How a result is measured, compared and trusted; needed before the final runs.
 
 | ID | Question | Where | Status | Added |
 |---|---|---|---|---|
-| L-03 | How returns are compared across paradigms | [L-03](../original/issues/register.md#L-03) | open | 2026-11-03 |
-| L-17 | Evaluation protocol and the number of seeds | [L-17](../original/issues/register.md#L-17) | open | 2026-11-03 |
+| L-03 | How returns are compared across paradigms | [L-03](../original/issues/register.md#L-03) | decided → [Metrics](../methodology/evaluation/metrics.md#a-headline): never returns; held-out team money and the VTI, the same for every paradigm | 2026-11-03 |
+| L-17 | Evaluation protocol and the number of seeds *(run setting)* | [L-17](../original/issues/register.md#L-17) | open | 2026-11-03 |
 | L-02 | CTCE as a centralised-information baseline, not an upper bound | [L-02](../original/issues/register.md#L-02) | open | 2026-11-03 |
 | L-01, RP-3f | The CTDE critic's input: $[o_i, o_1 \dots o_N]$ (now) or a pruned global state | [ctde.py](../../core/rl/ctde.py) | open | 2026-10-22 |
-| RP-7c | Training and test days (now June and 1-14 July 2016): whether one season is enough | [Days](../using/running/config.md#days) | open | 2026-10-22 |
-| RP-7h (proposed) | `difference()` pairs runs without regard to the participants | [results.py](../../core/runner/results.py) | open | 2026-11-03 |
-| RP-7l (proposed) | The last additions to what a run saves: the raw action outputs (what the policy asked for without an order), reputation's three parts, the code's `git diff` | [Files](../methodology/evaluation/files.md) | open | 2026-11-10 |
+| RP-7c | Training and test days (now June and 1-14 July 2016): whether one season is enough *(run setting)* | [Days](../using/running/config.md#days) | open | 2026-10-22 |
+| RP-7h | `difference()` pairs runs without regard to the participants | [results.py](../../core/runner/results.py) | decided → [indicators.py](../../core/runner/indicators.py): runs pair only with the same participants (`participant_set`), also for the baselines (10 Nov 2026) | 2026-11-03 |
+| RP-7l | The last additions to what a run saves: the raw action outputs (what the policy asked for without an order), reputation's three parts, the code's `git diff` | [Files](../methodology/evaluation/files.md) | decided → [Files](../methodology/evaluation/files.md#heldout_agent_stepscsv): the raw action parts in every step row; no code diff, since a cluster run starts only from a clean commit (10 Nov 2026) | 2026-11-10 |
 | RP-7m (proposed) | Replay a finished run's held-out evaluation from its checkpoint (a policy under the other grid method or prices) | [Files](../methodology/evaluation/files.md) | open | 2026-11-10 |
 | MP-6d (proposed) | Market probes M5-M9 (M1-M4 are built, with the Studio's page) | [probes.py](../../core/market/probes.py) | open | 2026-10-26 |
 | RP-7a | The team's score | [Metrics](../methodology/evaluation/metrics.md#a-headline) | decided → [Metrics](../methodology/evaluation/metrics.md#a-headline): the held-out team money, the participants' bills summed, with the VTI | 2026-10-22 |
@@ -115,6 +113,7 @@ Only matters if the reward and observation experiment stays in the thesis.
 | E-10 | The KPIs' window: the day so far (now); the papers give none | [market_env.py](../../core/env/market_env.py#L725), [reward.py](../../core/env/reward.py#L343), [signals.py](../../core/market/signals.py#L85); [Observation](../methodology/environment/observation.md#implicit-cooperation-kpis-10-the-same-for-every-agent) | open | 2026-11-03 |
 | E-07 | A signal with nothing to measure enters as 0, which is also a real value for the local price and its advantage | [market_env.py](../../core/env/market_env.py#L738); [Observation](../methodology/environment/observation.md#missing-values) | open | 2026-11-03 |
 | E-08, E-11 | Supply-demand imbalance over each step's orders, with the order volume standing in for $C_\text{grid}$ | [signals.py](../../core/market/signals.py#L36) | open | 2026-11-03 |
+| RP-1m (proposed) | `coordination_score` is 1 − `supply_demand_imbalance`: the paper's observation holds one signal twice | [signals.py](../../core/market/signals.py#L104-L105) | open | 2026-11-10 |
 | E-09 | Social welfare as the sum of $p \cdot q$ (turnover), not surplus | [signals.py](../../core/market/signals.py#L66) | open | 2026-11-03 |
 | E-12 | DER self-consumption as the peer share of the energy traded | [signals.py](../../core/market/signals.py#L121) | open | 2026-11-03 |
 | MP-6a, RP-7e | Which KPIs are reported next to the bill; the DSO's trades in them, $q_\text{available}$, the DSO's balance | [signals.py](../../core/market/signals.py#L71) | open | 2026-10-22 |
@@ -128,7 +127,7 @@ No effect on the results.
 |---|---|---|---|---|
 | MP-2b, MP-2e | The market's own price bounds: [0, 1] now, or the tariffs' band; and whether an order's price is clamped to the step's peer ceiling or to the static `max_price` | [Market step, 2. Orders](../methodology/market/step.md#2-orders) | open | 2026-10-22 |
 | MP-3d (proposed) | `BID_ASK_SPREAD` and `NASH_BARGAINING` give the same price as `average` at factor 0.5 | [clearing_price.py](../../core/market/clearing_price.py#L54-L58) | open | 2026-11-03 |
-| MP-4g (proposed) | Is the `GridModel` protocol still a point to use? | [contract.py](../../core/grid/contract.py#L275) | open | 2026-11-03 |
+| MP-4g | Is the `GridModel` protocol still a point to use? | [contract.py](../../core/grid/contract.py) | decided → removed: nothing used it, and `GraphGrid` did not follow it (10 Nov 2026) | 2026-11-03 |
 | TH-1 (proposed) | Thesis: which parts belong in the main text and which in the appendices | workspace `AGENTS.md`, Open points | open | 2026-11-03 |
 
 ## Parked

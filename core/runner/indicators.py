@@ -52,6 +52,7 @@ PLAYED_ON = (
     "grid_method",
     "test_days",
     "participants",
+    "participant_set",
     "batteries",
 )
 INTERVAL_SEEDS = 5
@@ -666,7 +667,8 @@ def difference(
     inside every combination of ``within`` (default: the other ``FACTORS`` that
     differ).
 
-    ``paired`` says how: with the same seeds, days, prices and network, a seed's mean
+    ``paired`` says how: with the same seeds, days, prices, network and participants
+    (``participant_set``, RP-7h), a seed's mean
     difference over the days both sides have a value for, with the spread over seeds;
     otherwise the difference of the two means, which keeps the variation between days,
     with ``n`` the seeds of the smaller side. Runs pooled on one side are averaged."""
@@ -676,7 +678,7 @@ def difference(
     same = [*within, "indicator"]
     trained = table[table.policy == TRAINED]
     days = trained.groupby("key").day.agg(frozenset)
-    worlds = trained.groupby("key")[["prices", "network"]].first()
+    worlds = trained.groupby("key")[["prices", "network", "participant_set"]].first()
     world = {k: (days[k], *row) for k, row in zip(worlds.index, worlds.to_numpy())}
     rows = []
 

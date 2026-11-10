@@ -15,13 +15,16 @@ Each agent has a `Dict` action with these four parts
 | `side` | `Discrete(2)` | α, order type, categorical | 0 sell, 1 buy |
 | `quantity` | `Box([-1, 1])` | $q_{\text{bid}}$, continuous | share $s = (q + 1) / 2$ of the agent's eq. 15a-b bound for the chosen side; **no order** when $s < 0.05$; above it the share is rescaled to $(0, 1]$ |
 | `price` | `Box([-1, 1])` | $p_{\text{bid}}$, continuous | $p = p_{\text{FiT}} + \frac{p + 1}{2}\,(p_{\text{utility}} - p_{\text{FiT}})$ |
-| `partner` | `Discrete(N + 1)` | β, another agent, the DSO or none | index into the agent's candidates: the $N - 1$ other participants in scenario order, then the DSO, then "no preference" |
+| `partner` | `Discrete(N)` | β, another agent, the DSO or none | index into the agent's candidates: the $N - 1$ other participants in scenario order, then "no preference"; not the DSO (RP-1h, below) |
 
 What is the paper's: the four parts and their kinds. What is an implementation
 choice: the quantity as a share of the eq. 15 bound (every order is feasible, so
 none is rejected, E-04, E-05), the no-order threshold (an explicit encoding
 decision: the paper has no "no order" action), the price range between the two
-tariffs, and the candidate order. The original code decoded all four parts from
+tariffs, the candidate order, and leaving the DSO out of the candidates (RP-1h): an
+order that finds no peer clears with the DSO in stage 3 anyway, at the same tariff
+(MP-1e), so naming the DSO would only add a choice that changes nothing. The original
+code decoded all four parts from
 one continuous `Box` (`int(β)`, `α > 0.5`); here no categorical part
 is decoded from a continuous number.
 
@@ -36,9 +39,9 @@ The clearing ([clearing.py](../../../core/market/clearing.py)) has three stages:
 
 1. **Stage 1, preferences:** a buyer and a seller that named each other trade
    first, at the mechanism's price, when bid ≥ ask.
-2. **Stage 2, double auction:** every order still open, except those naming the
-   DSO.
-3. **Stage 3, DSO:** whatever is left, and the orders naming the DSO.
+2. **Stage 2, double auction:** every order still open.
+3. **Stage 3, DSO:** whatever is left. (The market also lets an order name the DSO
+   to skip stages 1 and 2, M-10; no agent's order does.)
 
 So a choice is *compatible* (mutual, opposite sides, prices cross: stage-1
 trade), *incompatible* (mutual but bid < ask: no stage-1 trade), or *one-sided*
@@ -49,8 +52,8 @@ trade), *incompatible* (mutual but bid < ask: no stage-1 trade), or *one-sided*
 
 [`decode`](../../../core/env/market_env.py#L594-L627), per agent. The
 action's four parts ([P1] eq. 2, above) become an
-intent: `side` picks sell or buy, `partner` one of the agent's candidates (a peer,
-the DSO or none), and the continuous `quantity` and `price` $a_q, a_p \in [-1, 1]$
+intent: `side` picks sell or buy, `partner` one of the agent's candidates (a peer
+or none), and the continuous `quantity` and `price` $a_q, a_p \in [-1, 1]$
 become
 
 $$

@@ -65,7 +65,7 @@ def random_actions(env: MarketEnv, rng: np.random.Generator) -> dict:
             "side": int(rng.integers(2)),
             "quantity": rng.uniform(-1, 1, 1).astype(np.float32),
             "price": rng.uniform(-1, 1, 1).astype(np.float32),
-            "partner": int(rng.integers(len(AGENTS) + 1)),
+            "partner": int(rng.integers(env.action_spaces[a]["partner"].n)),
         }
         for a in env.agents_id
     }
@@ -97,7 +97,7 @@ def test_spaces_and_observations(env):
     """One agent per participant in scenario order. The observation: the paper's
     42 signals (``OBS_NAMES``: 16 market, 16 agent, 10 KPIs), then the N − 1 peers'
     reputations (42 + 4 = 46 with five agents). The action: the four parts of [P1] eq. 2,
-    side Discrete(2), quantity and price Box(1), partner Discrete(N + 1).
+    side Discrete(2), quantity and price Box(1), partner Discrete(N).
     Observations stay finite and inside the space after the reset and after steps
     (the policy network expects both)."""
     assert env.agents_id == AGENTS
@@ -109,7 +109,7 @@ def test_spaces_and_observations(env):
         assert env.observation_spaces[a].shape == (46,)
         space = env.action_spaces[a]
         assert set(space.spaces) == {"side", "quantity", "price", "partner"}
-        assert space["side"].n == 2 and space["partner"].n == len(AGENTS) + 1
+        assert space["side"].n == 2 and space["partner"].n == len(AGENTS)
         assert space["quantity"].shape == space["price"].shape == (1,)
 
     rng = np.random.default_rng(0)
@@ -325,7 +325,7 @@ def test_action_decoding_sell(env):
         env.market.dso.feed_in_tariff,
         env.market.dso.utility_price,
     )  # the step's
-    none = len(AGENTS)  # the last partner index: no preference
+    none = len(AGENTS) - 1  # the last partner index: no preference
 
     def order_for(q: float, p: float):
         env.step({pid: action(0, q, p, none)})
@@ -461,7 +461,7 @@ def test_paradigm_wrappers_over_the_market(env):
     obs, _ = central.reset(seed=1)
     assert all(o.shape == (d + n * d,) for o in obs.values())
     assert central.action_spaces == env.action_spaces
-    actions = {a: action(0, 0.5, 0.0, n) for a in central.agents_id}
+    actions = {a: action(0, 0.5, 0.0, n - 1) for a in central.agents_id}
     obs, rewards, term, _, _ = central.step(actions)
     assert set(rewards) == set(central.agents_id)
     first = central.agents_id[0]
@@ -472,7 +472,7 @@ def test_paradigm_wrappers_over_the_market(env):
     assert obs[GROUP].shape == (n * d,)
     space = grouped.action_spaces[GROUP]
     assert list(space.spaces) == [env.action_spaces[a] for a in env.agents_id]
-    joint = tuple(action(0, 0.5, 0.0, n) for _ in range(n))
+    joint = tuple(action(0, 0.5, 0.0, n - 1) for _ in range(n))
     assert space.contains(joint)
     _, rewards, _, _, infos = grouped.step({GROUP: joint})
     assert rewards[GROUP] == pytest.approx(sum(infos[GROUP]["rewards"].values()))
@@ -684,3 +684,18 @@ def test_forecast_error_changes_only_the_forecasts_of_later_steps():
 
     with pytest.raises(ValueError, match="forecast_error"):
         MarketEnv({"scenario": str(SCENARIO), "forecast_error": 1.0})
+
+
+def test_a_step_keeps_the_raw_action_with_or_without_an_order(env):
+    """RP-7l: the four action parts as the policy gave them reach the step's state,
+    also when the quantity share is in the no-order region."""
+    env.reset(seed=0)
+    actions = {a: env.encode(a, "sell", 0.0, 0.25) for a in env.agents_id}  # no order
+    _, _, _, _, infos = env.step(actions)
+
+    for a in env.agents_id:
+        state = infos[a]["state"]
+        assert state["side"] == "none" and state["action_side"] == 0.0
+        assert state["action_quantity"] == pytest.approx(-1.0)
+        assert state["action_price"] == pytest.approx(-0.5)
+        assert state["action_partner"] == env.partners(a).index("none")

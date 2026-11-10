@@ -36,6 +36,10 @@ schedule changed:
   (``core/rl_defaults.py``, RP-6b in ``docs/temp/decisions.md``), not the original's.
 - Iterations are not tied to wall-clock time (``min_time_s_per_iteration=0``),
   and the budget is counted in environment steps by the trainer (fixes L-14).
+- ``entropy_coeff`` is per agent. CTCE's joint policy has the action parts of all N
+  agents, so its entropy is a sum over N agents' parts; there the coefficient is
+  divided by N (MAPPO's mean over agents, RP-3a), so the bonus weighs against one
+  standardised advantage as it does for one DTDE agent. The summed reward stays.
 """
 
 from __future__ import annotations
@@ -117,7 +121,8 @@ def build_config(
         env_config: Its config.
         seed: Seed of RLlib (network initialisation, sampling, environment seeds).
         training: Overrides of ``SETTINGS``, passed to ``AlgorithmConfig.training``
-            (e.g. ``lr=3e-4``, ``train_batch_size_per_learner=1000``).
+            (e.g. ``lr=3e-4``, ``train_batch_size_per_learner=1000``). In CTCE
+            ``entropy_coeff`` is divided by the number of agents (RP-3a).
         num_env_runners: Sampling processes besides the driver (0: sample in the
             driver). Learning always runs in the driver; nothing else starts
             processes (fixes the doubled CPU count of L-11).
@@ -130,13 +135,20 @@ def build_config(
     env, config_for_env, module_ids = env_spec(paradigm, env_class, env_config)
     model_config = MODEL | (model or {})
 
+    settings = SETTINGS[algorithm] | (training or {})
+
+    if paradigm == Paradigm.CTCE and "entropy_coeff" in settings:
+        # DEVIATION RP-3a: the entropy of N agents' parts, weighted per agent.
+        agents = len(env_class(env_config).agents_id)
+        settings = settings | {"entropy_coeff": settings["entropy_coeff"] / agents}
+
     config = (
         CONFIGS[algorithm]()
         .framework("torch")
         .environment(env=env, env_config=config_for_env)
         .env_runners(num_env_runners=num_env_runners, sample_timeout_s=None)
         .learners(num_learners=0, num_gpus_per_learner=num_gpus)
-        .training(**(SETTINGS[algorithm] | (training or {})))
+        .training(**settings)
         .training(learner_class=PPOLearner)
         .reporting(min_time_s_per_iteration=0)
         .debugging(seed=seed)
