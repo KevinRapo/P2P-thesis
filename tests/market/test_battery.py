@@ -16,7 +16,7 @@ def test_settings_are_copied_and_energy_changes_separately():
     battery = Battery(setup, step_hours=0.25)
     setup.capacity_kwh = 100.0
     setup.initial_soc = 0.9
-    setup.max_power_kw = None
+    setup.max_power_kw = 50.0
 
     assert battery.charge(5.0) == 0.5  # 2 kW for 15 minutes, at the bus
     assert battery.energy_kwh == pytest.approx(5.4)
@@ -39,10 +39,11 @@ def test_settings_are_copied_and_energy_changes_separately():
         {"discharge_efficiency": 1.1},
         {"initial_soc": 0.0},
         {"max_power_kw": 0.0},
+        {"max_power_kw": None},
     ],
 )
 def test_scenario_and_constructor_report_the_same_invalid_settings(changes):
-    setup = BatterySetup(**({"capacity_kwh": 10.0} | changes))
+    setup = BatterySetup(**({"capacity_kwh": 10.0, "max_power_kw": 5.0} | changes))
     scenario = Scenario(participants=[ParticipantSetup("A", "bus", battery=setup)])
     problems = setup.problems()
     assert problems

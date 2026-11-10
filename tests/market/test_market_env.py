@@ -648,3 +648,39 @@ def test_rounding_an_order_price_stays_inside_the_bounds():
     assert _round_within(0.0749, 0.0749, 1.0, 2) == 0.08  # not down under 0.0749
     assert _round_within(0.5, 0.0, 1.0, 2) == 0.5
     assert _round_within(0.5, 0.0, 0.306, 2) == 0.5  # outside to begin with: as is
+
+
+def test_forecast_error_changes_only_the_forecasts_of_later_steps():
+    """``forecast_error`` (E-05): the remaining demand and supply see each later step
+    within ±e of its true value; the current step stays true, the error stays the
+    same all day, and the market plays the true profiles."""
+    e = 0.3
+    noisy = MarketEnv(
+        {"scenario": str(SCENARIO), "days": DAYS[:1], "forecast_error": e, "seed": 3}
+    )
+    noisy.reset(options={"day": DAYS[0]})
+    m = noisy.market
+
+    for pid in noisy.agents_id:
+        p = m.participants[pid]
+        now = noisy._forecasts(pid)
+        later = sum(p.demand_kwh[1:])
+        assert p.demand_kwh[0] + (1 - e) * later - 1e-9 <= now["remaining_demand"]
+        assert now["remaining_demand"] <= p.demand_kwh[0] + (1 + e) * later + 1e-9
+
+    first = {pid: noisy._forecasts(pid) for pid in noisy.agents_id}
+    obs = noisy._observe()
+    noisy.step(zero_policy(noisy)(obs))
+    for pid in noisy.agents_id:  # step 1: the step-0 value has left the sum
+        p = m.participants[pid]
+        demand_factor = noisy._forecast[pid][0]
+        expected = p.demand_kwh[1] + float(np.dot(p.demand_kwh[2:], demand_factor[2:]))
+        assert noisy._forecasts(pid)["remaining_demand"] == pytest.approx(expected)
+        assert first[pid] != noisy._forecasts(pid)
+
+    true = MarketEnv({"scenario": str(SCENARIO), "days": DAYS[:1]})
+    true.reset(options={"day": DAYS[0]})
+    assert true._forecasts("P1") == {}
+
+    with pytest.raises(ValueError, match="forecast_error"):
+        MarketEnv({"scenario": str(SCENARIO), "forecast_error": 1.0})

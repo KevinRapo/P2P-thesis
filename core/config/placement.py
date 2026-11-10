@@ -126,7 +126,7 @@ def place_all(
     A participant on a bus with SimBench storage gets that unit as its battery.
     Participants on other buses with a generator (pv or gen) get a battery of
     ``battery_kwh`` when it is above 0, with ``battery_power_kw`` as its power
-    limit (``None``: no limit).
+    limit (``None``: SimBench's, capacity ÷ 2 h, ``simbench_battery``).
 
     Returns:
         The number of participants placed.
@@ -143,8 +143,10 @@ def place_all(
         generates = any(e.element_type == "sgen" for e in elements)
 
         if p.battery is None and battery_kwh > 0 and generates:
-            p.battery = BatterySetup(
-                capacity_kwh=battery_kwh, max_power_kw=battery_power_kw
+            p.battery = (
+                simbench_battery(battery_kwh)
+                if battery_power_kw is None
+                else BatterySetup(capacity_kwh=battery_kwh, max_power_kw=battery_power_kw)
             )
 
         scenario.participants.append(p)

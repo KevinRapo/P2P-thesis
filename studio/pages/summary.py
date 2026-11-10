@@ -403,7 +403,7 @@ def _participants(scenario: Scenario) -> None:
                 "capacity": f"{c:g} kWh",
                 "soc": f"start {init:g}, window {lo:g} – {hi:g}",
                 "eff": f"{ci:g} in, {di:g} out",
-                "power": f"{pw:g} kW" if pw else "no limit",
+                "power": f"{pw:g} kW",
                 "who": f"{len(ids)}: " + ", ".join(ids),
             }
             for i, ((c, init, lo, hi, ci, di, pw), ids) in enumerate(groups.items())

@@ -102,6 +102,14 @@ midnight. Settings (MP-1c, RP-1f; the experiment ``day_end.json`` compares them)
     stored_kwh_value  what a stored kWh is worth (default 0): ``adjusted_bill``, and
                       ``terminal_value``
 
+Forecasts. ``remaining_demand`` and ``remaining_supply`` sum the participant's
+demand and generation from the current step to the end of the day. The current step
+is known (the agent also observes it as ``demand`` and ``generation``); with
+``forecast_error`` e > 0 every later step is forecast as its true value times
+(1 + ε), ε drawn uniformly from [−e, e] per participant, step and quantity when a
+day starts, so the forecast of a step stays the same all day. The market itself
+plays the true profiles: only the observation sees the error.
+
 ``options["day"]`` plays that one day, one of ``days``, instead of drawing: the
 batteries start at their initial charge, none of the settings above changes the
 rewards, and the final observation stays on that day. With ``options["carry"]`` the
@@ -193,6 +201,9 @@ gives both to the RL layer's evaluation.
     observation   which signals agents see: ``"paper"`` (default) or ``"pruned"``
     tariff_range  [lowest p_FiT, highest p_utility] scaling prices (default: from
                   ``days``)
+    forecast_error  the largest relative error of the forecasts behind
+                  ``remaining_demand`` and ``remaining_supply`` (default 0: the true
+                  future; [P2] Table 7 gives 0.3). See Forecasts
     seed          seed of the day draw for the first reset
     episode_days, truncate_episode, random_start_soc, terminal_value,
     stored_kwh_value: see Episodes
@@ -272,6 +283,14 @@ class MarketEnv(MultiAgentEnv):
         self.random_start_soc: bool = bool(config.get("random_start_soc"))
         self.terminal_value: bool = bool(config.get("terminal_value"))
         self.stored_kwh_value: float = float(config.get("stored_kwh_value") or 0.0)
+        self.forecast_error: float = float(config.get("forecast_error") or 0.0)
+
+        if not 0.0 <= self.forecast_error < 1.0:
+            raise ValueError("forecast_error must be in [0, 1)")
+
+        # Per participant, the factors (1 + ε) of each step's forecast demand and
+        # generation on the day being played; empty without a forecast error.
+        self._forecast: dict[str, tuple[np.ndarray, np.ndarray]] = {}
 
         if self.terminal_value and not self.stored_kwh_value:
             raise ValueError("terminal_value needs a stored_kwh_value")
@@ -550,9 +569,35 @@ class MarketEnv(MultiAgentEnv):
         battery_kwh: Optional[dict] = None,
         reputation: Optional[dict] = None,
     ) -> None:
-        """Rebuild the market for ``day``."""
+        """Rebuild the market for ``day`` and draw its forecast errors."""
         self.market.scenario.grid.day = day
         self.market.reset(battery_kwh, reputation)
+        e = self.forecast_error
+        n = self.market.n_steps
+        self._forecast = {
+            pid: tuple(1.0 + self.rng.uniform(-e, e, n) for _ in range(2))
+            for pid in self.agents_id
+        } if e > 0 else {}
+
+    def _forecasts(self, pid: str) -> dict[str, float]:
+        """``remaining_demand`` and ``remaining_supply`` as the agent forecasts them
+        (see Forecasts): the current step's true value, every later one with its
+        error. Empty without a forecast error."""
+        if pid not in self._forecast:
+            return {}
+
+        p = self.market.participants[pid]
+        t = min(self.market.current_step, self.market.n_steps)
+        demand_factor, generation_factor = self._forecast[pid]
+
+        def forecast(true: list[float], factor: np.ndarray) -> float:
+            now = true[t] if t < len(true) else 0.0
+            return float(now + np.dot(true[t + 1 :], factor[t + 1 : len(true)]))
+
+        return {
+            "remaining_demand": forecast(p.demand_kwh, demand_factor),
+            "remaining_supply": forecast(p.generation_kwh, generation_factor),
+        }
 
     def _next_day(self) -> None:
         """Move on to the window's next day, or after its last one to the next
@@ -729,7 +774,7 @@ class MarketEnv(MultiAgentEnv):
         out = {}
 
         for pid in self.agents_id:
-            mine = values | signals.agent_signals(m, pid, wanted)
+            mine = values | signals.agent_signals(m, pid, wanted) | self._forecasts(pid)
             scaled = [
                 (mine[name] - offset) / divisor
                 for name, (offset, divisor) in self._scales.items()

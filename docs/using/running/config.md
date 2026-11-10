@@ -61,7 +61,7 @@ Read by [`core/config/store.py`](../../../core/config/store.py) into the records
         "charge_efficiency": 0.95,
         "discharge_efficiency": 0.95,
         "initial_soc": 0.5,
-        "max_power_kw": null
+        "max_power_kw": 5.0
       }
     },
     {
@@ -140,7 +140,7 @@ The battery ([P1] eq. 16):
 | `min_soc`, `max_soc` | `0 ≤ min < max ≤ 1` | The usable state-of-charge window |
 | `charge_efficiency`, `discharge_efficiency` | in `(0, 1]` | Losses on the way in and out |
 | `initial_soc` | inside the window | The charge at the start of a fresh episode |
-| `max_power_kw` | positive, `null` | Power limit, not in [P1]. `null`: no limit, so only the window and the efficiencies bound a step |
+| `max_power_kw` | positive, **required** | Power limit in kW. Every step is bounded by both the energy the window leaves and this limit over the step. [P1] §3.4 names charge and discharge rates; eq. 16 has none. A SimBench storage unit brings its own; SimBench's ratio is capacity ÷ 2 h |
 
 ### market
 
@@ -259,6 +259,7 @@ in the Studio shows the same settings with the values it runs with.
     "energy_scale": null,
     "reward_scale": null,
     "tariff_range": null,
+    "forecast_error": 0.0,
     "episode_days": null,
     "truncate_episode": false,
     "random_start_soc": false,
@@ -410,6 +411,7 @@ The environment's settings, in
 | `energy_scale` | kWh, `null` | `E`, which scales the energy signals of the observation. `null`: the largest generation or demand of any participant in any step of any training day |
 | `reward_scale` | number, `null` | What the reward is divided by. `null`: `max(p_utility) · E`, the bill for `E` kWh bought from the DSO at its dearest |
 | `tariff_range` | `[low, high]`, `null` | The lowest feed-in tariff and the highest utility price, which scale the prices of the observation. `null`: from the training days, kept for every later evaluation |
+| `forecast_error` | 0 to below 1 | The largest relative error of the forecasts in `remaining_demand` and `remaining_supply`. 0: the true future. Above 0: each later step of the day is forecast as its true value times $(1 + \varepsilon)$, $\varepsilon$ uniform in $[-e, e]$, drawn when the day starts; the market still plays the true profiles. [P2] Table 7 gives 0.3 ([Observation](../../methodology/environment/observation.md)) |
 | `episode_days` | integer, `null` | Days per training episode ([Days](#days)). `null`: 1 |
 | `truncate_episode` | `true`, `false` | Ends a window with truncation, not termination ([Days](#days), step 5) |
 | `random_start_soc` | `true`, `false` | Each window starts with the batteries at a random charge in their window |

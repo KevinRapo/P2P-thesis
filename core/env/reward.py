@@ -389,7 +389,7 @@ class SalazarReward(Reward):
                 last step (``None``: no unmet-demand penalty).
             satisfied_kwh: The demand satisfied that day.
         """
-        # OPEN E-16: the original read a balance that is always 0 after clearing;
+        # DEVIATION E-16: the original read a balance that is always 0 after clearing;
         # here B_grid before the DSO clears, so its grid terms act for the first time.
         balance = record.grid_balance_kwh
         capacity = self.grid_capacity_kwh

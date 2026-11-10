@@ -738,7 +738,7 @@ $\text{room} \cdot 0.95$ to it. [P1] §3.4 also says operations are bound by "ma
 charge/discharge rates", but eq. 16 has no rate, and neither does the code.
 
 **In `marlem-v2`.** The room is seen from the bus, $(E_{\max} - E) / \eta_{\text{charge}}$
-and $(E - E_{\min}) \cdot \eta_{\text{discharge}}$, and an optional `max_power_kw` caps both
+and $(E - E_{\min}) \cdot \eta_{\text{discharge}}$, and the power limit `max_power_kw` over the step caps both; every battery has one
 ([battery.py](../../../core/market/agent/battery.py#L66-L86)).
 
 The power limit comes from SimBench. A participant that takes over a SimBench
@@ -748,7 +748,7 @@ none. A battery added anywhere else gets SimBench's ratio, capacity ÷ 2 h, whic
 holds for all 84 storage units of the twelve LV future-scenario networks.
 `BATTERY_PRESETS` offers their 10th, 50th and 90th percentile sizes: 6.8, 13.7 and
 66.4 kWh ([placement.py](../../../core/config/placement.py#L25-L46)). A
-`BatterySetup` written by hand has no limit unless `max_power_kw` is given.
+`BatterySetup` written by hand must state `max_power_kw`.
 
 <mark class="review">Review</mark> Can simbench provide the battery power value also or we should provide it ourselves?
 

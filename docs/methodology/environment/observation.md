@@ -78,10 +78,10 @@ settlement leaves after generation, trades and the battery
 | 2 | `demand` | $D_{i,t}$, the true value | $/\, E$ | $\gamma_{\text{UD}}$, the day's total: only the sum $\sum_{\tau=0}^{T-1} D_{i,\tau}$ is read, at the day's last step |
 | 3 | `cumulative_demand_satisfied` | $\sum_{\tau \in \mathcal{H}} (D_{i,\tau} - D^{\text{def}}_{i,\tau})$ | $/\, E T$ | $\gamma_{\text{UD}}$, at the day's last step |
 | 4 | `cumulative_demand_deferred` | $\sum_{\tau \in \mathcal{H}} D^{\text{def}}_{i,\tau}$ | $/\, E T$ | $\gamma_{\text{UD}}$: the unmet demand, at the day's last step |
-| 5 | `remaining_demand` | $\sum_{\tau = t}^{T-1} D_{i,\tau}$, the true future | $/\, E T$ | $\gamma_{\text{UD}}$, the day's total: the same as this signal only at $t = 0$ |
+| 5 | `remaining_demand` | $\sum_{\tau = t}^{T-1} D_{i,\tau}$, the true future; with `forecast_error`, every step after $t$ forecast with its error | $/\, E T$ | $\gamma_{\text{UD}}$, the day's total: the same as this signal only at $t = 0$ |
 | 6 | `cumulative_supply_satisfied` | $\sum_{\tau \in \mathcal{H}} (G_{i,\tau} - G^{\text{def}}_{i,\tau})$ | $/\, E T$ | — |
 | 7 | `cumulative_supply_deferred` | $\sum_{\tau \in \mathcal{H}} G^{\text{def}}_{i,\tau}$ | $/\, E T$ | — |
-| 8 | `remaining_supply` | $\sum_{\tau = t}^{T-1} G_{i,\tau}$, the true future | $/\, E T$ | — |
+| 8 | `remaining_supply` | $\sum_{\tau = t}^{T-1} G_{i,\tau}$, the true future; with `forecast_error`, as `remaining_demand` | $/\, E T$ | — |
 | 9 | `mean_profit` | $\frac{1}{\lvert\mathcal{H}\rvert} \sum_{\tau \in \mathcal{H}} \pi_{i,\tau}$, the profit of [P1] eq. 14 | $/\, R$ | — |
 | 10 | `reputation` | $r_i$ ([P1] eq. 12) | as is | — |
 | 11 | `battery_energy` | $E_i$ | $/\, E$ | — |

@@ -279,7 +279,8 @@ def cumulative_demand_deferred(market, agent: str) -> float:
 
 
 def remaining_demand(market, agent: str) -> float:
-    # OPEN E-05: the true future; [P1] has forecasts with up to 30 % error.
+    # E-05: the true future; [P2] gives forecasts up to 30 % off. MarketEnv's
+    # ``forecast_error`` adds that error in the observation (0 by default).
     return sum(market.participants[agent].demand_kwh[market.current_step :])
 
 
@@ -292,7 +293,7 @@ def cumulative_supply_deferred(market, agent: str) -> float:
 
 
 def remaining_supply(market, agent: str) -> float:
-    # OPEN E-05: as remaining_demand.
+    # E-05: as remaining_demand.
     return sum(market.participants[agent].generation_kwh[market.current_step :])
 
 

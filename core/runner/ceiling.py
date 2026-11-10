@@ -52,7 +52,7 @@ class Store:
     charge_efficiency: float
     discharge_efficiency: float
     start_kwh: float
-    max_power_kw: Optional[float] = None
+    max_power_kw: float
     site: int = 0
 
     @classmethod
@@ -72,7 +72,7 @@ class Store:
             charge_efficiency=float(get("charge_efficiency")),
             discharge_efficiency=float(get("discharge_efficiency")),
             start_kwh=float(start),
-            max_power_kw=get("max_power_kw"),
+            max_power_kw=float(get("max_power_kw")),
             site=site,
         )
 
@@ -141,8 +141,7 @@ def optimise(
     lower, upper = np.zeros(n), np.full(n, np.inf)
 
     for b, s in enumerate(stores):
-        if s.max_power_kw is not None:
-            upper[charge[b]] = upper[discharge[b]] = s.max_power_kw * step_hours
+        upper[charge[b]] = upper[discharge[b]] = s.max_power_kw * step_hours
         lower[stored[b]] = s.min_soc * s.capacity_kwh
         upper[stored[b]] = s.max_soc * s.capacity_kwh
 

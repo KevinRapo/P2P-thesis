@@ -24,7 +24,7 @@
         "charge_efficiency": 0.95,
         "discharge_efficiency": 0.95,
         "initial_soc": 0.5,
-        "max_power_kw": null
+        "max_power_kw": 5.0
       }
     },
     {
@@ -65,7 +65,7 @@
         "charge_efficiency": 0.95,
         "discharge_efficiency": 0.95,
         "initial_soc": 0.5,
-        "max_power_kw": null
+        "max_power_kw": 5.0
       }
     }
   ],

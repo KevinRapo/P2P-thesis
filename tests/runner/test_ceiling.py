@@ -25,6 +25,7 @@ def store(**changes):
         charge_efficiency=1.0,
         discharge_efficiency=1.0,
         start_kwh=0.0,
+        max_power_kw=100.0,  # far above any step here
     )
     return Store(**(setup | changes))
 
@@ -84,7 +85,7 @@ def held_out():
         steps.append({"policy": "zero", "day": day, "period": "p", "step": 0,
                       "feed_in_tariff": fit, "utility_price": util})
     battery = dict(capacity_kwh=10.0, min_soc=0.0, max_soc=1.0, charge_efficiency=1.0,
-                   discharge_efficiency=1.0, initial_soc=0.5, max_power_kw=None)
+                   discharge_efficiency=1.0, initial_soc=0.5, max_power_kw=100.0)
     scenario = {"grid": {"step_hours": 1.0},
                 "participants": [{"id": "P1", "battery": None},
                                  {"id": "P2", "battery": battery}]}
@@ -258,7 +259,7 @@ def test_alone_the_battery_owner_trades_its_own_hours():
     steps = pd.DataFrame({"policy": "zero", "day": "d", "period": "p", "step": [0, 1],
                           "feed_in_tariff": 0.0, "utility_price": [0.2, 0.5]})
     battery = dict(capacity_kwh=10.0, min_soc=0.0, max_soc=1.0, charge_efficiency=1.0,
-                   discharge_efficiency=1.0, initial_soc=0.0, max_power_kw=None)
+                   discharge_efficiency=1.0, initial_soc=0.0, max_power_kw=100.0)
     scenario = {"participants": [{"id": "P", "battery": battery}]}
     alone = ceiling.alone_days(agent_steps, steps, scenario)
     assert alone.bill.sum() == pytest.approx(-0.4)

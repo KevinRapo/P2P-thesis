@@ -545,7 +545,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                     min=0,
                 ).classes("w-44")
                 power = ui.number(
-                    "Max power (kW, empty: none)",
+                    "Max power (kW)",
                     value=battery.max_power_kw if battery else None,
                     min=0,
                 ).classes("w-52")
@@ -561,7 +561,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                 numbers = {
                     field: ui.number(
                         label,
-                        value=getattr(battery or BatterySetup(0.0), field),
+                        value=getattr(battery or BatterySetup(0.0, 0.0), field),
                         min=0,
                         max=1,
                         step=0.01,
@@ -592,7 +592,7 @@ def _participant_table(box: ui.element, redraw) -> None:
                         values = dict(
                             capacity_kwh=float(cap.value),
                             initial_soc=float(soc.value or 0.0),
-                            max_power_kw=float(power.value) if power.value else None,
+                            max_power_kw=float(power.value or 0.0),
                         ) | {k: float(n.value or 0.0) for k, n in numbers.items()}
                         new = (
                             replace(battery, **values)

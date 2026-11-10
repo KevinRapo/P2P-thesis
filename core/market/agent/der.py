@@ -172,7 +172,6 @@ class Participant:
         self.reputation = self.initial_reputation
 
     # --- Position and feasibility (eq. 15) -------------------------------------------
-    # OPEN MP-2d: should include battery power constraint here also?
     def net_kwh(self, step: int) -> float:
         """G_t − D_t: + surplus, − deficit."""
         return self.generation_kwh[step] - self.demand_kwh[step]
@@ -224,7 +223,7 @@ class Participant:
         rep = {c: reputation.get(c, 0.5) for c in others}
         low, high = min(rep.values()), max(rep.values())
 
-        def score(c: str) -> tuple[float, float]: # OPEN MP-3c: scale or not for rule based?
+        def score(c: str) -> tuple[float, float]:
             closeness = (far - km[c]) / (far - near) if far > near else 1.0
             standing = (rep[c] - low) / (high - low) if high > low else 1.0
             weighted = reputation_weight * standing

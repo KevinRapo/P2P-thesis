@@ -57,7 +57,7 @@ check it?
 
 **Now.** The reference scenario is
 `validate_market.json`: five households on `1-LV-rural1--0-sw`, P1 and P5 with
-PV and a 10 kWh battery **without a power limit** (`max_power_kw: null`), hourly
+PV and a 10 kWh battery with SimBench's power limit (5 kW, capacity ÷ 2 h), hourly
 steps, June 2016 to train, 1-14 July 2016 to test.
 
 **Check.**
@@ -70,11 +70,12 @@ steps, June 2016 to train, 1-14 July 2016 to test.
 
 **Decisions.**
 
-- **MP-0a** The reference scenario and days. Its batteries: keep them unlimited,
-  or give them SimBench's sizing (power = capacity ÷ 2 h,
-  [`simbench_battery`](../../core/config/placement.py#L36-L40); a SimBench storage
-  unit brings its own limit, [`storage_battery`](../../core/config/placement.py#L49-L60)).
-  Hourly or 15-minute steps (both supported, `grid.step_hours`).
+- **MP-0a** The reference scenario and days. Hourly or 15-minute steps (both
+  supported, `grid.step_hours`). *Decided (10 Nov 2026): every battery has a power
+  limit, so each step is bounded by both the stored energy and the power: a SimBench
+  storage unit brings its own ([`storage_battery`](../../core/config/placement.py#L49-L60)),
+  any other battery states one, SimBench's ratio being capacity ÷ 2 h
+  ([`simbench_battery`](../../core/config/placement.py#L36-L40)).*
 
 **Hands to RL.** The scenario and the days every RL stage uses.
 
@@ -114,7 +115,7 @@ the initial state of charge (0.5).
 - **MP-1b** Untraded energy: what an untraded import costs and an untraded export
   earns, in the market's profit and KPIs, not only in the RL reward. Today the
   market counts discharge towards "demand satisfied" and leaves the untraded
-  import unpriced.
+  import unpriced. *Decided: untraded energy settled at retail, without fees (MP-1e in the [decision log](decisions.md)).*
 - **MP-1c** The battery at the end of the day: energy left at midnight is worth
   nothing, because the next day starts at 0.5 again. Keep, value the stored energy
   at the end, or carry the state of charge over between days. The settings
@@ -147,7 +148,7 @@ minimum is dropped; the recorded order is the submitted one, after the cut.
 **Decisions.**
 
 - **MP-2a** Infeasible orders in general: cut them to the bound (now), reject
-  them, or penalise them.
+  them, or penalise them. *Decided: cut to the bound, with a note ([M-02](../original/issues/register.md#M-02), [Market step, 2](../methodology/market/step.md#2-orders)).*
 - **MP-2b** The price bounds against the tariffs. A sell asking more than 0.30
   or a buy bidding less than 0.08 can never trade with a peer and goes to the DSO
   at its tariff; bound prices to [FiT, utility], or keep [0, 1].
@@ -193,7 +194,7 @@ price; the step's clearing price.
 - **MP-3a** The pricing mechanism for every experiment (`average` now; buyer,
   seller, bid-ask spread, Nash bargaining and proportional surplus exist).
 - **MP-3b** The rule-based partner score: the weight of reputation against
-  closeness (0.5 now).
+  closeness (0.5 now). *Decided: 0.5, both parts rescaled over the candidates ([M-11](../original/issues/register.md#M-11), [Market step, 2](../methodology/market/step.md#2-orders)).*
 
 **Hands to RL.** What a price and a partner choice earn; what `price_ref` (the
 clearing price) means; that stage 1 needs mutual naming on opposite sides, the
@@ -233,15 +234,15 @@ same step under both grid methods; a DSO trade's path and fee.
 **Decisions.**
 
 - **MP-4a** The transmission fee: the lost energy at the trade price (now), or a
-  per-kWh-km network charge as in the P2P literature.
+  per-kWh-km network charge as in the P2P literature. *Decided: the lost energy at the trade price ([M-28](../original/issues/register.md#M-28), [Market step, 6](../methodology/market/step.md#6-fees)).*
 - **MP-4b** The imbalance fee. With $B_\text{grid}$ counted from the orders, a
   DSO trade worsens it only when an order on the short side found no peer
   (its price did not match); the DSO's ordinary trades never pay it. Keep it
-  in that narrow role, define it differently, or drop it.
+  in that narrow role, define it differently, or drop it. *Decided: kept in that role: charged when a DSO trade worsens the balance ([M-30](../original/issues/register.md#M-30), [Market step, 6](../methodology/market/step.md#6-fees)).*
 - **MP-4c** The thermal threshold (0.2) far below the congestion threshold (0.8):
-  two charges for one loading, from different points.
+  two charges for one loading, from different points. *Decided: kept at 0.2, its own setting; its value may change with the grid stress (MP-4f) ([M-32](../original/issues/register.md#M-32), [Market step, 6](../methodology/market/step.md#6-fees)).*
 - **MP-4d** Zones as feeders and the zone bonus (15 % off the trade value),
-  which can outweigh every other fee on a small network.
+  which can outweigh every other fee on a small network. *Decided: zones are the feeders, bonus 0.15; its value may change with MP-4f ([M-33](../original/issues/register.md#M-33), [M-34](../original/issues/register.md#M-34), [Market step, 6](../methodology/market/step.md#6-fees)).*
 - **MP-4e** The graph model's parameters (the comparison's second arm): capacity
   per line from a total spread by length, or from the lines' ratings.
 - **MP-4f** The fee factors' values (the paper gives none).
@@ -277,13 +278,13 @@ how often it decides a tie in the auction; whether it changes any partner choice
 
 **Decisions.**
 
-- **MP-5a** The decay (0.8 per hour: the old value halves in about 3 hours).
+- **MP-5a** The decay (0.8 per hour: the old value halves in about 3 hours). *Decided: 0.8 per hour ([M-43](../original/issues/register.md#M-43), [Market step, 8](../methodology/market/step.md#8-reputation-and-advance)).*
 - **MP-5b** The start value and horizon: 0.5 every day (now), or carried over
   between days.
 - **MP-5c** The weights (0.3 / 0.2 / 0.5) and the three scores' formulas.
 - **MP-5d** Its role: a tie-break with continuous prices almost never applies.
   Keep it as is, give it more weight in the clearing (e.g. a priority within a
-  price band), or keep it only as information.
+  price band), or keep it only as information. *Decided: prices in whole cents, reputation the tie-break ([decision log](decisions.md)).*
 
 **Hands to RL.** Whether the partners' reputations belong in the observation
 ($N - 1$ entries now) and whether the partner action has anything to learn from

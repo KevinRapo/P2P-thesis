@@ -57,15 +57,19 @@ class GridSetup:
 @dataclass
 class BatterySetup:
     """A participant's battery ([P1] eq. 16): C_nom (``capacity_kwh``), SoC_min,
-    SoC_max, η_charge, η_discharge. ``max_power_kw`` is not in eq. 16."""
+    SoC_max, η_charge, η_discharge, and its power limit ``max_power_kw``, which eq. 16
+    leaves out but [P1] §3.4 names ("maximum charge/discharge rates"). Every step
+    is bounded by both: the energy the window leaves and the power limit over the
+    step (``Battery.chargeable_kwh``, ``dischargeable_kwh``). Required: SimBench's
+    storage units bring their own, ``placement.simbench_battery`` sizes one."""
 
     capacity_kwh: float
+    max_power_kw: float
     min_soc: float = 0.1
     max_soc: float = 0.9
     charge_efficiency: float = 0.95
     discharge_efficiency: float = 0.95
     initial_soc: float = 0.5
-    max_power_kw: Optional[float] = None
 
     def problems(self) -> list[str]:
         """What makes the battery's capacity, SoC window, efficiencies, start or
@@ -87,7 +91,7 @@ class BatterySetup:
         if not self.min_soc <= self.initial_soc <= self.max_soc:
             found.append(f"initial SoC {self.initial_soc} is outside the window")
 
-        if self.max_power_kw is not None and self.max_power_kw <= 0:
+        if self.max_power_kw is None or self.max_power_kw <= 0:
             found.append(f"power limit {self.max_power_kw} kW is not positive")
 
         return found

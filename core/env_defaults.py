@@ -12,6 +12,7 @@ MARKET_ENV_CONFIG = {
     "energy_scale": None,
     "reward_scale": None,
     "tariff_range": None,
+    "forecast_error": 0.0,
     "episode_days": None,
     "truncate_episode": False,
     "random_start_soc": False,
