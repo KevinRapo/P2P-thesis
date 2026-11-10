@@ -64,4 +64,4 @@ consecutive days with the batteries and reputations carried over midnight,
 | **Writes** | `last_record` |
 | **Code** | above; metrics: [`_market_infos`](../../../core/env/market_env.py) |
 | **Paper** | [P1] §3.9 phases 5 (reward) and 7 (observation); eq. 2 (the action) |
-| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); the true future in the forecasts by default, `forecast_error` as an option (E-05); the day terminated (RP-1f); *Open: RP-1a to RP-1e* ([plans](../../temp/index.md)) |
+| **Decisions** | the reward is the net bill, not [P2]'s composite reward (E-13 to E-22); observations normalised (E-06); the true future in the forecasts by default, `forecast_error` as an option (E-05); the day terminated (RP-1f); *Open: RP-1a, RP-1d* ([open items](../../temp/open.md)) |

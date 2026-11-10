@@ -42,7 +42,7 @@ stages, then the rest).
 | **Writes** | `participants`, `dso`, `clearing_price`, `grid`, `graph`; empty `history` |
 | **Code** | [`reset`](../../../core/market/lem.py#L272-L302) → [`_build_participants`](../../../core/market/lem.py#L409-L426) ([`profiles_from_elements`](../../../core/market/agent/der.py#L88-L120)), [`_battery`](../../../core/market/lem.py#L428-L433), [`Dso.market_price`](../../../core/market/dso.py#L146-L150), [`SimBenchGrid.reset`](../../../core/grid/powerflow.py#L81-L104), [`_graph_model`](../../../core/market/lem.py#L640-L651) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
-| **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs flat or time-of-use (MP-0b: the reference scenario's utility price by hour, `Dso.set_hour` before each step); *Open: MP-0a, MP-1c, MP-5b* ([plans](../../temp/index.md)) |
+| **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs flat or time-of-use (MP-0b: the reference scenario's utility price by hour, `Dso.set_hour` before each step); *Open: MP-0a, MP-1c, MP-5b* ([open items](../../temp/open.md)) |
 
 ## 1. Inputs
 
@@ -53,7 +53,7 @@ stages, then the rest).
 | **Writes** | [`StepInputs`](../../../core/market/lem.py#L77-L93): `generation_kwh`, `demand_kwh`, `feed_in_tariff`, `utility_price` |
 | **Code** | [`_inputs`](../../../core/market/lem.py#L435-L446) |
 | **Paper** | $G_t$, $D_t$, $p_\text{FiT}$, $p_\text{utility}$ (§3.3.1, §3.4) |
-| **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03); time-of-use utility price in the reference scenario (MP-0b), the tariffs and what they leave a peer trade in [Tariffs and the peer charge](tariffs.md); *Open: MP-0a* ([plans](../../temp/index.md)) |
+| **Decisions** | energies in kWh per step, $\Delta t$ explicit (`step_hours`, M-03); time-of-use utility price in the reference scenario (MP-0b), the tariffs and what they leave a peer trade in [Tariffs and the peer charge](tariffs.md); *Open: MP-0a* ([open items](../../temp/open.md)) |
 
 ## 2. Orders
 
@@ -106,7 +106,7 @@ order), the double auction's last tie-break.
 | **Writes** | [`PendingStep`](../../../core/market/lem.py#L96-L130): `intents`, `orders`, `notes` |
 | **Code** | [`start_step`](../../../core/market/lem.py#L304-L327), above |
 | **Paper** | eq. 2 (the action $\langle p, q, \alpha, \beta \rangle$), eq. 15a-b, §3.2.3, §3.4 |
-| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); *Open: MP-2a, MP-2b, MP-2c, MP-3b* ([plans](../../temp/index.md)) |
+| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); *Open: MP-2b, MP-2c* ([open items](../../temp/open.md)) |
 
 ## 3. Clearing
 
@@ -147,7 +147,7 @@ $$
 | **Writes** | `PendingStep.stages`: three [`StageResult`](../../../core/market/clearing.py#L35-L54)s, each with its trades and the orders left |
 | **Code** | above; paths: [`_path`](../../../core/market/lem.py#L507-L517), [`_upstream`](../../../core/market/lem.py#L519-L525) → [`SimBenchGrid.path`, `path_upstream`](../../../core/grid/powerflow.py#L242-L268) |
 | **Paper** | §3.3.2 (three stages, Algorithm 1), §3.3.3 and eq. 9-11 (prices), eq. 18 (loss), §3.5.1 (distance) |
-| **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41); *Open: MP-3a, MP-5d* ([plans](../../temp/index.md)) |
+| **Decisions** | DSO-preferring orders wait for stage 3 (M-10); no trade blocked for grid reasons (M-12); pricing fixed (M-13, M-14); DSO trades get a path (M-31); loss recorded, not taken off the energy (M-40, M-41); *Open: MP-3a* ([open items](../../temp/open.md)) |
 
 ## 4. Settlement
 
@@ -170,7 +170,7 @@ $$
 | **Writes** | [`ParticipantOutcome`](../../../core/market/agent/der.py#L31-L82) per participant (fees still 0); the battery's energy; `Participant.profit` |
 | **Code** | above; battery: [`charge`, `discharge`](../../../core/market/agent/battery.py#L89-L107) |
 | **Paper** | eq. 13, 14, 16; §3.4.1 (demand satisfied) |
-| **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23); *Open: MP-1a, MP-1b* ([plans](../../temp/index.md)) |
+| **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23); *Open: MP-1a* ([open items](../../temp/open.md)) |
 
 ## 5. Grid
 
@@ -196,7 +196,7 @@ trade's $q/\Delta t$ added to each line of its path, divided by the line's capac
 | **Writes** | [`GridAssessment`](../../../core/grid/contract.py) (`grid`), and in graph mode a second one (`signal`) |
 | **Code** | above |
 | **Paper** | §3.5.3 (replaced by the power flow; kept as the graph method) |
-| **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38); *Open: MP-4e* ([plans](../../temp/index.md)) |
+| **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38); *Open: MP-4e* ([open items](../../temp/open.md)) |
 
 ## 6. Fees
 
@@ -241,7 +241,7 @@ trade's fee comes off the step's profit and the running profit.
 | **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `ParticipantOutcome.fees` and `profit` |
 | **Code** | [`_charge_fees`](../../../core/market/lem.py#L671-L685), above |
 | **Paper** | eq. 8, 8a-8h |
-| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4a, MP-4b, MP-4c, MP-4d, MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md))* ([plans](../../temp/index.md)) |
+| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md))* ([open items](../../temp/open.md)) |
 
 ## 7. Record
 
@@ -264,7 +264,7 @@ In [`advance`](../../../core/market/lem.py#L329-L369), once the fees are known (
 | **Writes** | `StepRecord`; the DSO's running balance and profit |
 | **Code** | above |
 | **Paper** | eq. 7; UpdateMarketState of Algorithm 1 |
-| **Decisions** | clearing price from peer trades only (M-15); the DSO's balance kept per step and over the day (M-24, M-25); *Open: MP-6a* ([plans](../../temp/index.md)) |
+| **Decisions** | clearing price from peer trades only (M-15); the DSO's balance kept per step and over the day (M-24, M-25); *Open: MP-6a* ([open items](../../temp/open.md)) |
 
 ## 8. Reputation and advance
 
@@ -306,4 +306,4 @@ final observation shows.
 | **Writes** | `Participant.reputation`; `StepRecord.reputation`; `clearing_price`; `history` |
 | **Code** | above |
 | **Paper** | eq. 12 and §3.3.4 (reputation, decay); §3.9 phases 6 and 8 |
-| **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); *Open: MP-5a, MP-5b, MP-5c, MP-5d* ([plans](../../temp/index.md)) |
+| **Decisions** | reliability measured on peer matches (M-42); decay per hour (M-43); grid part and fairness on peers (M-44); start value (M-45); *Open: MP-5b, MP-5c* ([open items](../../temp/open.md)) |

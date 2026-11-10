@@ -63,4 +63,4 @@
 |---|---|
 | **[P1], [P2]** | The two MARLEM papers: the framework paper (Applied Energy, 2026) and the learning-results preprint ([register](../original/issues/register.md#about-this-register)) |
 | **M-, E-, L-, D-** | An issue in the original MARLEM: market; environment and cooperation; learning; experiments and data ([issue register](../original/issues/register.md)) |
-| **MP-, RP-** | A point of the market plan or the RL plan: a decision this version made or still has to make ([decision log](../temp/decisions.md)) |
+| **MP-, RP-** | A question about this version's market (`MP-`) or its learning and results (`RP-`), decided or still open ([open items](../temp/open.md)) |

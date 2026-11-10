@@ -1,10 +1,10 @@
 # Decision log
 
-One row per decision of the [market plan](market.md) (`MP-`) and the
-[RL plan](rl.md) (`RP-`). The plan poses the decision and its options; this log
-keeps what was chosen. *Evidence* is the check, run or probe that informed it;
-*Implemented in* is the code and the [full cycle](../methodology/full-cycle.md) section, or
-"no code change". How the pages fit together: [Plans](index.md).
+The reasons behind the decisions whose reason needs more than a line. The question and
+its status are in [Open items](open.md); this log keeps why it was decided so.
+*Evidence* is the check, run or probe that informed it; *Implemented in* is the code and
+the [full cycle](../methodology/full-cycle.md) section, or "no code change". The order
+of the work: [Work plan](index.md).
 
 ## Market (`MP-`)
 

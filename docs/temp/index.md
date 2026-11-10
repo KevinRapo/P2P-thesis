@@ -1,70 +1,91 @@
-# Plans: finishing the market and the RL layer
+# Work plan
 
-Two plans finish V2, in this order:
-
-1. **[The market plan](market.md)**: validate the market step and take its open
-   decisions. The market decides what an agent can do and what it is paid for,
-   so it is settled first.
-2. **[The RL plan](rl.md)**: make PPO with the mixed action learn that market,
-   in the three paradigms. It starts from what the market plan hands over.
+What is left to finish V2 and the thesis's experiments, in order. The questions
+themselves are in [Open items](open.md), the one list of everything open or decided;
+this page only says in which order they are taken and what settles them. The reasons
+for decisions are in the [decision log](decisions.md).
 
 ## Where the work stands
 
-The workflow runs end to end. The learner counts as ready for the market by the
-criteria of RP-2a ([probe results](../methodology/validation/probes.md#results)), and PPO's training
-settings are chosen (RP-6b). What is missing is evidence that PPO learns the market
-with the mixed action. The order of the work is in the
-[market plan](market.md) and the [RL plan](rl.md), the decisions in the
-[decision log](decisions.md). Added on 31 October 2026 and not run yet: longer
-training windows, truncation and a terminal value for the battery, compared in
-[day_end.json](../../config/experiments/day_end.json) (RP-1f).
+The workflow runs end to end: the market on SimBench with an AC power flow, both grid
+methods, PPO with the mixed action in three paradigms, the runner, the held-out
+evaluation and the Studio. The learner is ready for the market by the probe criteria
+(RP-2a), and PPO's settings are chosen (RP-6b). Missing: a scenario in which the grid
+matters, and evidence that PPO learns the market.
 
-## Which page is for what
+## The order
 
-Each kind of content has exactly one home; the other pages only point to it.
+Each step names the sections of [Open items](open.md) it settles and the check that
+settles them. One step at a time; a question that belongs to a later step goes into
+the list and waits.
 
-| Page | Holds | Changes when |
+### 1. A scenario in which the grid matters
+
+On SimBench's networks no fee is charged, so the grid-method comparison would show
+nothing. **Check, without learning:** a stress level (MP-4i) × the policies `zero`,
+`net_position` and the ceiling's plan × both grid methods: line and transformer
+loading, voltages, and how often each fee is charged. The level where `net_position`
+without fees violates some hours but not all is the comparison's scenario. With it:
+the graph model's parameters (MP-4e, the total capacity calibrated against the power
+flow), the fee values (MP-4f), then the value of stored energy at midnight (MP-1c) and
+the peer charge (MP-4h). Settles section 1. The expected result is written down
+before the check runs.
+
+### 2. First learning on the market
+
+Does PPO learn the stressed market, and which action part stops it? **Check:** DTDE as
+the control (no grouping, no central critic), one seed, a budget long enough for the
+held-out bill to level off, against `zero`, `net_position` and the ceiling. If it does
+not beat `net_position`, learn one more action part per rung, the others fixed by the
+rule:
+
+| Rung | Learned | Fixed |
 |---|---|---|
-| [The full cycle](../methodology/full-cycle.md) and its pages: [market step](../methodology/market/step.md), [environment](../methodology/environment/index.md), [learning layer](../methodology/learning/index.md) | **What the code does now**: every phase of the market step, the environment step and training, with its code, equations and decisions. The reference to read the system from | the code changes |
-| [Open items](open.md) | **Everything undecided**: one row per question, with its ID, where it is in the code or the docs, its status and its stage | a question is found, or decided |
-| [Market plan](market.md), [RL plan](rl.md) | **What is still to do, in which order**: stages, each with its question, check, the decisions it needs, and a status | a stage starts or ends |
-| [Results plan](results.md) | **How results are saved, compared and shown** (RP-7, MP-6a) | stages are done |
-| [Decision log](decisions.md) | **What was decided and why**: one row per decision, with its reason, evidence and where it is implemented | a decision is taken |
-| [Issue register](../original/issues/register.md) and the validation pages | **What was wrong in the original**: the evidence the thesis cites. History, not a to-do list | rarely: a status, or a new finding |
-| [Overview](../methodology/index.md) | **What this branch does**: its scope and one paragraph per layer | the scope changes |
+| A | quantity, price | side from the sign of the net position, no partner |
+| B | + side | no partner |
+| C | + partner | nothing: the full action |
 
-## Markers: the plans are big, everything else is small
+The rung at which the result drops names the obstacle, and is a result in itself (what
+each part of [P1] eq. 2 costs to learn). Settles RP-1a, RP-1h, RP-5a and RP-5b; then the
+budget and the settings for every paradigm (RP-6a, L-14), and whichever of RP-3a to
+RP-3g the runs show matter. The rest of section 2 is settled on paper along the way.
 
-- **The plans carry the work.** Only the plan pages list tasks. They do not
-  explain how the market or the learner works; they link to the full cycle for
-  that.
-- **Every other page carries only IDs.** A plan decision has an ID: `MP-` for the
-  market plan, `RP-` for the RL plan, then stage and letter (`MP-1a`, `RP-3b`).
-  Elsewhere it appears only as that ID, like the register's `M-19` or `L-03`:
-    - in the full cycle, in the phase card's **Decisions** row once decided, or
-      as *Open: MP-1a* while it is not;
-    - in a docstring of the code that implements it (the same rule as for issue
-      IDs, see `AGENTS.md`);
-    - in the commit message;
-    - in [Open items](open.md), the one list of everything undecided: the plans list
-      only the IDs in their stages, never a second copy of the question.
-- **Code markers.** An open question in the code is `# OPEN <ID>: question`, and the
-  ID must be in [Open items](open.md) (`tests/test_open_markers.py` checks it). A quick
-  reminder without an ID is `# ! note`; it is triaged into the list at the end of a
-  session. When the question is decided, the `OPEN` becomes `# DEVIATION <ID>` if the
-  choice departs from the paper, and is removed otherwise, with the docstring naming
-  the ID.
+### 3. The evaluation protocol
 
-## The loop for one decision
+Section 3, mostly on paper: how runs are compared (L-03), seeds (L-17), CTCE's role
+(L-02), the CTDE critic (L-01), the days (RP-7c). Before the final runs.
 
-0. A question noticed anywhere (a `# OPEN` or `# !` in the code, a review note, a
-   conversation) goes into [Open items](open.md) as `inbox` or `open`.
-1. The plan's stage poses it, with the check that informs it.
-2. Run the check; write the decision into the [decision log](decisions.md):
-   choice, reason, evidence, date.
-3. Implement it if it changes code; the docstring names the ID; commit with the
-   ID in the message.
-4. Update the full cycle's phase card: the ID moves from *Open* to **Decisions**.
-   Set the item's status in [Open items](open.md) to `decided → decision log`.
-5. When every decision of a stage is in the log and its check passes, set the
-   stage's status in the plan to *done (date)*.
+### 4. The final runs
+
+The three paradigms on the market, then the grid-method comparison
+([Grid methods experiment](../experiments/thesis/grid-methods.md)), every arm with all
+seeds, then the analysis.
+
+### Alongside
+
+Section 4 only if the reward and observation experiment
+([Reward and observation](../experiments/thesis/reward-obs.md)) stays in the thesis;
+section 5 whenever there is time.
+
+## How a question is taken
+
+1. A question noticed anywhere (a `# OPEN` or `# !` in the code, a review note, a
+   conversation) goes into [Open items](open.md), in its section, as `inbox` or
+   `open`.
+2. When its step comes, run the check that informs it.
+3. Implement the choice; the docstring names the ID; the commit message names it too.
+4. Set its status in [Open items](open.md) to `decided → what was chosen (link)`. A
+   choice whose reason needs more than a line gets a row in the
+   [decision log](decisions.md).
+5. Update the full cycle's phase card: the ID moves from *Open* to **Decisions**.
+
+**Markers in the code.** An open question is `# OPEN <ID>: question`, and its ID must
+be in [Open items](open.md) (`tests/test_open_markers.py` checks it). A quick reminder
+without an ID is `# ! note`, triaged into the list at the end of a session. When the
+question is decided, `OPEN` becomes `# DEVIATION <ID>` if the choice departs from the
+paper, and is removed otherwise.
+
+**Where things live.** What the code does now: [the full cycle](../methodology/full-cycle.md)
+and its pages. What was wrong in the original: the
+[issue register](../original/issues/register.md). What is undecided or decided:
+[Open items](open.md). Why: the [decision log](decisions.md).

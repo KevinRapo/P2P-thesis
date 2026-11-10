@@ -235,15 +235,11 @@ nav:
           - Grid methods: experiments/thesis/grid-methods.md
           - Reward and observation: experiments/thesis/reward-obs.md
       - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
-  # Temporary: plans and open items of the work in progress. Removed at the end;
-  # nothing outside this folder may depend on its pages.
+  # Temporary: the work plan, the open items and the decisions' reasons. Removed at
+  # the end; nothing outside this folder may depend on its pages.
   - Temp:
-      - temp/index.md
+      - Work plan: temp/index.md
       - Open items: temp/open.md
-      - Market plan: temp/market.md
-      - RL plan: temp/rl.md
-      - Results plan: temp/results.md
-      - Validate section plan: temp/validation.md
       - Decision log: temp/decisions.md
   # Filled in by hooks.py: one section per top-level folder, one page per module.
   - API Reference: api/index.md
