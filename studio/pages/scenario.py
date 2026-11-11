@@ -414,7 +414,7 @@ def _grid_settings(on_change=None) -> None:
     # What the factors do to the network: the scenario played with the rule.
     ui.button(
         "Check the baseline",
-        icon="rule_settings",
+        icon="timeline",
         on_click=lambda: ui.navigate.to("/market?tab=baseline"),
     ).props("flat no-caps dense")
     ui.label(

@@ -32,7 +32,7 @@ def page(tab: str = "") -> None:
         # Tab bar: Step | Baseline | Probes
         with ui.tabs().props("align=left no-caps").classes("w-full") as tabs:
             ui.tab("step", label="Step", icon="skip_next")
-            ui.tab("baseline", label="Baseline", icon="rule_settings")
+            ui.tab("baseline", label="Baseline", icon="timeline")
             ui.tab("probes", label="Probes", icon="rule")
 
         remember(tabs, "market_tab", ("step", "baseline", "probes"))

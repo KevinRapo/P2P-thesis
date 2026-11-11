@@ -68,7 +68,7 @@ def tab() -> None:
         "Baseline",
         "The scenario played with the market's bidding rule (no noise, no partners): "
         "how the network copes before any learning",
-        "rule_settings",
+        "timeline",
     ):
         scenario_label = ui.label().classes("mls-card-caption")
 
