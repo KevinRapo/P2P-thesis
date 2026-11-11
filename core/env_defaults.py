@@ -22,6 +22,6 @@ MARKET_ENV_CONFIG = {
 # Kept in step with core.env.reward.REWARDS (a test compares them).
 REWARD_NAMES = ("bill", "salazar")
 # Kept in step with core.env.market_env.OBSERVATIONS (a test compares them).
-OBSERVATION_NAMES = ("paper", "pruned")
+OBSERVATION_NAMES = ("paper", "pruned", "minimal", "minimal_market")
 SCALE_KEYS = ("energy_scale", "reward_scale", "tariff_range")
 ENV_CONFIG_KEYS = tuple(MARKET_ENV_CONFIG) + ("scenario", "days", "seed")

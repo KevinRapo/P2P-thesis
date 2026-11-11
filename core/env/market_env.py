@@ -254,6 +254,8 @@ OBS_NAMES: tuple[str, ...] = MARKET_OBS + AGENT_OBS + KPI_OBS
 OBSERVATIONS: dict[str, tuple[str, ...]] = {
     "paper": OBS_NAMES,
     "pruned": signals.PRUNED_OBS,
+    "minimal": signals.MINIMAL_OBS,
+    "minimal_market": signals.MINIMAL_MARKET_OBS,
 }
 ACTION_COMPONENTS = ("side", "quantity", "price", "partner")
 SIDES = ("sell", "buy")  # α: index 0 sells, 1 buys ([P1] eq. 2)

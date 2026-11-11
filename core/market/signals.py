@@ -388,6 +388,28 @@ PRUNED_OBS: tuple[str, ...] = (
     "flexibility_utilization",
 )
 
+# Smaller sets, to measure how much of the observation learning needs (an
+# experiment of 12 Nov 2026, not a decision): ``"minimal"`` sees only the time, the
+# tariffs and its own household and battery; ``"minimal_market"`` adds what the market
+# and the grid did in the last step.
+MINIMAL_OBS: tuple[str, ...] = (
+    "hour_sin",
+    "hour_cos",
+    "dso_buy_price",
+    "dso_sell_price",
+    "generation",
+    "demand",
+    "battery_soc",
+    "available_charge",
+    "available_discharge",
+)
+MINIMAL_MARKET_OBS: tuple[str, ...] = MINIMAL_OBS + (
+    "clearing_price",
+    "grid_balance",
+    "net_grid_import",
+    "grid_congestion",
+)
+
 
 # --------------------------------------------------------------------------------------
 # All of a group at once
