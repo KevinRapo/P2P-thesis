@@ -872,7 +872,6 @@ def _factors(result: RunResult) -> dict[str, Any]:
         "prices": _prices_name(dso.get("prices")),
         "peer_charge": dso.get("peer_charge_kwh", 0.0),
         "network": grid.get("code"),
-        "grid_method": grid.get("method"),
         "test_days": _days(settings["test_days"]),
         "participants": len(people),
         "participant_set": _participant_set(people),

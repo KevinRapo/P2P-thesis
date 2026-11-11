@@ -31,8 +31,7 @@ A **scenario** fixes four things:
 - the network and the day;
 - which elements belong to market **participants**; the rest is **background**,
   which loads the grid but does not trade;
-- the market's settings: pricing, the DSO's fees, the tariffs;
-- the grid method.
+- the market's settings: pricing, the DSO's fees, the tariffs.
 
 Open **Build → Scenario**. Then either load one from
 [config/scenarios/](../../config/scenarios/), or place participants on a network

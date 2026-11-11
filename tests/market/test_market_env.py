@@ -609,7 +609,6 @@ def test_a_played_day_keeps_its_tables_and_training_does_not():
     assert list(trades.columns[:5]) == ["policy", "episode", "seed", "day", "step"]
     assert any(c.startswith("bus_voltage/") for c in grid)
     assert any(c.startswith("line_loading/") for c in grid)
-    assert not any(c.startswith("fee_line_loading/") for c in grid)  # the power flow
     peer = trades[trades.stage < 3]
     assert played.steps.peer_trades.sum() == len(peer)
     assert played.steps.p2p_kwh.sum() == pytest.approx(peer.kwh.sum())

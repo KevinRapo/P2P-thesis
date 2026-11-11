@@ -53,5 +53,5 @@ The active scenario, the experiment being prepared and the network cache live in
 **workspace folder** ([Settings](settings.md)). Each page's choices (open tab, ticked
 runs, filters) are remembered per browser. Both survive a restart.
 
-The screenshots show the thesis setup: the scenario `thesis_rural3_p13` and the
-experiment `thesis_grid_methods` ([Grid methods](../../experiments/thesis/grid-methods.md)).
+The screenshots show the thesis scenario `thesis_rural3_p13`; some of them show
+fields that have since been removed.

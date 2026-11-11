@@ -90,7 +90,6 @@ def tables():
                         "voltage_violations": step,
                         "loading_violations": 0,
                         "max_line_loading_percent": 50.0 + step,
-                        "fee_max_line_loading_percent": 40.0 + step,
                         "max_trafo_loading_percent": 30.0,
                         "min_voltage_pu": 0.98,
                         "max_voltage_pu": 1.02,
@@ -146,7 +145,6 @@ def test_a_day_of_a_run():
     assert day.participants_better == 1  # P1 beats its 0 alone; P2 only equals its -1
     assert day.peak_import_kw == 2 / 12 and day.peak_export_kw == 1.0  # 12 h steps
     assert day.hours_over_limit == 12.0
-    assert day.fee_error_mean == 10.0 and day.fee_error_worst == 10.0
     assert day.mean_peer_price == pytest.approx(0.2)
     assert day.peer_price_position == pytest.approx(0.5)
     assert day.trading_ratio == pytest.approx((2 + 6) / (4 + 6))
@@ -217,7 +215,6 @@ def long(rows):
         prices="p",
         network="n",
         peer_charge=0.0,
-        grid_method="ac",
         test_days="d",
         participants=13,
         participant_set="13 (abc123)",
@@ -305,8 +302,8 @@ def test_a_pair_uses_only_the_days_both_sides_have():
 
 
 def test_baselines_are_apart_by_what_they_were_played_on():
-    table = pd.concat([two_rewards(), two_rewards().assign(grid_method="graph")])
-    table["key"] = table.key + table.grid_method
+    table = pd.concat([two_rewards(), two_rewards().assign(network="m")])
+    table["key"] = table.key + table.network
     assert len(indicators.baselines(table)) == 2
 
 

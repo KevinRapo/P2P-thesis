@@ -27,7 +27,6 @@
 | **SimBench** | German benchmark grids with line data and a year of 15-minute profiles ([SimBench](../using/data/simbench.md)) |
 | **Profile** | A time series of factors of an element's rated power; SimBench's loads and generators each follow one ([profiles](../using/data/profiles.md)) |
 | **Study case** | One of SimBench's fixed planning situations (hL, hPV, lPV…): every element at a set share of its rated power, replacing its profile |
-| **Grid method** | How the market sees the grid: `powerflow` (an AC power flow) or `graph` (the paper's graph model) ([grid methods](../methodology/market/grid-methods.md)) |
 | **Line loading** | A line's current as a share of its rating, in %. The congestion and thermal fees read it |
 
 ## Learning

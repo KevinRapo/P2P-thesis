@@ -18,10 +18,8 @@ market only calls them in order:
     4  settle     each participant: balance (eq. 13), trading profit (eq. 14),
                   battery (eq. 16) (``Participant.settle``)
     4' grid       what each participant physically did -> one power flow
-                  (``Participant.injection``; replaces the graph model of §3.5.3)
-    4" fees       the DSO sees the step's line loading (``Dso.observe``): this power
-                  flow's, or with ``grid.method = "graph"`` the paper's graph model
-                  (``GraphGrid``: the trades along their paths, §3.5.3), and gives
+                  (``Participant.injection``; in place of [P1] §3.5.3's grid update)
+    4" fees       the DSO sees the step's power flow (``Dso.observe``) and gives
                   every trade its fee (eq. 8) from it (``Dso.charge``); each participant
                   pays its share (``Participant.pay_fees``); the DSO: its balance
                   (eq. 7) and fees (``Dso.settle``)
@@ -44,7 +42,6 @@ from typing import Mapping, Optional
 from core.config.scenario import BatterySetup, Scenario
 from core.grid import simbench
 from core.grid.contract import GridAssessment, GridPath, NetworkRef
-from core.grid.graph import GraphGrid
 from core.grid.losses import LossAllocation, build_loss_allocation
 from core.grid.powerflow import SimBenchGrid
 from core.market.agent import rule_based_bid
@@ -145,14 +142,12 @@ class StepRecord:
             (the previous one when there were none); UpdateMarketState of [P1]
             Algorithm 1.
         grid: The power flow with the participants' injections (in place of the
-            grid state update of [P1] §3.5.3), whatever ``grid.method``: what
-            physically happened.
+            grid state update of [P1] §3.5.3): what physically happened, and what
+            the DSO's fees read.
         dso: What the DSO did: its balance (eq. 7), revenue and fees.
         notes: What validation changed.
         reputation: Each participant's reputation update ([P1] eq. 12, §3.3.4):
             its three components, score and reputation after the step.
-        signal: With ``grid.method = "graph"``, the graph model's line loading
-            the fees were charged on; ``None`` with the power flow (``grid``).
     """
 
     step: int
@@ -165,7 +160,6 @@ class StepRecord:
     dso: DsoOutcome
     notes: tuple[str, ...] = ()
     reputation: dict[str, ReputationScore] = field(default_factory=dict)
-    signal: Optional[GridAssessment] = None
 
     @property
     def trades(self) -> list[Trade]:
@@ -265,7 +259,6 @@ class LocalEnergyMarket:
         self.clearing_price = 0.0
         self._paths: dict[tuple[str, str], GridPath] = {}
         self._upstream_paths: dict[str, GridPath] = {}
-        self.graph: Optional[GraphGrid] = None
         self.losses: Optional[LossAllocation] = self._loss_rule()
 
     # --- Running the day -------------------------------------------------------------
@@ -310,7 +303,6 @@ class LocalEnergyMarket:
             g, {p.id: list(p.owns) for p in self.scenario.participants}
         )
         self.grid.reset()
-        self.graph = self._graph_model()
         self.losses = self._loss_rule()
         self._paths = {}
         self._upstream_paths = {}
@@ -360,8 +352,7 @@ class LocalEnergyMarket:
 
         outcomes = self._settle(p.inputs, p.trades)
         grid = self._assess_grid(p.step, outcomes)
-        signal = self._grid_signal(p, grid)
-        stages = self._charge_fees(p, signal, grid)
+        stages = self._charge_fees(p, grid)
         trades = [t for s in stages for t in s.trades]
         losses = {
             pid: self.dso.loss_charge(kwh, p.inputs.utility_price)
@@ -381,7 +372,6 @@ class LocalEnergyMarket:
             grid=grid,
             dso=self.dso.settle(trades, sum(losses.values())),
             notes=tuple(p.notes),
-            signal=signal if signal is not grid else None,
         )
         record = self._update_reputation(record)
         self._advance(record)
@@ -655,7 +645,7 @@ class LocalEnergyMarket:
             pid: p.settle(inputs.step, trades) for pid, p in self.participants.items()
         }
 
-    def _assess_grid(  #! Market 5a: power flow
+    def _assess_grid(  #! Market 5: power flow
         self, step: int, outcomes: Mapping[str, ParticipantOutcome]
     ) -> GridAssessment:
         """Phase 4': one power flow with each participant's injection
@@ -675,45 +665,13 @@ class LocalEnergyMarket:
         name = self.scenario.dso.losses
         return None if name == "trades" else build_loss_allocation(name)
 
-    def _graph_model(self) -> Optional[GraphGrid]:
-        """The paper's graph model on this network when ``grid.method`` is
-        ``"graph"``, else ``None``."""
-        g = self.scenario.grid
-
-        if g.method == "powerflow":
-            return None
-
-        if g.method != "graph":
-            raise ValueError("grid.method must be 'powerflow' or 'graph'")
-
-        return GraphGrid(self.grid.line_table(), g.graph_capacity, g.graph_total_kw)
-
-    def _grid_signal(self, p: PendingStep, grid: GridAssessment) -> GridAssessment:  #! Market 5b: fee signal (power flow or graph)
-        """The line loading the fees are charged on: the power flow's, or the
-        graph model's from this step's trades, each along the path its fee uses
-        (``Dso.charge``) at q / Δt kW."""
-        if self.scenario.grid.method == "powerflow":
-            return grid
-
-        if self.graph is None:
-            self.graph = self._graph_model()
-
-        h = self.scenario.grid.step_hours
-        flows = [
-            (self._route(t.buyer_id, t.seller_id), t.quantity / h)
-            for t in p.trades
-        ]
-
-        return self.graph.assess(p.step, flows)
-
     def _charge_fees(  #! Market 6: fees
-        self, p: PendingStep, signal: GridAssessment, grid: GridAssessment
+        self, p: PendingStep, grid: GridAssessment
     ) -> tuple[StageResult, ...]:
-        """Phase 4": the DSO sees the step's line loading (``signal``: the power
-        flow's or the graph model's) and the measured voltages of the power flow
-        (``grid``) (``Dso.observe``), and gives every trade its fee (eq. 8) from
-        them (``Dso.charge``). The stages with their trades charged."""
-        self.dso.observe(signal, measured=grid)
+        """Phase 4": the DSO sees the step's power flow, its line loading and bus
+        voltages (``grid``; ``Dso.observe``), and gives every trade its fee (eq. 8)
+        from them (``Dso.charge``). The stages with their trades charged."""
+        self.dso.observe(grid)
         charged = iter(
             self.dso.charge(p.trades, self._route, p.grid_balance_kwh)
         )

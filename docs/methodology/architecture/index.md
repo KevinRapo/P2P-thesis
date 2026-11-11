@@ -106,7 +106,7 @@ Green holds code, blue holds data and settings. Click a folder to open its page.
 | Package | What it is | Page |
 |---|---|---|
 | `core/config/` | The scenario: everything set before the market runs, as plain data | [Config](packages/config.md) |
-| `core/grid/` | The SimBench network: loading, topology, profiles, the power flow, the graph model | [Grid](packages/grid.md) |
+| `core/grid/` | The SimBench network: loading, topology, profiles, the power flow, the loss allocation | [Grid](packages/grid.md) |
 | `core/market/` | The MARLEM market: participants, DSO, clearing, fees, reputation, signals | [Market](packages/market.md) |
 | `core/env/` | The market as a multi-agent RL environment: actions, observations, rewards | [Environment](packages/env.md) |
 | `core/rl/` | The learning layer: PPO in three paradigms on RLlib | [RL](packages/rl.md) |

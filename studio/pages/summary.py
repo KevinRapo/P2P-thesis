@@ -29,8 +29,6 @@ from studio.components.day_profiles import show_day_profiles
 from studio.components.run_check import experiment_facts
 from studio.components.labels import (
     BACKGROUNDS,
-    GRAPH_CAPACITIES,
-    GRID_METHODS,
     LOSSES,
     MECHANISMS,
     STEP_LENGTHS,
@@ -226,21 +224,6 @@ def _grid(scenario: Scenario) -> None:
             "Rest of the network": BACKGROUNDS.get(g.background, g.background),
             "Voltage limits": f"{g.v_min_pu:g} – {g.v_max_pu:g} pu",
             "Line limit": f"{g.line_max_percent:g} %",
-            "Line loading for the fees": GRID_METHODS.get(g.method, g.method),
-            **(
-                {
-                    "Graph capacity": GRAPH_CAPACITIES.get(
-                        g.graph_capacity, g.graph_capacity
-                    ),
-                    "Graph total": (
-                        f"{g.graph_total_kw:g} kW"
-                        if g.graph_total_kw is not None
-                        else "the line ratings' sum"
-                    ),
-                }
-                if g.method == "graph"
-                else {}
-            ),
         }
     )
 

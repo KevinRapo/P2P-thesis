@@ -9,7 +9,6 @@ Ported from the refactor branch's step-time model.
 
 from __future__ import annotations
 
-import math
 from collections import OrderedDict
 from dataclasses import replace
 from typing import Any, Optional, Sequence
@@ -306,25 +305,6 @@ class SimBenchGrid:
             names[nodes[0]],
             names[nodes[-1]],
         )
-
-    def line_table(self) -> dict[str, tuple[float, float]]:
-        """Every line by the IDs of ``GridAssessment.line_loading_percent``: its
-        length (km) and its rating (kW): √3 · rated voltage of its bus · I_max."""
-        if self._net is None:
-            self.reset()
-
-        net = self._net
-        out = {}
-
-        for i, row in net.line.iterrows():
-            kv = float(net.bus.at[row.from_bus, "vn_kv"])
-            rating = math.sqrt(3) * kv * float(row.max_i_ka) * 1000.0
-            out[simbench._branch_name(net.line, i, "line")] = (
-                float(row.length_km),
-                rating,
-            )
-
-        return out
 
     def _topology(self) -> Any:
         """The network as a weighted graph (built once per reset): lines weigh

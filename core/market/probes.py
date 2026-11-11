@@ -18,9 +18,6 @@ eq. 15 bound. The expected values are computed from the profiles of those steps
     M2  stage 1 needs both           names that are not returned: no stage 1
     M3  double auction               2 sellers, 2 buyers: price order, partial fills
     M4  the DSO clears the rest      bid < ask: everything to the DSO
-
-Each probe is played on both grid methods (``play(probe, method)``): the market's
-outcome must be the same on both (``same_market``), only the fees differ.
 """
 
 from __future__ import annotations
@@ -38,7 +35,6 @@ from core.config.scenario import (
 from core.market.dso import DSO_ID
 from core.market.lem import LocalEnergyMarket, OrderIntent, StepInputs, StepRecord
 
-METHODS = ("powerflow", "graph")
 WINDOW = range(8, 13)  # 08:00-13:00: PV surplus, consumer deficit in every step
 TOLERANCE = 1e-9
 
@@ -46,7 +42,7 @@ TOLERANCE = 1e-9
 # --------------------------------------------------------------------------------------
 # The probe market: four participants on a SimBench LV network
 # --------------------------------------------------------------------------------------
-def scenario(method: str = "powerflow") -> Scenario:
+def scenario() -> Scenario:
     """The market every probe plays: PV1 and PV2 own a load and a PV generator,
     C1 and C2 a load only (with the same profile); no batteries. The DSO's tariffs
     and the market rules are the defaults (FiT 0.08, utility 0.30, the average
@@ -55,7 +51,7 @@ def scenario(method: str = "powerflow") -> Scenario:
 
     return Scenario(
         name="market_probes",
-        grid=GridSetup(code="1-LV-rural1--0-sw", day="2016-06-15", method=method),
+        grid=GridSetup(code="1-LV-rural1--0-sw", day="2016-06-15"),
         participants=[
             ParticipantSetup("PV1", f"{lv} Bus 7", [f"{lv} Load 9", f"{lv} SGen 1"]),
             ParticipantSetup("PV2", f"{lv} Bus 8", [f"{lv} Load 2", f"{lv} SGen 4"]),
@@ -132,17 +128,15 @@ class MarketProbe:
 
 @dataclass(frozen=True)
 class ProbeRun:
-    """A probe played on one grid method.
+    """A probe played.
 
     Attributes:
         probe: The probe.
-        method: ``grid.method``: ``"powerflow"`` or ``"graph"``.
         records: The steps of the window.
         checks: Every check of every step.
     """
 
     probe: MarketProbe
-    method: str
     records: tuple[StepRecord, ...]
     checks: tuple[Check, ...]
 
@@ -488,10 +482,10 @@ def bounds(market: LocalEnergyMarket) -> dict[str, Bounds]:
     }
 
 
-def play(probe: MarketProbe, method: str = "powerflow") -> ProbeRun:
-    """Play ``probe`` on ``method``: the day up to the window with no orders, then
-    the window with the probe's orders, each step checked."""
-    market = LocalEnergyMarket(scenario(method))
+def play(probe: MarketProbe) -> ProbeRun:
+    """Play ``probe``: the day up to the window with no orders, then the window with
+    the probe's orders, each step checked."""
+    market = LocalEnergyMarket(scenario())
     market.reset()
 
     while market.current_step < WINDOW.start:
@@ -505,50 +499,23 @@ def play(probe: MarketProbe, method: str = "powerflow") -> ProbeRun:
         records.append(record)
         checks += probe.checks(record, previous)
 
-    return ProbeRun(probe, method, tuple(records), tuple(checks))
+    return ProbeRun(probe, tuple(records), tuple(checks))
 
 
-def play_all(methods: tuple[str, ...] = METHODS) -> list[ProbeRun]:
-    """Every probe on every method."""
-    return [play(probe, method) for probe in PROBES for method in methods]
-
-
-def same_market(a: ProbeRun, b: ProbeRun) -> list[Check]:
-    """The market's outcome of one probe on two grid methods: the same trades
-    (stage, seller, buyer, kWh, price) in every step. Only the fees may differ: the
-    graph model's line loading is not the power flow's."""
-    out = []
-
-    for ra, rb in zip(a.records, b.records):
-        trades_a = sorted(_trade_key(t) for t in ra.trades)
-        trades_b = sorted(_trade_key(t) for t in rb.trades)
-        out.append(
-            Check(
-                ra.step,
-                f"the same trades on {a.method} and {b.method}",
-                1.0,
-                float(trades_a == trades_b),
-            )
-        )
-
-    return out
-
-
-def _trade_key(t) -> tuple:
-    return t.stage, t.seller_id, t.buyer_id, round(t.quantity, 9), round(t.price, 9)
+def play_all() -> list[ProbeRun]:
+    """Every probe."""
+    return [play(probe) for probe in PROBES]
 
 
 __all__ = [
     "Bounds",
     "Check",
     "MarketProbe",
-    "METHODS",
     "PROBES",
     "ProbeRun",
     "WINDOW",
     "bounds",
     "play",
     "play_all",
-    "same_market",
     "scenario",
 ]

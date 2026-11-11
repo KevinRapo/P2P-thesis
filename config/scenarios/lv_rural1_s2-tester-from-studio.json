@@ -7,10 +7,7 @@
     "background": "profiles",
     "v_min_pu": 0.95,
     "v_max_pu": 1.05,
-    "line_max_percent": 100.0,
-    "method": "powerflow",
-    "graph_capacity": "paper",
-    "graph_total_kw": null
+    "line_max_percent": 100.0
   },
   "participants": [],
   "market": {

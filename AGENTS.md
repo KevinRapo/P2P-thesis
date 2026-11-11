@@ -153,9 +153,10 @@ notebook shows it, the problem is in `core/`; if not, it is in `studio/`.
 
 ## Keep the paper's grid functionality
 
-The paper's graph grid model is built as a second grid method on the same SimBench
-network and is under review (see the top-level `AGENTS.md`). Until the review is
-done, do not delete
+The paper's graph grid model was built as a second grid method and removed on
+11 Nov 2026 (reasons in the decision log, `docs/temp/decisions.md`; the last version
+with it is the tag `v2-graph-model`): the power flow is the only grid the market
+reads. Do not delete other
 original-paper grid or market functionality, or anything it could use, only
 because nothing calls it today (e.g. `electrical_distance`, the paths and zones of
 `core/grid/powerflow.py`, the reputation helpers). The original's profile

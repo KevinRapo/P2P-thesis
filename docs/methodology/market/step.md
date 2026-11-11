@@ -22,7 +22,7 @@ flowchart LR
 | 2 | Orders | [`start_step`](../../../core/market/lem.py#L304-L327) | `PendingStep.orders` | 1, 2 |
 | 3 | Clearing | [`advance`](../../../core/market/lem.py#L329-L369) × 3 → [`Clearing.stages`](../../../core/market/clearing.py#L97-L100) | three `StageResult`s with their trades | 3 |
 | 4 | Settlement | [`_settle`](../../../core/market/lem.py#L618-L625) | `ParticipantOutcome` per participant | 4 |
-| 5 | Grid | [`_assess_grid`](../../../core/market/lem.py#L627-L638), [`_grid_signal`](../../../core/market/lem.py#L653-L669) | `GridAssessment` (and the fee signal) | 4 |
+| 5 | Grid | [`_assess_grid`](../../../core/market/lem.py#L627-L638) | `GridAssessment` | 4 |
 | 6 | Fees | [`_charge_fees`](../../../core/market/lem.py#L671-L685), `pay_fees` | each trade's fee parts; profits net of fees | 4 |
 | 7 | Record | [`advance`](../../../core/market/lem.py#L329-L369) | `StepRecord` | 6 |
 | 8 | Reputation and advance | [`_update_reputation`](../../../core/market/lem.py#L688-L700), [`_advance`](../../../core/market/lem.py#L702-L711) | new reputations, next $p_\text{ref}$, history | 6, 8 |
@@ -38,9 +38,9 @@ stages, then the rest).
 | | |
 |---|---|
 | **Reads** | the scenario: network and day (`grid`), participants and what they own, batteries, market and DSO settings |
-| **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen and the tariffs of hour 0 ([`Dso.set_hour`](../../../core/market/dso.py#L120-L123)); the first reference price $p_\text{ref}$ = midpoint of those $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network; the graph model if `grid.method = "graph"` |
-| **Writes** | `participants`, `dso`, `clearing_price`, `grid`, `graph`; empty `history` |
-| **Code** | [`reset`](../../../core/market/lem.py#L272-L302) → [`_build_participants`](../../../core/market/lem.py#L409-L426) ([`profiles_from_elements`](../../../core/market/agent/der.py#L88-L120)), [`_battery`](../../../core/market/lem.py#L428-L433), [`Dso.market_price`](../../../core/market/dso.py#L146-L150), [`SimBenchGrid.reset`](../../../core/grid/powerflow.py#L81-L104), [`_graph_model`](../../../core/market/lem.py#L640-L651) |
+| **Computes** | each participant's $G_t$ and $D_t$ for every step of the day from the SimBench profiles of the elements it owns; batteries at their initial state of charge; reputation at its start value (0.5); the DSO with nothing seen and the tariffs of hour 0 ([`Dso.set_hour`](../../../core/market/dso.py#L120-L123)); the first reference price $p_\text{ref}$ = midpoint of those $p_\text{FiT}$ and $p_\text{utility}$; a fresh working copy of the network |
+| **Writes** | `participants`, `dso`, `clearing_price`, `grid`; empty `history` |
+| **Code** | [`reset`](../../../core/market/lem.py#L272-L302) → [`_build_participants`](../../../core/market/lem.py#L409-L426) ([`profiles_from_elements`](../../../core/market/agent/der.py#L88-L120)), [`_battery`](../../../core/market/lem.py#L428-L433), [`Dso.market_price`](../../../core/market/dso.py#L146-L150), [`SimBenchGrid.reset`](../../../core/grid/powerflow.py#L81-L104) |
 | **Paper** | §3.4.4 (profiles, replaced by SimBench), eq. 16 (battery) |
 | **Decisions** | profiles from SimBench (M-04, M-05); one start value for everyone (M-45); tariffs flat or time-of-use (MP-0b: the reference scenario's utility price by hour, `Dso.set_hour` before each step); *Open: MP-0a, MP-1c, MP-5b* ([open items](../../temp/open.md)) |
 
@@ -178,7 +178,7 @@ $$
 
 ## 5. Grid
 
-**5a. Power flow, always.** [`_assess_grid`](../../../core/market/lem.py#L627-L638):
+The power flow. [`_assess_grid`](../../../core/market/lem.py#L627-L638):
 each participant's net power at its bus from what it physically did,
 [`injection`](../../../core/market/agent/der.py#L289-L300)
 $= (G + \text{discharge} - D - \text{charge}) / \Delta t$, never from its trades.
@@ -192,26 +192,20 @@ share in `GridAssessment.loss_shares_kwh` (BCDLA: each branch's loss split over 
 elements below it by $\operatorname{Re}(I_e \overline{I_b}) / \lvert I_b \rvert^2$, a
 negative share for an element that relieves the branch).
 
-**5b. The fee signal.** [`_grid_signal`](../../../core/market/lem.py#L653-L669): the line
-loading the fees will use. With `grid.method = "powerflow"` it is 5a's result;
-with `"graph"` it is [`GraphGrid.assess`](../../../core/grid/graph.py#L52-L82): every
-trade's $q/\Delta t$ added to each line of its path, divided by the line's capacity
-([P1] §3.5.3, eq. 19). See [Grid-method comparison](grid-methods.md).
-
 | | |
 |---|---|
-| **Reads** | the outcomes (5a); the trades and their paths (5b, graph only) |
-| **Computes** | bus voltages, line and transformer loading, losses (and each participant's share of them, with a loss rule), exchange with the upstream grid, limit violations; the graph loading |
-| **Writes** | [`GridAssessment`](../../../core/grid/contract.py) (`grid`), and in graph mode a second one (`signal`) |
+| **Reads** | the outcomes |
+| **Computes** | bus voltages, line and transformer loading, losses (and each participant's share of them, with a loss rule), exchange with the upstream grid, limit violations |
+| **Writes** | [`GridAssessment`](../../../core/grid/contract.py) (`grid`), the line loading and bus voltages the fees read |
 | **Code** | above |
-| **Paper** | §3.5.3 (replaced by the power flow; kept as the graph method) |
-| **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38); *Open: MP-4e* ([open items](../../temp/open.md)) |
+| **Paper** | §3.5.3 (replaced by the power flow) |
+| **Decisions** | AC power flow instead of the trade-flow graph (M-35, M-36, M-38) ([open items](../../temp/open.md)) |
 
 ## 6. Fees
 
 **6a. The DSO looks at the grid.**
-[`Dso.observe(signal, measured=grid)`](../../../core/market/dso.py#L153-L161): it
-keeps the signal's line loading and the power flow's bus voltages.
+[`Dso.observe(grid)`](../../../core/market/dso.py#L153-L161): it keeps the power
+flow's line loading and bus voltages.
 
 **6b. A fee for every trade.** [`Dso.charge`](../../../core/market/dso.py#L277-L309),
 for a peer trade along $\text{path}(i, j)$, for a DSO trade along the path to the
@@ -250,7 +244,7 @@ when $L_i < 0$, nothing when `fees_charged` is off. It is part of its fees
 
 | | |
 |---|---|
-| **Reads** | the trades, the signal's loading, the measured voltages, paths and zones, $B_\text{grid}$ |
+| **Reads** | the trades, the power flow's loading, the measured voltages, paths and zones, $B_\text{grid}$ |
 | **Computes** | $C_t$, $V_\text{drop}$, the six fee parts per trade, the split, each participant's fees |
 | **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `ParticipantOutcome.fees` and `profit` |
 | **Code** | [`_charge_fees`](../../../core/market/lem.py#L671-L685), above |
@@ -269,7 +263,7 @@ In [`advance`](../../../core/market/lem.py#L329-L369), once the fees are known (
   fees collected;
 - everything into one [`StepRecord`](../../../core/market/lem.py#L133-L197): inputs,
   orders, stages with their charged trades, outcomes, clearing price, `grid`, `dso`,
-  notes, `signal`.
+  notes.
 
 | | |
 |---|---|

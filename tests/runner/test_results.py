@@ -209,14 +209,14 @@ def test_a_variant_reads_its_own_arm(where, saved):
     write(
         exp / saved,
         {
-            "scenario": {"name": "s1", "grid": {"method": "graph"}},
+            "scenario": {"name": "s1", "grid": {"code": "net"}},
             "test_days": DAYS,
             "env_config": {"episode_days": 7},
         },
     )
     runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
     arm = runs["local/grid/ppo_dtde_s0_v2"].settings
-    assert arm["scenario"]["grid"] == {"method": "graph"}
+    assert arm["scenario"]["grid"] == {"code": "net"}
     assert arm["env_config"] == {"episode_days": 7}
     assert runs["local/grid/ppo_dtde_s0"].settings["scenario"] == {"name": "s1"}
     assert "env_config" not in runs["local/grid/ppo_dtde_s0_v2"].labels
@@ -485,3 +485,25 @@ def test_a_cache_keeps_tables_within_its_memory_budget():
 
     big("a", 1)  # alone over the budget: the newest is always kept
     assert list(big.kept) == ["a"]
+
+
+def test_a_run_saved_with_the_removed_grid_method_is_still_read(where):
+    """Runs from before the graph model was removed carry ``grid.method`` in their
+    scenario: they load, and the factor is gone."""
+    exp = where["local"] / "grid"
+    make_run(exp, "ppo_dtde_s0_v3", 0, [-8, -9])
+    write(
+        exp / "experiment_v3.json",
+        {
+            "scenario": {
+                "name": "s1",
+                "grid": {"code": "net", "method": "graph", "graph_capacity": "paper"},
+            },
+            "test_days": DAYS,
+        },
+    )
+    runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
+    old = runs["local/grid/ppo_dtde_s0_v3"]
+    assert old.settings["scenario"]["grid"]["method"] == "graph"
+    assert "grid_method" not in results._factors(old)
+    assert "local/grid/ppo_dtde_s0_v3" in set(results.overview(list(runs.values())).key)

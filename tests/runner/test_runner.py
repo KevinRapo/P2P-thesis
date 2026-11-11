@@ -140,7 +140,7 @@ def test_a_variant_overwrites_only_what_it_names_in_a_complete_arm():
                 "budget": 9000,
                 "model": {"fcnet_hiddens": [8]},
                 "env_config": {"episode_days": 7},
-                "scenario": {"grid": {"method": "graph"}},
+                "scenario": {"grid": {"load_scale": 2.0}},
             },
         },
         env_config={"energy_scale": 7.0},
@@ -157,7 +157,7 @@ def test_a_variant_overwrites_only_what_it_names_in_a_complete_arm():
     assert Path(big.env_config["scenario"]).name == SCENARIO_FILE
     assert Path(big.env_config["scenario"]).parent.name == big.name
     arm = experiment.arm("big")
-    assert arm.scenario["grid"]["method"] == "graph"
+    assert arm.scenario["grid"]["load_scale"] == 2.0
     assert arm.scenario["grid"]["code"] == experiment.scenario["grid"]["code"]
     assert experiment.heldout_config(variant="big")["episode_days"] == 7
 

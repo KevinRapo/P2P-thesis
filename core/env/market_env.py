@@ -177,9 +177,6 @@ money unit):
                   feed_in_tariff, utility_price
                   min_voltage_pu, max_voltage_pu, max_line_loading_percent,
                   max_trafo_loading_percent
-                  fee_max_line_loading_percent: the highest line loading the
-                  fees were charged on (the graph model's with ``grid.method =
-                  "graph"``, else the power flow's)
                   mean_line_loading_percent: the mean over the lines (NaN if the
                   flow did not converge)
                   grid_balance_kwh: B_grid before the DSO clears ([P1] eq. 20)
@@ -187,13 +184,11 @@ money unit):
     tables: on a played day only (``options["day"]``), the step's rows:
             trades   one per trade: who, price, energy, stage, distance, losses and
                      each fee (``_trade_rows``)
-            grid     one per step: bus_voltage/<bus>, line_loading/<line> and, with
-                     ``grid.method = "graph"``, fee_line_loading/<line>; NaN when
+            grid     one per step: bus_voltage/<bus>, line_loading/<line>; NaN when
                      the flow did not converge (``_grid_row``)
 
 The grid amounts are the AC power flow's (the whole network, background
-included), whatever ``grid.method``; a flow that did not converge counts 0 for
-them.
+included); a flow that did not converge counts 0 for them.
 
 Baselines map an observation dict to an action dict: ``net_position_policy``, the
 market's bidding rule, is the one ``baseline_policies`` gives the RL layer's
@@ -934,9 +929,6 @@ def _market_infos(record: StepRecord) -> tuple[dict, dict]:
         "max_voltage_pu": _number(grid.max_voltage_pu),
         "max_line_loading_percent": _number(grid.max_line_loading_percent),
         "max_trafo_loading_percent": _number(grid.max_trafo_loading_percent),
-        "fee_max_line_loading_percent": _number(
-            (record.signal or grid).max_line_loading_percent
-        ),
         "mean_line_loading_percent": _mean_loading(grid),
         "grid_balance_kwh": float(record.grid_balance_kwh),
     }
@@ -978,9 +970,8 @@ def _trade_rows(record: StepRecord) -> list[dict[str, Any]]:
 
 
 def _grid_row(record: StepRecord) -> dict[str, float]:
-    """The step's voltage per bus and loading per line, and with the graph model the
-    loading the fees read per line. A flow that did not converge leaves its columns
-    NaN, whatever it reported."""
+    """The step's voltage per bus and loading per line. A flow that did not converge
+    leaves its columns NaN, whatever it reported."""
     grid = record.grid
     row: dict[str, float] = {}
 
@@ -989,12 +980,6 @@ def _grid_row(record: StepRecord) -> dict[str, float]:
         row |= {
             f"line_loading/{line}": float(value)
             for line, value in grid.line_loading_percent.items()
-        }
-
-    if record.signal is not None:
-        row |= {
-            f"fee_line_loading/{line}": float(value)
-            for line, value in record.signal.line_loading_percent.items()
         }
 
     return row

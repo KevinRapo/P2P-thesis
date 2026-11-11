@@ -17,7 +17,7 @@ environment.
 
 | Folder | What the notebooks do |
 |---|---|
-| [`notebooks/market/`](../../../notebooks/market/) | Validate the market in three levels (formulas, one step, the test days), time it, compare the grid methods, SimBench's study cases, the money ceiling |
+| [`notebooks/market/`](../../../notebooks/market/) | Validate the market in three levels (formulas, one step, the test days), time it, SimBench's study cases, the money ceiling |
 | [`notebooks/rl/`](../../../notebooks/rl/) | The RL probe check in the three paradigms |
 | [`notebooks/runner/`](../../../notebooks/runner/) | Running an experiment on a target, and comparing finished runs |
 

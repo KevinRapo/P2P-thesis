@@ -33,7 +33,7 @@ flowchart LR
 | [`dso`](../../../api/market/dso.md) | `Dso`: tariffs, the third stage, losses, grid fees and who pays them, its balance |
 | [`reputation`](../../../api/market/reputation.md) | Reputation (eq. 12): reliability, price fairness and grid contribution, with the decay |
 | [`signals`](../../../api/market/signals.md) | The paper's 42 observation signals, each a plain function; open definitions marked `# OPEN` |
-| [`probes`](../../../api/market/probes.md) | The market probes: scripted cases with hand-worked outcomes, on both grid methods |
+| [`probes`](../../../api/market/probes.md) | The market probes: scripted cases with hand-worked outcomes |
 | [`agent/der`](../../../api/market/agent/der.md) | `Participant`: profiles, what it can trade (eq. 15), partner choice, settlement (eq. 13, 14, 16), its bus injection |
 | [`agent/battery`](../../../api/market/agent/battery.md) | `Battery`: its energy, what it can take or give (eq. 15c-d), charging and discharging (eq. 16) |
 | [`agent/rule_based_bid`](../../../api/market/agent/rule_based_bid.md) | The rule that writes orders when no agent does |

@@ -6,7 +6,7 @@ learning** on real low-voltage networks.
 - Households with loads, PV and batteries trade energy with each other and with the
   distribution system operator (DSO), one hour/15 minutes at a time.
 - The DSO charges grid fees from the network's state, computed by an AC power flow
-  on a [SimBench](using/data/simbench.md) network or by the paper's graph model.
+  on a [SimBench](using/data/simbench.md) network.
 - The agents learn their orders with PPO, in three paradigms: centralised (CTCE),
   centralised training with decentralised execution (CTDE), and independent (DTDE).
 

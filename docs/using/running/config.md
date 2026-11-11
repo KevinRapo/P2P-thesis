@@ -44,10 +44,7 @@ Read by [`core/config/store.py`](../../../core/config/store.py) into the records
     "background": "profiles",
     "v_min_pu": 0.95,
     "v_max_pu": 1.05,
-    "line_max_percent": 100.0,
-    "method": "powerflow",
-    "graph_capacity": "paper",
-    "graph_total_kw": null
+    "line_max_percent": 100.0
   },
   "participants": [
     {
@@ -117,9 +114,6 @@ Read by [`core/config/store.py`](../../../core/config/store.py) into the records
 | `background` | `"profiles"`, `"off"` | Whether the network elements no participant owns follow their SimBench profiles, or stay at 0 |
 | `v_min_pu`, `v_max_pu` | numbers, `null` | The voltage limits. Outside them the power flow records a violation. They set no fee. `null`: each bus's own limit |
 | `line_max_percent` | number, `null` | The line loading limit, recorded the same way. `null`: each line's own limit |
-| `method` | `"powerflow"`, `"graph"` | Where the DSO's fees read the line loading from: the AC power flow, or the graph model ([P1] §3.5). The power flow runs and is recorded either way ([grid methods](../../methodology/market/grid-methods.md)) |
-| `graph_capacity` | `"paper"`, `"ratings"` | With `"graph"`: the capacity per line. `"paper"` spreads a total over the lines, `C_e = C_total · (1/ℓ_e) / Σ_k (1/ℓ_k)` for lengths `ℓ`; `"ratings"` uses each line's own rating |
-| `graph_total_kw` | number, `null` | The total of `"paper"`. `null`: the sum of the line ratings. [P1] gives no value; the original uses 1e6 kW |
 | `load_scale`, `generation_scale`, `storage_scale` | 0 or more, default 1.0 | Factors on the power of every load, generator and storage unit of the network, the participants' included: their demand, their generation, their battery's capacity and power limit, and the background in the power flow. 1.0 is SimBench's network as it is; above it, a network under more stress (MP-4i) |
 
 ### participants
@@ -273,7 +267,7 @@ in the Studio shows the same settings with the values it runs with.
     "low_lr": {"training": {"ppo": {"lr": 0.0001}}},
     "big_net": {"model": {"fcnet_hiddens": [768, 768]}},
     "nash": {"scenario": {"market": {"mechanism": "nash_bargaining"}}},
-    "graph": {"scenario": {"grid": {"method": "graph"}}},
+    "no_fees": {"scenario": {"dso": {"fees_charged": false}}},
     "long": {"budget": 480000}
   },
   "training": {

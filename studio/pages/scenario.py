@@ -23,8 +23,6 @@ from studio.components.charts import DayChart, NetworkChart, PriceChart
 from studio.components.choices import checkboxes
 from studio.components.labels import (
     BACKGROUNDS,
-    GRAPH_CAPACITIES,
-    GRID_METHODS,
     LOSSES,
     MECHANISMS,
     STEP_LENGTHS,
@@ -370,33 +368,6 @@ def _grid_settings(on_change=None) -> None:
         save=save,
     )
 
-    def method(e) -> None:
-        save("method", e.value)
-        capacity.set_enabled(e.value == "graph")
-        total.set_enabled(e.value == "graph")
-
-    ui.select(
-        GRID_METHODS,
-        value=g.method,
-        label="Where the fees read the line loading",
-        on_change=method,
-    ).classes("w-full")
-    capacity = ui.select(
-        GRAPH_CAPACITIES,
-        value=g.graph_capacity,
-        label="Graph model: capacity per line",
-        on_change=lambda e: save("graph_capacity", e.value),
-    ).classes("w-full")
-    total = ui.number(
-        "Graph model: total capacity (kW, empty: the line ratings' sum)",
-        value=g.graph_total_kw,
-        min=0,
-        on_change=lambda e: save(
-            "graph_total_kw", None if e.value is None else float(e.value)
-        ),
-    ).classes("w-full")
-    capacity.set_enabled(g.method == "graph")
-    total.set_enabled(g.method == "graph")
     # MP-4i: the whole network's power by element type, participants included.
     with ui.row().classes("w-full gap-2 no-wrap"):
         for field, label in (
@@ -417,10 +388,6 @@ def _grid_settings(on_change=None) -> None:
         icon="timeline",
         on_click=lambda: ui.navigate.to("/market?tab=baseline"),
     ).props("flat no-caps dense")
-    ui.label(
-        "The power flow runs and is recorded with either. With the graph model the "
-        "fees read the step's trades along their paths instead."
-    ).classes("mls-card-caption")
 
 
 def _is_2016(value: str | None) -> bool:

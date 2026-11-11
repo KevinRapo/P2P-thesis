@@ -13,7 +13,7 @@ The groups answer different questions, and only the first is a verdict:
 | [B. Money](#b-money) | What are the headline numbers made of? | The same outcome in EUR, against each baseline |
 | [C. Market behaviour](#c-market-behaviour) | How did the result come about? | Explanation, not a score: more peer energy is not better in itself |
 | [D. Salazar's KPIs](#d-salazars-kpis) | What does the paper report? | Description only: the `salazar` reward pays for some of them, so they cannot be evidence of success |
-| [E. Grid](#e-grid) | What did the network see? | The power flow's view; the grid-method comparison |
+| [E. Grid](#e-grid) | What did the network see? | The power flow's view |
 
 **Resolution**: *step* (in the step tables, shown in *Step by step*), *day* (an
 indicator: one number per run, policy and test day), *period* (the whole test period,
@@ -126,7 +126,7 @@ Resolution: step and day; tab: Market (*On the test days*).
 ## E. Grid
 
 From the AC power flow of what the participants physically did, the whole network
-included, whichever `grid.method` set the fees; a flow that did not converge counts 0.
+included; a flow that did not converge counts 0.
 
 | Metric | Column | Definition | Resolution | Tab |
 |---|---|---|---|---|
@@ -140,5 +140,4 @@ included, whichever `grid.method` set the fees; a flow that did not converge cou
 | Load factor | `load_factor` | Mean import over peak import | day | Grid |
 | Peak reduction | `peak_reduction_kw` | `net_position`'s peak import minus the policy's | day | Grid |
 | Losses, trade losses, their ratio | `grid_losses_kwh`, `trade_losses_kwh`, `trade_loss_ratio` | The power flow's losses; [P1] eq. 18's estimate for the trades; that estimate per kWh traded | step, day | Grid |
-| Fee signal error | `fee_error_mean`, `fee_error_worst` | Fee loading minus measured loading, percentage points: the grid-method comparison in one number | step, day | Grid |
 | Flows not converged | `not_converged` | Steps whose power flow did not converge | step, day | Grid, a warning on Validation |

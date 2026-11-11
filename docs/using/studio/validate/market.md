@@ -47,14 +47,13 @@ opens it.
 
 ## Probes
 
-Small scripted cases whose result is worked out by hand, each played on both grid
-methods ([Validation](../../../methodology/validation/index.md)). They play when the tab
+Small scripted cases whose result is worked out by hand, each played on the
+power flow ([Validation](../../../methodology/validation/index.md)). They play when the tab
 first opens (about 10 s); *Play again* repeats them.
 
 ![Market, the Probes tab](img/market-probes.png)
 
-- **Every probe:** one row per probe, PASS or FAIL per grid method, and whether both
-  methods gave the same trades.
-- **One probe:** pick it, the grid method and a step: its orders, what a correct
+- **Every probe:** one row per probe, PASS or FAIL over all its steps.
+- **One probe:** pick it and a step: its orders, what a correct
   market gives, each check against the market's value, the trades, the participants,
   and the DSO and grid.

@@ -44,14 +44,12 @@ FACTORS = (
     "prices",
     "peer_charge",
     "network",
-    "grid_method",
 )
 # What the baselines depend on, as far as a run says.
 PLAYED_ON = (
     "prices",
     "peer_charge",
     "network",
-    "grid_method",
     "test_days",
     "participants",
     "participant_set",
@@ -158,8 +156,6 @@ INDICATORS = (
     Indicator("grid_losses_kwh", "Losses", "kWh", "grid"),
     Indicator("trade_losses_kwh", "Trade losses", "kWh", "grid"),
     Indicator("trade_loss_ratio", "Trade loss ratio", "", "grid"),
-    Indicator("fee_error_mean", "Fee signal error, mean", "%", "grid"),
-    Indicator("fee_error_worst", "Fee signal error, worst", "%", "grid"),
     Indicator("not_converged", "Flows not converged", "steps", "grid"),
     # Zhou et al. (2018) eq. 22-28, the participants as one community
     Indicator("energy_balance_index", "Energy balance index, per day", "", "grid"),
@@ -374,7 +370,6 @@ def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
     """What a day's market and grid steps give."""
     day = steps.groupby(KEYS)
     hours = 24.0 / day.step.count()
-    error = (steps.fee_max_line_loading_percent - steps.max_line_loading_percent).abs()
     over = steps.voltage_violations + steps.loading_violations > 0
     traded = steps.peer_price.notna()
     peak = day.grid_import_kwh.max()
@@ -400,8 +395,6 @@ def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
             "load_factor": day.grid_import_kwh.mean() / peak.where(peak > 0),
             "mean_line_loading": loading.groupby([steps.policy, steps.day]).mean(),
             "hours_over_limit": over.groupby([steps.policy, steps.day]).sum() * hours,
-            "fee_error_mean": error.groupby([steps.policy, steps.day]).mean(),
-            "fee_error_worst": error.groupby([steps.policy, steps.day]).max(),
             "mean_peer_price": weighted(steps.peer_price),
             "peer_price_position": weighted(band),
         }

@@ -23,7 +23,6 @@ GRID_CHARTS = [
         [
             "max_line_loading_percent",
             "mean_line_loading_percent",
-            "fee_max_line_loading_percent",
             "max_trafo_loading_percent",
         ],
     ),

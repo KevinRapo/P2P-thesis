@@ -188,7 +188,6 @@ what exists only per step.
 | `max_voltage_pu` | 1.0267 | |
 | `max_line_loading_percent` | 5.11 | the power flow's |
 | `max_trafo_loading_percent` | 12.4 | |
-| `fee_max_line_loading_percent` | 5.11 | what the fees were charged on |
 
 ### heldout_agent_steps.csv
 
@@ -390,8 +389,8 @@ experiment and is empty in a run's own copy.
 }
 ```
 
-`grid` holds the network, the day, the step length, the voltage and line limits, the
-method and the graph settings. `market` also holds the reputation settings and the
+`grid` holds the network, the day, the step length, the voltage and line limits and the
+scaling factors. `market` also holds the reputation settings and the
 seed. `dso` holds the prices as given (a file name, flat tariffs or the series), the
 peer charge and the fee settings.
 

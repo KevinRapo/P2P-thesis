@@ -151,15 +151,12 @@ class Dso:
         return (self.feed_in_tariff + self.peer_ceiling()) / 2
 
     # --- The grid it operates --------------------------------------------------------
-    def observe(
-        self, grid: GridAssessment, measured: Optional[GridAssessment] = None
-    ) -> None:
-        """Remember the lines' loading of the step (``grid``: the power flow just
-        run, or the graph model's): the congestion the same step's fees see ([P1]
-        §3.5.3); and the bus voltages of the power flow (``measured``, default
-        ``grid``) for a measured voltage drop."""
+    def observe(self, grid: GridAssessment) -> None:
+        """Remember the step's power flow (``grid``, just run): the lines' loading,
+        the congestion the same step's fees see ([P1] §3.5.3), and the bus voltages
+        for a measured voltage drop."""
         self.line_loading_percent = dict(grid.line_loading_percent)
-        self.bus_voltage_pu = dict((measured or grid).bus_voltage_pu)
+        self.bus_voltage_pu = dict(grid.bus_voltage_pu)
 
     def voltage_drop_of(self, path: GridPath) -> float:
         """V_drop of a trade ([P1] eq. 8c): f_volt · d_ij (eq. 8f), or the measured

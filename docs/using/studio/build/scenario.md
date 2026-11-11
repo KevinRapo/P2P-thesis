@@ -13,8 +13,6 @@ kept at once. What each setting means: [Config](../../running/config.md).
 - **The rest of the network:** what the elements no participant owns do: follow their
   SimBench profiles, or switch off.
 - **Limits:** voltage band and line loading, for the violations counted.
-- **Where the fees read the line loading:** the AC power flow, or [P1]'s graph model
-  with its capacity per line ([Grid methods](../../../methodology/market/grid-methods.md)).
 
 ## Participants
 

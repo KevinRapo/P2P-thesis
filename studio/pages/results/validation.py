@@ -39,7 +39,6 @@ ROWS = {
     "prices": "Prices",
     "peer_charge": "Peer charge",
     "network": "Network",
-    "grid_method": "Grid method",
 }
 VIEWS = {
     "value": "Values",

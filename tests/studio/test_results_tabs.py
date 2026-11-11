@@ -72,7 +72,6 @@ def overview_table() -> pd.DataFrame:
                         "prices": "p",
                         "peer_charge": 0.0,
                         "network": "n",
-                        "grid_method": "ac",
                         "test_days": "d",
                         "participants": 13,
                         "participant_set": "13 (abc123)",

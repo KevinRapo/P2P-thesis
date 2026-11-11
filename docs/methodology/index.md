@@ -10,9 +10,9 @@
 load, PV and optionally a battery. Every hour, each places at most one order: a
 side, a quantity, a price and a preferred partner. The orders clear in three
 stages: preferred partners, then a double auction, then the DSO. What no trade
-covers is settled at the DSO's two tariffs. An AC power flow, or the paper's graph
-model, gives the line loading and voltage drop from which the DSO's fees are
-computed, and the reputations are updated.
+covers is settled at the DSO's two tariffs. An AC power flow gives the line loading
+and voltage drop from which the DSO's fees are computed, and the reputations are
+updated.
 → [Market step](market/step.md)
 
 **The environment.** `MarketEnv` makes the market a multi-agent RL problem: one
@@ -33,7 +33,7 @@ independent learners (DTDE).
 | | MARLEM ([P1], [P2]) | This implementation |
 |---|---|---|
 | Market mechanism | orders, three-stage clearing, DSO fees, reputation | kept; the release's defects corrected ([issue register](../original/issues/register.md)) |
-| Grid | graph model on IEEE feeders or generated topologies ([methodology §6](../original/methodology.md#6-grid-p1-35)) | AC power flow on SimBench networks; the graph model kept as the alternative ([Grid methods](market/grid-methods.md)) |
+| Grid | graph model on IEEE feeders or generated topologies ([methodology §6](../original/methodology.md#6-grid-p1-35)) | AC power flow on SimBench networks |
 | Prices | synthetic step functions, higher at peak hours, smoothed ([methodology §5.4](../original/methodology.md#54-profiles-p1-344)) | the German 2024 dynamic tariff, or a fixed time-of-use day ([Market prices](../using/data/prices.md)) |
 | Action | four parts ([P1] eq. 2), decoded from one continuous vector | the same four parts, side and partner categorical, quantity and price continuous ([Action](environment/action.md)) |
 | Reward | [P2]'s weighted composite reward | the net bill ([Reward](environment/reward.md)) |

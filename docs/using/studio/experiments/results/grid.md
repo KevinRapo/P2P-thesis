@@ -1,13 +1,12 @@
 # Grid
 
-**What did the grid do?** Its indicators per test day, then one run step by step. This is
-the tab the grid-method comparison is read on.
+**What did the grid do?** Its indicators per test day, then one run step by step.
 
 Source: `day_indicators` in [`results.py`](../../../../../core/runner/results.py) and
 `heldout_steps.csv`, drawn by [`grid.py`](../../../../../studio/pages/results/grid.py) and
 [`steps.py`](../../../../../studio/pages/results/steps.py). The amounts are the AC power
-flow's for the whole network, background included, whichever `grid.method` charged the
-fees; a flow that did not converge counts 0 for them.
+flow's for the whole network, background included; a flow that did not converge counts 0
+for them.
 
 ## Structure
 
@@ -41,7 +40,6 @@ The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`scr
 | `peak_import_kw`, `peak_export_kw` | The highest of them, kW |
 | `grid_losses_kwh` | Line and transformer losses of the power flow |
 | `trade_losses_kwh` | Losses charged to the trades ([P1] eq. 18): the market's estimate |
-| `fee_error_mean`, `fee_error_worst` | Fee loading against measured loading, percentage points: the grid-method comparison in one number |
 | `not_converged` | Steps whose power flow did not converge |
 | `energy_balance_index` | Zhou et al. (2018) eq. 22-23, for the participants as one community (their netted demand and charging less generation and discharging, without the network's other loads): 1 − their exchange with the upstream grid, import and export, over all they consumed and produced. 1: nothing exchanged |
 | `peak_to_average` | Their eq. 24 (EPARI): the community's highest exchange in either direction over its mean, lower is flatter. Their power flatness index divides it by the worst of the runs compared, so it is left to the comparison |
@@ -55,14 +53,11 @@ over it, dotted, on the same day and policy.
 
 | Chart | Columns |
 |---|---|
-| Line loading | `max_line_loading_percent`, `fee_max_line_loading_percent`, `max_trafo_loading_percent` |
+| Line loading | `max_line_loading_percent`, `mean_line_loading_percent`, `max_trafo_loading_percent` |
 | Voltage | `min_voltage_pu`, `max_voltage_pu`, with the run's limits (`v_min_pu`, `v_max_pu` of its scenario) dashed; the same chart as the Market page's "Network over the day" |
 | Upstream exchange | `grid_import_kwh`, `grid_export_kwh` |
 | Losses | `grid_losses_kwh`, `trade_losses_kwh` |
 | Limits broken | `voltage_violations`, `loading_violations` |
-
-`fee_max_line_loading_percent` is the highest line loading the fees were charged on: the
-graph model's with `grid.method = "graph"`, else the power flow's.
 
 ![Grid: network replay](img/grid-network-replay.png)
 

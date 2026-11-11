@@ -2,7 +2,7 @@
 
 A thin wrapper over two parts of the core:
 
-- the market probes (``core/market/probes.py``), played on both grid methods once
+- the market probes (``core/market/probes.py``), played once
   and kept until played again (about 10 s, most of it the first power flow);
 - the RL probes' runs: for the runs of ``ResultsService``, which probe each is and
   what it scored (``core/runner/probe_runs.py``, which does not load Ray).
@@ -18,7 +18,7 @@ from typing import Optional
 import pandas as pd
 
 from core.market import probes
-from core.market.probes import Check, ProbeRun
+from core.market.probes import ProbeRun
 from core.runner.probe_runs import ProbeRunInfo, read_probe_run
 from studio.adapters.results_service import ResultsService
 
@@ -37,8 +37,7 @@ class ValidationService:
 
     # --- Market probes ---------------------------------------------------------------
     def market_probes(self, again: bool = False) -> list[ProbeRun]:
-        """Every market probe on every grid method; played on the first call, or
-        with ``again``."""
+        """Every market probe; played on the first call, or with ``again``."""
         with self._lock:
             if self._runs is None or again:
                 self._runs = probes.play_all()
@@ -47,12 +46,6 @@ class ValidationService:
     @property
     def played(self) -> bool:
         return self._runs is not None
-
-    def same_market(self, key: str) -> list[Check]:
-        """Probe ``key``'s market outcome on the power flow against the graph
-        method (``probes.same_market``)."""
-        found = {r.method: r for r in self.market_probes() if r.probe.key == key}
-        return probes.same_market(found["powerflow"], found["graph"])
 
     # --- RL probes -------------------------------------------------------------------
     def probe_runs(self, keys: list[str]) -> dict[str, ProbeRunInfo]:

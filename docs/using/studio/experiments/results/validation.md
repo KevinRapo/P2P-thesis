@@ -66,7 +66,7 @@ which keeps the variation between days. `difference(by=..., reference=...)` in t
 notebook does the same per factor, inside each combination of the other settings.
 
 Under it, a second table with the same columns holds the baselines and references, one
-row per baseline and what it was played on (prices, peer charge, network, grid method,
+row per baseline and what it was played on (prices, peer charge, network,
 test days), by VTI from the top down: `ceiling`, `net_position`, `non_p2p` (should the
 rule fall below 0, under `non_p2p`). Being a table of their own, sorting the runs leaves
 them in place. Every table in the Studio sorts numbers

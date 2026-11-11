@@ -165,7 +165,6 @@ nav:
       - Market layer:
           - Market step: methodology/market/step.md
           - Tariffs and the peer charge: methodology/market/tariffs.md
-          - Grid methods: methodology/market/grid-methods.md
       - Environment:
           - methodology/environment/index.md
           - Action: methodology/environment/action.md
@@ -234,7 +233,6 @@ nav:
       - experiments/index.md
       - Thesis experiments:
           - experiments/thesis/index.md
-          - Grid methods: experiments/thesis/grid-methods.md
           - Reward and observation: experiments/thesis/reward-obs.md
       - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
   # Temporary: the work plan, the open items and the decisions' reasons. Removed at

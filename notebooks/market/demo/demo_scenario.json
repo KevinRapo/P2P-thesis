@@ -8,9 +8,6 @@
     "v_min_pu": 0.95,
     "v_max_pu": 1.05,
     "line_max_percent": 100.0,
-    "method": "powerflow",
-    "graph_capacity": "paper",
-    "graph_total_kw": null,
     "load_scale": 1.0,
     "generation_scale": 1.0,
     "storage_scale": 1.0

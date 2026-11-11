@@ -92,11 +92,11 @@ def supply_demand_imbalance(history) -> float:
 
 
 def grid_congestion(history) -> float:
-    """Mean line loading as a ratio, from the loading the fees used."""
+    """Mean line loading of the power flow as a ratio."""
     means = [
         statistics.fmean(loading.values()) / 100.0
         for r in history
-        if (loading := (r.signal or r.grid).line_loading_percent)
+        if (loading := r.grid.line_loading_percent)
     ]
     return statistics.fmean(means) if means else NAN
 

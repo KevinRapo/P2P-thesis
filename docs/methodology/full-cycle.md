@@ -110,7 +110,6 @@ Every quantity of the environment step and the market step, with the phase that 
 | Trading profit | eq. 14 | 4, 6 | [`settle`](../../core/market/agent/der.py#L237-L274), [`pay_fees`](../../core/market/agent/der.py#L276-L286) | `ParticipantOutcome.profit`, `Participant.profit` |
 | Injection at the bus | | 5 | [`injection`](../../core/market/agent/der.py#L289-L300) | – |
 | Bus voltages, line loading, network losses | | 5 | [`SimBenchGrid.assess`](../../core/grid/powerflow.py#L187-L234) | `StepRecord.grid` |
-| Graph line loading | $\zeta_e$ | 5 (graph) | [`GraphGrid.assess`](../../core/grid/graph.py#L52-L82) | `StepRecord.signal` |
 | Congestion of a trade | $C_t$ | 6 | [`Dso.congestion`](../../core/market/dso.py#L174-L179) | – |
 | Voltage drop | $V_\text{drop}$ | 6 | [`Dso.voltage_drop_of`](../../core/market/dso.py#L163-L172) | – |
 | Fee parts, total, split | eq. 8 | 6 | [`fees_of`](../../core/market/dso.py#L186-L217), [`imbalance_fee`](../../core/market/dso.py#L219-L236), [`_charged`](../../core/market/dso.py#L238-L257) | `Trade.fee_parts`, `fees`, `buyer_fee`, `seller_fee` |

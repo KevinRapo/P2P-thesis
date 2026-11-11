@@ -49,7 +49,7 @@ gives overwrite the base (``overwrite``: inside a section only the values it nam
 a list as a whole). It may give any field but ``NOT_IN_A_VARIANT``, so that the
 grid of runs stays algorithms x paradigms x variants x seeds, e.g.
 {"big": {"model": {"fcnet_hiddens": [768, 768]}, "budget": 480000},
-"graph": {"scenario": {"grid": {"method": "graph"}}}}. ``scenario`` may also name
+"free": {"scenario": {"dso": {"fees_charged": false}}}}. ``scenario`` may also name
 another file. A variant's ``dso.prices`` replaces the base's as a whole.
 ``Experiment.arm`` gives an arm as a complete experiment; a started experiment saves
 it in the folder of each of the arm's runs, as ``experiment.json`` and ``scenario.json``,

@@ -7,8 +7,7 @@ for decisions are in the [decision log](decisions.md).
 
 ## Where the work stands
 
-The workflow runs end to end: the market on SimBench with an AC power flow, both grid
-methods, PPO with the mixed action in three paradigms, the runner, the held-out
+The workflow runs end to end: the market on SimBench with an AC power flow, PPO with the mixed action in three paradigms, the runner, the held-out
 evaluation and the Studio. The learner is ready for the market by the probe criteria
 (RP-2a), and PPO's settings are chosen (RP-6b). Missing: a scenario in which the grid
 matters, and evidence that PPO learns the market.
@@ -21,14 +20,12 @@ the list and waits.
 
 ### 1. A scenario in which the grid matters
 
-On SimBench's networks no fee is charged, so the grid-method comparison would show
+On SimBench's networks no fee is charged, so a market without grid stress would show
 nothing. **Check, without learning:** a stress level (MP-4i) × the policy
-`net_position` and the ceiling's plan × both grid methods: line and transformer
-loading, voltages, and how often each fee is charged. The level where `net_position`
-without fees violates some hours but not all is the comparison's scenario. With it:
-the graph model's parameters (MP-4e, the total capacity calibrated against the power
-flow), the fee values (MP-4f), then the value of stored energy at midnight (MP-1c) and
-the peer charge (MP-4h). Settles section 1. The expected result is written down
+`net_position` and the ceiling's plan: line and transformer loading, voltages, and
+how often each fee is charged. The level where `net_position` without fees violates
+some hours but not all is the experiment's scenario. With it: the fee values (MP-4f),
+then the value of stored energy at midnight (MP-1c) and the peer charge (MP-4h). Settles section 1. The expected result is written down
 before the check runs.
 
 ### 2. First learning on the market
@@ -57,9 +54,8 @@ Section 3, mostly on paper: how runs are compared (L-03), seeds (L-17), CTCE's r
 
 ### 4. The final runs
 
-The three paradigms on the market, then the grid-method comparison
-([Grid methods experiment](../experiments/thesis/grid-methods.md)), every arm with all
-seeds, then the analysis.
+The three paradigms on the thesis experiment (RL on the power flow of the chosen
+network; the details come later), every arm with all seeds, then the analysis.
 
 ### Alongside
 

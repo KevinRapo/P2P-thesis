@@ -79,17 +79,15 @@ def trade(price: float, quantity: float, stage: int = 2) -> Trade:
     return Trade("b", "s", price, quantity, 0.0, stage=stage)
 
 
-def step(orders=(), trades=(), price=0.5, loading=None, signal=None):
+def step(orders=(), trades=(), price=0.5, loading=None):
     """The parts of a ``StepRecord`` the KPIs read."""
     grid = SimpleNamespace(line_loading_percent=loading or {})
-    graph = SimpleNamespace(line_loading_percent=signal) if signal else None
 
     return SimpleNamespace(
         orders=tuple(orders),
         trades=list(trades),
         clearing_price=price,
         grid=grid,
-        signal=graph,
     )
 
 
@@ -178,10 +176,10 @@ def test_congestion_is_the_mean_loading_as_a_ratio():
     assert both == pytest.approx((0.75 + 0.25) / 2)
 
 
-def test_congestion_reads_the_loading_the_fees_used_and_skips_steps_without():
-    graph = step(loading={"a": 90.0}, signal={"a": 20.0})
-    assert kpi("grid_congestion", [graph]) == pytest.approx(0.2)
+def test_congestion_skips_steps_without_a_loading():
     assert math.isnan(kpi("grid_congestion", [step()]))
+    both = kpi("grid_congestion", [step(), step(loading={"a": 20.0})])
+    assert both == pytest.approx(0.2)
 
 
 @pytest.mark.parametrize("history", [[], [step()]])

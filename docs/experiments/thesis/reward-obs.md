@@ -1,20 +1,20 @@
 # Reward and observation
 
 > The original's reward and observation against ours. **Status: set up, not
-> run;** to be outlined like [Grid methods](grid-methods.md).
+> run;** to be outlined.
 
 ## Scenario
 
-For now the grid-method experiment's scenario,
+For now the thesis scenario,
 [`thesis_rural3_p13.json`](../../../config/scenarios/thesis_rural3_p13.json), on the
 power flow:
 
 | Setting | Value | Why |
 |---|---|---|
-| Network | `1-LV-rural3--2-sw`: 13 participants on 13 of its 43 prosumer buses; the other 30 buses follow their SimBench profiles as background | Large enough to learn reliably, and the background is what the graph model cannot see ([Market runs](../market-s3.md)) |
+| Network | `1-LV-rural3--2-sw`: 13 participants on 13 of its 43 prosumer buses; the other 30 buses follow their SimBench profiles as background | Large enough to learn reliably, and the background is part of what the power flow sees ([Market runs](../market-s3.md)) |
 | Prices | `de_2024`: German day-ahead prices of 2024 as a dynamic tariff ([Prices](../../using/data/prices.md)) | Real prices that change every hour |
 | Peer charge | 0: [P1]'s market | MP-4h is open ([Tariffs](../../methodology/market/tariffs.md#the-decision-mp-4h)) |
-| Grid | AC power flow; voltage drop measured along the trade's path | The power flow is this thesis's grid ([Grid methods](../../methodology/market/grid-methods.md)) |
+| Grid | AC power flow; voltage drop measured along the trade's path | The power flow is this thesis's grid ([Market step](../../methodology/market/step.md#5-grid)) |
 | Days | Training on June 2016; held-out test on 1-14 July 2016 | Summer: PV, so surplus to trade |
 | Learning | PPO with [RLlib defaults as changed here](../../methodology/learning/index.md#2-everything-we-change-in-rllibs-ppo), no tuning; 240k environment steps; 5 seeds (0-4) | The budget and seeds are provisional (L-14, L-17) |
 | Evaluation | 10 points during training, 5 episodes each; every test day once at the end | Held-out bill per participant (`heldout_agents.csv`) |

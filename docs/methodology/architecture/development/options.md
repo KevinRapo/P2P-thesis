@@ -34,9 +34,8 @@ The reward's and the observation's names are also listed in
 Ray, and a test fails when the two lists differ.
 
 Other choices are a fixed list in the function that uses them, because each option is a
-formula of a few lines: the grid method (`grid.method`), the voltage drop
-(`dso.voltage_drop`), the graph model's capacity rule (`grid.graph_capacity`) and the
-pricing mechanism (`market.mechanism`). Adding one of those means editing that
+formula of a few lines: the voltage drop (`dso.voltage_drop`) and the pricing
+mechanism (`market.mechanism`). Adding one of those means editing that
 function; if one of them grows a third or fourth option, it moves to the pattern above.
 
 ## Worked example: a loss rule

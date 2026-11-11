@@ -2,9 +2,8 @@
 by hand.
 
 Each probe (``core/market/probes.py``) plays four participants on a SimBench LV
-network with scripted orders over five midday steps, once with the power flow and
-once with the graph method, and checks the market against values worked out from
-the profiles. The page shows, per probe, what it isolates, its orders and what a
+network with scripted orders over five midday steps, and checks the market against
+values worked out from the profiles. The page shows, per probe, what it isolates, its orders and what a
 correct market gives; the checks of each step (PASS/FAIL); and the step played
 out: the trades of every stage with their fees, the participants and the DSO.
 
@@ -21,11 +20,9 @@ from nicegui import run, ui
 from core.market.probes import Check, ProbeRun
 from studio.adapters.validation_service import ValidationService
 from studio.components.cards import key_values, placeholder, section
-from studio.components.memory import keep, recalled, remember
+from studio.components.memory import keep, recalled
 from studio.components.tables import data_table, trades_table
 from studio.state import services
-
-METHODS = {"powerflow": "Power flow", "graph": "Graph model"}
 
 
 # --------------------------------------------------------------------------------------
@@ -40,37 +37,27 @@ def _color(text: str) -> str:
     return "positive" if text.startswith("PASS") else "negative"
 
 
-def _summary(runs: list[ProbeRun], service: ValidationService) -> None:
+def _summary(runs: list[ProbeRun]) -> None:
     rows = []
 
-    for key in dict.fromkeys(r.probe.key for r in runs):
-        own = {r.method: r for r in runs if r.probe.key == key}
-        row = {"key": key, "title": next(iter(own.values())).probe.title}
-
-        for method in METHODS:
-            row[method] = _verdict(list(own[method].checks))
-            row[f"{method}_color"] = _color(row[method])
-
-        row["same"] = _verdict(service.same_market(key))
-        row["same_color"] = _color(row["same"])
-        rows.append(row)
+    for r in runs:
+        result = _verdict(list(r.checks))
+        rows.append(
+            {
+                "key": r.probe.key,
+                "title": r.probe.title,
+                "result": result,
+                "result_color": _color(result),
+            }
+        )
 
     data_table(
         rows,
-        [
-            ("key", "Probe"),
-            ("title", "Shows"),
-            ("powerflow", "Power flow"),
-            ("graph", "Graph model"),
-            ("same", "Same market on both"),
-        ],
+        [("key", "Probe"), ("title", "Shows"), ("result", "Checks passed")],
         row_key="key",
-        badge_columns={m: f"{m}_color" for m in (*METHODS, "same")},
+        badge_columns={"result": "result_color"},
     )
-    ui.label(
-        "Checks passed of all steps. Same market: the same trades (stage, seller, "
-        "buyer, kWh, price) with either grid method; only the fees may differ."
-    ).classes("mls-card-caption")
+    ui.label("Checks passed of all steps.").classes("mls-card-caption")
 
 
 def _checks_table(checks: list[Check]) -> None:
@@ -152,7 +139,7 @@ def _people_table(record) -> None:
 # The page
 # --------------------------------------------------------------------------------------
 class ProbesView:
-    """The summary of every probe, and one probe on one method, one step at a time.
+    """The summary of every probe, and one probe, one step at a time.
 
     Args:
         service: The Validation service.
@@ -170,24 +157,20 @@ class ProbesView:
             self.note = ui.label().classes("mls-card-caption")
 
         # Card: the summary table of every probe (filled by load())
-        with section("Every probe", "Played on both grid methods", "rule"):
+        with section("Every probe", "Played on the power flow", "rule"):
             self.summary = ui.column().classes("w-full")
 
-        # Selector row for the detail below: probe | grid method | step
+        # Selector row for the detail below: probe | step
         with ui.row().classes("w-full items-center gap-3"):
             self.probe = ui.select({}, label="Probe", on_change=self._draw).classes(
                 "grow"
             )
-            self.method = ui.radio(
-                METHODS, value="powerflow", on_change=self._draw
-            ).props("inline")
             self.step = ui.select({}, label="Step", on_change=self._draw).classes(
                 "w-40"
             )
 
         # The selected probe's cards (filled by _draw())
         self.detail = ui.column().classes("w-full gap-4")
-        remember(self.method, "market_probes_method")
 
         # The probes and steps are not known yet: load() brings those two back
         self.probe.on_value_change(lambda e: keep("market_probes_probe", e.value))
@@ -196,7 +179,7 @@ class ProbesView:
     async def load(self, again: bool = False) -> None:
         self.again.props("loading")
         self.note.set_text(
-            "Playing the probes on both grid methods ..."
+            "Playing the probes ..."
             if again or not self.service.played
             else ""
         )
@@ -218,7 +201,7 @@ class ProbesView:
         self.summary.clear()
 
         with self.summary:
-            _summary(self.runs, self.service)
+            _summary(self.runs)
 
         probes = {r.probe.key: f"{r.probe.key} · {r.probe.title}" for r in self.runs}
         first = recalled("market_probes_probe", next(iter(probes)), probes)
@@ -230,7 +213,7 @@ class ProbesView:
 
     def _run(self) -> Optional[ProbeRun]:
         for r in self.runs:
-            if r.probe.key == self.probe.value and r.method == self.method.value:
+            if r.probe.key == self.probe.value:
                 return r
         return None
 
@@ -257,7 +240,7 @@ class ProbesView:
 
             with section(
                 f"Checks at {record.step:02d}:00",
-                f"{METHODS[found.method]}: {_verdict(checks)}; the expected values "
+                f"{_verdict(checks)}; the expected values "
                 "are worked out from this step's profiles and tariffs",
                 "fact_check",
             ):
@@ -282,15 +265,10 @@ class ProbesView:
                     "DSO energy revenue": f"{d.energy_revenue:.4f}",
                     "Fees collected": f"{d.fees:.4f}",
                     "Clearing price": f"{record.clearing_price:.4f}",
-                    "Power flow: highest line loading %": (
+                    "Highest line loading %": (
                         f"{g.max_line_loading_percent:.2f}"
                     ),
                 }
-
-                if record.signal is not None:
-                    shown["Graph model: highest line loading % (the fees')"] = (
-                        f"{record.signal.max_line_loading_percent:.2f}"
-                    )
 
                 key_values(shown)
 
@@ -304,8 +282,8 @@ def tab() -> ProbesView:
     """The probes view (built into the Market page's Probes tab). The page calls its
     ``load`` when the tab is first opened, so the probes play only when asked for."""
     ui.label(
-        "Tiny scripted market cases whose outcome is known by hand, played on both "
-        "grid methods: each isolates one part of the market step."
+        "Tiny scripted market cases whose outcome is known by hand: each isolates "
+        "one part of the market step."
     ).classes("mls-card-caption")
     view = ProbesView(services().validation)
 
