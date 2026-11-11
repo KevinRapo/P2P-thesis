@@ -10,8 +10,9 @@ network is, which fees the stress triggers, and what the rule earns.
     play(scenario, days)          one row per step (``steps``), the line loadings and
                                   bus voltages per step, and their summary
     sweep(scenario, days, ...)    the same for each value of one scenario setting,
-                                  e.g. ``grid.generation_scale`` (MP-4i), as one
-                                  summary row per value
+                                  e.g. ``grid.generation_scale`` (MP-4i): each
+                                  value's ``Baseline``; ``overview`` puts their
+                                  summaries in one table
 
 No Studio code and no RL: the Studio's Market page (Baseline tab), a notebook or the
 command line call the same functions. A window is played step by step, about 0.1 s a
@@ -141,12 +142,12 @@ def sweep(
     setting: str,
     values: Sequence[float],
     progress: Optional[Callable[[int, int], None]] = None,
-) -> pd.DataFrame:
+) -> dict[float, Baseline]:
     """The baseline for each value of one setting, ``"<section>.<field>"`` of the
-    scenario (e.g. ``"grid.generation_scale"``): one ``summary`` row per value, the
-    scenario itself unchanged."""
+    scenario (e.g. ``"grid.generation_scale"``), by value; the scenario itself
+    unchanged."""
     section, name = setting.split(".")
-    rows = []
+    found = {}
     per = len(days) * round(24 / scenario.grid.step_hours)
 
     for k, value in enumerate(values):
@@ -155,9 +156,14 @@ def sweep(
         tick = None
         if progress is not None:
             tick = lambda done, _total, k=k: progress(k * per + done, per * len(values))
-        rows.append({setting: value, **play(trial, days, tick).summary()})
+        found[value] = play(trial, days, tick)
 
-    return pd.DataFrame(rows)
+    return found
+
+
+def overview(runs: dict[float, Baseline], setting: str) -> pd.DataFrame:
+    """One ``summary`` row per value of a sweep, ``setting`` naming the column."""
+    return pd.DataFrame([{setting: v, **b.summary()} for v, b in runs.items()])
 
 
 def _row(day: str, record: StepRecord, market: LocalEnergyMarket) -> dict:

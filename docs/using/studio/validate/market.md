@@ -39,9 +39,10 @@ opens it.
 - **Overview:** per value, the highest and 95th-percentile line loading, the
   transformer's highest, the lowest and highest voltage, the steps with a violation,
   losses, fees and team money.
-- **Over the window and the network:** for the scenario as it is, the highest line and
-  transformer loading and the voltage band per step, and the network at the step with
-  the highest line loading, lines coloured by loading, buses by voltage.
+- **Over the window and the network:** for the run picked under the overview (*Charts
+  below show*), the highest line and transformer loading and the voltage band per step,
+  and the network at that run's step with the highest line loading, lines coloured by
+  loading, buses by voltage.
 
 ## Probes
 

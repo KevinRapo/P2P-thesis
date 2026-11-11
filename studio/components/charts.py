@@ -796,7 +796,11 @@ class NetworkChart(Chart):
                 cmin=0,
                 cmax=100,
                 showscale=True,
-                colorbar=dict(title="Line loading %", thickness=12, x=1.1),
+                colorbar=dict(
+                    title=dict(text="Line loading %", side="right"),
+                    thickness=12,
+                    x=1.16,
+                ),
             ),
             hoverinfo="skip",
             showlegend=False,
@@ -840,7 +844,7 @@ class NetworkChart(Chart):
                     colorscale="RdYlGn",
                     cmin=0.93,
                     cmax=1.05,
-                    colorbar=dict(title="V (pu)", thickness=12),
+                    colorbar=dict(title=dict(text="V (pu)", side="right"), thickness=12),
                 )
             else:
                 marker["color"] = _bus_color(kind)

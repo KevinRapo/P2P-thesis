@@ -3,7 +3,8 @@ window of days, before any learning.
 
 Every participant follows the market's rule without its noise, the evaluation's
 ``net_position`` baseline (``core/market/baseline.py``), on the scenario as the
-Scenario page left it. The tab shows how stressed the network gets (loading, voltages,
+Scenario page left it, or once per value of a sweep; the charts show the run picked
+under the overview. The tab shows how stressed the network gets (loading, voltages,
 violations), which fees that triggers and what the rule earns, and the network at the
 step with the highest line loading. A sweep tries several values of one scaling factor
 (``grid.load_scale``, ``generation_scale``, ``storage_scale``, MP-4i) without saving
@@ -19,7 +20,7 @@ from nicegui import run, ui
 
 from core.grid.contract import NetworkRef
 from core.market import baseline
-from studio.components.cards import busy, failed, key_values, section
+from studio.components.cards import busy, failed, section
 from studio.components.charts import NetworkChart, SeriesChart, VoltageChart
 from studio.components.tables import data_table
 from studio.state import services
@@ -62,7 +63,7 @@ def tab() -> None:
     """Controls on top; the sweep's table; the window over time and the network at
     its worst step."""
     s = services()
-    state: dict[str, Any] = {"busy": False, "done": 0, "total": 0, "result": None}
+    state: dict[str, Any] = {"busy": False, "done": 0, "total": 0, "runs": {}}
 
     with section(
         "Baseline",
@@ -82,7 +83,11 @@ def tab() -> None:
         progress = ui.linear_progress(value=0, show_value=False).classes("w-full")
         progress.visible = False
 
-    with section("Overview", "One row per value of the sweep", "table_rows"):
+    with section(
+        "Overview",
+        "One row per value of the sweep; the charts below show the row picked",
+        "table_rows",
+    ):
         table_box = ui.column().classes("w-full")
 
     with ui.row().classes("w-full gap-4 items-stretch no-wrap"):
@@ -143,13 +148,11 @@ def tab() -> None:
 
         try:
             if factor.value:
-                table = await run.io_bound(
+                runs = await run.io_bound(
                     baseline.sweep, scenario, days, f"grid.{factor.value}", numbers, tick
                 )
-            else:
-                table = None
-
-            result = await run.io_bound(baseline.play, scenario, days, tick)
+            else:  # the scenario as it is, under its own value of nothing swept
+                runs = {None: await run.io_bound(baseline.play, scenario, days, tick)}
             source = NetworkRef("simbench", scenario.grid.code)
             topology = await run.io_bound(s.grid.topology, source)
         except Exception as error:  # noqa: BLE001  show the error on the page
@@ -159,8 +162,9 @@ def tab() -> None:
             state["busy"] = False
             progress.visible = False
 
-        state["result"] = result
-        render(table, result, topology, scenario)
+        state.update(runs=runs, topology=topology, scenario=scenario)
+        overview(runs)
+        show(next(iter(runs)))
 
     def use(value: float) -> None:
         setattr(s.scenario.current().grid, factor.value, value)
@@ -168,35 +172,40 @@ def tab() -> None:
         ui.notify(f"{FACTORS[factor.value]}{value:g} saved in the scenario")
         describe()
 
-    def render(table, result, topology, scenario) -> None:
-        for box in (table_box, time_box, network_box):
-            box.clear()
+    def label(value) -> str:
+        return "as it is" if value is None else f"{FACTORS[factor.value]}{value:g}"
+
+    def overview(runs: dict) -> None:
+        """The summary per value, and the pick of which one the charts show."""
+        table_box.clear()
 
         with table_box:
-            if table is None:
-                key_values(
-                    {label: _shown(result.summary()[key]) for key, label in SUMMARY}
-                )
-            else:
-                name = f"grid.{factor.value}"
-                rows = [
-                    {"id": i, "value": f"×{r[name]:g}"}
-                    | {key: _shown(r[key]) for key, _ in SUMMARY}
-                    for i, r in table.iterrows()
-                ]
-                data_table(rows, [("value", FACTORS[factor.value])] + SUMMARY)
-                with ui.row().classes("items-end gap-2"):
-                    pick = ui.select(
-                        {float(v): f"×{v:g}" for v in table[name]}, label="Value"
-                    ).classes("w-32")
+            rows = [
+                {"id": k, "value": label(v)}
+                | {key: _shown(b.summary()[key]) for key, _ in SUMMARY}
+                for k, (v, b) in enumerate(runs.items())
+            ]
+            data_table(rows, [("value", "Run")] + SUMMARY)
+
+            with ui.row().classes("items-end gap-2"):
+                shown = ui.select(
+                    {k: label(v) for k, v in enumerate(runs)},
+                    value=0,
+                    label="Charts below show",
+                    on_change=lambda e: show(list(runs)[e.value]),
+                ).classes("w-56")
+                if factor.value:
                     ui.button(
                         "Use in the scenario",
-                        on_click=lambda: pick.value is not None and use(pick.value),
+                        on_click=lambda: use(list(runs)[shown.value]),
                     ).props("outline no-caps")
-                ui.label(
-                    "Over time and the network below: the scenario's own values."
-                ).classes("mls-card-caption")
 
+    def show(value) -> None:
+        """The charts of one run: loading and voltages over the window, the network
+        at its worst step."""
+        result = state["runs"][value]
+        time_box.clear()
+        network_box.clear()
         steps = result.steps
         x = [
             f"{d} {int(h):02d}:{round(h % 1 * 60):02d}"
@@ -204,12 +213,13 @@ def tab() -> None:
         ]
 
         with time_box:
+            ui.label(label(value)).classes("mls-card-caption")
             LoadingChart(
                 x=x,
                 line=steps.max_line_loading_percent.tolist(),
                 trafo=steps.max_trafo_loading_percent.tolist(),
             ).show()
-            g = scenario.grid
+            g = state["scenario"].grid
             VoltageChart(
                 x=x,
                 highest=steps.max_voltage_pu.tolist(),
@@ -223,9 +233,11 @@ def tab() -> None:
                 ui.label("No converged step.").classes("mls-card-caption")
             else:
                 row = steps.iloc[worst]
-                ui.label(f"{row.day}, step {int(row.step)}").classes("mls-card-caption")
+                ui.label(f"{label(value)}: {row.day}, step {int(row.step)}").classes(
+                    "mls-card-caption"
+                )
                 NetworkChart(
-                    topology=topology,
+                    topology=state["topology"],
                     loading=result.line_loading.iloc[worst].dropna().to_dict(),
                     voltages=result.bus_voltage.iloc[worst].dropna().to_dict(),
                 ).show()

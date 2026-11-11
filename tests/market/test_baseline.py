@@ -58,7 +58,9 @@ def test_the_summary_adds_up_the_steps(played):
 
 def test_a_sweep_plays_each_value_and_leaves_the_scenario_alone():
     scenario = store.load(SCENARIO)
-    table = baseline.sweep(scenario, DAYS[:1], "grid.generation_scale", [1.0, 3.0])
+    runs = baseline.sweep(scenario, DAYS[:1], "grid.generation_scale", [1.0, 3.0])
+    table = baseline.overview(runs, "grid.generation_scale")
+    assert set(runs) == {1.0, 3.0} and len(runs[3.0].steps) == 24
     assert list(table["grid.generation_scale"]) == [1.0, 3.0]
     assert scenario.grid.generation_scale == 1.0
     # Three times the PV pushes more power into the lines at noon.
