@@ -36,7 +36,8 @@ def fake_services(saved: list):
 @pytest.mark.anyio
 async def test_a_sweep_plays_and_saves_nothing_until_asked(monkeypatch):
     saved: list = []
-    monkeypatch.setattr(tab_module, "services", lambda: fake_services(saved))
+    fake = fake_services(saved)
+    monkeypatch.setattr(tab_module, "services", lambda: fake)
 
     async def root() -> None:
         tab_module.tab()
@@ -44,12 +45,16 @@ async def test_a_sweep_plays_and_saves_nothing_until_asked(monkeypatch):
     async with user_simulation(root) as user:
         await user.open("/")
         await user.should_see("validate_market: 5 participants")
-        sweep = next(iter(user.find("Sweep").elements))
-        sweep.value = "generation_scale"
-        values = next(iter(user.find("Values").elements))
-        values.value = "1, 2"
+        generation = next(iter(user.find("Generation × values").elements))
+        generation.value = "2, 1"
+        load = next(iter(user.find("Load × values").elements))
+        load.value = "1.5"
         user.find("Play").click()
 
-        # One day under each value, then once more as it is: a few seconds
+        # Two combinations of one day: a few seconds
         await user.should_see("Use in the scenario", retries=600)
+        await user.should_see("Generation ×2, Load ×1.5")
         assert saved == []  # the sweep changed nothing
+        user.find("Use in the scenario").click()  # the row shown first: ×2, ×1.5
+        assert saved == [2.0]
+        assert fake.scenario.current().grid.load_scale == 1.5

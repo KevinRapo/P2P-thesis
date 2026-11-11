@@ -9,10 +9,11 @@ network is, which fees the stress triggers, and what the rule earns.
 
     play(scenario, days)          one row per step (``steps``), the line loadings and
                                   bus voltages per step, and their summary
-    sweep(scenario, days, ...)    the same for each value of one scenario setting,
-                                  e.g. ``grid.generation_scale`` (MP-4i): each
-                                  value's ``Baseline``; ``overview`` puts their
-                                  summaries in one table
+    sweep(scenario, days, values) the same for every combination of the values of
+                                  some settings, e.g. ``grid.generation_scale`` and
+                                  ``grid.load_scale`` (MP-4i): each one's
+                                  ``Baseline``; ``overview`` puts their summaries in
+                                  one table
 
 No Studio code and no RL: the Studio's Market page (Baseline tab), a notebook or the
 command line call the same functions. A window is played step by step, about 0.1 s a
@@ -23,7 +24,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Sequence
+from itertools import product
+from typing import Callable, Mapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -139,31 +141,32 @@ def play(
 def sweep(
     scenario: Scenario,
     days: Sequence[str],
-    setting: str,
-    values: Sequence[float],
-    progress: Optional[Callable[[int, int], None]] = None,
-) -> dict[float, Baseline]:
-    """The baseline for each value of one setting, ``"<section>.<field>"`` of the
-    scenario (e.g. ``"grid.generation_scale"``), by value; the scenario itself
-    unchanged."""
-    section, name = setting.split(".")
+    values: Mapping[str, Sequence[float]],
+) -> dict[tuple[float, ...], Baseline]:
+    """The baseline for every combination of the ``values`` of some settings, each
+    ``"<section>.<field>"`` of the scenario (e.g. ``{"grid.generation_scale": [1, 2],
+    "grid.load_scale": [1, 3]}``: four runs), keyed by the combination in the order
+    of ``values``; the scenario itself unchanged."""
+    settings = list(values)
     found = {}
-    per = len(days) * round(24 / scenario.grid.step_hours)
 
-    for k, value in enumerate(values):
+    for combination in product(*(values[s] for s in settings)):
         trial = deepcopy(scenario)
-        setattr(getattr(trial, section), name, value)
-        tick = None
-        if progress is not None:
-            tick = lambda done, _total, k=k: progress(k * per + done, per * len(values))
-        found[value] = play(trial, days, tick)
+        for setting, value in zip(settings, combination):
+            section, name = setting.split(".")
+            setattr(getattr(trial, section), name, value)
+        found[tuple(combination)] = play(trial, days)
 
     return found
 
 
-def overview(runs: dict[float, Baseline], setting: str) -> pd.DataFrame:
-    """One ``summary`` row per value of a sweep, ``setting`` naming the column."""
-    return pd.DataFrame([{setting: v, **b.summary()} for v, b in runs.items()])
+def overview(
+    runs: Mapping[tuple[float, ...], Baseline], settings: Sequence[str]
+) -> pd.DataFrame:
+    """One ``summary`` row per run of a sweep, a column per swept setting."""
+    return pd.DataFrame(
+        [{**dict(zip(settings, key)), **b.summary()} for key, b in runs.items()]
+    )
 
 
 def _row(day: str, record: StepRecord, market: LocalEnergyMarket) -> dict:

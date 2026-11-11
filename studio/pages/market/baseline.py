@@ -3,12 +3,13 @@ window of days, before any learning.
 
 Every participant follows the market's rule without its noise, the evaluation's
 ``net_position`` baseline (``core/market/baseline.py``), on the scenario as the
-Scenario page left it, or once per value of a sweep; the charts show the run picked
-under the overview. The tab shows how stressed the network gets (loading, voltages,
-violations), which fees that triggers and what the rule earns, and the network at the
-step with the highest line loading. A sweep tries several values of one scaling factor
-(``grid.load_scale``, ``generation_scale``, ``storage_scale``, MP-4i) without saving
-them; *Use in the scenario* saves the one picked.
+Scenario page left it, or once per combination of a sweep; the charts show the run
+picked under the overview. The tab shows how stressed the network gets (loading,
+voltages, violations), which fees that triggers and what the rule earns, and the
+network at the step with the highest line loading. A sweep gives values to any of the
+scaling factors (``grid.load_scale``, ``generation_scale``, ``storage_scale``, MP-4i)
+and plays every combination, without saving them; *Use in the scenario* saves the one
+picked.
 """
 
 from __future__ import annotations
@@ -28,7 +29,6 @@ from studio.theme import MARKET
 
 MAX_DAYS = 31  # longer windows: core.market.baseline from a notebook
 FACTORS = {
-    "": "No sweep: the scenario as it is",
     "generation_scale": "Generation ×",
     "load_scale": "Load ×",
     "storage_scale": "Storage ×",
@@ -76,13 +76,17 @@ def tab() -> None:
         with ui.row().classes("w-full items-end gap-3"):
             start = ui.input("From (YYYY-MM-DD)").classes("w-44")
             end = ui.input("To (YYYY-MM-DD)").classes("w-44")
-            factor = ui.select(FACTORS, value="", label="Sweep").classes("w-72")
-            values = ui.input("Values", value="1, 1.5, 2, 3").classes("w-48")
+            # A factor's values, comma-separated; empty: the scenario's own
+            fields = {
+                name: ui.input(f"{text} values").classes("w-44")
+                for name, text in FACTORS.items()
+            }
             play_button = ui.button("Play", icon="play_arrow").props("unelevated no-caps")
 
     with section(
         "Overview",
-        "One row per value of the sweep; the charts below show the row picked",
+        "One row per combination of the values swept; the charts below show the "
+        "row picked",
         "table_rows",
     ):
         table_box = ui.column().classes("w-full")
@@ -124,7 +128,11 @@ def tab() -> None:
 
         try:
             days = window()
-            numbers = [float(v) for v in values.value.split(",")] if factor.value else []
+            values = {
+                f"grid.{name}": [float(v) for v in field.value.split(",")]
+                for name, field in fields.items()
+                if (field.value or "").strip()
+            }
         except ValueError as error:
             ui.notify(str(error), type="negative")
             return
@@ -134,12 +142,8 @@ def tab() -> None:
         busy(table_box, "Playing the window …")
 
         try:
-            if factor.value:
-                runs = await run.io_bound(
-                    baseline.sweep, scenario, days, f"grid.{factor.value}", numbers
-                )
-            else:  # the scenario as it is, under its own value of nothing swept
-                runs = {None: await run.io_bound(baseline.play, scenario, days)}
+            # Without values a sweep of nothing: the scenario as it is, key ()
+            runs = await run.io_bound(baseline.sweep, scenario, days, values)
             source = NetworkRef("simbench", scenario.grid.code)
             topology = await run.io_bound(s.grid.topology, source)
         except Exception as error:  # noqa: BLE001  show the error on the page
@@ -148,18 +152,24 @@ def tab() -> None:
         finally:
             state["busy"] = False
 
-        state.update(runs=runs, topology=topology, scenario=scenario)
+        state.update(runs=runs, topology=topology, scenario=scenario, swept=list(values))
         overview(runs)
         show(next(iter(runs)))
 
-    def use(value: float) -> None:
-        setattr(s.scenario.current().grid, factor.value, value)
+    def use(key: tuple) -> None:
+        for setting, value in zip(state["swept"], key):
+            setattr(s.scenario.current().grid, setting.split(".")[1], value)
         s.scenario.save()
-        ui.notify(f"{FACTORS[factor.value]}{value:g} saved in the scenario")
+        ui.notify(f"{label(key)} saved in the scenario")
         describe()
 
-    def label(value) -> str:
-        return "as it is" if value is None else f"{FACTORS[factor.value]}{value:g}"
+    def label(key: tuple) -> str:
+        if not key:
+            return "as it is"
+        return ", ".join(
+            f"{FACTORS[setting.split('.')[1]]}{value:g}"
+            for setting, value in zip(state["swept"], key)
+        )
 
     def overview(runs: dict) -> None:
         """The summary per value, and the pick of which one the charts show."""
@@ -180,7 +190,7 @@ def tab() -> None:
                     label="Charts below show",
                     on_change=lambda e: show(list(runs)[e.value]),
                 ).classes("w-56")
-                if factor.value:
+                if state["swept"]:
                     ui.button(
                         "Use in the scenario",
                         on_click=lambda: use(list(runs)[shown.value]),

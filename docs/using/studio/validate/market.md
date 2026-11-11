@@ -33,10 +33,11 @@ opens it.
 
 - **The window:** *From* and *To*, up to 31 days (longer: `baseline.play` from a
   notebook). The batteries and reputations carry over from day to day.
-- **A sweep (optional):** one scaling factor (generation, load or storage, MP-4i) at
-  several values, each played over the window. Nothing is saved; *Use in the
-  scenario* saves the value picked.
-- **Overview:** per value, the highest and 95th-percentile line loading, the
+- **A sweep (optional):** values for any of the scaling factors (generation, load,
+  storage ×, MP-4i), comma-separated; a factor left empty keeps the scenario's value.
+  Every combination is played over the window: generation 1, 2, 3 with load 1, 2 is six
+  runs. Nothing is saved; *Use in the scenario* saves the combination picked.
+- **Overview:** per combination, the highest and 95th-percentile line loading, the
   transformer's highest, the lowest and highest voltage, the steps with a violation,
   losses, fees and team money.
 - **Over the window and the network:** for the run picked under the overview (*Charts
