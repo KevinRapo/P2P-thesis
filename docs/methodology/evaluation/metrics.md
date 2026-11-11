@@ -66,7 +66,7 @@ hide the trade-offs the six show.
 $\text{net}_t$ is the participants' netted consumption at step $t$: their demand and
 charging less their generation and discharging, summed over all of them, without the
 network's other loads. Consumption and production are its two sides summed over the
-horizon. The references are in [How a run is judged](index.md#four-yardsticks).
+horizon. The references are in [How a run is judged](index.md#three-yardsticks).
 
 ## B. Money
 
@@ -78,14 +78,12 @@ surplus at the feed-in tariff and its untraded deficit at the utility price (MP-
 |---|---|---|---|---|
 | Team money ★ | `team_money` | The participants' `bill` summed | step, day | Validation |
 | Gain over net position ★ | `gain_net_position` | Team money minus the run's own `net_position`, same day | day | Validation |
-| Gain over zero | `gain_zero` | The same against `zero` | day | Validation (*On the test days*) |
 | Stored change ★ | `stored_change_kwh` | kWh left in the batteries against the start of the day. Money alone favours draining them, so it stands next to team money | step, day | Validation |
-| Better off than zero | `participants_better` | Participants whose `bill` beats their `zero` bill that day | day | Validation |
-| Worst participant's gain | `worst_participant_gain` | The lowest of the participants' gains over `zero` | day | Validation |
+| Better off than alone | `participants_better` | Participants whose `bill` beats their own `non_p2p` money that day | day | Validation |
+| Worst participant's gain | `worst_participant_gain` | The lowest of the participants' gains over their own `non_p2p` money | day | Validation |
 | Fees, peer charge | `fees`, `peer_charge` | Eq. 8 grid fees, and the charge per peer kWh | step, day | Market |
 | Buyers' and sellers' gain | `buyer_gain`, `seller_gain` | What the peer trades were worth against the tariffs: the buyer's utility price minus what it paid (net of the peer charge), the seller's price minus the feed-in tariff | day | Market |
 | DSO money | `dso_money` | The DSO's energy money: its trades, the untraded energy at retail, every fee | day | Market |
-| Share of the reachable gain | `reachable_share` | Gain over zero over what netting alone could add, without batteries: a rough, older VTI | day | the notebook only |
 
 ## C. Market behaviour
 
@@ -140,7 +138,7 @@ included, whichever `grid.method` set the fees; a flow that did not converge cou
 | Upstream import, export | `grid_import_kwh`, `grid_export_kwh` | Energy from and to the upstream grid | step, day | Grid |
 | Peak import, export | `peak_import_kw`, `peak_export_kw` | The highest of them, kW | day | Grid |
 | Load factor | `load_factor` | Mean import over peak import | day | Grid |
-| Peak reduction | `peak_reduction_kw` | `zero`'s peak import minus the policy's | day | Grid |
+| Peak reduction | `peak_reduction_kw` | `net_position`'s peak import minus the policy's | day | Grid |
 | Losses, trade losses, their ratio | `grid_losses_kwh`, `trade_losses_kwh`, `trade_loss_ratio` | The power flow's losses; [P1] eq. 18's estimate for the trades; that estimate per kWh traded | step, day | Grid |
 | Fee signal error | `fee_error_mean`, `fee_error_worst` | Fee loading minus measured loading, percentage points: the grid-method comparison in one number | step, day | Grid |
 | Flows not converged | `not_converged` | Steps whose power flow did not converge | step, day | Grid, a warning on Validation |

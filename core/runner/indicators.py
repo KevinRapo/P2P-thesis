@@ -26,10 +26,12 @@ import numpy as np
 import pandas as pd
 
 TRAINED = "trained"
-# The two outer references, computed rather than played: every participant on its own
-# (the ``zero`` policy, its spilled surplus sold at the feed-in tariff), and the most
-# money the test period allows (``ceiling.py``).
+# The two outer references, computed rather than played (``ceiling.py``): every
+# participant on its own with the retailer, its battery timed with perfect foresight,
+# and the most money the test period allows. Between them the one played baseline,
+# the market's bidding rule.
 NON_P2P = "non_p2p"
+NET_POSITION = "net_position"
 CEILING = "ceiling"
 KEYS = ["policy", "day"]
 DSO = "DSO"  # core.market.dso.DSO_ID (a test compares them), like ``KPIS`` below
@@ -109,13 +111,11 @@ INDICATORS = (
     Indicator("gain_net_position", "Gain over net position", "EUR", "validation", True),
     Indicator("stored_change_kwh", "Stored change", "kWh", "validation", True),
     Indicator(
-        "participants_better", "Better off than zero", "participants", "validation"
+        "participants_better", "Better off than alone", "participants", "validation"
     ),
-    Indicator("gain_zero", "Gain over zero", "EUR", "validation"),
     Indicator(
         "worst_participant_gain", "Worst participant's gain", "EUR", "validation"
     ),
-    Indicator("reachable_share", "Share of the reachable gain", "", "validation"),
     # Market: how was the energy traded?
     Indicator("p2p_kwh", "Peer energy", "kWh", "market", True),
     Indicator("trading_ratio", "Trading ratio", "", "market", True),
@@ -153,7 +153,7 @@ INDICATORS = (
     Indicator("peak_import_kw", "Peak import", "kW", "grid"),
     Indicator("peak_export_kw", "Peak export", "kW", "grid"),
     Indicator("load_factor", "Load factor", "", "grid"),
-    Indicator("peak_reduction_kw", "Peak reduction (batteries)", "kW", "grid"),
+    Indicator("peak_reduction_kw", "Peak reduction against net position", "kW", "grid"),
     Indicator("mean_line_loading", "Mean line loading", "%", "grid"),
     Indicator("grid_losses_kwh", "Losses", "kWh", "grid"),
     Indicator("trade_losses_kwh", "Trade losses", "kWh", "grid"),
@@ -212,30 +212,25 @@ def day_table(
     ``ceiling`` (``ceiling.ceiling_days``) adds the money ceiling as a policy of its
     own: its team money, stored change and gains over the baselines; it plays no
     market, so everything else stays NaN. ``alone`` (``ceiling.alone_days``: each
-    participant's own optimum with the retailer) adds ``non_p2p`` the same way;
-    without it, with the step tables, ``non_p2p`` falls back to the ``zero`` policy
-    settled at retail (``non_p2p_bills``). With both references, every policy's VTI,
-    PI and EI over its test period (``_period_scores``). ``day_references``
-    (``ceiling.day_references``: every day its own horizon) adds the same three per
-    day (``_day_scores``: ``vti_day``, ``pi_day``, ``ei_day``)."""
+    participant's own optimum with the retailer) adds ``non_p2p`` the same way, and
+    is what ``participants_better`` and ``worst_participant_gain`` compare each
+    participant with. With both references, every policy's VTI, PI and EI over its
+    test period (``_period_scores``). ``day_references`` (``ceiling.day_references``:
+    every day its own horizon) adds the same three per day (``_day_scores``:
+    ``vti_day``, ``pi_day``, ``ei_day``)."""
     out = episodes.set_index(KEYS).reindex(columns=_COPIED)
     team = agents.groupby(KEYS).sum(numeric_only=True).reindex(columns=_TEAM)
     out["team_money"] = team["bill"]
     out["unmet_kwh"] = team["deferred_demand_kwh"]
     out["spilled_kwh"] = team["deferred_supply_kwh"]
     out["stored_change_kwh"] = team["stored_change_kwh"]
+    days = out.index.get_level_values("day")
+    played = set(out.index.get_level_values("policy"))
 
-    for baseline in ("zero", "net_position"):
-        base = out.team_money.xs(baseline, level="policy")
-        days = out.index.get_level_values("day")
-        out[f"gain_{baseline}"] = out.team_money - days.map(base)
+    if NET_POSITION in played:
+        base = out.team_money.xs(NET_POSITION, level="policy")
+        out["gain_net_position"] = out.team_money - days.map(base)
 
-    own = agents.set_index([*KEYS, "agent"]).bill
-    zero = own.xs("zero", level="policy").reindex(own.index.droplevel("policy"))
-    better = own.to_numpy() > zero.to_numpy()
-    out["participants_better"] = pd.Series(better, own.index).groupby(KEYS).sum()
-    gains = pd.Series(own.to_numpy() - zero.to_numpy(), own.index)
-    out["worst_participant_gain"] = gains.groupby(KEYS).min()
     traded = out.p2p_kwh + out.bought_from_dso_kwh + out.sold_to_dso_kwh
     out["trade_loss_ratio"] = out.trade_losses_kwh / traded.where(traded > 0)
 
@@ -243,27 +238,26 @@ def day_table(
         out = out.join(_step_indicators(steps))
         out = out.join(_agent_step_indicators(steps, agent_steps))
         out = out.join(_community_indicators(agent_steps))
-        gap = out.reachable_money - days.map(out.team_money.xs("zero", level="policy"))
-        out["reachable_share"] = out.gain_zero / gap.where(gap > 0)
-        peak = out.peak_import_kw
-        out["peak_reduction_kw"] = days.map(peak.xs("zero", level="policy")) - peak
+        if NET_POSITION in played:
+            peak = out.peak_import_kw
+            base = peak.xs(NET_POSITION, level="policy")
+            out["peak_reduction_kw"] = days.map(base) - peak
 
         if trades is not None:
             out = out.join(_trade_indicators(trades, steps, agent_steps, out.index))
 
-    own = alone
+    if alone is not None:
+        # Each participant against its own non-P2P money (on its own with the
+        # retailer, its battery timed with perfect foresight), day by day.
+        own = agents.set_index([*KEYS, "agent"]).bill
+        floor = alone.set_index(["day", "agent"]).bill
+        at = own.index.droplevel("policy")
+        gains = pd.Series(own.to_numpy() - floor.reindex(at).to_numpy(), own.index)
+        out["participants_better"] = (gains > 0).groupby(KEYS).sum()
+        out["worst_participant_gain"] = gains.groupby(KEYS).min()
 
-    if own is None and steps is not None and agent_steps is not None:
-        own = non_p2p_bills(agent_steps, steps)
-
-    if own is not None:
-        team = own.groupby("day").bill.sum()
-
-        if "stored_change_kwh" in own:
-            stored = own.groupby("day").stored_change_kwh.sum()
-        else:
-            stored = out.stored_change_kwh.xs("zero", level="policy")
-
+        team = alone.groupby("day").bill.sum()
+        stored = alone.groupby("day").stored_change_kwh.sum()
         row = pd.DataFrame(
             {"team_money": team, "stored_change_kwh": stored.reindex(team.index)}
         )
@@ -273,8 +267,8 @@ def day_table(
     if ceiling is not None:
         out = _with_reference(out, ceiling)
 
-    if own is not None and ceiling is not None:
-        out = out.join(_period_scores(out, agents, own))
+    if alone is not None and ceiling is not None:
+        out = out.join(_period_scores(out, agents, alone))
 
     if day_references is not None and day_references[0] is not None:
         out = out.join(_day_scores(out, agents, *day_references))
@@ -283,42 +277,16 @@ def day_table(
 
 
 def _with_reference(out: pd.DataFrame, top: pd.DataFrame) -> pd.DataFrame:
-    """``out`` with a reference's rows (a policy that plays no market), its gains over
-    the played baselines added."""
+    """``out`` with a reference's rows (a policy that plays no market), its gain over
+    the played baseline added."""
     top = top.reindex(columns=out.columns)
     on = top.index.get_level_values("day")
 
-    for baseline in ("zero", "net_position"):
-        base = out.team_money.xs(baseline, level="policy")
-        top[f"gain_{baseline}"] = top.team_money - on.map(base)
+    if NET_POSITION in set(out.index.get_level_values("policy")):
+        base = out.team_money.xs(NET_POSITION, level="policy")
+        top["gain_net_position"] = top.team_money - on.map(base)
 
     return pd.concat([out, top])
-
-
-def non_p2p_bills(
-    agent_steps: pd.DataFrame, steps: pd.DataFrame
-) -> Optional[pd.DataFrame]:
-    """Each participant's money on its own, per test day: the ``zero`` policy (no
-    orders, each battery following its owner's own balance), with the surplus it
-    spilled sold at the feed-in tariff and its untraded demand bought at the utility
-    price. A row per day and agent: ``period``, ``bill``. None without ``zero``."""
-    need = {"deferred_demand_kwh", "deferred_supply_kwh"}
-    zero = agent_steps[agent_steps.policy == "zero"]
-
-    if zero.empty or not need <= set(zero) or "feed_in_tariff" not in steps:
-        return None
-
-    tariffs = steps[steps.policy == "zero"].set_index(["day", "step"])
-    at = pd.MultiIndex.from_frame(zero[["day", "step"]])
-    fit = tariffs.feed_in_tariff.reindex(at).to_numpy()
-    util = tariffs.utility_price.reindex(at).to_numpy()
-    money = fit * zero.deferred_supply_kwh - util * zero.deferred_demand_kwh
-    period = zero.period if "period" in zero else "all"
-    found = zero.assign(bill=money.to_numpy(), period=period)
-
-    return found.groupby(["day", "agent"], as_index=False).agg(
-        period=("period", "first"), bill=("bill", "sum")
-    )
 
 
 def _period_scores(
@@ -527,15 +495,6 @@ def _agent_step_indicators(
     demand = a.demand_kwh.groupby(by_day).sum()
     last = a[a.step == a.step.max()].groupby(KEYS).reputation.mean()
 
-    # The money of a community that nets each step perfectly, without batteries: its
-    # deficit at the utility price, its surplus at the feed-in tariff, and no peer
-    # charge on what it nets (the tables hold what was paid, not the rate).
-    team = a.groupby([*KEYS, "step"])[["generation_kwh", "demand_kwh"]].sum()
-    tariffs = steps.set_index([*KEYS, "step"])
-    surplus = team.generation_kwh - team.demand_kwh
-    money = surplus.clip(lower=0.0) * tariffs.feed_in_tariff.reindex(team.index)
-    money += surplus.clip(upper=0.0) * tariffs.utility_price.reindex(team.index)
-
     return pd.DataFrame(
         {
             "trading_ratio": (amounts.bought_kwh + amounts.sold_kwh) / (need + spare),
@@ -546,7 +505,6 @@ def _agent_step_indicators(
             "no_order_share": (a.side == "none").groupby(by_day).mean(),
             "buy_share": (a.side == "buy").groupby(by_day).mean(),
             "sell_share": (a.side == "sell").groupby(by_day).mean(),
-            "reachable_money": money.groupby(KEYS).sum(),
         }
     )
 

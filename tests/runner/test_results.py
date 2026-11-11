@@ -26,7 +26,8 @@ def write(path: Path, data) -> None:
 
 def make_run(exp_dir: Path, name: str, seed: int, trained: list[float], **record):
     """A completed run whose trained policy scores ``trained`` on the two days; the
-    baselines score -10 (zero) and -6 (net_position) on both."""
+    baseline net_position scores -6 on both. ``zero``, which runs before 11 Nov 2026
+    also played, scores -10 and is left out when the tables are read."""
     run = exp_dir / name
     write(run / "status.json", {"state": "completed", "budget": 100, "index": seed})
     write(
@@ -273,7 +274,7 @@ def test_participant_metrics_are_long(where):
     runs = results.load_runs(results.find_runs(where))
     people = results.participant_metrics(runs)
     p1 = people[(people.key == "local/grid/ppo_dtde_s0") & (people.agent == "P1")]
-    assert len(p1) == 3 * 2 * 2  # policies x days x metrics
+    assert len(p1) == 2 * 2 * 2  # policies (zero left out) x days x metrics
     assert {"paradigm", "variant", "day"} <= set(people.columns)
     assert "seed" in people and people.metric.nunique() == 2  # not the episode's seed
     assert results.participant_metrics([]).empty
@@ -308,7 +309,8 @@ def test_participant_days(where):
     runs = {r.key: r for r in results.load_runs(results.find_runs(where))}
     table = results.participant_days(runs["local/grid/ppo_dtde_s0"])
     assert len(table) == 2 * 2  # days x participants
-    assert set(table.trained_minus_zero) == {(-8 + 10) / 2, (-9 + 10) / 2}
+    assert set(table.trained_minus_net_position) == {(-8 + 6) / 2, (-9 + 6) / 2}
+    assert "trained_minus_zero" not in table  # zero is left out when read
     assert results.participant_days(runs["local/old/sac_ctce_s3"]).empty
 
 

@@ -43,10 +43,10 @@ def trades():
 
 
 def tables():
-    """Two policies and ``zero``'s twin on two days of two steps, two participants."""
+    """Two policies on two days of two steps, two participants."""
     episodes, agents, steps, agent_steps = [], [], [], []
 
-    for policy, gain in (("trained", 3.0), ("zero", 0.0), ("net_position", 1.0)):
+    for policy, gain in (("trained", 3.0), ("net_position", 1.0)):
         for day in DAYS:
             episodes.append(
                 {
@@ -83,7 +83,8 @@ def tables():
                         "peer_price": 0.2 if step else np.nan,
                         "feed_in_tariff": 0.1,
                         "utility_price": 0.3,
-                        "grid_import_kwh": (2 if policy == "zero" else 1) * (step + 1),
+                        "grid_import_kwh": (2 if policy == "net_position" else 1)
+                        * (step + 1),
                         "mean_line_loading_percent": 20.0 + step,
                         "grid_export_kwh": step * 12.0,
                         "voltage_violations": step,
@@ -119,6 +120,17 @@ def tables():
     return tuple(pd.DataFrame(t) for t in (episodes, agents, steps, agent_steps))
 
 
+def alone():
+    """Each participant's non-P2P money on each day: P1 0, P2 -1 (``alone_days``)."""
+    return pd.DataFrame(
+        [
+            {"day": d, "agent": a, "bill": b, "stored_change_kwh": 0.0, "period": "p"}
+            for d in DAYS
+            for a, b in (("P1", 0.0), ("P2", -1.0))
+        ]
+    )
+
+
 def test_the_kpis_are_the_markets():
     assert set(indicators.KPIS) == set(KPIS)
 
@@ -128,10 +140,10 @@ def test_the_dso_is_the_markets():
 
 
 def test_a_day_of_a_run():
-    day = day_table(*tables()).loc[("trained", "d1")]
+    day = day_table(*tables(), alone=alone()).loc[("trained", "d1")]
     assert day.team_money == 2.0
-    assert day.gain_zero == 3.0 and day.gain_net_position == 2.0
-    assert day.participants_better == 1
+    assert day.gain_net_position == 2.0
+    assert day.participants_better == 1  # P1 beats its 0 alone; P2 only equals its -1
     assert day.peak_import_kw == 2 / 12 and day.peak_export_kw == 1.0  # 12 h steps
     assert day.hours_over_limit == 12.0
     assert day.fee_error_mean == 10.0 and day.fee_error_worst == 10.0
@@ -142,8 +154,6 @@ def test_a_day_of_a_run():
     assert day.battery_throughput_kwh == 2.0
     assert day.end_reputation == 0.6
     assert day.buy_share == 0.5 and day.no_order_share == 0.0
-    money = 2 * 1 * 0.1  # a surplus of 1 at each step, at the feed-in tariff
-    assert day.reachable_share == pytest.approx(3.0 / (money - -1.0))
 
 
 def test_the_indicators_of_the_trades():
@@ -175,8 +185,8 @@ def test_the_dso_is_paid_for_the_demand_left_untraded_and_the_buyer_pays_the_cha
 
 
 def test_the_indicators_of_the_other_tables():
-    day = day_table(*tables()).loc[("trained", "d1")]
-    assert day.worst_participant_gain == 0.0  # P2's bill is the same under zero
+    day = day_table(*tables(), alone=alone()).loc[("trained", "d1")]
+    assert day.worst_participant_gain == 0.0  # P2's bill is the same as alone
     assert day.self_sufficiency == pytest.approx(1 - 1 / 4)
     assert day.load_factor == pytest.approx(1.5 / 2)
     assert day.peak_reduction_kw == pytest.approx(2 / 12)
@@ -223,12 +233,12 @@ def two_rewards(other_days=("d1", "d2")):
             rows.append(
                 (f"a{seed}", seed, "ctde", "bill", day, "trained", offset + seed)
             )
-            rows.append((f"a{seed}", seed, "ctde", "bill", day, "zero", -5.0))
+            rows.append((f"a{seed}", seed, "ctde", "bill", day, "net_position", -5.0))
 
         for day, offset in zip(other_days, (0.0, 10.0)):
             value = offset + seed + 2.0
             rows.append((f"b{seed}", seed, "ctde", "salazar", day, "trained", value))
-            rows.append((f"b{seed}", seed, "ctde", "salazar", day, "zero", -5.0))
+            rows.append((f"b{seed}", seed, "ctde", "salazar", day, "net_position", -5.0))
 
     return long(rows)
 
@@ -245,7 +255,7 @@ def test_baselines_are_one_row_however_many_runs():
 
 
 def test_against_its_own_baseline():
-    found = indicators.against_baseline(two_rewards(), "zero")
+    found = indicators.against_baseline(two_rewards(), "net_position")
     assert set(found.policy) == {"trained"}
     assert found[found.key == "a0"].value.tolist() == [5.0, 15.0]
 

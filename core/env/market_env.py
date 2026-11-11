@@ -195,9 +195,9 @@ The grid amounts are the AC power flow's (the whole network, background
 included), whatever ``grid.method``; a flow that did not converge counts 0 for
 them.
 
-Baselines (``zero_policy``, ``net_position_policy``) map an observation dict to
-an action dict, for a reference return and for tests; ``baseline_policies``
-gives both to the RL layer's evaluation.
+Baselines map an observation dict to an action dict: ``net_position_policy``, the
+market's bidding rule, is the one ``baseline_policies`` gives the RL layer's
+evaluation; ``zero_policy`` (no orders) stays for tests.
 
 ``env_config`` keys (JSON-serialisable, so RLlib can pass it to its workers):
 
@@ -452,9 +452,9 @@ class MarketEnv(MultiAgentEnv):
         }
 
     def baseline_policies(self, seed: int = 0) -> dict[str, Callable]:
-        """The market's baselines, by name: never trade, and the market's own
-        bidding rule."""
-        return {"zero": zero_policy(self), "net_position": net_position_policy(self)}
+        """The market's played baseline, by name: its own bidding rule. (The other
+        references, ``non_p2p`` and the ceiling, are calculated, not played.)"""
+        return {"net_position": net_position_policy(self)}
 
     # --- Episodes --------------------------------------------------------------------
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):  #! Episode: reset (one day)

@@ -75,14 +75,14 @@ def held_out():
             demand = 2.0 if (agent == "P1" and day == "d2") else 0.0
             rows.append(
                 {
-                    "policy": "zero", "day": day, "period": "p", "step": 0,
+                    "policy": "net_position", "day": day, "period": "p", "step": 0,
                     "agent": agent, "generation_kwh": g, "demand_kwh": demand,
                     # P2 starts at 1 kWh and its first step does not change it
                     "soc": 0.1 if agent == "P2" else np.nan,
                     "stored_change_kwh": 0.0,
                 }
             )
-        steps.append({"policy": "zero", "day": day, "period": "p", "step": 0,
+        steps.append({"policy": "net_position", "day": day, "period": "p", "step": 0,
                       "feed_in_tariff": fit, "utility_price": util})
     battery = dict(capacity_kwh=10.0, min_soc=0.0, max_soc=1.0, charge_efficiency=1.0,
                    discharge_efficiency=1.0, initial_soc=0.5, max_power_kw=100.0)
@@ -116,9 +116,9 @@ def test_without_the_tables_there_is_no_ceiling():
 
 def test_the_ceiling_is_a_policy_of_the_day_table():
     episodes = pd.DataFrame(
-        [{"policy": p, "day": d} for p in ("trained", "zero", "net_position") for d in ("d1", "d2")]
+        [{"policy": p, "day": d} for p in ("trained", "net_position") for d in ("d1", "d2")]
     )
-    agents = episodes.assign(agent="P1", bill=[1.0, 1.0, -1.0, -1.0, 0.0, 0.0],
+    agents = episodes.assign(agent="P1", bill=[1.0, 1.0, 0.0, 0.0],
                              deferred_demand_kwh=0.0, deferred_supply_kwh=0.0,
                              stored_change_kwh=0.0)
     top = pd.DataFrame(
@@ -127,39 +127,29 @@ def test_the_ceiling_is_a_policy_of_the_day_table():
     ).set_index(["policy", "day"])
     day = day_table(episodes, agents, ceiling=top).loc[(POLICY, "d2")]
     assert day.team_money == 6.0
-    assert day.gain_zero == 7.0 and day.gain_net_position == 6.0
+    assert day.gain_net_position == 6.0
     assert np.isnan(day.participants_better)
 
 
 # --------------------------------------------------------------------------------------
 # Non-P2P, VTI and PI: one period of two one-step days, feed-in 0.1, utility 0.5
 # --------------------------------------------------------------------------------------
-def alone_tables():
-    zero = pd.DataFrame(
-        [
-            # P1 spills 2 kWh on d1 and lacks 1 on d2; P2 lacks 2 on d2.
-            ("d1", "P1", 0.0, 2.0), ("d2", "P1", 1.0, 0.0),
-            ("d1", "P2", 0.0, 0.0), ("d2", "P2", 2.0, 0.0),
-        ],
-        columns=["day", "agent", "deferred_demand_kwh", "deferred_supply_kwh"],
-    ).assign(policy="zero", step=0, period="p")
-    steps = pd.DataFrame(
-        {"policy": "zero", "day": ["d1", "d2"], "step": 0,
-         "feed_in_tariff": 0.1, "utility_price": 0.5}
+def alone_bills():
+    """Each participant on its own, one period of two days (``alone_days``): P1 spills
+    2 kWh on d1 (0.2 at a feed-in of 0.1) and lacks 1 on d2 (-0.5 at 0.5); P2 lacks
+    2 on d2 (-1.0)."""
+    return pd.DataFrame(
+        {"day": ["d1", "d2", "d1", "d2"], "agent": ["P1", "P1", "P2", "P2"],
+         "bill": [0.2, -0.5, 0.0, -1.0], "period": "p"}
     )
-    return zero, steps
-
-
-def test_on_their_own_the_spilled_surplus_earns_the_feed_in_tariff():
-    own = indicators.non_p2p_bills(*alone_tables()).set_index(["day", "agent"]).bill
-    assert own[("d1", "P1")] == pytest.approx(0.2)  # 2 kWh at 0.1
-    assert own[("d2", "P1")] == pytest.approx(-0.5)
-    assert own[("d2", "P2")] == pytest.approx(-1.0)
 
 
 def test_vti_and_pi_over_the_period():
-    own = indicators.non_p2p_bills(*alone_tables())  # team: 0.2, then -1.5
-    bills = {"trained": ([0.0, 0.0], [-0.5, -0.6]), "zero": ([0.0, -0.5], [0.0, -1.0])}
+    own = alone_bills()  # team: 0.2, then -1.5
+    bills = {
+        "trained": ([0.0, 0.0], [-0.5, -0.6]),
+        "net_position": ([0.0, -0.5], [0.0, -1.0]),
+    }
     agents = pd.DataFrame(
         [
             {"policy": p, "day": d, "agent": a, "bill": b}
@@ -182,11 +172,11 @@ def test_vti_and_pi_over_the_period():
     # Period sums: non-P2P -1.3, ceiling 1.7, so 3.0 to reach.
     assert scores.vti[("trained", "d1")] == pytest.approx((-1.1 + 1.3) / 3.0)
     assert scores.vti[("trained", "d2")] == scores.vti[("trained", "d1")]  # per period
-    assert scores.vti[("zero", "d1")] == pytest.approx((-1.5 + 1.3) / 3.0)
+    assert scores.vti[("net_position", "d1")] == pytest.approx((-1.5 + 1.3) / 3.0)
     assert scores.vti[(POLICY, "d1")] == 1.0 and scores.vti[(indicators.NON_P2P, "d1")] == 0
     # P1 beats its -0.3 on its own with 0; P2's -1.1 does not beat -1.0.
     assert scores.pi[("trained", "d1")] == 0.5
-    assert scores.pi[("zero", "d1")] == 0.0  # equal is not better
+    assert scores.pi[("net_position", "d1")] == 0.0  # equal is not better
     assert np.isnan(scores.pi[(POLICY, "d1")])
 
 
@@ -204,7 +194,7 @@ def test_equality_stays_in_bounds_with_losses():
 
 
 def test_ei_over_the_period_is_on_the_gains():
-    own = indicators.non_p2p_bills(*alone_tables())
+    own = alone_bills()
     agents = pd.DataFrame(
         [{"policy": "trained", "day": d, "agent": a, "bill": b}
          for a, bills in (("P1", (0.0, 0.0)), ("P2", (-0.5, -0.6)))
@@ -255,8 +245,8 @@ def test_alone_the_battery_owner_trades_its_own_hours():
     rows = [("d", s, "P", 0.0, 1.0, 0.0, 0.0) for s in (0, 1)]
     agent_steps = pd.DataFrame(rows, columns=["day", "step", "agent", "generation_kwh",
                                               "demand_kwh", "soc", "stored_change_kwh"])
-    agent_steps = agent_steps.assign(policy="zero", period="p")
-    steps = pd.DataFrame({"policy": "zero", "day": "d", "period": "p", "step": [0, 1],
+    agent_steps = agent_steps.assign(policy="net_position", period="p")
+    steps = pd.DataFrame({"policy": "net_position", "day": "d", "period": "p", "step": [0, 1],
                           "feed_in_tariff": 0.0, "utility_price": [0.2, 0.5]})
     battery = dict(capacity_kwh=10.0, min_soc=0.0, max_soc=1.0, charge_efficiency=1.0,
                    discharge_efficiency=1.0, initial_soc=0.0, max_power_kw=100.0)

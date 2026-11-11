@@ -55,7 +55,7 @@ def overview_table() -> pd.DataFrame:
         ("d", 0, "salazar", -9.0),
     ):
         for indicator in validation.HEADLINES:
-            for policy, value in (("trained", money), ("zero", -5.0)):
+            for policy, value in (("trained", money), ("net_position", -5.0)):
                 rows.append(
                     {
                         "key": key,
@@ -133,7 +133,7 @@ async def test_a_row_opens_on_its_median_seed():
         view.open("Market")
         assert opened == ["Market"] and tab.selection.run == "b"
         view.reference.value = "bill"
-        view.view.value = "zero"
+        view.view.value = "net_position"
 
 
 @pytest.mark.anyio
@@ -196,10 +196,10 @@ PEOPLE = [
 
 def run_with(people, bills: dict[str, tuple[float, float]]):
     """A run's reader with a scenario of ``people``; ``bills``: per agent, its bill
-    under the trained policy and under zero."""
+    under the trained policy and under net_position."""
     table = pd.DataFrame(
         {
-            "policy": ["trained", "zero"] * len(bills) * 2,
+            "policy": ["trained", "net_position"] * len(bills) * 2,
             "day": [d for d in ("d1", "d2") for _ in range(2 * len(bills))],
             "agent": [a for a in bills for _ in range(2)] * 2,
             "bill": [b for one in bills.values() for b in one] * 2,
@@ -223,8 +223,14 @@ def test_participants_are_grouped_by_what_they_own():
     assert results.participant_groups(run_with("scenario.json", {})) == {}
 
 
-def test_a_participant_gains_its_bill_over_zero():
-    bills = {"P1": (-1.0, -4.0), "P2": (-3.0, -2.0)}
+def test_a_participant_gains_its_bill_over_its_own(monkeypatch):
+    """The gain is the trained bill minus the participant's non-P2P money."""
+    alone = pd.DataFrame(
+        {"day": ["d1", "d2"] * 2, "agent": ["P1", "P1", "P2", "P2"],
+         "bill": [-4.0, -4.0, -2.0, -2.0]}
+    )
+    monkeypatch.setattr(results, "non_p2p_of", lambda result: alone)
+    bills = {"P1": (-1.0, -9.0), "P2": (-3.0, -9.0)}
     found = results.participant_gains([run_with({"participants": PEOPLE}, bills)])
     assert list(found.key) == ["k", "k"]
     assert list(found.agent) == ["P1", "P2"]
@@ -279,7 +285,7 @@ def trade_rows() -> pd.DataFrame:
         ("trained", "d1", 0, "P3", "P1", 0.3, 1.0, 2),
         ("trained", "d2", 1, "P1", "P10", 0.25, 4.0, 2),
         ("trained", "d2", 1, "DSO", "P1", 0.4, 5.0, 3),
-        ("zero", "d1", 0, "P2", "P3", 0.2, 9.0, 2),
+        ("net_position", "d1", 0, "P2", "P3", 0.2, 9.0, 2),
     ]
     frame = pd.DataFrame(
         rows,
@@ -294,7 +300,7 @@ def test_the_matrix_sums_the_peer_trades_of_a_policy():
     kwh = trade_matrix(trade_rows(), "trained", "kwh")
     assert list(kwh.index) == ["P1", "P2", "P3", "P10"]  # P2 before P10
     assert kwh.loc["P1", "P2"] == 2.0 and kwh.loc["P10", "P1"] == 4.0
-    assert np.isnan(kwh.loc["P2", "P3"])  # the zero policy's, and no trade
+    assert np.isnan(kwh.loc["P2", "P3"])  # the other policy's, and no trade
     assert trade_matrix(trade_rows(), "trained", "money").loc["P1", "P3"] == 0.3
     assert trade_matrix(trade_rows(), "trained", "count").loc["P1", "P2"] == 1
     every = trade_matrix(trade_rows(), "trained", "kwh", ["P7", "P2"])

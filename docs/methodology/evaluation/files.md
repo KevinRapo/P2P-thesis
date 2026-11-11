@@ -5,7 +5,7 @@ what is not here can only be computed if the numbers it needs are here. The
 [tab pages](../../using/studio/experiments/results/index.md) say what is drawn from them.
 
 The templates show one real record of a run with 13 participants, hourly steps and 14
-test days, with `trained`, `random`, `zero` and `net_position` on the test days (runs
+test days, with `trained`, `random` and `net_position` on the test days (runs
 since 4 Nov 2026 no longer play `random` there). Counts
 are for `obs_reward`, 240,000 environment steps, 10 evaluation points, 5 evaluation
 episodes, with the tables written since; the step tables' sizes are estimates.
@@ -104,7 +104,7 @@ more, so they are wide; read them in a table viewer or the Studio, not as text.
 | Column | Example | Meaning |
 |---|---|---|
 | `env_steps` | 0 | the evaluation point |
-| `policy` | trained | `trained`, `zero`, `net_position`; `random` at step 0 |
+| `policy` | trained | `trained`, `net_position`; `random` at step 0 (runs before 11 Nov 2026 also `zero`, left out when read) |
 | `team_return_mean` | -2.2549 | over the episodes |
 | `team_return_std` | 0.5083 | over the episodes |
 | `episodes` | 5 | |

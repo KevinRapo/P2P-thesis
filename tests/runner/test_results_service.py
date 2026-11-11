@@ -49,7 +49,7 @@ def test_an_experiment_in_a_folder_is_a_run_like_any_other(tmp_path):
         "local/plain/ppo_dtde_s0",
         "local/test/moved/ppo_dtde_s0",
     ]  # the mirror's runs once, under its target
-    assert len(service.table("local/test/moved/ppo_dtde_s0", "heldout")) == 3
+    assert len(service.table("local/test/moved/ppo_dtde_s0", "heldout")) == 2  # no zero
     service.refresh([("local", "test/moved")])
     assert "local/test/moved/ppo_dtde_s0" in {r.key for r in service.results()}
 
@@ -116,7 +116,7 @@ def test_baselines_are_each_runs_own_unless_they_are_the_same():
                 {
                     "key": key,
                     "env_steps": 0,
-                    "policy": "zero",
+                    "policy": "net_position",
                     "team_return_mean": zero,
                 },
                 {
@@ -153,5 +153,5 @@ def test_baselines_are_each_runs_own_unless_they_are_the_same():
     assert len(shared.data) == 2 and len(shared.layout.shapes) == 1  # one grey line
     own = figure(curves(-10, -20))
     names = [t.name for t in own.data]
-    assert "x/a: zero" in names and "x/b: zero" in names  # each run's own
+    assert "x/a: net_position" in names and "x/b: net_position" in names  # each run's own
     assert len(own.layout.shapes) == 0

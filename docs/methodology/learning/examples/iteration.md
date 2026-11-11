@@ -595,7 +595,7 @@ again after its iteration.
 outside the bounds or entropy in fixed states,
 [`part_stats`](../../../../core/rl/policy.py#L520-L570)), stops the run on a NaN or
 infinite loss or entropy ([`_nonfinite`](../../../../core/rl/train.py#L346-L363)), and
-evaluates the policy and the baselines (random, zero, net position) whenever the
+evaluates the policy and the baselines (random, net position) whenever the
 budget of environment steps reaches the next evaluation point. Hyperparameters stay
 fixed during a run; the run ends when the budget is used.
 

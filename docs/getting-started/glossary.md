@@ -52,7 +52,7 @@
 | **Budget** | The number of environment steps a run trains for |
 | **Target** | Where an experiment runs: `local` (this PC) or `taltech` (the SLURM cluster) |
 | **Test profile** | An experiment's smallest version (`--profile test`), to check it starts |
-| **Baselines** | Fixed policies played on the test days next to the trained one: random, zero, net position |
+| **Baselines** | What a trained policy is compared with: net position, the market's rule, played on the test days; non-P2P and the ceiling, calculated |
 | **Ceiling** | The most money the community could make on the test days, with perfect foresight ([evaluation](../methodology/evaluation/index.md#the-ceiling)) |
 | **Non-P2P** | Every participant on its own with the DSO, its battery used as well as it could be. The reference "no market" |
 | **VTI** | Value tapping index: the share of the gap from non-P2P to the ceiling that the policy reaches. 0 = no better than on their own, 1 = the ceiling ([metrics](../methodology/evaluation/metrics.md)) |

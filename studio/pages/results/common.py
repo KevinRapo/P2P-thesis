@@ -27,9 +27,9 @@ from studio.components.memory import keep, recalled
 from studio.components.run_table import cell
 from studio.components.tables import data_table
 
-# The policies of the evaluation tables: the trained one and the two baselines.
-POLICIES = {"trained": "Trained", "zero": "Zero", "net_position": "Net position"}
-BASELINES = {"zero": "zero", "net_position": "net position"}
+# The policies of the evaluation tables: the trained one and the played baseline.
+POLICIES = {"trained": "Trained", "net_position": "Net position"}
+BASELINES = {"net_position": "net position"}
 # What a line can stand for: the run, or what the runs differ in.
 BY = {
     "key": "Run",

@@ -33,10 +33,10 @@ the highest return were the ones that lost the most money:
 | Bill reward | +0.77 | 0.09 |
 | Salazar reward | −19.44 | 3175 |
 
-## Four yardsticks
+## Three yardsticks
 
-Two **baselines** are policies the evaluation plays on the same market and test days
-as the trained one. Two **references** are calculated from the run's tables without
+One **baseline** is a policy the evaluation plays on the same market and test days as
+the trained one. Two **references** are calculated from the run's tables without
 playing the market, so they have money only: no trades, fees or power flow.
 
 | Name | Kind | What it is | Role |
@@ -44,11 +44,12 @@ playing the market, so they have money only: no trades, fees or power flow.
 | **`ceiling`** | calculated | One planner with perfect foresight for the whole community ([below](#the-ceiling)) | 1 on the VTI scale |
 | **`non_p2p`** | calculated | Every participant alone with the retailer, its own battery timed with perfect foresight ([below](#the-floor-non_p2p)) | 0 on the VTI scale; each participant's own floor in PI and EI |
 | **`net_position`** | played | The market's bidding rule ([`net_position_policy`](../../../core/env/market_env.py#L935-L974)): the battery first takes the surplus or covers the deficit it can; the rest is offered at $p_\text{FiT} + 0.3\,(p_\text{util} - p_\text{FiT})$ or asked for at $p_\text{util} - 0.3\,(p_\text{util} - p_\text{FiT})$, with no partner and no jitter | What learning has to beat |
-| **`zero`** | played | No orders: each battery passively takes its owner's surplus and covers its deficit; the rest is settled at the tariffs (MP-1e) | Doing nothing in the market |
 
-- **`net_position` and `zero` move the same energy.** The rule lets the battery act
-  first, and trades move no energy, so the two differ in money only: peer prices
-  and fees. Their grid and technical indices are identical.
+Runs before 11 November 2026 also played `zero`, no orders at all. With the retail
+settlement (MP-1e) it is `non_p2p` with passive batteries, and the rule moves the same
+energy, so it added nothing the other three do not show; their `zero` rows are left
+out when their tables are read.
+
 - **`net_position` is the rule without its noise.** The rule for non-RL
   participants ([`rule_based_bid.net_position`](../../../core/market/agent/rule_based_bid.py#L64-L108))
   adds a price jitter and a preferred partner (`bid_jitter`, `partner_preference`).

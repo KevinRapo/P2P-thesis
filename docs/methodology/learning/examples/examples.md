@@ -284,8 +284,7 @@ and training can order quite different amounts: here 2.06 kWh against the sample
 evaluation it is the mean every time.
 
 **Baselines** ([`baselines`](../../../../core/rl/policy.py#L478-L488)): "random" draws
-every part uniformly; "zero" places no orders (quantity share 0, below the
-threshold); <span class="ours">"net position"</span> is the market's own bidding
+every part uniformly; <span class="ours">"net position"</span> is the market's own bidding
 rule: offer the surplus, or ask for the deficit, left after the battery, priced 30 %
 of the way from the feed-in tariff (selling) or the utility price (buying) into the
 spread, with no partner

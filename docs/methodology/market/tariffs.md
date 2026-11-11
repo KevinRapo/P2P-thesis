@@ -102,7 +102,6 @@ leaves the market less than a third of its value under the paper's assumption.
 - **The VTI's ceiling** nets energy between participants for free, so with a charge
   it can no longer be reached and the VTI reads low; the program has to charge peer
   netting first (RP-7g, [How a run is judged](../evaluation/index.md#the-ceiling)).
-  `reachable_share` in the validation tables assumes free netting the same way.
 - **The rule-based bidders** price inside the band
   ([`rule_based_bid.py`](../../../core/market/agent/rule_based_bid.py#L80)), and the RL
   price action is mapped onto it ([Action](../environment/action.md)): both follow the

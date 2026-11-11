@@ -17,8 +17,8 @@ Validation
 │      look closer at: a row, then Market or Grid
 ├── 2  On the test days   VTI, PI, EI, the technical indices and the money, per day:
 │                         metric · a line per · policy · hover · ± one std
-├── 3  Gain per test day  the gain over each baseline, as boxes
-├── 4  Per participant    each participant's gain over zero, as a box per run
+├── 3  Gain per test day  the gain over net position, as boxes
+├── 4  Per participant    each participant's gain over its own non-P2P money, per run
 └── 5  One run's settings
 ```
 
@@ -55,8 +55,8 @@ The six headline indices are over **the test period**: the batteries carried fro
 to day, one number per run shown on each of its days, so a cell is the period's value.
 Their values per test day are in *On the test days*.
 
-*Show* picks the values, or each value minus the run's own `net_position` or `zero` on
-the same day: that makes different scenarios or price sets comparable, because each run
+*Show* picks the values, or each value minus the run's own `net_position` on the same
+day: that makes different scenarios or price sets comparable, because each run
 plays its own baselines.
 
 *Difference from* picks a row: every cell becomes that row's difference from it. *Paired*
@@ -69,11 +69,9 @@ Under it, a second table with the same columns holds the baselines and reference
 row per baseline and what it was played on (prices, peer charge, network, grid method,
 test days), by VTI from the top down: `ceiling`, `net_position`, `non_p2p` (should the
 rule fall below 0, under `non_p2p`). Being a table of their own, sorting the runs leaves
-them in place. `zero` (no orders) is not among them: with the retail settlement (MP-1e)
-it is `non_p2p` with passive batteries, so it adds nothing next to it; it stays the
-baseline of `gain_zero` and *Gain per test day*. Every table in the Studio sorts numbers
+them in place. Every table in the Studio sorts numbers
 as numbers, so a click on *VTI* ranks the runs. The `non_p2p` and `ceiling` rows are the
-two ends of the VTI ([Evaluation](../../../../methodology/evaluation/index.md#four-yardsticks)); they fill only team money, the
+two ends of the VTI ([Evaluation](../../../../methodology/evaluation/index.md#three-yardsticks)); they fill only team money, the
 period's VTI, stored change and the gains. With several test periods, a period value's
 mean over the days is the periods' mean weighted by their days. A warning names steps that did not
 converge, because on them loading and limits count nothing and read low.
@@ -95,13 +93,13 @@ weights the days by what was at stake.
 
 ![Validation: the gain per test day](img/validation-gain-per-test-day.png)
 
-**3 Gain per test day.** Per run, a box over the test days of `gain_zero` and
-`gain_net_position`: the money above each baseline on the same day.
+**3 Gain per test day.** Per run, a box over the test days of `gain_net_position`: the
+money above the market's rule on the same day.
 
 ![Validation: per participant](img/validation-per-participant.png)
 
 **4 Per participant.** Per run, each participant's mean `bill` over the test days minus
-the same under `zero`, a point per participant (hover: who, and whether it has a battery
+its own `non_p2p` money (on its own with the retailer), a point per participant (hover: who, and whether it has a battery
 or PV). A better team total can hide participants that lose; this shows them.
 
 ![Validation: one run's settings](img/validation-one-run-s-settings.png)
@@ -116,12 +114,10 @@ environment, training and model settings.
 | `team_return_mean`, `team_return_std`, `return/<participant>` of `heldout.csv` | Return per policy | Nowhere: it does not compare across rewards |
 | `final`, `spaces`, `agents`, `env_contract`, `settings_effective`, `model_effective`, `versions`, `eval_seeds` in `run.json` | The final evaluation, the spaces, every effective setting, library versions | Nowhere |
 
-The other indicators are per test day on Market and Grid; `gain_zero` and
-`reachable_share` are in `day_indicators`, for the notebook.
+The other indicators are per test day on Market and Grid.
 
 ## Missing
 
 | Number | Why it matters | Source |
 |---|---|---|
 | The best rule of the margin sweep | MP-6b's reference for "good" | New |
-| The reachable gain with the peer charge taken off | `reachable_share` assumes netting is free, so it reads low at a peer charge above 0 | The rate is in the scenario, not in the tables |

@@ -39,7 +39,6 @@ RUN_COLUMNS = [
     ("state", "State"),
     ("started", "Started"),
     ("money_trained", "Held-out money: trained"),
-    ("money_zero", "zero"),
     ("money_net_position", "net position"),
 ]
 TOP_LEVEL = "(top level)"  # the Folder option of experiments in no folder

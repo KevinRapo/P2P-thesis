@@ -26,7 +26,7 @@ days or the participants of one run.
                                  format
     participant_days(result)     one run, per test day and participant: the same
     participant_groups(result)   what kind each participant is: battery, PV or other
-    participant_gains(results)   per run and participant: its gain over ``zero``
+    participant_gains(results)   per run and participant: its gain over ``non_p2p``
     trade_table(results)         every held-out trade of every run, with its place
                                  in the price band
     day_indicators(results)      every indicator per run, policy and test day, long
@@ -57,7 +57,9 @@ from core.runner.registry import RunState
 from core.runner.spec import MARKET_ENVS, REPO, runs_root
 
 LOCAL = "local"
-BASELINES = ("zero", "net_position")
+BASELINES = ("net_position",)
+# Played by runs before 11 Nov 2026 and left out when their tables are read.
+DROPPED_POLICIES = ("zero",)
 TRAINED = "trained"
 UNKNOWN_GROUP = "unknown"  # a participant the run's scenario does not list
 # A run folder's name: <algorithm>_<paradigm>_s<seed>[_<variant>] (``spec.expand``).
@@ -267,9 +269,14 @@ def _read_csv(path: str, mtime_ns: int, size: int) -> Optional[pd.DataFrame]:
     """A table, cached by its file's path, time and size: an unchanged file is
     read once."""
     try:
-        return pd.read_csv(path)
+        found = pd.read_csv(path)
     except (OSError, EOFError, ValueError, pd.errors.EmptyDataError):
         return None
+
+    if "policy" in found:
+        found = found[~found.policy.isin(DROPPED_POLICIES)].reset_index(drop=True)
+
+    return found
 
 
 def load_run(ref: RunRef) -> RunResult:
@@ -727,19 +734,22 @@ def participant_metrics(results: Sequence[RunResult]) -> pd.DataFrame:
 
 def participant_gains(results: Sequence[RunResult]) -> pd.DataFrame:
     """A row per run and participant: ``key``, ``agent``, ``group`` and ``gain``, its
-    mean bill minus its mean bill under ``zero`` over the test days."""
+    mean bill minus its mean ``non_p2p`` bill (on its own with the retailer) over the
+    test days."""
     frames = []
 
     for result in results:
         frame = result.table("heldout_agents")
+        alone = non_p2p_of(result)
 
-        if frame is None or not {"policy", "bill"} <= set(frame):
+        if frame is None or alone is None or not {"policy", "bill"} <= set(frame):
             continue
 
         bills = frame.pivot_table(index="agent", columns="policy", values="bill")
 
-        if {TRAINED, "zero"} <= set(bills):
-            gain = bills[TRAINED] - bills["zero"]
+        if TRAINED in bills:
+            own = alone.groupby("agent").bill.mean().reindex(bills.index)
+            gain = bills[TRAINED] - own
             gains = gain.rename("gain").reset_index()
             frames.append(
                 gains.assign(key=result.key, group=_groups(result, gains.agent))
@@ -923,3 +933,19 @@ def differing_settings(
 def _same(value: Any) -> str:
     """A value as text that is equal for equal values (dict order ignored)."""
     return json.dumps(value, sort_keys=True, default=str)
+
+
+def non_p2p_of(result: RunResult) -> Optional[pd.DataFrame]:
+    """Each participant's non-P2P money per test day (``ceiling.alone_days``: on its
+    own with the retailer, its battery timed with perfect foresight), or None when
+    the run lacks the tables or the scenario."""
+    from core.runner.ceiling import alone_days
+
+    try:
+        return alone_days(
+            result.table("heldout_agent_steps"),
+            result.table("heldout_steps"),
+            _scenario(result.ref.folder),
+        )
+    except (ValueError, KeyError, TypeError):
+        return None

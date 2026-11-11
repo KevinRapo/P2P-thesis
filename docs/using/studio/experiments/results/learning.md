@@ -55,7 +55,7 @@ Panels 2 to 8 look alike: a line per module and run, as in the gradient norm bel
 |---|---|---|---|---|
 | 1 Return, dotted | `team_return_mean` of `metrics.csv` | run | Sum of the agents' returns, mean over the episodes finished lately, with exploration on, in the reward's units | Should rise |
 | 1 Return, solid | `team_return_mean` of `evaluation.csv` | run | The trained policy on `eval_episodes` training days, on seeds training did not use, at each evaluation point; the same days at every point | Above the dotted line while exploration costs; the gap shows how much it still explores |
-| 1 Return, dashed | The same at step 0 | run | `random`, `zero` and `net_position`, played once | What the curve has to beat |
+| 1 Return, dashed | The same at step 0 | run | `random` and `net_position`, played once | What the curve has to beat |
 | 1 Money | `bill` of `evaluation_agents.csv`, summed per day | run | The same curve in money: the one training chart that compares across rewards | A reward can rise while money falls |
 | 2 Policy loss | `policy_loss` | module | PPO's clipped surrogate, negated | Its trend matters less than its noise |
 | 3 Value loss | `vf_loss` | module | The critic's squared error against its targets, capped at `vf_clip_param` | Should fall, then settle |

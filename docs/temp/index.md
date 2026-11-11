@@ -22,7 +22,7 @@ the list and waits.
 ### 1. A scenario in which the grid matters
 
 On SimBench's networks no fee is charged, so the grid-method comparison would show
-nothing. **Check, without learning:** a stress level (MP-4i) × the policies `zero`,
+nothing. **Check, without learning:** a stress level (MP-4i) × the policy
 `net_position` and the ceiling's plan × both grid methods: line and transformer
 loading, voltages, and how often each fee is charged. The level where `net_position`
 without fees violates some hours but not all is the comparison's scenario. With it:
@@ -35,7 +35,7 @@ before the check runs.
 
 Does PPO learn the stressed market, and which action part stops it? **Check:** DTDE as
 the control (no grouping, no central critic), one seed, a budget long enough for the
-held-out bill to level off, against `zero`, `net_position` and the ceiling. If it does
+held-out bill to level off, against `net_position`, `non_p2p` and the ceiling. If it does
 not beat `net_position`, learn one more action part per rung, the others fixed by the
 rule:
 

@@ -110,7 +110,7 @@ record = train(Run("ppo", "ctde", MarketEnv, config, budget=24_000, eval_every=4
 held_out = {"scenario": config["scenario"], "days": [f"2016-07-{d:02d}" for d in range(1, 15)]}
 env = MarketEnv(held_out)
 policies = {"trained": load_policy(record["out_dir"])[0],
-            "zero": zero_policy(env), "net_position": net_position_policy(env)}
+            "net_position": net_position_policy(env)}
 days = held_out["days"]  # every test day once
 found = evaluation(MarketEnv, held_out, policies, seeds=list(range(2000, 2014)),
                    options=[{"day": d} for d in days])

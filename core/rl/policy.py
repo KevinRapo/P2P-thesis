@@ -477,8 +477,8 @@ def evaluation_seeds(n: int, start: int = 1_000_000) -> list[int]:
 
 def baselines(env_class: type, env_config: dict, seed: int = 0) -> dict[str, ActFn]:
     """The policies every run is compared with: random, and the environment's own
-    baselines (``env.baseline_policies(seed)``, e.g. the market's ``zero`` and
-    ``net_position``) or, without them, the constant 0 action (``zero``)."""
+    baselines (``env.baseline_policies(seed)``, the market's ``net_position``) or,
+    without them (the probes), the constant 0 action (``zero``)."""
     env = env_class(env_config)
     found = {"random": random_policy(env, seed)}
 

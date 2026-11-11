@@ -44,13 +44,10 @@ ROWS = {
 VIEWS = {
     "value": "Values",
     "net_position": "Against own net position",
-    "zero": "Against own zero",
 }
-GAINS = {"gain_zero": "zero", "gain_net_position": "net_position"}
-# The baselines of the overview's own table, by VTI from the top down (ceiling 1, the
-# rule, non_p2p 0). Not ``zero`` (no orders), which with the retail settlement
-# (MP-1e) is ``non_p2p`` with passive batteries; it stays a baseline of the
-# indicators (``gain_zero``, *Gain per test day*).
+GAINS = {"gain_net_position": "net_position"}
+# The references of the overview's own table, by VTI from the top down (ceiling 1, the
+# rule, non_p2p 0).
 SHOWN = ("ceiling", "net_position", "non_p2p")
 # The indices per test day, each day its own horizon, and the money they are made of:
 # the metrics of "On the test days" (the overview shows them over the test period).
@@ -63,7 +60,6 @@ PER_DAY = (
     "self_sufficiency_index",
     "team_money",
     "gain_net_position",
-    "gain_zero",
     "stored_change_kwh",
 )
 
@@ -329,11 +325,12 @@ class GainChart(Chart):
 
 
 class ParticipantGainChart(Chart):
-    """Per run, each participant's gain over zero, as a box with every participant a
+    """Per run, each participant's gain over its own non-P2P money, as a box with
+    every participant a
     point named in its hover. Options: ``gains`` (``participant_gains``), ``labels``."""
 
     height = 380
-    y_title = "EUR per test day, trained − zero"
+    y_title = "EUR per test day, trained − on its own"
     layout = {"hovermode": "closest"}
 
     def draw(self) -> None:
@@ -433,8 +430,8 @@ class ValidationTab(Tab):
 
         with section(
             "Per participant",
-            "Each participant's mean bill over the test days minus the same under "
-            "zero (above 0: better off); hover over a point for who it is.",
+            "Each participant's mean bill over the test days minus its own non-P2P "
+            "money (above 0: better off than alone); hover over a point for who it is.",
             "groups",
         ):
             chart = ParticipantGainChart(
