@@ -158,6 +158,7 @@ nav:
           - Market layer: original/issues/market.md
           - RL layer: original/issues/rl.md
           - The two papers: original/issues/papers.md
+          - Why the graph model is not compared: original/issues/graph-model.md
   # This version: what each component computes and why (equations, decisions).
   - Methodology:
       - methodology/index.md
