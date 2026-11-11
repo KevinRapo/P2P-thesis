@@ -518,7 +518,7 @@ def _trade_indicators(
     t = trades.merge(tariffs, on=[*KEYS, "step"])
     is_peer = t.stage < 3
     money = t.price * t.kwh
-    energy = money.where(t.seller == DSO, -money).where(~is_peer, 0.0)
+    energy = money.where(t.seller == DSO, -money).where(t.stage == 3, 0.0)
     t["buyer_gain"] = (t.utility_price * t.kwh - money - t.peer_charge).where(
         is_peer, 0.0
     )
@@ -536,7 +536,8 @@ def _trade_indicators(
     )
 
     # The untraded energy, settled at retail (MP-1e): the DSO sells the deficit at
-    # the utility price and buys the surplus at the feed-in tariff.
+    # the utility price and buys the surplus at the feed-in tariff. Its fees are in
+    # the trades' rows (stage 4, MP-1f), its energy money only here.
     per_step = agent_steps.groupby([*KEYS, "step"])
     drawn = per_step.deferred_demand_kwh.sum()
     tariffs = steps.set_index([*KEYS, "step"]).reindex(drawn.index)

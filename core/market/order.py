@@ -5,6 +5,10 @@ Order and trade data classes for the Local Energy Market.
 from dataclasses import dataclass
 from typing import Optional
 
+# The ``stage`` of a trade that is no clearing stage: the energy no trade covered,
+# settled with the DSO at the tariffs and charged the fees of a DSO trade (MP-1f).
+UNTRADED = 4
+
 
 @dataclass
 class Order:
@@ -68,4 +72,6 @@ class Trade:
     fee_parts: GridFees = GridFees()
     buyer_fee: float = 0.0  # What the buyer pays of the fee (0 when not charged)
     seller_fee: float = 0.0  # What the seller pays of the fee (0 when not charged)
-    stage: int = 0  # Clearing stage: 1, 2 or 3 (DSO) ([P1] §3.3.2)
+    # Clearing stage: 1, 2 or 3 (DSO) ([P1] §3.3.2); ``UNTRADED`` for the energy no
+    # trade covered, settled with the DSO after the clearing
+    stage: int = 0

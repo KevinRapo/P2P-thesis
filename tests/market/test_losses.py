@@ -1,9 +1,12 @@
 """Loss allocation (``core/grid/losses.py``): the step's power-flow losses shared out.
 
-Every rule must share out exactly the network's measured losses. Branch current
-decomposition is checked by hand on a small feeder: a branch with one element below
-gives that element all of its loss, and a generator whose export runs against a
-branch's flow gets a credit.
+Every rule must share out the network's measured losses, less what it leaves with the
+DSO: nothing for pro rata, the transformer's no-load (iron) loss for branch current
+decomposition, which shares only the current-dependent losses. It is checked by hand
+on a small feeder: a branch with one element below gives that element all of its loss,
+and a generator whose export runs against a branch's flow gets a credit. Near a
+balanced transformer (a household's export covering another's demand) the shares stay
+bounded, which they did not while the no-load loss was shared by current.
 """
 
 from __future__ import annotations
@@ -18,10 +21,16 @@ from core.grid.losses import (
     branch_losses_kw,
     build_loss_allocation,
     independent_loops,
+    trafo_copper_losses_kw,
 )
 
 
-def feeder(pv_kw: float = 20.0, loop: bool = False, parallel: bool = False):
+def feeder(
+    pv_kw: float = 20.0,
+    loop: bool = False,
+    parallel: bool = False,
+    load_kvar: float = 5.0,
+):
     """MV external grid -> transformer -> b1 -> line A -> b2 -> line B -> b3, a 30 kW
     load at b3 and PV at b2; solved. ``loop`` closes b3 back to b1, ``parallel``
     doubles line A."""
@@ -36,7 +45,7 @@ def feeder(pv_kw: float = 20.0, loop: bool = False, parallel: bool = False):
     pp.create_line(net, b2, b3, 0.2, "NAYY 4x150 SE", name="B")
     if loop:
         pp.create_line(net, b3, b1, 0.4, "NAYY 4x150 SE", name="loop")
-    pp.create_load(net, b3, p_mw=0.030, q_mvar=0.005)
+    pp.create_load(net, b3, p_mw=0.030, q_mvar=load_kvar / 1000.0)
     if pv_kw:
         pp.create_sgen(net, b2, p_mw=pv_kw / 1000.0)
     pp.runpp(net)
@@ -48,15 +57,50 @@ def line(net, name: str) -> int:
 
 
 @pytest.mark.parametrize("name", sorted(LOSS_ALLOCATIONS))
-def test_every_rule_shares_out_exactly_the_measured_losses(name):
+def test_every_rule_shares_out_the_measured_losses_less_what_stays_with_the_dso(name):
     net = feeder()
     found = build_loss_allocation(name).allocate(net)
     measured = 1000.0 * (net.res_line.pl_mw.sum() + net.res_trafo.pl_mw.sum())
 
     assert found.method == name and LOSS_ALLOCATIONS[name].label  # the Studio names it
     assert found.total_kw == pytest.approx(measured)
-    assert sum(found.by_element.values()) == pytest.approx(measured, rel=1e-9)
-    assert found.residual_kw == pytest.approx(0.0, abs=1e-9)
+    assert sum(found.by_element.values()) + found.residual_kw == pytest.approx(
+        measured, rel=1e-9
+    )
+
+    if name == "pro_rata":
+        assert found.residual_kw == pytest.approx(0.0, abs=1e-9)
+
+
+def test_bcdla_leaves_the_transformers_no_load_loss_with_the_dso():
+    """The shares add up to the measured loss less the no-load part of the
+    transformer's: its measured loss minus its copper loss, here its ``pfe_kw``
+    (0.8 kW) within the voltage's effect."""
+    net = feeder()
+    found = BranchCurrentDecomposition().allocate(net)
+    measured = branch_losses_kw(net)[("trafo", 0)]
+    copper = trafo_copper_losses_kw(net)[("trafo", 0)]
+
+    assert found.residual_kw == pytest.approx(measured - copper, rel=1e-9)
+    assert found.residual_kw == pytest.approx(float(net.trafo.pfe_kw[0]), rel=0.05)
+    assert sum(found.by_element.values()) == pytest.approx(
+        found.total_kw - found.residual_kw, rel=1e-9
+    )
+
+
+def test_bcdla_shares_stay_bounded_where_the_transformer_current_nearly_vanishes():
+    """The PV at b2 covers the load at b3 (30 kW each, no reactive power): the
+    transformer carries only the line losses. Sharing its constant no-load loss by
+    current gave the PV about -88 kW and the load +89 kW out of a 1 kW loss; now
+    every share is below the network's loss."""
+    for pv_kw in (29.0, 29.9, 30.0, 30.1):
+        found = BranchCurrentDecomposition().allocate(feeder(pv_kw, load_kvar=0.0))
+
+        assert found.residual_kw > 0
+        assert all(abs(s) < found.total_kw for s in found.by_element.values()), pv_kw
+        assert sum(found.by_element.values()) == pytest.approx(
+            found.total_kw - found.residual_kw, rel=1e-9
+        )
 
 
 def test_an_unknown_rule_is_refused():
@@ -77,23 +121,27 @@ def test_bcdla_gives_a_branch_with_one_element_below_to_that_element():
 
 def test_bcdla_credits_a_generator_that_relieves_a_branch():
     """The PV at b2 covers part of the load below it, so less flows through line A
-    and the transformer: its share is negative, and the load's is more than the
-    whole network's loss."""
+    and the transformer: its share is negative, and the load's is more than all the
+    current-dependent loss of the network."""
     found = BranchCurrentDecomposition().allocate(feeder(pv_kw=20.0))
     pv, load = found.by_element[("sgen", 0)], found.by_element[("load", 0)]
 
     assert pv < 0 < load
-    assert load > found.total_kw
+    assert load > found.total_kw - found.residual_kw
 
 
-def test_bcdla_without_the_generator_gives_everything_to_the_load():
+def test_bcdla_without_the_generator_gives_the_load_every_current_dependent_loss():
     found = BranchCurrentDecomposition().allocate(feeder(pv_kw=0.0))
-    assert found.by_element == {("load", 0): pytest.approx(found.total_kw)}
+    assert found.by_element == {
+        ("load", 0): pytest.approx(found.total_kw - found.residual_kw)
+    }
 
 
 def test_bcdla_shares_parallel_lines_and_refuses_a_loop():
     found = BranchCurrentDecomposition().allocate(feeder(parallel=True))
-    assert sum(found.by_element.values()) == pytest.approx(found.total_kw)
+    assert sum(found.by_element.values()) == pytest.approx(
+        found.total_kw - found.residual_kw
+    )
 
     meshed = feeder(loop=True)
     assert independent_loops(meshed) == 1
@@ -119,7 +167,8 @@ def test_simbench_networks_radial_or_not():
 
 
 def test_bcdla_on_the_thesis_network():
-    """On 1-LV-rural3--2-sw at its static values: every kW of loss allocated."""
+    """On 1-LV-rural3--2-sw at its static values: every kW of current-dependent loss
+    allocated; what is left is the transformer's no-load loss."""
     import simbench as sb
 
     net = sb.get_simbench_net("1-LV-rural3--2-sw")
@@ -127,7 +176,10 @@ def test_bcdla_on_the_thesis_network():
     found = BranchCurrentDecomposition().allocate(net)
 
     assert found.total_kw > 0
-    assert found.residual_kw == pytest.approx(0.0, abs=1e-6 * found.total_kw)
+    assert 0 < found.residual_kw < found.total_kw
+    assert found.residual_kw == pytest.approx(
+        float(net.trafo.pfe_kw.sum()), rel=0.1
+    )
 
 
 # --------------------------------------------------------------------------------------

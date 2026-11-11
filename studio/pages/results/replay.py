@@ -60,6 +60,9 @@ class ReplayChart(NetworkChart):
         amounts: dict[str, dict[str, float]] = {}
 
         for seller, buyer, kwh, _, stage in self.o.trades:
+            if stage > 3:  # untraded energy settled with the DSO: not a trade
+                continue
+
             kind = "peer" if stage < 3 else "dso"
             amounts.setdefault(seller, {}).setdefault(f"sold_{kind}", 0.0)
             amounts[seller][f"sold_{kind}"] += kwh

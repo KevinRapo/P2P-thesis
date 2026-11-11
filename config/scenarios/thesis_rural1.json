@@ -190,7 +190,7 @@
     "mechanism": "average",
     "min_price": 0.0,
     "max_price": 1.0,
-    "min_quantity": 0.0,
+    "min_quantity": 0.001,
     "max_quantity": 100.0,
     "price_decimals": 2,
     "partner_preference": true,
@@ -215,7 +215,7 @@
     "voltage_threshold": 0.05,
     "thermal_threshold": 0.2,
     "thermal_cap": 0.3,
-    "imbalance_factor": 0.15,
+    "imbalance_factor": 0.0,
     "zone_factor": 0.15,
     "voltage_drop": "measured",
     "losses": "bcdla"

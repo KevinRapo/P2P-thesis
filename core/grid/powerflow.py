@@ -281,7 +281,7 @@ class SimBenchGrid:
         a = self._bus_index[bus]
 
         if not self._roots:
-            return GridPath(0.0, (), self._zones[a], self._zones[a], bus, bus)
+            return GridPath(0.0, (), self._zones[a], self._zones[a], bus, bus, (bus,))
 
         _, nodes = nx.multi_source_dijkstra(graph, self._roots, a, weight="weight")
 
@@ -304,6 +304,7 @@ class SimBenchGrid:
             self._zones[nodes[-1]],
             names[nodes[0]],
             names[nodes[-1]],
+            tuple(names[n] for n in nodes),
         )
 
     def _topology(self) -> Any:

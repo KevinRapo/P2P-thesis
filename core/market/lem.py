@@ -20,7 +20,9 @@ market only calls them in order:
     4' grid       what each participant physically did -> one power flow
                   (``Participant.injection``; in place of [P1] §3.5.3's grid update)
     4" fees       the DSO sees the step's power flow (``Dso.observe``) and gives
-                  every trade its fee (eq. 8) from it (``Dso.charge``); each participant
+                  every trade its fee (eq. 8) from it (``Dso.charge``), and every
+                  participant's untraded energy, settled with the DSO at the tariff
+                  (``_untraded_trades``), the fee of a DSO trade; each participant
                   pays its share (``Participant.pay_fees``); the DSO: its balance
                   (eq. 7) and fees (``Dso.settle``)
     6  advance    reputation (eq. 12 with its decay;
@@ -53,7 +55,7 @@ from core.market.agent.der import (
 )
 from core.market.clearing import Clearing, ClearingRules, StageResult
 from core.market.dso import DSO_ID, Dso, DsoOutcome
-from core.market.order import Order, Trade
+from core.market.order import UNTRADED, Order, Trade
 from core.market.reputation import ReputationHandler, ReputationScore
 
 
@@ -148,6 +150,10 @@ class StepRecord:
         notes: What validation changed.
         reputation: Each participant's reputation update ([P1] eq. 12, §3.3.4):
             its three components, score and reputation after the step.
+        untraded: The energy no trade covered, one settlement with the DSO per
+            participant that had some (stage ``UNTRADED``), at the tariff, with the
+            fees of a DSO trade; not among ``trades``, so the volumes, prices and
+            reputation count only what was traded.
     """
 
     step: int
@@ -160,6 +166,7 @@ class StepRecord:
     dso: DsoOutcome
     notes: tuple[str, ...] = ()
     reputation: dict[str, ReputationScore] = field(default_factory=dict)
+    untraded: tuple[Trade, ...] = ()
 
     @property
     def trades(self) -> list[Trade]:
@@ -188,8 +195,9 @@ class StepRecord:
 
     @property
     def fees(self) -> float:
-        """Grid fees of the step's trades ([P1] eq. 8), charged or not."""
-        return sum(t.fees for t in self.trades)
+        """Grid fees of the step's trades and of its untraded energy (eq. 8),
+        charged or not."""
+        return sum(t.fees for t in (*self.trades, *self.untraded))
 
 
 def net_bill(record: "StepRecord", pid: str) -> float:
@@ -352,14 +360,16 @@ class LocalEnergyMarket:
 
         outcomes = self._settle(p.inputs, p.trades)
         grid = self._assess_grid(p.step, outcomes)
-        stages = self._charge_fees(p, grid)
+        stages, untraded = self._charge_fees(p, grid, outcomes)
         trades = [t for s in stages for t in s.trades]
         losses = {
             pid: self.dso.loss_charge(kwh, p.inputs.utility_price)
             for pid, kwh in grid.loss_shares_kwh.items()
         }
         outcomes = {
-            pid: self.participants[pid].pay_fees(o, trades, losses.get(pid, 0.0))
+            pid: self.participants[pid].pay_fees(
+                o, [*trades, *untraded], losses.get(pid, 0.0)
+            )
             for pid, o in outcomes.items()
         }
         record = StepRecord(
@@ -370,8 +380,9 @@ class LocalEnergyMarket:
             participants=outcomes,
             clearing_price=self._clearing_price(trades),
             grid=grid,
-            dso=self.dso.settle(trades, sum(losses.values())),
+            dso=self.dso.settle(trades, sum(losses.values()), untraded),
             notes=tuple(p.notes),
+            untraded=untraded,
         )
         record = self._update_reputation(record)
         self._advance(record)
@@ -666,19 +677,53 @@ class LocalEnergyMarket:
         return None if name == "trades" else build_loss_allocation(name)
 
     def _charge_fees(  #! Market 6: fees
-        self, p: PendingStep, grid: GridAssessment
-    ) -> tuple[StageResult, ...]:
-        """Phase 4": the DSO sees the step's power flow, its line loading and bus
-        voltages (``grid``; ``Dso.observe``), and gives every trade its fee (eq. 8)
-        from them (``Dso.charge``). The stages with their trades charged."""
+        self,
+        p: PendingStep,
+        grid: GridAssessment,
+        outcomes: Mapping[str, ParticipantOutcome],
+    ) -> tuple[tuple[StageResult, ...], tuple[Trade, ...]]:
+        """Phase 4": the DSO sees the step's power flow, its line and transformer
+        loading and bus voltages (``grid``; ``Dso.observe``), and gives every trade
+        its fee (eq. 8) from them (``Dso.charge``), and the same to every
+        participant's untraded energy (``_untraded_trades``), which the participant
+        settles with the DSO like a stage-3 trade (MP-1f). The stages with their
+        trades charged, and the charged untraded settlements."""
         self.dso.observe(grid)
+        untraded = self._untraded_trades(p.inputs, outcomes)
         charged = iter(
-            self.dso.charge(p.trades, self._route, p.grid_balance_kwh)
+            self.dso.charge([*p.trades, *untraded], self._route, p.grid_balance_kwh)
         )
-
-        return tuple(
+        stages = tuple(
             replace(s, trades=tuple(next(charged) for _ in s.trades)) for s in p.stages
         )
+
+        return stages, tuple(charged)
+
+    def _untraded_trades(
+        self, inputs: StepInputs, outcomes: Mapping[str, ParticipantOutcome]
+    ) -> list[Trade]:
+        """The energy no trade covered as the settlement with the DSO it is paid as
+        (MP-1e: the deficit at the utility price, the surplus at the feed-in tariff),
+        one trade per participant with some, at that tariff, along its path to the
+        transformer, with its loss (eq. 18): what ``Dso.charge`` then gives the fees
+        of a DSO trade, the whole fee to the participant. Not a clearing: nothing
+        reaches the orders, the volumes or the reputation."""
+        found = []
+
+        for rank, (pid, o) in enumerate(outcomes.items()):
+            if o.deferred_demand_kwh > 1e-9:
+                buyer, seller = pid, self.dso.id
+                price, kwh = inputs.utility_price, o.deferred_demand_kwh
+            elif o.deferred_supply_kwh > 1e-9:
+                buyer, seller = self.dso.id, pid
+                price, kwh = inputs.feed_in_tariff, o.deferred_supply_kwh
+            else:
+                continue
+
+            trade = Trade(buyer, seller, price, kwh, float(rank), stage=UNTRADED)
+            found.append(self.dso.assess(trade, self._route(buyer, seller)))
+
+        return found
 
     # --- Phase 6: advance ------------------------------------------------------------
     def _update_reputation(self, record: StepRecord) -> StepRecord:  #! Market 8: reputation

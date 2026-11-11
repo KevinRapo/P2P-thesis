@@ -15,17 +15,19 @@ and the results report it.
 
     r = (profit + p_FiT · deferred_supply − p_utility · deferred_demand) / reward_scale
 
-``profit`` is eq. 14 for the step (revenue − cost of its trades − its grid fees);
+``profit`` is eq. 14 for the step (revenue − cost of its trades − its grid fees, those
+of its untraded energy included);
 the tariffs are the step's (time-of-use tariffs change by hour). What no trade
 covered is settled at retail, as every household's supply contract would
 (MP-1e): ``deferred_demand``, the demand that generation, purchases and battery
 left uncovered, is bought at the utility price; ``deferred_supply``, the surplus
 that sales and battery left over, is sold at the feed-in tariff. Both flow to and
 from the upstream grid untraded anyway (the power flow follows what the
-participants did, never their trades). No grid fee applies to them: the fees are
-the cost of using the market. A trade then only pays off against these outside
+participants did, never their trades). They are settled with the DSO and pay the fees
+of a DSO trade (MP-1f), in ``profit``: the same energy ordered to the DSO would pay
+them, so not ordering is no cheaper. A trade then only pays off against these outside
 options, a peer trade at a price between the two tariffs; an order that ends up
-with the DSO pays the tariff and its fees, more than leaving the energy untraded.
+with the DSO pays the tariff and its fees, as leaving the energy untraded does.
 
 "salazar": the terms of ``src/environment/reward.py`` in the original repository, as
 they ran there. It is not scaled by ``reward_scale``, as the original has no such

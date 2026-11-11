@@ -220,6 +220,9 @@ class GridPath:
         zone_b: Zone of the second bus.
         bus_a: The first bus (for the voltages at the path's ends).
         bus_b: The second bus; for the way upstream, the transformer's busbar.
+        buses: Every bus on the path, ``bus_a`` to ``bus_b`` (for the voltage the
+            fees read along it); empty when the path does not say, and then the two
+            ends stand for it.
     """
 
     distance_km: float = 0.0
@@ -228,6 +231,7 @@ class GridPath:
     zone_b: str = ""
     bus_a: str = ""
     bus_b: str = ""
+    buses: tuple[str, ...] = ()
 
     @property
     def same_zone(self) -> bool:

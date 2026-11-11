@@ -156,7 +156,8 @@ def env() -> MarketEnv:
 
 def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):
     """With nobody ordering, each step's untraded energy is settled at that step's
-    time-of-use tariffs (MP-1e), and the DSO's tariffs move on with the clock."""
+    time-of-use tariffs (MP-1e), less its fees (MP-1f), and the DSO's tariffs move on
+    with the clock."""
     zero = zero_policy(env)
     obs, _ = env.reset(seed=0)
     assert env.market.dso.utility_price == 0.20  # midnight
@@ -172,6 +173,7 @@ def test_every_step_trades_and_is_charged_at_its_hours_tariff(env):
             expected = (
                 tariffs.feed_in_tariff * o.deferred_supply_kwh
                 - tariffs.utility_price * o.deferred_demand_kwh
+                - o.fees
             )
             assert rewards[pid] == pytest.approx(expected / env.reward_scale)
 

@@ -945,7 +945,9 @@ def _mean_loading(grid: GridAssessment) -> float:
 
 
 def _trade_rows(record: StepRecord) -> list[dict[str, Any]]:
-    """One row per trade of the step."""
+    """One row per trade of the step, then one per settlement of untraded energy
+    (``stage`` 4, ``UNTRADED``: the energy no trade covered, settled with the DSO at
+    the tariff and charged its fees)."""
     return [
         {
             "buyer": t.buyer_id,
@@ -965,7 +967,7 @@ def _trade_rows(record: StepRecord) -> list[dict[str, Any]]:
             "fee_zone": float(t.fee_parts.zone),
             "peer_charge": float(t.fee_parts.peer_charge),
         }
-        for t in record.trades
+        for t in (*record.trades, *record.untraded)
     ]
 
 

@@ -72,7 +72,8 @@ horizon. The references are in [How a run is judged](index.md#three-yardsticks).
 
 All in EUR, positive earned. A participant's money is its `bill`
 ([`net_bill`](../../../core/env/reward.py)): its trades' profit after fees, its untraded
-surplus at the feed-in tariff and its untraded deficit at the utility price (MP-1e).
+surplus at the feed-in tariff and its untraded deficit at the utility price (MP-1e), the
+fees of that untraded energy included in the profit (MP-1f).
 
 | Metric | Column | Definition | Resolution | Tab |
 |---|---|---|---|---|

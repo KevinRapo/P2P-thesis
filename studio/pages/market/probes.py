@@ -249,10 +249,12 @@ class ProbesView:
             with section(
                 "Trades",
                 "Every trade of the step by stage, with its grid fee (eq. 8; a "
-                "negative fee is the same-zone bonus) and who pays it",
+                "negative part is the same-zone bonus, which never takes a fee below "
+                "0) and who pays it; the last rows settle each participant's "
+                "untraded energy with the DSO, which pays the fees of a DSO trade",
                 "swap_horiz",
             ):
-                trades_table(record.trades, fees=True)
+                trades_table([*record.trades, *record.untraded], fees=True)
 
             with section("Participants", icon="groups"):
                 _people_table(record)

@@ -11,11 +11,13 @@ network's total.
 
 The rules to choose from (``LOSS_ALLOCATIONS``, by name):
 
-    "bcdla"     ``BranchCurrentDecomposition``: each branch's loss shared by the
-                elements below it, by how much of the branch current each one makes
-                (Carpaneto, Chicco & Sumaili Akilimali 2006). Needs a radial network.
-                A share can be negative: an element whose current runs against the
-                branch's lowers its loss and gets a credit.
+    "bcdla"     ``BranchCurrentDecomposition``: each branch's current-dependent loss
+                shared by the elements below it, by how much of the branch current
+                each one makes (Carpaneto, Chicco & Sumaili Akilimali 2006). Needs a
+                radial network. A share can be negative: an element whose current
+                runs against the branch's lowers its loss and gets a credit. A
+                transformer's no-load (iron) loss does not depend on any current and
+                is not shared: it is left over (``LossShares.residual_kw``).
     "pro_rata"  ``ProRata``: the total shared by each element's active power, wherever
                 it is. The simplest rule, ignoring the network; also the template for
                 a new rule.
@@ -62,7 +64,10 @@ class LossShares:
         by_element: Each element's share in kW, ``(table, index)`` as pandapower
             names it; negative is a credit. Elements with no share are left out.
         residual_kw: ``total_kw`` minus the shares' sum: what the rule left
-            unallocated (0 for both rules here, up to rounding).
+            unallocated. 0 for ``pro_rata`` (up to rounding). For ``bcdla`` it is the
+            transformers' no-load (iron) loss, about 0.5 kW on the thesis network:
+            it flows while the transformer is energised, whatever the participants
+            do, so the DSO keeps it.
     """
 
     method: str
@@ -126,9 +131,14 @@ class BranchCurrentDecomposition(LossAllocation):
     each element's own term in full and half of every cross term with another
     element. An element whose current runs against the branch's (a PV export where
     the branch imports) gets a negative share. Here the split is applied to each
-    branch's measured loss, ``pl_mw``: element e's share of branch b is
-    Re(I_e · conj(I_b)) / |I_b|² of it. The shares then add up to the measured loss
-    exactly, a transformer's no-load loss included, and need no resistance.
+    branch's current-dependent loss: element e's share of branch b is
+    Re(I_e · conj(I_b)) / |I_b|² of it. A line's is its measured loss, ``pl_mw``. A
+    transformer's is its copper loss (``trafo_copper_losses_kw``), not its measured
+    ``pl_mw``, which also holds the no-load loss: that is a constant (the iron core
+    is magnetised whatever flows), so dividing it by |I_b|² makes the shares blow up
+    where the net transformer current is near zero (two households that balance each
+    other get opposite shares many times the loss itself). The no-load loss is left
+    unallocated, in ``LossShares.residual_kw``, and stays with the DSO.
 
     The currents are per unit, I_e = conj(S_e / V_bus), from the power flow's own
     results. Every element below a branch sits on the same side of any transformer
@@ -143,9 +153,13 @@ class BranchCurrentDecomposition(LossAllocation):
     def shares(self, net: Any, losses: Mapping[Element, float]) -> dict[Element, float]:
         current = _element_currents(net)
         below = _elements_below(net, current)
+        copper = trafo_copper_losses_kw(net)
         found: dict[Element, float] = {}
 
         for branch, loss_kw in losses.items():
+            if branch[0] == "trafo" and branch in copper:
+                loss_kw = max(0.0, min(loss_kw, copper[branch]))
+
             mine = below.get(branch, [])
             total = sum((current[e] for e in mine), 0j)
 
@@ -225,6 +239,36 @@ def branch_losses_kw(net: Any) -> dict[Element, float]:
             for index, loss in result.pl_mw.items():
                 if np.isfinite(loss):
                     found[(table, int(index))] = 1000.0 * float(loss)
+
+    return found
+
+
+def trafo_copper_losses_kw(net: Any) -> dict[Element, float]:
+    """The current-dependent part of every transformer's loss, kW: its copper (winding)
+    loss ``vkr% / 100 · S_n · (I / I_rated)²``, on the LV side's solved current
+    ``res_trafo.i_lv_ka`` (``vkr_percent`` is the loss at rated current). What is left
+    of the measured ``pl_mw`` is the no-load (iron) loss, ``pfe_kw`` at the
+    transformer's voltage: on the thesis network 0.48 kW at every loading from 0 to
+    4 times rated, within 0.01 kW. Parallel transformers count as one of ``parallel``
+    times the rating. Out-of-service transformers have no entry."""
+    found: dict[Element, float] = {}
+
+    if not len(net.trafo) or not len(net.res_trafo):
+        return found
+
+    for index, row in net.trafo.iterrows():
+        current_ka = float(net.res_trafo.at[index, "i_lv_ka"])
+
+        if not np.isfinite(current_ka):
+            continue
+
+        parallel = float(row["parallel"]) if "parallel" in row.index else 1.0
+        rated_mva = parallel * float(row["sn_mva"])
+        rated_ka = rated_mva / (np.sqrt(3.0) * float(row["vn_lv_kv"]))
+        found[("trafo", int(index))] = (
+            float(row["vkr_percent"]) / 100.0 * rated_mva * 1000.0
+            * (current_ka / rated_ka) ** 2
+        )
 
     return found
 

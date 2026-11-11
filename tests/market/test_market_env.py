@@ -152,8 +152,9 @@ def test_zero_episode_lasts_one_day(env):
 def test_zero_actions_submit_no_orders(env):
     """The zero policy's quantity share is 0, below the no-order threshold: no
     order at all. Each agent's
-    reward is then only its untraded energy settled at retail, ``(feed_in *
-    deferred supply - utility * deferred demand) / reward_scale`` (MP-1e)."""
+    reward is then only its untraded energy settled at retail, less the fees of
+    that settlement with the DSO, ``(feed_in * deferred supply - utility *
+    deferred demand - fees) / reward_scale`` (MP-1e, MP-1f)."""
     zero = zero_policy(env)
     obs = env.reset(seed=2)[0]
 
@@ -167,7 +168,7 @@ def test_zero_actions_submit_no_orders(env):
         for a in AGENTS:
             o = record.participants[a]
             expected = feed_in * o.deferred_supply_kwh - utility * o.deferred_demand_kwh
-            assert rewards[a] == pytest.approx(expected / env.reward_scale)
+            assert rewards[a] == pytest.approx((expected - o.fees) / env.reward_scale)
 
         if terminated["__all__"]:
             break

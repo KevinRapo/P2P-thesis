@@ -6,9 +6,11 @@ What belongs to the DSO and nobody else:
                      charges for energy it sells; p_FiT < p_P2P < p_utility. Flat,
                      or hourly series: ``set_hour`` sets the step's
     market price     the midpoint of the two, the reference before any trade
-    grid             what it saw in the step's power flow: the lines' loading
+    grid             what it saw in the step's power flow: the lines' and the
+                     transformer's loading, the bus voltages
     losses, fees     eq. 18 for every trade as it clears; eq. 8 once the step's
-                     power flow is known, and who pays them
+                     power flow is known, and who pays them; the same fees for the
+                     energy no trade covered, settled with it at the tariffs
     stage 3          it buys every remaining sell at p_FiT and sells every
                      remaining buy at p_utility, so every order clears (§3.3.2)
     balance          eq. 7, its energy sold minus bought, and its money
@@ -79,6 +81,7 @@ class Dso:
         self.feed_in_tariff, self.utility_price = self.tariffs_at(0.0)
         self.id = id
         self.line_loading_percent: Mapping[str, float] = {}
+        self.trafo_loading_percent = 0.0
         self.bus_voltage_pu: Mapping[str, float] = {}
         self.balance_kwh = 0.0
         self.profit = 0.0
@@ -87,6 +90,7 @@ class Dso:
     def reset(self) -> None:
         """Back to the start of the day: nothing seen of the grid, balance 0."""
         self.line_loading_percent = {}
+        self.trafo_loading_percent = 0.0
         self.bus_voltage_pu = {}
         self.balance_kwh = 0.0
         self.profit = 0.0
@@ -152,28 +156,39 @@ class Dso:
 
     # --- The grid it operates --------------------------------------------------------
     def observe(self, grid: GridAssessment) -> None:
-        """Remember the step's power flow (``grid``, just run): the lines' loading,
-        the congestion the same step's fees see ([P1] §3.5.3), and the bus voltages
-        for a measured voltage drop."""
+        """Remember the step's power flow (``grid``, just run): the lines' and the
+        transformer's loading, the congestion the same step's fees see ([P1]
+        §3.5.3), and the bus voltages for a measured voltage drop."""
         self.line_loading_percent = dict(grid.line_loading_percent)
+        self.trafo_loading_percent = float(grid.max_trafo_loading_percent or 0.0)
         self.bus_voltage_pu = dict(grid.bus_voltage_pu)
 
     def voltage_drop_of(self, path: GridPath) -> float:
-        """V_drop of a trade ([P1] eq. 8c): f_volt · d_ij (eq. 8f), or the measured
-        |V_a − V_b| between the path's two buses (0 when not known)."""
+        """V_drop of a trade ([P1] eq. 8c): f_volt · d_ij (eq. 8f), or, measured,
+        the largest deviation from nominal, max |V − 1| over the buses on the path
+        (the two ends when the path does not list its buses; 0 when not known).
+        The measured value is not the difference between the ends: on a feeder
+        whose voltage is high all along, as rural1's is when it exports, two
+        neighbours at 1.05 pu differ by nothing but the voltage limit binds."""
         if self.setup.voltage_drop == "distance":
             return self.setup.voltage_factor * path.distance_km
 
-        a = self.bus_voltage_pu.get(path.bus_a)
-        b = self.bus_voltage_pu.get(path.bus_b)
+        buses = path.buses or (path.bus_a, path.bus_b)
+        found = [self.bus_voltage_pu[b] for b in buses if b in self.bus_voltage_pu]
 
-        return abs(a - b) if a is not None and b is not None else 0.0
+        return max((abs(v - 1.0) for v in found), default=0.0)
 
-    def congestion(self, lines: Sequence[str]) -> float:
+    def congestion(self, lines: Sequence[str], transformer: bool = False) -> float:
         """C_t of a trade ([P1] eq. 8a): the highest loading on its path in the
-        step's power flow, 0 to 1. 0 without lines, or when the flow did not
+        step's power flow, 0 to 1. A trade with the DSO runs up to the transformer
+        (``transformer``), which counts as part of its path: its loading is
+        compared with the lines'. 0 without lines, or when the flow did not
         converge (no loadings)."""
         loading = [self.line_loading_percent.get(line, 0.0) for line in lines]
+
+        if transformer:
+            loading.append(self.trafo_loading_percent)
+
         return min(1.0, max(loading, default=0.0) / 100)
 
     def transmission_loss(self, distance_km: float, quantity: float) -> float:
@@ -182,17 +197,26 @@ class Dso:
 
     # --- Fees (eq. 8) ----------------------------------------------------------------
     def fees_of(  #! Market 6: fee parts (eq. 8)
-        self, quantity: float, price: float, path: GridPath, loss_kwh: float
+        self,
+        quantity: float,
+        price: float,
+        path: GridPath,
+        loss_kwh: float,
+        transformer: bool = False,
     ) -> GridFees:
-        """[P1] eq. 8 for a peer-to-peer trade of ``quantity`` at ``price`` along
-        ``path``. F_trans has no formula in [P1]: here it is the lost energy at the
+        """[P1] eq. 8 for a trade of ``quantity`` at ``price`` along ``path``; with
+        the DSO, ``transformer`` adds the transformer to the path's congestion.
+        F_trans has no formula in [P1]: here it is the lost energy at the
         trade price ("the loss ... is included in the DSO fees", §3.5.2), with
         ``losses = "trades"``; with a power-flow loss rule the losses are charged
         per participant instead (``loss_charge``), and F_trans is 0. F_imb is 0:
-        eq. 8h gives a balance impact only to trades with the DSO."""
+        eq. 8h gives a balance impact only to trades with the DSO (``charge``).
+
+        The zone bonus (eq. 8e) cancels fees but never pays out: it is at most the
+        sum of the other parts, so a trade's fee is never below 0 (MP-4n)."""
         s = self.setup
         value = quantity * price
-        c = self.congestion(path.lines)
+        c = self.congestion(path.lines, transformer)
         congestion = 0.0
 
         if c > s.congestion_threshold:  # 8a
@@ -206,13 +230,17 @@ class Dso:
             thermal = min(f_thermal, s.thermal_cap) * value
 
         v_drop = self.voltage_drop_of(path)  # 8f, or measured
+        transmission = loss_kwh * price if s.losses == "trades" else 0.0
+        voltage = min(v_drop, s.voltage_threshold) * value  # 8c
+        charges = congestion + transmission + voltage + thermal
+        bonus = min(s.zone_factor * value, charges) if path.same_zone else 0.0
 
         return GridFees(
             congestion=congestion,
-            transmission=loss_kwh * price if s.losses == "trades" else 0.0,
-            voltage=min(v_drop, s.voltage_threshold) * value,  # 8c
+            transmission=transmission,
+            voltage=voltage,
             thermal=thermal,
-            zone=-s.zone_factor * value if path.same_zone else 0.0,  # 8e
+            zone=-bonus,  # 8e, capped at the fees it cancels
             peer_charge=s.peer_charge_kwh * quantity,
         )
 
@@ -220,7 +248,16 @@ class Dso:
         """[P1] eq. 8b with 8h for a trade with the DSO: B_impact = ±min(q / |B|, 1)
         on the market's balance B (+ excess supply). Charged only when the trade
         worsens the balance (the DSO buys during excess demand or sells during
-        excess supply); a trade that helps pays nothing, as in the original."""
+        excess supply); a trade that helps pays nothing, as in the original.
+
+        B is the order book's balance before stage 3 (offered minus asked), not a
+        physical quantity, so the fee lands on the minority side of the book (the
+        leftover buyers when the book is long, as at midday), and only the sign
+        of a net that no single agent sees or controls decides who pays; near a
+        balanced book the scale q / |B| saturates at 1. Off in the thesis scenario
+        (``imbalance_factor`` 0)."""
+        # OPEN MP-4m: keep the fee off for the thesis, or replace it (a flat charge
+        # on the DSO-routed quantity, or a fee on min(q, |B|)); see open.md.
         if abs(grid_balance_kwh) < 1e-9:
             return GridFees()
 
@@ -281,13 +318,15 @@ class Dso:
         out = []
 
         for t in trades:
+            with_dso = self.id in (t.buyer_id, t.seller_id)
             parts = self.fees_of(
                 t.quantity,
                 t.price,
                 route(t.buyer_id, t.seller_id),
                 t.transmission_loss,
+                transformer=with_dso,
             )
-            if self.id in (t.buyer_id, t.seller_id):
+            if with_dso:
                 imbalance = self.imbalance_fee(t, grid_balance_kwh).imbalance
                 parts = replace(
                     parts, zone=0.0, imbalance=imbalance, peer_charge=0.0
@@ -333,16 +372,21 @@ class Dso:
         return share_kwh * utility_price
 
     def settle(  #! Market 7: DSO balance
-        self, trades: Sequence[Trade], loss_charges: float = 0.0
+        self,
+        trades: Sequence[Trade],
+        loss_charges: float = 0.0,
+        untraded: Sequence[Trade] = (),
     ) -> DsoOutcome:
         """The DSO's step: eq. 7, B_DSO = Σ (E_sold − E_bought), its energy
-        revenue and the fees it collected, the participants' loss charges
-        included; added to its running totals."""
+        revenue and the fees it collected, the participants' loss charges and the
+        fees of their untraded energy included (not its energy: that is settled
+        outside the market, MP-1e); added to its running totals."""
         bought = sum(t.quantity for t in trades if t.buyer_id == self.id)
         sold = sum(t.quantity for t in trades if t.seller_id == self.id)
         revenue = sum(t.price * t.quantity for t in trades if t.seller_id == self.id)
         revenue -= sum(t.price * t.quantity for t in trades if t.buyer_id == self.id)
-        fees = sum(t.buyer_fee + t.seller_fee for t in trades) + loss_charges
+        fees = sum(t.buyer_fee + t.seller_fee for t in (*trades, *untraded))
+        fees += loss_charges
         self.balance_kwh += sold - bought
         self.profit += revenue + fees
         self.fees += fees

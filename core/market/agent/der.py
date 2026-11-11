@@ -40,8 +40,9 @@ class ParticipantOutcome:
         external_kwh: Energy no trade covers: + exported, − imported.
         soc_kwh: Battery energy after the step (``None``: no battery).
         balance_kwh: Eq. 13: (G − D) + (bought − sold).
-        fees: Grid fees it paid this step (eq. 8; its share of each trade's), its
-            loss charge included.
+        fees: Grid fees it paid this step (eq. 8; its share of each trade's, and the
+            whole fee of its untraded energy, settled with the DSO), its loss charge
+            included.
         profit: Eq. 14 for this step: revenue − cost of its trades − fees.
         loss_charge: Of ``fees``, what it paid for its share of the step's
             measured losses (0 with eq. 18's losses, ``DsoSetup.losses``).
@@ -196,8 +197,15 @@ class Participant:
         return max(0.0, self.net_kwh(step) + self.battery_room()[1])
 
     def max_buy_kwh(self, step: int) -> float:
-        """Eq. 15b: q_buy,max = max(0, D_t − G_t) + E_chargeable."""
-        return max(0.0, -self.net_kwh(step)) + self.battery_room()[0]
+        """Eq. 15b: q_buy,max = max(0, D_t − G_t) + E_chargeable, less the
+        household's own surplus: a surplus charges the battery first (eq. 16), so
+        only E_chargeable − max(0, G_t − D_t) of the battery's room is left to buy.
+        [P1] eq. 15b lets a household with a surplus buy the whole room on top of
+        it, which settles to more than the battery can take."""
+        # DEVIATION MP-2f: the household's own surplus counts against the room.
+        net = self.net_kwh(step)
+
+        return max(0.0, -net) + max(0.0, self.battery_room()[0] - max(0.0, net))
 
     # --- Partner choice --------------------------------------------------------------
     def choose_partner(  #! Market 2: partner beta

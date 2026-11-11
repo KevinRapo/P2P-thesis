@@ -12,7 +12,8 @@ $p_\text{utility}$ and sell at the feed-in tariff $p_\text{FiT}$ ([P1] §3.4.4).
 come from the scenario's `dso.prices` ([Configuration](../../using/running/config.md#dso)),
 flat or one price per step, and the DSO moves to each step's prices before the step
 ([`Dso.set_hour`](../../../core/market/dso.py#L120-L123)). Untraded energy is settled at
-these tariffs too (MP-1e, [Settlement](step.md#4-settlement)).
+these tariffs too (MP-1e, [Settlement](step.md#4-settlement)), and pays the fees of
+a DSO trade (MP-1f, [Fees](step.md#6-fees)).
 
 A peer trade is worth making only at a price between the two: the seller earns more
 than $p_\text{FiT}$, the buyer pays less than $p_\text{utility}$. [P1] §3.3.2 requires

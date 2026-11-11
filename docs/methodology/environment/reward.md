@@ -14,8 +14,10 @@ $$
 
 where profit is eq. 14 net of fees; deferred demand and deferred supply are what its
 trades and battery left uncovered and left over, exchanged untraded with the upstream
-grid and settled at retail without grid fees (MP-1e): bought at the step's utility
-price $p_\text{utility}$, sold at its feed-in tariff $p_\text{FiT}$. Runs before
+grid and settled at retail (MP-1e): bought at the step's utility
+price $p_\text{utility}$, sold at its feed-in tariff $p_\text{FiT}$. That energy is
+settled with the DSO and pays the fees of a DSO trade, which are in the profit
+(MP-1f, 11 Nov 2026; runs before then had none). Runs before
 4 Nov 2026 paid the deferred supply nothing. $\bar p_\text{utility}$ is the day's highest utility
 price ([`Dso.tariff_range`](../../../core/market/dso.py#L125-L136)) and $E$ the
 `energy_scale`, the largest generation or demand of any participant in any step of

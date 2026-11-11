@@ -15,9 +15,12 @@ step t and battery b:
 
 with g the import, e the export, c and d the energy a battery draws from and gives to
 the bus, E its stored energy. Every outcome the market can produce is one feasible
-point of it, so no policy makes more money, as long as the fees count as nothing (the
-zone bonus is a negative fee) and the peer charge is 0 (with a charge, netting through
-peers costs money and the bound is looser). It ignores the grid's limits and losses.
+point of it, so no policy makes more money, as long as the fees count as nothing (no
+fee is below 0: the zone bonus is capped at the fees it cancels, MP-4n; and the fees
+of the untraded energy, MP-1f, only lower what a policy makes) and the peer charge is 0
+(with a charge, netting through peers costs money and the bound is looser). It
+ignores the grid's limits, losses and fees: the bound is before fees, and so is
+``alone_days``, the non-P2P reference.
 
     optimise(...)       the program for one or more sites (groups that net together)
     ceiling_days(...)   one run's test periods from its held-out tables: the ceiling's

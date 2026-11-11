@@ -23,7 +23,7 @@ flowchart LR
 | 3 | Clearing | [`advance`](../../../core/market/lem.py#L329-L369) × 3 → [`Clearing.stages`](../../../core/market/clearing.py#L97-L100) | three `StageResult`s with their trades | 3 |
 | 4 | Settlement | [`_settle`](../../../core/market/lem.py#L618-L625) | `ParticipantOutcome` per participant | 4 |
 | 5 | Grid | [`_assess_grid`](../../../core/market/lem.py#L627-L638) | `GridAssessment` | 4 |
-| 6 | Fees | [`_charge_fees`](../../../core/market/lem.py#L671-L685), `pay_fees` | each trade's fee parts; profits net of fees | 4 |
+| 6 | Fees | [`_charge_fees`](../../../core/market/lem.py#L679-L700), `pay_fees` | the fee parts of each trade and of each participant's untraded energy; profits net of fees | 4 |
 | 7 | Record | [`advance`](../../../core/market/lem.py#L329-L369) | `StepRecord` | 6 |
 | 8 | Reputation and advance | [`_update_reputation`](../../../core/market/lem.py#L688-L700), [`_advance`](../../../core/market/lem.py#L702-L711) | new reputations, next $p_\text{ref}$, history | 6, 8 |
 
@@ -91,12 +91,19 @@ $\max(0,\ G_t - D_t + E_\text{dischargeable})$
 household's own deficit first, and only the rest is for sale. [P1] eq. 15a adds the
 whole $E_\text{dischargeable}$ to $\max(0, G_t - D_t)$, which would let a household
 short of energy sell its battery to peers while importing its own load (MP-2c). For a
-buyer it is eq. 15b,
-$\max(0, D_t - G_t) + E_\text{chargeable}$
-([`max_buy_kwh`](../../../core/market/agent/der.py#L190-L192)), with the battery's
+buyer it is eq. 15b less the household's own surplus,
+$\max(0, D_t - G_t) + \max\bigl(0,\ E_\text{chargeable} - \max(0, G_t - D_t)\bigr)$
+([`max_buy_kwh`](../../../core/market/agent/der.py#L199-L209)), with the battery's
 efficiencies and power limit
-([`chargeable_kwh`, `dischargeable_kwh`](../../../core/market/agent/battery.py#L72-L86)).
-An intent at or below `min_quantity` is dropped. Every change is written to `notes`.
+([`chargeable_kwh`, `dischargeable_kwh`](../../../core/market/agent/battery.py#L72-L86)):
+a surplus charges the battery first (eq. 16), so only the room it leaves is left to
+buy, where [P1]'s eq. 15b adds the whole room to a household that already has a
+surplus (MP-2f).
+An intent at or below `min_quantity` is dropped (0.001 kWh in the thesis scenario, so
+that no numerical dust becomes an order, MP-2g). A price is limited to the market's
+own bounds, `min_price` and `max_price`, not to the tariffs: an order priced beyond
+$p_\text{FiT}$ or the peer ceiling is kept as given, and what no peer takes still
+clears with the DSO at the tariff (MP-2b, MP-2e). Every change is written to `notes`.
 
 **2c. Orders.** [`_orders`](../../../core/market/lem.py#L570-L586): each valid intent
 becomes an [`Order`](../../../core/market/order.py#L9-L23) with an ID, the participant's bus
@@ -110,7 +117,7 @@ order), the double auction's last tie-break.
 | **Writes** | [`PendingStep`](../../../core/market/lem.py#L96-L130): `intents`, `orders`, `notes` |
 | **Code** | [`start_step`](../../../core/market/lem.py#L304-L327), above |
 | **Paper** | eq. 2 (the action $\langle p, q, \alpha, \beta \rangle$), eq. 15a-b, §3.2.3, §3.4 |
-| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); no selling from the battery while short (MP-2c); *Open: MP-2b* ([open items](../../temp/open.md)) |
+| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); no selling from the battery while short (MP-2c); the household's own surplus counts against the room it may buy (MP-2f); a minimum order of 0.001 kWh in the thesis scenario (MP-2g); *Open: MP-2b* ([open items](../../temp/open.md)) |
 
 ## 3. Clearing
 
@@ -171,7 +178,7 @@ $$
 |---|---|
 | **Reads** | the step's trades, $G_t$, $D_t$, the battery |
 | **Computes** | bought, sold, balance $B_i$, charge, discharge, external exchange, state of charge, trading profit; deferred and satisfied demand and supply (properties of the outcome) |
-| **Writes** | [`ParticipantOutcome`](../../../core/market/agent/der.py#L31-L82) per participant (fees still 0); the battery's energy; `Participant.profit` |
+| **Writes** | [`ParticipantOutcome`](../../../core/market/agent/der.py#L31-L82) per participant (fees still 0; its untraded energy, `external`, is settled with the DSO in phase 6); the battery's energy; `Participant.profit` |
 | **Code** | above; battery: [`charge`, `discharge`](../../../core/market/agent/battery.py#L89-L107) |
 | **Paper** | eq. 13, 14, 16; §3.4.1 (demand satisfied) |
 | **Decisions** | battery sign and efficiencies fixed (M-16, M-17, M-18); balance as eq. 13 (M-20, M-21); profit updated (M-22); discharge counts towards demand (M-23) ([open items](../../temp/open.md)) |
@@ -188,9 +195,17 @@ loads and generators to their profiles for step $t$
 and runs one AC power flow (pandapower). The flow gives every line's and
 transformer's loss; with `dso.losses` set to a rule of
 [losses.py](../../../core/grid/losses.py) they are also shared out, each participant's
-share in `GridAssessment.loss_shares_kwh` (BCDLA: each branch's loss split over the
-elements below it by $\operatorname{Re}(I_e \overline{I_b}) / \lvert I_b \rvert^2$, a
-negative share for an element that relieves the branch).
+share in `GridAssessment.loss_shares_kwh` (BCDLA: each branch's current-dependent loss
+split over the elements below it by
+$\operatorname{Re}(I_e \overline{I_b}) / \lvert I_b \rvert^2$, a negative share for an
+element that relieves the branch). A line's loss is its measured loss; a transformer's
+is its copper loss, $v_{kr}/100 \cdot S_n \cdot (I_\text{LV} / I_\text{rated})^2$
+([`trafo_copper_losses_kw`](../../../core/grid/losses.py#L246-L273)), not its measured
+loss, which also holds the no-load (iron) loss, 0.48 kW on rural1's transformer whatever
+flows. That part depends on no current, and sharing it by current made the shares blow
+up where the net transformer current is near zero (two households that balance each
+other got opposite shares many times the loss). It stays with the DSO, as
+`LossShares.residual_kw` (MP-4k).
 
 | | |
 |---|---|
@@ -204,52 +219,83 @@ negative share for an element that relieves the branch).
 ## 6. Fees
 
 **6a. The DSO looks at the grid.**
-[`Dso.observe(grid)`](../../../core/market/dso.py#L153-L161): it keeps the power
-flow's line loading and bus voltages.
+[`Dso.observe(grid)`](../../../core/market/dso.py#L158-L164): it keeps the power
+flow's line loading, the transformer's loading and the bus voltages.
 
-**6b. A fee for every trade.** [`Dso.charge`](../../../core/market/dso.py#L277-L309),
+**6b. A fee for every trade.** [`Dso.charge`](../../../core/market/dso.py#L302-L343),
 for a peer trade along $\text{path}(i, j)$, for a DSO trade along the path to the
-transformer (no zone bonus, plus the imbalance fee):
+transformer (the transformer's loading counts in $C_t$, no zone bonus, plus the
+imbalance fee):
 
 $$
 \begin{aligned}
-C_t &= \min\bigl(1, \max_{e \in \text{path}} \text{loading}_e / 100\bigr) && \text{(eq. 8a's congestion)} \\
+C_t &= \min\bigl(1, \max_{e \in \text{path}} \text{loading}_e / 100\bigr), \ e \text{ also the transformer for a DSO trade} && \text{(eq. 8a's congestion)} \\
 F_\text{cong} &= f_\text{cong}\,(C_t - C_\text{th})\, q\, p \ \text{ if } C_t > C_\text{th} && \text{(8a)} \\
 F_\text{thermal} &= \min\Bigl(\tfrac{C_t - T_\text{th}}{1 - T_\text{th}},\ f_\text{threshold}\Bigr)\, q\, p \ \text{ if } C_t > T_\text{th} && \text{(8d, 8g)} \\
-F_\text{volt} &= \min(V_\text{drop}, V_\text{th})\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured} && \text{(8c, 8f)} \\
+F_\text{volt} &= \min(V_\text{drop}, V_\text{th})\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured: } \max_{b \in \text{path}} \lvert V_b - 1 \rvert && \text{(8c, 8f)} \\
 F_\text{trans} &= l_{ij}\, p \ \text{ with } \texttt{losses = "trades"}\text{, else } 0 && \text{(8, no formula in [P1])} \\
-F_\text{zone} &= -f_\text{zone}\, q\, p \ \text{ if both ends on one feeder} && \text{(8e)} \\
+F_\text{zone} &= -\min\bigl(f_\text{zone}\, q\, p,\ F_\text{other}\bigr) \ \text{ if both ends on one feeder} && \text{(8e)} \\
 F_\text{imb} &= f_\text{imb}\, \min\bigl(q / |B_\text{grid}|, 1\bigr)\, q\, p \ \text{ for a DSO trade that worsens } B_\text{grid} && \text{(8b, 8h)}
 \end{aligned}
 $$
 
-([`congestion`](../../../core/market/dso.py#L174-L179),
-[`voltage_drop_of`](../../../core/market/dso.py#L163-L172),
-[`fees_of`](../../../core/market/dso.py#L186-L217),
-[`imbalance_fee`](../../../core/market/dso.py#L219-L236)). $B_\text{grid}$ is the
+([`congestion`](../../../core/market/dso.py#L181-L196),
+[`voltage_drop_of`](../../../core/market/dso.py#L166-L179),
+[`fees_of`](../../../core/market/dso.py#L199-L245),
+[`imbalance_fee`](../../../core/market/dso.py#L247-L273)). $B_\text{grid}$ is the
 market's balance before stage 3, offered minus asked
 ([`PendingStep.grid_balance_kwh`](../../../core/market/lem.py#L126-L130)).
-[`_charged`](../../../core/market/dso.py#L238-L257) splits the total: a peer trade's
+[`_charged`](../../../core/market/dso.py#L275-L294) splits the total: a peer trade's
 fee 50/50 (`fee_buyer_share`), a DSO trade's fee all to the participant; nothing
 is paid when `fees_charged` is off.
 
-**6c. Participants pay.**
-[`Participant.pay_fees`](../../../core/market/agent/der.py#L276-L286): its share of every
-trade's fee comes off the step's profit and the running profit. With a loss rule
+Three choices of the fee parts. The measured voltage is the largest deviation from
+nominal on the path's buses, $\max_b \lvert V_b - 1 \rvert$, not the difference between
+its two ends: on a feeder at 1.05 pu all along (rural1 exporting) two neighbours
+differ by nothing, yet the voltage limit binds (MP-4l). A trade with the DSO runs up
+to the transformer, so its loading counts in $C_t$ next to the lines', for both the
+congestion and the thermal fee (MP-4l). The zone bonus (8e) cancels fees but never
+pays out: it is at most the sum of the other parts, $F_\text{other}$, so no trade's
+fee is below 0 (MP-4n). The imbalance fee (8b) is switched off in the thesis scenario
+(`imbalance_factor` 0): it reads the order book's balance, not the grid, and lands on
+the minority side by the sign of a net that no agent sees (MP-4m, open).
+
+**6c. Untraded energy pays like a DSO trade.** What no trade covers (a deficit the
+participant did not order, a surplus nobody took) is settled with the DSO at the
+tariff, the deficit at $p_\text{utility}$ and the surplus at $p_\text{FiT}$
+([Settlement](#4-settlement), MP-1e). That energy runs the same way as a stage-3
+trade, through the same lines to the same transformer, so it pays the same fees: for
+each participant with such energy, [`_untraded_trades`](../../../core/market/lem.py#L702-L726)
+makes one implicit trade with the DSO (stage 4, `UNTRADED`) at that tariff along the
+participant's path to the transformer, with its loss (eq. 18), and
+[`_charge_fees`](../../../core/market/lem.py#L679-L700) hands it to `Dso.charge` with
+the real trades, after the power flow. The participant pays the whole fee
+(`_charged`); `fees_charged` off gives 0. Not ordering is then no cheaper than
+ordering the same energy to the DSO (MP-1f). The implicit trades are in
+`StepRecord.untraded`, not in `trades`, so volumes, clearing price, reputation and
+the DSO's energy balance count only what was traded; the fee columns of the baseline
+rows and of the trade tables (stage 4) and `StepRecord.fees` include them, and the
+reward (the bill) carries them through `ParticipantOutcome.profit`.
+
+**6d. Participants pay.**
+[`Participant.pay_fees`](../../../core/market/agent/der.py#L292-L308): its share of every
+trade's fee, and the whole fee of its untraded energy, comes off the step's profit and
+the running profit. With a loss rule
 (`dso.losses` other than `"trades"`) it also pays its share of the step's measured
 losses at the step's utility price,
 [`Dso.loss_charge`](../../../core/market/dso.py): $L_i \cdot p_\text{utility}$, paid back
 when $L_i < 0$, nothing when `fees_charged` is off. It is part of its fees
-(`ParticipantOutcome.loss_charge`), and the DSO collects it.
+(`ParticipantOutcome.loss_charge`), and the DSO collects it. The transformer's
+no-load loss is nobody's share: the DSO bears it ([Grid](#5-grid)).
 
 | | |
 |---|---|
-| **Reads** | the trades, the power flow's loading, the measured voltages, paths and zones, $B_\text{grid}$ |
-| **Computes** | $C_t$, $V_\text{drop}$, the six fee parts per trade, the split, each participant's fees |
-| **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `ParticipantOutcome.fees` and `profit` |
-| **Code** | [`_charge_fees`](../../../core/market/lem.py#L671-L685), above |
+| **Reads** | the trades and the untraded energy, the power flow's line and transformer loading, the measured voltages, paths and zones, $B_\text{grid}$ |
+| **Computes** | $C_t$, $V_\text{drop}$, the six fee parts per trade and per untraded settlement, the split, each participant's fees |
+| **Writes** | `Trade.fees`, `fee_parts`, `buyer_fee`, `seller_fee`; `StepRecord.untraded`; `ParticipantOutcome.fees` and `profit` |
+| **Code** | [`_charge_fees`](../../../core/market/lem.py#L679-L700), above |
 | **Paper** | eq. 8, 8a-8h |
-| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28), or the measured losses shared by a rule and charged per participant (`dso.losses`, MP-4j); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); *Open: MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md))* ([open items](../../temp/open.md)) |
+| **Decisions** | fees charged at all (M-27); after the same step's power flow; $F_\text{trans}$ as the loss at the trade price (M-28), or the measured losses shared by a rule and charged per participant (`dso.losses`, MP-4j); caps (M-29); imbalance on DSO trades (M-30); DSO trades pay their path (M-31); thermal threshold (M-32); zones = feeders and the bonus size (M-33, M-34); untraded energy pays the fees of a DSO trade (MP-1f, 11 Nov 2026: it was settled without fees before, MP-1e); the measured voltage and the transformer's loading in a DSO trade's congestion (MP-4l); the zone bonus never takes a fee below 0 (MP-4n); the transformer's no-load loss stays with the DSO (MP-4k); the imbalance fee off in the thesis scenario (MP-4m); *Open: MP-4f, MP-4h (the peer charge, [Tariffs](tariffs.md)), MP-4m* ([open items](../../temp/open.md)) |
 
 ## 7. Record
 
@@ -260,10 +306,10 @@ In [`advance`](../../../core/market/lem.py#L329-L369), once the fees are known (
   peer trades, or the previous one when there were none;
 - the DSO's step, [`Dso.settle`](../../../core/market/dso.py#L338-L357):
   $B_\text{DSO} = \sum (E_\text{sold} - E_\text{bought})$ (eq. 7), energy revenue,
-  fees collected;
-- everything into one [`StepRecord`](../../../core/market/lem.py#L133-L197): inputs,
+  fees collected, those of the untraded energy included;
+- everything into one [`StepRecord`](../../../core/market/lem.py#L133-L201): inputs,
   orders, stages with their charged trades, outcomes, clearing price, `grid`, `dso`,
-  notes.
+  notes, and the charged untraded settlements.
 
 | | |
 |---|---|

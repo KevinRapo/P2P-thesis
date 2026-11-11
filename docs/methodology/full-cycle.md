@@ -110,9 +110,10 @@ Every quantity of the environment step and the market step, with the phase that 
 | Trading profit | eq. 14 | 4, 6 | [`settle`](../../core/market/agent/der.py#L237-L274), [`pay_fees`](../../core/market/agent/der.py#L276-L286) | `ParticipantOutcome.profit`, `Participant.profit` |
 | Injection at the bus | | 5 | [`injection`](../../core/market/agent/der.py#L289-L300) | – |
 | Bus voltages, line loading, network losses | | 5 | [`SimBenchGrid.assess`](../../core/grid/powerflow.py#L187-L234) | `StepRecord.grid` |
-| Congestion of a trade | $C_t$ | 6 | [`Dso.congestion`](../../core/market/dso.py#L174-L179) | – |
-| Voltage drop | $V_\text{drop}$ | 6 | [`Dso.voltage_drop_of`](../../core/market/dso.py#L163-L172) | – |
-| Fee parts, total, split | eq. 8 | 6 | [`fees_of`](../../core/market/dso.py#L186-L217), [`imbalance_fee`](../../core/market/dso.py#L219-L236), [`_charged`](../../core/market/dso.py#L238-L257) | `Trade.fee_parts`, `fees`, `buyer_fee`, `seller_fee` |
+| Congestion of a trade | $C_t$ | 6 | [`Dso.congestion`](../../core/market/dso.py#L181-L196) | – |
+| Voltage drop | $V_\text{drop}$ | 6 | [`Dso.voltage_drop_of`](../../core/market/dso.py#L166-L179) | – |
+| Untraded energy settled with the DSO | | 6 | [`_untraded_trades`](../../core/market/lem.py#L702-L726) | `StepRecord.untraded` |
+| Fee parts, total, split | eq. 8 | 6 | [`fees_of`](../../core/market/dso.py#L199-L245), [`imbalance_fee`](../../core/market/dso.py#L247-L273), [`_charged`](../../core/market/dso.py#L275-L294) | `Trade.fee_parts`, `fees`, `buyer_fee`, `seller_fee` |
 | Clearing price (next $p_\text{ref}$) | $p_\text{clear}$ | 7 | [`_clearing_price`](../../core/market/lem.py#L606-L615) | `StepRecord.clearing_price` |
 | DSO balance, revenue, fees | $B_\text{DSO}$ | 7 | [`Dso.settle`](../../core/market/dso.py#L338-L357) | `StepRecord.dso` |
 | Reputation components, score, reputation | $\delta$, $s$, $r$ | 8 | [`ReputationHandler`](../../core/market/reputation.py#L55-L297) | `StepRecord.reputation`, `Participant.reputation` |

@@ -2,7 +2,9 @@
 
 The DSO charges the fees (eq. 8) after the step's power flow, so the congestion
 and thermal parts of every trade use the line loading that the step's trades
-caused, also in the first step of the day.
+caused, also in the first step of the day. A trade with the DSO, and a
+participant's untraded energy settled with it, runs up to the transformer, whose
+loading counts as part of its path.
 """
 
 from __future__ import annotations
@@ -37,14 +39,17 @@ def test_fees_see_the_same_steps_power_flow(played):
 
     for record in records:
         loading = record.grid.line_loading_percent
-        for t in record.trades:
+        for t in (*record.trades, *record.untraded):
             if DSO_ID in (t.buyer_id, t.seller_id):
                 other = t.seller_id if t.buyer_id == DSO_ID else t.buyer_id
                 path = market._upstream(other)
+                on_path = [loading.get(x, 0.0) for x in path.lines]
+                on_path.append(record.grid.max_trafo_loading_percent or 0.0)
             else:
                 path = market._path(t.buyer_id, t.seller_id)
+                on_path = [loading.get(x, 0.0) for x in path.lines]
 
-            highest = max((loading.get(x, 0.0) for x in path.lines), default=0.0)
+            highest = max(on_path, default=0.0)
             c = min(1.0, highest / 100)
             expected = 0.0
 
@@ -59,6 +64,7 @@ def test_first_step_is_charged_like_any_other(played):
     _, records = played
     first = records[0]
     assert first.grid.line_loading_percent, "the first step has a power flow"
-    assert all(t.fees == pytest.approx(t.fee_parts.total) for t in first.trades)
+    settled = [*first.trades, *first.untraded]
+    assert all(t.fees == pytest.approx(t.fee_parts.total) for t in settled)
     paid = sum(o.fees for o in first.participants.values())
-    assert paid == pytest.approx(sum(t.buyer_fee + t.seller_fee for t in first.trades))
+    assert paid == pytest.approx(sum(t.buyer_fee + t.seller_fee for t in settled))

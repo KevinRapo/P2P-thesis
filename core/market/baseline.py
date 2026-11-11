@@ -177,7 +177,7 @@ def _row(day: str, record: StepRecord, market: LocalEnergyMarket) -> dict:
     kinds = [v.code for v in g.violations]
     fees = {f"fee_{p}": 0.0 for p in FEE_PARTS}
 
-    for t in record.trades:
+    for t in (*record.trades, *record.untraded):  # the untraded energy pays too
         for p in FEE_PARTS:
             fees[f"fee_{p}"] += getattr(t.fee_parts, p, 0.0) if t.fee_parts else 0.0
 
