@@ -275,11 +275,7 @@ def _periods(
     if not need <= set(agent_steps) or "period" not in steps:
         return
 
-    setups = {
-        p["id"]: p["battery"]
-        for p in scenario.get("participants", [])
-        if p.get("battery")
-    }
+    setups = _batteries(scenario)
     policy = agent_steps.policy.iloc[0]  # any policy: they all start the same
     mine = agent_steps[agent_steps.policy == policy]
     tariffs = steps[steps.policy == policy]
@@ -305,6 +301,23 @@ def _periods(
             if a in first.index
         }
         yield days, part, prices, stores
+
+
+def _batteries(scenario: Mapping[str, Any]) -> dict[str, dict]:
+    """Each participant's battery as the market played it: the saved setup with its
+    capacity and power limit times the scenario's ``storage_scale`` (MP-4i)."""
+    factor = float(scenario.get("grid", {}).get("storage_scale", 1.0))
+    found = {}
+
+    for p in scenario.get("participants", []):
+        if p.get("battery"):
+            b = dict(p["battery"])
+            b["capacity_kwh"] = float(b["capacity_kwh"]) * factor
+            if b.get("max_power_kw") is not None:
+                b["max_power_kw"] = float(b["max_power_kw"]) * factor
+            found[p["id"]] = b
+
+    return found
 
 
 def _by_day(plan: Plan, days: list, at: pd.Index, start: float) -> pd.DataFrame:
@@ -430,11 +443,7 @@ def day_references(
     if not need <= set(agent_steps) or "feed_in_tariff" not in steps:
         return None, None
 
-    setups = {
-        p["id"]: p["battery"]
-        for p in scenario.get("participants", [])
-        if p.get("battery")
-    }
+    setups = _batteries(scenario)
     hours = float(scenario.get("grid", {}).get("step_hours", 1.0))
     policy = agent_steps.policy.iloc[0]  # profiles and tariffs: the same for all
     mine = agent_steps[agent_steps.policy == policy]

@@ -120,6 +120,7 @@ Read by [`core/config/store.py`](../../../core/config/store.py) into the records
 | `method` | `"powerflow"`, `"graph"` | Where the DSO's fees read the line loading from: the AC power flow, or the graph model ([P1] §3.5). The power flow runs and is recorded either way ([grid methods](../../methodology/market/grid-methods.md)) |
 | `graph_capacity` | `"paper"`, `"ratings"` | With `"graph"`: the capacity per line. `"paper"` spreads a total over the lines, `C_e = C_total · (1/ℓ_e) / Σ_k (1/ℓ_k)` for lengths `ℓ`; `"ratings"` uses each line's own rating |
 | `graph_total_kw` | number, `null` | The total of `"paper"`. `null`: the sum of the line ratings. [P1] gives no value; the original uses 1e6 kW |
+| `load_scale`, `generation_scale`, `storage_scale` | 0 or more, default 1.0 | Factors on the power of every load, generator and storage unit of the network, the participants' included: their demand, their generation, their battery's capacity and power limit, and the background in the power flow. 1.0 is SimBench's network as it is; above it, a network under more stress (MP-4i) |
 
 ### participants
 

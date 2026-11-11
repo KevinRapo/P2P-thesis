@@ -116,6 +116,7 @@ class SimBenchGrid:
             self.setup.day,
             self.setup.step_hours,
             self.setup.background,
+            tuple(self.setup.scale_of(t) for t in ("load", "sgen", "storage")),
             owned,
         )
 
@@ -173,11 +174,12 @@ class SimBenchGrid:
                 values = df.iloc[rows].mean()
                 net[table].loc[values.index, column] = values.values
 
-        factor = 0.0 if self.setup.background == "off" else 1.0
+        on = 0.0 if self.setup.background == "off" else 1.0
 
         for table in ("load", "sgen", "storage"):
             if not len(net[table]):
                 continue
+            factor = on * self.setup.scale_of(table)  # MP-4i: the network's stress
             for column in ("p_mw", "q_mvar"):
                 if column not in net[table]:
                     continue

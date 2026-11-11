@@ -151,7 +151,9 @@ class ProfileService:
         day, in kW per market step, each marked as a participant's or background.
 
         Built: SimBench's absolute profiles through the adapter, at the step length
-        the market uses (hourly or 15 minutes).
+        the market uses (hourly or 15 minutes), each element times its kind's
+        factor (``GridSetup.scale_of``, MP-4i), as the market and the power flow
+        read them.
         """
         g = scenario.grid
         ref = NetworkRef("simbench", g.code)
@@ -172,7 +174,10 @@ class ProfileService:
                     bus=e.bus,
                     profile_type=e.profile_type,
                     owner=owner.get(e.id, ""),
-                    kw=power.get(e.id, [0.0] * len(x)),
+                    kw=[
+                        kw * g.scale_of(e.element_type)
+                        for kw in power.get(e.id, [0.0] * len(x))
+                    ],
                 )
                 for e in elements
             ],

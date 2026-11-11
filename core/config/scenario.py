@@ -37,6 +37,13 @@ class GridSetup:
             original's ``GridNetwork``) or ``"ratings"`` (each line's own rating).
         graph_total_kw: The total of ``"paper"``; ``None``: the sum of the line
             ratings ([P1] gives no value; the original uses 1e6 kW).
+        load_scale, generation_scale, storage_scale: Factors on the power of every
+            load, generator (``sgen``) and storage unit of the network, the
+            participants' included, applied where the power is read
+            (``scale_of``): a participant's demand and generation, its battery's
+            capacity and power limit, and the background in the power flow. 1.0 is
+            SimBench's network as it is; above it, a network under more stress
+            (MP-4i).
     """
 
     code: str = "1-LV-rural1--0-sw"
@@ -49,6 +56,26 @@ class GridSetup:
     method: str = "powerflow"
     graph_capacity: str = "paper"
     graph_total_kw: Optional[float] = None
+    load_scale: float = 1.0
+    generation_scale: float = 1.0
+    storage_scale: float = 1.0
+
+    def scale_of(self, kind: str) -> float:
+        """The factor on an element of ``kind`` (``load``, ``sgen``, ``storage``;
+        1.0 for anything else)."""
+        return {
+            "load": self.load_scale,
+            "sgen": self.generation_scale,
+            "storage": self.storage_scale,
+        }.get(kind, 1.0)
+
+    def problems(self) -> list[str]:
+        """Scaling factors that make no sense."""
+        return [
+            f"{name.replace('_', ' ').capitalize()} {value} is negative."
+            for name in ("load_scale", "generation_scale", "storage_scale")
+            if (value := getattr(self, name)) < 0
+        ]
 
 
 # --------------------------------------------------------------------------------------
@@ -70,6 +97,19 @@ class BatterySetup:
     charge_efficiency: float = 0.95
     discharge_efficiency: float = 0.95
     initial_soc: float = 0.5
+
+    def scaled(self, factor: float) -> "BatterySetup":
+        """The same battery with its capacity and power limit times ``factor``
+        (``GridSetup.storage_scale``); its state of charge stays a share."""
+        return BatterySetup(
+            capacity_kwh=self.capacity_kwh * factor,
+            max_power_kw=self.max_power_kw * factor,
+            min_soc=self.min_soc,
+            max_soc=self.max_soc,
+            charge_efficiency=self.charge_efficiency,
+            discharge_efficiency=self.discharge_efficiency,
+            initial_soc=self.initial_soc,
+        )
 
     def problems(self) -> list[str]:
         """What makes the battery's capacity, SoC window, efficiencies, start or
@@ -423,6 +463,7 @@ class Scenario:
 
         return (
             found
+            + self.grid.problems()
             + self.market.problems()
             + self.dso.problems(self.grid.step_hours)
         )

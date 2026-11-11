@@ -397,6 +397,20 @@ def _grid_settings(on_change=None) -> None:
     ).classes("w-full")
     capacity.set_enabled(g.method == "graph")
     total.set_enabled(g.method == "graph")
+    # MP-4i: the whole network's power by element type, participants included.
+    with ui.row().classes("w-full gap-2 no-wrap"):
+        for field, label in (
+            ("load_scale", "Load ×"),
+            ("generation_scale", "Generation ×"),
+            ("storage_scale", "Storage ×"),
+        ):
+            ui.number(
+                label,
+                value=getattr(g, field),
+                min=0,
+                step=0.1,
+                on_change=lambda e, f=field: save(f, float(e.value or 0.0)),
+            ).classes("grow")
     ui.label(
         "The power flow runs and is recorded with either. With the graph model the "
         "fees read the step's trades along their paths instead."

@@ -405,6 +405,10 @@ class LocalEnergyMarket:
         owned = tuple(e for p in self.scenario.participants for e in p.owns)
         resolution = "hourly" if g.step_hours == 1.0 else "15min"
         power = simbench.day_power(ref, owned, day, resolution)  # cached per day
+        power = {  # MP-4i: each element's power times its kind's factor
+            e: [kw * g.scale_of(kinds.get(e, "")) for kw in series]
+            for e, series in power.items()
+        }
 
         return {
             p.id: profiles_from_elements(
@@ -437,7 +441,8 @@ class LocalEnergyMarket:
         one."""
         if b is None:
             return None
-        return Battery(b, step_hours=self.scenario.grid.step_hours)
+        g = self.scenario.grid
+        return Battery(b.scaled(g.storage_scale), step_hours=g.step_hours)
 
     def _inputs(self, step: int) -> StepInputs:  #! Market 1: inputs G_t, D_t, tariffs
         """G_t, D_t, p_FiT and p_utility of ``step``. The tariffs are the DSO's
