@@ -63,7 +63,7 @@ def tab() -> None:
     """Controls on top; the sweep's table; the window over time and the network at
     its worst step."""
     s = services()
-    state: dict[str, Any] = {"busy": False, "done": 0, "total": 0, "runs": {}}
+    state: dict[str, Any] = {"busy": False, "runs": {}}
 
     with section(
         "Baseline",
@@ -79,9 +79,6 @@ def tab() -> None:
             factor = ui.select(FACTORS, value="", label="Sweep").classes("w-72")
             values = ui.input("Values", value="1, 1.5, 2, 3").classes("w-48")
             play_button = ui.button("Play", icon="play_arrow").props("unelevated no-caps")
-
-        progress = ui.linear_progress(value=0, show_value=False).classes("w-full")
-        progress.visible = False
 
     with section(
         "Overview",
@@ -121,15 +118,6 @@ def tab() -> None:
             raise ValueError(f"at most {MAX_DAYS} days here; longer from a notebook")
         return days
 
-    def tick(done: int, total: int) -> None:
-        state["done"], state["total"] = done, total
-
-    def poll() -> None:
-        if state["total"]:
-            progress.value = state["done"] / state["total"]
-
-    ui.timer(0.5, poll)
-
     async def play() -> None:
         if state["busy"]:
             return
@@ -141,18 +129,17 @@ def tab() -> None:
             ui.notify(str(error), type="negative")
             return
 
-        state.update(busy=True, done=0, total=0)
-        progress.visible, progress.value = True, 0
+        state["busy"] = True
         scenario = s.scenario.current()
         busy(table_box, "Playing the window …")
 
         try:
             if factor.value:
                 runs = await run.io_bound(
-                    baseline.sweep, scenario, days, f"grid.{factor.value}", numbers, tick
+                    baseline.sweep, scenario, days, f"grid.{factor.value}", numbers
                 )
             else:  # the scenario as it is, under its own value of nothing swept
-                runs = {None: await run.io_bound(baseline.play, scenario, days, tick)}
+                runs = {None: await run.io_bound(baseline.play, scenario, days)}
             source = NetworkRef("simbench", scenario.grid.code)
             topology = await run.io_bound(s.grid.topology, source)
         except Exception as error:  # noqa: BLE001  show the error on the page
@@ -160,7 +147,6 @@ def tab() -> None:
             return
         finally:
             state["busy"] = False
-            progress.visible = False
 
         state.update(runs=runs, topology=topology, scenario=scenario)
         overview(runs)
