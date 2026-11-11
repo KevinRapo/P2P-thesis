@@ -198,6 +198,19 @@ class StepRecord:
         return sum(t.fees for t in self.trades)
 
 
+def net_bill(record: "StepRecord", pid: str) -> float:
+    """Participant ``pid``'s net bill for the step, in the scenario's money unit: its
+    trades' profit (fees paid), and what no trade covered settled at retail (MP-1e):
+    the untraded surplus at the feed-in tariff, the untraded demand at the utility
+    price. The money every result reports, and the ``bill`` reward."""
+    outcome = record.participants[pid]
+    tariffs = record.inputs
+    sold = tariffs.feed_in_tariff * outcome.deferred_supply_kwh
+    bought = tariffs.utility_price * outcome.deferred_demand_kwh
+
+    return outcome.profit + sold - bought
+
+
 def _balance(orders: tuple[Order, ...]) -> float:
     """Energy offered minus energy asked."""
     return sum(-o.quantity if o.is_buy else o.quantity for o in orders)

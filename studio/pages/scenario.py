@@ -411,6 +411,12 @@ def _grid_settings(on_change=None) -> None:
                 step=0.1,
                 on_change=lambda e, f=field: save(f, float(e.value or 0.0)),
             ).classes("grow")
+    # What the factors do to the network: the scenario played with the rule.
+    ui.button(
+        "Check the baseline",
+        icon="rule_settings",
+        on_click=lambda: ui.navigate.to("/market?tab=baseline"),
+    ).props("flat no-caps dense")
     ui.label(
         "The power flow runs and is recorded with either. With the graph model the "
         "fees read the step's trades along their paths instead."

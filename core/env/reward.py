@@ -50,24 +50,13 @@ from typing import Mapping, Optional
 import numpy as np
 
 from core.market import signals
-from core.market.lem import LocalEnergyMarket, StepRecord
+from core.market.lem import LocalEnergyMarket, StepRecord, net_bill  # noqa: F401
 from core.market.order import Order, Trade
 
 
 # --------------------------------------------------------------------------------------
 # The money
 # --------------------------------------------------------------------------------------
-def net_bill(record: StepRecord, pid: str) -> float:
-    """Agent ``pid``'s net bill for the step, in the scenario's money unit: its
-    trades' profit, and what no trade covered settled at retail (MP-1e)."""
-    outcome = record.participants[pid]
-    tariffs = record.inputs
-    sold = tariffs.feed_in_tariff * outcome.deferred_supply_kwh
-    bought = tariffs.utility_price * outcome.deferred_demand_kwh
-
-    return outcome.profit + sold - bought
-
-
 # --------------------------------------------------------------------------------------
 # The original code's reward: every constant and form as it ran there
 # --------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 # Market
 
-**See the market work, and check it against cases with a known outcome.** No
+**See the market work, play the scenario before learning, and check it against cases with a known outcome.** No
 learning here: participants bid with the market's own rule.
 
 ## Step
@@ -23,6 +23,25 @@ Plays the active scenario's market one part of a step at a time, as in
   - every participant: generation, demand, order, battery, profit;
   - the day so far (energy traded, peer price) and the network's voltages over the
     day.
+
+## Baseline
+
+Plays the active scenario over a window of days with the market's rule and no noise,
+the evaluation's `net_position` baseline ([`baseline.py`](../../../../core/market/baseline.py)):
+how the network copes before any learning. The Scenario page's *Check the baseline*
+opens it.
+
+- **The window:** *From* and *To*, up to 31 days (longer: `baseline.play` from a
+  notebook). The batteries and reputations carry over from day to day.
+- **A sweep (optional):** one scaling factor (generation, load or storage, MP-4i) at
+  several values, each played over the window. Nothing is saved; *Use in the
+  scenario* saves the value picked.
+- **Overview:** per value, the highest and 95th-percentile line loading, the
+  transformer's highest, the lowest and highest voltage, the steps with a violation,
+  losses, fees and team money.
+- **Over the window and the network:** for the scenario as it is, the highest line and
+  transformer loading and the voltage band per step, and the network at the step with
+  the highest line loading, lines coloured by loading, buses by voltage.
 
 ## Probes
 
