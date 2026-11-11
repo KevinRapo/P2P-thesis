@@ -17,8 +17,8 @@ Each number sits on the lowest level that can hold it, and only the first is per
 | Level | What it is | Computed | Where |
 |---|---|---|---|
 | 1 Saved | Raw tables of one run | During the run | this page |
-| 2 Indicator | One number per run, policy and test day | When read | [`indicators.py`](../../../core/runner/indicators.py) |
-| 3 Comparison | Any runs side by side, or their difference | When read | [`indicators.py`](../../../core/runner/indicators.py), [Validation](../../using/studio/experiments/results/validation.md) |
+| 2 Indicator | One number per run, policy and test day | When read | [`indicators.py`](../../../core/market/indicators.py), the references [`ceiling.py`](../../../core/market/ceiling.py) |
+| 3 Comparison | Any runs side by side, or their difference | When read | [`indicators.py`](../../../core/market/indicators.py), [Validation](../../using/studio/experiments/results/validation.md) |
 
 So an indicator added later still applies to runs already made, if the saved tables hold
 what it needs. That is why every test day is kept step by step, for every policy: it adds

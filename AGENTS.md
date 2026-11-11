@@ -21,7 +21,9 @@ removed; update this file only when a folder, a landmark or a rule changes.
 core/        the MARLEM functionality: everything a notebook can call
   grid/        the SimBench network: catalogue, topology, profiles, power flow
   config/      the scenario: network, participants, market rules; save and load
-  market/      orders, matching, pricing, DSO, agents, reputation; LocalEnergyMarket
+  market/      orders, matching, pricing, DSO, agents, reputation; LocalEnergyMarket;
+               indicators.py and ceiling.py: the scoring of a run's tables and the
+               VTI's references (they read tables and run the market's own code)
   env/         MarketEnv: the market as an RLlib multi-agent environment
   rl/          the RL layer (paradigms on RLlib), with envs/ (the probe
                environments) and scripts/ (the probe check)

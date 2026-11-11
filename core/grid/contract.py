@@ -280,3 +280,7 @@ class GridAssessment:
     # the rule's name.
     loss_shares_kwh: Mapping[str, float] = field(default_factory=dict)
     loss_allocation: str | None = None
+    # The voltage the network is held at: the set point (vm_pu) of the external grid
+    # that feeds it. The reference the fees' measured voltage deviation is read from
+    # (``Dso.voltage_drop_of``); None when the flow does not say.
+    slack_voltage_pu: float | None = None

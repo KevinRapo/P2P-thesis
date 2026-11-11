@@ -2,8 +2,8 @@
 
 > Every number the Results page can show, once, in five groups. A row gives the
 > column name, what it is, the time resolutions it exists at and the tab that shows
-> it. Code: [`indicators.py`](../../../core/runner/indicators.py) (`INDICATORS`) and
-> [`ceiling.py`](../../../core/runner/ceiling.py) for the references.
+> it. Code: [`indicators.py`](../../../core/market/indicators.py) (`INDICATORS`) and
+> [`ceiling.py`](../../../core/market/ceiling.py) for the references.
 
 The groups answer different questions, and only the first is a verdict:
 
@@ -56,9 +56,10 @@ hide the trade-offs the six show.
 
 | Index | Column | Definition | Resolution | Tab |
 |---|---|---|---|---|
-| Value tapping ★ | `vti`, `vti_day` | $\frac{\text{team money} - \text{non-P2P}}{\text{ceiling} - \text{non-P2P}}$, their eq. 17. 0: everyone on their own; 1: the most the horizon allows; below 0: worse than on their own | period, day | Validation |
+| Value tapping ★ | `vti`, `vti_day` | $\frac{\text{energy money} - \text{non-P2P}}{\text{ceiling} - \text{non-P2P}}$, their eq. 17, on **energy money** (before grid fees and loss charge, the references' money). 0: everyone on their own; 1: the most the horizon allows; below 0: worse than on their own | period, day | Validation |
+| Value tapping after fees ★ | `vti_after_fees`, `vti_day_after_fees` | The same with the policy's `team_money` (after fees and loss charge) against the same references. `vti` minus `vti_after_fees` is the fees' and the loss charge's share of the gap between the references; NaN for the ceiling | period, day | Validation |
 | Participation ★ | `pi`, `pi_day` | Share of participants whose money beats their own non-P2P money, eq. 18: would they stay? | period, day | Validation |
-| Equality ★ | `ei`, `ei_day` | $1 - \frac{\sum_n \sum_m \lvert x_n - x_m \rvert}{2N \sum_n \lvert x_n \rvert}$ on the **gains** $x_n$ over each participant's own non-P2P money ([`equality`](../../../core/runner/indicators.py)). 1: the gain shared evenly. *Ours*: the paper's eq. 19-21 takes the Gini of income **levels**, shifted up to be positive, which mostly measures what the households own; equal losses also score 1 here, so read it with the VTI | period, day | Validation |
+| Equality ★ | `ei`, `ei_day` | $1 - \frac{\sum_n \sum_m \lvert x_n - x_m \rvert}{2N \sum_n \lvert x_n \rvert}$ on the **gains** $x_n$ over each participant's own non-P2P money ([`equality`](../../../core/market/indicators.py#L432)). 1: the gain shared evenly. *Ours*: the paper's eq. 19-21 takes the Gini of income **levels**, shifted up to be positive, which mostly measures what the households own; equal losses also score 1 here, so read it with the VTI | period, day | Validation |
 | Energy balance ★ | `energy_balance_index`, `..._period` | $1 - \frac{\sum_t \lvert \text{net}_t \rvert}{\text{consumption} + \text{production}}$, eq. 22-23: how little the community exchanged with the upstream grid, both ways | day, period | Validation, Grid |
 | Peak-to-average ★ | `peak_to_average`, `..._period` | $\max_t \lvert \text{net}_t \rvert / \text{mean}_t \lvert \text{net}_t \rvert$ (EPARI, eq. 24); lower is flatter. Their power flatness index divides it by the worst of the runs compared | day, period | Validation, Grid |
 | Self-sufficiency ★ | `self_sufficiency_index`, `..._period` | $1 - \frac{\sum_t \max(\text{net}_t, 0)}{\text{consumption}}$, eq. 26-28 | day, period | Validation, Grid |
@@ -73,16 +74,23 @@ horizon. The references are in [How a run is judged](index.md#three-yardsticks).
 All in EUR, positive earned. A participant's money is its `bill`
 ([`net_bill`](../../../core/env/reward.py)): its trades' profit after fees, its untraded
 surplus at the feed-in tariff and its untraded deficit at the utility price (MP-1e), the
-fees of that untraded energy included in the profit (MP-1f).
+fees of that untraded energy included in the profit (MP-1f). Two moneys come from it, and
+each indicator says which it uses:
+
+| Money | Column | What it is | Used by |
+|---|---|---|---|
+| Energy money | `energy_money` | The bill **before** grid fees and loss charge: the energy at its prices. The peer charge (0 in the thesis scenario) counts with the fees, not here: it is paid to the DSO on top of the price | `vti`, `vti_day`, `pi_day`, `ei_day`; the references' money |
+| Team money | `team_money` | The bill **after** fees and loss charge: `energy_money − fees − loss_charge` | `vti_after_fees`, `vti_day_after_fees`, `gain_net_position`, `participants_better`, `worst_participant_gain`, `pi`, `ei` (against non-P2P bills after fees) |
 
 | Metric | Column | Definition | Resolution | Tab |
 |---|---|---|---|---|
-| Team money ★ | `team_money` | The participants' `bill` summed | step, day | Validation |
-| Gain over net position ★ | `gain_net_position` | Team money minus the run's own `net_position`, same day | day | Validation |
+| Energy money ★ | `energy_money` | The participants' bills summed, before grid fees and loss charge | step, day | Validation |
+| Team money ★ | `team_money` | The participants' `bill` summed, after fees and loss charge. For `non_p2p` too (its fees are charged); NaN for the ceiling, whose trades are undefined | step, day | Validation |
+| Gain over net position ★ | `gain_net_position` | Team money (after fees) minus the run's own `net_position`, same day | day | Validation |
 | Stored change ★ | `stored_change_kwh` | kWh left in the batteries against the start of the day. Money alone favours draining them, so it stands next to team money | step, day | Validation |
-| Better off than alone | `participants_better` | Participants whose `bill` beats their own `non_p2p` money that day | day | Validation |
-| Worst participant's gain | `worst_participant_gain` | The lowest of the participants' gains over their own `non_p2p` money | day | Validation |
-| Fees, peer charge | `fees`, `peer_charge` | Eq. 8 grid fees, and the charge per peer kWh | step, day | Market |
+| Better off than alone | `participants_better` | Participants whose `bill` (after fees) beats their own `non_p2p` bill (after its fees) that day | day | Validation |
+| Worst participant's gain | `worst_participant_gain` | The lowest of the participants' gains over their own `non_p2p` money, both after fees | day | Validation |
+| Fees, loss charge, peer charge | `fees`, `loss_charge`, `peer_charge` | Eq. 8 grid fees (the untraded energy's included), the participants' shares of the losses at the utility price, and the charge per peer kWh. `non_p2p` has them, the ceiling only the loss charge | step, day | Market |
 | Buyers' and sellers' gain | `buyer_gain`, `seller_gain` | What the peer trades were worth against the tariffs: the buyer's utility price minus what it paid (net of the peer charge), the seller's price minus the feed-in tariff | day | Market |
 | DSO money | `dso_money` | The DSO's energy money: its trades, the untraded energy at retail, every fee | day | Market |
 

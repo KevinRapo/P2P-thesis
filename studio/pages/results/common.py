@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from nicegui import ui
 
-from core.runner.indicators import INDICATORS
+from core.market.indicators import INDICATORS
 from studio.adapters.results_service import ResultsService
 from studio.components.cards import section
 from studio.components.charts import Chart, SeriesChart

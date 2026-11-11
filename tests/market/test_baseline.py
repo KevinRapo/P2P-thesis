@@ -52,6 +52,8 @@ def test_the_summary_adds_up_the_steps(played):
     assert found["steps"] == 48
     assert found["line_max_percent"] == s.max_line_loading_percent.max()
     assert found["team_money"] == pytest.approx(s.team_money.sum())
+    # the money before fees and loss charge: the bill with what was paid in them back
+    assert found["energy_money"] == pytest.approx(found["team_money"] + found["fees"])
     assert found["grid_losses_kwh"] == pytest.approx(s.grid_losses_kwh.sum())
     assert 0 <= found["steps_violated"] <= 48
 

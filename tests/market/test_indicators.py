@@ -6,8 +6,8 @@ import pytest
 
 from core.market.dso import DSO_ID
 from core.market.signals import KPIS
-from core.runner import indicators
-from core.runner.indicators import INDICATORS, day_table
+from core.market import indicators
+from core.market.indicators import INDICATORS, day_table
 
 DAYS = ["d1", "d2"]
 

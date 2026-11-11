@@ -42,7 +42,8 @@ SUMMARY = [
     ("steps_violated", "Steps violated"),
     ("grid_losses_kwh", "Losses (kWh)"),
     ("fees", "Fees"),
-    ("team_money", "Team money"),
+    ("energy_money", "Energy money, before fees"),
+    ("team_money", "Team money, after fees"),
 ]
 
 

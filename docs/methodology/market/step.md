@@ -232,7 +232,7 @@ $$
 C_t &= \min\bigl(1, \max_{e \in \text{path}} \text{loading}_e / 100\bigr), \ e \text{ also the transformer for a DSO trade} && \text{(eq. 8a's congestion)} \\
 F_\text{cong} &= f_\text{cong}\,(C_t - C_\text{th})\, q\, p \ \text{ if } C_t > C_\text{th} && \text{(8a)} \\
 F_\text{thermal} &= \min\Bigl(\tfrac{C_t - T_\text{th}}{1 - T_\text{th}},\ f_\text{threshold}\Bigr)\, q\, p \ \text{ if } C_t > T_\text{th} && \text{(8d, 8g)} \\
-F_\text{volt} &= \min(V_\text{drop}, V_\text{th})\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured: } \max_{b \in \text{path}} \lvert V_b - 1 \rvert && \text{(8c, 8f)} \\
+F_\text{volt} &= \min(V_\text{drop}, V_\text{th})\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured: } \max_{b \in \text{path}} \lvert V_b - V_\text{slack} \rvert && \text{(8c, 8f)} \\
 F_\text{trans} &= l_{ij}\, p \ \text{ with } \texttt{losses = "trades"}\text{, else } 0 && \text{(8, no formula in [P1])} \\
 F_\text{zone} &= -\min\bigl(f_\text{zone}\, q\, p,\ F_\text{other}\bigr) \ \text{ if both ends on one feeder} && \text{(8e)} \\
 F_\text{imb} &= f_\text{imb}\, \min\bigl(q / |B_\text{grid}|, 1\bigr)\, q\, p \ \text{ for a DSO trade that worsens } B_\text{grid} && \text{(8b, 8h)}
@@ -250,9 +250,13 @@ fee 50/50 (`fee_buyer_share`), a DSO trade's fee all to the participant; nothing
 is paid when `fees_charged` is off.
 
 Three choices of the fee parts. The measured voltage is the largest deviation from
-nominal on the path's buses, $\max_b \lvert V_b - 1 \rvert$, not the difference between
-its two ends: on a feeder at 1.05 pu all along (rural1 exporting) two neighbours
-differ by nothing, yet the voltage limit binds (MP-4l). A trade with the DSO runs up
+the voltage the network is held at on the path's buses, $\max_b \lvert V_b - V_\text{slack} \rvert$,
+with $V_\text{slack}$ the external grid's set point
+([`GridAssessment.slack_voltage_pu`](../../../core/grid/contract.py), 1.025 pu on
+SimBench's networks), not the difference between the path's two ends: on a feeder at
+1.05 pu all along (rural1 exporting) two neighbours differ by nothing, yet the voltage
+limit binds. The reference is the slack, not nominal 1 pu: from nominal every trade paid
+at least 2.5 % of its value with nothing drawn from the network at all (MP-4l). A trade with the DSO runs up
 to the transformer, so its loading counts in $C_t$ next to the lines', for both the
 congestion and the thermal fee (MP-4l). The zone bonus (8e) cancels fees but never
 pays out: it is at most the sum of the other parts, $F_\text{other}$, so no trade's

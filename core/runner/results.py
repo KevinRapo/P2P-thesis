@@ -52,7 +52,8 @@ import pandas as pd
 from pandas.api.types import union_categoricals
 
 from core.config.scenario import flat_prices
-from core.runner import indicators, registry
+from core.market import indicators
+from core.runner import registry
 from core.runner.registry import RunState
 from core.runner.spec import MARKET_ENVS, REPO, runs_root
 
@@ -250,9 +251,13 @@ def _latest(paths: int, megabytes: float = float("inf")) -> Callable[[Callable],
 
 
 def _bytes(value: Any) -> int:
-    """A cached value's memory: a table's, strings included; anything else 0."""
+    """A cached value's memory: a table's, strings included, or a tuple's tables';
+    anything else 0."""
     if isinstance(value, pd.DataFrame):
         return int(value.memory_usage(deep=True).sum())
+
+    if isinstance(value, tuple):
+        return sum(_bytes(item) for item in value)
 
     return 0
 
@@ -825,32 +830,58 @@ def _scenario(folder: Path) -> Optional[dict]:
         return None
 
 
-@_latest(DAY_PATHS, DAY_MB)
-def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
-    """One run's indicators, long format, with the money ceiling as a policy;
-    ``stamp`` says its tables are unchanged."""
-    from core.runner.ceiling import alone_days, ceiling_days, day_references
+def _held_out(folder: Path) -> list:
+    """A run's held-out tables the indicators are computed from
+    (``INDICATOR_TABLES``), without the policies the results no longer show."""
+    tables = [_table(_table_path(folder, n)) for n in INDICATOR_TABLES]
 
-    tables = [_table(_table_path(Path(folder), n)) for n in INDICATOR_TABLES]
-    tables = [
+    return [
         t[~t.policy.isin(HIDDEN_POLICIES)] if t is not None and "policy" in t else t
         for t in tables
     ]
 
-    if tables[0] is None or tables[1] is None or "bill" not in tables[1]:
-        return None
 
+def _stamp(folder: Path) -> tuple:
+    """What says a run's held-out tables and scenario are unchanged."""
+    files = [_table_path(folder, n) for n in INDICATOR_TABLES]
+    files.append(folder / "scenario.json")
+
+    return tuple(p.stat().st_mtime_ns if p.is_file() else 0 for p in files)
+
+
+@_latest(DAY_PATHS, DAY_MB)
+def _references(folder: str, stamp: tuple) -> tuple:
+    """One run's references (``ceiling.references``): the ceiling and the non-P2P
+    reference with their power flow, and the non-P2P fees. It runs the market's power
+    flow on every test step of both, so it is kept for as long as the tables are
+    unchanged; ``stamp`` says so."""
+    from core.market.ceiling import References, references  # scipy, only when read
+
+    tables = _held_out(Path(folder))
     scenario = _scenario(Path(folder))
 
     try:
-        top = ceiling_days(tables[3], tables[2], scenario)
-        alone = alone_days(tables[3], tables[2], scenario)
-        by_day = day_references(tables[3], tables[2], scenario)
+        return references(tables[3], tables[2], scenario)
     except (ValueError, KeyError, TypeError):  # tables or a scenario it cannot read
-        top = alone = by_day = None
+        return References(None, None, None, (None, None))
 
+
+@_latest(DAY_PATHS, DAY_MB)
+def _day_table(folder: str, stamp: tuple) -> Optional[pd.DataFrame]:
+    """One run's indicators, long format, with the money ceiling as a policy;
+    ``stamp`` says its tables are unchanged."""
+    tables = _held_out(Path(folder))
+
+    if tables[0] is None or tables[1] is None or "bill" not in tables[1]:
+        return None
+
+    found = _references(folder, stamp)
     days = indicators.day_table(
-        *tables, ceiling=top, alone=alone, day_references=by_day
+        *tables,
+        ceiling=found.ceiling,
+        alone=found.alone,
+        day_references=found.by_day,
+        alone_team=found.alone_team,
     ).reset_index()
     long = days.melt(indicators.KEYS, var_name="indicator")
 
@@ -909,10 +940,7 @@ def day_indicators(results: Sequence[RunResult]) -> pd.DataFrame:
     frames = []
 
     for result in results:
-        files = [_table_path(result.ref.folder, n) for n in INDICATOR_TABLES]
-        files.append(result.ref.folder / "scenario.json")
-        stamp = tuple(p.stat().st_mtime_ns if p.is_file() else 0 for p in files)
-        days = _day_table(str(result.ref.folder), stamp)
+        days = _day_table(str(result.ref.folder), _stamp(result.ref.folder))
 
         if days is not None:
             frames.append(days.assign(**_head(result), **_factors(result)))
@@ -936,15 +964,13 @@ def _same(value: Any) -> str:
 
 def non_p2p_of(result: RunResult) -> Optional[pd.DataFrame]:
     """Each participant's non-P2P money per test day (``ceiling.alone_days``: on its
-    own with the retailer, its battery timed with perfect foresight), or None when
-    the run lacks the tables or the scenario."""
-    from core.runner.ceiling import alone_days
+    own with the retailer, its battery timed with perfect foresight, its settlements
+    with the DSO charged the fees of the market and its share of the losses: ``bill``
+    after them, ``energy_bill`` before), or None when the run lacks the tables or the
+    scenario."""
+    folder = result.ref.folder
 
     try:
-        return alone_days(
-            result.table("heldout_agent_steps"),
-            result.table("heldout_steps"),
-            _scenario(result.ref.folder),
-        )
+        return _references(str(folder), _stamp(folder)).alone
     except (ValueError, KeyError, TypeError):
         return None

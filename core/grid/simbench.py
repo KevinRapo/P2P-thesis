@@ -1327,7 +1327,24 @@ def _assessment(
             _branch_name(net.line, i, "line"): round(float(v), 2)
             for i, v in net.res_line.loading_percent.items()
         },
+        slack_voltage_pu=_slack_voltage(net),
     )
+
+
+def _slack_voltage(net: Any) -> float | None:
+    """The set point (``vm_pu``) of the external grid that feeds the network: the one
+    in service, or with several the one that delivers the most power in the solved
+    flow. None without an external grid."""
+    on = net.ext_grid[net.ext_grid.in_service]
+
+    if not len(on):
+        return None
+
+    if len(on) > 1 and len(net.res_ext_grid):
+        power = net.res_ext_grid.p_mw.reindex(on.index).abs().fillna(0.0)
+        return float(on.vm_pu[power.idxmax()])
+
+    return float(on.vm_pu.iloc[0])
 
 
 def _branch_name(table: Any, i: Any, kind: str) -> str:

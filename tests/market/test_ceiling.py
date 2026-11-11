@@ -5,10 +5,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from core.runner import ceiling
-from core.runner.ceiling import POLICY, Store, ceiling_days, optimise
-from core.runner import indicators
-from core.runner.indicators import day_table
+from core.market import ceiling
+from core.market.ceiling import POLICY, Store, ceiling_days, optimise
+from core.market import indicators
+from core.market.indicators import day_table
 
 # Two steps: a surplus of 2 kWh while the feed-in tariff is 0, then a deficit of 2 kWh
 # at a utility price of 0.5.
@@ -96,7 +96,10 @@ def test_a_period_carries_the_battery_from_day_to_day():
     agent_steps, steps, scenario = held_out()
     days = ceiling_days(agent_steps, steps, scenario)
     # d1's surplus goes into the battery, which covers d2's deficit: nothing is bought.
-    assert days.team_money.tolist() == pytest.approx([0.0, 0.0])
+    # The program's money is energy money; the money after fees is undefined (nobody
+    # traded with anybody).
+    assert days.energy_money.tolist() == pytest.approx([0.0, 0.0])
+    assert days.team_money.isna().all()
     assert days.stored_change_kwh.tolist() == pytest.approx([2.0, -2.0])
     assert days.index.tolist() == [(POLICY, "d1"), (POLICY, "d2")]
 
@@ -107,7 +110,7 @@ def test_the_battery_starts_where_the_evaluation_started_it():
     # it takes 1 kWh of d1's surplus, so 1 kWh of d2's deficit is bought at 0.5.
     scenario["participants"][1]["battery"]["max_soc"] = 0.2
     days = ceiling_days(agent_steps, steps, scenario)
-    assert days.team_money.tolist() == pytest.approx([0.0, -0.5])
+    assert days.energy_money.tolist() == pytest.approx([0.0, -0.5])
 
 
 def test_without_the_tables_there_is_no_ceiling():
@@ -122,12 +125,12 @@ def test_the_ceiling_is_a_policy_of_the_day_table():
                              deferred_demand_kwh=0.0, deferred_supply_kwh=0.0,
                              stored_change_kwh=0.0)
     top = pd.DataFrame(
-        {"policy": POLICY, "day": ["d1", "d2"], "team_money": [5.0, 6.0],
+        {"policy": POLICY, "day": ["d1", "d2"], "energy_money": [5.0, 6.0],
          "stored_change_kwh": [0.0, 0.0]}
     ).set_index(["policy", "day"])
     day = day_table(episodes, agents, ceiling=top).loc[(POLICY, "d2")]
-    assert day.team_money == 6.0
-    assert day.gain_net_position == 6.0
+    assert day.energy_money == 6.0
+    assert np.isnan(day.team_money) and np.isnan(day.gain_net_position)  # no fees known
     assert np.isnan(day.participants_better)
 
 
@@ -178,6 +181,64 @@ def test_vti_and_pi_over_the_period():
     assert scores.pi[("trained", "d1")] == 0.5
     assert scores.pi[("net_position", "d1")] == 0.0  # equal is not better
     assert np.isnan(scores.pi[(POLICY, "d1")])
+
+
+def test_vti_on_energy_money_and_after_fees():
+    """The VTI is on energy money, the references' money; ``vti_after_fees`` puts the
+    policy's money after fees against the same references, and the difference is the
+    fees' share of the gap between the references."""
+    own = alone_bills()  # energy money of non-P2P: 0.2, then -1.5
+    agents = pd.DataFrame(
+        [
+            {"policy": p, "day": d, "agent": a, "bill": b}
+            for p, by in {"trained": ([0.0, 0.0], [-0.5, -0.6])}.items()
+            for a, days in zip(("P1", "P2"), by)
+            for d, b in zip(("d1", "d2"), days)
+        ]
+    )
+    index = pd.MultiIndex.from_tuples(
+        [("trained", "d1"), ("trained", "d2"), (indicators.NON_P2P, "d1"),
+         (indicators.NON_P2P, "d2"), (POLICY, "d1"), (POLICY, "d2")],
+        names=["policy", "day"],
+    )
+    out = pd.DataFrame(
+        {
+            # trained earns -0.5 and -0.6 after fees of 0.1 each day: -0.4 and -0.5 before
+            "energy_money": [-0.4, -0.5, 0.2, -1.5, 1.0, 0.7],
+            "team_money": [-0.5, -0.6, 0.2, -1.5, np.nan, np.nan],
+        },
+        index,
+    )
+    scores = indicators._period_scores(out, agents, own)
+    reach = 1.7 - (-1.3)  # ceiling - non-P2P over the period
+    assert scores.vti[("trained", "d1")] == pytest.approx((-0.9 + 1.3) / reach)
+    assert scores.vti_after_fees[("trained", "d1")] == pytest.approx((-1.1 + 1.3) / reach)
+    assert scores.vti[("trained", "d1")] - scores.vti_after_fees[("trained", "d1")] == (
+        pytest.approx(0.2 / reach)
+    )
+    assert scores.vti[(POLICY, "d1")] == 1.0 and np.isnan(scores.vti_after_fees[(POLICY, "d1")])
+    assert scores.vti[(indicators.NON_P2P, "d1")] == 0.0
+
+
+def test_the_per_day_scores_are_on_energy_money_too():
+    top = pd.DataFrame({"energy_money": [1.0, 1.0]},
+                       index=pd.MultiIndex.from_tuples([(POLICY, "d1"), (POLICY, "d2")],
+                                                       names=["policy", "day"]))
+    alone = pd.DataFrame({"day": ["d1", "d1", "d2", "d2"], "agent": ["P1", "P2"] * 2,
+                          "bill": [0.0, 0.0, 0.0, 0.0]})
+    agents = pd.DataFrame(
+        [{"policy": "trained", "day": d, "agent": a, "bill": 0.1, "fees": 0.1}
+         for d in ("d1", "d2") for a in ("P1", "P2")]
+    )
+    out = pd.DataFrame(
+        {"energy_money": [0.4, 0.4], "team_money": [0.2, 0.2]},
+        pd.MultiIndex.from_tuples([("trained", "d1"), ("trained", "d2")], names=["policy", "day"]),
+    )
+    scores = indicators._day_scores(out, agents, top, alone)
+    assert scores.vti_day.tolist() == pytest.approx([0.4, 0.4])
+    assert scores.vti_day_after_fees.tolist() == pytest.approx([0.2, 0.2])
+    # each participant gained 0.2 in energy money over its own 0 (bill 0.1 + fees 0.1)
+    assert scores.pi_day.tolist() == [1.0, 1.0]
 
 
 def test_equality_is_one_minus_gini_on_non_negative_gains():
@@ -262,8 +323,9 @@ def test_each_day_is_its_own_horizon():
     # bought even at the ceiling.
     agent_steps, steps, scenario = held_out()
     top, alone = ceiling.day_references(agent_steps, steps, scenario)
-    assert top.team_money.tolist() == pytest.approx([0.0, -1.0])
+    assert top.energy_money.tolist() == pytest.approx([0.0, -1.0])
     assert alone.groupby("day").bill.sum().tolist() == pytest.approx([0.0, -1.0])
+    assert alone.energy_bill.tolist() == alone.bill.tolist()  # before fees, as the ceiling
 
 
 def test_the_technical_indices_over_the_period():

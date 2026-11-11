@@ -725,6 +725,51 @@ class LocalEnergyMarket:
 
         return found
 
+    def assess_outcomes(
+        self,
+        inputs: StepInputs,
+        outcomes: Mapping[str, ParticipantOutcome],
+        fees: bool = True,
+    ) -> tuple[GridAssessment, tuple[Trade, ...], dict[str, float]]:
+        """What a given set of participant outcomes does to the network and costs in
+        fees, with no market: the references (``ceiling.py``) fix every participant's
+        injection by a schedule and never clear an order. The same code as a step
+        (``_assess_grid``, ``Dso.observe``, ``_untraded_trades`` through ``Dso.charge``,
+        ``Dso.loss_charge``), so a reference is charged exactly as the market charges
+        the energy no trade covers: along the participant's path to the transformer, at
+        the tariff, the whole fee to the participant, the transformer in the
+        congestion. The market must be ``reset`` on the outcomes' day.
+
+        Args:
+            inputs: The step's tariffs (and profiles, unused).
+            outcomes: Each participant's outcome (``settle``'s: its generation, demand,
+                battery charge and discharge, ``external_kwh``).
+            fees: Charge the untraded energy; without, only the flow and the losses.
+                The balance ``B_grid`` of the imbalance fee is 0: nobody ordered.
+
+        Returns:
+            The step's power flow with each participant's loss shares, the charged
+            settlements with the DSO (one per participant with energy to exchange,
+            none without ``fees``) and each participant's loss charge.
+        """
+        grid = self._assess_grid(inputs.step, outcomes)
+        self.dso.observe(grid)
+        settled: tuple[Trade, ...] = ()
+
+        if fees:
+            settled = tuple(
+                self.dso.charge(
+                    self._untraded_trades(inputs, outcomes), self._route, 0.0
+                )
+            )
+
+        charges = {
+            pid: self.dso.loss_charge(kwh, inputs.utility_price)
+            for pid, kwh in grid.loss_shares_kwh.items()
+        }
+
+        return grid, settled, charges
+
     # --- Phase 6: advance ------------------------------------------------------------
     def _update_reputation(self, record: StepRecord) -> StepRecord:  #! Market 8: reputation
         """Phase 6 ([P1] §3.9): every participant's reputation from the step's

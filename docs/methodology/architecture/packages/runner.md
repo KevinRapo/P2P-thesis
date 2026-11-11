@@ -46,6 +46,5 @@ flowchart LR
 | Module | What it is |
 |---|---|
 | [`results`](../../../api/runner/results.md) | Runs read from their folders, for the Results page and the notebooks |
-| [`indicators`](../../../api/runner/indicators.md) | What is computed from the saved tables: indicators per run, policy and day, and comparisons |
-| [`ceiling`](../../../api/runner/ceiling.md) | The VTI's ceiling and floor: the linear program |
+| `indicators`, `ceiling` | Moved to [`core/market`](market.md): the indicators and the references are market scoring; `results` reads them |
 | [`probe_runs`](../../../api/runner/probe_runs.md) | The RL probe runs: what each probe is and what it scored |

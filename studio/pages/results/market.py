@@ -1,6 +1,6 @@
 """Results → Market: what did the market do?
 
-Its indicators per test day (``core/runner/indicators.py``) and each participant's
+Its indicators per test day (``core/market/indicators.py``) and each participant's
 amounts (``participant_metrics``); one run's participants against a baseline; and one
 run step by step, a second one over it if asked. The charts follow the live view.
 """

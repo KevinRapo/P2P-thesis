@@ -13,7 +13,7 @@ import pytest
 
 from core.config import store
 from core.market.lem import LocalEnergyMarket
-from core.runner.ceiling import _batteries
+from core.market.ceiling import _batteries
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
 

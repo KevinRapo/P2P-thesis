@@ -1,7 +1,7 @@
 """Results → Validation: how good is each version on the test days?
 
 The tab opened first: any ticked runs in one table, a row per what the reader picks and
-a column per headline indicator (``core/runner/indicators.py``), as values, against
+a column per headline indicator (``core/market/indicators.py``), as values, against
 each run's own baseline, or as differences from a reference row; and the gain per test
 day. A row opens in Market or Grid, on its median seed. Each participant's gain shows who
 wins and who loses at any size.
@@ -14,8 +14,8 @@ from typing import Any
 import pandas as pd
 from nicegui import ui
 
-from core.runner import indicators
-from core.runner.indicators import INDICATORS
+from core.market import indicators
+from core.market.indicators import INDICATORS
 from studio.components.cards import key_values, section
 from studio.components.charts import Chart
 from studio.components.choices import checkboxes
@@ -52,11 +52,13 @@ SHOWN = ("ceiling", "net_position", "non_p2p")
 # the metrics of "On the test days" (the overview shows them over the test period).
 PER_DAY = (
     "vti_day",
+    "vti_day_after_fees",
     "pi_day",
     "ei_day",
     "energy_balance_index",
     "peak_to_average",
     "self_sufficiency_index",
+    "energy_money",
     "team_money",
     "gain_net_position",
     "stored_change_kwh",

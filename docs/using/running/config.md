@@ -174,11 +174,11 @@ not read `bid_margin`.
 | `fee_buyer_share` | `0` to `1` | The buyer's share of a peer trade's fee; the seller pays the rest. A trade with the DSO is paid by the participant |
 | `loss_factor` | per km | `κ` of [P1] eq. 18: `l_ij = d_ij · q_ij · κ` |
 | `congestion_factor`, `congestion_threshold` | numbers | `f_cong` and `C_threshold` of eq. 8a: above the threshold, the fee is `factor · (c − threshold) · value` |
-| `voltage_drop` | `"distance"`, `"measured"` | `V_drop` of eq. 8c: `voltage_factor · d_ij`, or the largest deviation from nominal, `max |V − 1|`, over the buses on the trade's path in the step's power flow |
+| `voltage_drop` | `"distance"`, `"measured"` | `V_drop` of eq. 8c: `voltage_factor · d_ij`, or the largest deviation from the external grid's set point (1.025 pu on SimBench's networks), `max |V − V_slack|`, over the buses on the trade's path in the step's power flow |
 | `losses` | `"trades"`, `"bcdla"`, `"pro_rata"` | Who pays the network's losses. `"trades"`: [P1] eq. 18, each trade's loss $\kappa\, d_{ij}\, q_{ij}$ priced into its fee as $F_\text{trans}$. A rule of [losses.py](../../../core/grid/losses.py): the step's measured power-flow losses shared out, each participant paying its share at the step's utility price (a negative share is paid back) and $F_\text{trans}$ 0. `"bcdla"` needs a radial network ([Adding an option](../../methodology/architecture/development/options.md)) |
 | `voltage_factor` | per km | `f_volt` of eq. 8f. Only read with `"distance"` |
 | `voltage_threshold` | number | `V_threshold` of eq. 8c: the cap on the voltage part |
-| `thermal_threshold`, `thermal_cap` | threshold in `[0, 1)` | `T_threshold` and `f_threshold` of eq. 8g and 8d |
+| `thermal_threshold`, `thermal_cap` | threshold in `[0, 1)` | `T_threshold` and `f_threshold` of eq. 8g and 8d; the default is the paper's 0.2, `thesis_rural1.json` has 0.8 (MP-4f) |
 | `imbalance_factor` | number | `f_imb` of eq. 8b, on a DSO trade that worsens the balance; 0 (off) in `thesis_rural1.json` (MP-4m) |
 | `zone_factor` | number | `f_zone` of eq. 8e, the bonus for a same-zone trade |
 

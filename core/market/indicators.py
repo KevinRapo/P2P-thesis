@@ -15,6 +15,24 @@ nothing: what is comparable is for the reader to judge from what differs.
 The spread is over seeds. A seed is one number, its mean over the test days: days are
 not independent, and every seed plays the same ones, so they never go into an interval.
 Below ``INTERVAL_SEEDS`` seeds a row shows each seed's value instead of an interval.
+
+**Which money.** A participant's bill is what its trades and its untraded energy earn
+and cost, less the grid fees it pays and its loss charge. Two moneys come from it:
+
+    energy_money   the bill before grid fees and loss charge: the energy at its prices.
+                   The peer charge is not energy money: it is paid to the DSO on top of
+                   the price, so it counts with the fees (0 in the thesis scenario).
+    team_money     the bill after fees and loss charge: energy_money - fees -
+                   loss_charge, the participants together.
+
+The two references (``ceiling.py``) are linear programs on energy: their money is
+``energy_money``. So the VTI is on ``energy_money``, the same money on both sides, and
+``vti_after_fees`` puts the policy's ``team_money`` against the same references: their
+difference is the value the fees and the loss charge take off. The participants'
+scores (``participants_better``, ``worst_participant_gain``, PI, EI) compare bills
+after fees with the non-P2P bills after fees (``ceiling.alone_days`` charges them), so
+they use real money on both sides; the per-day PI and EI use energy money, as the
+per-day references have no fees.
 """
 
 from __future__ import annotations
@@ -97,22 +115,33 @@ class Indicator:
 
 INDICATORS = (
     # Validation: is it worth anything?
-    Indicator("team_money", "Team money", "EUR", "validation", True),
+    Indicator("energy_money", "Energy money, before fees", "EUR", "validation", True),
+    Indicator("team_money", "Team money, after fees", "EUR", "validation", True),
     # Over the test period, the same on each of its days (``_period_scores``)
-    Indicator("vti", "VTI", "", "validation", True),
+    Indicator("vti", "VTI, on energy money", "", "validation", True),
+    Indicator("vti_after_fees", "VTI, after fees", "", "validation", True),
     Indicator("pi", "PI", "", "validation", True),
     Indicator("ei", "EI", "", "validation", True),
     # The same per test day, each day its own horizon (``_day_scores``)
-    Indicator("vti_day", "VTI, per day", "", "validation"),
+    Indicator("vti_day", "VTI, per day, on energy money", "", "validation"),
+    Indicator("vti_day_after_fees", "VTI, per day, after fees", "", "validation"),
     Indicator("pi_day", "PI, per day", "", "validation"),
     Indicator("ei_day", "EI, per day", "", "validation"),
-    Indicator("gain_net_position", "Gain over net position", "EUR", "validation", True),
+    Indicator(
+        "gain_net_position", "Gain over net position, after fees", "EUR", "validation", True
+    ),
     Indicator("stored_change_kwh", "Stored change", "kWh", "validation", True),
     Indicator(
-        "participants_better", "Better off than alone", "participants", "validation"
+        "participants_better",
+        "Better off than alone, after fees",
+        "participants",
+        "validation",
     ),
     Indicator(
-        "worst_participant_gain", "Worst participant's gain", "EUR", "validation"
+        "worst_participant_gain",
+        "Worst participant's gain, after fees",
+        "EUR",
+        "validation",
     ),
     # Market: how was the energy traded?
     Indicator("p2p_kwh", "Peer energy", "kWh", "market", True),
@@ -132,7 +161,8 @@ INDICATORS = (
     Indicator("local_coverage", "Local coverage", "", "market"),
     Indicator("mean_peer_price", "Mean peer price", "EUR/kWh", "market"),
     Indicator("peer_price_position", "Peer price in the band", "", "market"),
-    Indicator("fees", "Fees", "EUR", "market"),
+    Indicator("fees", "Grid fees", "EUR", "market"),
+    Indicator("loss_charge", "Loss charge", "EUR", "market"),
     Indicator("peer_charge", "Peer charge", "EUR", "market"),
     Indicator("battery_throughput_kwh", "Battery throughput", "kWh", "market"),
     Indicator("end_reputation", "Reputation at the end", "", "market"),
@@ -143,6 +173,8 @@ INDICATORS = (
     # Grid: what did it do to the network?
     Indicator("highest_line_loading", "Highest line loading", "%", "grid", True),
     Indicator("hours_over_limit", "Hours over a limit", "h", "grid", True),
+    Indicator("hours_voltage_limit", "Hours over a voltage limit", "h", "grid"),
+    Indicator("hours_loading_limit", "Hours over a loading limit", "h", "grid"),
     Indicator("highest_trafo_loading", "Highest transformer loading", "%", "grid"),
     Indicator("lowest_voltage", "Lowest voltage", "pu", "grid"),
     Indicator("highest_voltage", "Highest voltage", "pu", "grid"),
@@ -186,7 +218,14 @@ _COPIED = (
 )
 
 
-_TEAM = ("bill", "deferred_demand_kwh", "deferred_supply_kwh", "stored_change_kwh")
+_TEAM = (
+    "bill",
+    "fees",
+    "loss_charge",
+    "deferred_demand_kwh",
+    "deferred_supply_kwh",
+    "stored_change_kwh",
+)
 
 
 # --------------------------------------------------------------------------------------
@@ -201,22 +240,27 @@ def day_table(
     ceiling: Optional[pd.DataFrame] = None,
     alone: Optional[pd.DataFrame] = None,
     day_references: Optional[tuple] = None,
+    alone_team: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
     """One run's ``INDICATORS``: a row per policy and test day, from its held-out
     tables. What a table of an older run does not hold stays NaN.
 
     ``ceiling`` (``ceiling.ceiling_days``) adds the money ceiling as a policy of its
-    own: its team money, stored change and gains over the baselines; it plays no
-    market, so everything else stays NaN. ``alone`` (``ceiling.alone_days``: each
-    participant's own optimum with the retailer) adds ``non_p2p`` the same way, and
-    is what ``participants_better`` and ``worst_participant_gain`` compare each
-    participant with. With both references, every policy's VTI, PI and EI over its
+    own: its energy money, stored change and, from its power flow, the grid columns;
+    it plays no market, so everything else stays NaN, its fees and team money too (who
+    traded with whom is undefined). ``alone`` (``ceiling.alone_days``: each
+    participant's own optimum with the retailer, its fees charged) adds ``non_p2p``
+    the same way, and is what ``participants_better`` and ``worst_participant_gain``
+    compare each participant with; ``alone_team`` (the non-P2P rows of the day table
+    with their power flow and fees, ``ceiling.references``) fills its grid columns. With both references, every policy's VTI, PI and EI over its
     test period (``_period_scores``). ``day_references`` (``ceiling.day_references``:
     every day its own horizon) adds the same three per day (``_day_scores``:
     ``vti_day``, ``pi_day``, ``ei_day``)."""
     out = episodes.set_index(KEYS).reindex(columns=_COPIED)
     team = agents.groupby(KEYS).sum(numeric_only=True).reindex(columns=_TEAM)
     out["team_money"] = team["bill"]
+    out["energy_money"] = team["bill"] + team["fees"]  # before fees and loss charge
+    out["loss_charge"] = team["loss_charge"]
     out["unmet_kwh"] = team["deferred_demand_kwh"]
     out["spilled_kwh"] = team["deferred_supply_kwh"]
     out["stored_change_kwh"] = team["stored_change_kwh"]
@@ -252,12 +296,21 @@ def day_table(
         out["participants_better"] = (gains > 0).groupby(KEYS).sum()
         out["worst_participant_gain"] = gains.groupby(KEYS).min()
 
-        team = alone.groupby("day").bill.sum()
-        stored = alone.groupby("day").stored_change_kwh.sum()
-        row = pd.DataFrame(
-            {"team_money": team, "stored_change_kwh": stored.reindex(team.index)}
-        )
-        row.index = pd.MultiIndex.from_product([[NON_P2P], team.index], names=KEYS)
+        if alone_team is not None:
+            row = alone_team
+        else:
+            team = alone.groupby("day").bill.sum()
+            energy = alone.get("energy_bill", alone.bill).groupby(alone.day).sum()
+            stored = alone.groupby("day").stored_change_kwh.sum()
+            row = pd.DataFrame(
+                {
+                    "energy_money": energy.reindex(team.index),
+                    "team_money": team,
+                    "stored_change_kwh": stored.reindex(team.index),
+                }
+            )
+            row.index = pd.MultiIndex.from_product([[NON_P2P], team.index], names=KEYS)
+
         out = _with_reference(out, row)
 
     if ceiling is not None:
@@ -290,14 +343,20 @@ def _period_scores(
 ) -> pd.DataFrame:
     """Every policy's VTI, PI and EI over its test period, on each day of the period.
 
-    VTI = (team money − non-P2P) / (ceiling − non-P2P), the period's sums: 0 is every
-    participant on its own, 1 the most the period allows. PI: the share of
-    participants whose money over the period beats their own non-P2P money. EI: how
-    evenly the gains over their own non-P2P money are shared (``equality``)."""
+    VTI = (energy money − non-P2P) / (ceiling − non-P2P), the period's sums: 0 is every
+    participant on its own, 1 the most the period allows, all three before any grid fee
+    and loss charge (the references are programs on energy). ``vti_after_fees`` is the
+    same with the policy's ``team_money``, after fees, in the numerator and the same
+    references: the difference is what the fees and the loss charge take off, in
+    shares of the gap. Without ``energy_money`` in ``out`` the VTI is on ``team_money``.
+    PI: the share of participants whose money over the period beats their own non-P2P
+    money (``own.bill``, after the fees ``alone_days`` charges it). EI: how evenly the
+    gains over their own non-P2P money are shared (``equality``)."""
     period_of = own.drop_duplicates("day").set_index("day").period
-    money = out.team_money.reset_index()
+    money = out.reset_index()
     money["period"] = money.day.map(period_of)
-    totals = money.groupby(["period", "policy"]).team_money.sum().unstack("policy")
+    column = "energy_money" if "energy_money" in out else "team_money"
+    totals = money.groupby(["period", "policy"])[column].sum().unstack("policy")
     reach = (totals[CEILING] - totals[NON_P2P]).where(lambda gap: gap > 0)
     vti = totals.sub(totals[NON_P2P], axis=0).div(reach, axis=0)
 
@@ -315,6 +374,12 @@ def _period_scores(
     )
     scores = pd.DataFrame(index=out.index)
     scores["vti"] = vti.stack().reindex(at).to_numpy()
+
+    if "energy_money" in out and "team_money" in out:
+        paid = money.groupby(["period", "policy"]).team_money.sum(min_count=1)
+        after = paid.unstack("policy").sub(totals[NON_P2P], axis=0).div(reach, axis=0)
+        scores["vti_after_fees"] = after.stack().reindex(at).to_numpy()
+
     scores["pi"] = pi.stack().reindex(at).to_numpy()
     scores["ei"] = ei.stack().reindex(at).to_numpy()
 
@@ -326,15 +391,26 @@ def _day_scores(
 ) -> pd.DataFrame:
     """Every played policy's VTI, PI and EI per test day, each day its own horizon:
     against that day's ceiling and each participant's own optimum of that day
-    (``ceiling.day_references``). The references' own rows stay NaN."""
-    ceiling = top.team_money.droplevel("policy")
+    (``ceiling.day_references``), both before fees. So the VTI is on ``energy_money``
+    (``vti_day_after_fees`` on ``team_money`` against the same references), and the
+    PI and EI on each participant's energy bill, its bill plus its fees. The
+    references' own rows stay NaN."""
+    ceiling = (top.energy_money if "energy_money" in top else top.team_money)
+    ceiling = ceiling.droplevel("policy")
     base = alone.set_index(["day", "agent"]).bill
     floor = base.groupby("day").sum()
     days = out.index.get_level_values("day")
-    reach = (days.map(ceiling) - days.map(floor)).to_numpy()
-    vti = (out.team_money.to_numpy() - days.map(floor)) / np.where(reach > 0, reach, np.nan)
+    reach = np.where(
+        (days.map(ceiling) - days.map(floor)).to_numpy() > 0,
+        (days.map(ceiling) - days.map(floor)).to_numpy(),
+        np.nan,
+    )
+    money = out.energy_money if "energy_money" in out else out.team_money
+    vti = (money.to_numpy() - days.map(floor)) / reach
 
-    played = agents.set_index(["policy", "day", "agent"]).bill
+    energy = agents.bill + (agents.fees if "fees" in agents else 0.0)
+    played = agents.assign(energy_bill=energy).set_index(["policy", "day", "agent"])
+    played = played.energy_bill
     gains = played - base.reindex(played.index.droplevel("policy")).to_numpy()
     by = gains.groupby(["policy", "day"])
     scores = pd.DataFrame(
@@ -342,6 +418,11 @@ def _day_scores(
     )
     scores = scores.reindex(out.index)
     scores.insert(0, "vti_day", np.asarray(vti, dtype=float))
+
+    if "energy_money" in out and "team_money" in out:
+        after = (out.team_money.to_numpy() - days.map(floor)) / reach
+        scores.insert(1, "vti_day_after_fees", np.asarray(after, dtype=float))
+
     reference = out.index.get_level_values("policy").isin([CEILING, NON_P2P])
     scores.loc[reference] = np.nan
 
@@ -395,6 +476,14 @@ def _step_indicators(steps: pd.DataFrame) -> pd.DataFrame:
             "load_factor": day.grid_import_kwh.mean() / peak.where(peak > 0),
             "mean_line_loading": loading.groupby([steps.policy, steps.day]).mean(),
             "hours_over_limit": over.groupby([steps.policy, steps.day]).sum() * hours,
+            "hours_voltage_limit": (steps.voltage_violations > 0)
+            .groupby([steps.policy, steps.day])
+            .sum()
+            * hours,
+            "hours_loading_limit": (steps.loading_violations > 0)
+            .groupby([steps.policy, steps.day])
+            .sum()
+            * hours,
             "mean_peer_price": weighted(steps.peer_price),
             "peer_price_position": weighted(band),
         }

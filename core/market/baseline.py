@@ -54,7 +54,8 @@ class Baseline:
             elements), ``converged``, ``grid_losses_kwh``, ``import_kwh`` and
             ``export_kwh`` at the transformer, ``p2p_kwh``, ``dso_kwh``, the fees per
             part summed over the step's trades and the participants' ``loss_charge``,
-            and ``team_money``, the participants' net bills.
+            ``team_money``, the participants' net bills (after fees and loss charge),
+            and ``energy_money``, the same before them.
         line_loading: Every line's loading per step (%), indexed like ``steps``.
         bus_voltage: Every bus's voltage per step (pu), indexed like ``steps``.
     """
@@ -83,6 +84,7 @@ class Baseline:
             "grid_losses_kwh": s.grid_losses_kwh.sum(),
             "fees": s[fees].to_numpy().sum(),
             **{f: s[f].sum() for f in fees},
+            "energy_money": s.energy_money.sum(),
             "team_money": s.team_money.sum(),
         }
 
@@ -198,6 +200,9 @@ def _row(day: str, record: StepRecord, market: LocalEnergyMarket) -> dict:
         "dso_kwh": record.dso_kwh,
         **fees,
         "loss_charge": sum(o.loss_charge for o in record.participants.values()),
+        "energy_money": sum(
+            net_bill(record, pid) + o.fees for pid, o in record.participants.items()
+        ),
         "team_money": sum(net_bill(record, pid) for pid in record.participants),
     }
 

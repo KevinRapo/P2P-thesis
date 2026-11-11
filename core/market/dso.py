@@ -83,6 +83,7 @@ class Dso:
         self.line_loading_percent: Mapping[str, float] = {}
         self.trafo_loading_percent = 0.0
         self.bus_voltage_pu: Mapping[str, float] = {}
+        self.slack_voltage_pu = 1.0
         self.balance_kwh = 0.0
         self.profit = 0.0
         self.fees = 0.0
@@ -92,6 +93,7 @@ class Dso:
         self.line_loading_percent = {}
         self.trafo_loading_percent = 0.0
         self.bus_voltage_pu = {}
+        self.slack_voltage_pu = 1.0
         self.balance_kwh = 0.0
         self.profit = 0.0
         self.fees = 0.0
@@ -158,16 +160,23 @@ class Dso:
     def observe(self, grid: GridAssessment) -> None:
         """Remember the step's power flow (``grid``, just run): the lines' and the
         transformer's loading, the congestion the same step's fees see ([P1]
-        §3.5.3), and the bus voltages for a measured voltage drop."""
+        §3.5.3), and the bus voltages and the voltage the network is held at (the
+        external grid's set point) for a measured voltage drop."""
         self.line_loading_percent = dict(grid.line_loading_percent)
         self.trafo_loading_percent = float(grid.max_trafo_loading_percent or 0.0)
         self.bus_voltage_pu = dict(grid.bus_voltage_pu)
+        slack = grid.slack_voltage_pu
+        self.slack_voltage_pu = 1.0 if slack is None else float(slack)
 
     def voltage_drop_of(self, path: GridPath) -> float:
         """V_drop of a trade ([P1] eq. 8c): f_volt · d_ij (eq. 8f), or, measured,
-        the largest deviation from nominal, max |V − 1| over the buses on the path
-        (the two ends when the path does not list its buses; 0 when not known).
-        The measured value is not the difference between the ends: on a feeder
+        the largest deviation from the voltage the network is held at,
+        max |V − V_slack| over the buses on the path (the two ends when the path does
+        not list its buses; 0 when not known, so without a power flow).
+        V_slack is the external grid's set point (``GridAssessment.slack_voltage_pu``),
+        1.025 pu on SimBench's networks: the deviation from nominal 1 pu would charge
+        every trade at least that, with nothing drawn from the network at all (MP-4l).
+        The measured value is not the difference between the ends either: on a feeder
         whose voltage is high all along, as rural1's is when it exports, two
         neighbours at 1.05 pu differ by nothing but the voltage limit binds."""
         if self.setup.voltage_drop == "distance":
@@ -176,7 +185,7 @@ class Dso:
         buses = path.buses or (path.bus_a, path.bus_b)
         found = [self.bus_voltage_pu[b] for b in buses if b in self.bus_voltage_pu]
 
-        return max((abs(v - 1.0) for v in found), default=0.0)
+        return max((abs(v - self.slack_voltage_pu) for v in found), default=0.0)
 
     def congestion(self, lines: Sequence[str], transformer: bool = False) -> float:
         """C_t of a trade ([P1] eq. 8a): the highest loading on its path in the

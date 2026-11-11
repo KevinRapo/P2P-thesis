@@ -34,6 +34,8 @@ flowchart LR
 | [`reputation`](../../../api/market/reputation.md) | Reputation (eq. 12): reliability, price fairness and grid contribution, with the decay |
 | [`signals`](../../../api/market/signals.md) | The paper's 42 observation signals, each a plain function; open definitions marked `# OPEN` |
 | [`probes`](../../../api/market/probes.md) | The market probes: scripted cases with hand-worked outcomes |
+| [`indicators`](../../../api/market/indicators.md) | What is computed from a run's saved tables: the indicators per policy and test day (energy money before fees, team money after, the VTI both ways) and the comparisons of runs; reads tables, imports no market code |
+| [`ceiling`](../../../api/market/ceiling.md) | The two references of the VTI: the money ceiling and the non-P2P floor, linear programs on energy, and their power flow and fees through the market's own code (`assess_outcomes`) |
 | [`agent/der`](../../../api/market/agent/der.md) | `Participant`: profiles, what it can trade (eq. 15), partner choice, settlement (eq. 13, 14, 16), its bus injection |
 | [`agent/battery`](../../../api/market/agent/battery.md) | `Battery`: its energy, what it can take or give (eq. 15c-d), charging and discharging (eq. 16) |
 | [`agent/rule_based_bid`](../../../api/market/agent/rule_based_bid.md) | The rule that writes orders when no agent does |

@@ -4,7 +4,7 @@
 can be compared, whatever they differ in; the tab says what differs.
 
 Source: `day_indicators` in [`results.py`](../../../../../core/runner/results.py) and
-[`indicators.py`](../../../../../core/runner/indicators.py), from the held-out tables; drawn
+[`indicators.py`](../../../../../core/market/indicators.py), from the held-out tables; drawn
 by [`validation.py`](../../../../../studio/pages/results/validation.py).
 
 ## Structure
@@ -35,11 +35,13 @@ a 95% bootstrap interval in square brackets.
 
 | Column | What it is |
 |---|---|
-| Team money | The participants' `bill` summed, EUR per day; positive is earned |
-| VTI | Value to ideal over the test period: (team money − `non_p2p`) / (`ceiling` − `non_p2p`), the period's sums. 0 is every participant on its own, 1 the most the period allows; below 0 worse than on their own |
+| Energy money, before fees | The participants' bills summed before grid fees and loss charge, EUR per day: the money the references (`non_p2p`, `ceiling`) are made of |
+| Team money, after fees | The participants' `bill` summed, EUR per day; positive is earned. `non_p2p` has it too; the ceiling has none |
+| VTI, on energy money | Value to ideal over the test period: (energy money − `non_p2p`) / (`ceiling` − `non_p2p`), the period's sums. 0 is every participant on its own, 1 the most the period allows; below 0 worse than on their own |
+| VTI, after fees | The same with the team money after fees against the same references. The difference between the two columns is what the fees and the loss charge take off, in shares of the gap between the references |
 | PI | Participation over the test period: the share of participants whose money beats their own `non_p2p` money. It says whether the gain reaches most of them |
-| EI | Equality over the test period: 1 − Gini of the participants' gains over their own `non_p2p` money, with the absolute gains in the denominator so it stays in 0 to 1 when some gains are negative ([`equality`](../../../../../core/runner/indicators.py)). 1: the gain shared evenly; towards 0: it sits with few. Equal losses also score 1, so read it with the VTI |
-| Gain over net position | Team money minus the run's own `net_position`, same day |
+| EI | Equality over the test period: 1 − Gini of the participants' gains over their own `non_p2p` money, with the absolute gains in the denominator so it stays in 0 to 1 when some gains are negative ([`equality`](../../../../../core/market/indicators.py#L432)). 1: the gain shared evenly; towards 0: it sits with few. Equal losses also score 1, so read it with the VTI |
+| Gain over net position, after fees | Team money (after fees) minus the run's own `net_position`, same day |
 | Stored change | Energy left in the batteries against the start of the day, kWh. Money alone favours draining them, so it stands next to it |
 | Peer energy | `p2p_kwh` |
 | Trading ratio | Energy bought and sold over what participants needed to get or get rid of; above 1 is energy traded back and forth |

@@ -1,6 +1,6 @@
 """Results → Grid: what did the grid do?
 
-Its indicators per test day (``core/runner/indicators.py``), from the AC power flow
+Its indicators per test day (``core/market/indicators.py``), from the AC power flow
 whichever grid method charged the fees; then one run step by step, a second one over it
 if asked: loading against what the fees read, voltages, the upstream exchange; and
 the network's day replayed step by step.

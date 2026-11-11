@@ -62,7 +62,7 @@ receives. The community's money therefore depends only on what it buys from and
 sells to the DSO. Generation and demand are fixed, so two things are left to choose:
 **netting**, one participant's surplus covering another's deficit, and **when each
 battery charges and discharges**. A planner who sees the whole period chooses both
-with a linear program ([`optimise`](../../../core/runner/ceiling.py#L98-L227)):
+with a linear program ([`optimise`](../../../core/market/ceiling.py#L115-L243)):
 
 $$
 \begin{aligned}
@@ -82,24 +82,47 @@ planner from earning money by emptying the batteries.
 
 **Why it is a bound.** Whatever the market does, its imports, exports and battery
 moves satisfy these constraints: every outcome is one feasible point of the program.
-Fees only lower the market's money, so no policy can make more, with two exceptions:
+Fees only lower the market's money (no fee is below 0: the zone bonus is capped at the
+fees it cancels, MP-4n), so no policy can make more, with one exception:
 
-- the **zone bonus** is a negative fee and can lift the market's money above it;
 - a **peer charge** makes netting cost money, which the program does not know. The
   bound still holds but can no longer be reached, so the VTI reads low. Before any
   run with a charge, the program has to charge peer netting too (RP-7g;
   [Tariffs](../market/tariffs.md#what-depends-on-it)).
 
-The program also ignores the grid's limits and losses.
+**The money is energy money.** The program's value is before any grid fee and loss
+charge, as is the floor's. That is the money a policy's `energy_money` is compared with
+in the VTI ([From money to indices](#from-money-to-indices)).
+
+**The grid.** The program ignores the grid's limits, but its schedule fixes every bus's
+injection (each participant's generation and demand, and what each battery charges
+and discharges), so it runs through the market's own power flow afterwards
+([`ceiling_days`](../../../core/market/ceiling.py#L564-L594): the same network, background,
+scales and loss rule): losses, violations, loadings, voltages, the exchange with the
+upstream grid and the loss charge. The ceiling is **not grid-feasible** by construction:
+in a July week on rural1 it loads the transformer to 213 % and breaks a voltage limit
+for 8 hours, where the played rule reaches 126 % and 9 hours. It has no fees and no
+money after fees (RP-7o): who traded with whom, which a fee needs, is undefined for a
+planner that nets the whole community.
 
 ## The floor: `non_p2p`
 
 The conventional case of Zhou et al. (2018, §3.1, §4.1): every participant on its
 own with the retailer. It is the same program, solved **once per participant** with
 only its own generation, demand and battery, and summed
-([`alone_days`](../../../core/runner/ceiling.py#L364-L404)). Nobody nets with
+([`alone_days`](../../../core/market/ceiling.py#L637-L668)). Nobody nets with
 anybody. A participant without a battery has nothing to choose: its surplus earns
 $p_\text{FiT}$ and its deficit costs $p_\text{util}$.
+
+Every participant's exchange with the retailer is a settlement with the DSO, so the
+floor is also **charged like the market charges the energy no trade covers**
+([`assess_outcomes`](../../../core/market/lem.py): the fees of a DSO trade along the
+participant's path to the transformer, the transformer in the congestion, its share of
+the losses of the power flow of all participants together). Its `energy_bill` is the
+program's money, its `bill` that less the fees and the loss charge: the participants'
+scores (PI, EI, `participants_better`) compare bills after fees on both sides. On
+rural1, a July week: 9 991 kWh settled for 102.8 EUR in fees (8.3 % of their value), where
+the rule's DSO trades paid 2.6 %, mostly thermal and congestion at the transformer.
 
 The gap between floor and ceiling is exactly the value of netting, together with
 what shared timing of the batteries adds to it. That gap is what a market can
@@ -111,10 +134,11 @@ Each reference is calculated over two horizons:
 
 - **The test period.** The batteries carry from day to day, as the evaluation plays
   them, and start where the evaluation started them
-  ([`ceiling_days`](../../../core/runner/ceiling.py#L326-L361)).
+  ([`ceiling_days`](../../../core/market/ceiling.py#L564-L594)).
 - **Each test day.** Every day is its own horizon, as in Zhou et al.'s one-day
   cases: each battery starts the day at the scenario's initial charge and ends it at
-  least as full ([`day_references`](../../../core/runner/ceiling.py#L407)).
+  least as full ([`day_references`](../../../core/market/ceiling.py#L746)); before fees, with
+no power flow.
 
 The played policies' batteries carry over between days, so a day's value for them
 also holds energy moved in from the day before, which that day's references cannot
@@ -127,11 +151,17 @@ From the money of a policy, the floor and the ceiling, three indices of Zhou et 
 (2018) judge a run ([Metrics](metrics.md#a-headline)):
 
 $$
-\text{VTI} = \frac{\text{team money} - \text{non-P2P}}{\text{ceiling} - \text{non-P2P}}
+\text{VTI} = \frac{\text{energy money} - \text{non-P2P}}{\text{ceiling} - \text{non-P2P}}
 $$
 
 - **VTI**, value tapping: the share of the reachable value the policy captured. 0 is
-  everyone on their own, 1 the ceiling, below 0 worse than on their own.
+  everyone on their own, 1 the ceiling, below 0 worse than on their own. The money is
+  **energy money**, before grid fees and loss charge, because the references are programs
+  on energy. **`vti_after_fees`** is the same with the policy's `team_money` (after
+  fees) in the numerator and the same references. Both are kept, so nobody has to
+  choose: their difference is what the fees and the loss charge take off, in shares of the
+  gap between the references, and a run with fees and one without them are comparable
+  in the first (RP-7n).
 - **PI**, participation: the share of participants whose money beats their own
   non-P2P money. Would they stay in the market?
 - **EI**, equality: how evenly the gains over each participant's own non-P2P money
