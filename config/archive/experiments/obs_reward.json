@@ -1,7 +1,7 @@
 {
   "name": "obs_reward",
   "description": "Salazar's version against ours, two by two: reward (the original code's, or the net bill) by observation (the paper's 42 signals, or the pruned 22) on 1-LV-rural3--2-sw with 13 participants, the settings of scale_p13, on German 2024 prices (config/data/de_2024.json) with no peer charge. Grid capacity 400 kWh per step: the transformer's 0.4 MVA over one hour. The arms share the PPO settings. Compare them on the held-out bill (heldout_agents.csv), not on their returns: those are in each reward's own units, and the salazar reward rewards trading more than money, so random actions beat net_position on it while losing money.",
-  "scenario": "config/scenarios/lv_rural3_p13.json",
+  "scenario": "config/archive/scenarios/lv_rural3_p13.json",
   "train_days": {"from": "2016-06-01", "to": "2016-06-30"},
   "test_periods": {"july": {"from": "2016-07-01", "to": "2016-07-14"}},
   "env_config": {"grid_capacity_kwh": 400.0},

@@ -1,7 +1,7 @@
 {
   "name": "ctce_entropy",
   "description": "Diagnostic for CTCE on market_s2 (L-02): does the entropy bonus, unclipped while PPO clips one joint ratio over all 13 agents, drive CTCE's rising log std? The same setup as market_s2 with 8 env runners: the joint entropy at 0.01 (as market_s2, before RP-3a), at 0.01 / 13 (each agent's part as in DTDE, the default since RP-3a) and 0. entropy_coeff is per agent and CTCE divides it by the 13 agents, so 0.13 gives the joint 0.01. Logs the clip fraction.",
-  "scenario": "config/scenarios/lv_rural1_s2.json",
+  "scenario": "config/archive/scenarios/lv_rural1_s2.json",
   "train_days": {
     "from": "2016-06-01",
     "to": "2016-06-30"

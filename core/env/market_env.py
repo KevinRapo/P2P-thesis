@@ -88,7 +88,7 @@ Episodes. ``reset`` draws a window of ``episode_days`` consecutive days from
 ``days`` and rebuilds the market for its first day (changing the day and resetting
 is cheap; the first reset of a process loads the SimBench network). Inside a window
 each day follows the last with the batteries and reputations as they were at
-midnight. Settings (MP-1c, RP-1f; the experiment ``day_end.json`` compares them):
+midnight. Settings (MP-1c, RP-1f; the experiment ``config/archive/experiments/day_end.json`` compares them):
 
     episode_days      days in a window, default 1
     truncate_episode  False: the window's end sets ``terminateds``, the return ends

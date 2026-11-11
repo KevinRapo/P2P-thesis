@@ -9,9 +9,9 @@ resources are requested separately.
 
 An experiment expands to algorithms × paradigms × seeds × variants, each one an
 independent run with its own model, seed, metrics and checkpoint.
-[market_ppo.json](../../../../config/experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
-[base_long_p13.json](../../../../config/experiments/base_long_p13.json) 1 × 3 × 3 seeds =
-9; [ctde_sweep_p13.json](../../../../config/experiments/ctde_sweep_p13.json) 1 × 1 × 2
+[market_ppo.json](../../../../config/archive/experiments/market_ppo.json) is 1 × 3 × 1 = 3 runs;
+[base_long_p13.json](../../../../config/archive/experiments/base_long_p13.json) 1 × 3 × 3 seeds =
+9; [ctde_sweep_p13.json](../../../../config/archive/experiments/ctde_sweep_p13.json) 1 × 1 × 2
 seeds × 12 variants = 24.
 
 ```mermaid
@@ -282,7 +282,7 @@ Check a new size with the test profile, then look at the first full run's peak
 
 ## Full and test profiles
 
-For [market_ppo.json](../../../../config/experiments/market_ppo.json):
+For [market_ppo.json](../../../../config/archive/experiments/market_ppo.json):
 
 | | Full | Test |
 |---|---:|---:|
@@ -300,7 +300,7 @@ is one training batch (`train_batch_size_per_learner`, else 100), the largest ov
 the variants, so every test run really updates its networks. A variant's own
 train days, test periods, budget and evaluation settings are left out of the test
 version: two variants that differ only in those (`summer` and `base` in
-[ctde_sweep_p13.json](../../../../config/experiments/ctde_sweep_p13.json)) run the same
+[ctde_sweep_p13.json](../../../../config/archive/experiments/ctde_sweep_p13.json)) run the same
 test, and identical test results for them are expected, not a bug. A `test` block
 in the spec overrides seeds, days, budget, evaluation and resources.
 

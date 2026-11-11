@@ -1,8 +1,9 @@
 # Experiments
 
 > The experiments run with this tool and what they showed. Each experiment is a
-> file in [config/experiments/](../../config/experiments/); how to run one is in
-> [Starting and following runs](../using/running/runs.md).
+> file in [config/experiments/](../../config/experiments/), or in
+> [config/archive/experiments/](../../config/archive/experiments/) for the finished ones;
+> how to run one is in [Starting and following runs](../using/running/runs.md).
 
 **The thesis's results** come from the experiments on [Thesis experiments](thesis/index.md).
 

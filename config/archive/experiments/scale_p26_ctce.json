@@ -1,7 +1,7 @@
 {
-  "name": "scale_p43_ctce",
-  "description": "CTCE beside scale_p43, with entropy_coeff 0.01 / 43 (the bonus per agent as market_s3_ctce's 0.01 / 13).",
-  "scenario": "config/scenarios/lv_rural3_p43.json",
+  "name": "scale_p26_ctce",
+  "description": "CTCE beside scale_p26, with entropy_coeff 0.01 / 26 (the bonus per agent as market_s3_ctce's 0.01 / 13).",
+  "scenario": "config/archive/scenarios/lv_rural3_p26.json",
   "train_days": {
     "from": "2016-06-01",
     "to": "2016-06-30"
@@ -22,7 +22,7 @@
   ],
   "training": {
     "ppo": {
-      "entropy_coeff": 0.000233
+      "entropy_coeff": 0.000385
     }
   },
   "budget": 192000,

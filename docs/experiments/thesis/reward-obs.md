@@ -6,7 +6,7 @@
 ## Scenario
 
 For now the thesis scenario,
-[`thesis_rural3_p13.json`](../../../config/scenarios/thesis_rural3_p13.json), on the
+[`thesis_rural3_p13.json`](../../../config/archive/scenarios/thesis_rural3_p13.json), on the
 power flow:
 
 | Setting | Value | Why |
@@ -23,7 +23,7 @@ Each run has 8 environment runners, on TalTech `blackwell1` (10 CPUs, 12 GB, 4 h
 
 ## Arms and settings
 
-[`thesis_reward_obs.json`](../../../config/experiments/thesis_reward_obs.json):
+[`thesis_reward_obs.json`](../../../config/archive/experiments/thesis_reward_obs.json):
 4 arms × 2 paradigms (CTDE, DTDE) × 5 seeds = 40 runs, on the power flow.
 
 **Question.** Do agents trained with our reward and observation do better for the

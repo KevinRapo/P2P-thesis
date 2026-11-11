@@ -18,7 +18,7 @@ from studio.pages import experiments
 
 REPO = Path(__file__).resolve().parents[2]
 LIBRARY = REPO / "config" / "scenarios"
-FILE = "config/scenarios/lv_rural1_s2.json"
+FILE = "config/scenarios/thesis_rural1.json"
 SMOKE = str(REPO / "config" / "experiments" / "smoke.json")
 
 
@@ -56,16 +56,17 @@ async def test_the_json_follows_the_active_scenario_and_a_chosen_file(
 
         scenario.current().market.seed = 7  # edited on the Scenario page
         form._changed()
-        assert in_editor(form)["name"] == "lv_rural1_s2-mod"
+        assert in_editor(form)["name"] == "thesis_rural1-mod"
         assert form.record["experiment"].scenario["market"]["seed"] == 7
 
         form.template.set_value(SMOKE)  # the file decides again
+        form._template_chosen()  # also when it was the first file already
         written = json.loads(Path(SMOKE).read_text("utf-8"))["scenario"]
         assert form.active.value is False
         assert in_editor(form) == written
 
         form.active.set_value(True)
-        assert in_editor(form)["name"] == "lv_rural1_s2-mod"
+        assert in_editor(form)["name"] == "thesis_rural1-mod"
         assert form.record["experiment"].scenario["market"]["seed"] == 7
 
 
@@ -86,6 +87,7 @@ async def test_editing_the_json_marks_the_experiment_unsaved(monkeypatch, tmp_pa
         await user.open("/")
         form = forms[0]
         form.template.set_value(SMOKE)  # the file, as it is
+        form._template_chosen()  # also when it was the first file already
         assert runs.selected_unsaved() is False
 
         form.editor.set_value(

@@ -9,7 +9,7 @@ Three kinds of file configure a run:
 |---|---|---|
 | [Scenario](#scenario) | [`config/scenarios/`](../../../config/scenarios/validate_market.json) | The world: the network, the participants, the market rules and the DSO |
 | [Price file](#price-file) | [`config/data/`](../../../config/data/synthetic_day.json) | The DSO's tariffs per market step |
-| [Experiment](#experiment) | [`config/experiments/`](../../../config/experiments/day_end.json) | What is done in that world: days, RL settings, seeds, arms and how the runs are run |
+| [Experiment](#experiment) | [`config/experiments/`](../../../config/experiments/smoke.json) | What is done in that world: days, RL settings, seeds, arms and how the runs are run |
 
 The full examples below hold every setting. A file only needs what it changes: a
 setting left out takes the default shown, so the values in the examples are the

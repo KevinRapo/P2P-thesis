@@ -40,7 +40,7 @@ and save a new one.
 | Scenario | Use |
 |---|---|
 | `validate_market.json` | Five participants on `rural1--0`. Small; the tests and the market notebooks use it |
-| `lv_rural3_p13.json` | Thirteen participants on `rural3--2`. The current experiments use it |
+| `thesis_rural1.json` | Thirteen participants on `rural1--2`, the thesis scenario. The starter experiment `thesis.json` uses it. Earlier scenarios are in `config/archive/scenarios/` |
 
 Every setting is explained in the [config reference](../using/running/config.md).
 

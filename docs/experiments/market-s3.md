@@ -23,7 +23,7 @@ evaluation (each test day 1-14 July 2016 once) unless it says otherwise.
 | `scale_p13`, `_p26`, `_p43` (+ `_ctce`, `scale_p43_ctde`) | 1-LV-rural3--2-sw, 13, 26 or all 43 of its prosumer buses (the PV : storage share kept; the rest of the network as background) | CTCE (entropy 0.01 / N), CTDE, DTDE | 0-1 | 192k |
 
 Each run has 8 environment runners. The scenarios `lv_rural3_p13/26/43` are in
-`config/scenarios/`.
+`config/archive/scenarios/`, the experiments in `config/archive/experiments/`.
 
 ## 1. Three seeds on rural1 (`market_s3`)
 

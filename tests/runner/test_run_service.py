@@ -481,7 +481,9 @@ def test_quick_settings_read_and_rewrite_the_editors_json():
     into it, every other setting keeping its edit; None removes a setting (its
     default then applies), and the result is still an experiment."""
     text = editable(
-        (REPO / "config" / "experiments" / "market_ppo.json").read_text("utf-8")
+        (REPO / "config" / "archive" / "experiments" / "market_ppo.json").read_text(
+            "utf-8"
+        )
     )
     values = quick_settings(text)
     assert values["paradigms"] == ["ctce", "ctde", "dtde"]

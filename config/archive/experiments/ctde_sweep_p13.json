@@ -1,7 +1,7 @@
 {
   "name": "ctde_sweep_p13",
   "description": "How far PPO-CTDE gets towards the money ceiling on the bill_paper setup (1-LV-rural3--2-sw, 13 participants, German 2024 prices, bill reward, the paper's 42 signals, power flow): one setting changed at a time from the stage 6 settings (RP-6b), two seeds, 960k steps so that every arm's evaluation curve also shows the budget (L-14). The tv arms pay the change of the stored energy at the end of each training episode (terminal_value, MP-1c) at stored_kwh_value = 0.3766 per kWh: the discharge efficiency 0.95 times the mean utility price of de_2024 (0.3964), what a stored kWh saves when it later covers an import. They end their episodes (no truncation): with truncate_episode the critic's bootstrap already values the stored energy, and the terminal value would count it twice. Read the held-out VTI and team money in Results (adjusted_bill values the stored change at the same price in every arm); on 1-14 July the ceiling is 128.72 EUR, of which batteries timed with the community's surplus are about 190 EUR over community netting alone (-61.16 EUR).",
-  "scenario": "config/scenarios/lv_rural3_p13.json",
+  "scenario": "config/archive/scenarios/lv_rural3_p13.json",
   "train_days": {
     "from": "2016-01-01",
     "to": "2016-12-31"

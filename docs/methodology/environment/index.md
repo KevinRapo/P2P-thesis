@@ -55,7 +55,7 @@ because each day starts fresh (batteries at their initial charge, reputations at
 consecutive days with the batteries and reputations carried over midnight,
 `truncate_episode` bootstraps the return from the next day's start, and
 `terminal_value` pays for the stored energy; a test period is played without a reset
-([`day_end.json`](../../../config/experiments/day_end.json) compares them).
+([`day_end.json`](../../../config/archive/experiments/day_end.json) compares them).
 
 | | |
 |---|---|
