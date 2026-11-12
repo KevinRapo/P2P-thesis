@@ -5,6 +5,8 @@
 > [config/archive/experiments/](../../config/archive/experiments/) for the finished ones;
 > how to run one is in [Starting and following runs](../using/running/runs.md).
 
+**What was run and when**, day by day, with the results: the [Experiment diary](diary.md).
+
 **The thesis's results** come from the experiments on [Thesis experiments](thesis/index.md).
 
 | Experiment | Question |

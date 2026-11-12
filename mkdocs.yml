@@ -236,6 +236,7 @@ nav:
           - experiments/thesis/index.md
           - Reward and observation: experiments/thesis/reward-obs.md
       - "Market runs: seeds, CTCE, more agents": experiments/market-s3.md
+      - Experiment diary: experiments/diary.md
   # Temporary: the work plan, the open items and the decisions' reasons. Removed at
   # the end; nothing outside this folder may depend on its pages.
   - Temp:

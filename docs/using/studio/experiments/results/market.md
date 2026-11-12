@@ -13,10 +13,10 @@ Source: `day_indicators` in [`results.py`](../../../../../core/runner/results.py
 
 ```text
 Market
-├── 1  On the test days     metric · a line per · policy · hover · ± one std
+├── 1  On the test days     metric · period · a line per · policy · hover · ± one std
 ├── 2  Per participant      the same, a line per participant too
-├── 3  Peer trades          distribution · a box per · policy
-├── 4  Who trades with whom run · policy: a buyer × seller matrix
+├── 3  Peer trades          distribution · period · a box per · policy
+├── 4  Who trades with whom run · policy · period: a buyer × seller matrix
 ├── 5  One run              outcome · baseline · name filter: a heatmap
 └── 6  Step by step         run · compare with · day · policy · participant
        ├── energy traded (stacked bars) and the peer price
@@ -32,7 +32,7 @@ The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`scr
 
 ![Market: on the test days](img/market-on-the-test-days.png)
 
-**1 On the test days.** A line stands for a run, or for what runs differ in.
+**1 On the test days.** A line stands for a run, or for what runs differ in. The test days come in evaluation periods (a week each), and the *Evaluation period* dropdown shows one at a time, the first by default, with a tick per weekday; *All periods* puts them on one plot, where each week is a short spike between long gaps. The same dropdown is on *Per participant*.
 
 | Indicator | What it is |
 |---|---|
@@ -69,11 +69,13 @@ The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`scr
 **3 Peer trades.** A box per run (or per what runs differ in) over its peer trades: their
 size in kWh, or where their price fell between the feed-in tariff (0) and the utility
 price (1). The place in the band, not the raw price: with tariffs that change by the day
-the raw price would only show the spot price.
+the raw price would only show the spot price. *Evaluation period* limits the trades to
+one week; by default they are all.
 
 ![Market: who trades with whom](img/market-who-trades-with-whom.png)
 
-**4 Who trades with whom.** One run and policy over all test days: a row per buyer, a
+**4 Who trades with whom.** One run and policy over all test days, or one evaluation
+period: a row per buyer, a
 column per seller, the cell their peer energy (or trades). It shows whether the market is
 a few pairs or many.
 

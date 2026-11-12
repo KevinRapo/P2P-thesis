@@ -735,3 +735,68 @@ def test_a_live_refresh_redraws_only_charts_whose_data_changed():
     tab.update({"a": one, "b": one})  # the first refresh after a build: all
     tab.update({"a": one.copy(), "b": two})  # the same values for a
     assert (a.calls, b.calls, timing.calls) == (1, 2, 0)
+
+
+# --- Evaluation periods: a week at a time -------------------------------------------
+WEEKS = [f"2016-01-{d}" for d in range(11, 18)] + [f"2016-04-{d}" for d in range(11, 15)]
+
+
+def test_the_test_days_come_in_periods_of_consecutive_dates():
+    from studio.pages.results.common import period_labels, period_starts
+
+    starts = period_starts(WEEKS + WEEKS)  # twice: a day of two runs is one day
+    assert set(starts[WEEKS[:7]]) == {"2016-01-11"} and set(starts[WEEKS[7:]]) == {"2016-04-11"}
+    assert period_labels(WEEKS) == {
+        "2016-01-11": "11 – 17 Jan 2016",
+        "2016-04-11": "11 – 14 Apr 2016",
+    }
+    assert period_labels(["2016-12-30", "2016-12-31", "2017-01-01"]) == {
+        "2016-12-30": "30 Dec 2016 – 01 Jan 2017"
+    }
+    # days that are not dates are one period, and none is none
+    assert set(period_starts(["d1", "d2"])) == {"d1"}
+    assert period_labels([]) == {}
+
+
+def day_rows(days, value=1.0):
+    return pd.DataFrame(
+        {
+            "metric": "m", "policy": "trained", "key": "a",
+            "day": days, "value": [value + i for i in range(len(days))],
+        }
+    )
+
+
+def test_the_day_chart_shows_one_period_with_a_tick_per_day():
+    table = day_rows(WEEKS)
+    chart = DayChart(table=table, metric="m", by="key", policy="trained", band=False,
+                     labels={}, period="2016-04-11")
+    fig = chart.figure()
+    assert list(fig.data[0].x) == WEEKS[7:]
+    assert fig.layout.xaxis.dtick == 86_400_000 and "%a" in fig.layout.xaxis.tickformat
+
+    every = DayChart(table=table, metric="m", by="key", policy="trained", band=False,
+                     labels={}, period="all").figure()
+    assert list(every.data[0].x) == WEEKS and every.layout.xaxis.dtick is None
+
+    # a period the table does not have (another run's) shows everything, not nothing
+    gone = DayChart(table=table, metric="m", by="key", policy="trained", band=False,
+                    labels={}, period="2015-01-01").figure()
+    assert list(gone.data[0].x) == WEEKS
+
+
+def test_the_trade_matrix_and_boxes_take_a_period():
+    from studio.pages.results.trades import TradeBoxChart, trade_matrix
+
+    trades = pd.DataFrame(
+        {
+            "policy": "trained", "stage": 2, "buyer": "P1", "seller": "P2",
+            "price": 0.2, "kwh": [1.0, 2.0], "day": ["2016-01-11", "2016-04-11"],
+            "key": "a", "band": 0.5,
+        }
+    )
+    assert trade_matrix(trades, "trained", "kwh").loc["P1", "P2"] == 3.0
+    assert trade_matrix(trades, "trained", "kwh", period="2016-04-11").loc["P1", "P2"] == 2.0
+    box = TradeBoxChart(trades=trades, metric="kwh", by="key", policy="trained",
+                        labels={"a": "a"}, period="2016-01-11").figure()
+    assert list(box.data[0].y) == [1.0]

@@ -83,7 +83,7 @@ team money.
 
 ![Validation: on the test days](img/validation-on-the-test-days.png)
 
-**2 On the test days.** One metric per test day, a line per run (or per what runs differ
+**2 On the test days.** The test days come in evaluation periods (a week each), and the *Evaluation period* dropdown shows one at a time, the first by default, with a tick per weekday; *All periods* puts them on one plot, where each week is a short spike between long gaps. One metric per test day, a line per run (or per what runs differ
 in), as on Market and Grid. The metrics are the headline indices **with every day its own
 horizon** (`vti_day`, `pi_day`, `ei_day` against that day's ceiling and non-P2P, each
 battery starting the day at the scenario's initial charge and ending it at least as full;

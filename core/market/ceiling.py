@@ -46,6 +46,8 @@ so who traded with whom, which a fee needs, is undefined.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from typing import Any, Mapping, NamedTuple, Optional, Sequence
 
@@ -559,6 +561,41 @@ def references(
     alone, team = _alone(agent_steps, steps, scenario, market)
 
     return References(top, alone, team, day_references(agent_steps, steps, scenario))
+
+
+def reference_key(
+    agent_steps: Optional[pd.DataFrame],
+    steps: Optional[pd.DataFrame],
+    scenario: Optional[Mapping[str, Any]],
+) -> Optional[str]:
+    """A digest of exactly what ``references`` reads, so two runs with the same digest
+    have the same references: the scenario, one policy's profiles and tariffs (every
+    policy has the same), and each battery's start state, rounded (it is the first
+    row's ``soc`` less its change, which the learning policy's actions move in the
+    last decimals only). The same scenario and test days played by several seeds,
+    paradigms or algorithms share one. ``None`` without the tables or the scenario."""
+    if agent_steps is None or steps is None or not scenario or "policy" not in agent_steps:
+        return None
+
+    policy = agent_steps.policy.iloc[0]
+    mine = agent_steps[agent_steps.policy == policy]
+    tariffs = steps[steps.policy == policy] if "policy" in steps else steps
+    profiles = ["period", "day", "step", "agent", "generation_kwh", "demand_kwh"]
+    prices = ["period", "day", "step", "feed_in_tariff", "utility_price"]
+    starts = [
+        round(store.start_kwh, 6)
+        for _, _, _, stores in _periods(agent_steps, steps, scenario)
+        for store in stores.values()
+    ]
+    digest = hashlib.sha1(json.dumps(scenario, sort_keys=True, default=str).encode())
+
+    for table, columns in ((mine, profiles), (tariffs, prices)):
+        found = table[[c for c in columns if c in table]]
+        digest.update(pd.util.hash_pandas_object(found, index=False).to_numpy().tobytes())
+
+    digest.update(json.dumps(starts).encode())
+
+    return digest.hexdigest()
 
 
 def ceiling_days(

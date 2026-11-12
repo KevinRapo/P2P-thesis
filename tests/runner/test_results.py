@@ -507,3 +507,40 @@ def test_a_run_saved_with_the_removed_grid_method_is_still_read(where):
     assert old.settings["scenario"]["grid"]["method"] == "graph"
     assert "grid_method" not in results._factors(old)
     assert "local/grid/ppo_dtde_s0_v3" in set(results.overview(list(runs.values())).key)
+
+
+def test_runs_with_the_same_reference_inputs_compute_them_once_even_side_by_side():
+    """The Studio reads the runs of an experiment in parallel; its seeds have the same
+    references, so the power flow runs once and the others wait for it."""
+    import threading
+    import time
+
+    results._shared.clear()
+    calls = []
+
+    def build():
+        calls.append(1)
+        time.sleep(0.05)
+        return "references"
+
+    found = []
+    threads = [
+        threading.Thread(target=lambda: found.append(results._share("k", build)))
+        for _ in range(4)
+    ]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+
+    assert found == ["references"] * 4 and len(calls) == 1
+    assert results._share("other", lambda: "second") == "second"
+    assert len(calls) == 1 and set(results._shared) == {"k", "other"}
+
+
+def test_the_shared_references_keep_the_latest_inputs_only(monkeypatch):
+    results._shared.clear()
+    monkeypatch.setattr(results, "SHARED_REFERENCES", 2)
+
+    for key in "abc":
+        results._share(key, lambda key=key: key)
+
+    assert list(results._shared) == ["b", "c"]

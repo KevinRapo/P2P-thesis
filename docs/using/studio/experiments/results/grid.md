@@ -12,7 +12,7 @@ for them.
 
 ```text
 Grid
-├── 1  On the test days   metric · a line per · policy · hover · ± one std
+├── 1  On the test days   metric · period · a line per · policy · hover · ± one std
 ├── 2  Step by step       run · compare with · day · policy
        ├── line loading
        ├── voltage
@@ -28,7 +28,7 @@ The pictures are the Studio on `results_format-moreUpd` (12 runs), made by [`scr
 
 ![Grid: on the test days](img/grid-on-the-test-days.png)
 
-**1 On the test days.** Any run in a line per run, paradigm, variant, seed or policy.
+**1 On the test days.** Any run in a line per run, paradigm, variant, seed or policy. The test days come in evaluation periods (a week each), and the *Evaluation period* dropdown shows one at a time, the first by default, with a tick per weekday; *All periods* puts them on one plot, where each week is a short spike between long gaps.
 
 | Indicator | What it is |
 |---|---|

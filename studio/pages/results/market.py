@@ -232,7 +232,12 @@ class MarketTab(Tab):
             "column per seller.",
             "grid_on",
         ):
-            TradeMatrix(self.service, labels, self.selection)
+            TradeMatrix(
+                self.service,
+                labels,
+                self.selection,
+                data["trades"].day if has(data["trades"], "day") else (),
+            )
 
         with section("One run", "Its participants against a baseline", "search"):
             one = OneRun(self.service)

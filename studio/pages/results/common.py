@@ -160,6 +160,77 @@ def fingerprint(value: Any) -> Any:
 # --------------------------------------------------------------------------------------
 # DayChart: one metric of a long table over the test days, a line per group
 # --------------------------------------------------------------------------------------
+ALL_PERIODS = "all"
+ISO_DAY = "%Y-%m-%d"  # how a test day is named
+
+
+def period_starts(days: Any) -> pd.Series:
+    """Each test day's evaluation period, named by its first day: the test days come
+    in periods (a week each), and a period is a run of consecutive dates. A day that
+    is not a date, or none, is one period."""
+    unique = pd.Series(sorted(set(days)), dtype=object)
+    dates = pd.to_datetime(unique, format=ISO_DAY, errors="coerce")
+
+    if unique.empty or dates.isna().any():
+        first = unique.iloc[0] if len(unique) else None
+
+        return pd.Series(first, index=unique, dtype=object)
+
+    new = dates.diff().dt.days.fillna(2) > 1
+    starts = unique.where(new).ffill()
+
+    return pd.Series(starts.to_numpy(), index=unique, dtype=object)
+
+
+def period_labels(days: Any) -> dict[str, str]:
+    """The evaluation periods of ``days`` as first day -> name (``11 - 17 Jan 2016``)."""
+    starts = period_starts(days)
+    labels = {}
+
+    for first, group in starts.groupby(starts, sort=True):
+        dates = pd.to_datetime(pd.Series(group.index), format=ISO_DAY, errors="coerce")
+
+        if dates.isna().any():
+            labels[first] = str(first)
+            continue
+
+        a, b = dates.min(), dates.max()
+
+        if a == b:
+            labels[first] = f"{a:%d %b %Y}"
+        elif a.year == b.year and a.month == b.month:
+            labels[first] = f"{a.day} – {b.day} {a:%b %Y}"
+        else:
+            labels[first] = f"{a:%d %b %Y} – {b:%d %b %Y}"
+
+    return labels
+
+
+def in_period(days: pd.Series, period: str, universe: Any = None) -> pd.Series:
+    """Which of ``days`` are in the evaluation ``period`` (its first day, as
+    ``period_labels`` names it); every one for ``ALL_PERIODS`` or a period that is not
+    among ``universe`` (the days the periods are made of, default ``days``)."""
+    starts = period_starts(days if universe is None else universe)
+
+    if period == ALL_PERIODS or period not in set(starts):
+        return pd.Series(True, index=days.index)
+
+    return days.map(starts) == period
+
+
+def period_select(owner: Any, option: str, days: Any) -> Optional[ui.select]:
+    """The "Evaluation period" dropdown of ``owner`` (a chart: its option ``option``),
+    when ``days`` hold more than one period; None otherwise."""
+    periods = period_labels(days)
+
+    if len(periods) < 2:
+        return None
+
+    return owner.select(
+        option, {ALL_PERIODS: "All periods"} | periods, "Evaluation period"
+    ).classes("w-56")
+
+
 class DayChart(SeriesChart):
     """One metric of a long table (``metric``, ``value``) over the test days: a line
     per group, at each day the mean over everything else in the group (participants,
@@ -167,7 +238,9 @@ class DayChart(SeriesChart):
 
     Options: ``table`` (``indicator`` or ``participant_metrics``), ``metric``, ``by``
     (the column a line stands for), ``policy`` (one policy, or ``"all"``), ``band``,
-    ``labels`` (run key -> name), ``title`` (the y axis).
+    ``labels`` (run key -> name), ``title`` (the y axis), ``period`` (one evaluation
+    period, by its first day, or ``ALL_PERIODS``; a week on its own is readable, all
+    of them together are a few spikes between long gaps).
     """
 
     height = 320
@@ -183,7 +256,18 @@ class DayChart(SeriesChart):
         if o.policy != "all":
             rows = rows[rows.policy == o.policy]
 
+        period = o.get("period", ALL_PERIODS)
+        rows = rows[in_period(rows.day, period, o.table.day)]
+        one = period != ALL_PERIODS and period in set(period_starts(o.table.day))
+
         self.titles(x="test day", y=o.get("titles", {}).get(o.metric, o.metric))
+
+        if (
+            one
+            and pd.to_datetime(rows.day, format=ISO_DAY, errors="coerce").notna().all()
+        ):
+            # a week: a tick per day, with its weekday
+            self.fig.update_xaxes(dtick=86_400_000, tickformat="%a %d %b")
 
         for value, group in rows.groupby(o.by, sort=False, dropna=False):
             stats = group.groupby("day").value.agg(["mean", "std"])
@@ -208,24 +292,33 @@ def metric_card(
     by: Optional[dict[str, str]] = None,
 ) -> DayChart:
     """A card with a ``DayChart`` of ``data[data_key]`` (watched by ``tab``) and its
-    controls above it: the metric (``metrics``: name -> label), what a line stands
+    controls above it: the metric (``metrics``: name -> label), the evaluation period
+    (when there are several; the first is shown, one at a time), what a line stands
     for (``by``), the policy and the band."""
+    table = data[data_key]
+    periods = period_labels(table.day) if len(table) and "day" in table else {}
+
     with section(title, caption, "show_chart"):
         controls = ui.row().classes("w-full items-center gap-3")
         chart = DayChart(
-            table=data[data_key],
+            table=table,
             labels=labels,
             metric=next(iter(metrics), None),
             titles=metrics,
             by="key",
             policy="trained",
             band=False,
+            period=next(iter(periods), ALL_PERIODS),
         ).show()
         tab.watch(chart, table=data_key)
         chart.memory = f"results_{tab.label}_{data_key}"  # its controls, between visits
 
         with controls:
             chart.select("metric", metrics, "Metric").classes("w-64")
+
+            if len(table) and "day" in table:
+                period_select(chart, "period", table.day)
+
             chart.select("by", by or BY, "A line per").classes("w-40")
             chart.select("policy", {"all": "All"} | POLICIES, "Policy").classes("w-40")
             chart.hover_select().classes("w-40")

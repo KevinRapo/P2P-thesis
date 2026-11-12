@@ -180,3 +180,24 @@ def test_the_day_table_has_both_vtis_and_their_difference_is_the_fees(played):
     assert day.vti_after_fees < 0
     assert np.isnan(table.loc[("ceiling", DAYS[0])].vti_after_fees)
     assert floor.grid_losses_kwh > 0 and floor.fees > 0
+
+
+def test_the_reference_key_ignores_the_policy_and_follows_the_inputs(played):
+    """Two seeds of one experiment share their references: the learning policy's own
+    ``soc`` moves in the last decimals only; another tariff or scenario is another key."""
+    scenario, people, steps, records = played
+    key = ceiling.reference_key(people, steps, scenario)
+    assert key == ceiling.reference_key(people.copy(), steps.copy(), scenario)
+
+    # a second policy with its own soc, listed after the first: same references
+    other = people.assign(policy="trained", soc=0.123)
+    both = pd.concat([people, other], ignore_index=True)
+    assert ceiling.reference_key(both, steps, scenario) == key
+
+    # the start state moved beyond rounding, another tariff, another scenario: new keys
+    batteries = people.assign(soc=people.soc.fillna(0.5) + 1e-9)
+    assert ceiling.reference_key(batteries, steps, scenario) == key
+    assert ceiling.reference_key(people, steps.assign(utility_price=9.0), scenario) != key
+    changed = {**scenario, "grid": {**scenario["grid"], "storage_scale": 2.0}}
+    assert ceiling.reference_key(people, steps, changed) != key
+    assert ceiling.reference_key(None, steps, scenario) is None

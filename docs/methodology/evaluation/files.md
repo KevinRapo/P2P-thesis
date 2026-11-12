@@ -25,6 +25,13 @@ what it needs. That is why every test day is kept step by step, for every policy
 no time, since the evaluation holds every step in memory anyway, and a run cannot get
 step tables afterwards. It costs about 5 MB per run at 13 participants and hourly steps.
 
+The references are the one slow part of level 2: they run the power flow on every test
+step of the ceiling and of non-P2P (about 40 s for 28 test days at 13 participants).
+They depend on the scenario, the test days' profiles and tariffs and the batteries' start
+state, not on the policy, so runs that share these (the seeds and paradigms of an
+experiment) share one computation (`ceiling.reference_key`, `results._share`), and the
+Studio keeps it until it closes.
+
 ## The folder
 
 ```text

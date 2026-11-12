@@ -849,19 +849,64 @@ def _stamp(folder: Path) -> tuple:
     return tuple(p.stat().st_mtime_ns if p.is_file() else 0 for p in files)
 
 
+SHARED_REFERENCES = 24  # distinct reference inputs kept (a few kB each)
+_shared: "OrderedDict[str, Any]" = OrderedDict()  # ceiling.reference_key -> References
+_sharing: dict[str, threading.Lock] = {}  # a key being computed -> who computes it
+_shared_lock = threading.Lock()
+
+
+def _share(key: str, build: Callable[[], Any]) -> Any:
+    """``build()`` once per ``key``, however many runs, and threads, ask for it: the
+    runs of one experiment (seeds, paradigms) have the same references, and the
+    Studio reads them side by side, so the ones that come second wait for the first
+    instead of each running the power flow again."""
+    with _shared_lock:
+        if key in _shared:
+            _shared.move_to_end(key)
+            return _shared[key]
+
+        computing = _sharing.setdefault(key, threading.Lock())
+
+    with computing:
+        with _shared_lock:
+            if key in _shared:
+                return _shared[key]
+
+        value = build()  # a failure is raised to each waiting run in turn
+
+        with _shared_lock:
+            _shared[key] = value
+            _sharing.pop(key, None)
+
+            while len(_shared) > SHARED_REFERENCES:
+                _shared.popitem(last=False)
+
+    return value
+
+
 @_latest(DAY_PATHS, DAY_MB)
 def _references(folder: str, stamp: tuple) -> tuple:
     """One run's references (``ceiling.references``): the ceiling and the non-P2P
     reference with their power flow, and the non-P2P fees. It runs the market's power
-    flow on every test step of both, so it is kept for as long as the tables are
-    unchanged; ``stamp`` says so."""
-    from core.market.ceiling import References, references  # scipy, only when read
+    flow on every test step of both (over a minute for a month of test days), so it is
+    kept for as long as the tables are unchanged (``stamp`` says so) and shared with
+    every run that has the same inputs (``ceiling.reference_key``)."""
+    from core.market.ceiling import (  # scipy, only when read
+        References,
+        reference_key,
+        references,
+    )
 
     tables = _held_out(Path(folder))
     scenario = _scenario(Path(folder))
 
     try:
-        return references(tables[3], tables[2], scenario)
+        key = reference_key(tables[3], tables[2], scenario)
+
+        def build() -> Any:
+            return references(tables[3], tables[2], scenario)
+
+        return _share(key, build) if key else build()
     except (ValueError, KeyError, TypeError):  # tables or a scenario it cannot read
         return References(None, None, None, (None, None))
 
