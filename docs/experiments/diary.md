@@ -292,7 +292,29 @@ the end of training (how flat the joint policy stays). A gap under about 0.02 VT
 noise at three seeds. Whether the winning factor replaces the N division is decided after
 the results, in the decision log.
 
-**Results:** pending.
+**Results** (finished 22:00; 36 min per run with 9 on blackwell1):
+
+| Arm | VTI (seeds 0 1 2) | Mean | After fees | EI | Hours over loading limit | Entropy, start → end |
+|---|---|---:|---:|---:|---:|---|
+| `ent_n` (c/N) | 0.64 0.63 0.64 | **0.64** | **0.54** | 0.48 | 27.3 | 4.50 → 3.68 |
+| `ent_sqrtn` (c/sqrt(N)) | 0.62 0.60 0.59 | 0.60 | 0.50 | 0.46 | 26.0 | 4.50 → 4.00 |
+| `ent_1` (c) | 0.49 0.54 0.46 | 0.50 | 0.39 | 0.47 | 30.0 | 4.50 → 4.67 |
+
+- **c/N is best, and the order follows the effective coefficient.** c/sqrt(N) is 0.04
+  lower on every seed (twice the noise level), c undivided 0.14 lower.
+- **Undivided, the policy does not sharpen:** its entropy ends *above* where it started,
+  the training return stops rising halfway (slope over the last quarter about 0), and
+  the batteries are used less (stored change -84 to -487 kWh vs -414 to -642 for c/N).
+  This is the flattening RP-3a was meant to prevent, now shown on the real market.
+- **c/sqrt(N) sits between**: entropy 4.0 at the end, curves still rising like c/N's, but
+  slower. On the market, the toy's "sqrt(N) is enough" does not hold at 480k.
+- EI (0.46-0.48) and the grid hours (26-30 h) do not separate the arms; every
+  participant beats its own non-P2P bill in every arm (PI 1.0).
+- `ent_n` reproduces `paradigms_pv15`'s CTCE seeds exactly (0.64 0.63 0.64): same code,
+  same seeds, same result.
+
+Reading: the evidence supports keeping RP-3a's division by N. Whether c/sqrt(N) would
+catch up with longer training is not tested.
 
 ## Timeline
 
