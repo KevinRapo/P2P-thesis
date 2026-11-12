@@ -35,7 +35,6 @@
   "budget": 480000,
   "eval_points": 4,
   "eval_episodes": 5,
-  "max_parallel": 9,
   "num_env_runners": 8,
   "torch_threads": 1,
   "ray_thread_caps": true,
@@ -58,13 +57,14 @@
     "minutes": 240,
     "node": "blackwell1"
   },
-  "name": "ctce_entropy",
+  "name": "ctce_entropy_scale",
   "seeds": [
     0,
     1,
     2
   ],
-  "description": "RP-3a check: CTCE divides entropy_coeff by the number of agents N (13). Which factor keeps the joint policy right: c/N (current), c/sqrt(N) or c undivided? CTCE, pruned_grid, 15 epochs, PV x1.5 with fees, 480k; only entropy_coeff differs (the setting is divided by N inside CTCE).",
+  "max_parallel": 9,
+  "description": "RP-3a check: CTCE divides entropy_coeff by the number of agents N (13). Which factor is right: c/N (current), c/sqrt(N) or c undivided? CTCE with the standard settings (paper observation, 4000/500/10, lr 3e-4), PV x1.5 with fees, 480k; only entropy_coeff differs (the setting is divided by N inside CTCE). The older ctce_entropy (26 Oct, one seed, old scenario) is the evidence RP-3a rested on.",
   "variants": {
     "ent_n": {
       "scenario": {
@@ -72,12 +72,8 @@
           "generation_scale": 1.5
         }
       },
-      "env_config": {
-        "observation": "pruned_grid"
-      },
       "training": {
         "ppo": {
-          "num_epochs": 15,
           "entropy_coeff": 0.01
         }
       }
@@ -88,12 +84,8 @@
           "generation_scale": 1.5
         }
       },
-      "env_config": {
-        "observation": "pruned_grid"
-      },
       "training": {
         "ppo": {
-          "num_epochs": 15,
           "entropy_coeff": 0.0361
         }
       }
@@ -104,12 +96,8 @@
           "generation_scale": 1.5
         }
       },
-      "env_config": {
-        "observation": "pruned_grid"
-      },
       "training": {
         "ppo": {
-          "num_epochs": 15,
           "entropy_coeff": 0.13
         }
       }
