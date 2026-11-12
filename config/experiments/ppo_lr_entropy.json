@@ -1,0 +1,105 @@
+{
+  "scenario": "config/scenarios/thesis_rural1.json",
+  "train_days": {
+    "from": "2016-01-01",
+    "to": "2016-12-30"
+  },
+  "test_periods": {
+    "winter": {
+      "from": "2016-01-11",
+      "to": "2016-01-17"
+    },
+    "spring": {
+      "from": "2016-04-11",
+      "to": "2016-04-17"
+    },
+    "summer": {
+      "from": "2016-07-11",
+      "to": "2016-07-17"
+    },
+    "autumn": {
+      "from": "2016-10-10",
+      "to": "2016-10-16"
+    }
+  },
+  "env_config": {
+    "reward": "bill",
+    "observation": "paper"
+  },
+  "algorithms": [
+    "ppo"
+  ],
+  "paradigms": [
+    "ctde"
+  ],
+  "budget": 480000,
+  "eval_points": 4,
+  "eval_episodes": 5,
+  "max_parallel": 6,
+  "num_env_runners": 8,
+  "torch_threads": 1,
+  "ray_thread_caps": true,
+  "training": {
+    "ppo": {
+      "lr": 0.0003,
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "grad_clip": 0.5,
+      "clip_param": 0.2,
+      "entropy_coeff": 0.01,
+      "train_batch_size_per_learner": 4000,
+      "minibatch_size": 500,
+      "num_epochs": 10
+    }
+  },
+  "resources": {
+    "cpus": 10,
+    "mem_gb": 12,
+    "minutes": 240,
+    "node": "blackwell1"
+  },
+  "name": "ppo_lr_entropy",
+  "seeds": [
+    0,
+    1
+  ],
+  "description": "Learning rate and entropy on the reference (PV x1.5 with fees, 4000/500/10): lr 1e-3 and 1e-4 (reference 3e-4), entropy 0 (reference 0.01). The batch results point to too few updates at 480k.",
+  "variants": {
+    "lr1e3": {
+      "scenario": {
+        "grid": {
+          "generation_scale": 1.5
+        }
+      },
+      "training": {
+        "ppo": {
+          "lr": 0.001
+        }
+      }
+    },
+    "lr1e4": {
+      "scenario": {
+        "grid": {
+          "generation_scale": 1.5
+        }
+      },
+      "training": {
+        "ppo": {
+          "lr": 0.0001
+        }
+      }
+    },
+    "entropy0": {
+      "scenario": {
+        "grid": {
+          "generation_scale": 1.5
+        }
+      },
+      "training": {
+        "ppo": {
+          "entropy_coeff": 0.0
+        }
+      }
+    }
+  }
+}
