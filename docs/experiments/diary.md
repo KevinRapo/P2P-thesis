@@ -259,6 +259,41 @@ Expected to end between about 07:00 and 13:30 on 13 Nov.
 
 **Results:** pending.
 
+### Evening: CTCE entropy scaling (RP-3a), started 21:17
+
+Question: CTCE is one controller for all 13 households, and RLlib adds one entropy bonus
+over its whole joint action. RP-3a (10 Nov) therefore divides `entropy_coeff` by the
+number of agents N inside CTCE ([config.py](../../core/rl/config.py)). The only evidence
+for N as the factor was one seed on the old scenario (`ctce_entropy`, 26 Oct), confounded
+with other changes. A scratch toy (requested by the Inconsistencies session: a two-armed
+choice per household, shared team reward vs own rewards) says the shared reward's credit
+dilution is what flattens the policy, and that dividing by sqrt(N) already restores it;
+there c/sqrt(N) and c/N could not be told apart. The toy is an argument; this sweep is
+the evidence.
+
+[`ctce_entropy_scale`](../../config/experiments/ctce_entropy_scale.json): CTCE with the
+standard settings (paper observation, 4000 / 500 / 10, lr 3e-4), PV x1.5 with fees, 480k,
+seeds 0-2, on blackwell1. Only `entropy_coeff` differs; the setting is divided by 13
+inside CTCE:
+
+| Arm | Setting | Effective coefficient | Tests |
+|---|---:|---:|---|
+| `ent_n` | 0.01 | 0.00077 | c/N, the current default |
+| `ent_sqrtn` | 0.0361 | 0.00277 | c/sqrt(N), the toy's sufficient factor |
+| `ent_1` | 0.13 | 0.01 | c undivided, what RP-3a replaced |
+
+Based on the plain CTCE settings rather than `combo_ctce` (pruned_grid, 15 epochs): those
+are not the planned defaults and 15 epochs gave CTCE nothing, so they would only add
+confounds. `ent_n` repeats `paradigms_pv15`'s CTCE arm (0.64, 0.63, 0.64) under the
+same code as the other two arms.
+
+To read: run-level VTI, VTI after fees and EI; the learning curves; the policy entropy at
+the end of training (how flat the joint policy stays). A gap under about 0.02 VTI is
+noise at three seeds. Whether the winning factor replaces the N division is decided after
+the results, in the decision log.
+
+**Results:** pending.
+
 ## Timeline
 
 | Date | Start | Experiment | Runs | Purpose |
@@ -281,6 +316,7 @@ Expected to end between about 07:00 and 13:30 on 13 Nov.
 | 12 Nov | 13:48 | long_lr2e3, long_dtde_lr1e3 | 4 | 960k |
 | 12 Nov | 14:40 | fee_parts_lr1e3, obs_lr1e3 | 6 | fee parts and observations at lr 1e-3 |
 | 12 Nov | 20:14 | long_best, long_worst | 14 | 2.88M steps, on `common` |
+| 12 Nov | 21:17 | ctce_entropy_scale | 9 | CTCE entropy factor: c/N, c/sqrt(N), c (RP-3a) |
 
 Between 03:51 and 04:01 nothing started: the runner's `start` takes the experiment's file
 path, and the scheduler passed its name.
