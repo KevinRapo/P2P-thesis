@@ -32,6 +32,8 @@ core/        the MARLEM functionality: everything a notebook can call
 config/      experiments/: experiment specs (JSON, tracked), which runs to train;
              scenarios/: saved scenarios (JSON, the Studio's format)
 notebooks/   call core/ only: market/, rl/, runner/
+analysis/    working scripts that compare synced runs (the experiment diary's tables;
+             README.md); trial, not yet decided whether it stays
 tests/       market/, rl/, runner/
 studio/      the NiceGUI Studio: pages/ and components/ on top of adapters/
 docs/        the documentation (Markdown); docs_site/ builds the website from it
