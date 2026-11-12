@@ -251,11 +251,15 @@ MARKET_OBS: tuple[str, ...] = ("hour_sin", "hour_cos") + tuple(
 AGENT_OBS: tuple[str, ...] = tuple(signals.AGENT_SIGNALS)
 KPI_OBS: tuple[str, ...] = tuple(signals.KPIS)
 OBS_NAMES: tuple[str, ...] = MARKET_OBS + AGENT_OBS + KPI_OBS
+# Signals outside the paper's 42, only in the sets that name them.
+EXTRA_OBS: tuple[str, ...] = tuple(signals.GRID_SIGNALS)
 OBSERVATIONS: dict[str, tuple[str, ...]] = {
     "paper": OBS_NAMES,
     "pruned": signals.PRUNED_OBS,
     "minimal": signals.MINIMAL_OBS,
     "minimal_market": signals.MINIMAL_MARKET_OBS,
+    "minimal_grid": signals.MINIMAL_GRID_OBS,
+    "pruned_grid": signals.PRUNED_GRID_OBS,
 }
 ACTION_COMPONENTS = ("side", "quantity", "price", "partner")
 SIDES = ("sell", "buy")  # α: index 0 sells, 1 buys ([P1] eq. 2)
@@ -734,6 +738,7 @@ class MarketEnv(MultiAgentEnv):
             "price_spread": difference,
             "local_price_advantage": difference,
             "bid_ask_spread": difference,
+            "voltage_deviation": (0.0, 0.05),
             "price_volatility": difference,
             **dict.fromkeys(
                 (

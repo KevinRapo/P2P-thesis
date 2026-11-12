@@ -20,7 +20,7 @@ import pytest
 from core.config import store
 from core.config.scenario import DsoSetup
 from core.env import OBS_NAMES, MarketEnv, net_position_policy, zero_policy
-from core.env.market_env import OBSERVATIONS
+from core.env.market_env import EXTRA_OBS, OBSERVATIONS
 from core.env.reward import REWARDS, NetBillReward, SalazarReward, log_compress
 from core.env_defaults import OBSERVATION_NAMES, REWARD_NAMES
 from core.market.signals import KPIS, PRUNED_OBS
@@ -733,7 +733,7 @@ def test_every_observation_set_names_known_signals(name):
     """A registered observation set names only computed signals, builds its space
     and observes finite values; the runner knows its name."""
     assert name in OBSERVATION_NAMES
-    assert set(OBSERVATIONS[name]) <= set(OBS_NAMES)
+    assert set(OBSERVATIONS[name]) <= set(OBS_NAMES) | set(EXTRA_OBS)
     env = MarketEnv({"scenario": str(SCENARIO), "days": DAYS[:1], "observation": name})
     obs, _ = env.reset(seed=1, options={"day": DAYS[0]})
     size = len(OBSERVATIONS[name]) + len(AGENTS) - 1

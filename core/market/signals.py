@@ -259,6 +259,33 @@ MARKET_SIGNALS = {
 }
 
 
+# Grid signals: the last step's power flow, outside [P1]'s 42 signals (so not in the
+# paper observation). Added for the observation experiment of 12 Nov 2026, not a
+# decision: the transformer is what binds on rural1, and grid_congestion sees only
+# the lines.
+def transformer_loading(market) -> float:
+    """Highest transformer loading of the last step's power flow, as a ratio."""
+    r = _last(market)
+    g = r.grid if r else None
+    return g.max_trafo_loading_percent / 100.0 if g and g.max_trafo_loading_percent is not None else NAN
+
+
+def voltage_deviation(market) -> float:
+    """Largest bus voltage deviation from the slack set point in the last step (pu)."""
+    r = _last(market)
+    g = r.grid if r else None
+    if not g or g.max_voltage_pu is None or g.min_voltage_pu is None:
+        return NAN
+    ref = g.slack_voltage_pu if g.slack_voltage_pu is not None else 1.0
+    return max(g.max_voltage_pu - ref, ref - g.min_voltage_pu)
+
+
+GRID_SIGNALS = {
+    "transformer_loading": transformer_loading,
+    "voltage_deviation": voltage_deviation,
+}
+
+
 # --------------------------------------------------------------------------------------
 # Agent signals: the market and one agent now -> a number
 # --------------------------------------------------------------------------------------
@@ -411,6 +438,10 @@ MINIMAL_MARKET_OBS: tuple[str, ...] = MINIMAL_OBS + (
 )
 
 
+GRID_OBS: tuple[str, ...] = ("transformer_loading", "voltage_deviation")
+MINIMAL_GRID_OBS: tuple[str, ...] = MINIMAL_MARKET_OBS + GRID_OBS
+PRUNED_GRID_OBS: tuple[str, ...] = PRUNED_OBS + GRID_OBS
+
 # --------------------------------------------------------------------------------------
 # All of a group at once
 # --------------------------------------------------------------------------------------
@@ -419,11 +450,15 @@ def kpis(history) -> dict[str, float]:
 
 
 def market_signals(market, names: Optional[Collection[str]] = None) -> dict[str, float]:  #! E3: market signals
-    """The market signals, or only those of ``names``."""
+    """The market signals, or only those of ``names`` (which may also name the grid
+    signals)."""
+    if names is None:
+        return {name: f(market) for name, f in MARKET_SIGNALS.items()}
+
     return {
         name: f(market)
-        for name, f in MARKET_SIGNALS.items()
-        if names is None or name in names
+        for name, f in (MARKET_SIGNALS | GRID_SIGNALS).items()
+        if name in names
     }
 
 
