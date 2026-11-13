@@ -1,5 +1,6 @@
 """analyse.py's summary pooled over seeds, one row per arm: the variant with its
-paradigm prefix, "@960k" added for experiments named long*, "fee:" for fee_parts*.
+paradigm prefix, "@<experiment>" added for experiments named long* (their budgets
+differ), "fee:" for fee_parts*.
 
 usage: python analysis/table.py [summary.csv]  (default analysis/out/summary_keep1.csv)
 """
@@ -26,7 +27,7 @@ def arms(summary: pd.DataFrame) -> pd.DataFrame:
     trained["arm"] = trained.variant
     long = trained.experiment.str.contains("long")
     fee_parts = trained.experiment.str.startswith("fee_parts")
-    trained.loc[long, "arm"] = trained.variant + "@960k"
+    trained.loc[long, "arm"] = trained.variant + "@" + trained.experiment
     trained.loc[fee_parts, "arm"] = "fee:" + trained.variant
 
     return trained

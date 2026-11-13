@@ -257,7 +257,48 @@ steps, so these run on the `common` partition (green19-21, Skylake, 48 h limit).
 is about 2.5 times slower than blackwell1 (about 50 env steps per second per run).
 Expected to end between about 07:00 and 13:30 on 13 Nov.
 
-**Results:** pending.
+**Results** (finished 06:20-10:40 on 13 Nov, 10-14 h per run). VTI pooled over the 28
+test days at three budgets; the 480k and 960k columns are the night's runs of the same
+setting (480k reference: all 5 seeds, 0.52 and 0.64 for seeds 0 and 1):
+
+| Setting | 480k | 960k | 2.88M (seeds 0 1) | After fees | Hours over loading limit | Evaluation curve at the end |
+|---|---:|---:|---|---:|---:|---|
+| reference (lr 3e-4) | 0.58 | 0.61 | **0.75** (0.76 0.73) | **0.62** | 39 | still rising |
+| lr 1e-3 | 0.65 | 0.73 | 0.73 (0.75 0.70) | 0.61 | 35.5 | flat since about 1.5M |
+| 16k batch, minibatch 2000 | 0.31 | | 0.70 (0.68 0.73) | 0.58 | 39.5 | still rising slowly |
+| full batch, 5 epochs | 0.24 | | 0.65 (0.59 0.71) | 0.53 | 41 | long plateau, then a late rise |
+| 5 epochs | 0.42 | | 0.63 (0.70 0.57) | 0.50 | 44 | still rising |
+| `mappo` (16k in one minibatch, 5 epochs, lr 5e-4) | | | 0.49 (0.49 0.48) | 0.36 | 43.5 | stuck since about 1.5M |
+| lr 2e-3 | 0.67 | 0.66 | 0.43 (0.40 0.45) | 0.28 | 46 | falling since about 1M |
+
+For scale: `net_position` 0.30, `non_p2p` 0, the ceiling 1; the ceiling has 51 hours
+over the loading limit, `non_p2p` 69.
+
+- **The 480k ranking was mostly a ranking of speed.** The slow settings caught up
+  (full batch 0.24 to 0.65, 16k/2000 0.31 to 0.70), and the setting with the smallest
+  steps, the reference at lr 3e-4, ends best and is still improving. None of the slow
+  settings passes it.
+- **lr 1e-3 reaches its level by 960k and stays there**; the reference needs 2.88M to
+  pass it. lr 1e-3 is the cheaper choice for a fixed budget of about 1M steps.
+- **lr 2e-3 degrades with longer training**: VTI 0.66 at 960k, 0.43 at 2.88M. The KL
+  per update grows to 0.18 (0.07 at 960k) and the policy entropy ends *above* its
+  start (3.6-3.7 against 3.1): the updates get too large and the policy loosens.
+- **The MAPPO paper's own combination is the worst here** (0.49, both seeds alike).
+  Its evaluation return stalls at -0.43, the same plateau where both full-batch runs
+  sat for most of their training, before a late rise.
+- **Trading more is not grid stress here.** The better policies also spend fewer hours
+  over the loading limit (35-41 against 43-46) and keep the highest transformer loading
+  lower, while trading three to four times the energy of `net_position` (10-11.5 MWh
+  P2P).
+- Both `mappo` runs are marked FAILED by SLURM: their 16k-step minibatch needed more than
+  the 12 GB requested (18-21 GB peak), so the kernel killed environment workers
+  repeatedly (task 7 most of the night) and Ray restarted them. Training still reached
+  the budget (a few thousand steps over, from the restarts) and the held-out evaluation
+  is complete. A rerun of this setting needs about 24 GB.
+
+Reading: with enough samples, lr 3e-4 and the reference batch remain the best setting;
+lr 1e-3 is the faster route to almost the same level. The learning curves cannot settle
+from 480k alone whether a setting will catch up; only longer runs can.
 
 ### Evening: CTCE entropy scaling (RP-3a), started 21:17
 
@@ -315,6 +356,12 @@ the results, in the decision log.
 
 Reading: the evidence supports keeping RP-3a's division by N. Whether c/sqrt(N) would
 catch up with longer training is not tested.
+
+## 2026-11-13 (Fri)
+
+- 06:20-10:40: `long_best` and `long_worst` finished; results under
+  [12 Nov, long runs](#evening-long-runs-288m-steps-started-2014). Both `mappo` runs ran
+  out of memory along the way but completed.
 
 ## Timeline
 
