@@ -12,6 +12,9 @@ Unless an entry says otherwise:
 - **Scenario**: `thesis_rural1` (the 13 participants of `1-LV-rural1--2-sw`) with the AC
   power flow, PV scaled x1.5, all DSO fees on. Trained on 2016, evaluated on four held-out
   weeks: 11-17 Jan, 11-17 Apr, 11-17 Jul, 10-16 Oct (28 test days).
+- **Reward**: the net bill (`reward: "bill"`, [reward.py](../../core/env/reward.py)): each
+  agent's own energy money with its fees, scaled. Every experiment in this diary uses it;
+  none trains on the original's `salazar` reward or its weights.
 - **Training**: PPO, CTDE, paper observation (42 signals), 480k env steps; lr 3e-4,
   gamma 0.99, lambda 0.95, clip 0.2, entropy 0.01, grad clip 0.5, batch 4000, minibatch
   500, 10 epochs, 8 env runners. On blackwell1 (10 CPUs, 12 GB per run).
