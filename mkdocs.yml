@@ -153,6 +153,7 @@ nav:
   - Original MARLEM:
       - Market methodology: original/methodology.md
       - Learning layer: original/learning.md
+      - Configuration: original/configuration.md
       - Issues in the release:
           - Issue register: original/issues/register.md
           - Market layer: original/issues/market.md
