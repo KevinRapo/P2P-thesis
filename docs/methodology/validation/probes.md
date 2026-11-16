@@ -423,7 +423,7 @@ What they say:
   300-380 against a clip of 0.5, so the learner can no longer steer the mean.
   CTCE's spread shrinks more slowly and its level is still moving (0.35 at 30,000
   steps). This is the market's price and quantity under an undecided side; the
-  options are RP-3a to RP-3g in [Open items](../../temp/open.md#2-learning-on-the-market).
+  options are RP-3a to RP-3g in [Open items](../../temp/open.md#learning-and-results-rp-).
 
 ### The continuous parts (26 October 2026)
 

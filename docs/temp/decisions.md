@@ -21,18 +21,6 @@ The DSO's utility price is time-of-use in the reference scenario: 0.20 from 22:0
 
 **Implemented in.** [synthetic_day.json](../../config/data/synthetic_day.json), [scenario.py](../../core/config/scenario.py) (`load_prices`, `price_at`), [dso.py](../../core/market/dso.py) (`set_hour`, `tariff_range`), [lem.py](../../core/market/lem.py), [market_env.py](../../core/env/market_env.py), [validate_market.json](../../config/scenarios/validate_market.json), `tests/market/test_time_of_use.py`
 
-### MP-5d: Order prices are rounded to whole cents
-
-*31 Oct 2026*
-
-Order prices are rounded to whole cents (`MarketSetup.price_decimals`, 2); reputation stays the double auction's tie-break between equal prices
-
-**Why.** [P1] uses reputation as a secondary sorting criterion, and so does the original code, but with continuous prices exact ties almost never occur, so the rule had no effect. Rounding keeps the paper's rule and makes it apply. Trade prices are not rounded: the midpoint of two cents can be half a cent
-
-**Evidence.** Discussion of 31 Oct 2026
-
-**Implemented in.** [lem.py](../../core/market/lem.py) (`_validate`), [scenario.py](../../core/config/scenario.py)
-
 ### MP-1e: Energy no trade covers is settled at retail
 
 *4 Nov 2026*
@@ -44,6 +32,43 @@ Energy no trade covers is **settled at retail** (without grid fees until 11 Nov 
 **Evidence.** Discussion of 4 Nov 2026; [market_ceiling.ipynb](../../notebooks/market/market_ceiling.ipynb) (the gap between `zero` and non-P2P)
 
 **Implemented in.** [reward.py](../../core/env/reward.py) (`net_bill`), `tests/market/test_market_env.py`, `tests/market/test_time_of_use.py`; [Reward](../methodology/environment/reward.md)
+
+### MP-1f: Untraded energy pays the DSO's grid fees
+
+*11 Nov 2026*
+
+Everything a participant settles with the DSO pays the same grid fees: its **stage-3 trades and its untraded energy**. The untraded energy is an implicit trade with the DSO (stage 4) at the tariff it is settled at, along the participant's path to the transformer, and the participant pays the whole fee, as for a DSO trade (`fees_charged` off: 0). Peer trades keep their path fees. Supersedes MP-1e's "without fees"
+
+**Why.** The same kWh ordered to the DSO in stage 3 paid congestion, thermal, voltage and transmission fees, and the same kWh left untraded paid none, so with fees on, not ordering was the cheapest way to use the grid (a surplus orders nothing and is paid the feed-in tariff in full). The power flow carries both alike, since injections follow what the participants did, not their trades, so the fee should not depend on whether an order was placed. The incentive that makes a peer trade pay is unchanged: a peer trade avoids the DSO's tariff spread and the path to the transformer
+
+**Evidence.** [`_untraded_trades`](../../core/market/lem.py#L702-L726) in the dry run of one midday step: P3's 4.15 kWh deficit untraded and ordered to the DSO pay the same fee, part by part (`tests/market/test_untraded_fees.py`). Rural1, 11-17 June 2016, `net_position` baseline: the stage-3 trades paid 13.4 EUR (1.3 % of their value) before MP-4l and MP-1f, and 137.0 EUR (13.0 %) after; that week no energy was untraded (the rule orders its whole net position), so the effect shows under no-order policies and RL
+
+**Implemented in.** [`_charge_fees`](../../core/market/lem.py#L679-L700), `StepRecord.untraded`, `Dso.settle`, the baseline's and the trade tables' fee columns; [Market step, 6c](../methodology/market/step.md#6-fees). The calculated references `non_p2p` and the ceiling stay before-fees (the ceiling is still an upper bound: no fee is below 0, MP-4n)
+
+### MP-2f: A household's own surplus counts against its battery room
+
+*11 Nov 2026*
+
+A household's **own surplus counts against the battery room** it may buy: $q_\text{buy,max} = \max(0, D - G) + \max(0, E_\text{chargeable} - \max(0, G - D))$
+
+**Why.** [P1] eq. 15b adds the whole room to a household that already has a surplus: it could order to buy room that its own surplus fills first (eq. 16), so the order exceeded what the battery takes
+
+**Evidence.** `tests/market/test_untraded_fees.py` (the limit for a deficit, none, a partial and a full surplus)
+
+**Implemented in.** [`max_buy_kwh`](../../core/market/agent/der.py#L199-L209)
+
+### MP-2g: The order-quantity floor is 0.001 kWh
+
+*11 Nov 2026*
+
+The order-quantity floor is the scenario's `min_quantity`, 0.001 kWh in the thesis scenario (the default stays 0, with the code's 1e-9 guard)
+
+**Why.** An order of 1e-7 kWh, numerical dust from a profile, entered the order book, the auction and the reputation as a full order
+
+**Evidence.** `tests/market/test_thesis_rural1.py`
+
+**Implemented in.** `thesis_rural1.json`, [`_validate`](../../core/market/lem.py#L561)
+
 
 ### MP-4e: The graph model is removed
 
@@ -57,17 +82,17 @@ The graph model ([P1] §3.5) is **removed**; the power flow is the only grid the
 
 **Implemented in.** `core/grid/graph.py`, `grid.method`, `graph_capacity`, `graph_total_kw`, `StepRecord.signal` and the Studio's fields removed; the DSO always observes the power flow ([Market step, 5. Grid](../methodology/market/step.md#5-grid)). Old scenario and run files that carry the keys still load
 
-### MP-1f: Untraded energy pays the DSO's grid fees
+### MP-4f: Thermal threshold 0.8 in the thesis scenario
 
 *11 Nov 2026*
 
-Everything a participant settles with the DSO pays the same grid fees: its **stage-3 trades and its untraded energy**. The untraded energy is an implicit trade with the DSO (stage 4) at the tariff it is settled at, along the participant's path to the transformer, and the participant pays the whole fee, as for a DSO trade (`fees_charged` off: 0). Peer trades keep their path fees. Supersedes MP-1e's "without fees"
+The thesis scenario's `thermal_threshold` is **0.8**, the same as the congestion threshold (the code's default stays 0.2, the paper's). A first, untuned choice: the fee levels remain open
 
-**Why.** The same kWh ordered to the DSO in stage 3 paid congestion, thermal, voltage and transmission fees, and the same kWh left untraded paid none, so with fees on, not ordering was the cheapest way to use the grid (a surplus orders nothing and is paid the feed-in tariff in full). The power flow carries both alike, since injections follow what the participants did, not their trades, so the fee should not depend on whether an order was placed. The incentive that makes a peer trade pay is unchanged: a peer trade avoids the DSO's tariff spread and the path to the transformer
+**Why.** With the transformer counted in $C_t$ (MP-4l) the paper's 0.2 charged every DSO settlement above 20 % transformer loading, and capped at 30 % of the value from 44 %: on rural1 the thermal part was 96.5 EUR of the 137 EUR the DSO trades paid in a June week
 
-**Evidence.** [`_untraded_trades`](../../core/market/lem.py#L702-L726) in the dry run of one midday step: P3's 4.15 kWh deficit untraded and ordered to the DSO pay the same fee, part by part (`tests/market/test_untraded_fees.py`). Rural1, 11-17 June 2016, `net_position` baseline: the stage-3 trades paid 13.4 EUR (1.3 % of their value) before MP-4l and MP-1f, and 137.0 EUR (13.0 %) after; that week no energy was untraded (the rule orders its whole net position), so the effect shows under no-order policies and RL
+**Evidence.** Rural1, 11-17 July 2016, `net_position` and non-P2P with their fees on the same days: fees 90.6 to 23.9 EUR and 254.8 to 102.8 EUR with the slack reference (MP-4l) and 0.8 together
 
-**Implemented in.** [`_charge_fees`](../../core/market/lem.py#L679-L700), `StepRecord.untraded`, `Dso.settle`, the baseline's and the trade tables' fee columns; [Market step, 6c](../methodology/market/step.md#6-fees). The calculated references `non_p2p` and the ceiling stay before-fees (the ceiling is still an upper bound: no fee is below 0, MP-4n)
+**Implemented in.** `thesis_rural1.json`; [open items](open.md) MP-4f
 
 ### MP-4k: BCDLA shares only the current-dependent loss
 
@@ -117,67 +142,19 @@ A trade's fee is **never below 0**: the zone bonus (eq. 8e) cancels the other pa
 
 **Implemented in.** [`fees_of`](../../core/market/dso.py#L199-L245)
 
-### MP-4f: Thermal threshold 0.8 in the thesis scenario
+### MP-5d: Order prices are rounded to whole cents
 
-*11 Nov 2026*
+*31 Oct 2026*
 
-The thesis scenario's `thermal_threshold` is **0.8**, the same as the congestion threshold (the code's default stays 0.2, the paper's). A first, untuned choice: the fee levels remain open
+Order prices are rounded to whole cents (`MarketSetup.price_decimals`, 2); reputation stays the double auction's tie-break between equal prices
 
-**Why.** With the transformer counted in $C_t$ (MP-4l) the paper's 0.2 charged every DSO settlement above 20 % transformer loading, and capped at 30 % of the value from 44 %: on rural1 the thermal part was 96.5 EUR of the 137 EUR the DSO trades paid in a June week
+**Why.** [P1] uses reputation as a secondary sorting criterion, and so does the original code, but with continuous prices exact ties almost never occur, so the rule had no effect. Rounding keeps the paper's rule and makes it apply. Trade prices are not rounded: the midpoint of two cents can be half a cent
 
-**Evidence.** Rural1, 11-17 July 2016, `net_position` and non-P2P with their fees on the same days: fees 90.6 to 23.9 EUR and 254.8 to 102.8 EUR with the slack reference (MP-4l) and 0.8 together
+**Evidence.** Discussion of 31 Oct 2026
 
-**Implemented in.** `thesis_rural1.json`; [open items](open.md) MP-4f
-
-### MP-2f: A household's own surplus counts against its battery room
-
-*11 Nov 2026*
-
-A household's **own surplus counts against the battery room** it may buy: $q_\text{buy,max} = \max(0, D - G) + \max(0, E_\text{chargeable} - \max(0, G - D))$
-
-**Why.** [P1] eq. 15b adds the whole room to a household that already has a surplus: it could order to buy room that its own surplus fills first (eq. 16), so the order exceeded what the battery takes
-
-**Evidence.** `tests/market/test_untraded_fees.py` (the limit for a deficit, none, a partial and a full surplus)
-
-**Implemented in.** [`max_buy_kwh`](../../core/market/agent/der.py#L199-L209)
-
-### MP-2g: The order-quantity floor is 0.001 kWh
-
-*11 Nov 2026*
-
-The order-quantity floor is the scenario's `min_quantity`, 0.001 kWh in the thesis scenario (the default stays 0, with the code's 1e-9 guard)
-
-**Why.** An order of 1e-7 kWh, numerical dust from a profile, entered the order book, the auction and the reputation as a full order
-
-**Evidence.** `tests/market/test_thesis_rural1.py`
-
-**Implemented in.** `thesis_rural1.json`, [`_validate`](../../core/market/lem.py#L561)
+**Implemented in.** [lem.py](../../core/market/lem.py) (`_validate`), [scenario.py](../../core/config/scenario.py)
 
 ## RL (`RP-`)
-
-### RP-3e: CTDE: own reward, a critic and an actor per agent
-
-*24 Oct 2026*
-
-CTDE uses each agent's own reward, one central critic per agent (input $[o_i, o_1, \dots, o_N]$) and one actor per agent (input $o_i$); no parameter sharing for now. A team-reward CTDE, a shared critic and group-wise policy sharing are in the parking lot
-
-**Why.** The households are self-interested, each paying its own bill, and [P2] defines CTDE on each agent's own return (eq. 18-19). With individual rewards every critic learns a different value function, so nothing is duplicated; the per-agent central critic for agents with their own rewards is MADDPG's design (Lowe et al. 2017). A shared critic would cost the same operations per step and could only gain data efficiency, at the risk of interference between different households
-
-**Evidence.** Discussion of 24 Oct 2026 (MAPPO's shared critic assumes a team reward, Yu et al. 2022 §3)
-
-**Implemented in.** no code change: [ctde.py](../../core/rl/ctde.py), [config.py](../../core/rl/config.py)
-
-### RP-4a: Logging the KL with weight 0
-
-*25 Oct 2026*
-
-The KL between the collecting and the updated policy is computed and logged (`mean_kl_loss`) with weight 0 in the loss: `use_kl_loss=True`, `kl_coeff=0.0`
-
-**Why.** PPO's most direct measure of each update's size; RLlib computes it only with `use_kl_loss=True`, and with coefficient 0 its adaptive weight stays 0. L-07's risk (a non-finite KL making the loss NaN unnoticed) is covered: training stops on any non-finite metric
-
-**Evidence.** Discussion of 24-25 Oct 2026; probe 9's frozen level, where the update size is the question
-
-**Implemented in.** [rl_defaults.py](../../core/rl_defaults.py), [config.py](../../core/rl/config.py)
 
 ### RP-1f: The market day stays terminated
 
@@ -203,17 +180,29 @@ The RL layer counts as ready for the market when, with the market's network and 
 
 **Implemented in.** [docs/methodology/validation/probes.md](../methodology/validation/probes.md)
 
-### RP-6b: PPO's training settings
+### RP-3a: CTCE's entropy bonus is divided by the number of agents
 
-*26 Oct 2026*
+*10 Nov 2026*
 
-PPO's training settings: learning rate 3e-4, batch 500 environment steps, minibatches of 64, 10 epochs (160 gradient steps per 1,000 environment steps); the rest unchanged (grad_clip 0.5, entropy 0.01, clip 0.2)
+`entropy_coeff` is **per agent**, and CTCE divides it by the number of agents $N$ (13: 0.01 becomes 0.00077) in [`build_config`](../../core/rl/config.py), as MAPPO averages over agents. The summed group reward stays (RP-3b). A setting that wants the old joint bonus writes 0.13 (0.01 × 13). Before this change CTCE trained with the full 0.01 on the joint entropy, so CTCE results from before 10 Nov 2026 and after it are not comparable.
 
-**Why.** Market steps are expensive (a power flow each), so the settings that learn most per sample are the ones to use. The original's lr 1e-5 with one minibatch of 4000 and 5 epochs moved the policy almost nothing (median KL 0.0014, log std unchanged); lr 1e-3 on the 2 x 256 network was too aggressive (KL 0.016, log std collapsing to -3.7); every batch of 2000 or 4000 made too few updates in the probes' budgets. These are Stable-Baselines3's PPO defaults (lr 3e-4, minibatch 64, 10 epochs) with a batch of 500. A larger batch may still learn at the market's budget (more updates, less noise): not tested
+**Why.** CTCE's one joint policy has the action parts of all $N$ agents, so its entropy is a sum over $4N$ parts, while PPO's surrogate has one standardised advantage per step and clips one joint ratio. With one coefficient the bonus weighed about $N$ times what it does for one DTDE agent, and nothing clips it, so it kept pushing the policy's spread up. Dividing by $N$ gives each agent's parts the weight they have in DTDE. PPO's clip widened by $\sqrt{N}$ (27 Oct 2026) was tried as a probe and experiment variant only, and is not in the defaults: `clip_param` is 0.2 in every paradigm.
 
-**Evidence.** Screen of 26 Oct 2026: 8 settings x probes 4-7, 9 x 3 paradigms x 3 seeds, market network with SM, 4 times each probe's budget in environment steps (`runs/@taltech/probes_screen_*/`): 3e-4/500/64/10 passes 29 of 30 in CTDE/DTDE; the original's 3 of 30
+**Evidence.** The experiment `ctce_entropy` (26 Oct 2026, TalTech; market_s2, CTCE, 13 agents, one seed, 240k steps; `runs-old/old/ctce_entropy`). With the joint 0.01 the group's entropy rose from 80 to 130 and the team return stayed below 0 (−1.0 at the end, between −1.3 and −0.1 over the last six evaluations). With 0.01 / 13 the entropy fell to 45 and the return reached 1.6; with 0 it fell to 38 and the return was 1.2. One seed, and not the thesis scenario. On the probes (3 agents) the entropy was not why CTCE misses probes 4 to 6 ([probes](../methodology/validation/probes.md#why-ctce-misses-probes-4-6-26-october-2026)). Since this change every CTCE run has trained with the divided value: `combo_ctce` records `entropy_coeff` 0.00077 in its `run.json`
 
-**Implemented in.** [rl_defaults.py](../../core/rl_defaults.py)
+**Implemented in.** [config.py](../../core/rl/config.py) (`build_config`), `tests/rl/test_6_ctde_structure.py` (`test_ctce_weighs_the_entropy_per_agent`), commit `2e0d907`; [learning](../methodology/learning/index.md#ctce) (the paradigms) and C5 of [the iteration](../methodology/learning/examples/iteration.md)
+
+### RP-3e: CTDE: own reward, a critic and an actor per agent
+
+*24 Oct 2026*
+
+CTDE uses each agent's own reward, one central critic per agent (input $[o_i, o_1, \dots, o_N]$) and one actor per agent (input $o_i$); no parameter sharing for now. A team-reward CTDE, a shared critic and group-wise policy sharing are in the parking lot
+
+**Why.** The households are self-interested, each paying its own bill, and [P2] defines CTDE on each agent's own return (eq. 18-19). With individual rewards every critic learns a different value function, so nothing is duplicated; the per-agent central critic for agents with their own rewards is MADDPG's design (Lowe et al. 2017). A shared critic would cost the same operations per step and could only gain data efficiency, at the risk of interference between different households
+
+**Evidence.** Discussion of 24 Oct 2026 (MAPPO's shared critic assumes a team reward, Yu et al. 2022 §3)
+
+**Implemented in.** no code change: [ctde.py](../../core/rl/ctde.py), [config.py](../../core/rl/config.py)
 
 ### RP-3h: The continuous action parts: log std and mean
 
@@ -227,17 +216,29 @@ The continuous action parts: one learned log std per part for every state (MAPPO
 
 **Implemented in.** [modules.py](../../core/rl/modules.py), [rl_defaults.py](../../core/rl_defaults.py)
 
-### RP-3a: CTCE's entropy bonus is divided by the number of agents
+### RP-4a: Logging the KL with weight 0
 
-*10 Nov 2026*
+*25 Oct 2026*
 
-`entropy_coeff` is **per agent**, and CTCE divides it by the number of agents $N$ (13: 0.01 becomes 0.00077) in [`build_config`](../../core/rl/config.py), as MAPPO averages over agents. The summed group reward stays (RP-3b). A setting that wants the old joint bonus writes 0.13 (0.01 × 13). Before this change CTCE trained with the full 0.01 on the joint entropy, so CTCE results from before 10 Nov 2026 and after it are not comparable.
+The KL between the collecting and the updated policy is computed and logged (`mean_kl_loss`) with weight 0 in the loss: `use_kl_loss=True`, `kl_coeff=0.0`
 
-**Why.** CTCE's one joint policy has the action parts of all $N$ agents, so its entropy is a sum over $4N$ parts, while PPO's surrogate has one standardised advantage per step and clips one joint ratio. With one coefficient the bonus weighed about $N$ times what it does for one DTDE agent, and nothing clips it, so it kept pushing the policy's spread up. Dividing by $N$ gives each agent's parts the weight they have in DTDE. PPO's clip widened by $\sqrt{N}$ (27 Oct 2026) was tried as a probe and experiment variant only, and is not in the defaults: `clip_param` is 0.2 in every paradigm.
+**Why.** PPO's most direct measure of each update's size; RLlib computes it only with `use_kl_loss=True`, and with coefficient 0 its adaptive weight stays 0. L-07's risk (a non-finite KL making the loss NaN unnoticed) is covered: training stops on any non-finite metric
 
-**Evidence.** The experiment `ctce_entropy` (26 Oct 2026, TalTech; market_s2, CTCE, 13 agents, one seed, 240k steps; `runs-old/old/ctce_entropy`). With the joint 0.01 the group's entropy rose from 80 to 130 and the team return stayed below 0 (−1.0 at the end, between −1.3 and −0.1 over the last six evaluations). With 0.01 / 13 the entropy fell to 45 and the return reached 1.6; with 0 it fell to 38 and the return was 1.2. One seed, and not the thesis scenario. On the probes (3 agents) the entropy was not why CTCE misses probes 4 to 6 ([probes](../methodology/validation/probes.md#why-ctce-misses-probes-4-6-26-october-2026)). Since this change every CTCE run has trained with the divided value: `combo_ctce` records `entropy_coeff` 0.00077 in its `run.json`
+**Evidence.** Discussion of 24-25 Oct 2026; probe 9's frozen level, where the update size is the question
 
-**Implemented in.** [config.py](../../core/rl/config.py) (`build_config`), `tests/rl/test_6_ctde_structure.py` (`test_ctce_weighs_the_entropy_per_agent`), commit `2e0d907`; [learning](../methodology/learning/index.md#ctce) (the paradigms) and C5 of [the iteration](../methodology/learning/examples/iteration.md)
+**Implemented in.** [rl_defaults.py](../../core/rl_defaults.py), [config.py](../../core/rl/config.py)
+
+### RP-6b: PPO's training settings
+
+*26 Oct 2026*
+
+PPO's training settings: learning rate 3e-4, batch 500 environment steps, minibatches of 64, 10 epochs (160 gradient steps per 1,000 environment steps); the rest unchanged (grad_clip 0.5, entropy 0.01, clip 0.2)
+
+**Why.** Market steps are expensive (a power flow each), so the settings that learn most per sample are the ones to use. The original's lr 1e-5 with one minibatch of 4000 and 5 epochs moved the policy almost nothing (median KL 0.0014, log std unchanged); lr 1e-3 on the 2 x 256 network was too aggressive (KL 0.016, log std collapsing to -3.7); every batch of 2000 or 4000 made too few updates in the probes' budgets. These are Stable-Baselines3's PPO defaults (lr 3e-4, minibatch 64, 10 epochs) with a batch of 500. A larger batch may still learn at the market's budget (more updates, less noise): not tested
+
+**Evidence.** Screen of 26 Oct 2026: 8 settings x probes 4-7, 9 x 3 paradigms x 3 seeds, market network with SM, 4 times each probe's budget in environment steps (`runs/@taltech/probes_screen_*/`): 3e-4/500/64/10 passes 29 of 30 in CTDE/DTDE; the original's 3 of 30
+
+**Implemented in.** [rl_defaults.py](../../core/rl_defaults.py)
 
 ### RP-7n: The VTI two ways: on energy money and after fees
 
