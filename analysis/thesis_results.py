@@ -72,6 +72,7 @@ HIGHEST = ["highest_trafo_loading", "highest_voltage", "highest_line_loading"]
 # Step 2: the learning rate and the budget
 # --------------------------------------------------------------------------------------
 REPLICATION = "green" in sys.argv[1:]
+SUFFIX = "_green" if REPLICATION else ""
 
 
 def _name(experiment: str) -> str:
@@ -112,7 +113,7 @@ def select() -> None:
 
     table = pd.concat(rows)
     OUT.mkdir(exist_ok=True)
-    table.to_csv(OUT / "step2_curves.csv", index=False)
+    table.to_csv(OUT / f"step2_curves{SUFFIX}.csv", index=False)
     trained = table[table.policy == "trained"]
     curves = trained.groupby(["rate", "env_steps"]).vti_after_fees.agg(["mean", "count"])
     print(curves.unstack("rate").round(3).to_string())
@@ -203,7 +204,7 @@ def score(steps: int) -> None:
     runs["arm"] = runs.apply(arm_of, axis=1)
     runs = runs[runs.arm.notna()]
     OUT.mkdir(exist_ok=True)
-    runs.to_csv(OUT / "thesis_runs.csv", index=False)
+    runs.to_csv(OUT / f"thesis_runs{SUFFIX}.csv", index=False)
     shown = [
         "vti_after_fees",
         "vti",
@@ -235,7 +236,7 @@ def score(steps: int) -> None:
         arms.append(row)
 
     arms = pd.DataFrame(arms)
-    arms.to_csv(OUT / "thesis_arms.csv", index=False)
+    arms.to_csv(OUT / f"thesis_arms{SUFFIX}.csv", index=False)
     trained = runs[runs.policy == "trained"].set_index(["arm", "seed"])
     base = trained.xs(BASE, level="arm")
     paired = []
@@ -263,7 +264,7 @@ def score(steps: int) -> None:
             )
 
     paired = pd.DataFrame(paired)
-    paired.to_csv(OUT / "thesis_paired.csv", index=False)
+    paired.to_csv(OUT / f"thesis_paired{SUFFIX}.csv", index=False)
     pd.set_option("display.width", 250)
     pd.set_option("display.max_columns", 40)
     print(arms.round(3).to_string())
