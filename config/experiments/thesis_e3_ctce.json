@@ -1,0 +1,53 @@
+{
+  "name": "thesis_e3_ctce",
+  "description": "E3's CTCE arm at lr 1e-3 (RP-6d: the lr 3e-4 arms wait for Step 2), on blackwell1 in the short partition (CTCE runs about 0.6 h per 480k steps there), five seeds; cut at Step 2's budget with analysis/heldout_at.py.",
+  "scenario": "config/scenarios/thesis_rural1.json",
+  "train_days": {"from": "2016-01-01", "to": "2016-12-30"},
+  "validation_periods": {
+    "winter": {"from": "2016-01-11", "to": "2016-01-17"},
+    "spring": {"from": "2016-04-11", "to": "2016-04-17"},
+    "summer": {"from": "2016-07-11", "to": "2016-07-17"},
+    "autumn": {"from": "2016-10-10", "to": "2016-10-16"}
+  },
+  "test_periods": {
+    "winter": {"from": "2016-02-15", "to": "2016-02-21"},
+    "spring": {"from": "2016-05-16", "to": "2016-05-22"},
+    "summer": {"from": "2016-08-15", "to": "2016-08-21"},
+    "autumn": {"from": "2016-11-14", "to": "2016-11-20"}
+  },
+  "heldout_carry": false,
+  "env_config": {"reward": "bill", "observation": "paper"},
+  "algorithms": ["ppo"],
+  "budget": 1920000,
+  "eval_points": 8,
+  "eval_episodes": 5,
+  "training": {
+    "ppo": {
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "grad_clip": 0.5,
+      "clip_param": 0.2,
+      "entropy_coeff": 0.01,
+      "train_batch_size_per_learner": 4000,
+      "minibatch_size": 500,
+      "num_epochs": 10
+    }
+  },
+  "num_env_runners": 8,
+  "torch_threads": 1,
+  "ray_thread_caps": true,
+  "resources": {"cpus": 10, "mem_gb": 12, "minutes": 235, "node": "blackwell1"},
+  "paradigms": ["ctce"],
+  "seeds": [0, 1, 2, 3, 4],
+  "variants": {
+    "lr1e3": {
+      "scenario": {
+        "grid": {"generation_scale": 1.25}
+      },
+      "training": {
+        "ppo": {"lr": 0.001}
+      }
+    }
+  },
+  "max_parallel": 5
+}
