@@ -3,8 +3,6 @@
     python analysis/thesis_results.py select          Step 2: learning rate and budget
     python analysis/thesis_results.py score <steps>   the arms cut at <steps>: per run,
                                                       per arm, paired differences
-    ... green                                         the same on the replication (green
-                                                      nodes, 8 samplers)
 
 ``select`` reads the synced ``base_step2`` runs' validation tables
 (``results.validation_scores``), prints each rate's mean curve of the validation VTI
@@ -39,46 +37,25 @@ LAST = 1_920_000
 SEED_BOOTSTRAPS = 10_000
 # An arm: (experiments it is in, without the "_at<steps>" suffix; variant; paradigm)
 ARMS = {
-    "base (DTDE, paper, bill)": (("bw_step2", "bw_base"), "lr1e3", "dtde"),
-    "E1 agent": (("bw_e1_agent",), "obs_agent_lr1e3", "dtde"),
-    "E1 agent_market": (("bw_e1_market",), "obs_market_lr1e3", "dtde"),
-    "E2 salazar": (("bw_e2",), "salazar_lr1e3", "dtde"),
-    "E3 CTDE": (("bw_e3", "bw_e3_retry"), "lr1e3", "ctde"),
-    "E3 CTCE": (("bw_e3",), "lr1e3", "ctce"),
+    "base (DTDE, paper, bill)": (("base_step2", "thesis_base"), "lr1e3", "dtde"),
+    "E1 agent": (("thesis_e1_agent",), "obs_agent_lr1e3", "dtde"),
+    "E1 agent_market": (("thesis_e1_market",), "obs_market_lr1e3", "dtde"),
+    "E2 salazar": (("thesis_e2",), "salazar_lr1e3", "dtde"),
+    "E3 CTDE": (("thesis_e3",), "lr1e3", "ctde"),
+    "E3 CTCE": (("thesis_e3_ctce",), "lr1e3", "ctce"),
 }
 BASE = "base (DTDE, paper, bill)"
-# The primary set (blackwell1, 14 samplers); pass "green" to read the replication.
-STEP2 = ("bw_step2", "bw_step2_retry")
-GREEN = {"bw_step2": "base_step2", "bw_base": "thesis_base", "bw_e1_agent": "thesis_e1_agent", "bw_e1_market": "thesis_e1_market", "bw_e2": "thesis_e2", "bw_e3": "thesis_e3", "bw_step2_retry": "base_step2", "bw_e3_retry": "thesis_e3"}
-SEASONS = {2: "winter", 5: "spring", 8: "summer", 11: "autumn"}  # the test weeks
-SUMMED = [
-    "energy_money",
-    "team_money",
-    "fees",
-    "loss_charge",
-    "hours_over_limit",
-    "hours_loading_limit",
-    "hours_voltage_limit",
-    "grid_losses_kwh",
-    "p2p_kwh",
-    "battery_throughput_kwh",
-    "grid_import_kwh",
-    "grid_export_kwh",
-]
-HIGHEST = ["highest_trafo_loading", "highest_voltage", "highest_line_loading"]
+STEP2 = ("base_step2",)
 
 
 # --------------------------------------------------------------------------------------
 # Step 2: the learning rate and the budget
 # --------------------------------------------------------------------------------------
-REPLICATION = "green" in sys.argv[1:]
-SUFFIX = "_green" if REPLICATION else ""
+SUFFIX = ""
 
 
 def _name(experiment: str) -> str:
-    """The experiment of the set read: the primary one, or with ``green`` its
-    replication on the green nodes."""
-    return GREEN[experiment] if REPLICATION else experiment
+    return experiment
 
 
 def plateau(curve: pd.Series) -> int:
