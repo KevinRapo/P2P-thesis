@@ -32,5 +32,7 @@ OBSERVATION_NAMES = (
     "minimal_grid",
     "pruned_grid",
 )
-SCALE_KEYS = ("energy_scale", "reward_scale", "tariff_range")
+# What a run resolves on its training days and every later environment reuses
+# (validation, the held-out days); grid_capacity_kwh only with the salazar reward (RP-1g).
+SCALE_KEYS = ("energy_scale", "reward_scale", "tariff_range", "grid_capacity_kwh")
 ENV_CONFIG_KEYS = tuple(MARKET_ENV_CONFIG) + ("scenario", "days", "seed")

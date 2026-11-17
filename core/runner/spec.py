@@ -479,9 +479,6 @@ class Experiment:
                 f"unknown reward {reward!r}; choose from {list(REWARD_NAMES)}"
             )
 
-        if reward == "salazar" and not self.env_config.get("grid_capacity_kwh"):
-            raise SpecError("the 'salazar' reward needs 'grid_capacity_kwh'")
-
         observation = self.env_config.get("observation") or "paper"
 
         if self.is_market and observation not in OBSERVATION_NAMES:

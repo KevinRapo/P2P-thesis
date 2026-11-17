@@ -239,7 +239,9 @@ def test_heldout_config_uses_the_runs_training_scales(tmp_path):
         },
         "x",
     )
-    record = {"env_config": {"energy_scale": 12.5, "reward_scale": 3.75, "days": []}}
+    trained = {"energy_scale": 12.5, "reward_scale": 3.75, "grid_capacity_kwh": 404.0}
+    record = {"env_config": trained | {"days": []}}
     config = heldout_env_config(experiment, tmp_path, None, record)
     assert config["days"] == ["2016-01-10"]
     assert (config["energy_scale"], config["reward_scale"]) == (12.5, 3.75)
+    assert config["grid_capacity_kwh"] == 404.0  # RP-1g: never recomputed on test days

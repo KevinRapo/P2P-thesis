@@ -470,16 +470,12 @@ class MarketEnv(MultiAgentEnv):
         """The ``env_config`` with the scales this environment resolved: what a run
         records and every later environment of the run (validation, held-out days,
         a restored policy) is built with, so they use the training scales."""
-        resolved = self.config | {
+        return self.config | {
             "energy_scale": self.energy_scale,
             "reward_scale": self.reward_scale,
             "tariff_range": [self.feed_in_tariff, self.utility_price],
+            "grid_capacity_kwh": self.grid_capacity_kwh,  # None unless salazar
         }
-
-        if self.grid_capacity_kwh:
-            resolved["grid_capacity_kwh"] = self.grid_capacity_kwh
-
-        return resolved
 
     def contract(self) -> dict[str, Any]:
         """What an observation and an action mean, for the run record."""
