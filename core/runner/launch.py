@@ -24,6 +24,11 @@ to run the same runs as a SLURM job array. State lives in files only (see
                                          every trade, and every bus and line at
                                          every step
 
+A shorter budget, chosen after training (RP-7c): ``heldout_at(run_dir, at, dest)``
+plays the held-out days with the run's policy after ``at`` environment steps (its
+``checkpoints/<at>``) into ``dest``, a run folder of its own with the run's records, so
+the results read it as any run.
+
 Jobs are not killed when the worker dies: they run on to the end and write their
 own status, but nothing starts the queued runs behind them until ``start_worker`` is run
 again, which skips completed (and still running) runs and re-queues the rest.
@@ -31,6 +36,7 @@ again, which skips completed (and still running) runs and re-queues the rest.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import socket
@@ -417,17 +423,47 @@ def heldout_env_config(
     return config | {key: trained[key] for key in SCALE_KEYS if trained.get(key)}
 
 
+def heldout_at(run_dir: str | Path, at: int, dest: str | Path) -> None:
+    """The held-out evaluation of a finished run's policy after ``at`` environment
+    steps (``checkpoints/<at>``, ``core/rl/train.py``) into ``dest``: a run folder with
+    the run's records (its ``run.json`` with the budget ``at``, ``cut_from`` naming the
+    run) and the ``heldout*`` tables, as ``job`` writes them at the end of a budget."""
+    from types import SimpleNamespace
+
+    from core.rl.train import _load_class
+
+    run_dir, dest = Path(run_dir).resolve(), Path(dest).resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+
+    for path in run_dir.iterdir():
+        if path.is_file() and not path.name.startswith("heldout"):
+            shutil.copy2(path, dest / path.name)
+
+    record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    record |= {"budget_env_steps": at, "env_steps": at, "cut_from": str(run_dir)}
+    (dest / "run.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+    saved = json.loads((dest / "experiment.json").read_text(encoding="utf-8"))
+    experiment = Experiment.from_dict(saved, check_files=False)
+    run = SimpleNamespace(env_class=_load_class(record["env_class"]))
+    _heldout(experiment, run, dest, None, source=(run_dir, at))
+
+
 def _heldout(
-    experiment: Experiment, run, run_dir: Path, variant: Optional[str] = None
+    experiment: Experiment,
+    run,
+    run_dir: Path,
+    variant: Optional[str] = None,
+    source: Optional[tuple] = None,
 ) -> None:
     """The trained policy against the baselines on every test day once ->
     ``heldout*.csv`` (see the module). The test days are played with the scales
     the run resolved on its training days (``run.json``), not ones computed from
-    the test days, so observations and rewards mean what they meant in training."""
+    the test days, so observations and rewards mean what they meant in training.
+    ``source``: ``(run folder, steps)`` of the policy, instead of ``run_dir``'s end."""
     from core.rl import evaluation, load_policy
     from core.rl.policy import baselines
 
-    policy, record = load_policy(run_dir)
+    policy, record = load_policy(*source) if source else load_policy(run_dir)
     config = heldout_env_config(experiment, run_dir, variant, record)
     # Not ``random`` on the test days: the money ceiling (``ceiling.py``) is the
     # results' outer reference, computed from these tables.

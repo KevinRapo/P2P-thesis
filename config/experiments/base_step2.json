@@ -57,5 +57,5 @@
   "num_env_runners": 8,
   "torch_threads": 1,
   "ray_thread_caps": true,
-  "resources": {"cpus": 10, "mem_gb": 12, "minutes": 900, "node": null}
+  "resources": {"cpus": 10, "mem_gb": 12, "minutes": 1200, "node": null}
 }

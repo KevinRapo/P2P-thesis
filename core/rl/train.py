@@ -30,6 +30,10 @@ A run is PPO in one paradigm, one seed and one budget of environment steps. Ever
                      every step (``validation_steps.csv``,
                      ``validation_agent_steps.csv``), which the references read
     checkpoint/      the algorithm at the end of the budget
+    checkpoints/<n>/ the learner's modules (actors and critics) at every evaluation
+                     point after step 0, ``n`` its environment steps: a shorter
+                     budget's policy, read with ``load_policy(run_dir, at=n)`` (the
+                     budget is chosen after training, RP-7c)
 
 What it fixes:
 
@@ -468,7 +472,12 @@ def train(run: Run) -> dict[str, Any]:  #! Training: the loop (collect, targets,
 
     def evaluate_now(env_steps: int, extra: Optional[dict] = None) -> None:
         evaluation_start = time.perf_counter()
-        policies = {"trained": Policy(learner_modules(algo), run.paradigm, env)}
+        modules = learner_modules(algo)
+        policies = {"trained": Policy(modules, run.paradigm, env)}
+
+        if env_steps > 0:
+            modules.save_to_path(str((out / "checkpoints" / str(env_steps)).resolve()))
+
         found = evaluation(run.env_class, env_config, policies | (extra or {}), seeds)
         evaluations.append(found.summary)
 
@@ -596,27 +605,29 @@ def train(run: Run) -> dict[str, Any]:  #! Training: the loop (collect, targets,
 # --------------------------------------------------------------------------------------
 # Loading a trained policy
 # --------------------------------------------------------------------------------------
-def load_policy(run_dir: str | Path) -> tuple[Policy, dict[str, Any]]:
+def load_policy(
+    run_dir: str | Path, at: Optional[int] = None
+) -> tuple[Policy, dict[str, Any]]:
     """The trained policy of a finished run, and its record.
 
     The policy acts in the run's multi-agent environment as in training; no
     algorithm or Ray is needed. The environment is built from the recorded
-    ``env_config``, which holds the scales training resolved.
+    ``env_config``, which holds the scales training resolved. ``at``: the policy
+    after that many environment steps (``checkpoints/<at>``), instead of the end.
     """
     run_dir = Path(run_dir)
     record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     env_class = _load_class(record["env_class"])
-    modules = MultiRLModule.from_checkpoint(
-        str(
-            (
-                run_dir
-                / "checkpoint"
-                / COMPONENT_LEARNER_GROUP
-                / COMPONENT_LEARNER
-                / COMPONENT_RL_MODULE
-            ).resolve()
-        )
+    path = (
+        run_dir / "checkpoints" / str(at)
+        if at is not None
+        else run_dir
+        / "checkpoint"
+        / COMPONENT_LEARNER_GROUP
+        / COMPONENT_LEARNER
+        / COMPONENT_RL_MODULE
     )
+    modules = MultiRLModule.from_checkpoint(str(path.resolve()))
     env = env_class(record["env_config"])
 
     return Policy(modules, record["paradigm"], env), record

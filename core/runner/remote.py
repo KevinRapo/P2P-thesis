@@ -46,9 +46,9 @@ from typing import Any, Awaitable, Callable, Optional, Sequence
 
 import asyncssh
 
-# Folders ``pull`` leaves on the cluster: checkpoints are large, ``slurm/`` holds
-# submitit's pickles and batch scripts.
-PULL_SKIP = ("checkpoint", "slurm")
+# Folders ``pull`` leaves on the cluster: checkpoints are large (the final one and
+# those of every evaluation point), ``slurm/`` holds submitit's pickles and batch scripts.
+PULL_SKIP = ("checkpoint", "checkpoints", "slurm")
 PULL_TIMEOUT_S = 900
 TAIL_CHECK = 1024  # bytes of a followed table's end compared before it is appended to
 # What ``follow`` keeps up to date: what training writes as it goes (the status, the
@@ -64,6 +64,11 @@ FOLLOWED = (
     "evaluation.csv",
     "evaluation_episodes.csv",
     "evaluation_agents.csv",
+    "validation.csv",
+    "validation_episodes.csv",
+    "validation_agents.csv",
+    "validation_steps.csv",
+    "validation_agent_steps.csv",
     "heldout.csv",
     "heldout_episodes.csv",
     "heldout_agents.csv",
