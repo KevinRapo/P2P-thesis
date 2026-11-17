@@ -47,16 +47,6 @@ checkout has changes, the spec or its scenario does not load), with both commits
 and the experiments queued or running there. `start` runs the same check and
 refuses with its problems. Exit code 1 when not ready.
 
-**What a start sends.** The spec and its scenario go with the start: this PC reads
-both, applies the profile and sends the experiment as one JSON object over SSH
-(`python -m core.runner start -` on the cluster, reading standard input). The
-cluster saves it in the experiment's folder and its runs read only that copy. So
-a spec or scenario changed here, committed or not, starts on the cluster as it is
-here, with no commit and no `git shipc`. Only the **code** must be the same on both
-machines: that is still what `check` compares. The same holds on this PC: every
-start saves the spec with its scenario in `runs/<experiment>/`, so editing
-`config/scenarios/` later does not change an experiment already started.
-
 **`sync`** copies the experiment's results to `runs/@taltech/<experiment>`,
 without checkpoints and `slurm/`. The copy goes to a temporary folder that replaces
 the old one only when complete, so a failed download keeps the previous copy;
@@ -70,6 +60,58 @@ name.
 The cluster's checkout is `~/marlem-v2` (branch `marlem-studio`) with its own `runs/`;
 synced results land in `runs/@taltech/` on this PC
 ([setup](../../getting-started/hpc-setup.md#what-is-where)).
+
+## PC-to-cluster pipeline
+
+The PC prepares and controls experiments; the cluster's login node submits them,
+and its compute nodes train them. The CLI and Studio use the same path:
+
+```mermaid
+flowchart LR
+    PC["PC: CLI or Studio"] -->|"SSH: experiment JSON"| Login["Login node: runner"]
+    Login -->|"submitit / sbatch"| Queue["SLURM queue"]
+    Queue --> Compute["Compute nodes: train and evaluate"]
+    Compute --> Files["Cluster runs/ folder"]
+    Files -->|"status over SSH; results over SFTP"| PC
+```
+
+1. **Prepare on the PC.** The runner reads the experiment, embeds the contents of
+   its base and variant scenario files, and applies the profile. Studio sends its
+   edited experiment, including unsaved changes and the active scenario if selected;
+   Start adds a date and time if the name is already taken.
+2. **Check and send.** `RemoteTarget` checks readiness, matching Git commits, a clean
+   cluster checkout and resource fit. Over SSH it runs the cluster's configured
+   Python in `~/marlem-v2`: `python -m core.runner start - --target taltech --json`.
+   The `-` means read the experiment JSON from standard input. Neither source JSON
+   file needs to exist in the cluster's `config/` folders.
+3. **Save and submit on the login node.** There, `sbatch` is available, so the runner
+   uses `SlurmTarget`. It saves `experiment.json` and `scenario.json` under
+   `runs/<experiment>/`, with each run's variant settings and scenario in its own
+   folder. The Python library submitit generates and submits a SLURM job array:
+   one task per algorithm × paradigm × seed × variant, with the requested CPUs,
+   memory, time and parallelism. Submission records and logs go in `slurm.json`
+   and `slurm/` next to the runs.
+4. **Run on compute nodes.** When resources are available, each task calls
+   `launch.job(run_dir)`, loads the saved experiment and trains its run, then
+   evaluates the trained policy and baselines on the test days. Status and results
+   are written to the cluster's `runs/` folder. A successful Start means submitted;
+   the tasks may still be queued. Once submitted, they continue with Studio closed
+   or the PC disconnected.
+5. **Follow from the PC.** Status requests query the remote runner, which checks
+   SLURM and the run files. Studio's live following downloads updated result files;
+   `sync` copies the results into `runs/@taltech/<experiment>` as described above.
+
+| Input | How it reaches the experiment |
+|---|---|
+| Experiment and scenarios | Sent with Start; no save, commit or `git shipc` needed for local edits |
+| Inline prices (numbers or lists) | Included in the scenario JSON |
+| Named price files, e.g. `"prices": "de_2024"` | Read from the cluster's `config/data/`; referenced files must be committed and synchronized |
+| Python code and dependencies | Already installed on the cluster; Start does not update them |
+
+Editing a source experiment or scenario later does not change the saved inputs.
+Local starts save the same copies. The **code** is still read from the cluster's
+checkout when tasks start: leave it unchanged while jobs are queued or running
+([limits](#limits)).
 
 ## From Python
 

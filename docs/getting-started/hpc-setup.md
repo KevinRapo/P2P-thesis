@@ -42,14 +42,19 @@ one to submit, so put a `.env` there too (`~/marlem-v2/.env`, at least
 | Thing | Where |
 |---|---|
 | Notebook files you edit | This PC |
-| Code the cluster runs (`core/`, specs, scenarios) | Cluster: `~/marlem-v2`, a clone of branch `marlem-studio` |
+| Code the cluster runs (`core/`) | Cluster: `~/marlem-v2`, a clone of branch `marlem-studio` |
+| Submitted experiment and scenarios | Sent from this PC; saved under the cluster's `runs/<experiment>/` |
 | Results (`runs/`) | Cluster: `~/marlem-v2/runs/`; synced experiments on this PC in `runs/@taltech/` |
 | Python environment | Cluster: `~/miniforge3/envs/marlem` |
 | Jupyter job script | [hpc/jupyter.slurm](../../hpc/jupyter.slurm), in the cluster's checkout |
 | Jupyter token, logs | Cluster: `~/.jupyter_token`, `~/jupyter-<jobid>.out` |
 
-A notebook cell runs as sent from VS Code; a change to `core/`, a spec or a
-scenario reaches the cluster only by a push and a pull there (`git shipc`).
+A notebook cell runs as sent from VS Code. Code changes and named price files in
+`config/data/` reach the cluster by a push and a pull there (`git shipc`). Experiment
+starts from this PC send the spec and its scenarios over SSH, including local edits;
+those source files need not be in the cluster checkout
+([PC-to-cluster pipeline](../using/running/runs.md#pc-to-cluster-pipeline)). A notebook
+that loads a file on the cluster still needs that file there.
 
 ## The `hpc` helper
 

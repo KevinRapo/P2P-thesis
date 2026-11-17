@@ -13,6 +13,7 @@ Your own values (account, SSH host, port) are in a git-ignored `.env`
 ([.env.example](../../../../.env.example)).
 
 - **Once:** [setup](../../../getting-started/hpc-setup.md): access, the environment, the `hpc` helper and the Git aliases.
+- **Experiment pipeline:** [PC to cluster](../runs.md#pc-to-cluster-pipeline): what Start sends, how SLURM starts the runs and how results return.
 - **Reference:** [resources and parallelism](resources.md) (what a run gets and
   what the spec controls), [measurements and costs](performance.md),
   [monitoring and troubleshooting](operations.md).
