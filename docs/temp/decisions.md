@@ -298,6 +298,22 @@ PPO's training settings: learning rate 3e-4, batch 500 environment steps, miniba
 
 **Implemented in.** [rl_defaults.py](../../core/rl_defaults.py)
 
+### RP-6d: The thesis experiments' learning rate, budget and scoring, fixed before the runs
+
+*17 Nov 2026, before any Step 2 result existed*
+
+**Selection (Step 2).** For each learning rate (3e-4, 1e-3), the mean over its three seeds of the validation VTI after fees over all 28 validation days (`results.validation_scores`, period `all`) at every evaluation point (240k, 480k, ..., 1.92M environment steps). The rate's budget is the first point after which that mean rises by less than 0.01 at every point of the next 480k steps; the last point (1.92M) if none. The rate chosen is the one with the higher mean at its own budget; within 0.01 of each other, the one with the smaller budget. Every arm of the experiments is cut at the chosen rate's budget (`analysis/heldout_at.py`, from the run's `checkpoints/<steps>`).
+
+**Runs in parallel, not in sequence.** The arms (base seeds 3-4, E1, E2, E3) are trained at both learning rates to 1.92M, alongside Step 2, with a checkpoint at every evaluation point; the arms of the rate Step 2 does not choose are not reported. PPO's learning rate is constant, so a run cut at a budget is the run that budget would have trained. The base arm's seeds 0-2 are Step 2's runs of the chosen rate (the same settings and seeds).
+
+**Scoring (test weeks).** Primary indicator: the VTI after fees over the 28 test days, each day on its own (MP-1c). Per arm the mean over five seeds with a 95 % percentile bootstrap over seeds (RP-7b); between arms the paired difference per seed (the same seed in both), its mean and bootstrap interval. Grid outcomes (hours over a loading or voltage limit, their peaks) and the energy-money VTI, participation and equality are reported beside it. A run that fails is restarted once with the same seed; a second failure is reported and the arm has four seeds
+
+**Why.** The thesis's Step 2 named the quantities but not the order of the choices; fixing it before any result is seen keeps the validation choice from being tuned to the outcome. Training the arms at both rates in parallel costs compute but not a second night: with Step 2 first, the arms would start only after its slowest run (about 11 h on the cluster's `common` nodes)
+
+**Evidence.** Codex review of stage 1 ([discussion](../discussions/2026-11-17-overnight-experiments.md))
+
+**Implemented in.** `config/experiments/base_step2.json`, `thesis_base.json`, `thesis_e1e2.json`, `thesis_e3.json`; [`train.py`](../../core/rl/train.py) (`checkpoints/`), [`launch.heldout_at`](../../core/runner/launch.py), `analysis/heldout_at.py`
+
 ### RP-7c: Training, validation and test days
 
 *17 Nov 2026*
