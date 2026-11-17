@@ -24,3 +24,8 @@ max_minutes = 240
 [[taltech.partitions]]
 name = "common"
 max_minutes = 11520
+
+# green4-7 are only in green-ib: reached by pinning a run to one of them ("node")
+[[taltech.partitions]]
+name = "green-ib"
+max_minutes = 11520
