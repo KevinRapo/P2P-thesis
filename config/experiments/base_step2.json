@@ -1,0 +1,61 @@
+{
+  "name": "base_step2",
+  "description": "Base configuration, Step 2 (thesis \u00a74.5): DTDE, bill reward, paper observation, P2's PPO settings with batch 4000 / minibatch 500 / 10 epochs; learning rate 3e-4 against 1e-3, three seeds each, to at most 1.92M steps; scored by the validation VTI after fees at every 240k steps (MP-7a). PV scale from Step 1 (analysis/stress_case.py).",
+  "scenario": "config/scenarios/thesis_rural1.json",
+  "train_days": {"from": "2016-01-01", "to": "2016-12-30"},
+  "validation_periods": {
+    "winter": {"from": "2016-01-11", "to": "2016-01-17"},
+    "spring": {"from": "2016-04-11", "to": "2016-04-17"},
+    "summer": {"from": "2016-07-11", "to": "2016-07-17"},
+    "autumn": {"from": "2016-10-10", "to": "2016-10-16"}
+  },
+  "test_periods": {
+    "winter": {"from": "2016-02-15", "to": "2016-02-21"},
+    "spring": {"from": "2016-05-16", "to": "2016-05-22"},
+    "summer": {"from": "2016-08-15", "to": "2016-08-21"},
+    "autumn": {"from": "2016-11-14", "to": "2016-11-20"}
+  },
+  "heldout_carry": false,
+  "env_config": {"reward": "bill", "observation": "paper"},
+  "algorithms": ["ppo"],
+  "paradigms": ["dtde"],
+  "seeds": [0, 1, 2],
+  "variants": {
+    "lr3e4": {
+      "scenario": {
+        "grid": {"generation_scale": 1.25}
+      },
+      "training": {
+        "ppo": {"lr": 0.0003}
+      }
+    },
+    "lr1e3": {
+      "scenario": {
+        "grid": {"generation_scale": 1.25}
+      },
+      "training": {
+        "ppo": {"lr": 0.001}
+      }
+    }
+  },
+  "budget": 1920000,
+  "eval_points": 8,
+  "eval_episodes": 5,
+  "training": {
+    "ppo": {
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "grad_clip": 0.5,
+      "clip_param": 0.2,
+      "entropy_coeff": 0.01,
+      "train_batch_size_per_learner": 4000,
+      "minibatch_size": 500,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 6,
+  "num_env_runners": 8,
+  "torch_threads": 1,
+  "ray_thread_caps": true,
+  "resources": {"cpus": 10, "mem_gb": 12, "minutes": 900, "node": null}
+}

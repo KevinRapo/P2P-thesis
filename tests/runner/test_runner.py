@@ -175,19 +175,42 @@ def test_a_variant_cannot_change_the_grid_and_settings_are_checked():
         Experiment.from_dict(spec(env_config={"grid": {}}), "x")
 
 
-def test_test_periods_leave_training_and_carry_inside_each_period():
+def test_test_periods_leave_training_and_carry_only_when_asked():
     days = {"from": "2016-06-01", "to": "2016-06-05"}
     periods = {"a": ["2016-06-02", "2016-06-03"], "b": ["2016-06-05"]}
     data = spec(train_days=days, test_periods=periods)
     experiment = Experiment.from_dict(data, "x")
     assert experiment.train_days == ["2016-06-01", "2016-06-04"]
     assert experiment.test_days == ["2016-06-02", "2016-06-03", "2016-06-05"]
-    assert [(o["period"], o["carry"]) for o in experiment.heldout_options()] == [
+    # Every held-out day on its own, as training's days (MP-1c) ...
+    assert not any(o["carry"] for o in experiment.heldout_options())
+    # ... or carried over inside each period.
+    carried = Experiment.from_dict(data | {"heldout_carry": True}, "x")
+    assert [(o["period"], o["carry"]) for o in carried.heldout_options()] == [
         ("a", False),
         ("a", True),
         ("b", False),
     ]
     assert Experiment.from_dict(experiment.to_dict()) == experiment
+
+
+def test_validation_days_leave_training_and_are_played_at_every_point():
+    days = {"from": "2016-06-01", "to": "2016-06-06"}
+    data = spec(
+        train_days=days,
+        test_periods={"a": ["2016-06-02"]},
+        validation_periods={"v": ["2016-06-04", "2016-06-05"]},
+    )
+    experiment = Experiment.from_dict(data, "x")
+    assert experiment.train_days == ["2016-06-01", "2016-06-03", "2016-06-06"]
+    assert [o["day"] for o in experiment.expand()[0].validation] == [
+        "2016-06-04",
+        "2016-06-05",
+    ]
+    assert experiment.test_version().validation_periods == {"v": ["2016-06-04"]}
+
+    with pytest.raises(SpecError, match="both a test day and a validation day"):
+        Experiment.from_dict(data | {"validation_periods": {"v": ["2016-06-02"]}}, "x")
 
 
 def test_resolve_reads_the_scenario_into_the_experiment(tmp_path):

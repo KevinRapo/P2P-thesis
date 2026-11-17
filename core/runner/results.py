@@ -830,6 +830,18 @@ def _scenario(folder: Path) -> Optional[dict]:
         return None
 
 
+def _daily(folder: Path) -> bool:
+    """Whether the run's held-out evaluation played every day on its own
+    (``heldout_carry`` false in its ``experiment.json``); a run saved before the field
+    existed carried over (``spec`` module)."""
+    try:
+        saved = json.loads((folder / "experiment.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+
+    return not saved.get("heldout_carry", True)
+
+
 def _held_out(folder: Path) -> list:
     """A run's held-out tables the indicators are computed from
     (``INDICATOR_TABLES``), without the policies the results no longer show."""
@@ -899,12 +911,13 @@ def _references(folder: str, stamp: tuple) -> tuple:
 
     tables = _held_out(Path(folder))
     scenario = _scenario(Path(folder))
+    daily = _daily(Path(folder))
 
     try:
-        key = reference_key(tables[3], tables[2], scenario)
+        key = reference_key(tables[3], tables[2], scenario, daily)
 
         def build() -> Any:
-            return references(tables[3], tables[2], scenario)
+            return references(tables[3], tables[2], scenario, daily=daily)
 
         return _share(key, build) if key else build()
     except (ValueError, KeyError, TypeError):  # tables or a scenario it cannot read
@@ -1019,3 +1032,63 @@ def non_p2p_of(result: RunResult) -> Optional[pd.DataFrame]:
         return _references(str(folder), _stamp(folder)).alone
     except (ValueError, KeyError, TypeError):
         return None
+
+
+# --------------------------------------------------------------------------------------
+# Validation: the scores that choose an experiment's settings (RP-7c)
+# --------------------------------------------------------------------------------------
+def validation_scores(folder: str | Path) -> Optional[pd.DataFrame]:
+    """A run's validation days scored at every evaluation point: a row per
+    ``env_steps``, policy and period (``all``: every validation day), with ``vti`` (on
+    energy money, before fees), ``vti_after_fees`` (on team money, after fees and loss
+    charges) and ``team_money``. Every validation day is played on its own from the
+    scenario's initial state, so its references are each day's own programs with the
+    batteries free to end emptier (``ceiling.day_references`` without ``keep_end``,
+    MP-1c); a period's VTI divides the sums over its days. ``None`` without the
+    validation tables (``train.py``) or the scenario."""
+    from core.market.ceiling import day_references  # scipy, only when read
+
+    folder = Path(folder)
+    agents = _table(_table_path(folder, "validation_agents"))
+    steps = _table(_table_path(folder, "validation_steps"))
+    agent_steps = _table(_table_path(folder, "validation_agent_steps"))
+    scenario = _scenario(folder)
+
+    if agents is None or steps is None or agent_steps is None or not scenario:
+        return None
+
+    top, alone = day_references(agent_steps, steps, scenario, keep_end=False)
+
+    if top is None:
+        return None
+
+    ceiling = top.energy_money.droplevel("policy")
+    floor = alone.groupby("day").bill.sum()
+    agents = agents.assign(energy=agents.bill + agents.get("fees", 0.0))
+    team = agents.groupby(["env_steps", "policy", "period", "day"])[
+        ["energy", "bill"]
+    ].sum()
+    rows = []
+
+    for (env_steps, policy), part in team.groupby(["env_steps", "policy"]):
+        part = part.reset_index()
+
+        for period, days in [("all", part)] + list(part.groupby("period")):
+            top_sum = ceiling.reindex(days.day).sum()
+            low_sum = floor.reindex(days.day).sum()
+            reach = top_sum - low_sum
+            rows.append(
+                {
+                    "env_steps": env_steps,
+                    "policy": policy,
+                    "period": period,
+                    "days": len(days),
+                    "vti": (days.energy.sum() - low_sum) / reach if reach > 0 else np.nan,
+                    "vti_after_fees": (
+                        (days.bill.sum() - low_sum) / reach if reach > 0 else np.nan
+                    ),
+                    "team_money": days.bill.sum(),
+                }
+            )
+
+    return pd.DataFrame(rows)

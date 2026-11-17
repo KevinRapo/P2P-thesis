@@ -43,6 +43,7 @@ PRESET_KEYS = (
     "seeds",
     "train_days",
     "test_periods",
+    "validation_periods",
     "variants",
     "budget",
     "eval_points",

@@ -21,6 +21,18 @@ The DSO's utility price is time-of-use in the reference scenario: 0.20 from 22:0
 
 **Implemented in.** [synthetic_day.json](../../config/data/synthetic_day.json), [scenario.py](../../core/config/scenario.py) (`load_prices`, `price_at`), [dso.py](../../core/market/dso.py) (`set_hour`, `tariff_range`), [lem.py](../../core/market/lem.py), [market_env.py](../../core/env/market_env.py), [validate_market.json](../../config/scenarios/validate_market.json), `tests/market/test_time_of_use.py`
 
+### MP-1c: Stored energy is worth nothing at midnight, for the policies and the references alike
+
+*17 Nov 2026*
+
+Energy left in a battery at midnight is **worth nothing**: every day, in training and in the held-out evaluation, starts from the scenario's initial state (batteries at their initial charge, reputations at their start value), and the references play the same game: each held-out day is its own linear program, its batteries start at the initial charge and may end the day emptier (`ceiling` and `non_p2p` with `daily`, `keep_end` off). The held-out evaluation plays each day on its own (`heldout_carry` false, the default from 17 Nov 2026); carrying the batteries over inside a test period stays a setting
+
+**Why.** The thesis's episode is one day (RP-1f). An evaluation that carries the batteries over scores a policy on a game it was never trained on, and the references with `keep_end` forbade what the policies may do (empty the battery by midnight), so a per-day VTI could exceed 1 or punish a policy for using its stored energy. With the same rule on both sides, the VTI compares like with like. Valuing the energy at midnight (`terminal_value`) needs a price for it that the scenario does not give (the feed-in tariff undervalues it, the utility price overvalues it); it stays an optional variant of the base configuration. Accepted: the 50 % initial charge is free energy every day for every policy and reference alike, and the agents learn to use it before midnight
+
+**Evidence.** Discussion of 17 Nov 2026 (the thesis's base configuration); `tests/market/test_ceiling.py::test_daily_references_play_each_day_on_its_own_and_may_empty_the_battery`, `tests/runner/test_runner.py::test_test_periods_leave_training_and_carry_only_when_asked`
+
+**Implemented in.** [`ceiling.py`](../../core/market/ceiling.py) (`daily`, `day_references(keep_end)`), [`results._references`](../../core/runner/results.py) (reads `heldout_carry` from the run's `experiment.json`; a run saved before the field carried), [`spec.py`](../../core/runner/spec.py) (`heldout_carry`, `heldout_options`)
+
 ### MP-1e: Energy no trade covers is settled at retail
 
 *4 Nov 2026*
@@ -285,6 +297,18 @@ PPO's training settings: learning rate 3e-4, batch 500 environment steps, miniba
 **Evidence.** Screen of 26 Oct 2026: 8 settings x probes 4-7, 9 x 3 paradigms x 3 seeds, market network with SM, 4 times each probe's budget in environment steps (`runs/@taltech/probes_screen_*/`): 3e-4/500/64/10 passes 29 of 30 in CTDE/DTDE; the original's 3 of 30
 
 **Implemented in.** [rl_defaults.py](../../core/rl_defaults.py)
+
+### RP-7c: Training, validation and test days
+
+*17 Nov 2026*
+
+2016 is split three ways: **validation** weeks 11-17 January, 11-17 April, 11-17 July and 10-16 October (the four weeks the development runs were scored on; they informed configuration choices, so they choose settings and are not test data); **test** weeks 15-21 February, 16-22 May, 15-21 August and 14-20 November (Monday to Sunday, one per season, a month after each validation week, not looked at before the final runs); **training**: every other day from 1 January to 30 December (309 days). An experiment's `validation_periods` are left out of training like its `test_periods`, and at every evaluation point the trained policy plays each validation day on its own (`validation*.csv`); `results.validation_scores` gives the VTI over them, which chooses the learning rate and the budget of the base configuration (thesis §4.5, Step 2)
+
+**Why.** Settings chosen on the days that are then reported are optimistically biased; the four development weeks were already used for choices, so they become the validation set, and the test weeks are new. One week per season keeps the year's range of PV and demand in each set
+
+**Evidence.** The thesis's experiment design (17 Nov 2026), reviewed with Codex ([discussion](../discussions/2026-11-17-experiment-plan-review.md))
+
+**Implemented in.** [`spec.py`](../../core/runner/spec.py) (`validation_periods`), [`train.py`](../../core/rl/train.py) (`validation`), [`results.validation_scores`](../../core/runner/results.py); `config/experiments/base_step2.json`
 
 ### RP-7n: The VTI two ways: on energy money and after fees
 

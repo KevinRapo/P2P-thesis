@@ -10,6 +10,7 @@ runs (`python -m core.runner sync <experiment> --target taltech`).
 |---|---|
 | `analyse.py [1\|0] [experiments...]` | per run and policy, over all test days: money, fees, grid hours, VTI pooled over the days, and the VTI per season. `0` turns `keep_end` off in the references. Writes `out/summary[_<experiments>]_keep<0\|1>.csv` |
 | `table.py [summary.csv]` | that summary pooled over seeds, one row per arm (mean, sd, every seed) |
+| `stress_case.py [scales...]` | the thesis's base configuration, Step 1: `net_position` on the validation days (each on its own) per PV scale; hours over a loading or voltage limit, per season; the scale chosen. Writes `out/stress_case.csv` |
 | `curves.py` | every TalTech run's learning curve: training return at 50/75/100 % of the budget, slope over the last quarter, entropy, KL per update, evaluation returns |
 
 `out/night_12nov_keep1.csv` and `out/night_12nov_keep0.csv` are the summaries behind

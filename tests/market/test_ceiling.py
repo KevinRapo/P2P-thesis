@@ -104,6 +104,20 @@ def test_a_period_carries_the_battery_from_day_to_day():
     assert days.index.tolist() == [(POLICY, "d1"), (POLICY, "d2")]
 
 
+def test_daily_references_play_each_day_on_its_own_and_may_empty_the_battery():
+    # MP-1c: with every held-out day played on its own, each day is its own program,
+    # starting where that day's evaluation started (1 kWh) and free to end emptier.
+    # d1's surplus cannot reach d2; d2 uses the stored 1 kWh and buys the other 1.
+    agent_steps, steps, scenario = held_out()
+    days = ceiling_days(agent_steps, steps, scenario, grid=False, daily=True)
+    assert days.energy_money.tolist() == pytest.approx([0.0, -0.5])
+    # The per-day references from the setup's 5 kWh: without keep_end d2 is covered.
+    top, alone = ceiling.day_references(agent_steps, steps, scenario, keep_end=False)
+    assert top.energy_money.tolist() == pytest.approx([0.0, 0.0])
+    # Alone, P1's deficit has no battery of its own: bought at 0.5.
+    assert alone.groupby("day").bill.sum().tolist() == pytest.approx([0.0, -1.0])
+
+
 def test_the_battery_starts_where_the_evaluation_started_it():
     agent_steps, steps, scenario = held_out()
     # Started at 1 kWh (soc 0.1 of 10), not at the setup's 5, with room up to 2 kWh:

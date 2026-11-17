@@ -331,12 +331,14 @@ The number of runs is algorithms × paradigms × variants × seeds.
 
 ### Days
 
-Four settings decide which days are played, and they are easy to confuse:
+Six settings decide which days are played and how, and they are easy to confuse:
 
 | Setting | Where | Says |
 |---|---|---|
 | `train_days` | experiment | The days training may draw from. Left out: `grid.day` alone |
 | `test_periods` | experiment | Named periods of held-out days. Left out: no held-out evaluation |
+| `validation_periods` | experiment | Named periods of days that choose settings: left out of training, played at every evaluation point (RP-7c). Left out: none |
+| `heldout_carry` | experiment | `false` (default): every held-out day starts fresh, as training's days; `true`: the state carries over inside a test period (MP-1c) |
 | `episode_days` | `env_config` | How many consecutive days one training episode plays. Default 1 |
 | `grid.day` | scenario | One day, for the Studio and for an experiment without `train_days` |
 
@@ -345,7 +347,8 @@ included) or as a list of dates.
 
 **What happens to them, in order:**
 
-1. **Reading the file.** Every test day is removed from `train_days`. So
+1. **Reading the file.** Every test day and every validation day is removed from
+   `train_days`; a day cannot be both. So
    `train_days` can be the whole year, and a period inside it is held out without
    further effort. The order of `test_periods` is kept.
 2. **The scales.** The run computes `energy_scale` and `reward_scale` once, from the
@@ -369,12 +372,18 @@ included) or as a list of dates.
 6. **Evaluation during training.** `eval_points` evaluations play `eval_episodes`
    episodes each, drawn the same way, from the training days, on seeds training does
    not use (1,000,000 upwards). The training settings apply. This measures the
-   policy on days it may have seen, and is not held out.
+   policy on days it may have seen, and is not held out. With `validation_periods`
+   the trained policy also plays every validation day at each point, each day on its
+   own from the scenario's initial state (seeds 3000 upwards; at step 0 also the
+   baselines, with every step): `validation*.csv`, scored by
+   `results.validation_scores` (the VTI over them, against each day's own references).
 7. **Held-out evaluation.** After training, the policy and the baselines play every
-   test day once, in order, on seeds 2000, 2001, and so on. The first day of each
-   period starts from the scenario's initial state; every later day of the period
-   continues from the one before. So a period plays as one uninterrupted stretch,
-   whatever `episode_days` was in training. Results are kept per day and participant.
+   test day once, in order, on seeds 2000, 2001, and so on. By default every day starts
+   from the scenario's initial state, as a training day does, and the references are
+   computed the same way (MP-1c). With `heldout_carry` the first day of each period
+   starts from the initial state and every later day continues from the one before, so
+   a period plays as one uninterrupted stretch. Results are kept per day and
+   participant.
 
 Step 7 uses three options of the environment's `reset`, set by the runner and not by
 any file:
@@ -382,7 +391,7 @@ any file:
 | Option | What it does |
 |---|---|
 | `day` | Plays exactly that day (`one_day` in `MarketEnv`). The environment does not draw, randomise the charge, add the stored-energy reward or move to the next day, so training settings cannot change a test day's rewards |
-| `carry` | Starts from the batteries and reputations the last episode left. `true` for every day of a period but the first |
+| `carry` | Starts from the batteries and reputations the last episode left. With `heldout_carry`, `true` for every day of a period but the first; otherwise never |
 | `period` | The period's name, passed on to the infos so results can be grouped. Changes nothing in the market |
 
 ### env_config

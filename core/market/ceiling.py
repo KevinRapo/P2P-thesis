@@ -41,6 +41,13 @@ so who traded with whom, which a fee needs, is undefined.
                         fees and loss charge
     day_references(...) both with every test day its own horizon, before fees
 
+**Daily horizons** (``daily``, MP-1c): when the held-out evaluation plays every day on
+its own from the scenario's initial state (``heldout_carry`` false, the thesis's
+protocol), every reference does too: each day is its own program, its batteries start
+at the initial charge and may end the day emptier, because energy stored at midnight is
+worth nothing to a policy either (the next day starts at the initial charge again). So
+the policies and the references play the same game.
+
 ``notebooks/market/market_ceiling.ipynb`` shows it on the current test horizon.
 """
 
@@ -279,6 +286,7 @@ def _periods(
     agent_steps: Optional[pd.DataFrame],
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
+    daily: bool = False,
 ):
     """Each test period of a run's held-out tables, as the evaluation played it: its
     days in order, the batteries carried from one to the next. Yields ``(days, part,
@@ -299,7 +307,9 @@ def _periods(
     mine = agent_steps[agent_steps.policy == policy]
     tariffs = steps[steps.policy == policy]
 
-    for _, part in mine.groupby("period", sort=False):
+    by = ["period", "day"] if daily else "period"
+
+    for _, part in mine.groupby(by, sort=False):
         days = list(dict.fromkeys(part.day))
         order = {d: i for i, d in enumerate(days)}
         part = part.assign(_d=part.day.map(order)).sort_values(["_d", "step"])
@@ -551,22 +561,25 @@ def references(
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
     grid: bool = True,
+    daily: bool = False,
 ) -> References:
     """The ceiling, the non-P2P reference and the per-day references of a run, from its
     held-out tables (see ``ceiling_days``, ``alone_days``, ``day_references``). With
     ``grid`` the first two get the power flow and, for non-P2P, the fees; ``grid`` off
     (or a scenario too short to build the market) leaves them as money only."""
     market = _market_of(scenario) if grid else None
-    top = _ceiling(agent_steps, steps, scenario, market)
-    alone, team = _alone(agent_steps, steps, scenario, market)
+    top = _ceiling(agent_steps, steps, scenario, market, daily)
+    alone, team = _alone(agent_steps, steps, scenario, market, daily)
+    by_day = day_references(agent_steps, steps, scenario, keep_end=not daily)
 
-    return References(top, alone, team, day_references(agent_steps, steps, scenario))
+    return References(top, alone, team, by_day)
 
 
 def reference_key(
     agent_steps: Optional[pd.DataFrame],
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
+    daily: bool = False,
 ) -> Optional[str]:
     """A digest of exactly what ``references`` reads, so two runs with the same digest
     have the same references: the scenario, one policy's profiles and tariffs (every
@@ -584,7 +597,7 @@ def reference_key(
     prices = ["period", "day", "step", "feed_in_tariff", "utility_price"]
     starts = [
         round(store.start_kwh, 6)
-        for _, _, _, stores in _periods(agent_steps, steps, scenario)
+        for _, _, _, stores in _periods(agent_steps, steps, scenario, True)
         for store in stores.values()
     ]
     digest = hashlib.sha1(json.dumps(scenario, sort_keys=True, default=str).encode())
@@ -593,7 +606,7 @@ def reference_key(
         found = table[[c for c in columns if c in table]]
         digest.update(pd.util.hash_pandas_object(found, index=False).to_numpy().tobytes())
 
-    digest.update(json.dumps(starts).encode())
+    digest.update(json.dumps([starts, daily]).encode())
 
     return digest.hexdigest()
 
@@ -603,6 +616,7 @@ def ceiling_days(
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
     grid: bool = True,
+    daily: bool = False,
 ) -> Optional[pd.DataFrame]:
     """The ceiling of every test period of a run, from its held-out tables: a row per
     test day (policy ``ceiling``) with ``energy_money`` (the program's value, before
@@ -627,7 +641,7 @@ def ceiling_days(
     """
     market = _market_of(scenario) if grid else None
 
-    return _ceiling(agent_steps, steps, scenario, market)
+    return _ceiling(agent_steps, steps, scenario, market, daily)
 
 
 def _ceiling(
@@ -635,11 +649,12 @@ def _ceiling(
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
     market: Any,
+    daily: bool = False,
 ) -> Optional[pd.DataFrame]:
     hours = float((scenario or {}).get("grid", {}).get("step_hours", 1.0))
     found = []
 
-    for days, part, prices, stores in _periods(agent_steps, steps, scenario):
+    for days, part, prices, stores in _periods(agent_steps, steps, scenario, daily):
         net = (part.generation_kwh - part.demand_kwh).groupby([part._d, part.step]).sum()
         plan = optimise(
             net.to_numpy(),
@@ -647,6 +662,7 @@ def _ceiling(
             prices.utility_price.to_numpy(),
             list(stores.values()),
             hours,
+            keep_end=not daily,
         )
         start = sum(s.start_kwh for s in stores.values())
         day = _by_day(plan, days, net.index, start)
@@ -676,6 +692,7 @@ def alone_days(
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
     grid: bool = True,
+    daily: bool = False,
 ) -> Optional[pd.DataFrame]:
     """The non-P2P reference of Zhou et al. (2018, §4.1): every participant on its
     own with the retailer, its own battery timed with perfect foresight of its own
@@ -701,7 +718,7 @@ def alone_days(
     """
     market = _market_of(scenario) if grid else None
 
-    return _alone(agent_steps, steps, scenario, market)[0]
+    return _alone(agent_steps, steps, scenario, market, daily)[0]
 
 
 def _alone(
@@ -709,12 +726,13 @@ def _alone(
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
     market: Any,
+    daily: bool = False,
 ) -> tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
     """``(per participant and day, the team as a policy of the day table)``."""
     hours = float((scenario or {}).get("grid", {}).get("step_hours", 1.0))
     found, teams = [], []
 
-    for days, part, prices, stores in _periods(agent_steps, steps, scenario):
+    for days, part, prices, stores in _periods(agent_steps, steps, scenario, daily):
         period = part.period.iloc[0]
         at = pd.MultiIndex.from_frame(part[["_d", "step"]].drop_duplicates())
         rows, charge, discharge = [], {}, {}
@@ -729,6 +747,7 @@ def _alone(
                 prices.utility_price.reindex(own_at).to_numpy(),
                 store,
                 hours,
+                keep_end=not daily,
             )
             start = store[0].start_kwh if store else 0.0
             day = _by_day(plan, days, own_at, start)
@@ -784,10 +803,12 @@ def day_references(
     agent_steps: Optional[pd.DataFrame],
     steps: Optional[pd.DataFrame],
     scenario: Optional[Mapping[str, Any]],
+    keep_end: bool = True,
 ) -> tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
     """The ceiling and the non-P2P reference with every test day its own horizon, as
     Zhou et al. (2018) evaluate one day: each battery starts the day at the scenario's
-    initial charge and ends it at least as full. Returns ``(ceiling, alone)``: the
+    initial charge and, with ``keep_end``, ends it at least as full (without, as a
+    policy that plays the day on its own may: MP-1c). Returns ``(ceiling, alone)``: the
     ceiling's ``energy_money`` per day (indexed like ``ceiling_days``), and each
     participant's own optimum per day (``day``, ``agent``, ``bill``, which is
     ``energy_bill``: before fees, as the ceiling). The policies'
@@ -822,13 +843,15 @@ def day_references(
         util = tariffs.utility_price.reindex(at).to_numpy()
         net = (part.generation_kwh - part.demand_kwh).groupby(part.step).sum()
         stores = {a: Store.from_setup(s) for a, s in setups.items()}
-        top = optimise(net.to_numpy(), fit, util, list(stores.values()), hours)
+        top = optimise(
+            net.to_numpy(), fit, util, list(stores.values()), hours, keep_end
+        )
         tops.append({"policy": POLICY, "day": day, "energy_money": top.value})
 
         for agent, own in part.groupby("agent", sort=False):
             mine_net = (own.generation_kwh - own.demand_kwh).to_numpy()
             store = [stores[agent]] if agent in stores else []
-            value = optimise(mine_net, fit, util, store, hours).value
+            value = optimise(mine_net, fit, util, store, hours, keep_end).value
             alone.append(
                 {"day": day, "agent": agent, "bill": value, "energy_bill": value}
             )

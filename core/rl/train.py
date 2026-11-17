@@ -24,6 +24,11 @@ A run is PPO in one paradigm, one seed and one budget of environment steps. Ever
     evaluation_agents.csv, evaluation_episodes.csv
                      the same evaluations kept per episode and agent, and per
                      episode (``core/rl/policy.py``, ``evaluation``)
+    validation*.csv  with ``validation`` (RP-7c): at the same points, the trained
+                     policy on each validation day, the day on its own from the
+                     scenario's initial state; at step 0 also the baselines, with
+                     every step (``validation_steps.csv``,
+                     ``validation_agent_steps.csv``), which the references read
     checkpoint/      the algorithm at the end of the budget
 
 What it fixes:
@@ -93,6 +98,8 @@ from core.rl.policy import (
 )
 
 REPO = Path(__file__).resolve().parents[2]
+# The seeds of the validation days (RP-7c), apart from the periodic and held-out ones.
+VALIDATION_SEED_START = 3000
 
 # Learner metrics written to metrics.csv, per module, when the algorithm has them.
 LEARNER_METRICS = [
@@ -133,6 +140,8 @@ class Run:
         num_gpus: GPUs for the learner (0 or 1).
         out_dir: The run's folder (default: ``runs/<algorithm>_<paradigm>_seed<seed>
             _<time>`` in the repository).
+        validation: The ``reset`` options of the validation days (``day`` and
+            ``period``), played at every evaluation point; empty: none.
     """
 
     algorithm: str
@@ -148,6 +157,7 @@ class Run:
     num_env_runners: int = 0
     num_gpus: int = 0
     out_dir: Optional[Path] = None
+    validation: list = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------------------
@@ -265,6 +275,7 @@ def _record(run: Run, config, env, env_config: dict) -> dict[str, Any]:
             "evaluation*.csv: the training env_config (training days) on seeds "
             "training does not use; not held out"
         ),
+        "validation": run.validation,
         "settings": algo_settings,
         "settings_effective": {k: _value(config, k) for k in PPO_SETTINGS}
         | {"rollout_fragment_length": config.get_rollout_fragment_length()},
@@ -468,6 +479,33 @@ def train(run: Run) -> dict[str, Any]:  #! Training: the loop (collect, targets,
         ):
             frame.insert(0, "env_steps", env_steps)
             _append_csv(out / name, frame, written)
+
+        if run.validation:
+            days = list(dict.fromkeys(o["day"] for o in run.validation))
+            first = env_steps == 0
+            found = evaluation(
+                run.env_class,
+                env_config | {"days": days},
+                policies | (extra or {}),
+                [VALIDATION_SEED_START + i for i in range(len(run.validation))],
+                options=run.validation,
+                by_step=first,
+            )
+            frames = [
+                (found.summary, "validation.csv"),
+                (found.agents, "validation_agents.csv"),
+                (found.episodes, "validation_episodes.csv"),
+            ]
+
+            if first:
+                frames += [
+                    (found.steps, "validation_steps.csv"),
+                    (found.agent_steps, "validation_agent_steps.csv"),
+                ]
+
+            for frame, name in frames:
+                frame.insert(0, "env_steps", env_steps)
+                _append_csv(out / name, frame, written)
 
         timings["evaluation_s"] += time.perf_counter() - evaluation_start
 

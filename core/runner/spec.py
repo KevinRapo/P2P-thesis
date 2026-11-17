@@ -20,6 +20,15 @@ Fields of the JSON (all but ``scenario`` and the grid axes are optional)::
                                         the held-out days: named continuous
                                         periods (a range or a list each), left out
                                         of train_days
+      "validation_periods": {"summer": {"from": "2016-07-11", "to": "2016-07-17"}},
+                                        days that choose settings: left out of
+                                        train_days like the test days, and played
+                                        by the trained policy at every evaluation
+                                        point, each day on its own (validation*.csv)
+      "heldout_carry": false,           false: every held-out day starts fresh, at
+                                        the scenario's initial state, as training's
+                                        days do; true: inside a test period the
+                                        batteries and reputations carry over
       "env_config": {},                 extra environment settings
       "algorithms": ["ppo"], "paradigms": ["dtde"], "seeds": [0],
       "variants": {"lr3": {"training": {"ppo": {"lr": 0.001}}}},   name -> what the
@@ -62,8 +71,16 @@ between and counts the final one: 4 points on a budget of 24000 evaluate at 6000
 
 Held-out evaluation: after training, the trained policy and the baselines play every
 test day once, in order (``Experiment.heldout_episodes``: seeds 2000, 2001, ...).
-Inside a test period the batteries and reputations carry from day to day, and every policy
-starts each period from the scenario's initial state (``heldout_options``). Its
+Every day starts from the scenario's initial state, as a training episode does
+(``heldout_options``); with ``heldout_carry`` the batteries and reputations instead
+carry from day to day inside a test period, and every policy starts each period from
+the scenario's initial state. An experiment saved before the field existed carried.
+
+Validation (``validation_periods``): days that choose an experiment's settings (RP-7c).
+They are left out of the training days, and at every evaluation point, step 0 too, the
+trained policy plays each of them once on its own, from the scenario's initial state
+(``validation*.csv``; at step 0 also the baselines, with every step, which the
+references need). ``results.validation_scores`` scores them. Its
 results are kept per day and participant, and every step of every day
 (``launch.py``).
 
@@ -135,6 +152,7 @@ NOT_IN_A_VARIANT = (
 NOT_IN_A_TEST_VARIANT = (
     "train_days",
     "test_periods",
+    "validation_periods",
     "budget",
     "eval_points",
     "eval_episodes",
@@ -209,6 +227,7 @@ class RunSpec:
     out_dir: Path
     index: int = 0
     num_env_runners: int = 0
+    validation: list[dict] = field(default_factory=list)  # reset options per day
 
     def run(self):
         """The ``core.rl.Run`` to train (imports ``core.rl``: slow)."""
@@ -227,6 +246,7 @@ class RunSpec:
             model=dict(self.model),
             num_env_runners=self.num_env_runners,
             out_dir=self.out_dir,
+            validation=[dict(o) for o in self.validation],
         )
 
 
@@ -247,6 +267,8 @@ class Experiment:
     train_days: list[str] = field(default_factory=list)
     test_days: list[str] = field(default_factory=list)  # from test_periods
     test_periods: dict[str, list[str]] = field(default_factory=dict)
+    validation_periods: dict[str, list[str]] = field(default_factory=dict)
+    heldout_carry: bool = False
     env_config: dict = field(default_factory=dict)
     variants: dict[str, dict] = field(default_factory=dict)
     eval_points: int | dict[str, int] | None = None
@@ -301,13 +323,20 @@ class Experiment:
             data[key] = _days(data.get(key), key)
 
         data["test_periods"] = _periods(data)
+        data["validation_periods"] = _periods(data, "validation_periods")
         held_out = [d for days in data["test_periods"].values() for d in days]
+        chosen_on = [d for days in data["validation_periods"].values() for d in days]
 
         if data["test_days"] not in ([], held_out):
             raise SpecError("'test_days' is gone: give the days as 'test_periods'")
 
+        if set(held_out) & set(chosen_on):
+            raise SpecError("a day is both a test day and a validation day")
+
         data["test_days"] = held_out
-        data["train_days"] = [d for d in data["train_days"] if d not in held_out]
+        data["train_days"] = [
+            d for d in data["train_days"] if d not in held_out and d not in chosen_on
+        ]
 
         for key in ("algorithms", "paradigms", "seeds", "budget"):
             if key not in data:
@@ -405,6 +434,9 @@ class Experiment:
 
         if type(self.ray_thread_caps) is not bool:
             raise SpecError("ray_thread_caps must be true or false")
+
+        if type(self.heldout_carry) is not bool:
+            raise SpecError("heldout_carry must be true or false")
 
         if self.is_market and not self.scenario:
             raise SpecError("the market environment needs a 'scenario'")
@@ -554,9 +586,18 @@ class Experiment:
         """The ``reset`` options of ``heldout_episodes``: the day, its period's name
         and whether it carries on from the day before."""
         return [
-            {"day": day, "period": name, "carry": index > 0}
+            {"day": day, "period": name, "carry": self.heldout_carry and index > 0}
             for name, days in self.test_periods.items()
             for index, day in enumerate(days)
+        ]
+
+    def validation_options(self) -> list[dict]:
+        """The ``reset`` options of the validation days: each day on its own, from
+        the scenario's initial state, with its period's name."""
+        return [
+            {"day": day, "period": name}
+            for name, days in self.validation_periods.items()
+            for day in days
         ]
 
     def heldout_config(
@@ -656,6 +697,7 @@ class Experiment:
         )
         periods = _first_days(self.test_periods, test.get("test_days", 1))
         test_days = [day for days in periods.values() for day in days]
+        validation = _first_days(self.validation_periods, 1)
         description = f"Test version of {self.name}"
 
         if self.description:
@@ -668,6 +710,7 @@ class Experiment:
             train_days=self.train_days[: test.get("train_days", 1)],
             test_days=test_days,
             test_periods=periods,
+            validation_periods=validation,
             variants={
                 name: {
                     k: v for k, v in changes.items() if k not in NOT_IN_A_TEST_VARIANT
@@ -721,6 +764,7 @@ class Experiment:
                                 out_dir=out_dir,
                                 index=len(specs),
                                 num_env_runners=arm.num_env_runners,
+                                validation=arm.validation_options(),
                             )
                         )
 
@@ -849,6 +893,8 @@ def written_out(data: dict, default_name: str = "experiment") -> dict:
         "scenario": e.scenario,
         "train_days": data.get("train_days", []),
         "test_periods": data.get("test_periods", {}),
+        "validation_periods": data.get("validation_periods", {}),
+        "heldout_carry": e.heldout_carry,
         "env_config": (MARKET_ENV_CONFIG if e.is_market else {}) | e.env_config,
         "algorithms": e.algorithms,
         "paradigms": e.paradigms,
@@ -957,14 +1003,15 @@ def _first_days(periods: dict, count: int) -> dict[str, list[str]]:
     return out
 
 
-def _periods(data: dict) -> dict[str, list[str]]:
-    """The experiment's ``test_periods``, each with its days written out."""
-    periods = data.get("test_periods") or {}
+def _periods(data: dict, key: str = "test_periods") -> dict[str, list[str]]:
+    """The experiment's ``test_periods`` (or ``key``), each with its days written
+    out."""
+    periods = data.get(key) or {}
 
     if not isinstance(periods, dict):
-        raise SpecError("'test_periods' must map a name to its days")
+        raise SpecError(f"'{key}' must map a name to its days")
 
-    return {name: _days(days, "test_periods") for name, days in periods.items()}
+    return {name: _days(days, key) for name, days in periods.items()}
 
 
 def _days(value, key: str) -> list[str]:
