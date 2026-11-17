@@ -3,6 +3,8 @@
     python analysis/thesis_results.py select          Step 2: learning rate and budget
     python analysis/thesis_results.py score <steps>   the arms cut at <steps>: per run,
                                                       per arm, paired differences
+    ... green                                         the same on the replication (green
+                                                      nodes, 8 samplers)
 
 ``select`` reads the synced ``base_step2`` runs' validation tables
 (``results.validation_scores``), prints each rate's mean curve of the validation VTI
@@ -37,14 +39,17 @@ LAST = 1_920_000
 SEED_BOOTSTRAPS = 10_000
 # An arm: (experiments it is in, without the "_at<steps>" suffix; variant; paradigm)
 ARMS = {
-    "base (DTDE, paper, bill)": (("base_step2", "thesis_base"), "lr1e3", "dtde"),
-    "E1 agent": (("thesis_e1_agent",), "obs_agent_lr1e3", "dtde"),
-    "E1 agent_market": (("thesis_e1_market",), "obs_market_lr1e3", "dtde"),
-    "E2 salazar": (("thesis_e2",), "salazar_lr1e3", "dtde"),
-    "E3 CTDE": (("thesis_e3",), "lr1e3", "ctde"),
-    "E3 CTCE": (("thesis_e3_ctce",), "lr1e3", "ctce"),
+    "base (DTDE, paper, bill)": (("bw_step2", "bw_base"), "lr1e3", "dtde"),
+    "E1 agent": (("bw_e1_agent",), "obs_agent_lr1e3", "dtde"),
+    "E1 agent_market": (("bw_e1_market",), "obs_market_lr1e3", "dtde"),
+    "E2 salazar": (("bw_e2",), "salazar_lr1e3", "dtde"),
+    "E3 CTDE": (("bw_e3",), "lr1e3", "ctde"),
+    "E3 CTCE": (("bw_e3",), "lr1e3", "ctce"),
 }
 BASE = "base (DTDE, paper, bill)"
+# The primary set (blackwell1, 14 samplers); pass "green" to read the replication.
+STEP2 = "bw_step2"
+GREEN = {"bw_step2": "base_step2", "bw_base": "thesis_base", "bw_e1_agent": "thesis_e1_agent", "bw_e1_market": "thesis_e1_market", "bw_e2": "thesis_e2", "bw_e3": "thesis_e3"}
 SEASONS = {2: "winter", 5: "spring", 8: "summer", 11: "autumn"}  # the test weeks
 SUMMED = [
     "energy_money",
@@ -66,6 +71,15 @@ HIGHEST = ["highest_trafo_loading", "highest_voltage", "highest_line_loading"]
 # --------------------------------------------------------------------------------------
 # Step 2: the learning rate and the budget
 # --------------------------------------------------------------------------------------
+REPLICATION = "green" in sys.argv[1:]
+
+
+def _name(experiment: str) -> str:
+    """The experiment of the set read: the primary one, or with ``green`` its
+    replication on the green nodes."""
+    return GREEN[experiment] if REPLICATION else experiment
+
+
 def plateau(curve: pd.Series) -> int:
     """The first point after which the curve rises by less than ``RISE`` at every
     point of the next ``WINDOW`` steps; the last point if none (RP-6d)."""
@@ -81,7 +95,7 @@ def plateau(curve: pd.Series) -> int:
 
 
 def select() -> None:
-    runs = [r for r in results.find_runs() if r.experiment == "base_step2"]
+    runs = [r for r in results.find_runs() if r.experiment == _name(STEP2)]
     rows = []
 
     for ref in runs:
@@ -136,7 +150,7 @@ def _vti(totals: pd.DataFrame, money: str) -> pd.Series:
 
 def per_run(steps: int) -> pd.DataFrame:
     """A row per run and policy over the 28 test days."""
-    names = {f"{e}_at{steps}" for arm in ARMS.values() for e in arm[0]}
+    names = {f"{_name(e)}_at{steps}" for arm in ARMS.values() for e in arm[0]}
     refs = [r for r in results.find_runs() if r.experiment in names]
     loaded = results.load_runs(refs)
     days = results.day_indicators(loaded)
@@ -170,7 +184,7 @@ def arm_of(row) -> str | None:
     for arm, (experiments, variant, paradigm) in ARMS.items():
         base = row.experiment.rsplit("_at", 1)[0]
 
-        if base in experiments and row.variant == variant and row.paradigm == paradigm:
+        if base in {_name(e) for e in experiments} and row.variant == variant and row.paradigm == paradigm:
             return arm
 
     return None
