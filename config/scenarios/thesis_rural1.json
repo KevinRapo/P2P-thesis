@@ -211,7 +211,7 @@
     "congestion_threshold": 0.8,
     "voltage_factor": 0.15,
     "imbalance_factor": 0.0,
-    "zone_factor": 0.15,
+    "zone_factor": 0.0,
     "voltage_drop": "measured",
     "losses": "bcdla"
   }

@@ -19,8 +19,10 @@ The observation is computed for the step about to be played, $t$. "The last step
 is $t - 1$, the one just played.
 
 The `observation` setting chooses which signals the agents see: `"paper"` (the
-default) gives all 42, and `"pruned"` the 22 of
-[`PRUNED_OBS`](../../../core/market/signals.py), to compare the two. Every signal is still
+default) gives all 42; `"agent"` the household's 16 signals with the time and the two
+tariffs, and `"agent_market"` those with the 16 market signals, the paper's groups
+added one at a time for the thesis's observation experiment; `"pruned"` the 22 of
+[`PRUNED_OBS`](../../../core/market/signals.py). Every signal is still
 computed either way, so a reward can read one the agents do not see, and the partner
 block follows both.
 

@@ -140,9 +140,11 @@ Fees that see rural1's binding limits. **Measured voltage**: $V_\text{drop} = \m
 
 ### MP-4m: The imbalance fee is off in the thesis scenario
 
-*11 Nov 2026*
+*17 Nov 2026* (decided); *11 Nov 2026* (off, open as a design)
 
-The imbalance fee ([P1] eq. 8b, 8h) is **off in the thesis scenario** (`imbalance_factor` 0 in `thesis_rural1.json`); the code stays, marked `# OPEN MP-4m`. Whether to keep it off, or replace it, stays open
+**Decided: off, not replaced.** What the fee targets ([P1] eq. 8b, 8h) is a participant settling with the DSO when a peer on the other side was available: a missed match. In this market that happens only when the prices do not cross or an agent orders too little (choosing the DSO as a partner no longer exists, RP-1h), and the tariff spread already prices it on **both** sides: the buyer pays $p_\text{utility}$ instead of a peer price and the would-be seller gets $p_\text{FiT}$, so the pair loses the whole spread on that kWh and each bill feels its share. The power flow nets the buyer's draw against the local surplus whatever the contracts say, so the missed match is purely economic. A fee on the same event would only steepen an incentive that exists; [P1] itself argues that the market price already makes the DSO the costlier choice. A charge on the energy that actually leaves the feeder (the community's net exchange, settled pro rata to the settlements in its direction) was considered and dropped: it is an upstream network tariff, a different instrument, not this fee. The mechanism stays in the code as [P1]'s (`imbalance_factor`), 0 in the thesis scenario
+
+**Before (11 Nov 2026).** The imbalance fee ([P1] eq. 8b, 8h) is **off in the thesis scenario** (`imbalance_factor` 0 in `thesis_rural1.json`); the code stays, marked `# OPEN MP-4m`. Whether to keep it off, or replace it, stays open
 
 **Why.** The release never charged it (M-30: $F_\text{imb}$ is 0 in every run), so off is its observable behaviour. Our reading of 8b/8h charges the side of a DSO trade that worsens the order book's balance $B$ (offered minus asked), scaled by $\min(q/\lvert B \rvert, 1)$: (1) the scale saturates near a balanced book, so a change of 0.02 kWh in $B$ moves 15 % of a trade's value from the buyer (about 1.35 EUR) to the seller (about 0.36 EUR) of the same step, and a bigger imbalance means a smaller fee; (2) $B$ is a sum over all orders that no actor sees before acting, so under DTDE and CTDE the fee is unpredictable for the actors and under CTCE, which sets every order, it is not: a bias in the comparison of the paradigms; (3) the price spread and the DSO path fees already make the DSO costly. Alternatives for later: a flat charge on the DSO-routed quantity, or a fee on $\min(q, \lvert B \rvert)$ (continuous, but still unobservable)
 
@@ -161,6 +163,18 @@ A trade's fee is **never below 0**: the zone bonus (eq. 8e) cancels the other pa
 **Evidence.** `tests/market/test_untraded_fees.py`: no trade of a played day has a negative fee
 
 **Implemented in.** [`fees_of`](../../core/market/dso.py#L199-L245)
+
+### MP-4o: The zone bonus is off in the thesis scenario
+
+*17 Nov 2026*
+
+`zone_factor` is **0** in `thesis_rural1.json`; the bonus ([P1] eq. 8e, capped by MP-4n) stays in the code
+
+**Why.** With the fees read along a trade's contract path, the bonus let a trade cancel its whole stress fee by naming a counterparty on the same feeder, with no change in any injection: locality has no physical benefit when the injections are fixed. With partners learned, part of what PPO learns would be this tariff arbitrage, not grid-friendly behaviour. Real local schemes discount same-feeder trades, but not by cancelling a congestion charge. The path-based fees remain a contractual network tariff that reads the measured network state (not an allocation of physical responsibility), so cheaper partner choices are still not evidence of grid improvement; that is judged by loading, voltage and losses
+
+**Evidence.** Discussion of 17 Nov 2026 ([capacity and fees](../discussions/2026-11-17-capacity-and-fees.md))
+
+**Implemented in.** `thesis_rural1.json`
 
 ### MP-5d: Order prices are rounded to whole cents
 
@@ -187,6 +201,18 @@ By default the market day stays **terminated**; `episode_days`, `truncate_episod
 **Evidence.** Discussion of 26 Oct 2026
 
 **Implemented in.** [market_env.py](../../core/env/market_env.py) (`step`, docstring "Episodes")
+
+### RP-1g: The `salazar` reward's C is a reference energy scale
+
+*17 Nov 2026*
+
+[P1]'s grid capacity $C$ is resolved from the scenario when a run does not state it: the **99th percentile over the training steps of $\max(\sum_i \bar q^\text{sell}_{i,t}, \sum_i \bar q^\text{buy}_{i,t})$**, the larger side of the order book the participants could fill, with each participant's eq. 15 bounds (MP-2c, MP-2f) from its profiles and its battery's largest one-step charge and discharge, independent of its state of charge. Recorded in the run's `resolved_config` and reused for validation and the held-out days, like the bill's scale. On `thesis_rural1.json` over 2016: 404 kWh per step at PV ×1, 460 at ×1.25, 517 at ×1.5. "Grid balance" in [P1] is the **order book's** balance $B$ (offered minus asked before stage 3); the docs and the thesis call it that
+
+**Why.** In the reward $C$ only scales $B$ and the order's quantity (`r_grid`, weight 10, and $\gamma_\text{DSO}$); it is not a network capacity, and SimBench has none: the transformer's rating would be wrong (peers trading inside the feeder never reach it). Normalising by the step's own order volume instead was rejected: it rewards relative balance (a one-sided 1 kWh and 100 kWh book score alike) and agents move the denominator, a further change of the objective. A policy-independent envelope of the scenario is reproducible and keeps sensitivity to absolute imbalance. Two properties to state with it: before clipping, the imbalance penalty outweighs the contribution term by $10\lvert B\rvert/q$, which $C$ cannot change; and the "impact" term compares $B$ with the agent's previous-step net trade, not its current order's effect. The `salazar` arm is a reconstructed Salazar configuration (E-16 already changes the original's effective reward)
+
+**Evidence.** Discussion of 17 Nov 2026 ([capacity and fees](../discussions/2026-11-17-capacity-and-fees.md)); `tests/market/test_market_env.py`
+
+**Implemented in.** [`MarketEnv._reference_capacity`](../../core/env/market_env.py), `resolved_config`
 
 ### RP-2a: When the RL layer counts as ready for the market
 

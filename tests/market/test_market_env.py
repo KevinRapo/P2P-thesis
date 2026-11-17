@@ -252,13 +252,42 @@ def test_an_unknown_observation_is_refused():
         MarketEnv({"scenario": str(SCENARIO), "days": DAYS, "observation": "nope"})
 
 
-def test_a_reward_is_refused_without_what_it_needs():
-    """An unknown name, and the salazar reward without a capacity."""
+def test_an_unknown_reward_is_refused():
     with pytest.raises(ValueError, match="unknown reward"):
         MarketEnv({"scenario": str(SCENARIO), "days": DAYS, "reward": "nope"})
 
-    with pytest.raises(ValueError, match="grid_capacity_kwh"):
-        MarketEnv({"scenario": str(SCENARIO), "days": DAYS, "reward": "salazar"})
+
+def test_the_salazar_capacity_is_a_reference_scale_of_the_scenario():
+    """RP-1g: without a stated C the environment resolves it from the training days
+    (the 99th percentile of the larger side of the book the participants could fill,
+    batteries at their largest one-step charge and discharge), records it, and keeps a
+    stated one."""
+    config = {"scenario": str(SCENARIO), "days": DAYS, "reward": "salazar"}
+    resolved = MarketEnv(config)
+    c = resolved.grid_capacity_kwh
+    assert c > 0 and resolved.reward.grid_capacity_kwh == c
+    assert resolved.resolved_config()["grid_capacity_kwh"] == c
+
+    scenario, sides = store.load(SCENARIO), []
+    market = LocalEnergyMarket(scenario)
+    for day in DAYS:
+        for t in range(24):
+            sell = buy = 0.0
+            for p in scenario.participants:
+                g, d = (x[t] for x in market.profiles(day)[p.id])
+                charge = discharge = 0.0
+                if p.battery:
+                    b = p.battery
+                    span = b.capacity_kwh * (b.max_soc - b.min_soc)
+                    charge = min(span / b.charge_efficiency, b.max_power_kw)
+                    discharge = min(span * b.discharge_efficiency, b.max_power_kw)
+                sell += max(0.0, g - d + discharge)
+                buy += max(0.0, d - g) + max(0.0, charge - max(0.0, g - d))
+            sides.append(max(sell, buy))
+    assert c == pytest.approx(np.percentile(sides, 99))
+
+    stated = MarketEnv(config | {"grid_capacity_kwh": 50.0})
+    assert stated.grid_capacity_kwh == 50.0
 
 
 def test_reward_is_the_scaled_net_bill(env):

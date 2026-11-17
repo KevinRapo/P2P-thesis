@@ -266,8 +266,9 @@ class Dso:
         of a net that no single agent sees or controls decides who pays; near a
         balanced book the scale q / |B| saturates at 1. Off in the thesis scenario
         (``imbalance_factor`` 0)."""
-        # OPEN MP-4m: keep the fee off for the thesis, or replace it (a flat charge
-        # on the DSO-routed quantity, or a fee on min(q, |B|)); see open.md.
+        # DEVIATION MP-4m: off in the thesis scenario; what it targets, a settlement
+        # with the DSO where a peer was available, the tariff spread already prices
+        # on both sides. Kept as [P1]'s mechanism.
         if abs(grid_balance_kwh) < 1e-9:
             return GridFees()
 

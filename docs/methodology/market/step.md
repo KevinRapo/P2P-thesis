@@ -267,8 +267,10 @@ at least 2.5 % of its value with nothing drawn from the network at all (MP-4l). 
 to the transformer, so its loading counts in $C_t$ next to the lines' (MP-4l). The zone bonus (8e) cancels fees but never
 pays out: it is at most the sum of the other parts, $F_\text{other}$, so no trade's
 fee is below 0 (MP-4n). The imbalance fee (8b) is switched off in the thesis scenario
-(`imbalance_factor` 0): it reads the order book's balance, not the grid, and lands on
-the minority side by the sign of a net that no agent sees (MP-4m, open).
+(`imbalance_factor` 0): what it targets, a settlement with the DSO where a peer was
+available, the tariff spread already prices on both sides (MP-4m). The zone bonus is
+off there too (`zone_factor` 0): with fees read along the contract path it let a
+trade cancel its fee by naming a neighbour, with no change in any injection (MP-4o).
 
 **6c. Untraded energy pays like a DSO trade.** What no trade covers (a deficit the
 participant did not order, a surplus nobody took) is settled with the DSO at the

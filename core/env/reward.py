@@ -335,7 +335,8 @@ class SalazarReward(Reward):
     ) -> None:
         super().__init__(market, reward_scale, grid_capacity_kwh)
 
-        # OPEN RP-1g: SimBench has no single capacity C, so a run must state one.
+        # RP-1g: C is a reference energy scale; MarketEnv resolves it from the
+        # scenario when the run does not state it.
         if not grid_capacity_kwh or grid_capacity_kwh <= 0:
             raise ValueError("the 'salazar' reward needs a grid_capacity_kwh above 0")
 

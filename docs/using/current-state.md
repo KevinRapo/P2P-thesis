@@ -44,8 +44,9 @@ The thesis scenario is [`thesis_rural1.json`](../../config/scenarios/thesis_rura
 | Setting | Now | Status | ID |
 |---|---|---|---|
 | Fee form | Not saturating: congestion $f \cdot \max(C_t - 0.8, 0) \cdot qp$ with $C_t$ the loading ratio, uncapped; voltage $\max \lvert V - V_\text{slack}\rvert \cdot qp$, uncapped; no thermal part | Fixed | MP-4f |
-| Fee factors | Congestion 2.0 (40 % of the value at rated loading), threshold 0.8; zone bonus 0.15 (never below a zero fee) | Default | MP-4f, MP-4n |
-| Imbalance fee | Off (on hold) | Default | MP-4m |
+| Fee factors | Congestion 2.0 (40 % of the value at rated loading), threshold 0.8 | Default | MP-4f |
+| Zone bonus | Off (`zone_factor` 0): a contract-path discount, no physical benefit | Fixed | MP-4o, MP-4n |
+| Imbalance fee | Off: the tariff spread already prices a missed match | Fixed | MP-4m |
 | Peer charge | 0 | Default | MP-4h |
 | Losses | Measured, shared by BCDLA, charged at the utility price; no-load loss to the DSO | Fixed | MP-4j, MP-4k |
 
@@ -57,9 +58,9 @@ The thesis scenario is [`thesis_rural1.json`](../../config/scenarios/thesis_rura
 | Stored energy at midnight | Worth nothing | Default | MP-1c |
 | No order | Quantity share below 0.05 | Default | RP-1a |
 | Action | Full mixed action: side, partner, quantity, price | Default | RP-5a |
-| Observation | `paper` (42 signals + reputations); `pruned` (22) as an option | Default | RP-1i |
+| Observation | `paper` (42 signals + reputations) in the base; `agent` and `agent_market` for the observation experiment; `pruned` (22) as an option | Default | RP-1i |
 | Reward | `bill`, divided by $p_\text{utility} \cdot E$; `salazar` as an option | Default | RP-1d |
-| Grid capacity $C$ of the `salazar` reward | None | Required | RP-1g |
+| $C$ of the `salazar` reward | A reference energy scale resolved from the training days (99th percentile of the larger fillable side of the book): 404 kWh at PV ×1 | Fixed | RP-1g |
 | KPIs (observation and the `salazar` reward) | The day so far; raw values; definitions as in the code | Default | E-08, E-09, E-10, E-11, E-12, E-13, MP-6a |
 | Discount γ | 0.99 | Default | RP-1j |
 

@@ -84,6 +84,16 @@ both once, on its training days, and keeps them (``resolved_config``):
 validation, the held-out days and a restored policy use
 the training values, so an observation and a reward mean the same everywhere.
 
+The ``"salazar"`` reward also needs C ([P1]'s grid capacity), the scale of the order
+book's balance B. SimBench has no single capacity, and the transformer's rating would
+not be one either (peers trading inside the feeder never reach it), so C is a
+**reference energy scale**, not a network capacity (RP-1g): the 99th percentile, over
+the steps of ``days``, of the most one side of the book could hold,
+max(Σ_i q̄_sell, Σ_i q̄_buy), with each participant's eq. 15 bounds taken from its
+profiles and its battery's largest charge or discharge in one step, whatever its
+state of charge (so the scale does not depend on a policy). Resolved once on the
+training days and kept, like E.
+
 Episodes. ``reset`` draws a window of ``episode_days`` consecutive days from
 ``days`` and rebuilds the market for its first day (changing the day and resetting
 is cheap; the first reset of a process loads the SimBench network). Inside a window
@@ -202,7 +212,8 @@ evaluation; ``zero_policy`` (no orders) stays for tests.
     energy_scale  E in kWh (default: computed from ``days``)
     reward_scale  default ``p_utility · E``
     reward        which reward agents learn from: ``"bill"`` (default) or ``"salazar"``
-    grid_capacity_kwh  the grid capacity C of the ``"salazar"`` reward
+    grid_capacity_kwh  C of the ``"salazar"`` reward, in kWh per step (default:
+                  computed from ``days``, see Scales)
     observation   which signals agents see: ``"paper"`` (default) or ``"pruned"``
     tariff_range  [lowest p_FiT, highest p_utility] scaling prices (default: from
                   ``days``)
@@ -253,8 +264,15 @@ KPI_OBS: tuple[str, ...] = tuple(signals.KPIS)
 OBS_NAMES: tuple[str, ...] = MARKET_OBS + AGENT_OBS + KPI_OBS
 # Signals outside the paper's 42, only in the sets that name them.
 EXTRA_OBS: tuple[str, ...] = tuple(signals.GRID_SIGNALS)
+# The paper's three groups added one at a time (the thesis's observation experiment):
+# ``"agent"`` is the household's own 16 signals with the time and the tariffs, which
+# every participant knows; ``"agent_market"`` adds the 16 market signals; ``"paper"``
+# adds the 10 shared KPIs, the implicit cooperation of [P1].
+PUBLIC_OBS: tuple[str, ...] = ("hour_sin", "hour_cos", "dso_buy_price", "dso_sell_price")
 OBSERVATIONS: dict[str, tuple[str, ...]] = {
     "paper": OBS_NAMES,
+    "agent": PUBLIC_OBS + AGENT_OBS,
+    "agent_market": MARKET_OBS + AGENT_OBS,
     "pruned": signals.PRUNED_OBS,
     "minimal": signals.MINIMAL_OBS,
     "minimal_market": signals.MINIMAL_MARKET_OBS,
@@ -333,11 +351,16 @@ class MarketEnv(MultiAgentEnv):
             config.get("reward_scale") or self.utility_price * self.energy_scale
         )
         self.reward_name: str = config.get("reward") or "bill"
+        self.grid_capacity_kwh: Optional[float] = config.get("grid_capacity_kwh")
+
+        if self.reward_name == "salazar" and not self.grid_capacity_kwh:
+            self.grid_capacity_kwh = self._reference_capacity()
+
         self.reward = build_reward(
             self.reward_name,
             self.market,
             self.reward_scale,
-            config.get("grid_capacity_kwh"),
+            self.grid_capacity_kwh,
         )
         # DEVIATION RP-1h: β names a peer or nobody, never the DSO (see the module).
         self._candidates = {
@@ -382,6 +405,47 @@ class MarketEnv(MultiAgentEnv):
 
         return max(largest, 1e-6)
 
+    def _reference_capacity(self) -> float:
+        """C of the ``"salazar"`` reward (RP-1g): the 99th percentile over the steps of
+        ``days`` of max(Σ_i q̄_sell, Σ_i q̄_buy), each participant's eq. 15 bounds
+        (with MP-2c, MP-2f) from its profiles and its battery's largest one-step
+        charge and discharge, independent of the state of charge. See Scales."""
+        hours = self.market.scenario.grid.step_hours
+        room = {}
+
+        for p in self.market.scenario.participants:
+            b = p.battery
+
+            if b is None:
+                room[p.id] = (0.0, 0.0)
+                continue
+
+            span = b.capacity_kwh * (b.max_soc - b.min_soc)
+            cap = b.max_power_kw * hours
+            room[p.id] = (
+                min(span / b.charge_efficiency, cap),
+                min(span * b.discharge_efficiency, cap),
+            )
+
+        sides = []
+
+        for day in self.days:
+            profiles = self.market.profiles(day)
+            steps = len(next(iter(profiles.values()))[0])
+
+            for t in range(steps):
+                sell = buy = 0.0
+
+                for pid, (generation, demand) in profiles.items():
+                    net = generation[t] - demand[t]
+                    charge, discharge = room[pid]
+                    sell += max(0.0, net + discharge)
+                    buy += max(0.0, -net) + max(0.0, charge - max(0.0, net))
+
+                sides.append(max(sell, buy))
+
+        return max(float(np.percentile(sides, 99)), 1e-6)
+
     def _action_space(self) -> spaces.Dict: #! Action shape
         """One agent's action: the four components of [P1] eq. 2."""
         unit = spaces.Box(-1.0, 1.0, (1,), np.float32)
@@ -406,11 +470,16 @@ class MarketEnv(MultiAgentEnv):
         """The ``env_config`` with the scales this environment resolved: what a run
         records and every later environment of the run (validation, held-out days,
         a restored policy) is built with, so they use the training scales."""
-        return self.config | {
+        resolved = self.config | {
             "energy_scale": self.energy_scale,
             "reward_scale": self.reward_scale,
             "tariff_range": [self.feed_in_tariff, self.utility_price],
         }
+
+        if self.grid_capacity_kwh:
+            resolved["grid_capacity_kwh"] = self.grid_capacity_kwh
+
+        return resolved
 
     def contract(self) -> dict[str, Any]:
         """What an observation and an action mean, for the run record."""
