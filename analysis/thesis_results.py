@@ -43,13 +43,13 @@ ARMS = {
     "E1 agent": (("bw_e1_agent",), "obs_agent_lr1e3", "dtde"),
     "E1 agent_market": (("bw_e1_market",), "obs_market_lr1e3", "dtde"),
     "E2 salazar": (("bw_e2",), "salazar_lr1e3", "dtde"),
-    "E3 CTDE": (("bw_e3",), "lr1e3", "ctde"),
+    "E3 CTDE": (("bw_e3", "bw_e3_retry"), "lr1e3", "ctde"),
     "E3 CTCE": (("bw_e3",), "lr1e3", "ctce"),
 }
 BASE = "base (DTDE, paper, bill)"
 # The primary set (blackwell1, 14 samplers); pass "green" to read the replication.
-STEP2 = "bw_step2"
-GREEN = {"bw_step2": "base_step2", "bw_base": "thesis_base", "bw_e1_agent": "thesis_e1_agent", "bw_e1_market": "thesis_e1_market", "bw_e2": "thesis_e2", "bw_e3": "thesis_e3"}
+STEP2 = ("bw_step2", "bw_step2_retry")
+GREEN = {"bw_step2": "base_step2", "bw_base": "thesis_base", "bw_e1_agent": "thesis_e1_agent", "bw_e1_market": "thesis_e1_market", "bw_e2": "thesis_e2", "bw_e3": "thesis_e3", "bw_step2_retry": "base_step2", "bw_e3_retry": "thesis_e3"}
 SEASONS = {2: "winter", 5: "spring", 8: "summer", 11: "autumn"}  # the test weeks
 SUMMED = [
     "energy_money",
@@ -96,7 +96,7 @@ def plateau(curve: pd.Series) -> int:
 
 
 def select() -> None:
-    runs = [r for r in results.find_runs() if r.experiment == _name(STEP2)]
+    runs = [r for r in results.find_runs() if r.experiment in {_name(e) for e in STEP2}]
     rows = []
 
     for ref in runs:

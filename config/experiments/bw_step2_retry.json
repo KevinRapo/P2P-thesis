@@ -1,0 +1,53 @@
+{
+  "name": "bw_step2_retry",
+  "description": "Restart of bw_step2's runs that failed at start-up (Ray: 'Resource temporarily unavailable', the per-user thread limit on blackwell1 with 31 runs starting at once); same settings and seeds (RP-6d: one restart).",
+  "scenario": "config/scenarios/thesis_rural1.json",
+  "train_days": {"from": "2016-01-01", "to": "2016-12-30"},
+  "validation_periods": {
+    "winter": {"from": "2016-01-11", "to": "2016-01-17"},
+    "spring": {"from": "2016-04-11", "to": "2016-04-17"},
+    "summer": {"from": "2016-07-11", "to": "2016-07-17"},
+    "autumn": {"from": "2016-10-10", "to": "2016-10-16"}
+  },
+  "test_periods": {
+    "winter": {"from": "2016-02-15", "to": "2016-02-21"},
+    "spring": {"from": "2016-05-16", "to": "2016-05-22"},
+    "summer": {"from": "2016-08-15", "to": "2016-08-21"},
+    "autumn": {"from": "2016-11-14", "to": "2016-11-20"}
+  },
+  "heldout_carry": false,
+  "env_config": {"reward": "bill", "observation": "paper"},
+  "algorithms": ["ppo"],
+  "paradigms": ["dtde"],
+  "seeds": [2],
+  "variants": {
+    "lr3e4": {
+      "scenario": {
+        "grid": {"generation_scale": 1.25}
+      },
+      "training": {
+        "ppo": {"lr": 0.0003}
+      }
+    }
+  },
+  "budget": 1920000,
+  "eval_points": 8,
+  "eval_episodes": 5,
+  "training": {
+    "ppo": {
+      "gamma": 0.99,
+      "lambda_": 0.95,
+      "grad_clip": 0.5,
+      "clip_param": 0.2,
+      "entropy_coeff": 0.01,
+      "train_batch_size_per_learner": 4000,
+      "minibatch_size": 500,
+      "num_epochs": 10
+    }
+  },
+  "max_parallel": 5,
+  "num_env_runners": 14,
+  "torch_threads": 1,
+  "ray_thread_caps": true,
+  "resources": {"cpus": 15, "mem_gb": 16, "minutes": 238, "node": "blackwell1"}
+}
