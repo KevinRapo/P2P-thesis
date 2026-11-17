@@ -74,6 +74,11 @@ STALE = (
     "evaluation.csv",
     "evaluation_agents.csv",
     "evaluation_episodes.csv",
+    "validation.csv",
+    "validation_agents.csv",
+    "validation_episodes.csv",
+    "validation_steps.csv",
+    "validation_agent_steps.csv",
     "heldout.csv",
     "heldout_agents.csv",
     "heldout_episodes.csv",
@@ -278,7 +283,9 @@ def _reset(spec: RunSpec) -> None:
     for name in STALE:
         (spec.out_dir / name).unlink(missing_ok=True)
 
-    shutil.rmtree(spec.out_dir / "checkpoint", ignore_errors=True)
+    for folder in ("checkpoint", "checkpoints"):  # an earlier attempt's policies
+        shutil.rmtree(spec.out_dir / folder, ignore_errors=True)
+
     write_status(
         spec.out_dir, replace=True, state="queued", index=spec.index, budget=spec.budget
     )
