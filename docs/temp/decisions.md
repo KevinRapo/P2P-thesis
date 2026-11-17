@@ -45,6 +45,18 @@ Everything a participant settles with the DSO pays the same grid fees: its **sta
 
 **Implemented in.** [`_charge_fees`](../../core/market/lem.py#L679-L700), `StepRecord.untraded`, `Dso.settle`, the baseline's and the trade tables' fee columns; [Market step, 6c](../methodology/market/step.md#6-fees). The calculated references `non_p2p` and the ceiling stay before-fees (the ceiling is still an upper bound: no fee is below 0, MP-4n)
 
+### MP-2b: The market has no order price bounds of its own
+
+*17 Nov 2026*
+
+`min_price` and `max_price` are **removed** (with MP-2e). An order's price is not limited by the market: it is rounded to whole cents (MP-5d), and an order priced outside the tariff band is kept as given and clears with the DSO at the tariff. The reconstructed `salazar` reward's economic term divides both gains by the tariff band instead of by $p_\text{utility} - p_\text{min}$ and $p_\text{max} - p_\text{FiT}$ (`# DEVIATION MP-2b` in [reward.py](../../core/env/reward.py))
+
+**Why.** The bounds never bind: the RL decoding maps the price into the step's tariff band and the bidding rule prices inside it, so [P1] eq. 2's $[p_\text{min}, p_\text{max}]$ is that band here. Static bounds of [0, 1] were a second range that no participant of the framework reaches, two arbitrary settings in every scenario. Setting kept only because nothing calls it today is clutter (the guide's rule on settings outside the rule-based and RL paths)
+
+**Evidence.** Discussion of 17 Nov 2026; `tests/market/`; [market_2_step.ipynb](../../notebooks/market/market_2_step.ipynb) (127 of 127 checks, an out-of-band order kept as given)
+
+**Implemented in.** `MarketSetup`, [`_validate`](../../core/market/lem.py), `rule_based_bid.net_position`, `economic_reward`, the Studio's Scenario and Summary pages, the scenarios in `config/`
+
 ### MP-2f: A household's own surplus counts against its battery room
 
 *11 Nov 2026*
@@ -82,11 +94,19 @@ The graph model ([P1] §3.5) is **removed**; the power flow is the only grid the
 
 **Implemented in.** `core/grid/graph.py`, `grid.method`, `graph_capacity`, `graph_total_kw`, `StepRecord.signal` and the Studio's fields removed; the DSO always observes the power flow ([Market step, 5. Grid](../methodology/market/step.md#5-grid)). Old scenario and run files that carry the keys still load
 
-### MP-4f: Thermal threshold 0.8 in the thesis scenario
+### MP-4f: Fees that cannot saturate
 
-*11 Nov 2026*
+*17 Nov 2026* (the form); *11 Nov 2026* (the first threshold, below)
 
-The thesis scenario's `thermal_threshold` is **0.8**, the same as the congestion threshold (the code's default stays 0.2, the paper's). A first, untuned choice: the fee levels remain open
+No fee part saturates. $C_t$ is the highest loading on the trade's path as a ratio, **not capped at 1**; the congestion part is $f_\text{cong} \max(C_t - C_\text{th}, 0)\, qp$, linear above its threshold without limit; the voltage part is $V_\text{drop}\, qp$, without [P1]'s cap $V_\text{th}$; [P1]'s thermal part (8d, 8g) is **dropped**. The thesis scenario has $C_\text{th} = 0.8$ and $f_\text{cong} = 2.0$: 40 % of the trade's value at the rated loading, what the two capped parts gave together before, and rising beyond it (100 % of the value at 130 %). Whether a cap is wanted after all (e.g. at the trade's value) and the factor values stay open (MP-4f in [open items](open.md))
+
+**Why.** With the capped parts the fee reached its ceiling at 86 % loading (thermal at its 0.3 cap) and 100 % (congestion, with $C_t$ capped at 1): a line at 101 % and one at 160 % cost the same, so the fee stopped signalling exactly where the limits are broken, and the development runs found that the fees barely change what is learned. The thermal part read the same loading as the congestion part a second time, with another slope and a cap. A fee may now exceed the trade's value: on a badly overloaded path a trade stops paying
+
+**Evidence.** Discussion of 17 Nov 2026; [edge_cases.ipynb](../../notebooks/market/illustration/edge_cases.ipynb) §4 (the thermal part at its cap from 44 % loading with the paper's threshold); `tests/market/test_fees_timing.py`, `test_untraded_fees.py`, `test_voltage_drop.py`; [market_1_formulas.ipynb](../../notebooks/market/market_1_formulas.ipynb), [market_2_step.ipynb](../../notebooks/market/market_2_step.ipynb)
+
+**Implemented in.** [`Dso.congestion`, `fees_of`](../../core/market/dso.py), `GridFees` (no `thermal`), `DsoSetup` (no `thermal_threshold`, `thermal_cap`, `voltage_threshold`), `thesis_rural1.json`, the Studio's Scenario and Summary pages
+
+**Before (11 Nov 2026): thermal threshold 0.8 in the thesis scenario.** The thesis scenario's `thermal_threshold` is **0.8**, the same as the congestion threshold (the code's default stays 0.2, the paper's). A first, untuned choice: the fee levels remain open
 
 **Why.** With the transformer counted in $C_t$ (MP-4l) the paper's 0.2 charged every DSO settlement above 20 % transformer loading, and capped at 30 % of the value from 44 %: on rural1 the thermal part was 96.5 EUR of the 137 EUR the DSO trades paid in a June week
 

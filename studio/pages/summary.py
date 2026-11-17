@@ -233,7 +233,6 @@ def _market(scenario: Scenario) -> None:
     key_values(
         {
             "Peer price": MECHANISMS.get(m.mechanism, m.mechanism),
-            "Price bounds": f"{m.min_price:g} – {m.max_price:g} per kWh",
             "Quantity bounds": f"{m.min_quantity:g} – {m.max_quantity:g} kWh",
             "Price decimals": m.price_decimals,
             "Preferred partners": "on" if m.partner_preference else "off",
@@ -259,10 +258,9 @@ def _dso(scenario: Scenario) -> None:
             "Buyer's share of a fee": f"{d.fee_buyer_share:g}",
             "Loss factor": f"{d.loss_factor:g} per km",
             "Congestion": f"{d.congestion_factor:g} over {d.congestion_threshold:g}",
-            "Voltage": f"{d.voltage_factor:g} per km, over {d.voltage_threshold:g}",
+            "Voltage": f"{d.voltage_factor:g} per km (distance drop)",
             "Voltage drop": VOLTAGE_DROPS.get(d.voltage_drop, d.voltage_drop),
             "Losses": LOSSES.get(d.losses, d.losses),
-            "Thermal": f"over {d.thermal_threshold:g}, capped at {d.thermal_cap:g}",
             "Imbalance factor": f"{d.imbalance_factor:g}",
             "Same-zone bonus": f"{d.zone_factor:g}",
         }

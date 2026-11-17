@@ -73,12 +73,13 @@ def test_every_bus_on_the_path_counts_not_only_its_ends():
     assert dso.voltage_drop_of(along) == pytest.approx(0.025)
 
 
-def test_unknown_buses_cost_nothing_and_the_fee_is_capped():
+def test_unknown_buses_cost_nothing_and_the_fee_is_not_capped():
+    """MP-4f: a larger deviation always costs more."""
     dso = Dso(DsoSetup(voltage_drop="measured"))
     assert dso.voltage_drop_of(GridPath(bus_a="x", bus_b="y")) == 0.0
     observed(dso, slack=1.0, x=1.12)
     fees = dso.fees_of(1.0, 1.0, GridPath(bus_a="x", bus_b="x"), 0.0)
-    assert fees.voltage == pytest.approx(dso.setup.voltage_threshold)
+    assert fees.voltage == pytest.approx(0.12)
 
 
 def test_the_slack_is_the_external_grids_set_point_the_feeding_one_with_several():

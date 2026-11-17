@@ -101,8 +101,6 @@ def net_position(  #! Market 2: bidding rule
             continue
 
         price += rng.uniform(-1, 1) * market.bid_jitter * spread
-        # Clipped to [p_min, p_max] ([P1] eq. 2, §3.2.3)
-        price = min(market.max_price, max(market.min_price, price))
         out[pid] = (is_buy, price, quantity, (partners or {}).get(pid))
 
     return out

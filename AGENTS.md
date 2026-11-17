@@ -169,6 +169,18 @@ generators (`core/market/profile/`) and its blockchain-style trade ledger
 changes no market result. Both are in the original on the `main` branch
 (`src/profile/`, `src/market/validation.py`). When unsure, keep it and ask.
 
+## No settings the framework cannot reach
+
+A setting, option or code path that neither the rule-based participants nor the RL
+agents can reach, and that changes no result of the framework, is removed from
+everywhere (code, scenarios in `config/`, the Studio, notebooks, docs), not kept "in
+case": every such parameter is clutter a newcomer has to understand and a scenario has
+to carry. Example: the order price bounds `min_price` and `max_price` (removed 17 Nov
+2026, MP-2b), which never bound because the agents and the rule price inside the
+tariff band. Record the removal as a decision with its ID. This does not override the
+section above: a mechanism of the paper's market or grid stays; an arbitrary
+parameter around it does not.
+
 ## RL layer
 
 - RLlib's own PPO with RLlib's own modules and distributions: no custom losses,

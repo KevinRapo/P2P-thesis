@@ -34,7 +34,7 @@ from core.config.scenario import Scenario
 from core.market.lem import LocalEnergyMarket, StepRecord, net_bill
 
 # The fee parts summed per step (``GridFees``), and the loss charge (``dso.losses``).
-FEE_PARTS = ("congestion", "thermal", "voltage", "transmission", "zone", "imbalance")
+FEE_PARTS = ("congestion", "voltage", "transmission", "zone", "imbalance")
 VIOLATIONS = {
     "V_LOW": "voltage_low",
     "V_HIGH": "voltage_high",

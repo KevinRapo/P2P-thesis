@@ -181,11 +181,9 @@ def economic_reward(
     clearing_price: float,
     feed_in_tariff: float,
     utility_price: float,
-    min_price: float,
-    max_price: float,
 ) -> float:
     """r_econ: the agent's mean price against the clearing price, and its gain
-    against the DSO's tariffs."""
+    against the DSO's tariffs, as a share of the tariff band."""
     if clearing_price == 0 or not trades:
         return 0.0
 
@@ -194,10 +192,15 @@ def economic_reward(
     deviation = abs(price - clearing_price) / clearing_price
     efficiency = 1.0 - min(deviation * P_PRICE_DEVIATION, 1.0)
 
+    # DEVIATION MP-2b: the original divides by utility − p_min (buying) and
+    # p_max − FiT (selling); the market has no p_min, p_max of its own, the tariff
+    # band is its price range ([P1] eq. 2), so both gains are shares of that band.
+    most = utility_price - feed_in_tariff
+
     if order.is_buy:
-        gain, most = utility_price - price, utility_price - min_price
+        gain = utility_price - price
     else:
-        gain, most = price - feed_in_tariff, max_price - feed_in_tariff
+        gain = price - feed_in_tariff
 
     score = _clip(gain / most, 0.0, 1.0) if most > 0 else 0.0
 
@@ -410,8 +413,6 @@ class SalazarReward(Reward):
             clearing_price,
             inputs.feed_in_tariff,
             inputs.utility_price,
-            rules.min_price,
-            rules.max_price,
         )
         terms = {
             "reward_grid": W_GRID

@@ -970,7 +970,6 @@ def _trade_rows(record: StepRecord) -> list[dict[str, Any]]:
             "fee_transmission": float(t.fee_parts.transmission),
             "fee_imbalance": float(t.fee_parts.imbalance),
             "fee_voltage": float(t.fee_parts.voltage),
-            "fee_thermal": float(t.fee_parts.thermal),
             "fee_zone": float(t.fee_parts.zone),
             "peer_charge": float(t.fee_parts.peer_charge),
         }

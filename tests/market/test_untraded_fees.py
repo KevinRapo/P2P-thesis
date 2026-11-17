@@ -23,7 +23,7 @@ from core.market.lem import LocalEnergyMarket, OrderIntent, net_bill
 from core.market.order import UNTRADED
 
 SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_market.json"
-STEP = 12  # midday: the loading is high enough for a thermal fee
+STEP = 12  # midday: the loading is high enough for a congestion fee
 
 
 def market(**dso) -> LocalEnergyMarket:
@@ -99,7 +99,7 @@ def test_ordering_the_energy_to_the_dso_costs_the_same_as_not_ordering_it():
     assert ordered.stage == 3 and not any("P3" in (t.buyer_id, t.seller_id) for t in b.untraded)
     assert left.quantity == pytest.approx(deficit) and left.price == ordered.price
 
-    for part in ("congestion", "thermal", "voltage", "transmission", "zone", "imbalance"):
+    for part in ("congestion", "voltage", "transmission", "zone", "imbalance"):
         assert getattr(ordered.fee_parts, part) == pytest.approx(
             getattr(left.fee_parts, part)
         )
@@ -163,12 +163,11 @@ def test_a_trade_with_the_dso_sees_the_transformer_a_peer_trade_does_not():
     path = GridPath(lines=("l1",), zone_a="a", zone_b="b")
 
     assert dso.congestion(("l1",)) == pytest.approx(0.4)
-    assert dso.congestion(("l1",), transformer=True) == 1.0  # capped at 100 %
+    assert dso.congestion(("l1",), transformer=True) == pytest.approx(1.14)
     peer = dso.fees_of(1.0, 0.3, path, 0.0)
     to_dso = dso.fees_of(1.0, 0.3, path, 0.0, transformer=True)
     assert peer.congestion == 0.0  # 40 % is under the 80 % threshold
-    assert to_dso.congestion == pytest.approx(0.5 * (1.0 - 0.8) * 0.3)
-    assert to_dso.thermal > peer.thermal
+    assert to_dso.congestion == pytest.approx(0.5 * (1.14 - 0.8) * 0.3)
 
 
 def test_a_transformer_below_the_lines_changes_nothing_and_none_is_zero():
@@ -185,7 +184,7 @@ def test_a_transformer_below_the_lines_changes_nothing_and_none_is_zero():
 # --------------------------------------------------------------------------------------
 def test_the_zone_bonus_is_capped_at_the_fees_it_cancels():
     dso = Dso(DsoSetup(voltage_drop="measured"))
-    observed(dso, {"l1": 90.0}, trafo=None)
+    observed(dso, {"l1": 150.0}, trafo=None)
     dso.bus_voltage_pu = {"a": 1.0}
     same_zone = GridPath(lines=("l1",), bus_a="a", bus_b="a")
     value = 2.0 * 0.2

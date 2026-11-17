@@ -152,8 +152,6 @@ class MarketSetup:
     Attributes:
         mechanism: Pricing mechanism (``core/market/clearing_price.py``, [P1]
             §3.3.3).
-        min_price: Lowest order price, p_min ([P1] eq. 2).
-        max_price: Highest order price, p_max ([P1] eq. 2).
         min_quantity: Smallest order quantity (kWh), q_min ([P1] eq. 2).
         max_quantity: Largest order quantity (kWh), q_max ([P1] eq. 2).
         price_decimals: Decimals an order price is rounded to (2: whole cents).
@@ -180,8 +178,6 @@ class MarketSetup:
     """
 
     mechanism: str = "average"
-    min_price: float = 0.0
-    max_price: float = 1.0
     min_quantity: float = 0.0
     max_quantity: float = 100.0
     price_decimals: int = 2
@@ -203,9 +199,6 @@ class MarketSetup:
             found.append(
                 "Bid margin is 0.5 or more: peers will not trade with each other."
             )
-
-        if self.min_price > self.max_price:
-            found.append("Min price is above max price.")
 
         if self.min_quantity > self.max_quantity:
             found.append("Min quantity is above max quantity.")
@@ -320,12 +313,11 @@ class DsoSetup:
         fee_buyer_share: Share of a peer-to-peer trade's fee the buyer pays; the
             seller pays the rest. A trade with the DSO is paid by the participant.
         loss_factor: κ of [P1] eq. 18, per km: l_ij = d_ij · q_ij · κ.
-        congestion_factor: f_cong of [P1] eq. 8a.
+        congestion_factor: f_cong of [P1] eq. 8a: the fee per unit of loading above
+            the threshold, as a share of the trade's value. Not capped (MP-4f).
         congestion_threshold: C_threshold of [P1] eq. 8a.
-        voltage_factor: f_volt of [P1] eq. 8f, per km.
-        voltage_threshold: V_threshold of [P1] eq. 8c.
-        thermal_threshold: T_threshold of [P1] eq. 8g.
-        thermal_cap: f_threshold of [P1] eq. 8d.
+        voltage_factor: f_volt of [P1] eq. 8f, per km (``voltage_drop =
+            "distance"``).
         imbalance_factor: f_imb of [P1] eq. 8b.
         zone_factor: f_zone of [P1] eq. 8e, the same-zone bonus.
         voltage_drop: V_drop of [P1] eq. 8c: ``"distance"`` (eq. 8f, f_volt ·
@@ -347,9 +339,6 @@ class DsoSetup:
     congestion_factor: float = 0.5
     congestion_threshold: float = 0.8
     voltage_factor: float = 0.15
-    voltage_threshold: float = 0.05
-    thermal_threshold: float = 0.2
-    thermal_cap: float = 0.3
     imbalance_factor: float = 0.15
     zone_factor: float = 0.15
     voltage_drop: str = "distance"
@@ -387,8 +376,8 @@ class DsoSetup:
         if not 0 <= self.fee_buyer_share <= 1:
             found.append("Fee buyer share is not in 0-1.")
 
-        if not 0 <= self.thermal_threshold < 1:
-            found.append("Thermal threshold is not in 0-1 (1 excluded).")
+        if self.congestion_factor < 0 or self.congestion_threshold < 0:
+            found.append("Congestion factor or threshold is negative.")
 
         if self.voltage_drop not in ("distance", "measured"):
             found.append("Voltage drop is not 'distance' or 'measured'.")

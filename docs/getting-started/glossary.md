@@ -18,7 +18,7 @@
 | **Clearing** | Matching the orders: preferred partners, then the double auction, then the DSO ([§3](../methodology/market/step.md#3-clearing)) |
 | **Pricing mechanism** | How a matched pair's price is set from the bid and the ask ([config](../using/running/config.md)) |
 | **Reputation** | A score per participant, updated every step. It weighs partner choice and breaks ties in the double auction |
-| **Fees** | The DSO's charges on a trade: congestion, thermal, voltage, transmission and imbalance parts, less a bonus for trades within one feeder ([§6](../methodology/market/step.md#6-fees)) |
+| **Fees** | The DSO's charges on a trade: congestion, voltage, transmission and imbalance parts, less a bonus for trades within one feeder ([§6](../methodology/market/step.md#6-fees)) |
 
 ## The grid
 
@@ -27,7 +27,7 @@
 | **SimBench** | German benchmark grids with line data and a year of 15-minute profiles ([SimBench](../using/data/simbench.md)) |
 | **Profile** | A time series of factors of an element's rated power; SimBench's loads and generators each follow one ([profiles](../using/data/profiles.md)) |
 | **Study case** | One of SimBench's fixed planning situations (hL, hPV, lPV…): every element at a set share of its rated power, replacing its profile |
-| **Line loading** | A line's current as a share of its rating, in %. The congestion and thermal fees read it |
+| **Line loading** | A line's current as a share of its rating, in %. The congestion fee reads it |
 
 ## Learning
 

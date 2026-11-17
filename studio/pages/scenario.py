@@ -668,7 +668,6 @@ def _clearing() -> None:
     _numbers(
         "market",
         [
-            [("min_price", "Min price", 0.01), ("max_price", "Max price", 0.01)],
             [
                 ("min_quantity", "Min quantity (kWh)", 0.1),
                 ("max_quantity", "Max quantity (kWh)", 1),
@@ -901,11 +900,6 @@ def _fees() -> None:
             ],
             [
                 ("voltage_factor", "Voltage factor (per km)", 0.01),
-                ("voltage_threshold", "Voltage threshold", 0.01),
-            ],
-            [
-                ("thermal_threshold", "Thermal threshold", 0.05),
-                ("thermal_cap", "Thermal cap", 0.05),
             ],
             [
                 ("imbalance_factor", "Imbalance factor", 0.05),

@@ -122,7 +122,7 @@ the losses of the power flow of all participants together). Its `energy_bill` is
 program's money, its `bill` that less the fees and the loss charge: the participants'
 scores (PI, EI, `participants_better`) compare bills after fees on both sides. On
 rural1, a July week: 9 991 kWh settled for 102.8 EUR in fees (8.3 % of their value), where
-the rule's DSO trades paid 2.6 %, mostly thermal and congestion at the transformer.
+the rule's DSO trades paid 2.6 %, mostly thermal and congestion at the transformer (with the fees before MP-4f, 17 Nov 2026).
 
 The gap between floor and ceiling is exactly the value of netting, together with
 what shared timing of the batteries adds to it. That gap is what a market can

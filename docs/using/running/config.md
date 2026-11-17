@@ -70,8 +70,6 @@ Read by [`core/config/store.py`](../../../core/config/store.py) into the records
   ],
   "market": {
     "mechanism": "average",
-    "min_price": 0.0,
-    "max_price": 1.0,
     "min_quantity": 0.0,
     "max_quantity": 100.0,
     "price_decimals": 2,
@@ -94,9 +92,6 @@ Read by [`core/config/store.py`](../../../core/config/store.py) into the records
     "congestion_factor": 0.5,
     "congestion_threshold": 0.8,
     "voltage_factor": 0.15,
-    "voltage_threshold": 0.05,
-    "thermal_threshold": 0.2,
-    "thermal_cap": 0.3,
     "imbalance_factor": 0.15,
     "zone_factor": 0.15,
     "voltage_drop": "distance"
@@ -142,7 +137,6 @@ The battery ([P1] eq. 16):
 | Setting | Values | What it does |
 |---|---|---|
 | `mechanism` | `"average"`, `"buyer"`, `"seller"`, `"bid_ask_spread"`, `"nash_bargaining"`, `"proportional_surplus"` | The price of a matched pair ([`clearing_price.py`](../../../core/market/clearing_price.py), [P1] §3.3.3) |
-| `min_price`, `max_price` | numbers | Order prices are limited to this range ([P1] eq. 2) |
 | `min_quantity` | kWh | An order at or below this is dropped |
 | `max_quantity` | kWh | Orders are cut to this |
 | `price_decimals` | integer | Order prices are rounded to this many decimals: 2 is whole cents, so equal prices occur and reputation can break the tie (MP-5d) |
@@ -173,16 +167,14 @@ not read `bid_margin`.
 | `fees_charged` | `true`, `false` | Whether fees are paid. They are calculated and recorded either way |
 | `fee_buyer_share` | `0` to `1` | The buyer's share of a peer trade's fee; the seller pays the rest. A trade with the DSO is paid by the participant |
 | `loss_factor` | per km | `κ` of [P1] eq. 18: `l_ij = d_ij · q_ij · κ` |
-| `congestion_factor`, `congestion_threshold` | numbers | `f_cong` and `C_threshold` of eq. 8a: above the threshold, the fee is `factor · (c − threshold) · value` |
+| `congestion_factor`, `congestion_threshold` | numbers | `f_cong` and `C_threshold` of eq. 8a: above the threshold, the fee is `factor · (c − threshold) · value`, with `c` the highest loading on the path as a ratio, **not capped**, so an overload keeps raising it (MP-4f). `thesis_rural1.json` has factor 2.0: 40 % of the trade's value at the rated loading |
 | `voltage_drop` | `"distance"`, `"measured"` | `V_drop` of eq. 8c: `voltage_factor · d_ij`, or the largest deviation from the external grid's set point (1.025 pu on SimBench's networks), `max |V − V_slack|`, over the buses on the trade's path in the step's power flow |
 | `losses` | `"trades"`, `"bcdla"`, `"pro_rata"` | Who pays the network's losses. `"trades"`: [P1] eq. 18, each trade's loss $\kappa\, d_{ij}\, q_{ij}$ priced into its fee as $F_\text{trans}$. A rule of [losses.py](../../../core/grid/losses.py): the step's measured power-flow losses shared out, each participant paying its share at the step's utility price (a negative share is paid back) and $F_\text{trans}$ 0. `"bcdla"` needs a radial network ([Adding an option](../../methodology/architecture/development/options.md)) |
 | `voltage_factor` | per km | `f_volt` of eq. 8f. Only read with `"distance"` |
-| `voltage_threshold` | number | `V_threshold` of eq. 8c: the cap on the voltage part |
-| `thermal_threshold`, `thermal_cap` | threshold in `[0, 1)` | `T_threshold` and `f_threshold` of eq. 8g and 8d; the default is the paper's 0.2, `thesis_rural1.json` has 0.8 (MP-4f) |
 | `imbalance_factor` | number | `f_imb` of eq. 8b, on a DSO trade that worsens the balance; 0 (off) in `thesis_rural1.json` (MP-4m) |
 | `zone_factor` | number | `f_zone` of eq. 8e, the bonus for a same-zone trade |
 
-[P1] gives no fee factors. The defaults are the original code's.
+[P1] gives no fee factors. The defaults are the original code's. The voltage part is `V_drop · value`, without [P1]'s cap, and [P1]'s thermal part (8d, 8g), a second, capped reading of the same loading as the congestion part, is not computed (MP-4f): a capped fee stops signalling where the limits are broken. The market has no order price bounds: the agents and the rule price inside the tariff band, [P1] eq. 2's price range (MP-2b, MP-2e).
 
 ## Price file
 

@@ -189,16 +189,18 @@ class Dso:
 
     def congestion(self, lines: Sequence[str], transformer: bool = False) -> float:
         """C_t of a trade ([P1] eq. 8a): the highest loading on its path in the
-        step's power flow, 0 to 1. A trade with the DSO runs up to the transformer
-        (``transformer``), which counts as part of its path: its loading is
-        compared with the lines'. 0 without lines, or when the flow did not
-        converge (no loadings)."""
+        step's power flow, as a ratio (1 at the rated loading). A trade with the DSO
+        runs up to the transformer (``transformer``), which counts as part of its
+        path: its loading is compared with the lines'. 0 without lines, or when the
+        flow did not converge (no loadings).
+
+        DEVIATION MP-4f: not capped at 1, so an overload keeps raising the fee."""
         loading = [self.line_loading_percent.get(line, 0.0) for line in lines]
 
         if transformer:
             loading.append(self.trafo_loading_percent)
 
-        return min(1.0, max(loading, default=0.0) / 100)
+        return max(loading, default=0.0) / 100
 
     def transmission_loss(self, distance_km: float, quantity: float) -> float:
         """[P1] eq. 18: l_ij = d_ij · q_ij · κ."""
@@ -221,6 +223,12 @@ class Dso:
         per participant instead (``loss_charge``), and F_trans is 0. F_imb is 0:
         eq. 8h gives a balance impact only to trades with the DSO (``charge``).
 
+        DEVIATION MP-4f: no part saturates. The congestion part grows linearly with
+        the loading above its threshold, without [P1]'s cap on C_t; the voltage part
+        is the voltage drop itself, without the cap V_threshold (8c); and the
+        thermal part (8d, 8g), a second, capped reading of the same loading, is
+        dropped. A capped fee stops signalling exactly where the limits are broken.
+
         The zone bonus (eq. 8e) cancels fees but never pays out: it is at most the
         sum of the other parts, so a trade's fee is never below 0 (MP-4n)."""
         s = self.setup
@@ -232,23 +240,16 @@ class Dso:
             congestion = s.congestion_factor * (c - s.congestion_threshold)
             congestion *= value
 
-        thermal = 0.0
-
-        if c > s.thermal_threshold:  # 8g, 8d
-            f_thermal = (c - s.thermal_threshold) / (1 - s.thermal_threshold)
-            thermal = min(f_thermal, s.thermal_cap) * value
-
         v_drop = self.voltage_drop_of(path)  # 8f, or measured
         transmission = loss_kwh * price if s.losses == "trades" else 0.0
-        voltage = min(v_drop, s.voltage_threshold) * value  # 8c
-        charges = congestion + transmission + voltage + thermal
+        voltage = v_drop * value  # 8c
+        charges = congestion + transmission + voltage
         bonus = min(s.zone_factor * value, charges) if path.same_zone else 0.0
 
         return GridFees(
             congestion=congestion,
             transmission=transmission,
             voltage=voltage,
-            thermal=thermal,
             zone=-bonus,  # 8e, capped at the fees it cancels
             peer_charge=s.peer_charge_kwh * quantity,
         )
@@ -315,7 +316,7 @@ class Dso:
         grid_balance_kwh: float = 0.0,
     ) -> tuple[Trade, ...]:
         """Every trade of the step with its fee (eq. 8), after the step's power
-        flow (``observe``): the congestion and thermal parts see the loading that
+        flow (``observe``): the congestion part sees the loading that
         these trades, with everything else on the network, actually caused.
 
         A trade runs along ``route(buyer, seller)``: for a peer-to-peer trade the

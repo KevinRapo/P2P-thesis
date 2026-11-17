@@ -561,9 +561,12 @@ class LocalEnergyMarket:
     def _validate(  #! Market 2: validate orders
         self, inputs: StepInputs, intents: Mapping[str, OrderIntent]
     ) -> tuple[dict[str, OrderIntent], list[str]]:
-        """Phase 1 ([P1] §3.9): limit each intent to the market bounds ([P1] eq. 2,
-        §3.2.3) and to what the participant can physically deliver or take ([P1]
-        eq. 15a-b), and round its price (MP-5d)."""
+        """Phase 1 ([P1] §3.9): limit each intent's quantity to the market's bound
+        and to what the participant can physically deliver or take ([P1] eq. 15a-b),
+        and round its price (MP-5d). The price is not limited: the agents and the
+        rule price inside the tariff band, which is [P1] eq. 2's [p_min, p_max] here,
+        and an order priced outside it clears with the DSO at the tariff (MP-2b,
+        MP-2e)."""
         m = self.scenario.market
         valid, notes = {}, []
 
@@ -575,26 +578,23 @@ class LocalEnergyMarket:
             p, step = self.participants[pid], inputs.step
             most = p.max_buy_kwh(step) if i.is_buy else p.max_sell_kwh(step)
             quantity = min(i.quantity_kwh, most, m.max_quantity)
-            price = min(m.max_price, max(m.min_price, i.price))
+            price = i.price
 
             if quantity < i.quantity_kwh - 1e-9:
                 notes.append(
                     f"{pid}: {i.quantity_kwh:.2f} kWh limited to {quantity:.2f}"
                 )
 
-            if price != i.price:
-                notes.append(f"{pid}: price {i.price:.3f} limited to {price:.3f}")
-
             if quantity <= max(m.min_quantity, 1e-9):
                 continue
 
             # DEVIATION MP-5d: order prices in whole cents, so that equal prices occur
             # and reputation, the auction's tie-break, can decide between them. The
-            # rounding keeps an order inside the bounds and, if it was inside it, the
-            # DSO's band (feed-in tariff to peer ceiling).
+            # rounding keeps an order that was inside the DSO's band (feed-in tariff
+            # to peer ceiling) inside it.
             fit, ceiling = inputs.feed_in_tariff, self.dso.peer_ceiling()
-            low = max(m.min_price, fit) if price >= fit else m.min_price
-            high = min(m.max_price, ceiling) if price <= ceiling else m.max_price
+            low = fit if price >= fit else -math.inf
+            high = ceiling if price <= ceiling else math.inf
             price = _round_within(price, low, high, m.price_decimals)
             valid[pid] = OrderIntent(pid, i.is_buy, price, quantity, i.partner_id)
 

@@ -199,6 +199,7 @@ nav:
               - Adding an option: methodology/architecture/development/options.md
           - Around the code: methodology/architecture/around.md
   - Using it:
+      - Current settings and limitations: using/current-state.md
       - Data:
           - SimBench: using/data/simbench.md
           - Network catalogue: using/data/networks.md

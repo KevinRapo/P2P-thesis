@@ -378,8 +378,6 @@ experiment and is empty in a run's own copy.
   ],
   "market": {
     "mechanism": "average",
-    "min_price": 0.0,
-    "max_price": 1.0,
     "min_quantity": 0.0,
     "max_quantity": 100.0,
     "partner_preference": true,

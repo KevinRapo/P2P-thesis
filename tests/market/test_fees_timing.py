@@ -1,8 +1,8 @@
 """The grid fees of a step price the step's own power flow.
 
 The DSO charges the fees (eq. 8) after the step's power flow, so the congestion
-and thermal parts of every trade use the line loading that the step's trades
-caused, also in the first step of the day. A trade with the DSO, and a
+part of every trade uses the line loading that the step's trades caused, also in
+the first step of the day. A trade with the DSO, and a
 participant's untraded energy settled with it, runs up to the transformer, whose
 loading counts as part of its path.
 """
@@ -23,9 +23,9 @@ SCENARIO = Path(__file__).resolve().parents[2] / "config/scenarios/validate_mark
 @pytest.fixture(scope="module")
 def played():
     scenario = store.load(SCENARIO)
-    # The scenario's lines stay below 20 % loading; a low thermal threshold makes
-    # the thermal fee depend on the loading in every step.
-    scenario.dso.thermal_threshold = 0.02
+    # The scenario's lines stay below 20 % loading; a low congestion threshold makes
+    # the congestion fee depend on the loading in every step.
+    scenario.dso.congestion_threshold = 0.02
     market = LocalEnergyMarket(scenario)
     market.reset()
 
@@ -35,7 +35,7 @@ def played():
 def test_fees_see_the_same_steps_power_flow(played):
     market, records = played
     setup = market.dso.setup
-    assert any(t.fee_parts.thermal > 0 for r in records for t in r.trades)
+    assert any(t.fee_parts.congestion > 0 for r in records for t in r.trades)
 
     for record in records:
         loading = record.grid.line_loading_percent
@@ -50,14 +50,11 @@ def test_fees_see_the_same_steps_power_flow(played):
                 on_path = [loading.get(x, 0.0) for x in path.lines]
 
             highest = max(on_path, default=0.0)
-            c = min(1.0, highest / 100)
-            expected = 0.0
+            c = highest / 100
+            excess = max(c - setup.congestion_threshold, 0.0)
+            expected = setup.congestion_factor * excess * t.quantity * t.price
 
-            if c > setup.thermal_threshold:
-                f = (c - setup.thermal_threshold) / (1 - setup.thermal_threshold)
-                expected = min(f, setup.thermal_cap) * t.quantity * t.price
-
-            assert t.fee_parts.thermal == pytest.approx(expected, abs=1e-12)
+            assert t.fee_parts.congestion == pytest.approx(expected, abs=1e-12)
 
 
 def test_first_step_is_charged_like_any_other(played):

@@ -100,9 +100,9 @@ a surplus charges the battery first (eq. 16), so only the room it leaves is left
 buy, where [P1]'s eq. 15b adds the whole room to a household that already has a
 surplus (MP-2f).
 An intent at or below `min_quantity` is dropped (0.001 kWh in the thesis scenario, so
-that no numerical dust becomes an order, MP-2g). A price is limited to the market's
-own bounds, `min_price` and `max_price`, not to the tariffs: an order priced beyond
-$p_\text{FiT}$ or the peer ceiling is kept as given, and what no peer takes still
+that no numerical dust becomes an order, MP-2g). A price is not limited: the agents and the bidding rule price inside the tariff
+band, which is [P1] eq. 2's price range here, and an order priced beyond
+$p_\text{FiT}$ or the peer ceiling is kept as given, so what no peer takes still
 clears with the DSO at the tariff (MP-2b, MP-2e). Every change is written to `notes`.
 
 **2c. Orders.** [`_orders`](../../../core/market/lem.py#L570-L586): each valid intent
@@ -117,7 +117,7 @@ order), the double auction's last tie-break.
 | **Writes** | [`PendingStep`](../../../core/market/lem.py#L96-L130): `intents`, `orders`, `notes` |
 | **Code** | [`start_step`](../../../core/market/lem.py#L304-L327), above |
 | **Paper** | eq. 2 (the action $\langle p, q, \alpha, \beta \rangle$), eq. 15a-b, §3.2.3, §3.4 |
-| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); no selling from the battery while short (MP-2c); the household's own surplus counts against the room it may buy (MP-2f); a minimum order of 0.001 kWh in the thesis scenario (MP-2g); *Open: MP-2b* ([open items](../../temp/open.md)) |
+| **Decisions** | eq. 15 implemented with the battery (M-06, M-19); invalid actions limited, not raised (M-02); "no order" possible (M-08); weighted partner score (M-11); submitted orders never changed later (M-09); no selling from the battery while short (MP-2c); the household's own surplus counts against the room it may buy (MP-2f); a minimum order of 0.001 kWh in the thesis scenario (MP-2g); no price bounds of the market's own (MP-2b, MP-2e) |
 
 ## 3. Clearing
 
@@ -229,10 +229,9 @@ imbalance fee):
 
 $$
 \begin{aligned}
-C_t &= \min\bigl(1, \max_{e \in \text{path}} \text{loading}_e / 100\bigr), \ e \text{ also the transformer for a DSO trade} && \text{(eq. 8a's congestion)} \\
-F_\text{cong} &= f_\text{cong}\,(C_t - C_\text{th})\, q\, p \ \text{ if } C_t > C_\text{th} && \text{(8a)} \\
-F_\text{thermal} &= \min\Bigl(\tfrac{C_t - T_\text{th}}{1 - T_\text{th}},\ f_\text{threshold}\Bigr)\, q\, p \ \text{ if } C_t > T_\text{th} && \text{(8d, 8g)} \\
-F_\text{volt} &= \min(V_\text{drop}, V_\text{th})\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured: } \max_{b \in \text{path}} \lvert V_b - V_\text{slack} \rvert && \text{(8c, 8f)} \\
+C_t &= \max_{e \in \text{path}} \text{loading}_e / 100, \ e \text{ also the transformer for a DSO trade} && \text{(eq. 8a's congestion, not capped)} \\
+F_\text{cong} &= f_\text{cong}\,\max(C_t - C_\text{th},\ 0)\, q\, p && \text{(8a)} \\
+F_\text{volt} &= V_\text{drop}\, q\, p, \quad V_\text{drop} = f_\text{volt}\, d_{ij} \text{ or measured: } \max_{b \in \text{path}} \lvert V_b - V_\text{slack} \rvert && \text{(8c, 8f)} \\
 F_\text{trans} &= l_{ij}\, p \ \text{ with } \texttt{losses = "trades"}\text{, else } 0 && \text{(8, no formula in [P1])} \\
 F_\text{zone} &= -\min\bigl(f_\text{zone}\, q\, p,\ F_\text{other}\bigr) \ \text{ if both ends on one feeder} && \text{(8e)} \\
 F_\text{imb} &= f_\text{imb}\, \min\bigl(q / |B_\text{grid}|, 1\bigr)\, q\, p \ \text{ for a DSO trade that worsens } B_\text{grid} && \text{(8b, 8h)}
@@ -249,7 +248,15 @@ market's balance before stage 3, offered minus asked
 fee 50/50 (`fee_buyer_share`), a DSO trade's fee all to the participant; nothing
 is paid when `fees_charged` is off.
 
-Three choices of the fee parts. The measured voltage is the largest deviation from
+Four choices of the fee parts. **No part saturates** (MP-4f): [P1] caps $C_t$ at 1,
+the thermal part (8d, 8g) at $f_\text{threshold}$ and the voltage part at
+$V_\text{th}$. With the thesis scenario's factors the fee reached its ceiling at 86 %
+loading, so a line at 101 % and one at 160 % cost the same: the signal stopped where
+the limits are broken. Here $C_t$ is the loading ratio itself, the congestion part grows
+linearly above its threshold ($f_\text{cong} = 2$ in the thesis scenario: 40 % of the
+trade's value at the rated loading, as the two capped parts together gave before),
+the voltage part is the voltage drop itself, and the thermal part, a second reading of
+the same loading, is dropped. A fee can now exceed the trade's value. The measured voltage is the largest deviation from
 the voltage the network is held at on the path's buses, $\max_b \lvert V_b - V_\text{slack} \rvert$,
 with $V_\text{slack}$ the external grid's set point
 ([`GridAssessment.slack_voltage_pu`](../../../core/grid/contract.py), 1.025 pu on
@@ -257,8 +264,7 @@ SimBench's networks), not the difference between the path's two ends: on a feede
 1.05 pu all along (rural1 exporting) two neighbours differ by nothing, yet the voltage
 limit binds. The reference is the slack, not nominal 1 pu: from nominal every trade paid
 at least 2.5 % of its value with nothing drawn from the network at all (MP-4l). A trade with the DSO runs up
-to the transformer, so its loading counts in $C_t$ next to the lines', for both the
-congestion and the thermal fee (MP-4l). The zone bonus (8e) cancels fees but never
+to the transformer, so its loading counts in $C_t$ next to the lines' (MP-4l). The zone bonus (8e) cancels fees but never
 pays out: it is at most the sum of the other parts, $F_\text{other}$, so no trade's
 fee is below 0 (MP-4n). The imbalance fee (8b) is switched off in the thesis scenario
 (`imbalance_factor` 0): it reads the order book's balance, not the grid, and lands on
