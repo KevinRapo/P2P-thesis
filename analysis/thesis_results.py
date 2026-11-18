@@ -1,8 +1,8 @@
 """The thesis experiments' numbers (thesis §4.5 and chapter 6; decision RP-6d).
 
     python analysis/thesis_results.py select          Step 2: learning rate and budget
-    python analysis/thesis_results.py score <set>     the arms of a set (lr3e4, the
-                                                      primary; lr1e3, the secondary) cut
+    python analysis/thesis_results.py score <set>     the arms of a set (lr1e3, the
+                                                      primary; lr3e4, the secondary) cut
                                                       at its budget: per run, per arm,
                                                       paired differences
 
@@ -11,8 +11,8 @@
 after fees over its three seeds and applies the rule fixed in RP-6d. Writes
 ``out/step2_curves.csv``.
 
-Step 2 chose lr 3e-4 at 1.68M steps (RP-6d): that is the primary set; the arms at
-lr 1e-3, trained to 1.92M (that rate's own budget), are the secondary set.
+Step 2 chose lr 1e-3 at 1.92M steps (RP-6d): that is the primary set; the arms at
+lr 3e-4, trained to the same budget, are the secondary set.
 
 ``score`` reads a set's synced experiments cut at its budget (``analysis/heldout_at.py``:
 ``<experiment>_at<steps>``), pools every run's 28 test days (each day on its own, its
@@ -45,7 +45,7 @@ BASE = "base (DTDE, paper, bill)"
 # variant; paradigm)
 SETS = {
     "lr3e4": (
-        1_680_000,
+        1_920_000,
         {
             BASE: (("base_step2", "thesis_base_lr3e4"), "lr3e4", "dtde"),
             "E1 agent": (("thesis_e1_agent_lr3e4",), "obs_agent_lr3e4", "dtde"),
@@ -98,13 +98,19 @@ def _name(experiment: str) -> str:
 
 def plateau(curve: pd.Series) -> int:
     """The first point after which the curve rises by less than ``RISE`` at every
-    point of the next ``WINDOW`` steps; the last point if none (RP-6d)."""
+    point of the next ``WINDOW`` steps; the last point if none (RP-6d). The whole
+    window must have been trained: a point closer than ``WINDOW`` to the last one
+    has too few later points to show a plateau (a first version accepted a shorter
+    window and gave lr 3e-4 a budget of 1.68M on one later point; RP-6d)."""
     points = [p for p in curve.index if p > 0]
 
     for point in points:
+        if point + WINDOW > points[-1]:
+            break
+
         later = [q for q in points if point < q <= point + WINDOW]
 
-        if later and max(curve[q] - curve[point] for q in later) < RISE:
+        if max(curve[q] - curve[point] for q in later) < RISE:
             return int(point)
 
     return int(points[-1])
@@ -127,6 +133,10 @@ def select() -> None:
         rows.append(part)
 
     table = pd.concat(rows)
+    seeds = table[table.policy == "trained"].groupby(["rate", "env_steps"]).seed.nunique()
+
+    if (seeds != 3).any():
+        raise SystemExit(f"Step 2 is incomplete: {seeds[seeds != 3].to_dict()}")
     OUT.mkdir(exist_ok=True)
     table.to_csv(OUT / f"step2_curves{SUFFIX}.csv", index=False)
     trained = table[table.policy == "trained"]
@@ -144,9 +154,9 @@ def select() -> None:
 
     (a, (ba, va)), (b, (bb, vb)) = found.items()
 
-    if abs(va - vb) < RISE:
-        chosen = a if ba <= bb else b
-    else:
+    if abs(va - vb) < RISE and ba != bb:
+        chosen = a if ba < bb else b
+    else:  # clearly apart, or level at the same budget: the higher mean
         chosen = a if va > vb else b
 
     print(f"\nchosen: {chosen} at {found[chosen][0]} steps")
