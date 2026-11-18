@@ -476,7 +476,7 @@ def train(run: Run) -> dict[str, Any]:  #! Training: the loop (collect, targets,
         policies = {"trained": Policy(modules, run.paradigm, env)}
 
         if env_steps > 0:
-            modules.save_to_path(str((out / "checkpoints" / str(env_steps)).resolve()))
+            modules.save_to_path(str(checkpoint_path(out, env_steps).resolve()))
 
         found = evaluation(run.env_class, env_config, policies | (extra or {}), seeds)
         evaluations.append(found.summary)
@@ -605,6 +605,17 @@ def train(run: Run) -> dict[str, Any]:  #! Training: the loop (collect, targets,
 # --------------------------------------------------------------------------------------
 # Loading a trained policy
 # --------------------------------------------------------------------------------------
+def checkpoint_path(run_dir: str | Path, steps: int | float) -> Path:
+    """``run_dir/checkpoints/<steps>``, the policy saved after ``steps`` environment
+    steps. RLlib reports the step count as a float, so the runs of 17-18 Nov 2026
+    named the folders ``1680000.0``; such a folder is found too."""
+    folder = Path(run_dir) / "checkpoints"
+    named = folder / str(int(steps))
+    legacy = folder / f"{float(steps)}"
+
+    return legacy if not named.exists() and legacy.exists() else named
+
+
 def load_policy(
     run_dir: str | Path, at: Optional[int] = None
 ) -> tuple[Policy, dict[str, Any]]:
@@ -619,7 +630,7 @@ def load_policy(
     record = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     env_class = _load_class(record["env_class"])
     path = (
-        run_dir / "checkpoints" / str(at)
+        checkpoint_path(run_dir, at)
         if at is not None
         else run_dir
         / "checkpoint"

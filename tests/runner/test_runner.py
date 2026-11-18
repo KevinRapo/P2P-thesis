@@ -1081,3 +1081,16 @@ def test_a_job_uses_its_variants_thread_settings(tmp_path, monkeypatch):
     launch.job(folder / run.name)
     assert threads == [3]  # the variant's, not the experiment's 1
     assert "RAY_num_server_call_thread" not in os.environ  # its caps are off
+
+
+def test_a_checkpoint_is_found_under_its_integer_or_its_float_name(tmp_path):
+    """RLlib reports the step count as a float; the first thesis runs named their
+    checkpoint folders ``1680000.0``. Both names are read."""
+    from core.rl.train import checkpoint_path
+
+    (tmp_path / "checkpoints" / "240000.0").mkdir(parents=True)
+    (tmp_path / "checkpoints" / "480000").mkdir()
+
+    assert checkpoint_path(tmp_path, 240000).name == "240000.0"
+    assert checkpoint_path(tmp_path, 480000).name == "480000"
+    assert checkpoint_path(tmp_path, 720000.0).name == "720000"

@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 os.environ.setdefault("PYTHONHASHSEED", "0")
 
+from core.rl.train import checkpoint_path  # noqa: E402
 from core.runner.launch import heldout_at  # noqa: E402
 from core.runner.spec import runs_root  # noqa: E402
 
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     work = [
         (run, steps, target / run.name)
         for run in sorted(source.iterdir())
-        if (run / "checkpoints" / str(steps)).is_dir() and (not only or run.name in only)
+        if checkpoint_path(run, steps).is_dir() and (not only or run.name in only)
     ]
     print(f"{len(work)} runs of {experiment} at {steps} steps -> {target}", flush=True)
 
