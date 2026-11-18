@@ -146,7 +146,7 @@ The list is ordered by ID. A decision ID's digit is the topic it belongs to (a s
 |---|---|---|---|---|
 | RP-6b | PPO's training settings | [rl_defaults.py](../../core/rl_defaults.py) | decided → [decision log](decisions.md): lr 3e-4, batch 500, minibatch 64, 10 epochs | 2026-10-26 |
 | RP-6c (proposed) | Ray's start-up occasionally fails when memory is short (several runs in parallel each start their own Ray) | [Resources and parallelism](../using/running/hpc/resources.md) | open | 2026-11-03 |
-| RP-6d | The thesis experiments: how Step 2 chooses the learning rate and the budget, and how the arms are scored | [Decision log](decisions.md#rp-6d-the-thesis-experiments-learning-rate-budget-and-scoring-fixed-before-the-runs) | decided → validation VTI after fees, plateau rule, arms at both rates cut at the chosen budget; paired seeds with bootstrap (17 Nov 2026) | 2026-11-17 |
+| RP-6d | The thesis experiments: how Step 2 chooses the learning rate and the budget, and how the arms are scored | [Decision log](decisions.md#rp-6d-the-thesis-experiments-learning-rate-budget-and-scoring-fixed-before-the-runs) | decided → validation VTI after fees, plateau rule, arms at both rates cut at the chosen budget; paired seeds with bootstrap (17 Nov 2026); Step 2 chose lr 3e-4 at 1.68M, lr 1e-3 arms kept as a secondary set (18 Nov 2026) | 2026-11-17 |
 
 ### RP-7: Evaluation and results
 
