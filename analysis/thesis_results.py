@@ -40,6 +40,8 @@ RISE = 0.01  # RP-6d: "rises by less than 0.01 ..."
 WINDOW = 480_000  # "... over the next 480k steps"
 LAST = 1_920_000
 SEED_BOOTSTRAPS = 10_000
+SEEDS = range(5)  # every arm's training seeds
+TEST_DAYS = 28
 BASE = "base (DTDE, paper, bill)"
 # A set: its budget, and its arms: (experiments, without the "_at<steps>" suffix;
 # variant; paradigm)
@@ -183,6 +185,11 @@ def per_run(steps: int, arms: dict) -> pd.DataFrame:
     days["seed"] = days.run.str.split("_s").str[1].str.split("_").str[0].astype(int)
     keys = ["experiment", "variant", "paradigm", "seed", "policy"]
     table = days.pivot_table(index=keys + ["day"], columns="indicator", values="value")
+    played = table.reset_index().groupby(keys).day.apply(lambda d: tuple(sorted(d)))
+
+    if played.nunique() != 1 or len(played.iloc[0]) != TEST_DAYS:
+        raise SystemExit(f"not every run and policy has the same {TEST_DAYS} test days")
+
     groups = table.groupby(level=keys)
     totals = pd.concat(
         [
@@ -223,11 +230,27 @@ def bootstrap(values: np.ndarray, seed: int = 0) -> tuple[float, float]:
     return float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
 
 
+def check(runs: pd.DataFrame, arms: dict) -> None:
+    """Every arm has the trained policy of seeds 0-4, once each, and every run its
+    references; else no score (RP-6d)."""
+    trained = runs[runs.policy == "trained"]
+
+    for arm in arms:
+        seeds = sorted(trained[trained.arm == arm].seed)
+
+        if seeds != list(SEEDS):
+            raise SystemExit(f"{arm}: seeds {seeds}, expected {list(SEEDS)}")
+
+    if runs[["vti", "vti_after_fees"]].isna().any().any():
+        raise SystemExit("a run lacks its references (VTI is NaN)")
+
+
 def score(name: str) -> None:
     steps, arms_of_set = SETS[name]
     runs = per_run(steps, arms_of_set)
     runs["arm"] = runs.apply(arm_of, axis=1, arms=arms_of_set)
     runs = runs[runs.arm.notna()]
+    check(runs, arms_of_set)
     OUT.mkdir(exist_ok=True)
     runs.to_csv(OUT / f"thesis_runs_{name}.csv", index=False)
     shown = [
