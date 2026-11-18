@@ -47,12 +47,12 @@ SETS = {
     "lr3e4": (
         1_920_000,
         {
-            BASE: (("base_step2", "thesis_base_lr3e4"), "lr3e4", "dtde"),
-            "E1 agent": (("thesis_e1_agent_lr3e4",), "obs_agent_lr3e4", "dtde"),
-            "E1 agent_market": (("thesis_e1_market_lr3e4",), "obs_market_lr3e4", "dtde"),
-            "E2 salazar": (("thesis_e2_lr3e4",), "salazar_lr3e4", "dtde"),
-            "E3 CTDE": (("thesis_e3_ctde_lr3e4",), "lr3e4", "ctde"),
-            "E3 CTCE": (("thesis_e3_ctce_lr3e4",), "lr3e4", "ctce"),
+            BASE: (("base_step2", "sec_base_lr3e4"), "lr3e4", "dtde"),
+            "E1 agent": (("sec_e1_agent_lr3e4",), "obs_agent_lr3e4", "dtde"),
+            "E1 agent_market": (("sec_e1_market_lr3e4",), "obs_market_lr3e4", "dtde"),
+            "E2 salazar": (("sec_e2_lr3e4",), "salazar_lr3e4", "dtde"),
+            "E3 CTDE": (("sec_e3_ctde_lr3e4",), "lr3e4", "ctde"),
+            "E3 CTCE": (("sec_e3_ctce_lr3e4",), "lr3e4", "ctce"),
         },
     ),
     "lr1e3": (

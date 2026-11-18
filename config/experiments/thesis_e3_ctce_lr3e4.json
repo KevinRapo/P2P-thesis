@@ -1,6 +1,6 @@
 {
   "name": "thesis_e3_ctce_lr3e4",
-  "description": "E3, CTCE, lr 3e-4, five seeds, on blackwell1 in the short partition. The secondary set: Step 2 chose lr 1e-3 at 1.92M (RP-6d, corrected), and the arms at lr 3e-4 are trained to the same budget as a sensitivity check.",
+  "description": "E3, CTCE, lr 3e-4, five seeds, on blackwell1 in the short partition. Step 2 chose lr 3e-4 at 1.68M steps (RP-6d), so this arm is trained to that budget directly.",
   "scenario": "config/scenarios/thesis_rural1.json",
   "train_days": {
     "from": "2016-01-01",
@@ -50,8 +50,8 @@
   "algorithms": [
     "ppo"
   ],
-  "budget": 1920000,
-  "eval_points": 8,
+  "budget": 1680000,
+  "eval_points": 7,
   "eval_episodes": 5,
   "training": {
     "ppo": {
